@@ -5,6 +5,12 @@ import { isCapacityTracked, type Resource, type Weekday } from "../types/entitie
  *  at least one weekday, with duplicates removed and values stored in ascending order. */
 export type EffectiveWorkingWeek = { kind: "none" } | { kind: "days"; days: Weekday[] };
 
+/** THE membership test for an effective week: false for `none`, so every consumer that asks
+ *  "is this weekday effective?" shares one definition instead of re-deriving the discriminant. */
+export function effectiveWeekIncludes(effectiveWeek: EffectiveWorkingWeek, weekday: Weekday): boolean {
+  return effectiveWeek.kind === "days" && effectiveWeek.days.includes(weekday);
+}
+
 /** Derives the company/personal calendar intersection for capacity-tracked resources. Externals
  *  have no personal capacity pattern, so their effective calendar is the complete company set. */
 export function effectiveWorkingWeek(

@@ -1,6 +1,7 @@
 import { addDaysISO, daysInclusive } from "@capacitylens/shared/lib/dateMath";
 import { endDateForSpan, maxSpanDaysForStart, MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import type { RepeatPattern } from "@capacitylens/shared/lib/repeatingDates";
+import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
 import type { Allocation, ISODate, Resource, SchedulingMode, TimeOff } from "@capacitylens/shared/types/entities";
 import type { Draft } from "../store/useStore";
@@ -104,6 +105,7 @@ export function repeatingAllocationAdvisory(
   existingLoad: readonly CapacityAllocationInput[],
   timeOff: TimeOff[],
   proposedDrafts: readonly Draft<Allocation>[],
+  effectiveWeek: EffectiveWorkingWeek,
 ): RepeatingAllocationAdvisory {
   if (!isCapacityTracked(resource)) return { overCapacityAllocations: 0, timeOffAllocations: 0 };
   // Bucket the existing load by day ONCE for the whole batch and add each checked draft to that
@@ -113,7 +115,10 @@ export function repeatingAllocationAdvisory(
   // is bit-identical to the per-draft rebuild (float addition is not associative).
   const batchWindow = sharedLoadWindow(proposedDrafts);
   const shared = batchWindow
-    ? { window: batchWindow, load: bucketCapacityLoad(resource, existingLoad, batchWindow.start, batchWindow.end) }
+    ? {
+        window: batchWindow,
+        load: bucketCapacityLoad(resource, existingLoad, batchWindow.start, batchWindow.end, effectiveWeek),
+      }
     : null;
   // Only reachable from an absurd (~100-year) span, where the batch is wider than one
   // materialisable window: keep the original per-draft rebuild rather than trade a slow answer for
@@ -123,11 +128,11 @@ export function repeatingAllocationAdvisory(
   let timeOffAllocations = 0;
   for (const draft of proposedDrafts) {
     const result = shared
-      ? capacityAdvisoryFromLoad(resource, draft, shared.load, timeOff)
-      : capacityAdvisory(resource, draft, rebuiltLoad, timeOff);
+      ? capacityAdvisoryFromLoad(resource, draft, shared.load, timeOff, effectiveWeek)
+      : capacityAdvisory(resource, draft, rebuiltLoad, timeOff, effectiveWeek);
     if (result.overDays > 0) overCapacityAllocations += 1;
     if (result.timeOffDays > 0) timeOffAllocations += 1;
-    if (shared) addCapacityLoad(shared.load, resource, draft, shared.window.start, shared.window.end);
+    if (shared) addCapacityLoad(shared.load, resource, draft, shared.window.start, shared.window.end, effectiveWeek);
     else rebuiltLoad.push(draft);
   }
   return { overCapacityAllocations, timeOffAllocations };

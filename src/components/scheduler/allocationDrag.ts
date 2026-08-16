@@ -1,5 +1,6 @@
 import { applyGesture, type DateRange, type DragMode, type GestureOpts } from "../../lib/gestureMath";
 import { scheduledHoursOnDay } from "../../lib/capacity";
+import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { spanDays } from "@capacitylens/shared/lib/schedulingDays";
 import { FULL_DAY_HOURS, isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
 import type { ISODate, Resource } from "@capacitylens/shared/types/entities";
@@ -20,10 +21,11 @@ export function reconcileReassignedHours(
   target: Resource,
   zeroLoadMode: boolean,
   startDate: ISODate,
+  effectiveWeek: EffectiveWorkingWeek,
 ): number {
   if (isExternalResource(target)) return 0;
   if (current > 0 || zeroLoadMode) return current;
-  return scheduledHoursOnDay(target, startDate) || FULL_DAY_HOURS;
+  return scheduledHoursOnDay(target, startDate, effectiveWeek) || FULL_DAY_HOURS;
 }
 
 /** Days-mode resize keeps the VOLUME (days of work) fixed while the span changes, so

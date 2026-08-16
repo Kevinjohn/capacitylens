@@ -1,5 +1,6 @@
 import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import { effectiveWeekIncludes, effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import { isOnTimeOff } from "../../lib/capacity";
 import type { ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
@@ -34,13 +35,41 @@ export function creationBlockedAt(
   accountWorkingDays: Weekday[],
   ignoreWorkingDays?: boolean,
 ): CreationBlockReason | null {
-  if (!ignoreWorkingDays && !effectiveWorkingDays(resource, accountWorkingDays).includes(weekdayOf(date))) {
+  return creationBlockedForCalendar(
+    resource,
+    date,
+    timeOff,
+    effectiveWorkingDays(resource, accountWorkingDays).includes(weekdayOf(date)),
+    ignoreWorkingDays,
+  );
+}
+
+function creationBlockedForCalendar(
+  resource: Resource,
+  date: ISODate,
+  timeOff: TimeOff[],
+  calendarAllowsStart: boolean,
+  ignoreWorkingDays?: boolean,
+): CreationBlockReason | null {
+  if (!ignoreWorkingDays && !calendarAllowsStart) {
     return "non-working";
   }
   // Externals are an awareness band with no capacity of their own: only the company calendar above
   // applies to them, never time off.
   if (isExternalResource(resource)) return null;
   return isOnTimeOff(resource.id, date, timeOff) ? "time-off" : null;
+}
+
+/** The per-row scheduler variant: its caller has already resolved the effective week once and
+ * reuses it for capacity and every day-state instead of re-intersecting calendars per date. */
+export function isCreationStartBlockedForEffectiveWeek(
+  resource: Resource,
+  date: ISODate,
+  timeOff: TimeOff[],
+  effectiveWeek: EffectiveWorkingWeek,
+): boolean {
+  const calendarAllowsStart = effectiveWeekIncludes(effectiveWeek, weekdayOf(date));
+  return creationBlockedForCalendar(resource, date, timeOff, calendarAllowsStart, false) !== null;
 }
 
 /** Whether recurring company/personal calendars reject an EXISTING allocation's proposed start.

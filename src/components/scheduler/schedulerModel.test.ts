@@ -2,13 +2,48 @@ import { describe, it, expect, vi } from "vitest";
 import { buildSchedulerModel, refreshVisibleUtilization, type GroupModel } from "./schedulerModel";
 import { buildColumnGeometry } from "./columnGeometry";
 import { eachDayISO, addDaysISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { capacityForWindow as capacityForWindowOf, utilization as utilizationOf } from "../../lib/capacity";
+import { capacityForWindow as capacityForWindowWithWeek, utilization as utilizationWithWeek } from "../../lib/capacity";
+import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { emptyFilters } from "../../store/useStore";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import type { Allocation, AppData } from "@capacitylens/shared/types/entities";
+import type { Allocation, AppData, ISODate, Resource, Weekday } from "@capacitylens/shared/types/entities";
 import { isCreationStartBlocked } from "./creationAvailability";
 import { makeResource } from "../../test/fixtures";
+
+const DEFAULT_ACCOUNT_WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5];
+const capacityForWindowOf = (
+  resource: Resource,
+  allocations: Allocation[],
+  timeOff: AppData["timeOff"],
+  windowStart: ISODate,
+  windowEnd: ISODate,
+  accountWorkingDays = DEFAULT_ACCOUNT_WORKING_DAYS,
+) =>
+  capacityForWindowWithWeek(
+    resource,
+    allocations,
+    timeOff,
+    windowStart,
+    windowEnd,
+    effectiveWorkingWeek(resource, accountWorkingDays),
+  );
+const utilizationOf = (
+  resource: Resource,
+  allocations: Allocation[],
+  timeOff: AppData["timeOff"],
+  windowStart: ISODate,
+  windowEnd: ISODate,
+  accountWorkingDays = DEFAULT_ACCOUNT_WORKING_DAYS,
+) =>
+  utilizationWithWeek(
+    resource,
+    allocations,
+    timeOff,
+    windowStart,
+    windowEnd,
+    effectiveWorkingWeek(resource, accountWorkingDays),
+  );
 
 const start = "2026-06-01";
 const end = "2026-06-07";
@@ -181,9 +216,9 @@ const barIds = (model: GroupModel[]) =>
     .map((b) => b.allocation.id)
     .sort();
 
-describe("#257 characterization: company-off tint/capacity disagreement", () => {
-  // FLIPS in Phase 3 when company closure also zeroes scheduled and available capacity.
-  it("tints a company-closed Friday unavailable while personal capacity remains eight hours", () => {
+describe("#257 characterization: company-off tint/capacity agreement", () => {
+  // Flipped in Phase 3: company closure now also zeroes scheduled and available capacity.
+  it("tints a company-closed Friday unavailable with zero available capacity", () => {
     const data = dataset();
     const resource = data.resources.find((candidate) => candidate.id === "r1")!;
     const row = buildSchedulerModel({
@@ -208,10 +243,36 @@ describe("#257 characterization: company-off tint/capacity disagreement", () => 
       [],
       "2026-06-05",
       "2026-06-05",
+      [1, 2, 3, 4],
     )[0]!;
 
     expect(row.dayStates[4]).toMatchObject({ unavailable: true, creationBlocked: true });
-    expect(fridayCapacity.available).toBe(8);
+    expect(fridayCapacity.available).toBe(0);
+  });
+
+  it("suppresses a saved Friday half-day tint when Friday is company-closed", () => {
+    const data = dataset();
+    data.resources = data.resources.map((resource) =>
+      resource.id === "r1" ? { ...resource, halfDays: [5] } : resource,
+    );
+    const row = buildSchedulerModel({
+      data,
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters: emptyFilters(),
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+        accountWorkingDays: [1, 2, 3, 4],
+      },
+    })
+      .flatMap((group) => group.rows)
+      .find((candidate) => candidate.resource.id === "r1")!;
+
+    expect(row.dayStates[4]).toMatchObject({ unavailable: true, partialCapacity: false });
   });
 });
 
@@ -591,7 +652,7 @@ describe("buildSchedulerModel", () => {
         externalEnabled: true,
       },
     });
-    const refreshed = refreshVisibleUtilization(base, data, "2026-06-03", "2026-06-05");
+    const refreshed = refreshVisibleUtilization(base, data, "2026-06-03", "2026-06-05", DEFAULT_ACCOUNT_WORKING_DAYS);
     const rebuilt = buildSchedulerModel({
       data,
       geom,

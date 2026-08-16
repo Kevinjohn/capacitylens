@@ -10,6 +10,7 @@ import {
   formatCapacityAdvisory,
 } from "../../lib/capacity";
 import { rangesOverlap } from "@capacitylens/shared/lib/dateMath";
+import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { blockHoursPerDay } from "@capacitylens/shared/lib/schedulingDays";
 import {
   carriesHourlyLoad,
@@ -100,7 +101,10 @@ function capacityAnnouncement(resourceId: ID): string {
   if (start > end) return m.scheduler_sr_announce_clear({ name });
 
   const timeOff = data.timeOff.filter((entry) => entry.resourceId === resourceId);
-  const overDays = capacityForWindow(resource, allocations, timeOff, start, end).filter((day) => day.over).length;
+  const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDaysFor(storedData, activeAccountId));
+  const overDays = capacityForWindow(resource, allocations, timeOff, start, end, effectiveWeek).filter(
+    (day) => day.over,
+  ).length;
   if (overDays === 0) return m.scheduler_sr_announce_clear({ name });
   return overDays === 1
     ? m.scheduler_sr_announce_over_one({ name, count: overDays })
@@ -312,7 +316,13 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
         }
       }
       const reconciledHours = targetResource
-        ? reconcileReassignedHours(hours, targetResource, isBlocks, dates.startDate)
+        ? reconcileReassignedHours(
+            hours,
+            targetResource,
+            isBlocks,
+            dates.startDate,
+            effectiveWorkingWeek(targetResource, accountWorkingDaysFor(state.data, state.activeAccountId)),
+          )
         : hours;
       const hoursPatch = reconciledHours !== bar.allocation.hoursPerDay ? { hoursPerDay: reconciledHours } : null;
 
@@ -360,6 +370,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
           },
           others,
           timeOff,
+          effectiveWorkingWeek(resource, accountWorkingDaysFor(storedData, activeAccountId)),
         );
         advisory = formatCapacityAdvisory(result, "toast");
       }

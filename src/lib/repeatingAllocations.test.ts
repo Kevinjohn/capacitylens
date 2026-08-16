@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Allocation, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
+import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
 import type { Draft } from "../store/useStore";
 import {
   projectAllocationDates,
-  repeatingAllocationAdvisory,
+  repeatingAllocationAdvisory as repeatingAllocationAdvisoryWithWeek,
   repeatPatternForSelection,
   type RepeatProjectionContext,
 } from "./repeatingAllocations";
@@ -200,6 +201,20 @@ const fullResource = (overrides: Partial<Resource> = {}): Resource => ({
   color: "#111111",
   ...overrides,
 });
+
+const repeatingAllocationAdvisory = (
+  resource: Resource,
+  existingLoad: readonly Draft<Allocation>[],
+  timeOff: TimeOff[],
+  proposedDrafts: readonly Draft<Allocation>[],
+) =>
+  repeatingAllocationAdvisoryWithWeek(
+    resource,
+    existingLoad,
+    timeOff,
+    proposedDrafts,
+    effectiveWorkingWeek(resource, [1, 2, 3, 4, 5]),
+  );
 
 describe("repeatingAllocationAdvisory", () => {
   it("accepts transient drafts and counts existing-load plus internal generated conflicts", () => {
