@@ -23,6 +23,11 @@ export interface ColumnSpec {
   name: string;
   json?: boolean;
   optional?: boolean;
+  /** Preserve SQL NULL as an explicit object value instead of treating it as an omitted optional.
+   * Changes what `optional` means for this column: unlike a normal optional column (absent when
+   * NULL), the field is always present on read and NULL is a meaningful value in its own right
+   * (e.g. timeOff.resourceId NULL = company-wide "Everyone"). */
+  preserveNull?: boolean;
   /** SQLite storage class; omitted means TEXT. Kept beside the write-column contract so startup
    * can reject a live declaration that no longer matches the values insertRow binds. */
   sqlType?: "INTEGER" | "REAL";
@@ -186,7 +191,7 @@ const COLS_allocations = [
 const COLS_timeOff = [
   { name: "id" },
   { name: "accountId" },
-  { name: "resourceId" },
+  { name: "resourceId", optional: true, preserveNull: true },
   { name: "startDate" },
   { name: "endDate" },
   { name: "type" },
@@ -381,6 +386,10 @@ export const SCHEMA_SQL = `${SCHEMA_V8_SQL.replace(
   .replace(
     "  status TEXT NOT NULL, note TEXT, ignoreWeekends TEXT,",
     "  status TEXT NOT NULL, note TEXT, ignoreWeekends TEXT, seriesId TEXT,",
+  )
+  .replace(
+    "  resourceId TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,\n  startDate TEXT NOT NULL, endDate TEXT NOT NULL, type TEXT NOT NULL, note TEXT,",
+    "  resourceId TEXT REFERENCES resources(id) ON DELETE CASCADE,\n  startDate TEXT NOT NULL, endDate TEXT NOT NULL, type TEXT NOT NULL, note TEXT,",
   )}\n${BOOTSTRAP_CLAIM_TABLE_SQL}`;
 
 /** Installed after boot-time duplicate repair so existing databases can be reconciled first. */

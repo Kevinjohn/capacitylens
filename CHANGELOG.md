@@ -7,6 +7,20 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Company-wide time off (#372): the time-off form's assignee picker gains an **Everyone** option
+  that records one closure — a bank holiday or whole-agency shutdown — covering every
+  capacity-tracked person and placeholder, new hires included. On affected dates availability is
+  zero while allocation dates and hours are untouched, so planned work flags the existing red
+  conflict instead of silently disappearing; personal and company overlap counts once, and days
+  that are also recurring non-working days stay grey with the closure marker. Everyone entries
+  allow only holiday/other (imports repair other values), render first in the time-off list with
+  per-row type labels, and gate new-allocation starts for every resource — externals included,
+  though their rows still draw no time-off. Ignore working days never bypasses a closure.
+  Stored data widens `TimeOff.resourceId` to nullable (export schema v16, database schema v33
+  with a preserving table rebuild).
+
 ## [0.52.0-alpha.1] — 2026-08-16
 
 ### Changed

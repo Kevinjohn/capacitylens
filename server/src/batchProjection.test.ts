@@ -212,4 +212,20 @@ describe("BatchStateProjection", () => {
     expect(projection.allocationsForActivity("a1", "act1")).toEqual([]);
     expect(projection.allocationsForActivity("a1", "act2").map((row) => row.id)).toEqual(["al1"]);
   });
+
+  it("never indexes company-wide time off as belonging to a resource", () => {
+    const data = relationshipFixture();
+    data.timeOff.push({
+      ...data.timeOff[0],
+      id: "company-closure",
+      resourceId: null,
+    });
+    const projection = new BatchStateProjection(data);
+
+    projection.delete("timeOff", "to1");
+    expect(projection.resourceHasTimeOff("a1", "r1")).toBe(false);
+
+    projection.delete("resources", "r1");
+    expect(projection.data.timeOff).toEqual([expect.objectContaining({ id: "company-closure", resourceId: null })]);
+  });
 });

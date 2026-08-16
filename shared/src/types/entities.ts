@@ -47,6 +47,24 @@ export type EmploymentType = "permanent" | "freelancer" | "contractor";
 /** How the agency regards a person, independently of contract status or discipline. */
 export type ResourceEngagement = "studio" | "supplementary";
 export type TimeOffType = "holiday" | "sick" | "unpaid" | "other";
+
+/**
+ * A company-wide "Everyone" entry describes the agency being shut, so only `holiday`/`other`
+ * make sense — sick and unpaid leave are personal by nature (#372 decision 8). The ONE copy of
+ * that set: the form's type picker, the store/server asserts and the import repair all derive
+ * from it so the boundaries can't drift.
+ */
+export const COMPANY_WIDE_TIME_OFF_TYPES = ["holiday", "other"] as const satisfies readonly TimeOffType[];
+
+/** The semantically-neutral repair target when an Everyone entry carries a type outside the set
+ * (import repair, UI coercion). Declared beside the set so narrowing it can't strand a stale
+ * literal in a caller. */
+export const COMPANY_WIDE_TIME_OFF_FALLBACK: TimeOffType =
+  "other" satisfies (typeof COMPANY_WIDE_TIME_OFF_TYPES)[number];
+
+export function isCompanyWideTimeOffType(type: TimeOffType): boolean {
+  return (COMPANY_WIDE_TIME_OFF_TYPES as readonly TimeOffType[]).includes(type);
+}
 /**
  * What an activity IS — the axis the schedule's "activity view" filters on. Three kinds:
  * - `project`    — project-specific: belongs to one project (carries `projectId`, optionally a `phaseId`).
@@ -241,7 +259,8 @@ export interface Allocation extends ScopedEntity {
 }
 
 export interface TimeOff extends ScopedEntity {
-  resourceId: ID;
+  /** The resource taking time off, or `null` when the entry applies company-wide to Everyone. */
+  resourceId: ID | null;
   startDate: ISODate; // inclusive
   endDate: ISODate; // inclusive
   type: TimeOffType;
@@ -413,8 +432,9 @@ export function externalCapacityDefaults(): Pick<
  *  Resource.engagement, defaulting legacy resources to Studio; v13 adds the optional account-wide
  *  groupResourcesByEngagement view preference, whose absence means enabled; v14 adds account-wide
  *  working days, defaulting legacy accounts to the first five days of their configured week; v15
- *  adds optional Allocation.seriesId without inferring links for legacy repeat batches.) */
-export const EXPORT_SCHEMA_VERSION = 15;
+ *  adds optional Allocation.seriesId without inferring links for legacy repeat batches; v16 widens
+ *  TimeOff.resourceId to nullable, where null represents company-wide time off for Everyone.) */
+export const EXPORT_SCHEMA_VERSION = 16;
 
 export interface PersistedState {
   schemaVersion: number;

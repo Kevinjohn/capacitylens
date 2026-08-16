@@ -12,6 +12,7 @@ import {
 import {
   assertActivityProjectAllowsDependents,
   assertAllocationRefs,
+  assertCompanyWideTimeOffType,
   assertDateRange,
   assertResourceExists,
   assertResourceKindAllowsDependents,
@@ -1359,6 +1360,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
       (e, input) => {
         assertResourceExists(get().data, e.accountId, input.resourceId);
         assertDateRange(input.startDate, input.endDate);
+        assertCompanyWideTimeOffType(input.resourceId, input.type);
         mutate((d) => ({ ...d, timeOff: [...d.timeOff, e] }));
         return e;
       },
@@ -1370,6 +1372,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
         // would 400 there while succeeding here. See updateOwned.
         assertResourceExists(get().data, existing.accountId, merged.resourceId, existing);
         assertDateRange(merged.startDate, merged.endDate);
+        assertCompanyWideTimeOffType(merged.resourceId, merged.type);
         return patch;
       });
     }),

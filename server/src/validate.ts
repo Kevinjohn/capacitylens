@@ -1,6 +1,7 @@
 import {
   assertActivityProjectAllowsDependents,
   assertAllocationRefs,
+  assertCompanyWideTimeOffType,
   assertDateRange,
   assertResourceExists,
   assertResourceKindAllowsDependents,
@@ -47,7 +48,7 @@ const DIRECT_WRITE_REQUIRED_FIELDS: Partial<Record<ScopedEntityKey, readonly str
   phases: ["name"],
   activities: ["name", "kind"],
   allocations: ["hoursPerDay", "status"],
-  timeOff: ["type"],
+  timeOff: ["resourceId", "type"],
 };
 
 // The server is the integrity boundary for direct API writes. Two layers, both
@@ -387,8 +388,11 @@ export function validateWrite(
       return;
     }
     if (table === "timeOff") {
-      assertResourceExists(state, accountId, row.resourceId as string, existing as never, lookup);
+      assertResourceExists(state, accountId, row.resourceId as string | null, existing as never, lookup);
       assertDateRange(row.startDate as string, row.endDate as string);
+      // Backstop only: sanitizeWrite has already repaired company-wide sick/unpaid to "other",
+      // so this documents the invariant at the validation boundary rather than trusting call order.
+      assertCompanyWideTimeOffType(row.resourceId as string | null, row.type as never);
       return;
     }
   } catch (e) {

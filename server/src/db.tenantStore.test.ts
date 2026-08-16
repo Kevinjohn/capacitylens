@@ -114,13 +114,13 @@ const allocation = (id: string, accountId: string, resourceId: string, activityI
   ignoreWeekends: true,
   ...meta(),
 });
-const timeOff = (id: string, accountId: string, resourceId: string, note?: string) => ({
+const timeOff = (id: string, accountId: string, resourceId: string | null, note?: string) => ({
   id,
   accountId,
   resourceId,
   startDate: "2026-02-01",
   endDate: "2026-02-03",
-  type: "vacation",
+  type: "holiday" as const,
   // optional, owner/admin-only note — exercises the P1.6 field-redaction in readSlice.
   ...(note !== undefined ? { note } : {}),
   ...meta(),
@@ -382,6 +382,18 @@ describe("sqliteTenantStore", () => {
     expect(lookup?.resourceHasLoadedAllocation("a2", "r2")).toBe(true);
   });
 
+  it("does not treat company-wide time off as a resource dependent", () => {
+    const db = openDb(":memory:");
+    const data = seedTwoAccounts();
+    data.timeOff = [timeOff("company", "a1", null)];
+    insertAll(db, data);
+    const lookup = sqliteTenantStore(db).validationLookup?.();
+
+    expect(lookup?.resourceHasTimeOff("a1", "r1")).toBe(false);
+    db.prepare("DELETE FROM resources WHERE id = ?").run("r1");
+    expect(readFullSlice(db, "a1").timeOff).toEqual([expect.objectContaining({ id: "company", resourceId: null })]);
+  });
+
   it("scrubs resource notes, advances revisions and preserves another tenant", () => {
     const db = openDb(":memory:");
     const data = seedTwoAccounts() as unknown as Record<string, unknown[]>;
@@ -430,6 +442,14 @@ describe("readSlice — P1.6 time-off note redaction", () => {
     return db;
   }
 
+  function seedCompanyNote(): Db {
+    const db = openDb(":memory:");
+    const d = seedTwoAccounts();
+    d.timeOff = [timeOff("company", "a1", null, NOTE)];
+    insertAll(db, d);
+    return db;
+  }
+
   it("includeTimeOffNote:true keeps the note", () => {
     const slice = readSlice(seedWithNote(), "a1", {
       includeTimeOffNote: true,
@@ -447,6 +467,23 @@ describe("readSlice — P1.6 time-off note redaction", () => {
     });
     expect("note" in slice.timeOff[0]).toBe(false);
     expect((slice.timeOff[0] as { note?: string }).note).toBeUndefined();
+  });
+
+  it("applies the same note projection to a company-wide row without changing resourceId:null", () => {
+    const visible = readSlice(seedCompanyNote(), "a1", {
+      includeTimeOffNote: true,
+      includeInactive: true,
+      includePrivateNames: true,
+    });
+    expect(visible.timeOff[0]).toMatchObject({ resourceId: null, note: NOTE });
+
+    const redacted = readSlice(seedCompanyNote(), "a1", {
+      includeTimeOffNote: false,
+      includeInactive: true,
+      includePrivateNames: true,
+    });
+    expect(redacted.timeOff[0]).toMatchObject({ resourceId: null });
+    expect(redacted.timeOff[0]).not.toHaveProperty("note");
   });
 });
 

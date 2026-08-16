@@ -7,6 +7,7 @@ import {
   capacityAdvisory,
   capacityAllocationsForMode,
   capacityForWindow,
+  timeOffApplyingTo,
   formatCapacityAdvisory,
 } from "../../lib/capacity";
 import { rangesOverlap } from "@capacitylens/shared/lib/dateMath";
@@ -100,7 +101,7 @@ function capacityAnnouncement(resourceId: ID): string {
   if (end > visible.end) end = visible.end;
   if (start > end) return m.scheduler_sr_announce_clear({ name });
 
-  const timeOff = data.timeOff.filter((entry) => entry.resourceId === resourceId);
+  const timeOff = timeOffApplyingTo(resourceId, data.timeOff);
   const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDaysFor(storedData, activeAccountId));
   const overDays = capacityForWindow(resource, allocations, timeOff, start, end, effectiveWeek).filter(
     (day) => day.over,
@@ -381,7 +382,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
           ),
           isBlocks,
         );
-        const timeOff = data.timeOff.filter((entry) => entry.resourceId === effectiveResourceId);
+        const timeOff = timeOffApplyingTo(effectiveResourceId, data.timeOff);
         const result = capacityAdvisory(
           resource,
           {

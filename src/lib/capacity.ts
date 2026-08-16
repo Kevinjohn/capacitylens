@@ -93,8 +93,27 @@ export function scheduledHoursOnDay(resource: Resource, date: ISODate, effective
   return scheduledHoursForWeekday(resource, weekdayOf(date), effectiveWeek);
 }
 
+/** THE applies-to-this-resource rule: an entry targets the resource itself or everyone. Both the
+ * pre-filter and the day predicate below read it from here so they can never disagree. */
+function appliesTo(resourceId: ID, t: TimeOff): boolean {
+  return t.resourceId === null || t.resourceId === resourceId;
+}
+
+/** The entries that apply to this resource: their own plus every company-wide (null) closure.
+ * Callers that pre-filter a slice for capacity/advisory math must use this, not strict equality,
+ * or Everyone rows silently vanish from their tallies. */
+export function timeOffApplyingTo(resourceId: ID, timeOff: TimeOff[]): TimeOff[] {
+  return timeOff.filter((t) => appliesTo(resourceId, t));
+}
+
 export function isOnTimeOff(resourceId: ID, date: ISODate, timeOff: TimeOff[]): boolean {
-  return timeOff.some((t) => t.resourceId === resourceId && isWithin(date, t.startDate, t.endDate));
+  return timeOff.some((t) => appliesTo(resourceId, t) && isWithin(date, t.startDate, t.endDate));
+}
+
+/** Only the company-wide (Everyone) closures — the one slice of time off that applies to an
+ * EXTERNAL party. Kept beside isOnTimeOff so both date-window predicates share one home. */
+export function isOnCompanyTimeOff(date: ISODate, timeOff: TimeOff[]): boolean {
+  return timeOff.some((t) => t.resourceId === null && isWithin(date, t.startDate, t.endDate));
 }
 
 function availableHoursForWeekday(

@@ -11,6 +11,7 @@ import { makeResource, makeTimeOff } from "../../test/fixtures";
 const person = makeResource({ name: "Bruce Wayne" });
 
 const holiday = makeTimeOff({ startDate: "2026-06-03", endDate: "2026-06-04" });
+const companyClosure = makeTimeOff({ resourceId: null, startDate: "2026-06-03", endDate: "2026-06-04" });
 
 describe("creation start availability", () => {
   it("intersects the company and personal calendars for allocation gestures", () => {
@@ -41,6 +42,14 @@ describe("creation start availability", () => {
     expect(isCreationStartBlocked({ ...external, id: "r1" }, "2026-06-03", [holiday], [1, 2, 3, 4, 5])).toBe(false);
   });
 
+  it("blocks external starts only for company-wide time off", () => {
+    const external: Resource = { ...person, kind: "external", workingDays: [] };
+
+    expect(isCreationStartBlocked(external, "2026-06-03", [companyClosure], [1, 2, 3, 4, 5])).toBe(true);
+    expect(isCreationStartBlocked(external, "2026-06-02", [companyClosure], [1, 2, 3, 4, 5])).toBe(false);
+    expect(creationBlockedAt(external, "2026-06-03", [companyClosure], [1, 2, 3, 4, 5], true)).toBe("time-off");
+  });
+
   it("names which rule blocked the start, and scopes time off to the resource asked about", () => {
     expect(creationBlockedAt(person, "2026-06-01", [], [2, 3, 4, 5])).toBe("non-working");
     expect(creationBlockedAt(person, "2026-06-03", [holiday], [1, 2, 3, 4, 5])).toBe("time-off");
@@ -65,5 +74,9 @@ describe("#257 characterization: creation and move gate boundaries", () => {
     const fridayHoliday = makeTimeOff({ startDate: "2026-06-05", endDate: "2026-06-05" });
 
     expect(creationBlockedAt(person, "2026-06-05", [fridayHoliday], [1, 2, 3, 4], true)).toBe("time-off");
+  });
+
+  it("never lets the override bypass a company-wide closure", () => {
+    expect(creationBlockedAt(person, "2026-06-03", [companyClosure], [1, 2], true)).toBe("time-off");
   });
 });

@@ -25,6 +25,7 @@ export const DOMAIN_ERROR_CODES = [
   "time_off_resource_invalid",
   "time_off_resource_inactive",
   "time_off_external_resource",
+  "time_off_company_wide_type",
   "project_client_required",
 ] as const;
 

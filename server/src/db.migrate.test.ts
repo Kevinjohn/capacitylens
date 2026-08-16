@@ -86,6 +86,11 @@ const V32_MIGRATION = {
   name: "add-allocation-series-id",
   checksum: "92a8f85615b85af7c4a1f1b4a0d78b8f1dd48aa7a98c67a9090268a42bef1292",
 } as const;
+const V33_MIGRATION = {
+  version: 33,
+  name: "allow-company-wide-time-off",
+  checksum: "53b355c4df6a22a9fd20f6cfb78b7f88eb4e6b484a6a1f1fe3728b6540efd18b",
+} as const;
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
 const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25] as const;
 const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
@@ -1263,6 +1268,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V30_MIGRATION,
       V31_MIGRATION,
       V32_MIGRATION,
+      V33_MIGRATION,
     ]);
     expect(history.every((row) => !Number.isNaN(Date.parse(row.appliedAt)))).toBe(true);
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
@@ -1325,7 +1331,7 @@ describe("schema migration of an existing on-disk DB", () => {
         },
       }) as Db;
 
-      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]);
+      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
       expect(
@@ -1354,7 +1360,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
     const plan = planDatabaseMigrations(db).migrations;
     expect(plan.map((migration) => migration.version)).toEqual([
-      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
     ]);
     expect(plan[0]).toEqual({
       version: 17,
@@ -1520,6 +1526,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V30_MIGRATION,
       V31_MIGRATION,
       V32_MIGRATION,
+      V33_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1626,7 +1633,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
-      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -1680,6 +1687,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V30_MIGRATION,
       V31_MIGRATION,
       V32_MIGRATION,
+      V33_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1755,6 +1763,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V30_MIGRATION,
       V31_MIGRATION,
       V32_MIGRATION,
+      V33_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1807,6 +1816,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V30_MIGRATION,
       V31_MIGRATION,
       V32_MIGRATION,
+      V33_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1865,6 +1875,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V30_MIGRATION,
       V31_MIGRATION,
       V32_MIGRATION,
+      V33_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -1923,6 +1934,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V30_MIGRATION,
       V31_MIGRATION,
       V32_MIGRATION,
+      V33_MIGRATION,
     ]);
     initializeOpenDb(clean, ":memory:");
     expect(() => assertFederatedIdentitySchemaCurrent(clean)).not.toThrow();
@@ -2066,7 +2078,7 @@ describe("schema migration of an existing on-disk DB", () => {
     }
   });
 
-  it("v26 through v32 add sign-in confirmation, resource fields, account preferences and series identity", () => {
+  it("v26 through v33 add sign-in confirmation, resource fields, account preferences, series identity and company time off", () => {
     const db = openDb(":memory:");
     db.exec(`
       DROP TABLE account_member_sign_in_tracking;
@@ -2089,6 +2101,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V30_MIGRATION,
       V31_MIGRATION,
       V32_MIGRATION,
+      V33_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(
@@ -2130,7 +2143,7 @@ describe("schema migration of an existing on-disk DB", () => {
     db.close();
   });
 
-  it("v27 through v32 preserve legacy defaults and leave old allocations unlinked", () => {
+  it("v27 through v33 preserve legacy defaults and leave old allocations unlinked", () => {
     const db = openDb(":memory:");
     insertRow(db, "accounts", {
       id: "a1",
@@ -2202,6 +2215,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V30_MIGRATION,
       V31_MIGRATION,
       V32_MIGRATION,
+      V33_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(getRow(db, "resources", resource.id)?.isFavourite).toBeUndefined();
@@ -2212,6 +2226,108 @@ describe("schema migration of an existing on-disk DB", () => {
     expect(getRow(db, "accounts", "a2")?.workingDays).toEqual([0, 1, 2, 3, 4]);
     expect(getRow(db, "allocations", legacyAllocation.id)?.seriesId).toBeUndefined();
     db.close();
+  });
+
+  // schemaFingerprint scoped to one table's secondary objects: the rebuilt table's own DDL
+  // legitimately differs (nullable resourceId), so only indexes and triggers must round-trip.
+  const timeOffSecondaryObjects = (db: DatabaseSync): unknown[] =>
+    (
+      db
+        .prepare(
+          `SELECT type, name, sql FROM sqlite_master
+            WHERE tbl_name = 'timeOff' AND type IN ('index', 'trigger') AND sql IS NOT NULL
+            ORDER BY type, name`,
+        )
+        .all() as Array<{ type: string; name: string; sql: string | null }>
+    ).map((entry) => ({ ...entry, sql: normalizeSchemaSql(entry.sql) }));
+
+  it("v33 rebuilds timeOff as nullable while preserving rows, foreign keys, indexes and triggers", () => {
+    const copied = copyFixture("v25-off.db");
+    try {
+      const v32 = openDbConnection(copied.path);
+      expect(() =>
+        initializeOpenDb(v32, copied.path, {
+          beforeCommit: (migration) => {
+            if (migration.version === 33) throw new Error("stop before v33 commit");
+          },
+        }),
+      ).toThrow(/stop before v33 commit/i);
+      expect((v32.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(32);
+      expect(
+        (v32.prepare(`PRAGMA table_info(timeOff)`).all() as Array<{ name: string; notnull: number }>).find(
+          ({ name }) => name === "resourceId",
+        )?.notnull,
+      ).toBe(1);
+
+      const target = v32.prepare(`SELECT id AS resourceId, accountId FROM resources ORDER BY id LIMIT 1`).get() as {
+        resourceId: string;
+        accountId: string;
+      };
+      v32
+        .prepare(
+          `INSERT INTO timeOff
+            (id, accountId, resourceId, startDate, endDate, type, note, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          "to-v32-preserved",
+          target.accountId,
+          target.resourceId,
+          "2026-12-24",
+          "2026-12-25",
+          "holiday",
+          "Office closed",
+          TS,
+          TS,
+        );
+      const beforeRows = v32.prepare(`SELECT * FROM timeOff ORDER BY id`).all();
+      const beforeObjects = timeOffSecondaryObjects(v32);
+      v32.close();
+
+      const upgraded = openDb(copied.path);
+      expect(
+        (upgraded.prepare(`PRAGMA table_info(timeOff)`).all() as Array<{ name: string; notnull: number }>).find(
+          ({ name }) => name === "resourceId",
+        )?.notnull,
+      ).toBe(0);
+      expect(upgraded.prepare(`SELECT * FROM timeOff ORDER BY id`).all()).toEqual(beforeRows);
+      expect(timeOffSecondaryObjects(upgraded)).toEqual(beforeObjects);
+      expect(
+        upgraded.prepare(`PRAGMA foreign_key_list(timeOff)`).all() as Array<{ from: string; table: string }>,
+      ).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ from: "accountId", table: "accounts" }),
+          expect.objectContaining({ from: "resourceId", table: "resources" }),
+        ]),
+      );
+
+      upgraded
+        .prepare(
+          `INSERT INTO timeOff
+            (id, accountId, resourceId, startDate, endDate, type, createdAt, updatedAt)
+           VALUES (?, ?, NULL, ?, ?, ?, ?, ?)`,
+        )
+        .run("to-company", target.accountId, "2026-12-31", "2027-01-01", "holiday", TS, TS);
+      expect(getRow(upgraded, "timeOff", "to-company")?.resourceId).toBeNull();
+      expect(() =>
+        upgraded
+          .prepare(
+            `INSERT INTO timeOff
+              (id, accountId, resourceId, startDate, endDate, type, createdAt, updatedAt)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .run("to-dangling", target.accountId, "missing", "2026-12-31", "2027-01-01", "holiday", TS, TS),
+      ).toThrow(/foreign key/i);
+      expect(planDatabaseMigrations(upgraded).migrations).toEqual([]);
+      upgraded.close();
+
+      const reopened = openDb(copied.path);
+      expect(getRow(reopened, "timeOff", "to-company")?.resourceId).toBeNull();
+      expect(planDatabaseMigrations(reopened).migrations).toEqual([]);
+      reopened.close();
+    } finally {
+      copied.cleanup();
+    }
   });
 
   it("emits v11 owner-promotion outcomes only after the migration commits", () => {

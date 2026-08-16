@@ -18,7 +18,7 @@ through the areas below ticking each ✅. Reload to reset the in-memory demo to 
 **How to run the automated coverage:** `pnpm run e2e` (Playwright drives the real app),
 `pnpm test` (Vitest unit/component), and the axe a11y oracle in `e2e/a11y.spec.ts`.
 
-123 stories across 15 areas. The **Automated coverage** column names the spec file(s) whose
+124 stories across 15 areas. The **Automated coverage** column names the spec file(s) whose
 tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
 stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
 line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
@@ -110,13 +110,14 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Time off — `time-off/`
 
-| Story                                                   | Title                          | Automated coverage                                    |
-| ------------------------------------------------------- | ------------------------------ | ----------------------------------------------------- |
-| [US-TOF-01](time-off/US-TOF-01-book-time-off.md)        | Book time off                  | `e2e/timeoff.spec.ts` + `e2e/features.spec.ts`        |
-| [US-TOF-02](time-off/US-TOF-02-edit-time-off.md)        | Edit a time-off entry          | `e2e/timeoff.spec.ts`                                 |
-| [US-TOF-03](time-off/US-TOF-03-delete-time-off.md)      | Delete a time-off entry (undo) | `e2e/timeoff.spec.ts`                                 |
-| [US-TOF-04](time-off/US-TOF-04-type-label.md)           | Human type label               | `e2e/timeoff.spec.ts` + unit (`TimeOffList.test.tsx`) |
-| [US-TOF-05](time-off/US-TOF-05-grouped-forward-view.md) | Group current/future time off  | `e2e/timeoff.spec.ts` + unit (`timeOffView.test.ts`)  |
+| Story                                                   | Title                             | Automated coverage                                                                               |
+| ------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------ |
+| [US-TOF-01](time-off/US-TOF-01-book-time-off.md)        | Book time off                     | `e2e/timeoff.spec.ts` + `e2e/features.spec.ts`                                                   |
+| [US-TOF-02](time-off/US-TOF-02-edit-time-off.md)        | Edit a time-off entry             | `e2e/timeoff.spec.ts`                                                                            |
+| [US-TOF-03](time-off/US-TOF-03-delete-time-off.md)      | Delete a time-off entry (undo)    | `e2e/timeoff.spec.ts`                                                                            |
+| [US-TOF-04](time-off/US-TOF-04-type-label.md)           | Human type label                  | `e2e/timeoff.spec.ts` + unit (`TimeOffList.test.tsx`)                                            |
+| [US-TOF-05](time-off/US-TOF-05-grouped-forward-view.md) | Group current/future time off     | `e2e/timeoff.spec.ts` + unit (`timeOffView.test.ts`)                                             |
+| [US-TOF-06](time-off/US-TOF-06-company-wide-closure.md) | Company-wide closure for Everyone | `e2e/company-wide-timeoff.auth.spec.ts` + unit (`timeOffView.test.ts`, `schedulerModel.test.ts`) |
 
 ## Scheduler timeline — `scheduler/`
 

@@ -1,8 +1,8 @@
 import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWeekIncludes, effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
-import { isOnTimeOff } from "../../lib/capacity";
+import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import { isOnCompanyTimeOff, isOnTimeOff } from "../../lib/capacity";
 import type { ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 
 /** Recurring weekdays on which an allocation may start for this resource. Company closure wins;
@@ -54,9 +54,12 @@ function creationBlockedForCalendar(
   if (!ignoreWorkingDays && !calendarAllowsStart) {
     return "non-working";
   }
-  // Externals are an awareness band with no capacity of their own: only the company calendar above
-  // applies to them, never time off.
-  if (isExternalResource(resource)) return null;
+  // Externals stay exempt from personal time off — even a stray record targeting their id (the
+  // domain layer forbids writing one, but corrupt data must not gate the lane; the test suite
+  // pins this). A company-wide closure gates them anyway: the agency is shut.
+  if (isExternalResource(resource)) {
+    return isOnCompanyTimeOff(date, timeOff) ? "time-off" : null;
+  }
   return isOnTimeOff(resource.id, date, timeOff) ? "time-off" : null;
 }
 

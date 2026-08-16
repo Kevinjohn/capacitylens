@@ -330,6 +330,33 @@ describe("repeatingAllocationAdvisory", () => {
     });
   });
 
+  it("creates later occurrences on company closures and counts them in the overlap advisory", () => {
+    const drafts = projectAllocationDates(
+      baseDraft({ startDate: "2026-06-01", endDate: "2026-06-01" }),
+      ["2026-06-01", "2026-06-08", "2026-06-15"],
+      repeatContext("hourly", 1),
+    );
+    const companyClosure: TimeOff[] = [
+      {
+        id: "company-closure",
+        accountId: "a1",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: null,
+        startDate: "2026-06-08",
+        endDate: "2026-06-08",
+        type: "holiday",
+      },
+    ];
+
+    expect(drafts.map((draft) => draft.startDate)).toEqual(["2026-06-01", "2026-06-08", "2026-06-15"]);
+    expect(repeatingAllocationAdvisory(fullResource(), [], companyClosure, drafts)).toEqual({
+      overCapacityAllocations: 0,
+      timeOffAllocations: 1,
+      nonEffectiveStartAllocations: 0,
+    });
+  });
+
   it("uses the fixed four-hour half-day boundary for every repeated occurrence", () => {
     const resource = fullResource({ halfDays: [2] });
     const exactCapacity = baseDraft({ startDate: "2026-06-02", endDate: "2026-06-02", hoursPerDay: 4 });

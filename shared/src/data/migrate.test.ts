@@ -492,6 +492,22 @@ describe("migrate", () => {
     expect(out.allocations[0]).not.toHaveProperty("seriesId");
   });
 
+  it("keeps existing personal time off unchanged at v15 to v16", () => {
+    const legacy = {
+      id: "to1",
+      accountId: "account",
+      resourceId: "resource",
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      type: "holiday" as const,
+      createdAt: "t",
+      updatedAt: "t",
+    };
+    const out = migrate({ schemaVersion: 15, data: { ...emptyAppData(), timeOff: [legacy] } });
+
+    expect(out.timeOff).toEqual([legacy]);
+  });
+
   it("renames the legacy `tasks` table → `activities` and `taskId` → `activityId` (v4 → v5)", () => {
     const out = migrate({
       schemaVersion: 4,

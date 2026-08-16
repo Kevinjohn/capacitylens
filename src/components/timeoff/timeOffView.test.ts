@@ -22,7 +22,7 @@ function resource(id: string, name: string, kind: Resource["kind"] = "person"): 
   };
 }
 
-function entry(id: string, resourceId: string, startDate: string, endDate: string): TimeOff {
+function entry(id: string, resourceId: string | null, startDate: string, endDate: string): TimeOff {
   return {
     id,
     accountId: "a-studio",
@@ -103,5 +103,31 @@ describe("buildTimeOffGroups", () => {
 
     expect(groups.map((group) => group.name)).toEqual(["Clark Kent", "(unknown)"]);
     expect(groups[1].entries.map(({ id }) => id)).toEqual(["unknown-earlier", "unknown-later"]);
+  });
+
+  it("keeps Everyone first and dangling references last without colliding", () => {
+    const bruce = resource("r-bruce", "Bruce Wayne");
+    const clark = resource("r-clark", "Clark Kent");
+    const groups = buildTimeOffGroups(
+      [
+        entry("unknown", "missing", "2026-06-12", "2026-06-12"),
+        entry("clark", clark.id, "2026-06-11", "2026-06-11"),
+        entry("company-later", null, "2026-06-20", "2026-06-20"),
+        entry("bruce", bruce.id, "2026-06-10", "2026-06-10"),
+        entry("company-earlier", null, "2026-06-09", "2026-06-09"),
+      ],
+      [clark, bruce],
+      "2026-06-08",
+      true,
+    );
+
+    expect(groups.map(({ kind, name }) => ({ kind, name }))).toEqual([
+      { kind: "company", name: "Everyone" },
+      { kind: "resource", name: "Bruce Wayne" },
+      { kind: "resource", name: "Clark Kent" },
+      { kind: "unknown", name: "(unknown)" },
+    ]);
+    expect(groups[0].entries.map(({ id }) => id)).toEqual(["company-earlier", "company-later"]);
+    expect(groups[3].entries.map(({ id }) => id)).toEqual(["unknown"]);
   });
 });

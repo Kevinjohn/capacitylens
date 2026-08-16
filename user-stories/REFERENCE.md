@@ -418,9 +418,31 @@ The **Time off** page is a forward-looking capacity view. It shows entries whose
 or after the start of the current company week, calculated from the active company's timezone and
 Monday/Sunday week-start setting; older entries remain stored but are hidden. Entries are grouped
 into one compact bordered list per resource, with the displayed resource name shown once as the
-section heading. Resource sections sort alphabetically, and their rows sort by start date, end date
-and id. Placeholder entries still follow **Show placeholders**; an unexpected dangling resource is
-kept visible in a final **(unknown)** section rather than crashing.
+section heading. A company-wide **Everyone** section (see below) renders FIRST; resource sections
+then sort alphabetically, and their rows sort by start date, end date and id. Everyone rows prefix
+the visible type label (no person heading tells a Holiday from an Other closure); personal rows
+stay spare. Placeholder entries still follow **Show placeholders**; an unexpected dangling resource
+is kept visible in a final **(unknown)** section rather than crashing — the three groups carry a
+distinct kind (company / resource / unknown), so an Everyone entry never collides with the
+dangling-reference fallback.
+
+**Company-wide time off (#372).** The form's assignee picker offers **Everyone** as its first
+option (a UI-only sentinel persisted as `resourceId: null`; never the default for a new entry, and
+editable in both directions between Everyone and a person). One record covers every capacity-tracked
+resource — people AND placeholders, new hires automatically — with membership resolved at read
+time; no fan-out rows exist. Everyone entries allow only `holiday`/`other` (the shared
+COMPANY_WIDE_TIME_OFF_TYPES contract: the picker filters to it, store and server writes reject
+violations, imports repair them to `other`). Semantics on affected dates: every tracked resource's
+availability is 0 while allocation load and stored dates are untouched, so planned work lights the
+existing red over-capacity/conflict treatment instead of disappearing; a closure day that is also
+a recurring non-working day stays grey (no load, no red) with the closure marker intact; personal
+and company overlap counts once. Closures are dated, never recurring — they are NOT folded into the
+effective working week — and **Ignore working days** never bypasses them. New allocations cannot
+START on a closure date for anyone; this includes EXTERNAL parties (the one narrow exception to
+"time off never applies to externals": the agency is shut, so their placement starts are gated),
+though external rows still render no hatch and count nothing. Editor and above manage Everyone
+entries exactly like personal ones; Viewers stay read-only. Scheduler rendering reuses the
+per-row hatch bands; no separate header band exists.
 
 An ordinary allocation **Delete** asks for confirmation, then closes its editor only after the store
 accepts the removal. A newly generated repeat batch carries one optional, system-owned series ID;

@@ -137,8 +137,8 @@ validation failures.
   name and SHA-256. Never edit a shipped migration file — schema changes always mean a new
   migration.
 - Bumping `DB_SCHEMA_VERSION` (or adding a migration/fixture) requires extending the released
-  version and fixture pins in the server backup/restore tests (`server/src/backup.test.ts`,
-  `server/src/restore.drill.test.ts`).
+  version pins in `server/src/backup.test.ts` and re-pinning any changed migration checksums in
+  `server/src/db.migrate.test.ts` (checksums of released migrations must never change).
 - Within a migration, create SQLite triggers only after every table and column they reference
   exists; trigger creation order relative to DDL matters.
 - After editing `messages/en.json`, run `pnpm run paraglide:compile` (the `test`/`build` scripts do

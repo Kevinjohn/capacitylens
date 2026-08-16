@@ -34,6 +34,7 @@ import {
   assertSchemaV29,
   assertSchemaV30,
   assertSchemaV31,
+  assertSchemaV32,
   assertSchemaV8,
   assertSchemaV9,
   migrateSchemaV8,
@@ -88,7 +89,7 @@ import {
 export type Db = DatabaseSync;
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 32;
+export const DB_SCHEMA_VERSION = 33;
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
 export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e;
@@ -353,6 +354,55 @@ const tableHasColumns = (db: Db, table: string, required: readonly string[]): bo
   );
   return required.every((column) => columns.has(column));
 };
+
+// The one copy of the rebuild SQL: executed by the migration below and hashed into its ledger
+// checksum, so the definition can never drift from what actually runs.
+const TIME_OFF_REBUILD_V33_SQL = `
+    CREATE TABLE timeOff_v33 (
+      id TEXT NOT NULL PRIMARY KEY,
+      accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      resourceId TEXT REFERENCES resources(id) ON DELETE CASCADE,
+      startDate TEXT NOT NULL, endDate TEXT NOT NULL, type TEXT NOT NULL, note TEXT,
+      createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+    );
+    INSERT INTO timeOff_v33
+      (id, accountId, resourceId, startDate, endDate, type, note, createdAt, updatedAt)
+    SELECT id, accountId, resourceId, startDate, endDate, type, note, createdAt, updatedAt
+      FROM timeOff;
+    DROP TABLE timeOff;
+    ALTER TABLE timeOff_v33 RENAME TO timeOff;
+  `;
+
+const TIME_OFF_RESOURCE_NULLABLE_V33_DEFINITION = [
+  "guard:PRAGMA table_info(timeOff):resourceId-nullable",
+  "capture:sqlite_master:indexes-and-triggers-on-timeOff:v1",
+  TIME_OFF_REBUILD_V33_SQL,
+  "recreate:captured-indexes-and-triggers:v1",
+].join("\n");
+
+function migrateTimeOffResourceNullableV33(db: Db): void {
+  const resourceId = (
+    db.prepare(`PRAGMA table_info("timeOff")`).all() as Array<{ name: string; notnull: number }>
+  ).find((column) => column.name === "resourceId");
+  if (!resourceId) throw new Error("Cannot migrate timeOff.resourceId because the column is missing.");
+  if (resourceId.notnull === 0) return;
+
+  // rowid order = original creation order. SQLite fires same-event triggers in reverse creation
+  // order, and the tenant-integrity tests pin which guard raises first (account-immutable over
+  // cross-account relationship), so the rebuild must recreate triggers in the order they were made.
+  const schemaObjects = db
+    .prepare(
+      `SELECT sql FROM sqlite_master
+        WHERE tbl_name = 'timeOff'
+          AND type IN ('index', 'trigger')
+          AND sql IS NOT NULL
+        ORDER BY rowid`,
+    )
+    .all() as Array<{ sql: string }>;
+
+  db.exec(TIME_OFF_REBUILD_V33_SQL);
+  for (const { sql } of schemaObjects) db.exec(sql);
+}
 
 const tableHasForeignKey = (db: Db, table: string, from: string, targetTable: string, targetColumn = "id"): boolean =>
   (
@@ -690,9 +740,15 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       if (!tableHasColumns(db, "allocations", ["seriesId"])) {
         db.exec("ALTER TABLE allocations ADD COLUMN seriesId TEXT;");
       }
-      assertSchemaCurrent(db);
+      assertSchemaV32(db);
     },
   ),
+  defineMigration(33, "allow-company-wide-time-off", TIME_OFF_RESOURCE_NULLABLE_V33_DEFINITION, (db) => {
+    migrateTimeOffResourceNullableV33(db);
+    assertSchemaCurrent(db);
+    assertTenantRelationshipIntegrityCurrent(db);
+    assertTenantEntityIndexesCurrent(db);
+  }),
 ];
 
 if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION) {

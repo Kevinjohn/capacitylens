@@ -12,6 +12,7 @@ import { Fragment, useMemo } from "react";
 import { Calendar, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { useConfirmDelete } from "../../hooks/useConfirmDelete";
+import { timeOffTypeLabel } from "../../lib/metadata";
 
 export function TimeOffList() {
   const data = useActiveScopedData();
@@ -47,13 +48,15 @@ export function TimeOffList() {
       ) : (
         <div className="space-y-6" data-testid="timeoff-groups">
           {groups.map((group) => {
-            const headingId = `timeoff-group-${encodeURIComponent(group.resourceId ?? "unknown")}`;
+            const groupKey = group.kind === "resource" ? `resource-${group.resourceId}` : group.kind;
+            const headingId = `timeoff-group-${encodeURIComponent(groupKey)}`;
             return (
               <section
-                key={group.resourceId ?? "unknown"}
+                key={groupKey}
                 aria-labelledby={headingId}
                 data-testid="timeoff-group"
-                data-resource-id={group.resourceId ?? "unknown"}
+                data-group-kind={group.kind}
+                data-resource-id={group.kind === "resource" ? group.resourceId : undefined}
               >
                 <h2 id={headingId} className="mb-2 text-sm font-semibold">
                   {group.name}
@@ -70,9 +73,10 @@ export function TimeOffList() {
                         {index > 0 && <ItemSeparator />}
                         <Item size="sm" role="listitem" data-testid="timeoff-row" className="rounded-none">
                           <ItemContent>
-                            {/* The resource name belongs to the section heading. Each row stays spare:
-                            start date + duration only; type, note and explicit end stay on the schedule/editor. */}
+                            {/* Personal rows stay spare because the resource heading disambiguates them.
+                            Everyone rows add type because the shared heading cannot distinguish Holiday from Other. */}
                             <span className="text-sm text-muted-foreground">
+                              {group.kind === "company" && `${timeOffTypeLabel(t.type)} · `}
                               {formatShortDate(t.startDate)} · {formatDayCount(t.startDate, t.endDate)}
                             </span>
                           </ItemContent>
