@@ -15,12 +15,7 @@ import {
 
 /** Transient choice shown only while creating an allocation. */
 export type RepeatSelection =
-  | "none"
-  | "weekly"
-  | "every-two-weeks"
-  | "every-three-weeks"
-  | "every-four-weeks"
-  | "monthly";
+  "none" | "weekly" | "every-two-weeks" | "every-three-weeks" | "every-four-weeks" | "monthly";
 
 /** Scheduling inputs that a persisted allocation draft does not carry. */
 export interface RepeatProjectionContext {
