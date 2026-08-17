@@ -28,6 +28,24 @@
 - Keep the user informed with concise progress updates and report each pull request's scope, review
   result and validation evidence.
 
+### Working a batch of small issues
+
+Process overhead, not implementation, dominates a batch of small changes. Scale the ceremony to the
+change:
+
+- Triage first. An issue whose plan is a paragraph describing a visible change goes straight to
+  implementation. Reserve plan review, design discussion and pre-merge quality passes for issues
+  that assert something about the codebase that may be false, introduce a model or contract, or
+  span more than a couple of files.
+- Compare footprints before serialising. Pull requests touching disjoint files may be validated and
+  landed in parallel; serialise only where they genuinely share a file.
+- Take one release for the batch, not one per issue. See "Version and CI policy".
+- Sequence work that captures screenshots or other generated assets last, after every code change
+  in the batch has landed. See "Documentation".
+- Run quality and simplification passes after a change lands, as their own pull request, so a
+  cosmetic finding can never block a feature. A pass may propose reuse and clarity changes but must
+  never widen or narrow a shared type, entity or public contract.
+
 ## Product boundary
 
 CapacityLens is a deliberately small, week-granularity agency capacity scheduler. Budgets,
@@ -117,6 +135,16 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   upgrades, monitoring, incidents) and `docs-src/company-login/` (sign-in modes, SSO cutover).
 - Update `user-stories/REFERENCE.md` first for user-visible route, label, test-id or seed changes.
 - Add user-visible changes under `CHANGELOG.md` → `Unreleased`.
+- Documentation screenshots have no capture harness. Capture manually against the demo
+  (`VITE_CAPACITYLENS_DEMO=1 pnpm exec vite --port 5199 --strictPort`) — never port 5173, which
+  `playwright.config.ts` hardcodes, so a capture run there collides with any concurrent E2E run.
+  Keep throwaway capture scripts in a scratch directory and out of the commit.
+- Capture screenshots only after every UI change in the batch has landed, and open every changed
+  image before merging: a stale capture is a valid image of UI that no longer exists, and no test
+  can detect it. To find stale assets mechanically rather than by spot check, compare each image's
+  last-modifying commit against the merge commit of each UI change with
+  `git merge-base --is-ancestor`. Shared chrome and layout changes invalidate every capture that
+  contains them, so the stale set is usually far larger than it looks.
 
 ## Validation environment
 
@@ -144,6 +172,18 @@ validation failures.
 - After editing `messages/en.json`, run `pnpm run paraglide:compile` (the `test`/`build` scripts do
   this automatically, but direct `vitest`/`tsc` invocations do not) or type-checking will fail on
   stale generated messages.
+- Merging `origin/main` into a feature branch across a release boundary can silently move that
+  branch's `[Unreleased]` changelog entry into the newly dated section. The release moved the
+  heading above the entry, so Git auto-resolves it without a conflict and the result stays valid
+  Markdown, which no test rejects. After any such merge, read the head of `CHANGELOG.md` and
+  confirm the branch's own entry is still under `Unreleased`. Releasing once per batch rather than
+  once per change avoids most of these boundaries entirely.
+- A version bump must update both the new `[x.y.z]:` comparison link and the `[Unreleased]:` link.
+  Only `pnpm run gate:server` asserts this; the app-side suite passes with a stale link.
+- The full validation suites compete for the same machine. Run them concurrently only in
+  combinations that do not starve each other, and treat failures appearing in files the branch
+  never touched as suspected contention rather than real regressions. The E2E suite binds a fixed
+  port, so E2E runs across two worktrees collide and one silently never starts.
 
 ## Green gate
 
@@ -170,6 +210,10 @@ are documented in `docs-src/reference/development.md`. Keep E2E specs browser-ag
 - No workflow runs on a pull request. CI runs when a merge reaches `main`, or on demand with
   `gh workflow run gate.yml --ref <branch>`. Dispatch before merging when the change warrants it.
 - Treat a requested version bump as a release task, not merely as a description of the change.
+- One release covers a batch. When several small changes are being landed together, land every
+  functional pull request first and take a single version bump at the end. A release per change
+  multiplies the whole release flow by the number of changes for no user-visible gain, and each
+  release moves the changelog heading underneath every branch still in flight.
 - After the functional change lands, create a separate version-only branch and worktree. Update the
   root and server package versions, move only the release's eligible changelog entries into the new
   dated section, leave unrelated entries under `Unreleased`, and update comparison links.
