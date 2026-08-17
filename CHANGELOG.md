@@ -7,13 +7,16 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-## [0.53.4-alpha.1] — 2026-08-17
-
 ### Changed
 
 - Clarified working-day documentation with a concrete company-and-person example, the calendar
   behaviour of placeholders and external parties, and screenshots of both entry-point guards
   (#376).
+
+## [0.53.4-alpha.1] — 2026-08-17
+
+### Changed
+
 - Replaced free-form hourly allocation entry with four clear day-fraction choices while preserving
   existing allocations whose stored hours do not match those choices (#378).
 
