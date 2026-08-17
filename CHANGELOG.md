@@ -7,6 +7,70 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.55.0-alpha.4] — 2026-08-17
+
+Alpha 4 brings the capacity-model, closure and schedule-control work completed since the Alpha 3
+milestone into one supported prerelease, on top of a codebase-wide simplification pass.
+
+### Added
+
+- **Book whole-agency closures once.** Bank holidays and shutdowns are recorded as first-class
+  company closures from their own Time off section, drawn as a single named schedule band across
+  every person and placeholder, new hires included. Availability drops to zero on those dates while
+  allocation dates and hours are left alone, so planned work raises the ordinary red conflict
+  instead of quietly disappearing.
+- **Read half days at a glance.** A half working day tints the bottom half of its schedule cell at
+  fine zoom and is called out in the accessible row summary, without changing how allocations are
+  created.
+
+### Changed
+
+- **Company working days now govern capacity.** A person's effective week is the company's global
+  working days intersected with their own pattern, and normal allocations schedule, load and count
+  utilisation only on those days. Changing the selection reinterprets existing work — stored dates
+  never move, while capacity, utilisation and conflicts recalculate. New work must start on an
+  effective working day, **Ignore working days** remains the per-allocation escape hatch, and the
+  company selection can no longer be emptied.
+- **Placeholders behave like the capacity they stand in for.** They follow the company's working
+  days at full-day capacity rather than carrying a separate personal pattern, and their form no
+  longer shows fields they cannot use.
+- **Allocation hours are four clear day fractions.** Free-form hourly entry is replaced by explicit
+  choices led by their hour values; existing allocations whose stored hours fall outside those
+  choices are preserved.
+- **The schedule is quicker to drive.** The filter bar is ordered search-first with an explicit
+  Show/Hide control for tentative work, aligned on one size scale, hiding the discipline filter
+  until a discipline exists. The sidebar, toolbar, filter bar and data canvas sit on distinct depth
+  tiers in both themes, and segmented controls divide into exactly equal cells.
+- **Forms use the room they have.** Allocation scheduling controls, time-off dates, activity kinds,
+  privacy explanations, working-day tables and short text fields all follow the same responsive
+  layout rules at normal and narrow widths.
+- **The documentation shows the current product.** Guides gained visuals for closures, working-day
+  guards, device-only schedule preferences, the repeat cue and day-fraction choices, and every
+  product screenshot is now captured in the light theme.
+- **The whole codebase went through a simplification pass** — domain core, client utilities, data
+  and store layers, scheduler, settings, shared components, authentication and the server account
+  boundary — with wire formats, audit actions, SQL schema and error text unchanged.
+
+### Fixed
+
+- **Conflicts stay visible where capacity is zero.** Blocks overlapping time off take the red
+  conflict marker and accessible summary, and vertical reassignment rejects personal or company
+  non-working start dates unless **Ignore working days** is set.
+- **Dragging tracks the pointer.** Vertical dragging no longer lags behind an animation, and the
+  schedule's add hint no longer reappears in a stale column after a drag.
+- **Damaged data no longer takes the schedule down.** Legacy or malformed allocation-status and
+  time-off-type values are handled rather than crashing the view.
+- **Smaller correctness repairs.** Offline-snapshot retention is enforced on every cache
+  connection, keyboard shortcuts respect non-editable regions nested in editable content, purge
+  deadlines more than ~25 days out unlock at the boundary, and the full "Project-specific" activity
+  label stays visible in Firefox.
+
+### Security
+
+- Password fields in the security section cap input at 256 characters, and the archived section no
+  longer requests inactive account data for roles that cannot purge it — the server rejection is
+  kept as the backstop.
+
 ## [0.54.0-alpha.1] — 2026-08-17
 
 ### Added
@@ -3782,7 +3846,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.54.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...HEAD
+[0.55.0-alpha.4]: https://github.com/Kevinjohn/capacitylens/compare/v0.54.0-alpha.1...v0.55.0-alpha.4
 [0.54.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.7-alpha.1...v0.54.0-alpha.1
 [0.53.7-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.6-alpha.1...v0.53.7-alpha.1
 [0.53.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.5-alpha.1...v0.53.6-alpha.1
