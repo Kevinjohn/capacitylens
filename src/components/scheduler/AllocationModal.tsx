@@ -194,6 +194,13 @@ const repeatOptions = (): Option[] => [
   { value: "monthly", label: m.form_allocation_repeat_monthly() },
 ];
 
+const hoursPerDayOptions = (): Option[] => [
+  { value: "1", label: m.form_allocation_hours_per_day_one_hour() },
+  { value: "2", label: m.form_allocation_hours_per_day_quarter_day() },
+  { value: "4", label: m.form_allocation_hours_per_day_half_day() },
+  { value: "8", label: m.form_allocation_hours_per_day_full_day() },
+];
+
 type AllocationModalProps =
   | { allocationId: string; onClose: () => void }
   | {
@@ -1088,12 +1095,11 @@ export function AllocationModal(props: AllocationModalProps) {
           />
           {/* Externals carry no load (hoursPerDay 0), so only the hourly arm asks for one. */}
           {!isExternal && (
-            <NumberField
+            <SelectField
               label={m.form_allocation_hours_per_day_label()}
-              value={hoursPerDay}
-              onChange={setHoursPerDay}
-              min={0}
-              max={MAX_HOURS_PER_DAY}
+              value={String(hoursPerDay)}
+              onChange={(value) => setHoursPerDay(Number(value))}
+              options={hoursPerDayOptions()}
               required
               invalid={errorField === "hours"}
               describedById={errorId}

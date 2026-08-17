@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Replaced free-form hourly allocation entry with four clear day-fraction choices while preserving
+  existing allocations whose stored hours do not match those choices (#378).
+
 ## [0.53.3-alpha.1] — 2026-08-17
 
 ### Fixed
