@@ -1958,7 +1958,8 @@ describe("AllocationModal Enter key submission", () => {
   });
 });
 
-describe("AllocationModal repeat creation", () => {
+// These cases drive many sequential user interactions and can exceed Vitest's 5 s default on CI hardware.
+describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
   const addPerson = () => useStore.getState().addResource(makeResourceDraft({ name: "Tyler", color: "#111111" }));
 
   const completeAssignment = async (user: ReturnType<typeof userEvent.setup>) => {
