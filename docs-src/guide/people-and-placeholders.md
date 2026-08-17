@@ -132,7 +132,7 @@ External parties are off by default; an Owner or Admin turns them on for the com
 3. Fill in **Company** (required) and, optionally, a **Descriptor** — for example
    "Print" or "Overflow dev" — and save.
 
-![The Resources page with separate Studio and Supplementary sections, a yellow favourite star, and the External section with Kord Industries](../screenshots/flows/resources-external.jpg)
+![The Resources page with separate Studio and Supplementary sections and the External section listing Kord Industries as a partner studio](../screenshots/flows/resources-external.jpg)
 
 Turning external parties off in Settings hides the section and its rows the same way
 placeholders do, without deleting anything.
