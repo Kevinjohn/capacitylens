@@ -6,11 +6,9 @@ description: Install CapacityLens directly on a Linux host with Node 24, pnpm an
 # Install without Docker
 
 This installs CapacityLens straight onto a Linux host: Node 24 runs the API as a
-systemd service, and nginx serves the built app and proxies `/api/` to it. Docker
-Compose is the shorter path — see
-[Install with Docker](/self-hosting/install-with-docker) — so use this page only if you
-can't run Docker, or you'd rather manage the process yourself. Budget 20-30 minutes on a
-host that already has Node and nginx installed.
+systemd service, and nginx serves the built app and proxies `/api/` to it. No Docker
+installation is needed. Budget 20–30 minutes on a host that already has Node and nginx
+installed.
 
 ## Prerequisites
 

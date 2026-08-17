@@ -20,7 +20,8 @@ Learn what CapacityLens is and get your own copy running.
 
 - [What is CapacityLens?](/getting-started/what-is-capacitylens) — what it does, and what it deliberately doesn't.
 - [Try the demo](/getting-started/try-the-demo) — a two-minute look with sample data.
-- [Install CapacityLens](/getting-started/install) — the five-minute install with Docker.
+- [Choose how to install](/getting-started/install) — Docker Compose and direct Node
+  installation are separate, supported routes.
 - [First steps after installing](/getting-started/first-steps) — sign in and find your way around.
 - [Invite your team](/getting-started/invite-your-team) — get everyone else in.
 - [Roles and permissions](/getting-started/roles-and-permissions) — who can see and change what.
@@ -49,7 +50,7 @@ Let people sign in with the work identity they already use everywhere else.
 Run CapacityLens on your own server and keep it healthy.
 
 - [Before you start](/self-hosting/) — what you need and how the pieces fit.
-- [Install with Docker](/self-hosting/install-with-docker) · [Configuration](/self-hosting/configuration) · [TLS and networking](/self-hosting/tls-and-networking)
+- [Install with Docker](/self-hosting/install-with-docker) · [Install without Docker](/self-hosting/install-without-docker) · [Configuration](/self-hosting/configuration) · [TLS and networking](/self-hosting/tls-and-networking)
 - [Backups and restore](/self-hosting/backups-and-restore) · [Upgrades](/self-hosting/upgrades) · [Monitoring](/self-hosting/monitoring) · [When something goes wrong](/self-hosting/incidents)
 
 ## Security and privacy
