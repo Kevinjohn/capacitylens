@@ -33,6 +33,22 @@ export async function computedStyles<const Properties extends readonly string[]>
   }, properties);
 }
 
+/** Reach a target through real keyboard navigation. `:focus-visible` depends on input modality, so
+ *  programmatic focus does not reproduce a keyboard user and can diverge across browsers. For a
+ *  roving-tabindex group, the selected item is the group's tab stop. Call this helper before any
+ *  mouse interaction in the test, or `:focus-visible` will not match. */
+export async function focusByKeyboard(page: Page, target: Locator): Promise<number> {
+  const maxTabPresses = 100;
+  for (let tabPresses = 1; tabPresses <= maxTabPresses; tabPresses += 1) {
+    await page.keyboard.press("Tab");
+    if (await target.evaluate((element) => element === document.activeElement)) return tabPresses;
+  }
+
+  const error = new Error(`Target was not reached after ${maxTabPresses} Tab presses`);
+  error.name = "FocusByKeyboardError";
+  throw error;
+}
+
 /** Select every connected segment and prove the active separator edges are cleared. */
 export async function expectConnectedSelectionEdges(
   group: Locator,
