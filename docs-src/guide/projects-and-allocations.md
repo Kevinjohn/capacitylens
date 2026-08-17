@@ -83,6 +83,9 @@ company and personal non-working weekdays. Either way, a new allocation must sta
 working day that isn't covered by the person's time off — the checkbox never changes where a new
 allocation may begin. To place work over closed days, create it starting on an open day with the
 checkbox ticked, then drag or extend it onto the closed days.
+
+![The New allocation form showing a rejected Saturday start date and the message that new allocations must begin on a company and personal working day](../screenshots/flows/allocation_non_working_day_rejected.jpg)
+
 External-party allocations already use literal calendar spans, so they do not show this checkbox.
 On a regular-width screen, the form keeps its labels in a narrow left column and aligns the controls
 on the right. On a narrow screen, each label stacks above its control so nothing is clipped.
