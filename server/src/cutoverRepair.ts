@@ -61,8 +61,9 @@ export async function repairSsoCutover(input: CutoverRepairInput): Promise<Cutov
     // only the optional default-on engagement-grouping account preference; and v31 adds the
     // optional account working-day JSON selection with a deterministic legacy default; v32 adds
     // only the optional forward-only repeat-series identity on allocations; v33 widens
-    // timeOff.resourceId to nullable; and v34 separates company closures and restores the
-    // personal time-off resource requirement.
+    // timeOff.resourceId to nullable; and v34 restores the personal time-off resource requirement,
+    // deliberately dropping pre-existing company-wide rows without converting them because there
+    // are no users requiring a data-compatibility window, while adding first-class closures.
     // These are safe to remain pending before this stopped-server repair. Keep this allowlist explicit
     // so a future migration requires review.
     if (plan.migrations.some(({ version }) => ![25, 26, 27, 28, 29, 30, 31, 32, 33, 34].includes(version))) {

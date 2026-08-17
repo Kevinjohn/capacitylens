@@ -5,7 +5,7 @@ import { m } from "@/i18n";
 import { formatUtilizationPercent } from "../../lib/utilizationPercent";
 import { hasActiveFilters, useStore } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
-import { useActiveScopedData } from "../../store/useScopedData";
+import { sharedScopedData, useActiveScopedData } from "../../store/useScopedData";
 import {
   disciplinesEnabledFor,
   externalEnabledFor,
@@ -306,19 +306,20 @@ export function SchedulerGrid() {
     const drawMode = state.ui.drawMode;
     const resource = state.data.resources.find((candidate) => candidate.id === resourceId);
     if (!resource) return;
+    const scopedData = sharedScopedData(state.data, state.activeAccountId);
     // The SAME gate the model paints `creationBlocked` with, so a lane can never accept a draw on a
     // day it drew as unavailable. It scopes time off to the resource itself, so no pre-filter here.
     // EXCEPT in time-off draw mode: a closure must not swallow the gesture — sick
     // leave can legitimately start inside a closure, and the Add time off form accepts the
     // identical entry. Personal overlaps and non-working days still gate the draw.
-    const gateTimeOff = state.data.timeOff;
+    const gateTimeOff = scopedData.timeOff;
     if (
       isCreationStartBlocked(
         resource,
         startDate,
         gateTimeOff,
         accountWorkingDaysFor(state.data, state.activeAccountId),
-        drawMode === "timeoff" ? [] : state.data.closures,
+        drawMode === "timeoff" ? [] : scopedData.closures,
       )
     ) {
       return;

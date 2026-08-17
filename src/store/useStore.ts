@@ -67,6 +67,7 @@ import type {
 import { createRuntimeSlice } from "./slices/runtimeSlice";
 import { createSchedulerSlice, weekAnchor } from "./slices/schedulerSlice";
 import { isWeekdaySet, normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
+import { domainError } from "@capacitylens/shared/domain/errors";
 
 // A Draft drops the server-owned fields (id/timestamps) AND `accountId` — the
 // store stamps the active account, so callers never supply it.
@@ -1393,7 +1394,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
     addClosure: guardedAdd(
       (input: Draft<Closure>): Closure => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
       (closure) => {
-        if (closure.name.trim().length === 0) throw new Error("Closure name is required.");
+        if (closure.name.trim().length === 0) domainError("closure_name_required", "Closure name is required.");
         assertDateRange(closure.startDate, closure.endDate);
         mutate((data) => ({ ...data, closures: [...data.closures, closure] }));
         return closure;
@@ -1401,7 +1402,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
     ),
     updateClosure: guarded((id: ID, patch: Patch<Closure>) => {
       updateOwned("closures", id, patch, (merged) => {
-        if (merged.name.trim().length === 0) throw new Error("Closure name is required.");
+        if (merged.name.trim().length === 0) domainError("closure_name_required", "Closure name is required.");
         assertDateRange(merged.startDate, merged.endDate);
         return patch;
       });

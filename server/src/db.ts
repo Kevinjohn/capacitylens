@@ -415,6 +415,8 @@ function migrateTimeOffResourceNullableV33(db: Db): void {
   for (const { sql } of schemaObjects) db.exec(sql);
 }
 
+// There are no existing users at this cutover: v34 deliberately drops legacy company-wide
+// (NULL-resource) time-off rows instead of converting them into first-class closures.
 const TIME_OFF_REBUILD_V34_SQL = `
     CREATE TABLE timeOff_v34 (
       id TEXT NOT NULL PRIMARY KEY,

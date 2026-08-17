@@ -15,6 +15,7 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Pre-existing company-wide time-off entries are not carried over to first-class company closures (#407).
 - Led allocation hours-per-day options with their hour values for quicker comparison (#398).
 - Reordered the schedule filter bar around search-first filtering and replaced the tentative checkbox
   with an explicit Show/Hide segmented control (#406).

@@ -1109,6 +1109,7 @@
   "domain_error_time_off_resource_inactive": "Time off must reference an active resource in this company.",
   "domain_error_time_off_external_resource": "Time off can’t be recorded for an external / 3rd-party resource.",
   "domain_error_time_off_company_wide_type": "Company-wide time off must use holiday or other.",
+  "domain_error_closure_name_required": "Closure name is required.",
   "domain_error_project_client_required": "A project must belong to a client.",
   "validation_name_required": "Name is required.",
   "validation_hex_invalid": "Choose a colour from the available swatches.",

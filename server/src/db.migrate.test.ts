@@ -2258,26 +2258,26 @@ describe("schema migration of an existing on-disk DB", () => {
   it("v34 restores required personal time-off resources and creates first-class closures", () => {
     const copied = copyFixture("v25-off.db");
     try {
-      const v32 = openDbConnection(copied.path);
+      const v33 = openDbConnection(copied.path);
       expect(() =>
-        initializeOpenDb(v32, copied.path, {
+        initializeOpenDb(v33, copied.path, {
           beforeCommit: (migration) => {
-            if (migration.version === 33) throw new Error("stop before v33 commit");
+            if (migration.version === 34) throw new Error("stop before v34 commit");
           },
         }),
-      ).toThrow(/stop before v33 commit/i);
-      expect((v32.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(32);
+      ).toThrow(/stop before v34 commit/i);
+      expect((v33.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(33);
       expect(
-        (v32.prepare(`PRAGMA table_info(timeOff)`).all() as Array<{ name: string; notnull: number }>).find(
+        (v33.prepare(`PRAGMA table_info(timeOff)`).all() as Array<{ name: string; notnull: number }>).find(
           ({ name }) => name === "resourceId",
         )?.notnull,
-      ).toBe(1);
+      ).toBe(0);
 
-      const target = v32.prepare(`SELECT id AS resourceId, accountId FROM resources ORDER BY id LIMIT 1`).get() as {
+      const target = v33.prepare(`SELECT id AS resourceId, accountId FROM resources ORDER BY id LIMIT 1`).get() as {
         resourceId: string;
         accountId: string;
       };
-      v32
+      v33
         .prepare(
           `INSERT INTO timeOff
             (id, accountId, resourceId, startDate, endDate, type, note, createdAt, updatedAt)
@@ -2294,9 +2294,16 @@ describe("schema migration of an existing on-disk DB", () => {
           TS,
           TS,
         );
-      const beforeRows = v32.prepare(`SELECT * FROM timeOff ORDER BY id`).all();
-      const beforeObjects = timeOffSecondaryObjects(v32);
-      v32.close();
+      v33
+        .prepare(
+          `INSERT INTO timeOff
+            (id, accountId, resourceId, startDate, endDate, type, note, createdAt, updatedAt)
+           VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run("to-v33-company-wide", target.accountId, "2026-12-31", "2027-01-01", "holiday", "Everyone", TS, TS);
+      const beforeRows = v33.prepare(`SELECT * FROM timeOff WHERE resourceId IS NOT NULL ORDER BY id`).all();
+      const beforeObjects = timeOffSecondaryObjects(v33);
+      v33.close();
 
       const upgraded = openDb(copied.path);
       expect(
@@ -2305,6 +2312,8 @@ describe("schema migration of an existing on-disk DB", () => {
         )?.notnull,
       ).toBe(1);
       expect(upgraded.prepare(`SELECT * FROM timeOff ORDER BY id`).all()).toEqual(beforeRows);
+      expect(getRow(upgraded, "timeOff", "to-v33-company-wide")).toBeUndefined();
+      expect(upgraded.prepare(`SELECT * FROM closures`).all()).toEqual([]);
       expect(timeOffSecondaryObjects(upgraded)).toEqual(beforeObjects);
       expect(
         upgraded.prepare(`PRAGMA foreign_key_list(timeOff)`).all() as Array<{ from: string; table: string }>,

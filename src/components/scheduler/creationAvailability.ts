@@ -5,8 +5,8 @@ import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWor
 import { isOnClosure, isOnTimeOff } from "../../lib/capacity";
 import type { Closure, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 
-/** Recurring weekdays on which an allocation may start for this resource. Company closure wins;
- *  externals have no personal capacity pattern, so only the company calendar applies to them.
+/** Recurring weekdays on which an allocation may start for this resource. Company closures also
+ *  block tracked resources; externals ignore closures and use only the company working calendar.
  *  TRANSITIONAL SEAM: the ONLY place an EffectiveWorkingWeek collapses to a plain array. An empty
  *  result for "none" happens to be correct for start gating (every day blocked); #257 Phases 3-5
  *  replace this with explicit "none" branches where downstream behavior must differ. */
@@ -34,8 +34,8 @@ export function creationBlockedAt(
   date: ISODate,
   timeOff: TimeOff[],
   accountWorkingDays: Weekday[],
-  ignoreWorkingDays?: boolean,
-  closures: Closure[] = [],
+  ignoreWorkingDays: boolean | undefined,
+  closures: Closure[],
 ): CreationBlockReason | null {
   return creationBlockedForCalendar(
     resource,
@@ -52,8 +52,8 @@ function creationBlockedForCalendar(
   date: ISODate,
   timeOff: TimeOff[],
   calendarAllowsStart: boolean,
-  ignoreWorkingDays?: boolean,
-  closures: Closure[] = [],
+  ignoreWorkingDays: boolean | undefined,
+  closures: Closure[],
 ): CreationBlockReason | null {
   if (!ignoreWorkingDays && !calendarAllowsStart) {
     return "non-working";
@@ -72,7 +72,7 @@ export function creationBlockedForEffectiveWeek(
   date: ISODate,
   timeOff: TimeOff[],
   effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[] = [],
+  closures: Closure[],
 ): CreationBlockReason | null {
   const calendarAllowsStart = effectiveWeekIncludes(effectiveWeek, weekdayOf(date));
   return creationBlockedForCalendar(resource, date, timeOff, calendarAllowsStart, false, closures);
@@ -85,7 +85,7 @@ export function isCreationStartBlockedForEffectiveWeek(
   date: ISODate,
   timeOff: TimeOff[],
   effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[] = [],
+  closures: Closure[],
 ): boolean {
   return creationBlockedForEffectiveWeek(resource, date, timeOff, effectiveWeek, closures) !== null;
 }
@@ -107,7 +107,7 @@ export function isCreationStartBlocked(
   date: ISODate,
   timeOff: TimeOff[],
   accountWorkingDays: Weekday[],
-  closures: Closure[] = [],
+  closures: Closure[],
 ): boolean {
   return creationBlockedAt(resource, date, timeOff, accountWorkingDays, false, closures) !== null;
 }

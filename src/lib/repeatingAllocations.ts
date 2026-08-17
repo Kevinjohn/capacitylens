@@ -123,7 +123,7 @@ export function repeatingAllocationAdvisory(
   timeOff: TimeOff[],
   proposedDrafts: readonly Draft<Allocation>[],
   effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[] = [],
+  closures: Closure[],
 ): RepeatingAllocationAdvisory {
   if (!isCapacityTracked(resource)) {
     return { overCapacityAllocations: 0, timeOffAllocations: 0, nonEffectiveStartAllocations: 0 };

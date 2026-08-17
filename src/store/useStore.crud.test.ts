@@ -3,6 +3,7 @@ import { useStore } from "./useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { PRESET_COLORS } from "@capacitylens/shared/lib/color";
+import { DomainError } from "@capacitylens/shared/domain/errors";
 import {
   DEFAULT_ACCOUNT_ID,
   makeAppData,
@@ -288,13 +289,18 @@ describe("store CRUD covers every entity", () => {
   });
 
   it("company closure: add / update / delete with range validation", () => {
+    expect(() => s().addClosure({ name: "  ", startDate: "2026-12-24", endDate: "2026-12-25" })).toThrow(
+      expect.objectContaining<Partial<DomainError>>({ code: "closure_name_required" }),
+    );
     const closure = s().addClosure({ name: "Christmas shutdown", startDate: "2026-12-24", endDate: "2026-12-25" });
     s().updateClosure(closure.id, { name: "Winter shutdown" });
     expect(s().data.closures[0]).toMatchObject({ name: "Winter shutdown" });
     expect(() => s().updateClosure(closure.id, { endDate: "2026-12-23" })).toThrow(
       /end date cannot be before the start date/i,
     );
-    expect(() => s().updateClosure(closure.id, { name: "  " })).toThrow(/closure name is required/i);
+    expect(() => s().updateClosure(closure.id, { name: "  " })).toThrow(
+      expect.objectContaining<Partial<DomainError>>({ code: "closure_name_required" }),
+    );
     s().deleteClosure(closure.id);
     expect(s().data.closures).toHaveLength(0);
   });

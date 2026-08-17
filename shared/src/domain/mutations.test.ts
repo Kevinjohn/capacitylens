@@ -1069,6 +1069,31 @@ describe("remapAndValidateImport", () => {
     expect(skipped).toBe(3); // 2 bad allocations + 1 dangling time-off
   });
 
+  it("drops a v16 Everyone time-off entry instead of converting it to a closure", () => {
+    const migrated = migrate({
+      schemaVersion: 16,
+      data: {
+        ...emptyAppData(),
+        timeOff: [
+          {
+            ...meta("to-everyone", "src-acct"),
+            resourceId: null,
+            startDate: "2026-12-24",
+            endDate: "2026-12-25",
+            type: "holiday",
+          },
+        ],
+      },
+    });
+
+    const { data, imported, skipped } = remapAndValidateImport(base(), A1, migrated, TS);
+
+    expect(data.timeOff).toEqual([]);
+    expect(data.closures).toEqual([]);
+    expect(imported).toBe(0);
+    expect(skipped).toBe(1);
+  });
+
   it("keeps a company closure when the import has no resources", () => {
     const closure = {
       ...meta("closure", "src-acct"),
