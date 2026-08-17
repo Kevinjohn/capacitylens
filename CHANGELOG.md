@@ -12,13 +12,18 @@ new features and **patch** versions carry fixes.
 - Standardised product screenshots on the light theme and refreshed authenticated app-shell
   captures after the latest navigation and schedule depth changes (#374).
 
-## [0.53.5-alpha.1] — 2026-08-17
+## [0.53.6-alpha.1] — 2026-08-17
 
 ### Changed
 
 - Expanded the user guides with Everyone time-off visuals, device-only schedule
   preferences, the allocation repeat cue, the hourly day-fraction select and a clearer
   explanation of company-wide calendar choices that are frozen after creation (#375).
+
+## [0.53.5-alpha.1] — 2026-08-17
+
+### Changed
+
 - Clarified working-day documentation with a concrete company-and-person example, the calendar
   behaviour of placeholders and external parties, and screenshots of both entry-point guards
   (#376).
@@ -3752,7 +3757,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.5-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.6-alpha.1...HEAD
+[0.53.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.5-alpha.1...v0.53.6-alpha.1
 [0.53.5-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.4-alpha.1...v0.53.5-alpha.1
 [0.53.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.3-alpha.1...v0.53.4-alpha.1
 [0.53.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.2-alpha.1...v0.53.3-alpha.1
