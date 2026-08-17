@@ -77,7 +77,8 @@ test.describe("Filters", () => {
     await showScheduleFilters(page);
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     const before = await page.getByTestId("allocation-bar").count();
-    await page.getByLabel("Hide tentative").check();
+    const tentativeVisibility = page.getByRole("radiogroup", { name: "Tentative visibility" });
+    await tentativeVisibility.getByRole("radio", { name: "Hide tentative" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1); // Bruce's tentative bar
     // Capacity is still truthful: Bruce's 3-4 June over-marker remains.
     await expect(page.getByTestId("over-marker").first()).toBeVisible();

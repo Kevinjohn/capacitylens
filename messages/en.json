@@ -305,6 +305,8 @@
   "scheduler_filter_internal_all": "Internal — All",
   "scheduler_filter_repeatable_group": "Cross-project",
   "scheduler_filter_repeatable_all": "Cross-project — All",
+  "scheduler_tentative_visibility_aria": "Tentative visibility",
+  "scheduler_show_tentative": "Show tentative",
   "scheduler_hide_tentative": "Hide tentative",
   "scheduler_show_unallocated_title": "Show resources with no work on this filter (dimmed) so you can staff them",
   "scheduler_show_unallocated": "Show unallocated",

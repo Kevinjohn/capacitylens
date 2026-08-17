@@ -149,6 +149,52 @@ describe("SchedulerToolbar filter ordering", () => {
     return screen.getAllByRole("option").map((option) => option.textContent);
   };
 
+  it("orders search, lenses, tentative visibility, draw mode, unallocated, and Clear", () => {
+    useStore.getState().addDiscipline({ name: "Design", color: "#111", sortOrder: 0 });
+    const client = useStore.getState().addClient({ name: "Queen Consolidated", color: "#222" });
+    useStore.getState().addProject({ name: "Project Watchtower", clientId: client.id, color: "#333" });
+    useStore.getState().addActivity({ name: "Admin", kind: "internal" });
+    useStore.getState().setFilters({ clientId: client.id });
+    render(<SchedulerToolbar />);
+    showFilters();
+
+    const filterbar = document.getElementById("scheduler-filters")!;
+    const controls = [
+      screen.getByRole("textbox", { name: "Search people" }),
+      screen.getByRole("combobox", { name: "Filter by discipline" }),
+      screen.getByRole("combobox", { name: "Filter by client" }),
+      screen.getByRole("combobox", { name: "Filter by project" }),
+      screen.getByRole("combobox", { name: "Filter by activity" }),
+      screen.getByRole("radiogroup", { name: "Tentative visibility" }),
+      screen.getByRole("radiogroup", { name: "Draw mode" }),
+      screen.getByRole("checkbox", { name: "Show unallocated" }),
+      screen.getByRole("button", { name: "Clear Filters" }),
+    ];
+    const childIndexes = controls.map((control) =>
+      Array.from(filterbar.children).findIndex((child) => child === control || child.contains(control)),
+    );
+
+    expect(childIndexes).toEqual([...childIndexes].sort((a, b) => a - b));
+    expect(childIndexes.every((index) => index >= 0)).toBe(true);
+    expect(childIndexes.at(-1)).toBe(filterbar.children.length - 1);
+  });
+
+  it("hides the discipline filter when disciplines are enabled but none exist", () => {
+    useStore.setState((state) => ({
+      data: {
+        ...state.data,
+        accounts: state.data.accounts.map((account) =>
+          account.id === state.activeAccountId ? { ...account, disciplinesEnabled: true } : account,
+        ),
+        disciplines: [],
+      },
+    }));
+    render(<SchedulerToolbar />);
+    showFilters();
+
+    expect(screen.queryByRole("combobox", { name: "Filter by discipline" })).not.toBeInTheDocument();
+  });
+
   it("follows the scheduler discipline order rather than alphabetising disciplines", () => {
     useStore.getState().addDiscipline({ name: "Design", color: "#111", sortOrder: 0 });
     useStore.getState().addDiscipline({ name: "Account Management", color: "#222", sortOrder: 2 });
@@ -213,6 +259,28 @@ describe("SchedulerToolbar filter ordering", () => {
       "Design",
       "Workshop",
     ]);
+  });
+});
+
+describe("SchedulerToolbar tentative visibility", () => {
+  it("maps Show and Hide tentative segments to the existing boolean filter", async () => {
+    const user = userEvent.setup();
+    render(<SchedulerToolbar />);
+    showFilters();
+
+    const group = screen.getByRole("radiogroup", { name: "Tentative visibility" });
+    const show = within(group).getByRole("radio", { name: "Show tentative" });
+    const hide = within(group).getByRole("radio", { name: "Hide tentative" });
+    expect(show).toHaveAttribute("aria-checked", "true");
+    expect(hide).toHaveAttribute("aria-checked", "false");
+
+    await user.click(hide);
+    expect(useStore.getState().ui.filters.hideTentative).toBe(true);
+    expect(hide).toHaveAttribute("aria-checked", "true");
+
+    await user.click(show);
+    expect(useStore.getState().ui.filters.hideTentative).toBe(false);
+    expect(show).toHaveAttribute("aria-checked", "true");
   });
 });
 

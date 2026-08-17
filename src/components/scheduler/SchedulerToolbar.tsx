@@ -66,7 +66,7 @@ function FilterSelect({
 }) {
   return (
     <Select value={value ?? "all"} onValueChange={(selected) => onValueChange(selected === "all" ? null : selected)}>
-      <SelectTrigger aria-label={ariaLabel()} className="w-auto">
+      <SelectTrigger size="sm" aria-label={ariaLabel()} className="w-auto">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -322,37 +322,16 @@ export function SchedulerToolbar() {
         <div
           id="scheduler-filters"
           data-chrome-band="filterbar"
-          className={`flex flex-wrap items-center justify-center gap-x-2 border-b border-chrome-filterbar-border bg-chrome-filterbar px-4 text-sm text-chrome-filterbar-ink ${compactView ? "gap-y-2 pb-2" : "gap-y-3 pb-3"}`}
+          className={`flex flex-wrap items-center justify-center gap-x-2 border-b border-chrome-filterbar-border bg-chrome-filterbar px-4 text-sm text-chrome-filterbar-ink ${compactView ? "gap-y-2 py-2" : "gap-y-3 py-3"}`}
         >
-          {canEdit && (
-            <SegmentedControl
-              ariaLabel={m.scheduler_draw_mode_aria()}
-              geometry="gapped"
-              size="sm"
-              value={drawMode}
-              onChange={setDrawMode}
-              options={[
-                {
-                  value: "work",
-                  label: m.scheduler_draw_work(),
-                  title: m.scheduler_draw_work_title(),
-                },
-                {
-                  value: "timeoff",
-                  label: m.scheduler_draw_timeoff(),
-                  title: m.scheduler_draw_timeoff_title(),
-                },
-              ]}
-            />
-          )}
           <Input
             value={searchInput}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={m.scheduler_search_people_placeholder()}
             aria-label={m.scheduler_search_people_aria()}
-            className="w-44 @max-[680px]:w-full"
+            className="h-8 w-44 @max-[680px]:w-full"
           />
-          {disciplinesEnabled && (
+          {disciplinesEnabled && disciplineOptions.length > 0 && (
             <FilterSelect
               value={filters.disciplineId}
               onValueChange={(disciplineId) => setToolbarFilters({ disciplineId })}
@@ -398,7 +377,7 @@ export function SchedulerToolbar() {
                   });
               }}
             >
-              <SelectTrigger aria-label={m.scheduler_filter_activity_aria()} className="w-auto">
+              <SelectTrigger size="sm" aria-label={m.scheduler_filter_activity_aria()} className="w-auto">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -430,14 +409,38 @@ export function SchedulerToolbar() {
               </SelectContent>
             </Select>
           )}
-          <Field orientation="horizontal" className="w-auto gap-1.5">
-            <Checkbox
-              id="hide-tentative"
-              checked={filters.hideTentative}
-              onCheckedChange={(checked) => setToolbarFilters({ hideTentative: checked === true })}
+          <SegmentedControl
+            ariaLabel={m.scheduler_tentative_visibility_aria()}
+            geometry="gapped"
+            size="sm"
+            value={filters.hideTentative ? "hide" : "show"}
+            onChange={(visibility) => setToolbarFilters({ hideTentative: visibility === "hide" })}
+            options={[
+              { value: "show", label: m.scheduler_show_tentative() },
+              { value: "hide", label: m.scheduler_hide_tentative() },
+            ]}
+          />
+          {canEdit && (
+            <SegmentedControl
+              ariaLabel={m.scheduler_draw_mode_aria()}
+              geometry="gapped"
+              size="sm"
+              value={drawMode}
+              onChange={setDrawMode}
+              options={[
+                {
+                  value: "work",
+                  label: m.scheduler_draw_work(),
+                  title: m.scheduler_draw_work_title(),
+                },
+                {
+                  value: "timeoff",
+                  label: m.scheduler_draw_timeoff(),
+                  title: m.scheduler_draw_timeoff_title(),
+                },
+              ]}
             />
-            <FieldLabel htmlFor="hide-tentative">{m.scheduler_hide_tentative()}</FieldLabel>
-          </Field>
+          )}
           {hasLensFilter(filters) && (
             <Field orientation="horizontal" className="w-auto gap-1.5" title={m.scheduler_show_unallocated_title()}>
               <Checkbox

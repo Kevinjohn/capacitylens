@@ -10,12 +10,16 @@ new features and **patch** versions carry fixes.
 ### Changed
 
 - Led allocation hours-per-day options with their hour values for quicker comparison (#398).
+- Reordered the schedule filter bar around search-first filtering and replaced the tentative checkbox
+  with an explicit Show/Hide segmented control (#406).
 
 ### Fixed
 
 - Placed the Start and End fields together on one full-width row in the time-off modal (#404).
 - Hid unusable Discipline fields from resource forms and removed presumed company working-day
   guidance from placeholder forms (#394).
+- Aligned the schedule filter bar vertically and standardised its controls on the small size scale;
+  the discipline filter now stays hidden until at least one discipline exists (#405, #406).
 
 ## [0.53.7-alpha.1] — 2026-08-17
 
