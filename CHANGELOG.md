@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Placed the Start and End fields together on one full-width row in the time-off modal (#404).
+
 ## [0.53.7-alpha.1] — 2026-08-17
 
 ### Changed
