@@ -7,6 +7,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.53.7-alpha.1] — 2026-08-17
+
 ### Changed
 
 - Standardised product screenshots on the light theme and refreshed authenticated app-shell
@@ -3757,7 +3759,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.6-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.7-alpha.1...HEAD
+[0.53.7-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.6-alpha.1...v0.53.7-alpha.1
 [0.53.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.5-alpha.1...v0.53.6-alpha.1
 [0.53.5-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.4-alpha.1...v0.53.5-alpha.1
 [0.53.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.3-alpha.1...v0.53.4-alpha.1
