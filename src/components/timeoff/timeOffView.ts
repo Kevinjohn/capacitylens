@@ -1,13 +1,11 @@
 import { startOfWeekISO, todayISO } from "@capacitylens/shared/lib/dateMath";
-import type { ID, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
+import type { Closure, ID, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { compareDisplayNames } from "../../lib/displayOrder";
 import { resourceDisplayName } from "../../lib/metadata";
 import { m } from "@/i18n";
 
-/** One heading and its ordered, currently relevant time-off entries. Company time off and dangling
- * references are separate cases so neither has to overload a nullable resource id. */
+/** One heading and its ordered, currently relevant time-off entries. */
 export type TimeOffGroup =
-  | { kind: "company"; name: string; entries: TimeOff[] }
   | { kind: "resource"; resourceId: ID; name: string; entries: TimeOff[] }
   | { kind: "unknown"; name: string; entries: TimeOff[] };
 
@@ -20,6 +18,18 @@ const compareEntries = (left: TimeOff, right: TimeOff): number =>
   left.startDate.localeCompare(right.startDate) ||
   left.endDate.localeCompare(right.endDate) ||
   left.id.localeCompare(right.id);
+
+/** Forward-looking company closures, ordered by their literal inclusive spans. */
+export function buildClosureList(closures: readonly Closure[], weekStart: ISODate): Closure[] {
+  return closures
+    .filter((closure) => closure.endDate >= weekStart)
+    .toSorted(
+      (left, right) =>
+        left.startDate.localeCompare(right.startDate) ||
+        left.endDate.localeCompare(right.endDate) ||
+        left.id.localeCompare(right.id),
+    );
+}
 
 /**
  * Build the Time off page's forward-looking grouped projection without mutating stored data.
@@ -34,16 +44,10 @@ export function buildTimeOffGroups(
 ): TimeOffGroup[] {
   const resourceById = new Map(resources.map((resource) => [resource.id, resource]));
   const byResource = new Map<ID, Extract<TimeOffGroup, { kind: "resource" }>>();
-  let company: Extract<TimeOffGroup, { kind: "company" }> | null = null;
   let unknown: Extract<TimeOffGroup, { kind: "unknown" }> | null = null;
 
   for (const entry of timeOff) {
     if (entry.endDate < weekStart) continue;
-    if (entry.resourceId === null) {
-      company ??= { kind: "company", name: m.list_timeoff_everyone(), entries: [] };
-      company.entries.push(entry);
-      continue;
-    }
     const resource = resourceById.get(entry.resourceId);
     if (resource?.kind === "placeholder" && !placeholdersEnabled) continue;
 
@@ -65,10 +69,6 @@ export function buildTimeOffGroups(
     compareDisplayNames(left.name, left.resourceId, right.name, right.resourceId),
   );
   const groups: TimeOffGroup[] = [];
-  if (company) {
-    company.entries.sort(compareEntries);
-    groups.push(company);
-  }
   for (const group of resourceGroups) {
     group.entries.sort(compareEntries);
     groups.push(group);

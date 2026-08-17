@@ -51,22 +51,20 @@ describe("rowCodec", () => {
     ).toThrow(/Corrupt JSON in accounts\.weekStartsOn \(id=a-broken\)/);
   });
 
-  it("preserves explicit SQL null for company-wide time off", () => {
-    const timeOff = TABLES.timeOff;
+  it("round-trips a closure without inventing resource or note fields", () => {
+    const closures = TABLES.closures;
     const databaseRow = {
-      id: "to1",
+      id: "closure1",
       accountId: "a1",
-      resourceId: null,
+      name: "Christmas shutdown",
       startDate: "2026-12-24",
       endDate: "2026-12-25",
-      type: "holiday",
-      note: null,
       createdAt: "created",
       updatedAt: "updated",
     };
-    expect(fromRow(timeOff, databaseRow)).toMatchObject({ resourceId: null });
-    expect(fromRow(timeOff, { ...databaseRow, resourceId: undefined })).not.toHaveProperty("resourceId");
-    expect(toRow(timeOff, { resourceId: null })[2]).toBeNull();
-    expect(toRow(timeOff, {})[2]).toBeNull();
+    expect(fromRow(closures, databaseRow)).toEqual(databaseRow);
+    expect(Object.keys(toRow(closures, databaseRow))).toHaveLength(closures.columns.length);
+    expect(fromRow(closures, databaseRow)).not.toHaveProperty("resourceId");
+    expect(fromRow(closures, databaseRow)).not.toHaveProperty("note");
   });
 });

@@ -117,7 +117,7 @@ describe("importData hardening", () => {
 
   it("does not pollute Object.prototype via a crafted __proto__ payload", () => {
     const incoming = JSON.parse(
-      '{"accounts":[],"disciplines":[],"clients":[{"id":"c","accountId":"X","createdAt":"t","updatedAt":"t","name":"P","color":"#111111","__proto__":{"polluted":true}}],"projects":[],"phases":[],"activities":[],"resources":[],"allocations":[],"timeOff":[]}',
+      '{"accounts":[],"disciplines":[],"clients":[{"id":"c","accountId":"X","createdAt":"t","updatedAt":"t","name":"P","color":"#111111","__proto__":{"polluted":true}}],"projects":[],"phases":[],"activities":[],"resources":[],"allocations":[],"timeOff":[],"closures":[]}',
     ) as AppData;
     s().importData(incoming);
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();

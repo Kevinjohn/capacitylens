@@ -42,7 +42,7 @@ const person = (id: string, accountId: string) => ({
   color: "#3b82f6",
   ...meta(),
 });
-const timeOff = (id: string, accountId: string, resourceId: string | null, note?: string) => ({
+const timeOff = (id: string, accountId: string, resourceId: string, note?: string) => ({
   id,
   accountId,
   resourceId,
@@ -50,6 +50,14 @@ const timeOff = (id: string, accountId: string, resourceId: string | null, note?
   endDate: "2026-02-03",
   type: "vacation",
   ...(note !== undefined ? { note } : {}),
+  ...meta(),
+});
+const closure = (id: string, accountId: string) => ({
+  id,
+  accountId,
+  name: "Christmas shutdown",
+  startDate: "2026-12-24",
+  endDate: "2026-12-27",
   ...meta(),
 });
 
@@ -165,20 +173,20 @@ const batchInto = (app: FastifyInstance, accountId: string, id: string, cookie?:
     headers: cookie ? { cookie } : {},
   });
 
-const writeCompanyTimeOff = (app: FastifyInstance, accountId: string, id: string, cookie: string, batched: boolean) => {
-  const row = { ...timeOff(id, accountId, null), type: "holiday" };
+const writeClosure = (app: FastifyInstance, accountId: string, id: string, cookie: string, batched: boolean) => {
+  const row = closure(id, accountId);
   return call(
     app,
     batched
       ? {
           method: "POST",
           url: "/api/batch",
-          payload: { ops: [{ method: "PUT", table: "timeOff", id, row }] },
+          payload: { ops: [{ method: "PUT", table: "closures", id, row }] },
           headers: { cookie },
         }
       : {
           method: "POST",
-          url: "/api/timeOff",
+          url: "/api/closures",
           payload: row,
           headers: { cookie },
         },
@@ -217,7 +225,7 @@ const importInto = (app: FastifyInstance, accountId: string, id: string, cookie?
 };
 
 describe("P1.5 authorize — auth-on 403 matrix", () => {
-  it.each([false, true])("keeps company-wide time off at the editor+ write tier (batched=%s)", async (batched) => {
+  it.each([false, true])("keeps closures at the editor+ write tier (batched=%s)", async (batched) => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
 
@@ -225,15 +233,14 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
       const { cookie, userId } = await signUp(app, `${role}-company-timeoff-${batched}@capacitylens.dev`);
       upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
       const id = `${role}-company-${batched}`;
-      const response = await writeCompanyTimeOff(app, "a1", id, cookie, batched);
+      const response = await writeClosure(app, "a1", id, cookie, batched);
 
       expect(response.statusCode, role).toBe(role === "viewer" ? 403 : batched ? 200 : 201);
-      if (role === "viewer") expect(getRow(db, "timeOff", id), role).toBeUndefined();
+      if (role === "viewer") expect(getRow(db, "closures", id), role).toBeUndefined();
       else {
-        expect(getRow(db, "timeOff", id), role).toMatchObject({
+        expect(getRow(db, "closures", id), role).toMatchObject({
           accountId: "a1",
-          resourceId: null,
-          type: "holiday",
+          name: "Christmas shutdown",
         });
       }
     }
@@ -643,16 +650,15 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
   it.each([
     ["owner", true],
     ["editor", false],
-  ] as const)("applies the %s note projection without dropping resourceId:null", async (role, canSeeNote) => {
+  ] as const)("applies the %s note projection without dropping the resource reference", async (role, canSeeNote) => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
-    db.prepare("UPDATE timeOff SET resourceId = NULL, type = 'holiday' WHERE id = 'to1'").run();
     const { cookie, userId } = await signUp(app, `${role}-company-note@capacitylens.dev`);
     upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
 
     const res = await getState(app, "a1", cookie);
     expect(res.statusCode).toBe(200);
-    expect(res.json().timeOff[0]).toMatchObject({ id: "to1", resourceId: null });
+    expect(res.json().timeOff[0]).toMatchObject({ id: "to1", resourceId: "r1" });
     if (canSeeNote) {
       expect(noteOf(res)).toBe(SENTINEL_TIMEOFF_NOTE);
     } else {

@@ -35,6 +35,7 @@ import {
   assertSchemaV30,
   assertSchemaV31,
   assertSchemaV32,
+  assertSchemaV33,
   assertSchemaV8,
   assertSchemaV9,
   migrateSchemaV8,
@@ -57,7 +58,12 @@ import {
 import { ACCOUNT_BOUNDARY_STATE_V15_SQL, assertAccountBoundaryStateCurrent } from "./accounts/state";
 import { AUDIT_OUTBOX_SQL, assertAuditOutboxCurrent } from "./auditOutbox";
 import { SYNC_ORDERING_SQL, assertSyncOrderingCurrent } from "./syncOrdering";
-import { TENANT_RELATIONSHIP_INTEGRITY_V19_SQL, assertTenantRelationshipIntegrityCurrent } from "./tenantIntegrity";
+import {
+  CLOSURE_TENANT_INTEGRITY_V34_SQL,
+  TENANT_RELATIONSHIP_INTEGRITY_V19_SQL,
+  assertTenantRelationshipIntegrityCurrent,
+  assertTenantRelationshipIntegrityV19,
+} from "./tenantIntegrity";
 import {
   assertBootstrapClaimCurrent,
   BOOTSTRAP_CLAIM_V20_DEFINITION,
@@ -66,8 +72,10 @@ import {
 import {
   assertTenantAccountIndexesV21,
   assertTenantEntityIndexesCurrent,
+  assertTenantEntityIndexesV23,
   FOREIGN_KEY_CHILD_INDEXES_V23_SQL,
   TENANT_ENTITY_INDEXES_V21_SQL,
+  TENANT_ENTITY_INDEXES_V34_SQL,
 } from "./tenantIndexes";
 import {
   assertFederatedIdentitySchemaCurrent,
@@ -89,7 +97,7 @@ import {
 export type Db = DatabaseSync;
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 33;
+export const DB_SCHEMA_VERSION = 34;
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
 export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e;
@@ -355,6 +363,9 @@ const tableHasColumns = (db: Db, table: string, required: readonly string[]): bo
   return required.every((column) => columns.has(column));
 };
 
+const tableExists = (db: Db, table: string): boolean =>
+  db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) !== undefined;
+
 // The one copy of the rebuild SQL: executed by the migration below and hashed into its ledger
 // checksum, so the definition can never drift from what actually runs.
 const TIME_OFF_REBUILD_V33_SQL = `
@@ -402,6 +413,61 @@ function migrateTimeOffResourceNullableV33(db: Db): void {
 
   db.exec(TIME_OFF_REBUILD_V33_SQL);
   for (const { sql } of schemaObjects) db.exec(sql);
+}
+
+// There are no existing users at this cutover: v34 deliberately drops legacy company-wide
+// (NULL-resource) time-off rows instead of converting them into first-class closures.
+const TIME_OFF_REBUILD_V34_SQL = `
+    CREATE TABLE timeOff_v34 (
+      id TEXT NOT NULL PRIMARY KEY,
+      accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      resourceId TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+      startDate TEXT NOT NULL, endDate TEXT NOT NULL, type TEXT NOT NULL, note TEXT,
+      createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+    );
+    INSERT INTO timeOff_v34
+      (id, accountId, resourceId, startDate, endDate, type, note, createdAt, updatedAt)
+    SELECT id, accountId, resourceId, startDate, endDate, type, note, createdAt, updatedAt
+      FROM timeOff
+     WHERE resourceId IS NOT NULL;
+    DROP TABLE timeOff;
+    ALTER TABLE timeOff_v34 RENAME TO timeOff;
+  `;
+
+const CLOSURES_V34_SQL = `
+    CREATE TABLE IF NOT EXISTS closures (
+      id TEXT NOT NULL PRIMARY KEY,
+      accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      startDate TEXT NOT NULL, endDate TEXT NOT NULL,
+      createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+    );
+  `;
+
+const COMPANY_CLOSURES_V34_DEFINITION = [
+  "capture:sqlite_master:indexes-and-triggers-on-timeOff:v1",
+  TIME_OFF_REBUILD_V34_SQL,
+  "recreate:captured-indexes-and-triggers:v1",
+  CLOSURES_V34_SQL,
+  TENANT_ENTITY_INDEXES_V34_SQL,
+  CLOSURE_TENANT_INTEGRITY_V34_SQL,
+].join("\n");
+
+function migrateCompanyClosuresV34(db: Db): void {
+  const schemaObjects = db
+    .prepare(
+      `SELECT sql FROM sqlite_master
+        WHERE tbl_name = 'timeOff'
+          AND type IN ('index', 'trigger')
+          AND sql IS NOT NULL
+        ORDER BY rowid`,
+    )
+    .all() as Array<{ sql: string }>;
+  db.exec(TIME_OFF_REBUILD_V34_SQL);
+  for (const { sql } of schemaObjects) db.exec(sql);
+  db.exec(CLOSURES_V34_SQL);
+  db.exec(TENANT_ENTITY_INDEXES_V34_SQL);
+  db.exec(CLOSURE_TENANT_INTEGRITY_V34_SQL);
 }
 
 const tableHasForeignKey = (db: Db, table: string, from: string, targetTable: string, targetColumn = "id"): boolean =>
@@ -618,7 +684,7 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     ),
     (db) => {
       db.exec(TENANT_RELATIONSHIP_INTEGRITY_V19_SQL);
-      assertTenantRelationshipIntegrityCurrent(db);
+      assertTenantRelationshipIntegrityV19(db);
     },
   ),
   defineMigration(20, "version-bootstrap-claim-control", BOOTSTRAP_CLAIM_V20_DEFINITION, (db) => {
@@ -635,7 +701,7 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   }),
   defineMigration(23, "index-foreign-key-children", FOREIGN_KEY_CHILD_INDEXES_V23_SQL, (db) => {
     db.exec(FOREIGN_KEY_CHILD_INDEXES_V23_SQL);
-    assertTenantEntityIndexesCurrent(db);
+    assertTenantEntityIndexesV23(db);
   }),
   defineMigration(24, "bound-used-invitation-history", USED_INVITATION_RETENTION_V24_DEFINITION, (db) => {
     migrateUsedInvitationHistoryV24(db);
@@ -745,6 +811,12 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   ),
   defineMigration(33, "allow-company-wide-time-off", TIME_OFF_RESOURCE_NULLABLE_V33_DEFINITION, (db) => {
     migrateTimeOffResourceNullableV33(db);
+    assertSchemaV33(db);
+    assertTenantRelationshipIntegrityV19(db);
+    assertTenantEntityIndexesV23(db);
+  }),
+  defineMigration(34, "separate-company-closures", COMPANY_CLOSURES_V34_DEFINITION, (db) => {
+    migrateCompanyClosuresV34(db);
     assertSchemaCurrent(db);
     assertTenantRelationshipIntegrityCurrent(db);
     assertTenantEntityIndexesCurrent(db);
@@ -1287,6 +1359,10 @@ export function loadState(db: Db): AppData {
   const data = emptyAppData() as unknown as Record<string, Row[]>;
   const cache = statementCache(db).loadStateSelectAll;
   for (const table of CREATE_ORDER) {
+    // During historical migration replay, newer AppData tables do not exist yet. They are empty
+    // until their explicit migration creates them; the post-migration schema assertion still
+    // rejects a missing table at the current version.
+    if (!tableExists(db, table)) continue;
     const spec = TABLES[table];
     const stmt = cachedTableStatement(cache, table, db, `SELECT * FROM ${table}`);
     data[table] = stmt.all().map((r) => fromRow(spec, r));

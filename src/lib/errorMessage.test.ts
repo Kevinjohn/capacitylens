@@ -99,6 +99,7 @@ describe("domainErrorMessage", () => {
     ["time_off_resource_invalid", "Time off must reference an existing resource in this company."],
     ["time_off_resource_inactive", "Time off must reference an active resource in this company."],
     ["time_off_external_resource", "Time off can’t be recorded for an external / 3rd-party resource."],
+    ["closure_name_required", "Closure name is required."],
   ];
 
   it.each(fixedMessageCases)("maps %s to its exact translated message", (code, expected) => {

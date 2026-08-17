@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Allocation, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
+import type { Allocation, Closure, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
@@ -239,6 +239,7 @@ const repeatingAllocationAdvisory = (
   existingLoad: readonly Draft<Allocation>[],
   timeOff: TimeOff[],
   proposedDrafts: readonly Draft<Allocation>[],
+  closures: Closure[],
 ) =>
   repeatingAllocationAdvisoryWithWeek(
     resource,
@@ -246,6 +247,7 @@ const repeatingAllocationAdvisory = (
     timeOff,
     proposedDrafts,
     effectiveWorkingWeek(resource, [1, 2, 3, 4, 5]),
+    closures,
   );
 
 describe("repeatingAllocationAdvisory", () => {
@@ -257,7 +259,7 @@ describe("repeatingAllocationAdvisory", () => {
     const existing: Draft<Allocation>[] = [
       baseDraft({ startDate: "2026-06-01", endDate: "2026-06-01", hoursPerDay: 4 }),
     ];
-    expect(repeatingAllocationAdvisory(fullResource(), existing, [], drafts)).toEqual({
+    expect(repeatingAllocationAdvisory(fullResource(), existing, [], drafts, [])).toEqual({
       overCapacityAllocations: 2,
       timeOffAllocations: 0,
       nonEffectiveStartAllocations: 0,
@@ -275,13 +277,13 @@ describe("repeatingAllocationAdvisory", () => {
     const lateOnly: Draft<Allocation>[] = [
       baseDraft({ startDate: "2026-06-15", endDate: "2026-06-15", hoursPerDay: 4 }),
     ];
-    expect(repeatingAllocationAdvisory(fullResource(), lateOnly, [], drafts)).toEqual({
+    expect(repeatingAllocationAdvisory(fullResource(), lateOnly, [], drafts, [])).toEqual({
       overCapacityAllocations: 1,
       timeOffAllocations: 0,
       nonEffectiveStartAllocations: 0,
     });
     // Same load, no draft covering its day: nothing is over.
-    expect(repeatingAllocationAdvisory(fullResource(), lateOnly, [], [drafts[0]!])).toEqual({
+    expect(repeatingAllocationAdvisory(fullResource(), lateOnly, [], [drafts[0]!], [])).toEqual({
       overCapacityAllocations: 0,
       timeOffAllocations: 0,
       nonEffectiveStartAllocations: 0,
@@ -299,7 +301,7 @@ describe("repeatingAllocationAdvisory", () => {
     const existing: Draft<Allocation>[] = [
       baseDraft({ startDate: "2026-06-01", endDate: "2026-06-05", hoursPerDay: 4 }),
     ];
-    expect(repeatingAllocationAdvisory(fullResource(), existing, [], drafts)).toEqual({
+    expect(repeatingAllocationAdvisory(fullResource(), existing, [], drafts, [])).toEqual({
       overCapacityAllocations: 0, // 4 + 4 fits exactly in an 8h day, on every occurrence
       timeOffAllocations: 0,
       nonEffectiveStartAllocations: 0,
@@ -323,7 +325,7 @@ describe("repeatingAllocationAdvisory", () => {
       baseDraft({ startDate: "2026-06-01", endDate: "2026-06-03", hoursPerDay: 8 }),
       baseDraft({ startDate: "2026-06-08", endDate: "2026-06-10", hoursPerDay: 8 }),
     ];
-    expect(repeatingAllocationAdvisory(fullResource(), [], timeOff, drafts)).toEqual({
+    expect(repeatingAllocationAdvisory(fullResource(), [], timeOff, drafts, [])).toEqual({
       overCapacityAllocations: 0,
       timeOffAllocations: 2,
       nonEffectiveStartAllocations: 0,
@@ -336,21 +338,20 @@ describe("repeatingAllocationAdvisory", () => {
       ["2026-06-01", "2026-06-08", "2026-06-15"],
       repeatContext("hourly", 1),
     );
-    const companyClosure: TimeOff[] = [
+    const companyClosure: Closure[] = [
       {
         id: "company-closure",
         accountId: "a1",
         createdAt: "t",
         updatedAt: "t",
-        resourceId: null,
+        name: "Company shutdown",
         startDate: "2026-06-08",
         endDate: "2026-06-08",
-        type: "holiday",
       },
     ];
 
     expect(drafts.map((draft) => draft.startDate)).toEqual(["2026-06-01", "2026-06-08", "2026-06-15"]);
-    expect(repeatingAllocationAdvisory(fullResource(), [], companyClosure, drafts)).toEqual({
+    expect(repeatingAllocationAdvisory(fullResource(), [], [], drafts, companyClosure)).toEqual({
       overCapacityAllocations: 0,
       timeOffAllocations: 1,
       nonEffectiveStartAllocations: 0,
@@ -362,12 +363,12 @@ describe("repeatingAllocationAdvisory", () => {
     const exactCapacity = baseDraft({ startDate: "2026-06-02", endDate: "2026-06-02", hoursPerDay: 4 });
     const overCapacity = baseDraft({ startDate: "2026-06-09", endDate: "2026-06-09", hoursPerDay: 5 });
 
-    expect(repeatingAllocationAdvisory(resource, [], [], [exactCapacity])).toEqual({
+    expect(repeatingAllocationAdvisory(resource, [], [], [exactCapacity], [])).toEqual({
       overCapacityAllocations: 0,
       timeOffAllocations: 0,
       nonEffectiveStartAllocations: 0,
     });
-    expect(repeatingAllocationAdvisory(resource, [], [], [overCapacity])).toEqual({
+    expect(repeatingAllocationAdvisory(resource, [], [], [overCapacity], [])).toEqual({
       overCapacityAllocations: 1,
       timeOffAllocations: 0,
       nonEffectiveStartAllocations: 0,
@@ -376,12 +377,12 @@ describe("repeatingAllocationAdvisory", () => {
 
   it("keeps zero-load Blocks clean on half days and skips External resources", () => {
     const zeroDraft = baseDraft({ hoursPerDay: 0 });
-    expect(repeatingAllocationAdvisory(fullResource({ halfDays: [1] }), [], [], [zeroDraft])).toEqual({
+    expect(repeatingAllocationAdvisory(fullResource({ halfDays: [1] }), [], [], [zeroDraft], [])).toEqual({
       overCapacityAllocations: 0,
       timeOffAllocations: 0,
       nonEffectiveStartAllocations: 1,
     });
-    expect(repeatingAllocationAdvisory(fullResource({ kind: "external" }), [], [], [zeroDraft])).toEqual({
+    expect(repeatingAllocationAdvisory(fullResource({ kind: "external" }), [], [], [zeroDraft], [])).toEqual({
       overCapacityAllocations: 0,
       timeOffAllocations: 0,
       nonEffectiveStartAllocations: 0,
@@ -397,7 +398,7 @@ describe("repeatingAllocationAdvisory", () => {
       baseDraft({ startDate: "2026-09-01", endDate: "2026-09-01", ignoreWeekends: true }),
     ];
 
-    expect(repeatingAllocationAdvisory(resource, [], [], drafts)).toMatchObject({
+    expect(repeatingAllocationAdvisory(resource, [], [], drafts, [])).toMatchObject({
       nonEffectiveStartAllocations: 2,
     });
   });
@@ -411,7 +412,7 @@ describe("repeatingAllocationAdvisory", () => {
     ).startDates;
     const drafts = starts.map((startDate) => baseDraft({ startDate, endDate: startDate }));
 
-    expect(repeatingAllocationAdvisory(resource, [], [], drafts)).toMatchObject({
+    expect(repeatingAllocationAdvisory(resource, [], [], drafts, [])).toMatchObject({
       nonEffectiveStartAllocations: 0,
     });
   });

@@ -7,8 +7,15 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Replaced the hidden Everyone time-off choice with first-class company closures: a dedicated
+  Time off section and form, plus one named schedule band covering every person and placeholder
+  across each literal inclusive date span (#407).
+
 ### Changed
 
+- Pre-existing company-wide time-off entries are not carried over to first-class company closures (#407).
 - Led allocation hours-per-day options with their hour values for quicker comparison (#398).
 - Reordered the schedule filter bar around search-first filtering and replaced the tentative checkbox
   with an explicit Show/Hide segmented control (#406).

@@ -615,6 +615,7 @@ export function AllocationModal(props: AllocationModalProps) {
         resourceTimeOff,
         repeatProjection.drafts,
         selectedEffectiveWeek,
+        data.closures,
       );
       return (
         formatCapacityAdvisory(
@@ -641,6 +642,7 @@ export function AllocationModal(props: AllocationModalProps) {
           others,
           resourceTimeOff,
           selectedEffectiveWeek,
+          data.closures,
         ),
         "form",
       ) || null
@@ -648,6 +650,7 @@ export function AllocationModal(props: AllocationModalProps) {
   }, [
     create,
     data.allocations,
+    data.closures,
     data.timeOff,
     editId,
     effEndDate,
@@ -867,6 +870,7 @@ export function AllocationModal(props: AllocationModalProps) {
       draft.startDate,
       data.timeOff,
       selectedEffectiveWeek,
+      data.closures,
     );
     if (blocked === "non-working") {
       fail("startDate", m.form_allocation_err_start_non_working());

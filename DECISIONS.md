@@ -14,6 +14,10 @@ This is the short, present-tense record of decisions that constrain future work.
   phase.
 - Resources are people, placeholders or external parties. External parties have no capacity and
   do not contribute to utilisation.
+- Time off does not recur. Neither a personal entry nor a company closure has a repeat or series
+  field; a holiday or shutdown is a specific set of dates. Repeat belongs to allocations.
+- Company closures are separate entities from personal time off, not a variant of it. A closure
+  covers every person and placeholder, never an external party, and carries no resource reference.
 - Shared role and status badges use a compact pill silhouette. Their semantic colours continue to
   distinguish brand/default, neutral, warning, danger and outline states.
 - Employment type is recorded for people but does not add a visual badge to the schedule or roster.
@@ -29,6 +33,9 @@ This is the short, present-tense record of decisions that constrain future work.
   least one working day — an empty stored selection is repaired to the week-start default.
 - Normal allocations do not consume days outside the effective working week. `ignoreWeekends`
   (the **Ignore working days** checkbox) is the explicit exception; it never bypasses time off.
+- A company closure is a literal inclusive date span: no working-week filtering, whole days only
+  and no per-person exception. Closures and personal time off are independent and may overlap
+  freely, with no merging or precedence.
 - New allocations must start on an effective working day (create, duplicate and reassignment all
   enforce it); edits to existing allocations stay permissive. Later occurrences of a repeat batch
   may start on non-effective days and are counted in an advisory, not blocked.

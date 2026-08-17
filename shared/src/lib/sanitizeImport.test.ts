@@ -162,14 +162,15 @@ describe("sanitizeImportedRecord", () => {
     expect(sanitizeImportedRecord("timeOff", { type: "vacation" }).type).toBe("other");
   });
 
-  it("preserves company-wide null distinctly and repairs unsupported Everyone types", () => {
-    expect(sanitizeImportedRecord("timeOff", { resourceId: null, type: "holiday" })).toMatchObject({
-      resourceId: null,
-      type: "holiday",
-    });
-    expect(sanitizeImportedRecord("timeOff", { resourceId: null, type: "sick" }).type).toBe("other");
-    expect(sanitizeImportedRecord("timeOff", { resourceId: null, type: "unpaid" }).type).toBe("other");
-    expect(sanitizeImportedRecord("timeOff", { type: "holiday" })).not.toHaveProperty("resourceId");
+  it("sanitizes closures without accepting a resource reference", () => {
+    expect(
+      sanitizeImportedRecord("closures", {
+        name: " Christmas shutdown ",
+        resourceId: "r1",
+        startDate: "2026-12-24",
+        endDate: "2026-12-27",
+      }),
+    ).toEqual({ name: "Christmas shutdown", startDate: "2026-12-24", endDate: "2026-12-27" });
   });
 
   it.each(["holiday", "sick", "unpaid", "other"] as const)("preserves personal time-off type %s", (type) => {

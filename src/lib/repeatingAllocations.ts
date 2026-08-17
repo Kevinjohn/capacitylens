@@ -7,7 +7,14 @@ import {
 import { endDateForSpan, maxSpanDaysForStart, MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import type { RepeatPattern } from "@capacitylens/shared/lib/repeatingDates";
 import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
-import type { Allocation, ISODate, Resource, SchedulingMode, TimeOff } from "@capacitylens/shared/types/entities";
+import type {
+  Allocation,
+  Closure,
+  ISODate,
+  Resource,
+  SchedulingMode,
+  TimeOff,
+} from "@capacitylens/shared/types/entities";
 import type { Draft } from "../store/useStore";
 import {
   addCapacityLoad,
@@ -116,6 +123,7 @@ export function repeatingAllocationAdvisory(
   timeOff: TimeOff[],
   proposedDrafts: readonly Draft<Allocation>[],
   effectiveWeek: EffectiveWorkingWeek,
+  closures: Closure[],
 ): RepeatingAllocationAdvisory {
   if (!isCapacityTracked(resource)) {
     return { overCapacityAllocations: 0, timeOffAllocations: 0, nonEffectiveStartAllocations: 0 };
@@ -141,8 +149,8 @@ export function repeatingAllocationAdvisory(
   let nonEffectiveStartAllocations = 0;
   for (const draft of proposedDrafts) {
     const result = shared
-      ? capacityAdvisoryFromLoad(resource, draft, shared.load, timeOff, effectiveWeek)
-      : capacityAdvisory(resource, draft, rebuiltLoad, timeOff, effectiveWeek);
+      ? capacityAdvisoryFromLoad(resource, draft, shared.load, timeOff, effectiveWeek, closures)
+      : capacityAdvisory(resource, draft, rebuiltLoad, timeOff, effectiveWeek, closures);
     if (result.overDays > 0) overCapacityAllocations += 1;
     if (result.timeOffDays > 0) timeOffAllocations += 1;
     if (startsOnNonEffectiveWeekday(effectiveWeek, draft.ignoreWeekends, weekdayOf(draft.startDate))) {

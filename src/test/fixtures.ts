@@ -4,6 +4,7 @@ import type {
   Allocation,
   AppData,
   Client,
+  Closure,
   ID,
   Project,
   Resource,
@@ -154,6 +155,20 @@ export function makeTimeOff(overrides: Partial<TimeOff> = {}): TimeOff {
     startDate: "2026-06-01",
     endDate: "2026-06-02",
     type: "holiday",
+    ...overrides,
+  };
+}
+
+/** A complete company Closure; override any field per test. */
+export function makeClosure(overrides: Partial<Closure> = {}): Closure {
+  return {
+    id: "closure1",
+    accountId: "a1",
+    createdAt: "t",
+    updatedAt: "t",
+    name: "Christmas shutdown",
+    startDate: "2026-12-24",
+    endDate: "2026-12-27",
     ...overrides,
   };
 }

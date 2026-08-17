@@ -33,6 +33,7 @@ const SUMMARY: [keyof AppData, () => string][] = [
   ["activities", () => m.data_summary_activities()],
   ["allocations", () => m.data_summary_allocations()],
   ["timeOff", () => m.data_summary_timeoff()],
+  ["closures", () => m.data_summary_closures()],
 ];
 
 function summarize(data: AppData): string {

@@ -10,11 +10,8 @@ import {
   externalCapacityDefaults,
   FULL_DAY_HOURS,
   INTERNAL_COLOUR_MODES,
-  COMPANY_WIDE_TIME_OFF_FALLBACK,
-  isCompanyWideTimeOffType,
   isPlaceholderResource,
   placeholderCapacityDefaults,
-  type TimeOffType,
   type Account,
   type AppData,
   type ScopedEntityKey,
@@ -76,6 +73,7 @@ const IMPORTED_FIELDS = {
     "ignoreWeekends",
   ],
   timeOff: [...SCOPED_META_FIELDS, "resourceId", "startDate", "endDate", "type", "note"],
+  closures: [...SCOPED_META_FIELDS, "name", "startDate", "endDate"],
 } as const satisfies {
   [K in ScopedEntityKey]: readonly (keyof AppData[K][number])[];
 };
@@ -339,11 +337,14 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
       break;
     case "timeOff":
       rec.type = oneOf(rec.type, VALID_TIMEOFF, "other");
-      if (rec.resourceId === null && !isCompanyWideTimeOffType(rec.type as TimeOffType))
-        rec.type = COMPANY_WIDE_TIME_OFF_FALLBACK;
       rec.startDate = normalizeISODate(rec.startDate);
       rec.endDate = normalizeISODate(rec.endDate);
       cleanField(rec, "note", true);
+      break;
+    case "closures":
+      cleanRequiredField(rec, "name", "Untitled closure");
+      rec.startDate = normalizeISODate(rec.startDate);
+      rec.endDate = normalizeISODate(rec.endDate);
       break;
     case "disciplines":
       rec.sortOrder = safeInt(rec.sortOrder, 0);

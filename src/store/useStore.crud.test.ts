@@ -3,6 +3,7 @@ import { useStore } from "./useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { PRESET_COLORS } from "@capacitylens/shared/lib/color";
+import { DomainError } from "@capacitylens/shared/domain/errors";
 import {
   DEFAULT_ACCOUNT_ID,
   makeAppData,
@@ -287,65 +288,21 @@ describe("store CRUD covers every entity", () => {
     expect(s().data.timeOff).toHaveLength(0);
   });
 
-  it("company-wide time off: add / update / delete", () => {
-    const to = s().addTimeOff({
-      resourceId: null,
-      startDate: "2026-12-24",
-      endDate: "2026-12-25",
-      type: "holiday",
-    });
-    expect(to.resourceId).toBeNull();
-    s().updateTimeOff(to.id, { type: "other" });
-    expect(s().data.timeOff[0]).toMatchObject({ resourceId: null, type: "other" });
-    s().deleteTimeOff(to.id);
-    expect(s().data.timeOff).toHaveLength(0);
-  });
-
-  it("rejects invalid company-wide time off atomically", () => {
-    for (const type of ["sick", "unpaid"] as const) {
-      expect(() =>
-        s().addTimeOff({
-          resourceId: null,
-          startDate: "2026-12-24",
-          endDate: "2026-12-25",
-          type,
-        }),
-      ).toThrow(/company-wide time off must use holiday or other/i);
-    }
-    expect(() =>
-      s().addTimeOff({
-        resourceId: null,
-        startDate: "2026-12-25",
-        endDate: "2026-12-24",
-        type: "holiday",
-      }),
-    ).toThrow(/end date cannot be before the start date/i);
-    expect(s().data.timeOff).toHaveLength(0);
-
-    const company = s().addTimeOff({
-      resourceId: null,
-      startDate: "2026-12-24",
-      endDate: "2026-12-25",
-      type: "holiday",
-    });
-    expect(() => s().updateTimeOff(company.id, { type: "sick" })).toThrow(/company-wide time off/i);
-    expect(() => s().updateTimeOff(company.id, { endDate: "2026-12-23" })).toThrow(
+  it("company closure: add / update / delete with range validation", () => {
+    expect(() => s().addClosure({ name: "  ", startDate: "2026-12-24", endDate: "2026-12-25" })).toThrow(
+      expect.objectContaining<Partial<DomainError>>({ code: "closure_name_required" }),
+    );
+    const closure = s().addClosure({ name: "Christmas shutdown", startDate: "2026-12-24", endDate: "2026-12-25" });
+    s().updateClosure(closure.id, { name: "Winter shutdown" });
+    expect(s().data.closures[0]).toMatchObject({ name: "Winter shutdown" });
+    expect(() => s().updateClosure(closure.id, { endDate: "2026-12-23" })).toThrow(
       /end date cannot be before the start date/i,
     );
-    expect(s().data.timeOff[0]).toMatchObject({ type: "holiday", endDate: "2026-12-25" });
-  });
-
-  it("keeps all personal types and rejects reassigning unsupported types to Everyone", () => {
-    const resource = s().addResource({ ...personDraft });
-    const personal = s().addTimeOff({
-      resourceId: resource.id,
-      startDate: "2026-12-24",
-      endDate: "2026-12-25",
-      type: "sick",
-    });
-    expect(() => s().updateTimeOff(personal.id, { type: "unpaid" })).not.toThrow();
-    expect(() => s().updateTimeOff(personal.id, { resourceId: null })).toThrow(/company-wide time off/i);
-    expect(s().data.timeOff[0]).toMatchObject({ resourceId: resource.id, type: "unpaid" });
+    expect(() => s().updateClosure(closure.id, { name: "  " })).toThrow(
+      expect.objectContaining<Partial<DomainError>>({ code: "closure_name_required" }),
+    );
+    s().deleteClosure(closure.id);
+    expect(s().data.closures).toHaveLength(0);
   });
 });
 

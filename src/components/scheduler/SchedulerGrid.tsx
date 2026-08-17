@@ -5,7 +5,7 @@ import { m } from "@/i18n";
 import { formatUtilizationPercent } from "../../lib/utilizationPercent";
 import { hasActiveFilters, useStore } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
-import { useActiveScopedData } from "../../store/useScopedData";
+import { sharedScopedData, useActiveScopedData } from "../../store/useScopedData";
 import {
   disciplinesEnabledFor,
   externalEnabledFor,
@@ -44,6 +44,7 @@ import { TooltipProvider } from "../ui/tooltip";
 import { useCalendarToday } from "./useCalendarToday";
 import { visibleSpanLabels, visibleWindowFor } from "./visibleSpan";
 import { isCreationStartBlocked } from "./creationAvailability";
+import { ClosureBand } from "./ClosureBand";
 
 // Creation/editing forms are not needed to paint or inspect the schedule. Load them on the first
 // interaction so their validation and picker dependencies do not consume the initial entry budget.
@@ -305,15 +306,21 @@ export function SchedulerGrid() {
     const drawMode = state.ui.drawMode;
     const resource = state.data.resources.find((candidate) => candidate.id === resourceId);
     if (!resource) return;
+    const scopedData = sharedScopedData(state.data, state.activeAccountId);
     // The SAME gate the model paints `creationBlocked` with, so a lane can never accept a draw on a
     // day it drew as unavailable. It scopes time off to the resource itself, so no pre-filter here.
-    // EXCEPT in time-off draw mode: a company-wide closure must not swallow the gesture — sick
+    // EXCEPT in time-off draw mode: a closure must not swallow the gesture — sick
     // leave can legitimately start inside a closure, and the Add time off form accepts the
     // identical entry. Personal overlaps and non-working days still gate the draw.
-    const gateTimeOff =
-      drawMode === "timeoff" ? state.data.timeOff.filter((t) => t.resourceId !== null) : state.data.timeOff;
+    const gateTimeOff = scopedData.timeOff;
     if (
-      isCreationStartBlocked(resource, startDate, gateTimeOff, accountWorkingDaysFor(state.data, state.activeAccountId))
+      isCreationStartBlocked(
+        resource,
+        startDate,
+        gateTimeOff,
+        accountWorkingDaysFor(state.data, state.activeAccountId),
+        drawMode === "timeoff" ? [] : scopedData.closures,
+      )
     ) {
       return;
     }
@@ -363,6 +370,22 @@ export function SchedulerGrid() {
     [items, density],
   );
   const layout = useMemo(() => buildLayout(heights), [heights]);
+  const externalGroupIndex = items.findIndex((item) => item.kind === "group" && item.group.external);
+  const trackedGridHeight = externalGroupIndex === -1 ? layout.total : (layout.tops[externalGroupIndex] ?? 0);
+  const timelineStart = days[0];
+  const timelineEnd = days[days.length - 1];
+  const visibleClosures = useMemo(
+    () =>
+      timelineStart && timelineEnd
+        ? data.closures.filter(
+            (closure) =>
+              closure.startDate <= closure.endDate &&
+              closure.endDate >= timelineStart &&
+              closure.startDate <= timelineEnd,
+          )
+        : [],
+    [data.closures, timelineEnd, timelineStart],
+  );
 
   // Scroll a specific resource row into view when jumpToResource fires (command
   // palette "jump to person"). Mirrors the recenterToken pattern. Uses layout.tops
@@ -738,7 +761,7 @@ export function SchedulerGrid() {
           )}
 
           {items.length > 0 && (
-            <div role="rowgroup" className="min-w-max shrink-0">
+            <div role="rowgroup" className="relative min-w-max shrink-0">
               {renderedIndices.map((itemIndex, position) => {
                 const item = items[itemIndex];
                 if (!item) return null;
@@ -766,6 +789,19 @@ export function SchedulerGrid() {
                   const gap = Math.max(0, layout.total - renderedBottom);
                   return gap > 0 ? <div aria-hidden style={{ height: gap }} /> : null;
                 })()}
+              {timelineStart &&
+                timelineEnd &&
+                visibleClosures.map((closure) => (
+                  <ClosureBand
+                    key={closure.id}
+                    closure={closure}
+                    visibleStart={timelineStart}
+                    visibleEnd={timelineEnd}
+                    geom={geom}
+                    leftOffset={LAYOUT.leftColWidth}
+                    height={trackedGridHeight}
+                  />
+                ))}
             </div>
           )}
 
@@ -795,6 +831,20 @@ export function SchedulerGrid() {
             </Suspense>
           )}
         </div>
+
+        {visibleClosures.length > 0 && (
+          <div className="sr-only">
+            {visibleClosures.map((closure) => (
+              <span key={closure.id}>
+                {m.scheduler_closure_aria({
+                  name: closure.name,
+                  start: closure.startDate,
+                  end: closure.endDate,
+                })}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* WCAG 4.1.3 (Status Messages): the SINGLE scheduler live region. A keyboard move/resize on a
           bar recomputes over-capacity and silently mutates the per-row sr-only summary while focus

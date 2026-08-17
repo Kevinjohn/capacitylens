@@ -114,7 +114,7 @@ const allocation = (
   status: "confirmed",
   ...o,
 });
-const timeOff = (id: ID, accountId: ID, resourceId: ID | null, o: Partial<TimeOff> = {}): TimeOff => ({
+const timeOff = (id: ID, accountId: ID, resourceId: ID, o: Partial<TimeOff> = {}): TimeOff => ({
   ...meta(id, accountId),
   resourceId,
   startDate: "2026-01-01",
@@ -782,11 +782,18 @@ describe("assertResourceKindAllowsDependents", () => {
     expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).toThrow(reject);
   });
 
-  it("ignores company-wide time off when making a resource external", () => {
+  it("ignores company closures when making a resource external", () => {
     const data: AppData = {
       ...base(),
       resources: [person("r1", A1)],
-      timeOff: [timeOff("company", A1, null)],
+      closures: [
+        {
+          ...meta("closure", A1),
+          name: "Company shutdown",
+          startDate: "2026-01-01",
+          endDate: "2026-01-03",
+        },
+      ],
     };
     expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).not.toThrow();
   });
@@ -1062,22 +1069,49 @@ describe("remapAndValidateImport", () => {
     expect(skipped).toBe(3); // 2 bad allocations + 1 dangling time-off
   });
 
-  it("keeps company-wide time off when the import has no resources", () => {
-    const companyTimeOff = timeOff("company", "src-acct", null, {
+  it("drops a v16 Everyone time-off entry instead of converting it to a closure", () => {
+    const migrated = migrate({
+      schemaVersion: 16,
+      data: {
+        ...emptyAppData(),
+        timeOff: [
+          {
+            ...meta("to-everyone", "src-acct"),
+            resourceId: null,
+            startDate: "2026-12-24",
+            endDate: "2026-12-25",
+            type: "holiday",
+          },
+        ],
+      },
+    });
+
+    const { data, imported, skipped } = remapAndValidateImport(base(), A1, migrated, TS);
+
+    expect(data.timeOff).toEqual([]);
+    expect(data.closures).toEqual([]);
+    expect(imported).toBe(0);
+    expect(skipped).toBe(1);
+  });
+
+  it("keeps a company closure when the import has no resources", () => {
+    const closure = {
+      ...meta("closure", "src-acct"),
+      name: "Christmas shutdown",
       startDate: "2026-12-24",
       endDate: "2026-12-25",
-    });
+    };
     const { data, imported, skipped } = remapAndValidateImport(
       base(),
       A1,
-      { ...emptyAppData(), timeOff: [companyTimeOff] },
+      { ...emptyAppData(), closures: [closure] },
       TS,
     );
 
-    expect(data.timeOff).toHaveLength(1);
-    expect(data.timeOff[0]).toMatchObject({
+    expect(data.closures).toHaveLength(1);
+    expect(data.closures[0]).toMatchObject({
       accountId: A1,
-      resourceId: null,
+      name: "Christmas shutdown",
       startDate: "2026-12-24",
       endDate: "2026-12-25",
     });
@@ -1436,6 +1470,14 @@ describe("remapAndValidateImport", () => {
       activities: [activity("t", "src", "p", "ph")],
       allocations: [allocation("al", "src", "r", "t")],
       timeOff: [timeOff("to", "src", "r")],
+      closures: [
+        {
+          ...meta("closure", "src"),
+          name: "Company shutdown",
+          startDate: "2026-12-24",
+          endDate: "2026-12-27",
+        },
+      ],
     };
     const { data, imported } = remapAndValidateImport(base(), A1, incoming, TS);
     // Every SCOPED_KEY must be present in the output and non-empty. `clients` carries TWO rows: the

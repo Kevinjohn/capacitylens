@@ -117,9 +117,10 @@ range.
 grid as work, as a hatched block with no project colour, so a person's real availability
 is always visible in one place rather than hidden in a separate calendar.
 
-Choosing **Everyone** in the time-off workflow creates one company-wide closure. It is
-an assignee choice, not a setting. The closure appears across every capacity-tracked
-person and placeholder on the schedule, including people added later.
+Company closures are created in their own section of the Time off page. Each closure
+appears once as a named band across every person and placeholder it covers, including
+people added later. It does not cover the External group. A personal time-off block can
+overlap the band; both remain visible because they record independent facts.
 
 An Hours or Days allocation that exceeds the remaining availability gets the usual red
 over-capacity band. Blocks deliberately carry no hours and keep utilisation at 0%, but

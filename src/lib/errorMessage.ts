@@ -37,6 +37,7 @@ const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
   time_off_resource_inactive: m.domain_error_time_off_resource_inactive,
   time_off_external_resource: m.domain_error_time_off_external_resource,
   time_off_company_wide_type: m.domain_error_time_off_company_wide_type,
+  closure_name_required: m.domain_error_closure_name_required,
   project_client_required: m.domain_error_project_client_required,
 };
 

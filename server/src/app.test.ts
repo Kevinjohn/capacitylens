@@ -154,13 +154,21 @@ const allocation = (
     },
     o,
   );
-const timeOff = (id: string, accountId: string, resourceId: string | null, type = "holiday") => ({
+const timeOff = (id: string, accountId: string, resourceId: string, type = "holiday") => ({
   id,
   accountId,
   resourceId,
   startDate: "2026-06-03",
   endDate: "2026-06-03",
   type,
+  ...meta(),
+});
+const closure = (id: string, accountId: string, name = "Christmas shutdown") => ({
+  id,
+  accountId,
+  name,
+  startDate: "2026-12-24",
+  endDate: "2026-12-27",
   ...meta(),
 });
 
@@ -504,36 +512,39 @@ describe("generic lifecycle deletion guard", () => {
 });
 
 describe("batch sync (/api/batch — transactional, ordered)", () => {
-  it("accepts explicit resourceId:null through direct and batch time-off writes", async () => {
+  it("writes closures directly and in a batch, and rejects resource references", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
 
-    expect((await post(app, "timeOff", timeOff("direct-company", "a1", null))).statusCode).toBe(201);
+    expect((await post(app, "closures", closure("direct-closure", "a1"))).statusCode).toBe(201);
     expect(
       (
         await batch(app, [
           {
             method: "PUT",
-            table: "timeOff",
-            id: "batch-company",
-            row: timeOff("batch-company", "a1", null, "other"),
+            table: "closures",
+            id: "batch-closure",
+            row: closure("batch-closure", "a1", "New Year shutdown"),
           },
         ])
       ).statusCode,
     ).toBe(200);
 
-    expect((await state(app)).timeOff).toEqual(
+    expect((await state(app)).closures).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: "direct-company", resourceId: null }),
-        expect.objectContaining({ id: "batch-company", resourceId: null }),
+        expect.objectContaining({ id: "direct-closure", name: "Christmas shutdown" }),
+        expect.objectContaining({ id: "batch-closure", name: "New Year shutdown" }),
       ]),
+    );
+    expect((await post(app, "closures", { ...closure("invalid-closure", "a1"), resourceId: "r1" })).statusCode).toBe(
+      400,
     );
   });
 
   it("rejects an omitted time-off resourceId through direct and batch writes", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
-    const missing = timeOff("missing-resource", "a1", null) as Record<string, unknown>;
+    const missing = timeOff("missing-resource", "a1", "r1") as Record<string, unknown>;
     delete missing.resourceId;
 
     expect((await post(app, "timeOff", missing)).statusCode).toBe(400);
@@ -677,17 +688,14 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
 });
 
 describe("validation (shared domain-core) rejects bad writes with 400", () => {
-  it.each(["sick", "unpaid"])("repairs a direct company-wide %s write to other", async (type) => {
+  it("rejects a null time-off resource", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
 
-    const response = await post(app, "timeOff", timeOff(`company-${type}`, "a1", null, type));
+    const response = await post(app, "timeOff", { ...timeOff("invalid-time-off", "a1", "r1"), resourceId: null });
 
-    expect(response.statusCode).toBe(201);
-    expect(response.json()).toMatchObject({ resourceId: null, type: "other" });
-    expect((await state(app)).timeOff).toEqual([
-      expect.objectContaining({ id: `company-${type}`, resourceId: null, type: "other" }),
-    ]);
+    expect(response.statusCode).toBe(400);
+    expect((await state(app)).timeOff).toEqual([]);
   });
 
   it("rejects direct writes that omit values only the import path may repair", async () => {
@@ -1129,22 +1137,19 @@ describe("import", () => {
     },
   });
 
-  it("atomically imports mixed personal/company time off and round-trips null distinctly from absent", async () => {
+  it("atomically imports personal time off and closures with fresh foreign keys", async () => {
     const { app } = freshApp(true, { multiAccount: true });
     await post(app, "accounts", account("a1"));
     await post(app, "accounts", account("a2"));
-    const missingResource = timeOff("missing-resource", "source", null) as Record<string, unknown>;
+    const missingResource = timeOff("missing-resource", "source", "source-person") as Record<string, unknown>;
     delete missingResource.resourceId;
     const file = {
       schemaVersion: EXPORT_SCHEMA_VERSION,
       data: {
         ...emptyAppData(),
         resources: [person("source-person", "source")],
-        timeOff: [
-          timeOff("personal", "source", "source-person"),
-          timeOff("company", "source", null, "sick"),
-          missingResource,
-        ],
+        timeOff: [timeOff("personal", "source", "source-person"), missingResource],
+        closures: [closure("company", "source")],
       },
     };
 
@@ -1161,9 +1166,10 @@ describe("import", () => {
       url: "/api/state?accountId=a1&includeInactive=1",
     });
     expect(exported.statusCode).toBe(200);
-    expect(exported.json().timeOff).toHaveLength(2);
-    const company = exported.json().timeOff.find((row: { resourceId?: string | null }) => row.resourceId === null);
-    expect(company).toHaveProperty("resourceId", null);
+    expect(exported.json().timeOff).toHaveLength(1);
+    expect(exported.json().closures).toEqual([
+      expect.objectContaining({ name: "Christmas shutdown", startDate: "2026-12-24", endDate: "2026-12-27" }),
+    ]);
 
     const secondImport = await call(app, {
       method: "POST",
@@ -1174,13 +1180,10 @@ describe("import", () => {
     expect(secondImport.json()).toMatchObject({ imported: 3, skipped: 0 });
 
     const roundTripped = await call(app, { method: "GET", url: "/api/state?accountId=a2" });
-    expect(roundTripped.json().timeOff).toHaveLength(2);
-    expect(roundTripped.json().timeOff).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ resourceId: null, type: "other" }),
-        expect.objectContaining({ resourceId: expect.any(String), type: "holiday" }),
-      ]),
-    );
+    expect(roundTripped.json().timeOff).toEqual([
+      expect.objectContaining({ resourceId: expect.any(String), type: "holiday" }),
+    ]);
+    expect(roundTripped.json().closures).toEqual([expect.objectContaining({ name: "Christmas shutdown" })]);
   });
 
   it("imports into an account with fresh ids + remapped FKs, dropping invalid rows", async () => {

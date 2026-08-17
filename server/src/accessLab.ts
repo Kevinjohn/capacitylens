@@ -58,5 +58,6 @@ export function buildAccessLabData(): AppData {
     activities: source.activities.filter((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID),
     allocations: source.allocations.filter((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID),
     timeOff: source.timeOff.filter((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID),
+    closures: source.closures.filter((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID),
   };
 }

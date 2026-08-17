@@ -138,56 +138,6 @@ describe("TimeOffList", () => {
     expect(row).not.toHaveTextContent("Visiting family");
   });
 
-  it("renders Everyone first with a visible type while personal rows stay spare", () => {
-    const resource = useStore.getState().addResource(resourceDraft);
-    useStore.getState().addTimeOff({
-      resourceId: resource.id,
-      startDate: "2026-08-03",
-      endDate: "2026-08-04",
-      type: "holiday",
-    });
-    useStore.getState().addTimeOff({
-      resourceId: null,
-      startDate: "2026-08-01",
-      endDate: "2026-08-02",
-      type: "other",
-    });
-
-    render(<TimeOffList />);
-
-    const groups = screen.getAllByTestId("timeoff-group");
-    expect(groups.map((group) => within(group).getByRole("heading").textContent)).toEqual(["Everyone", "Alice"]);
-    expect(groups[0]).toHaveAttribute("data-group-kind", "company");
-    expect(within(groups[0]).getByTestId("timeoff-row")).toHaveTextContent("Other · Sat 1st Aug · 2 days");
-    expect(within(groups[1]).getByTestId("timeoff-row")).not.toHaveTextContent("Holiday");
-  });
-
-  it("edits and deletes an Everyone entry through the usual row actions", async () => {
-    const user = userEvent.setup();
-    const resource = useStore.getState().addResource(resourceDraft);
-    useStore.getState().addTimeOff({
-      resourceId: null,
-      startDate: "2026-08-01",
-      endDate: "2026-08-05",
-      type: "holiday",
-    });
-    render(<TimeOffList />);
-
-    await user.click(screen.getByRole("button", { name: "Edit Everyone time off from Sat 1st Aug to Wed 5th Aug" }));
-    expect(screen.getByRole("dialog", { name: "Edit time off" })).toBeInTheDocument();
-    fireEvent.keyDown(screen.getByLabelText("Resource"), { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "Alice" }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(useStore.getState().data.timeOff[0].resourceId).toBe(resource.id);
-    await user.click(screen.getByRole("button", { name: "Delete Alice time off from Sat 1st Aug to Wed 5th Aug" }));
-    await user.click(
-      within(screen.getByRole("alertdialog", { name: "Delete time off?" })).getByRole("button", { name: "Delete" }),
-    );
-
-    expect(useStore.getState().data.timeOff).toHaveLength(0);
-  });
-
   it("uses the active company's timezone and week-start setting for the visible boundary", () => {
     vi.setSystemTime(new Date("2026-06-08T00:30:00.000Z"));
     const resource = useStore.getState().addResource(resourceDraft);

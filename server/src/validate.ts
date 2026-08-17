@@ -1,7 +1,6 @@
 import {
   assertActivityProjectAllowsDependents,
   assertAllocationRefs,
-  assertCompanyWideTimeOffType,
   assertDateRange,
   assertResourceExists,
   assertResourceKindAllowsDependents,
@@ -49,6 +48,7 @@ const DIRECT_WRITE_REQUIRED_FIELDS: Partial<Record<ScopedEntityKey, readonly str
   activities: ["name", "kind"],
   allocations: ["hoursPerDay", "status"],
   timeOff: ["resourceId", "type"],
+  closures: ["name"],
 };
 
 // The server is the integrity boundary for direct API writes. Two layers, both
@@ -152,6 +152,9 @@ export function sanitizeWrite(
   opts: SanitizeWriteOptions = {},
 ): Record<string, unknown> {
   assertIdPresent(row);
+  if (table === "closures" && Object.hasOwn(row, "resourceId")) {
+    throw new ValidationError("Company closures cannot reference a resource.");
+  }
   const copy = acceptedWriteFields(table, row);
   const nullRequiredFields =
     TABLES[table]?.columns.filter((column) => column.optional !== true && copy[column.name] === null) ?? [];
@@ -202,6 +205,9 @@ export function sanitizeWrite(
     const missingRequired = (DIRECT_WRITE_REQUIRED_FIELDS[table] ?? []).filter((field) => !Object.hasOwn(copy, field));
     if (missingRequired.length > 0) {
       throw new ValidationError(`Missing required field(s): ${missingRequired.join(", ")}.`);
+    }
+    if (table === "closures" && (typeof copy.name !== "string" || cleanText(copy.name).trim().length === 0)) {
+      throw new ValidationError("Closure name is required.");
     }
     // Imports repair malformed private rows, but an ordinary owner write must never manufacture a
     // cover name silently. Check before the import sanitiser applies its fail-closed fallback.
@@ -388,11 +394,12 @@ export function validateWrite(
       return;
     }
     if (table === "timeOff") {
-      assertResourceExists(state, accountId, row.resourceId as string | null, existing as never, lookup);
+      assertResourceExists(state, accountId, row.resourceId as string, existing as never, lookup);
       assertDateRange(row.startDate as string, row.endDate as string);
-      // Backstop only: sanitizeWrite has already repaired company-wide sick/unpaid to "other",
-      // so this documents the invariant at the validation boundary rather than trusting call order.
-      assertCompanyWideTimeOffType(row.resourceId as string | null, row.type as never);
+      return;
+    }
+    if (table === "closures") {
+      assertDateRange(row.startDate as string, row.endDate as string);
       return;
     }
   } catch (e) {

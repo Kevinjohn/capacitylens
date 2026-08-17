@@ -16,6 +16,12 @@ export const TENANT_ENTITY_INDEXES_V21_SQL = TENANT_ENTITY_ACCOUNT_INDEXES_V21.m
   ({ table, index }) => `CREATE INDEX IF NOT EXISTS ${index} ON ${table}(accountId);`,
 ).join("\n");
 
+/** Tenant index introduced with the first-class closure table in v34. */
+export const TENANT_ENTITY_ACCOUNT_INDEXES_V34 = [{ table: "closures", index: "idx_closures_accountId" }] as const;
+export const TENANT_ENTITY_INDEXES_V34_SQL = TENANT_ENTITY_ACCOUNT_INDEXES_V34.map(
+  ({ table, index }) => `CREATE INDEX IF NOT EXISTS ${index} ON ${table}(accountId);`,
+).join("\n");
+
 /** Immutable database-v23 indexes for every non-account foreign-key child lookup. SQLite does not
  * create these automatically, but uses them to avoid scanning a child table during parent deletes. */
 export const FOREIGN_KEY_CHILD_INDEXES_V23 = [
@@ -85,7 +91,7 @@ export function assertTenantAccountIndexesV21(db: Db): void {
 }
 
 /** Verify every current tenant-slice and foreign-key child index. */
-export function assertTenantEntityIndexesCurrent(db: Db): void {
+export function assertTenantEntityIndexesV23(db: Db): void {
   assertTenantAccountIndexesV21(db);
   for (const { table, column, index } of FOREIGN_KEY_CHILD_INDEXES_V23) {
     assertSingleColumnIndex(
@@ -94,6 +100,20 @@ export function assertTenantEntityIndexesCurrent(db: Db): void {
       index,
       column,
       `Foreign-key child index ${index} does not match ${table}(${column}).`,
+    );
+  }
+}
+
+/** Verify every current tenant-slice and foreign-key child index. */
+export function assertTenantEntityIndexesCurrent(db: Db): void {
+  assertTenantEntityIndexesV23(db);
+  for (const { table, index } of TENANT_ENTITY_ACCOUNT_INDEXES_V34) {
+    assertSingleColumnIndex(
+      db,
+      table,
+      index,
+      "accountId",
+      `Tenant entity index ${index} does not match ${table}(accountId).`,
     );
   }
 }
