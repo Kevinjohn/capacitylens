@@ -37,6 +37,8 @@ name; resource groups appear alphabetically, each person's entries are ordered b
 and an entry whose person no longer exists falls into a final "unknown" group.
 Placeholder time off follows the company's **Show placeholders** setting.
 
+![The Time off page with a Summer shutdown listed under Company closures above Bruce Wayne's personal time off](../screenshots/flows/timeoff_company_closures.jpg)
+
 ## How it shows on the schedule
 
 Time off renders as a hatched block on the person's row — no project colour, so it's
