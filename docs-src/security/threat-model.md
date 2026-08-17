@@ -1,11 +1,11 @@
 ---
 title: CapacityLens threat model
-description: The security objectives, assets, actors, abuse cases and accepted risks that shape CapacityLens's design.
+description: The alpha4 security objectives, assets, actors, abuse cases and accepted risks that shape CapacityLens's design.
 ---
 
 # CapacityLens threat model
 
-Version: 2026-07-14. Review this model after changes to authentication, tenancy, imports, offline
+Version: 2026-08-18. Review this model after changes to authentication, tenancy, imports, offline
 storage, deployment topology or external services.
 
 ## Security objectives
@@ -29,7 +29,7 @@ priority over keeping a misconfigured production process running.
 | Asset                                             | Primary protection                                                                    | Boundary                                   |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------ |
 | Account schedule and private client/project names | Server membership, action/field authorization, SQLite constraints                     | Browser/API and tenant boundary            |
-| Identity, password and MFA state                  | Better Auth, versioned scrypt, encrypted recovery material, fixed sessions            | Auth/API and database boundary             |
+| Identity, password, MFA and provider-link state   | Better Auth, versioned scrypt, encrypted recovery/tokens, explicit verified linking    | Auth/provider/API and database boundary    |
 | Session, reset and invite bearer values           | HttpOnly cookies or one-time values; hashes where supported; expiry/revocation        | Browser/API and operator delivery boundary |
 | Offline snapshot                                  | Opt-in, role-filtered, AES-256-GCM, seven-day expiry, viewer-only                     | Browser-origin/device boundary             |
 | Database, WAL, audit and snapshots                | `0600` files, `0700` backup directory, optional encrypted-volume attestation          | Process/host boundary                      |
@@ -49,6 +49,7 @@ must not be publicly reachable and the proxy must overwrite rather than append f
 - A compromised browser profile or device.
 - A malicious/compromised identity provider, dependency, build input or container base.
 - A self-hosting operator who makes an accidental or unsafe configuration choice.
+- A host operator misusing stopped-server SSO repair or sole-Owner recovery authority.
 - A host-level attacker. Host compromise is not fully preventable in-process; encrypted storage,
   secret management, isolation and off-host logs/backups limit consequences.
 
@@ -63,12 +64,14 @@ must not be publicly reachable and the proxy must overwrite rather than append f
 | Session theft/fixation                    | Secure HttpOnly SameSite `__Host-` cookies; new token on auth; fixed 12-hour and 30-minute idle limits; revocation/reset invalidation; session inventory                                                                                                                                                               | auth and member revocation tests                                          |
 | CSRF and cross-origin data use            | Unsafe-method Origin/Sec-Fetch-Site rejection; exact configured or trusted-proxy-derived same origin; SameSite cookie; safe HTTP methods                                                                                                                                                                               | CSRF/CORS and packaged-proxy tests                                        |
 | Injection/XSS/mass assignment             | React text rendering; no untrusted HTML; parameterized SQLite; explicit table/column codecs; sanitisation and structural limits; CSP                                                                                                                                                                                   | server/shared/CSP tests                                                   |
-| Malicious or oversized import             | JSON-only, 5 MiB/200,000-record caps; schema migration/sanitisation; account remap; reference validation; atomic owner-only transaction                                                                                                                                                                                | import and mutation tests                                                 |
+| Malicious, stale or oversized import      | JSON-only, 5 MiB/200,000-record caps; Owner-only access; bounded/cancellable worker preparation; schema migration/sanitisation; tenant remap; reference validation; exact-snapshot recheck and atomic replacement                                                                                                      | import, worker, transaction and mutation tests                            |
 | Offline cache disclosure/tampering        | Role-filtered input; non-extractable device key; AES-GCM with random IV/AAD; tamper/expiry deletion; viewer-only                                                                                                                                                                                                       | offline cache tests                                                       |
-| Database corruption/partial write         | Startup foreign-key check; WAL; transactions; optimistic concurrency; atomic imports/backups                                                                                                                                                                                                                           | migration, transaction and restore-drill tests                            |
+| Database corruption/partial write         | Startup foreign-key check; WAL; transactions; optimistic concurrency; sync-session ordering/provenance; atomic imports/backups                                                                                                                                                                                         | migration, ordering, transaction and restore-drill tests                  |
 | Log erasure/injection or invisible attack | Structured serialization, no values/credentials, restrictive modes, health degradation latch and optional separate JSON forwarding                                                                                                                                                                                     | audit/log/production-guard tests                                          |
 | SSRF/provider substitution                | Operator-only exact issuer/discovery; endpoints validated before redirect or secret use; HTTPS outside loopback; no credentials/redirects; 10-second and 1 MiB provider-response bounds; signed ID-token issuer/audience/timestamp verification; JWKS rotation and user-info subject binding                           | strict OIDC crypto/exchange tests and pinned Dex browser conformance      |
-| Resource exhaustion                       | 512 accepted-socket ceiling; per-IP application/CSP rate limit with constant-work health exempt for reliable liveness; 2-active/16-queued scrypt and 8-active/32-queued HIBP work; import/CSP caps; request timeouts                                                                                                   | resource-queue/rate-limit/health/import/CSP tests                         |
+| Federated identity takeover or unsafe cutover | Verified matching email for explicit links; implicit linking disabled; provider/subject uniqueness; durable admission evidence; preflight/repair; SSO-only startup interlock and atomic incompatible-state revocation                                                                                                | identity-port, cutover, migration and strict-OIDC tests                   |
+| Operator recovery misuse                 | Stopped server and exclusive SQLite lock; unique sole-Owner eligibility; ordinary expiring single-use reset; rollback on partial failure; token-free audit record                                                                                                                                                      | Owner-recovery CLI and audit tests                                        |
+| Resource exhaustion                       | 512 accepted-socket ceiling; per-IP application/CSP rate limit with constant-work health exempt; bounded scrypt, HIBP and import queues; 5,000-operation batch and 200,000-record import caps; request/queue/provider timeouts                                                                                           | resource-queue/rate-limit/health/import/CSP tests                         |
 | Supply-chain compromise                   | Exact lockfile, pinned action/base-image commits/digests, Dependabot, CodeQL, Gitleaks, dependency review, SBOM, Trivy, ZAP and tagged provenance                                                                                                                                                                      | local gates and public/manual workflows                                   |
 
 ## Residual and accepted risks
@@ -81,6 +84,11 @@ must not be publicly reachable and the proxy must overwrite rather than append f
 - IdP disablement does not revoke already-issued local sessions. The accepted maximum is the
   remaining twelve-hour absolute lifetime or thirty minutes inactivity; local revocation is an
   incident-response requirement and back-channel logout must be reconsidered before hosted GA.
+- SSO-only cutover retains dormant password credentials for the documented mixed-mode rollback.
+  Protecting the host/database and using the stopped-server repair tooling carefully remain operator
+  responsibilities.
+- The sole-Owner recovery command is deliberate host-operator authority. It cannot be contained from
+  an attacker who already controls the application database and process environment.
 - Required TOTP is optional. Password-only deployments do not meet ASVS 5.0 Level 2 requirement
   V6.3.3; when enabled, TOTP meets L2 but remains phishable and insufficient for L3.
 - Existing legacy Better Auth scrypt hashes use the former weaker profile until the user changes or

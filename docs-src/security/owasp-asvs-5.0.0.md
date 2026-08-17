@@ -1,11 +1,11 @@
 ---
 title: OWASP ASVS 5.0.0 complete control ledger
-description: Every one of the 345 ASVS 5.0.0 requirements, assessed as Pass, Partial, Gap or Not Applicable, dated 2026-07-14.
+description: Every ASVS 5.0.0 requirement assessed as Pass, Partial, Gap or Not Applicable for alpha4 on 2026-08-18.
 ---
 
 # OWASP ASVS 5.0.0 complete control ledger
 
-Assessment date: 2026-07-14; posture updated 2026-07-15. Target: ASVS Level 2 when optional hardening
+Assessment date: 2026-08-18. Target: ASVS Level 2 when optional hardening
 is enabled, with every Level 1–3 requirement assessed.
 Baseline: OWASP Application Security Verification Standard 5.0.0 (May 2025), 345 requirements.
 
@@ -22,7 +22,7 @@ TLS, disks, collectors, secret stores and identity-provider policy cannot become
 an environment acknowledgement is set; those stay Partial where deployment evidence is required.
 Requirement descriptions are not reproduced here; use the official ASVS release alongside these IDs.
 
-Point-in-time totals: **199 Pass, 48 Partial, 7 Gap and 91 N/A = 345**. These counts include all
+Point-in-time totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. These counts include all
 levels; they are not a score or certification percentage.
 
 ## V1 Encoding and sanitization
@@ -41,7 +41,7 @@ levels; they are not a score or certification percentage.
 | ----------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------- | ------- | --- | -------------- |
 | V2.1 Documentation      | `AGENTS.md`, `DEFENSIVE-CODING.md`, domain invariants and control inventory define shape/context/limits | V2.1.1, V2.1.2, V2.1.3 | —       | —   | —              |
 | V2.2 Enforcement        | Server/domain validation is authoritative; related entity/account/date/activity rules checked           | V2.2.1, V2.2.2, V2.2.3 | —       | —   | —              |
-| V2.3 Flows/transactions | Setup/invite/MFA order, SQLite transactions, optimistic concurrency and atomic import                   | V2.3.1, V2.3.2, V2.3.3 | —       | —   | V2.3.4, V2.3.5 |
+| V2.3 Flows/transactions | Setup/invite/MFA/link/cutover order, SQLite transactions, sync provenance, stale-import checks and atomic replacement | V2.3.1, V2.3.2, V2.3.3 | —       | —   | V2.3.4, V2.3.5 |
 | V2.4 Anti-automation    | API/health throttling and request/import/batch bounds                                                   | V2.4.1                 | —       | —   | V2.4.2         |
 
 ## V3 Web frontend security
@@ -81,11 +81,11 @@ levels; they are not a score or certification percentage.
 | V6.1 Documentation               | Auth pathways, throttling/lockout, context words, password/MFA/SSO strength documented                                                                                                                                   | V6.1.1, V6.1.2, V6.1.3                                                                   | —       | —              | —                              |
 | V6.2 Passwords                   | 15–128, change/current-password flow, HIBP by default, no composition rule, paste/managers, exact bytes, no periodic expiry; breach checking can be disabled with a warning                                              | V6.2.1, V6.2.2, V6.2.3, V6.2.4, V6.2.5, V6.2.6, V6.2.7, V6.2.8, V6.2.9, V6.2.10, V6.2.11 | V6.2.12 | —              | —                              |
 | V6.3 Authentication controls     | API throttling/MFA lockout, no default account, opt-in required TOTP, consistent documented paths and generic failures; default password mode is single-factor and no phishing-resistant factor/user notifications exist | V6.3.1, V6.3.2, V6.3.4, V6.3.6, V6.3.8                                                   | V6.3.3  | V6.3.5, V6.3.7 | —                              |
-| V6.4 Recovery                    | Production setup avoids initial passwords; no hints; reset preserves MFA and revokes sessions; lost TOTP requires password plus an enrollment-issued one-time recovery code, with no weaker admin/email bypass           | V6.4.1, V6.4.2, V6.4.3, V6.4.4, V6.4.6                                                   | —       | —              | V6.4.5                         |
+| V6.4 Recovery                    | Production setup avoids initial passwords; reset preserves MFA/revokes sessions; stopped-server sole-Owner recovery uses the same single-use flow and exact eligibility; lost TOTP requires an enrollment-issued recovery code | V6.4.1, V6.4.2, V6.4.3, V6.4.4, V6.4.6                                                | —       | —              | V6.4.5                         |
 | V6.5 Factor properties           | CSPRNG seeds/codes, protected recovery material, 30-second TOTP/server time, lockout and revocation; library does not evidence same-window TOTP replay storage                                                           | V6.5.2, V6.5.3, V6.5.4, V6.5.5, V6.5.6, V6.5.8                                           | V6.5.1  | —              | V6.5.7                         |
 | V6.6 Out-of-band/PSTN            | No SMS, phone, email-code or push factor                                                                                                                                                                                 | —                                                                                        | —       | —              | V6.6.1, V6.6.2, V6.6.3, V6.6.4 |
 | V6.7 Cryptographic authenticator | No hardware cryptographic authenticator                                                                                                                                                                                  | —                                                                                        | —       | —              | V6.7.1, V6.7.2                 |
-| V6.8 Federated identity          | Provider+subject identity, maintained signature validation, no SAML; SSO MFA is an operator assurance rather than claim-level enforcement                                                                                | V6.8.1, V6.8.2                                                                           | V6.8.4  | —              | V6.8.3                         |
+| V6.8 Federated identity          | Provider+subject identity, asymmetric signature validation, verified-email admission and explicit linking; SSO MFA remains an operator assurance rather than claim-level enforcement                                    | V6.8.1, V6.8.2                                                                           | V6.8.4  | —              | V6.8.3                         |
 
 ## V7 Session management
 
@@ -118,7 +118,7 @@ levels; they are not a score or certification percentage.
 
 | Section                    | Evidence summary                                                                                             | Pass                               | Partial | Gap | N/A                                                                                                                                                   |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------- | ------- | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| V10.1 Token/client binding | Provider tokens stay server-side; state/nonce/transaction binding delegated to configured maintained clients | V10.1.1, V10.1.2                   | —       | —   | —                                                                                                                                                     |
+| V10.1 Token/client binding | Provider tokens stay server-side and are encrypted at rest; maintained clients provide state/nonce/transaction binding | V10.1.1, V10.1.2                   | —       | —   | —                                                                                                                                                     |
 | V10.2 Client flows         | Library state/PKCE/mix-up defenses; least default scopes                                                     | V10.2.1, V10.2.2, V10.2.3          | —       | —   | —                                                                                                                                                     |
 | V10.3 Resource server      | CapacityLens does not accept OAuth access tokens as an API resource server                                   | —                                  | —       | —   | V10.3.1, V10.3.2, V10.3.3, V10.3.4, V10.3.5                                                                                                           |
 | V10.4 Authorization server | CapacityLens is not an OAuth authorization server                                                            | —                                  | —       | —   | V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V10.4.6, V10.4.7, V10.4.8, V10.4.9, V10.4.10, V10.4.11, V10.4.12, V10.4.13, V10.4.14, V10.4.15, V10.4.16 |
@@ -132,7 +132,7 @@ levels; they are not a score or certification percentage.
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------- | ------- | ------- |
 | V11.1 Inventory/lifecycle     | Repository crypto inventory plus a gate-enforced automated implementation-path discovery check; deployment key rotation/PQC migration remain operator/planning work | V11.1.2, V11.1.3                   | V11.1.1, V11.1.4 | —       | —       |
 | V11.2 Design/implementation   | Node/Web Crypto/Better Auth, ≥128-bit primitives and fail-closed errors; versioned formats but legacy hashes and library timing remain                              | V11.2.1, V11.2.3, V11.2.5          | V11.2.2, V11.2.4 | —       | —       |
-| V11.3 Symmetric encryption    | AES-256-GCM authenticated encryption with random per-record IV and AAD; no separate cipher+MAC construction                                                         | V11.3.1, V11.3.2, V11.3.3, V11.3.4 | —                | —       | V11.3.5 |
+| V11.3 Symmetric encryption    | Authenticated offline AES-256-GCM plus Better Auth provider-token encryption; no separate cipher+MAC construction                                                  | V11.3.1, V11.3.2, V11.3.3, V11.3.4 | —                | —       | V11.3.5 |
 | V11.4 Hash/KDF                | SHA-256 token digests, versioned OWASP scrypt and appropriate derived lengths; SHA-1 only for non-verifier HIBP protocol                                            | V11.4.1, V11.4.2, V11.4.3, V11.4.4 | —                | —       | —       |
 | V11.5 Randomness              | Platform CSPRNG with ≥128-bit security for tokens/keys and OS heavy-demand behavior                                                                                 | V11.5.1, V11.5.2                   | —                | —       | —       |
 | V11.6 Key generation/exchange | Platform-approved generation and TLS exchange primitives                                                                                                            | V11.6.1, V11.6.2                   | —                | —       | —       |
@@ -170,7 +170,7 @@ levels; they are not a score or certification percentage.
 | V15.1 Documentation/inventory  | Remediation policy, SBOM/third parties, expensive/risky/dangerous function inventory                                                    | V15.1.1, V15.1.2, V15.1.3, V15.1.4, V15.1.5                   | —       | —   | —                         |
 | V15.2 Components/resources     | Audits/scans, bounded heavy paths, minimal production graph with leak assertion, lockfile-recorded patch, non-root read-only containers | V15.2.1, V15.2.2, V15.2.3, V15.2.4, V15.2.5                   | —       | —   | —                         |
 | V15.3 Defensive implementation | Output projection, no-redirect outbound call, allowlisted fields, trusted proxy, strict TS/types/prototype/parameter handling           | V15.3.1, V15.3.2, V15.3.3, V15.3.4, V15.3.5, V15.3.6, V15.3.7 | —       | —   | —                         |
-| V15.4 Concurrency              | SQLite transactions/atomic state checks; no application multithreading/shared worker pool                                               | V15.4.2                                                       | —       | —   | V15.4.1, V15.4.3, V15.4.4 |
+| V15.4 Concurrency              | SQLite atomic checks; import workers receive structured clones, use bounded FIFO slots/deadlines/cancellation, and recheck tenant state before commit | V15.4.2, V15.4.4                                               | —       | —   | V15.4.1, V15.4.3          |
 
 ## V16 Security logging and error handling
 
@@ -178,7 +178,7 @@ levels; they are not a score or certification percentage.
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------- | --- | --- |
 | V16.1 Inventory        | Layer/event/format/destination/sensitivity inventory; operator supplies exact retention/access                                                                                                                                                                                          | V16.1.1                            | —                | —   | —   |
 | V16.2 Log content      | UTC ISO metadata, documented JSON streams, correlation-ready data and credential/body redaction; clock synchronization is external                                                                                                                                                      | V16.2.1, V16.2.3, V16.2.4, V16.2.5 | V16.2.2          | —   | —   |
-| V16.3 Security events  | Auth, bypass/control failures and unexpected errors logged; failed authz covered but not every successful L3 decision                                                                                                                                                                   | V16.3.1, V16.3.3, V16.3.4          | V16.3.2          | —   | —   |
+| V16.3 Security events  | Auth, bypass/control failures, queue saturation, SSO cutover/repair, operator recovery and unexpected errors logged; not every successful L3 decision is recorded                                                                                                                       | V16.3.1, V16.3.3, V16.3.4          | V16.3.2          | —   | —   |
 | V16.4 Log protection   | JSON serialization prevents injection and local files have restrictive modes; external forwarding is optional and its ACL/immutability need operator evidence                                                                                                                           | V16.4.1                            | V16.4.2, V16.4.3 | —   | —   |
 | V16.5 Failure handling | Generic responses, fail-closed external/control failures and transaction rollback; a process-wide last-resort handler records the local error plus a sanitized security event, drains, exits non-zero and relies on supervisor restart rather than continuing potentially corrupt state | V16.5.1, V16.5.2, V16.5.3          | V16.5.4          | —   | —   |
 

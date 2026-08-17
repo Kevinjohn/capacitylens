@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+- Reassessed alpha4 against OWASP ASVS 5.0.0, the OWASP Top 10 and API Security Top 10; refreshed
+  the threat model and security control inventories, recorded the fixed session/OIDC findings, and
+  reconciled all 345 ASVS controls with current source and verification evidence.
+
 ### Changed
 
 - **Installation docs now start with the deployment choice.** Docker Compose and direct
