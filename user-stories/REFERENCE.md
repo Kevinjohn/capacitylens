@@ -341,11 +341,12 @@ so neighbouring labels cannot overlap.
 
 ## Control labels (accessible names)
 
-**Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline`,
-`Engagement`, `Bound project`, `Working days` (a full-width Monday–Sunday radio grid aligned with
-the field label whose `Full day`, `Half day` and `Not working` column headings appear once; every
-cell's native radio is labelled by both its weekday and availability, and each row permits one
-choice; long labels remain on one line inside a horizontally scrollable narrow-width boundary),
+**Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline` (when disciplines are
+enabled and at least one exists), `Engagement`, `Bound project`, `Working days` (for people only: a
+full-width Monday–Sunday radio grid aligned with the field label whose `Full day`, `Half day` and
+`Not working` column headings appear once; every cell's native radio is labelled by both its weekday
+and availability, and each row permits one choice; long labels remain on one line inside a
+horizontally scrollable narrow-width boundary),
 `Colour (…)` (a swatch-picker trigger — its name carries the current colour, e.g.
 `Colour (Blue dark)` for a known swatch, else the raw hex — that opens a `radiogroup` of preset
 colour swatches, each `radio` labelled by a human-readable name like `Blue dark` /
@@ -514,9 +515,7 @@ left-edge date. (This is ALWAYS on; there is no setting.)
 **Undo**/**Redo** icon buttons (`undo-button` /
 `redo-button`, `aria-label` "Undo"/"Redo", disabled when the history stack is empty) — the
 visible counterpart to the global Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z shortcuts; their title hints use
-the current platform's conventional labels. The expanded filter row starts with the draw-mode
-radiogroup `Work`/`Time off` (radios using `aria-checked` — note "Time off" here is the _toggle_,
-distinct from the "Time off" _nav link_). **In `Time off` mode the grid signals the mode whole-view:
+the current platform's conventional labels. **In `Time off` mode the grid signals the mode whole-view:
 work allocation bars recede to a flat neutral (the theme-aware `var(--color-muted-foreground)` token, which adapts to light/dark) at 20% opacity AND go fully _inert_ (not
 clickable/draggable, no hover popover, not tab-reachable), while existing time-off blocks use the
 same vivid yellow background and dark label ink in both themes, retain their light-grey diagonal
@@ -529,16 +528,18 @@ omit work-allocation counts, and each eligible non-external resource row exposes
 External rows expose no time-off creation action.
 Undo/redo run
 from BOTH the toolbar **Undo**/**Redo** buttons (above) AND the global Cmd/Ctrl undo/redo shortcuts.
-The rest of the expanded filter row follows the draw-mode control:
-`Search people…` matches accent-insensitively across the displayed name, stored name and role as
-one phrase, so a query may span those fields. The remaining controls are `Filter by discipline`
-(in the scheduler grid's canonical discipline order), `Filter by client` (Internal first, then
+The expanded filter row starts with `Search people…`, which matches accent-insensitively across the
+displayed name, stored name and role as one phrase, so a query may span those fields. The remaining
+controls are `Filter by discipline` (shown only when disciplines are enabled and at least one exists,
+in the scheduler grid's canonical discipline order), `Filter by client` (Internal first, then
 alphabetical), `Filter by project` (Internal-owned projects first, then alphabetical by project name),
 `Filter by activity` (a grouped dropdown — `All activities`, then an `Internal` optgroup with
 `Internal — All` + each internal activity, then a `Cross-project` optgroup with `Cross-project — All` +
 each group's activities alphabetically; shown only when the account has internal/cross-project activities. Project-specific activities
 are reached via `Filter by project`). The activity lens is a **standalone** view: selecting it
-clears the client/project filter and vice-versa. `Hide tentative` checkbox, `Show unallocated`
+clears the client/project filter and vice-versa. The `Tentative visibility` radiogroup offers
+`Show tentative`/`Hide tentative` (radios using `aria-checked`), followed by the draw-mode radiogroup
+`Work`/`Time off` (note "Time off" here is the _toggle_, distinct from the "Time off" _nav link_), then `Show unallocated`
 (shown only while a client/project/activity filter is active, **off by default** — filtering hides
 resources with no matching work in the displayed timeline; ticking it brings them back
 visible-but-dimmed so you can see who's free to staff), `Clear Filters` (always shown at the far
@@ -671,6 +672,7 @@ kind and retain their existing resource-derived colours in both modes.
 link and route (a direct `/disciplines` URL redirects to `/`), the **Discipline** field in the
 resource form, the **Filter by discipline** control, the discipline part of each Resources-list
 row, the Disciplines command-palette entry, and the **Show Discipline Utilisation** toggle. The
+resource form also hides its **Discipline** field when the company has no disciplines to choose from.
 schedule then groups capacity-tracked resources by **Studio** and **Supplementary** engagement
 (or one **Unassigned** band when engagement grouping is off), followed by External / 3rd party.
 It's stored on the account
@@ -1406,7 +1408,7 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   **days mode**, a _Days of work_ spread over too few _Days over_ (e.g. 5 days of work in a 1-day span =
   40h/day) is **rejected** ("That's more than 24h a day. Increase Days over or reduce Days of work.")
   rather than saved as a quietly-clamped 24h. In **hourly mode**, _Hours / day_ is a four-option
-  select: **1 hour**, **Quarter day (2h)**, **Half day (4h)** and **Full day (8h)**, in that order.
+  select: **1 h**, **2 h - quarter day**, **4 h - half day** and **8 h - full day**, in that order.
   Existing values outside that authored set remain visible on the closed select and survive unrelated
   edits unchanged; they are not added as another option, and choosing one of the four replaces them.
   _Days over_ itself must be a whole number from 1 through 36,500 in both Days and Blocks modes;

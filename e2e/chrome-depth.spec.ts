@@ -92,11 +92,13 @@ async function expectSegmentGeometry(
 }
 
 for (const theme of ["light", "dark"] as const) {
-  test(`all seven segmented-control contexts render the shared geometry in ${theme} mode`, async ({ page }) => {
+  test(`all eight segmented-control contexts render the shared geometry in ${theme} mode`, async ({ page }) => {
     await openChrome(page, theme);
 
     const drawMode = page.getByRole("radiogroup", { name: "Draw mode" });
     await expectSegmentGeometry(drawMode, { trackRadius: "6px", itemRadius: "4px", gap: "2px" });
+    const tentativeVisibility = page.getByRole("radiogroup", { name: "Tentative visibility" });
+    await expectSegmentGeometry(tentativeVisibility, { trackRadius: "6px", itemRadius: "4px", gap: "2px" });
 
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const allocation = page.getByRole("dialog", { name: "New allocation" });

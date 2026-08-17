@@ -127,6 +127,7 @@ export function TimeOffForm({
         describedById={errorId}
         layout="label-control"
       />
+      {/* The date row deliberately spans the modal instead of using its 25/75 rows, matching allocations. */}
       <div data-timeoff-date-row className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
         <DateField
           label={m.form_timeoff_start_label()}

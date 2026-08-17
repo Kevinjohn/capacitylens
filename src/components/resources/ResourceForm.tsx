@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useStore } from "../../store/useStore";
-import { accountWorkingDaysFor, disciplinesEnabledFor, weekStartsOnFor } from "../../store/selectors";
+import { disciplinesEnabledFor } from "../../store/selectors";
 import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
@@ -16,11 +16,9 @@ import {
   WorkingDayPicker,
   type Option,
 } from "../common/ui";
-import { FieldDescription, FieldError, FieldGroup, FieldLegend, FieldSet } from "../ui/field";
+import { FieldError, FieldGroup } from "../ui/field";
 import { resourceEngagementOptions } from "../../lib/metadata";
 import { DEFAULT_COLORS } from "../../lib/palette";
-import { weekdayLabel } from "../../lib/weekdays";
-import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
 import {
   FULL_DAY_HOURS,
   placeholderCapacityDefaults,
@@ -41,9 +39,9 @@ import {
  *
  * Non-obvious rules enforced here: a PERSON requires a name (a placeholder's is optional); a
  * PLACEHOLDER must be bound to a project; a person must select at least one working day (a
- * zero-capacity person reads as permanently over-allocated); placeholders display the company week
- * read-only; every form write uses the fixed 8-hour full-day capacity; hidden employment data is
- * preserved on person edits; placeholders force Studio engagement; and a resource's colour is
+ * zero-capacity person reads as permanently over-allocated); every form write uses the fixed 8-hour
+ * full-day capacity; hidden employment data is preserved on person edits; placeholders force Studio
+ * engagement; and a resource's colour is
  * DERIVED from its discipline (no per-resource colour control — see DECISIONS).
  */
 export function ResourceForm({
@@ -58,8 +56,8 @@ export function ResourceForm({
   const add = useStore((s) => s.addResource);
   const update = useStore((s) => s.updateResource);
   const data = useActiveScopedData();
-  // When the account doesn't use disciplines, hide the picker. Any existing disciplineId
-  // on an edited resource is left untouched (the field just isn't shown).
+  // Hide the picker when the account doesn't use disciplines or has none to choose from. Any
+  // existing disciplineId on an edited resource is left untouched (the field just isn't shown).
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
   const disciplines = data.disciplines;
   const projects = data.projects;
@@ -72,13 +70,6 @@ export function ResourceForm({
 
   const kind = resource?.kind ?? kindProp ?? "person";
   const isPlaceholder = kind === "placeholder";
-  const companyWorkingDayNames = useStore((s) => {
-    const workingDays = new Set(accountWorkingDaysFor(s.data, s.activeAccountId));
-    return orderedWeekdays(weekStartsOnFor(s.data, s.activeAccountId))
-      .filter((day) => workingDays.has(day))
-      .map(weekdayLabel)
-      .join(", ");
-  });
   const [name, setName] = useState(resource?.name ?? "");
   const [role, setRole] = useState(resource?.role ?? "");
   const [disciplineId, setDisciplineId] = useState(resource?.disciplineId ?? "");
@@ -213,7 +204,7 @@ export function ResourceForm({
           describedById={errorId}
           layout="label-control"
         />
-        {disciplinesEnabled && (
+        {disciplinesEnabled && disciplines.length > 0 && (
           <SelectField
             label={m.form_resource_discipline_label()}
             value={disciplineId}
@@ -246,14 +237,7 @@ export function ResourceForm({
           />
         )}
       </FieldGroup>
-      {isPlaceholder ? (
-        <FieldSet>
-          <FieldLegend variant="label">{m.form_resource_working_days_label()}</FieldLegend>
-          <FieldDescription>
-            {m.form_resource_placeholder_working_days({ days: companyWorkingDayNames })}
-          </FieldDescription>
-        </FieldSet>
-      ) : (
+      {!isPlaceholder && (
         <WorkingDayPicker
           label={m.form_resource_working_days_label()}
           workingDays={workingDays}
