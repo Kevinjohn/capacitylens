@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Led allocation hours-per-day options with their hour values for quicker comparison (#398).
+
 ### Fixed
 
 - Placed the Start and End fields together on one full-width row in the time-off modal (#404).

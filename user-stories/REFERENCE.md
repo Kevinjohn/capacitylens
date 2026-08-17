@@ -1411,7 +1411,7 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   **days mode**, a _Days of work_ spread over too few _Days over_ (e.g. 5 days of work in a 1-day span =
   40h/day) is **rejected** ("That's more than 24h a day. Increase Days over or reduce Days of work.")
   rather than saved as a quietly-clamped 24h. In **hourly mode**, _Hours / day_ is a four-option
-  select: **1 hour**, **Quarter day (2h)**, **Half day (4h)** and **Full day (8h)**, in that order.
+  select: **1 h**, **2 h - quarter day**, **4 h - half day** and **8 h - full day**, in that order.
   Existing values outside that authored set remain visible on the closed select and survive unrelated
   edits unchanged; they are not added as another option, and choosing one of the four replaces them.
   _Days over_ itself must be a whole number from 1 through 36,500 in both Days and Blocks modes;
