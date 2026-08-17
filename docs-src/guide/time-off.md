@@ -5,26 +5,21 @@ description: Record holiday, sick leave and unpaid leave so the schedule always 
 
 # Time off
 
-[Time off](/reference/glossary) is a block on the schedule marking a
-[person](/reference/glossary) unavailable, drawn on the same canvas as their work so
-capacity never has to be checked against a separate calendar. This page covers
-recording it and how it interacts with allocations.
+[Time off](/reference/glossary) marks a [person](/reference/glossary) unavailable. A
+company closure marks every person and placeholder unavailable at once. Both appear on
+the same canvas as work, so capacity never has to be checked against a separate calendar.
 
 ## Record time off
 
 1. Open **Time off** and click **Add time off** — or, on the schedule, switch the
    toolbar's draw mode from "Work" to "Time off" and drag across the days on a
    person's row.
-2. Choose the person — or **Everyone**, for a company-wide closure — plus the start and
-   end dates and a type. A person's entry can be holiday, sick, unpaid or other; an
-   Everyone entry offers only holiday and other, because sick and unpaid leave are
-   personal by nature.
+2. Choose the person, start and end dates, and whether the entry is holiday, sick,
+   unpaid or other.
 3. Add a short, single-line note if you need to — for example, "Conference" or a return
    date. Notes are only visible to Admins and Owners; other roles see that time off
    exists without the detail. See
    [Roles and permissions](/getting-started/roles-and-permissions).
-
-![The Add time off form with the Resource picker open and Everyone shown before the individual DC demo teammates](../screenshots/flows/timeoff_everyone_picker.jpg)
 
 ![The Add time off form with Resource, Start, End and Type controls plus a compact single-line Note containing Conference](../screenshots/flows/timeoff_form.jpg)
 
@@ -36,14 +31,11 @@ The Time off page is a forward-looking planning list. It shows an entry when its
 is on or after the start of the current company week. Older entries stay stored but no
 longer clutter the page.
 
-Entries are grouped under each resource's name. An **Everyone** group for company-wide
-entries comes first — its rows carry the type label, since no person heading tells a
-holiday from an "other" closure. Resource groups follow alphabetically, each person's
-entries ordered by date, and any entry whose person no longer exists falls into a final
-"unknown" group. Placeholder time off follows the company's **Show placeholders**
-setting.
-
-![The Time off page with an Everyone group first for a company holiday, followed by Bruce Wayne's personal time off](../screenshots/flows/timeoff_grouped.jpg)
+The page separates **Company closures** from **Personal time off**. Closure rows show the
+closure name and complete date span. Personal entries are grouped under each resource's
+name; resource groups appear alphabetically, each person's entries are ordered by date,
+and an entry whose person no longer exists falls into a final "unknown" group.
+Placeholder time off follows the company's **Show placeholders** setting.
 
 ## How it shows on the schedule
 
@@ -52,30 +44,35 @@ never mistaken for booked work. It sits in the same lane as allocation bars, whi
 means a quick glance at a row tells you whether someone is busy, off, or free.
 
 [External parties](/reference/glossary) — outside companies like print shops or overflow
-studios you hand work to but don't manage — can't have *personal* time off recorded
-against them, since they carry no hours and no capacity on the schedule. A company-wide
-closure still stops new external placements *starting* on its dates — the agency is
-shut — but draws nothing on their rows. See
+studios you hand work to but don't manage — can't have personal time off recorded against
+them, since they carry no hours and no capacity. Company closures do not cover them
+either. See
 [People and placeholders](/guide/people-and-placeholders) for the difference between an
 external party, a placeholder and a person.
 
-## Company-wide time off
+## Plan a company closure
 
-Choosing **Everyone** records one entry that applies to every capacity-tracked person and
-placeholder — a bank holiday, or a whole-agency closure like a two-week Christmas
-shutdown. New hires are covered automatically, because the closure belongs to the
-company, not to a list of people.
+In **Time off**, find **Company closures** and select **Add closure**. Enter the required
+name and the start and end dates. A bank holiday can use one date; a Christmas shutdown
+can span several. The dates are inclusive and literal, so a span through a weekend still
+covers Saturday and Sunday.
 
-On the affected dates everyone's availability drops to zero, but allocations keep their
-dates and their hours. Work already planned across the closure therefore lights up red
-instead of silently disappearing — that warning is the point. Deleting or shortening the
-closure restores capacity; nothing about the allocations themselves has changed.
+One closure applies to every person and placeholder, including people added later. It
+never applies to an external party and has no personal exception. On the schedule it is
+drawn once as a named band across the covered rows, rather than repeated in every lane.
+Personal time off remains visible when it overlaps the band.
 
-A closure is dated, not recurring: it is different from the company's
+On the affected dates every covered resource's availability drops to zero, but
+allocations keep their dates and their hours. Work already planned across the closure
+therefore lights up red instead of silently disappearing — that warning is the point.
+Deleting or shortening the closure restores capacity; nothing about the allocations
+themselves has changed.
+
+A closure is dated, whole-day and not recurring. It is different from the company's
 [global working days](/guide/settings#global-working-days), which normal allocations
 simply skip. Days a closure covers still count as scheduled load, exactly like personal
 time off, and **Ignore working days** never bypasses either. New allocations cannot
-start on a closure date for anyone.
+start on a closure date for a person or placeholder.
 
 ## Time off and allocations
 

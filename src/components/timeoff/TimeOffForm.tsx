@@ -127,24 +127,24 @@ export function TimeOffForm({
         describedById={errorId}
         layout="label-control"
       />
-      <DateField
-        label={m.form_timeoff_start_label()}
-        value={startDate}
-        onChange={setStartDate}
-        required
-        invalid={errorField === "dates"}
-        describedById={errorId}
-        layout="label-control"
-      />
-      <DateField
-        label={m.form_timeoff_end_label()}
-        value={endDate}
-        onChange={setEndDate}
-        required
-        invalid={errorField === "dates"}
-        describedById={errorId}
-        layout="label-control"
-      />
+      <div data-timeoff-date-row className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+        <DateField
+          label={m.form_timeoff_start_label()}
+          value={startDate}
+          onChange={setStartDate}
+          required
+          invalid={errorField === "dates"}
+          describedById={errorId}
+        />
+        <DateField
+          label={m.form_timeoff_end_label()}
+          value={endDate}
+          onChange={setEndDate}
+          required
+          invalid={errorField === "dates"}
+          describedById={errorId}
+        />
+      </div>
       <SelectField
         label={m.form_timeoff_type_label()}
         value={type}

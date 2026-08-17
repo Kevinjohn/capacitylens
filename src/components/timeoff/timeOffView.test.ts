@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Resource, TimeOff } from "@capacitylens/shared/types/entities";
-import { buildTimeOffGroups, currentTimeOffWeekStart } from "./timeOffView";
+import type { Closure, Resource, TimeOff } from "@capacitylens/shared/types/entities";
+import { buildClosureList, buildTimeOffGroups, currentTimeOffWeekStart } from "./timeOffView";
 
 const timestamp = "2026-05-01T00:00:00.000Z";
 
@@ -103,5 +103,30 @@ describe("buildTimeOffGroups", () => {
 
     expect(groups.map((group) => group.name)).toEqual(["Clark Kent", "(unknown)"]);
     expect(groups[1].entries.map(({ id }) => id)).toEqual(["unknown-earlier", "unknown-later"]);
+  });
+});
+
+describe("buildClosureList", () => {
+  const closure = (id: string, startDate: string, endDate: string): Closure => ({
+    id,
+    accountId: "a-studio",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    name: id,
+    startDate,
+    endDate,
+  });
+
+  it("keeps overlapping and future closures while sorting their literal spans", () => {
+    expect(
+      buildClosureList(
+        [
+          closure("later", "2026-07-01", "2026-07-04"),
+          closure("past", "2026-06-01", "2026-06-07"),
+          closure("boundary", "2026-06-06", "2026-06-08"),
+        ],
+        "2026-06-08",
+      ).map(({ id }) => id),
+    ).toEqual(["boundary", "later"]);
   });
 });

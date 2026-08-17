@@ -44,6 +44,7 @@ import { TooltipProvider } from "../ui/tooltip";
 import { useCalendarToday } from "./useCalendarToday";
 import { visibleSpanLabels, visibleWindowFor } from "./visibleSpan";
 import { isCreationStartBlocked } from "./creationAvailability";
+import { ClosureBand } from "./ClosureBand";
 
 // Creation/editing forms are not needed to paint or inspect the schedule. Load them on the first
 // interaction so their validation and picker dependencies do not consume the initial entry budget.
@@ -368,6 +369,22 @@ export function SchedulerGrid() {
     [items, density],
   );
   const layout = useMemo(() => buildLayout(heights), [heights]);
+  const externalGroupIndex = items.findIndex((item) => item.kind === "group" && item.group.external);
+  const trackedGridHeight = externalGroupIndex === -1 ? layout.total : (layout.tops[externalGroupIndex] ?? 0);
+  const timelineStart = days[0];
+  const timelineEnd = days[days.length - 1];
+  const visibleClosures = useMemo(
+    () =>
+      timelineStart && timelineEnd
+        ? data.closures.filter(
+            (closure) =>
+              closure.startDate <= closure.endDate &&
+              closure.endDate >= timelineStart &&
+              closure.startDate <= timelineEnd,
+          )
+        : [],
+    [data.closures, timelineEnd, timelineStart],
+  );
 
   // Scroll a specific resource row into view when jumpToResource fires (command
   // palette "jump to person"). Mirrors the recenterToken pattern. Uses layout.tops
@@ -743,7 +760,7 @@ export function SchedulerGrid() {
           )}
 
           {items.length > 0 && (
-            <div role="rowgroup" className="min-w-max shrink-0">
+            <div role="rowgroup" className="relative min-w-max shrink-0">
               {renderedIndices.map((itemIndex, position) => {
                 const item = items[itemIndex];
                 if (!item) return null;
@@ -771,6 +788,19 @@ export function SchedulerGrid() {
                   const gap = Math.max(0, layout.total - renderedBottom);
                   return gap > 0 ? <div aria-hidden style={{ height: gap }} /> : null;
                 })()}
+              {timelineStart &&
+                timelineEnd &&
+                visibleClosures.map((closure) => (
+                  <ClosureBand
+                    key={closure.id}
+                    closure={closure}
+                    visibleStart={timelineStart}
+                    visibleEnd={timelineEnd}
+                    geom={geom}
+                    leftOffset={LAYOUT.leftColWidth}
+                    height={trackedGridHeight}
+                  />
+                ))}
             </div>
           )}
 
@@ -800,6 +830,20 @@ export function SchedulerGrid() {
             </Suspense>
           )}
         </div>
+
+        {visibleClosures.length > 0 && (
+          <div className="sr-only">
+            {visibleClosures.map((closure) => (
+              <span key={closure.id}>
+                {m.scheduler_closure_aria({
+                  name: closure.name,
+                  start: closure.startDate,
+                  end: closure.endDate,
+                })}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* WCAG 4.1.3 (Status Messages): the SINGLE scheduler live region. A keyboard move/resize on a
           bar recomputes over-capacity and silently mutates the per-row sr-only summary while focus

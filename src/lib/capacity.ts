@@ -144,7 +144,7 @@ export function availableHoursOnDay(
   date: ISODate,
   timeOff: TimeOff[],
   effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[] = [],
+  closures: Closure[],
 ): number {
   return availableHoursForWeekday(resource, date, timeOff, closures, weekdayOf(date), effectiveWeek);
 }
@@ -206,7 +206,7 @@ export function dayCapacity(
   allocations: Allocation[],
   timeOff: TimeOff[],
   effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[] = [],
+  closures: Closure[],
 ): DayCapacity {
   // ONE parseISO for the whole resource-day: the availability and load halves each need the
   // weekday (twice over, for the working-week and half-day tests), and this runs per resource ×
@@ -234,7 +234,7 @@ export function capacityForWindow(
   start: ISODate,
   end: ISODate,
   effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[] = [],
+  closures: Closure[],
 ): DayCapacity[] {
   return eachDayISO(start, end).map((d) => dayCapacity(resource, d, allocations, timeOff, effectiveWeek, closures));
 }
@@ -264,7 +264,7 @@ export function utilization(
   start: ISODate,
   end: ISODate,
   effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[] = [],
+  closures: Closure[],
 ): number {
   return utilizationFromCapacity(
     capacityForWindow(resource, allocations, timeOff, start, end, effectiveWeek, closures),
@@ -391,7 +391,7 @@ export function capacityAdvisory(
   otherAllocations: readonly CapacityAllocationInput[],
   timeOff: TimeOff[],
   effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[] = [],
+  closures: Closure[],
 ): CapacityAdvisory {
   const days = advisoryDays(proposal);
   if (!days) return { overDays: 0, timeOffDays: 0 };
@@ -408,7 +408,7 @@ export function capacityAdvisoryFromLoad(
   loadByDay: CapacityLoadByDay,
   timeOff: TimeOff[],
   effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[] = [],
+  closures: Closure[],
 ): CapacityAdvisory {
   const days = advisoryDays(proposal);
   return days

@@ -27,7 +27,7 @@ const weekFor = (resource: Resource, accountWorkingDays = DEFAULT_ACCOUNT_WORKIN
 const scheduledHoursOnDay = (resource: Resource, date: ISODate, accountWorkingDays?: Weekday[]) =>
   scheduledHoursOnDayWithWeek(resource, date, weekFor(resource, accountWorkingDays));
 const availableHoursOnDay = (resource: Resource, date: ISODate, timeOff: TimeOff[], accountWorkingDays?: Weekday[]) =>
-  availableHoursOnDayWithWeek(resource, date, timeOff, weekFor(resource, accountWorkingDays));
+  availableHoursOnDayWithWeek(resource, date, timeOff, weekFor(resource, accountWorkingDays), []);
 const allocatedHoursOnDay = (
   resource: Resource,
   date: ISODate,
@@ -40,7 +40,7 @@ const dayCapacity = (
   allocations: Allocation[],
   timeOff: TimeOff[],
   accountWorkingDays?: Weekday[],
-) => dayCapacityWithWeek(resource, date, allocations, timeOff, weekFor(resource, accountWorkingDays));
+) => dayCapacityWithWeek(resource, date, allocations, timeOff, weekFor(resource, accountWorkingDays), []);
 const capacityForWindow = (
   resource: Resource,
   allocations: Allocation[],
@@ -48,7 +48,7 @@ const capacityForWindow = (
   start: ISODate,
   end: ISODate,
   accountWorkingDays?: Weekday[],
-) => capacityForWindowWithWeek(resource, allocations, timeOff, start, end, weekFor(resource, accountWorkingDays));
+) => capacityForWindowWithWeek(resource, allocations, timeOff, start, end, weekFor(resource, accountWorkingDays), []);
 const utilization = (
   resource: Resource,
   allocations: Allocation[],

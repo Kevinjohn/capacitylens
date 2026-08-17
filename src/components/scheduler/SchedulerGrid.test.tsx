@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { SchedulerGrid } from "./SchedulerGrid";
 import { useStore } from "../../store/useStore";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { DEFAULT_ACCOUNT_ID, makeAllocation, makeResource } from "../../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAllocation, makeClosure, makeResource, makeTimeOff } from "../../test/fixtures";
 import { schedulerDataset } from "./__tests__/schedulerTestKit";
 import { LAYOUT, schedulerDensity } from "./layout";
 
@@ -186,6 +186,41 @@ describe("SchedulerGrid", () => {
     expect(within(row).getByText(/Over capacity on 1 day\./)).toBeInTheDocument();
     expect(within(row).getByTestId("utilization")).toHaveTextContent("0%");
     expect(screen.getByTestId("overall-utilization")).toHaveTextContent("0%");
+  });
+
+  it("renders each closure once across tracked rows, alongside personal time off, and stops before External", () => {
+    useStore.getState().updateAccount(ACC, { externalEnabled: true });
+    useStore.getState().replaceAll({
+      ...useStore.getState().data,
+      closures: [
+        makeClosure({
+          accountId: ACC,
+          name: "Long weekend",
+          startDate: "2026-06-05",
+          endDate: "2026-06-08",
+        }),
+      ],
+      timeOff: [
+        makeTimeOff({
+          accountId: ACC,
+          resourceId: "r1",
+          startDate: "2026-06-05",
+          endDate: "2026-06-08",
+        }),
+      ],
+    });
+
+    renderGrid();
+
+    const band = screen.getByTestId("scheduler-closure-band");
+    const rows = screen.getAllByTestId("scheduler-row");
+    expect(screen.getAllByTestId("scheduler-closure-band")).toHaveLength(1);
+    expect(band).toHaveTextContent("Long weekend");
+    expect(within(rows[0]).getByTestId("timeoff-block")).toBeInTheDocument();
+    expect(within(rows[1]).queryByTestId("timeoff-block")).not.toBeInTheDocument();
+    expect(band.style.height).toBe(
+      `${schedulerDensity(false).groupHeaderHeight + Number.parseInt(rows[0].style.height, 10)}px`,
+    );
   });
 
   // The density pref has to reach BOTH pipelines: the model (row heights, bar offsets) and the view

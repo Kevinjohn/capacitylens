@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Replaced the hidden Everyone time-off choice with first-class company closures: a dedicated
+  Time off section and form, plus one named schedule band covering every person and placeholder
+  across each literal inclusive date span (#407).
+
 ## [0.53.7-alpha.1] — 2026-08-17
 
 ### Changed

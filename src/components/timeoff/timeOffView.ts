@@ -1,5 +1,5 @@
 import { startOfWeekISO, todayISO } from "@capacitylens/shared/lib/dateMath";
-import type { ID, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
+import type { Closure, ID, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { compareDisplayNames } from "../../lib/displayOrder";
 import { resourceDisplayName } from "../../lib/metadata";
 import { m } from "@/i18n";
@@ -18,6 +18,18 @@ const compareEntries = (left: TimeOff, right: TimeOff): number =>
   left.startDate.localeCompare(right.startDate) ||
   left.endDate.localeCompare(right.endDate) ||
   left.id.localeCompare(right.id);
+
+/** Forward-looking company closures, ordered by their literal inclusive spans. */
+export function buildClosureList(closures: readonly Closure[], weekStart: ISODate): Closure[] {
+  return closures
+    .filter((closure) => closure.endDate >= weekStart)
+    .toSorted(
+      (left, right) =>
+        left.startDate.localeCompare(right.startDate) ||
+        left.endDate.localeCompare(right.endDate) ||
+        left.id.localeCompare(right.id),
+    );
+}
 
 /**
  * Build the Time off page's forward-looking grouped projection without mutating stored data.
