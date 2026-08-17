@@ -51,7 +51,9 @@ test.describe("Time off", () => {
 
     const groups = page.getByTestId("timeoff-group");
     await expect(groups).toHaveCount(2);
-    await expect(groups.locator("h2")).toHaveText(["Bruce Wayne", "Clark Kent"]);
+    // Per-resource groups sit one level below the page's "Company closures" / "Personal time off"
+    // section headings, so a group's own name is an h3.
+    await expect(groups.locator("h3")).toHaveText(["Bruce Wayne", "Clark Kent"]);
 
     const bruceRows = groups.nth(0).getByTestId("timeoff-row");
     await expect(bruceRows).toHaveCount(2);
