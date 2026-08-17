@@ -2065,7 +2065,7 @@ describe("AllocationModal repeat creation", () => {
       await user.clear(screen.getByLabelText("Repeat until"));
       await user.type(screen.getByLabelText("Repeat until"), "2099-09-01");
       expect(
-        screen.getByText(`Creates ${count} linked allocations through Tue 1st Sep. Last start: ${lastStart}.`),
+        await screen.findByText(`Creates ${count} linked allocations through Tue 1st Sep. Last start: ${lastStart}.`),
       ).toBeInTheDocument();
     }
 
@@ -2104,7 +2104,7 @@ describe("AllocationModal repeat creation", () => {
     await user.clear(screen.getByLabelText("Repeat until"));
     await user.type(screen.getByLabelText("Repeat until"), "2099-04-30");
     expect(
-      screen.getByText("Creates 4 linked allocations through Thu 30th Apr. Last start: Thu 30th Apr."),
+      await screen.findByText("Creates 4 linked allocations through Thu 30th Apr. Last start: Thu 30th Apr."),
     ).toBeInTheDocument();
     expect(screen.queryByText(/clamp|month-end|fallback/i)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -2138,13 +2138,13 @@ describe("AllocationModal repeat creation", () => {
       await chooseOption(user, "Repeat", "Monthly");
       await user.clear(screen.getByLabelText("Repeat until"));
       await user.type(screen.getByLabelText("Repeat until"), "9999-12-30");
-      expect(screen.queryByText(/creates 4 linked allocations/i)).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Save" }));
 
-      expect(screen.getByRole("alert")).toHaveTextContent(
+      expect(await screen.findByRole("alert")).toHaveTextContent(
         "Choose an earlier Repeat until date or a longer cadence; this repeat cannot fit the supported date range.",
       );
+      expect(screen.queryByText(/creates 4 linked allocations/i)).not.toBeInTheDocument();
       expect(screen.getByRole("dialog", { name: /new allocation/i })).toBeInTheDocument();
       expect(bulkSpy).not.toHaveBeenCalled();
       expect(onClose).not.toHaveBeenCalled();
@@ -2280,13 +2280,13 @@ describe("AllocationModal repeat creation", () => {
     await user.clear(repeatUntil);
     await user.type(repeatUntil, "2099-06-08");
     expect(
-      screen.getByText("Creates 2 linked allocations through Mon 8th Jun. Last start: Mon 8th Jun."),
+      await screen.findByText("Creates 2 linked allocations through Mon 8th Jun. Last start: Mon 8th Jun."),
     ).toBeInTheDocument();
 
     await user.clear(repeatUntil);
     await user.type(repeatUntil, "2099-12-01");
     expect(
-      screen.getByText("Creates 27 linked allocations through Tue 1st Dec. Last start: Mon 30th Nov."),
+      await screen.findByText("Creates 27 linked allocations through Tue 1st Dec. Last start: Mon 30th Nov."),
     ).toBeInTheDocument();
   });
 
@@ -2311,7 +2311,7 @@ describe("AllocationModal repeat creation", () => {
     });
     await user.clear(screen.getByLabelText("Repeat until"));
     await user.type(screen.getByLabelText("Repeat until"), "2099-09-01");
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(await screen.findByRole("status")).toHaveTextContent(
       "For this repeat, 1 allocation may exceed capacity and 2 allocations overlap time off. Saving is still allowed.",
     );
     expect(capacityAdvisoryMock).toHaveBeenCalledTimes(14);
@@ -2332,7 +2332,7 @@ describe("AllocationModal repeat creation", () => {
     await user.clear(screen.getByLabelText("Repeat until"));
     await user.type(screen.getByLabelText("Repeat until"), "2099-09-01");
 
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(await screen.findByRole("status")).toHaveTextContent(
       "For this repeat, 3 allocations start on a non-working day. Saving is still allowed.",
     );
   });
