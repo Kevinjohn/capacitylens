@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from "./fixtures";
-import { computedStyles, disableCssMotion, expectConnectedSelectionEdges, openApp } from "./helpers";
+import { computedStyles, disableCssMotion, expectConnectedSelectionEdges, focusByKeyboard, openApp } from "./helpers";
 
 async function selectedTreatment(segment: Locator) {
   const style = await computedStyles(segment, [
@@ -57,10 +57,26 @@ test("segmented controls keep an even selected outline at every position", async
   const selectedBackground = (await selectedTreatment(selected)).backgroundColor;
   await selected.hover();
   expect((await selectedTreatment(selected)).backgroundColor).toBe(selectedBackground);
+});
 
-  await segments[0].focus();
-  await expect(segments[0]).toBeFocused();
+test("keyboard focus raises a segment above its neighbours", async ({ page }) => {
+  await openApp(page, "Wayne Enterprises", "/settings");
+  await disableCssMotion(page);
+
+  const group = page.getByRole("radiogroup", { name: "Scheduling input" });
+  const segments = [
+    group.getByRole("radio", { name: "Hours", exact: true }),
+    group.getByRole("radio", { name: "Days", exact: true }),
+    group.getByRole("radio", { name: "Blocks", exact: true }),
+  ];
+  const [hours, days] = segments;
+
+  // Keep this test mouse-free: prior clicks suppress modality-gated `:focus-visible`, while
+  // Chromium and Firefox disagree about whether programmatic focus should reveal it.
+  await focusByKeyboard(page, hours);
+  await expect(hours).toBeFocused();
+  expect((await selectedTreatment(hours)).zIndex).toBe("20");
   await page.keyboard.press("ArrowRight");
-  await expect(segments[1]).toBeFocused();
-  expect((await selectedTreatment(segments[1])).zIndex).toBe("20");
+  await expect(days).toBeFocused();
+  expect((await selectedTreatment(days)).zIndex).toBe("20");
 });
