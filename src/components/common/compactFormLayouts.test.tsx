@@ -78,11 +78,16 @@ describe("compact input modal layouts", () => {
     expectCompact(screen.getByLabelText("Project"));
   });
 
-  it("uses compact rows for every visible Time off field", () => {
+  it("keeps Time off dates in a full-width row beside its compact fields", () => {
     render(<TimeOffForm onClose={vi.fn()} />);
     expectCompact(screen.getByLabelText("Resource"));
-    expectCompact(screen.getByLabelText("Start"));
-    expectCompact(screen.getByLabelText("End"));
+    const startField = screen.getByLabelText("Start").closest('[data-slot="field"]');
+    const endField = screen.getByLabelText("End").closest('[data-slot="field"]');
+    expect(startField).not.toHaveAttribute("data-product-layout");
+    expect(endField).not.toHaveAttribute("data-product-layout");
+    expect(startField?.parentElement).toBe(endField?.parentElement);
+    expect(startField?.parentElement).toHaveAttribute("data-timeoff-date-row");
+    expect(startField?.parentElement).toHaveClass("grid", "min-w-0", "grid-cols-1", "gap-2", "sm:grid-cols-2");
     expectCompact(screen.getByLabelText("Type"));
     expectCompact(screen.getByLabelText("Note"));
   });
