@@ -473,6 +473,7 @@ export function seed(): AppData {
         note: "Long weekend",
       },
     ],
+    closures: [],
   };
 }
 
@@ -495,6 +496,11 @@ export function seedForCurrentWeek(referenceDate = todayISO()): AppData {
       endDate: shift(row.endDate),
     })),
     timeOff: data.timeOff.map((row) => ({
+      ...row,
+      startDate: shift(row.startDate),
+      endDate: shift(row.endDate),
+    })),
+    closures: data.closures.map((row) => ({
       ...row,
       startDate: shift(row.startDate),
       endDate: shift(row.endDate),

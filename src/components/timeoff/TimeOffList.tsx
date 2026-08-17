@@ -12,7 +12,6 @@ import { Fragment, useMemo } from "react";
 import { Calendar, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { useConfirmDelete } from "../../hooks/useConfirmDelete";
-import { timeOffTypeLabel } from "../../lib/metadata";
 
 export function TimeOffList() {
   const data = useActiveScopedData();
@@ -73,10 +72,7 @@ export function TimeOffList() {
                         {index > 0 && <ItemSeparator />}
                         <Item size="sm" role="listitem" data-testid="timeoff-row" className="rounded-none">
                           <ItemContent>
-                            {/* Personal rows stay spare because the resource heading disambiguates them.
-                            Everyone rows add type because the shared heading cannot distinguish Holiday from Other. */}
                             <span className="text-sm text-muted-foreground">
-                              {group.kind === "company" && `${timeOffTypeLabel(t.type)} · `}
                               {formatShortDate(t.startDate)} · {formatDayCount(t.startDate, t.endDate)}
                             </span>
                           </ItemContent>

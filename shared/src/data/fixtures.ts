@@ -7,6 +7,7 @@ import type {
   Account,
   Allocation,
   Client,
+  Closure,
   Discipline,
   Phase,
   Project,
@@ -190,6 +191,16 @@ export const FIXTURE_TIMEOFF: TimeOff = {
   endDate: "2026-03-05",
   type: "sick",
   note: "Fixture sick note",
+  createdAt: TS1,
+  updatedAt: TS2,
+};
+
+export const FIXTURE_CLOSURE: Closure = {
+  id: "fix-cl1",
+  accountId: "fix-a1",
+  name: "Fixture shutdown",
+  startDate: "2026-12-24",
+  endDate: "2026-12-27",
   createdAt: TS1,
   updatedAt: TS2,
 };

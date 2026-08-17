@@ -86,6 +86,7 @@ const FK_EDGES = [
   { child: "activities", parent: "accounts", field: "accountId" },
   { child: "allocations", parent: "accounts", field: "accountId" },
   { child: "timeOff", parent: "accounts", field: "accountId" },
+  { child: "closures", parent: "accounts", field: "accountId" },
   { child: "resources", parent: "disciplines", field: "disciplineId" },
   { child: "allocations", parent: "resources", field: "resourceId" },
   { child: "timeOff", parent: "resources", field: "resourceId" },

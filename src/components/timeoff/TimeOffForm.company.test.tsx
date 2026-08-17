@@ -16,11 +16,6 @@ const personDraft = {
   color: "#111",
 };
 
-const chooseOption = (field: string, option: string) => {
-  fireEvent.keyDown(screen.getByLabelText(field), { key: "ArrowDown" });
-  fireEvent.click(screen.getByRole("option", { name: option }));
-};
-
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-06-03T12:00:00.000Z"));
@@ -33,8 +28,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("TimeOffForm company-wide assignee", () => {
-  it("keeps a new entry unassigned by default and lists Everyone first", () => {
+describe("TimeOffForm personal assignee", () => {
+  it("lists only resources and keeps all personal time-off types", () => {
     useStore.getState().addResource(personDraft);
     render(<TimeOffForm onClose={() => {}} />);
 
@@ -43,37 +38,8 @@ describe("TimeOffForm company-wide assignee", () => {
     expect(resourcePicker).not.toHaveTextContent("Everyone");
 
     fireEvent.keyDown(resourcePicker, { key: "ArrowDown" });
-    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Everyone", "Bruce Wayne"]);
-  });
-
-  it("creates Everyone time off and limits its type choices to Holiday and Other", () => {
-    useStore.getState().addResource(personDraft);
-    render(<TimeOffForm onClose={() => {}} />);
-
-    chooseOption("Resource", "Everyone");
-    fireEvent.keyDown(screen.getByLabelText("Type"), { key: "ArrowDown" });
-    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Holiday", "Other"]);
-    fireEvent.click(screen.getByRole("option", { name: "Other" }));
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(useStore.getState().data.timeOff).toHaveLength(1);
-    expect(useStore.getState().data.timeOff[0]).toMatchObject({ resourceId: null, type: "other" });
-  });
-
-  it("edits personal time off to Everyone and restores all types when switching back", () => {
-    const resource = useStore.getState().addResource(personDraft);
-    const entry = useStore.getState().addTimeOff({
-      resourceId: resource.id,
-      startDate: "2026-09-01",
-      endDate: "2026-09-02",
-      type: "sick",
-    });
-    render(<TimeOffForm timeOff={entry} onClose={() => {}} />);
-
-    chooseOption("Resource", "Everyone");
-    expect(screen.getByLabelText("Type")).toHaveTextContent("Other");
-
-    chooseOption("Resource", "Bruce Wayne");
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Bruce Wayne"]);
+    fireEvent.keyDown(document, { key: "Escape" });
     fireEvent.keyDown(screen.getByLabelText("Type"), { key: "ArrowDown" });
     expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
       "Holiday",
@@ -81,29 +47,6 @@ describe("TimeOffForm company-wide assignee", () => {
       "Unpaid",
       "Other",
     ]);
-    fireEvent.click(screen.getByRole("option", { name: "Sick" }));
-
-    chooseOption("Resource", "Everyone");
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    expect(useStore.getState().data.timeOff[0]).toMatchObject({ resourceId: null, type: "other" });
-  });
-
-  it("edits Everyone time off back to a person", () => {
-    const resource = useStore.getState().addResource(personDraft);
-    const entry = useStore.getState().addTimeOff({
-      resourceId: null,
-      startDate: "2026-12-24",
-      endDate: "2026-12-24",
-      type: "other",
-    });
-    render(<TimeOffForm timeOff={entry} onClose={() => {}} />);
-
-    expect(screen.getByLabelText("Resource")).toHaveTextContent("Everyone");
-    expect(screen.getByLabelText("Type")).toHaveTextContent("Other");
-    chooseOption("Resource", "Bruce Wayne");
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(useStore.getState().data.timeOff[0]).toMatchObject({ resourceId: resource.id, type: "other" });
   });
 
   it("still rejects an external resource seeded outside the picker", () => {

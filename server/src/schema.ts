@@ -120,8 +120,12 @@ const V32_TIME_OFF: TableSpec = {
   ...TABLES.timeOff,
   columns: TABLES.timeOff.columns.map((column) => (column.name === "resourceId" ? { name: column.name } : column)),
 };
+const PRE_V34_TABLES = Object.fromEntries(Object.entries(TABLES).filter(([key]) => key !== "closures")) as Record<
+  string,
+  TableSpec
+>;
 const V27_TABLES: Record<string, TableSpec> = {
-  ...TABLES,
+  ...PRE_V34_TABLES,
   accounts: V29_ACCOUNTS,
   allocations: V31_ALLOCATIONS,
   timeOff: V32_TIME_OFF,
@@ -131,7 +135,7 @@ const V27_TABLES: Record<string, TableSpec> = {
   },
 };
 const V28_TABLES: Record<string, TableSpec> = {
-  ...TABLES,
+  ...PRE_V34_TABLES,
   accounts: V29_ACCOUNTS,
   allocations: V31_ALLOCATIONS,
   timeOff: V32_TIME_OFF,
@@ -141,25 +145,34 @@ const V28_TABLES: Record<string, TableSpec> = {
   },
 };
 const V29_TABLES: Record<string, TableSpec> = {
-  ...TABLES,
+  ...PRE_V34_TABLES,
   accounts: V29_ACCOUNTS,
   allocations: V31_ALLOCATIONS,
   timeOff: V32_TIME_OFF,
 };
 const V30_TABLES: Record<string, TableSpec> = {
-  ...TABLES,
+  ...PRE_V34_TABLES,
   accounts: V30_ACCOUNTS,
   allocations: V31_ALLOCATIONS,
   timeOff: V32_TIME_OFF,
 };
 const V31_TABLES: Record<string, TableSpec> = {
-  ...TABLES,
+  ...PRE_V34_TABLES,
   allocations: V31_ALLOCATIONS,
   timeOff: V32_TIME_OFF,
 };
 const V32_TABLES: Record<string, TableSpec> = {
-  ...TABLES,
+  ...PRE_V34_TABLES,
   timeOff: V32_TIME_OFF,
+};
+const V33_TABLES: Record<string, TableSpec> = {
+  ...PRE_V34_TABLES,
+  timeOff: {
+    ...TABLES.timeOff,
+    columns: TABLES.timeOff.columns.map((column) =>
+      column.name === "resourceId" ? { name: column.name, optional: true, preserveNull: true } : column,
+    ),
+  },
 };
 
 /**
@@ -364,7 +377,8 @@ function assertSchemaVersion(db: Db, tableSpecs: Record<string, TableSpec>, allo
       // Historical migrations may be replayed in tests or an idempotent recovery against the
       // already-widened v33 shape. Nullable resourceId is forward-compatible with every personal
       // v8-v32 row; the current TABLES assertion still requires it because its spec is optional.
-      const compatibleV33Widening = table === "timeOff" && col.name === "resourceId" && specNotNull && !liveNotNull;
+      const compatibleV33Widening =
+        tableSpecs === V32_TABLES && table === "timeOff" && col.name === "resourceId" && specNotNull && !liveNotNull;
       if (liveNotNull !== specNotNull && !compatibleV33Widening) {
         nullabilityProblems.push(
           `${table}.${col.name} (spec ${specNotNull ? "required" : "optional"}, ` +
@@ -464,6 +478,7 @@ function assertSchemaVersion(db: Db, tableSpecs: Record<string, TableSpec>, allo
       ["resourceId", "resources", "id", "CASCADE"],
       ["accountId", "accounts", "id", "CASCADE"],
     ],
+    ...(tableSpecs.closures ? { closures: [["accountId", "accounts", "id", "CASCADE"]] } : {}),
   };
   const foreignKeyProblems: string[] = [];
   for (const [table, expected] of Object.entries(expectedForeignKeys)) {
@@ -563,6 +578,11 @@ export function assertSchemaV31(db: Db): void {
 /** Assert the released v32 shape without requiring nullable company-wide time off. */
 export function assertSchemaV32(db: Db): void {
   assertSchemaVersion(db, V32_TABLES, true);
+}
+
+/** Assert the released v33 nullable-time-off shape before the closure table exists. */
+export function assertSchemaV33(db: Db): void {
+  assertSchemaVersion(db, V33_TABLES, true);
 }
 
 /** Assert that the live database matches the current entity/table specification. */

@@ -8,6 +8,7 @@ import type {
   Resource,
   Activity,
   TimeOff,
+  Closure,
   AppDataKey,
 } from "@capacitylens/shared/types/entities";
 import { APP_DATA_WRITE_ORDER, SCOPED_WRITE_ORDER } from "@capacitylens/shared/types/entities";
@@ -25,8 +26,8 @@ export interface ColumnSpec {
   optional?: boolean;
   /** Preserve SQL NULL as an explicit object value instead of treating it as an omitted optional.
    * Changes what `optional` means for this column: unlike a normal optional column (absent when
-   * NULL), the field is always present on read and NULL is a meaningful value in its own right
-   * (e.g. timeOff.resourceId NULL = company-wide "Everyone"). */
+   * NULL), the field is always present on read and NULL is a meaningful value in its own right.
+   * Retained for decoding historical schema specifications. */
   preserveNull?: boolean;
   /** SQLite storage class; omitted means TEXT. Kept beside the write-column contract so startup
    * can reject a live declaration that no longer matches the values insertRow binds. */
@@ -64,6 +65,7 @@ declare const _checkResources: CheckColumns<Resource, typeof COLS_resources>;
 declare const _checkActivities: CheckColumns<Activity, typeof COLS_activities>;
 declare const _checkAllocations: CheckColumns<Allocation, typeof COLS_allocations>;
 declare const _checkTimeOff: CheckColumns<TimeOff, typeof COLS_timeOff>;
+declare const _checkClosures: CheckColumns<Closure, typeof COLS_closures>;
 /* eslint-enable @typescript-eslint/no-unused-vars */
 
 const META = [{ name: "createdAt" }, { name: "updatedAt" }] as const;
@@ -191,11 +193,20 @@ const COLS_allocations = [
 const COLS_timeOff = [
   { name: "id" },
   { name: "accountId" },
-  { name: "resourceId", optional: true, preserveNull: true },
+  { name: "resourceId" },
   { name: "startDate" },
   { name: "endDate" },
   { name: "type" },
   { name: "note", optional: true },
+  ...META,
+] as const satisfies ColumnSpec[];
+
+const COLS_closures = [
+  { name: "id" },
+  { name: "accountId" },
+  { name: "name" },
+  { name: "startDate" },
+  { name: "endDate" },
   ...META,
 ] as const satisfies ColumnSpec[];
 
@@ -235,6 +246,10 @@ const TABLE_DEFINITIONS = {
   timeOff: {
     key: "timeOff",
     columns: COLS_timeOff,
+  },
+  closures: {
+    key: "closures",
+    columns: COLS_closures,
   },
 } satisfies Record<AppDataKey, TableSpec>;
 
@@ -386,11 +401,13 @@ export const SCHEMA_SQL = `${SCHEMA_V8_SQL.replace(
   .replace(
     "  status TEXT NOT NULL, note TEXT, ignoreWeekends TEXT,",
     "  status TEXT NOT NULL, note TEXT, ignoreWeekends TEXT, seriesId TEXT,",
-  )
-  .replace(
-    "  resourceId TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,\n  startDate TEXT NOT NULL, endDate TEXT NOT NULL, type TEXT NOT NULL, note TEXT,",
-    "  resourceId TEXT REFERENCES resources(id) ON DELETE CASCADE,\n  startDate TEXT NOT NULL, endDate TEXT NOT NULL, type TEXT NOT NULL, note TEXT,",
-  )}\n${BOOTSTRAP_CLAIM_TABLE_SQL}`;
+  )}\nCREATE TABLE IF NOT EXISTS closures (
+  id TEXT NOT NULL PRIMARY KEY,
+  accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  startDate TEXT NOT NULL, endDate TEXT NOT NULL,
+  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+);\n${BOOTSTRAP_CLAIM_TABLE_SQL}`;
 
 /** Installed after boot-time duplicate repair so existing databases can be reconciled first. */
 export const INTERNAL_CLIENT_UNIQUE_INDEX_SQL = `

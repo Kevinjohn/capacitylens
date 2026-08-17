@@ -812,6 +812,7 @@
   "data_summary_activities": "activities",
   "data_summary_allocations": "allocations",
   "data_summary_timeoff": "time-off entries",
+  "data_summary_closures": "closures",
   "data_summary_none": "no entities",
   "data_import_confirm_intro": "Import ",
   "data_import_confirm_mid1": " — this ",

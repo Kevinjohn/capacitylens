@@ -8,6 +8,7 @@ import {
   dayCapacity as dayCapacityWithWeek,
   formatCapacityAdvisory,
   isHalfDay,
+  isOnClosure,
   isOnTimeOff,
   isWorkingDay as isWorkingDayWithWeek,
   scheduledHoursOnDay as scheduledHoursOnDayWithWeek,
@@ -18,7 +19,7 @@ import {
 import { addDaysISO, eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
-import type { Allocation, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
+import type { Allocation, Closure, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 
 const DEFAULT_ACCOUNT_WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5];
 const weekFor = (resource: Resource, accountWorkingDays = DEFAULT_ACCOUNT_WORKING_DAYS) =>
@@ -55,14 +56,24 @@ const utilization = (
   start: ISODate,
   end: ISODate,
   accountWorkingDays?: Weekday[],
-) => utilizationWithWeek(resource, allocations, timeOff, start, end, weekFor(resource, accountWorkingDays));
+  closures: Closure[] = [],
+) => utilizationWithWeek(resource, allocations, timeOff, start, end, weekFor(resource, accountWorkingDays), closures);
 const capacityAdvisory = (
   resource: Resource,
   proposal: CapacityAllocationInput,
   otherAllocations: readonly CapacityAllocationInput[],
   timeOff: TimeOff[],
   accountWorkingDays?: Weekday[],
-) => capacityAdvisoryWithWeek(resource, proposal, otherAllocations, timeOff, weekFor(resource, accountWorkingDays));
+  closures: Closure[] = [],
+) =>
+  capacityAdvisoryWithWeek(
+    resource,
+    proposal,
+    otherAllocations,
+    timeOff,
+    weekFor(resource, accountWorkingDays),
+    closures,
+  );
 const isWorkingDay = (resource: Resource, date: ISODate, accountWorkingDays?: Weekday[]) =>
   isWorkingDayWithWeek(weekFor(resource, accountWorkingDays), date);
 
@@ -105,6 +116,17 @@ const makeTimeOff = (over: Partial<TimeOff> = {}): TimeOff => ({
   startDate: "2026-06-03",
   endDate: "2026-06-03",
   type: "holiday",
+  ...over,
+});
+
+const makeClosure = (over: Partial<Closure> = {}): Closure => ({
+  id: "closure1",
+  accountId: "acct-test",
+  createdAt: "t",
+  updatedAt: "t",
+  name: "Company shutdown",
+  startDate: "2026-06-03",
+  endDate: "2026-06-03",
   ...over,
 });
 
@@ -239,14 +261,23 @@ describe("availability", () => {
     expect(isOnTimeOff("other", "2026-06-03", timeOff)).toBe(false);
   });
 
-  it("matches company-wide time off for people and placeholders while keeping personal entries scoped", () => {
-    const company = makeTimeOff({ resourceId: null, startDate: "2026-06-03", endDate: "2026-06-03" });
+  it("covers people and placeholders but not external resources", () => {
+    const closure = makeClosure();
     const personal = makeTimeOff({ id: "personal", resourceId: "r1", startDate: "2026-06-04", endDate: "2026-06-04" });
 
-    expect(isOnTimeOff("r1", "2026-06-03", [company, personal])).toBe(true);
-    expect(isOnTimeOff("placeholder-1", "2026-06-03", [company, personal])).toBe(true);
-    expect(isOnTimeOff("r1", "2026-06-04", [company, personal])).toBe(true);
-    expect(isOnTimeOff("placeholder-1", "2026-06-04", [company, personal])).toBe(false);
+    expect(isOnClosure(makeResource(), "2026-06-03", [closure])).toBe(true);
+    expect(isOnClosure(makeResource({ kind: "placeholder" }), "2026-06-03", [closure])).toBe(true);
+    expect(isOnClosure(makeResource({ kind: "external" }), "2026-06-03", [closure])).toBe(false);
+    expect(isOnTimeOff("r1", "2026-06-04", [personal])).toBe(true);
+  });
+
+  it("treats a closure as a literal inclusive span across a weekend", () => {
+    const closure = makeClosure({ startDate: "2026-06-05", endDate: "2026-06-08" });
+
+    expect(isOnClosure(r, "2026-06-05", [closure])).toBe(true);
+    expect(isOnClosure(r, "2026-06-06", [closure])).toBe(true);
+    expect(isOnClosure(r, "2026-06-07", [closure])).toBe(true);
+    expect(isOnClosure(r, "2026-06-08", [closure])).toBe(true);
   });
 
   it("uses fixed eight-hour full days, four-hour half days, and zero for non-working/time-off days", () => {
@@ -587,10 +618,10 @@ describe("utilization", () => {
       makeAlloc({ id: "monday", startDate: "2026-06-01", endDate: "2026-06-01", hoursPerDay: 8 }),
       makeAlloc({ id: "tuesday", startDate: "2026-06-02", endDate: "2026-06-02", hoursPerDay: 4 }),
     ];
-    const closure = [makeTimeOff({ resourceId: null, startDate: "2026-06-01", endDate: "2026-06-01" })];
+    const closures = [makeClosure({ startDate: "2026-06-01", endDate: "2026-06-01" })];
 
     expect(utilization(r, allocations, [], "2026-06-01", "2026-06-02")).toBeCloseTo(0.75);
-    expect(utilization(r, allocations, closure, "2026-06-01", "2026-06-02")).toBeCloseTo(0.5);
+    expect(utilization(r, allocations, [], "2026-06-01", "2026-06-02", undefined, closures)).toBeCloseTo(0.5);
   });
 });
 
@@ -669,10 +700,10 @@ describe("capacityAdvisory", () => {
     expect(overDays).toBe(4); // 06-03 is unavailable → not "over", the other 4 weekdays are
   });
 
-  it("counts company-wide closure dates in the same advisory category", () => {
-    const closure = [makeTimeOff({ resourceId: null, startDate: "2026-06-03", endDate: "2026-06-03" })];
+  it("counts closure dates in the same advisory category", () => {
+    const closures = [makeClosure({ startDate: "2026-06-03", endDate: "2026-06-03" })];
 
-    expect(capacityAdvisory(r, proposal("2026-06-01", "2026-06-05", 8, false), [], closure)).toEqual({
+    expect(capacityAdvisory(r, proposal("2026-06-01", "2026-06-05", 8, false), [], [], undefined, closures)).toEqual({
       overDays: 0,
       timeOffDays: 1,
     });

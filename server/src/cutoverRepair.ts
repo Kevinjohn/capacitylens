@@ -60,11 +60,12 @@ export async function repairSsoCutover(input: CutoverRepairInput): Promise<Cutov
     // v29 adds only the required resource engagement column with the Studio default; v30 adds
     // only the optional default-on engagement-grouping account preference; and v31 adds the
     // optional account working-day JSON selection with a deterministic legacy default; v32 adds
-    // only the optional forward-only repeat-series identity on allocations; and v33 widens
-    // timeOff.resourceId to nullable while preserving its foreign key for personal entries.
+    // only the optional forward-only repeat-series identity on allocations; v33 widens
+    // timeOff.resourceId to nullable; and v34 separates company closures and restores the
+    // personal time-off resource requirement.
     // These are safe to remain pending before this stopped-server repair. Keep this allowlist explicit
     // so a future migration requires review.
-    if (plan.migrations.some(({ version }) => ![25, 26, 27, 28, 29, 30, 31, 32, 33].includes(version))) {
+    if (plan.migrations.some(({ version }) => ![25, 26, 27, 28, 29, 30, 31, 32, 33, 34].includes(version))) {
       throw new Error(
         `Database schema v${plan.fromVersion} has unrelated pending migrations; start the matching release before repair.`,
       );

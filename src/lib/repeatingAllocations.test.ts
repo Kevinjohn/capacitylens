@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Allocation, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
+import type { Allocation, Closure, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
@@ -239,6 +239,7 @@ const repeatingAllocationAdvisory = (
   existingLoad: readonly Draft<Allocation>[],
   timeOff: TimeOff[],
   proposedDrafts: readonly Draft<Allocation>[],
+  closures: Closure[] = [],
 ) =>
   repeatingAllocationAdvisoryWithWeek(
     resource,
@@ -246,6 +247,7 @@ const repeatingAllocationAdvisory = (
     timeOff,
     proposedDrafts,
     effectiveWorkingWeek(resource, [1, 2, 3, 4, 5]),
+    closures,
   );
 
 describe("repeatingAllocationAdvisory", () => {
@@ -336,21 +338,20 @@ describe("repeatingAllocationAdvisory", () => {
       ["2026-06-01", "2026-06-08", "2026-06-15"],
       repeatContext("hourly", 1),
     );
-    const companyClosure: TimeOff[] = [
+    const companyClosure: Closure[] = [
       {
         id: "company-closure",
         accountId: "a1",
         createdAt: "t",
         updatedAt: "t",
-        resourceId: null,
+        name: "Company shutdown",
         startDate: "2026-06-08",
         endDate: "2026-06-08",
-        type: "holiday",
       },
     ];
 
     expect(drafts.map((draft) => draft.startDate)).toEqual(["2026-06-01", "2026-06-08", "2026-06-15"]);
-    expect(repeatingAllocationAdvisory(fullResource(), [], companyClosure, drafts)).toEqual({
+    expect(repeatingAllocationAdvisory(fullResource(), [], [], drafts, companyClosure)).toEqual({
       overCapacityAllocations: 0,
       timeOffAllocations: 1,
       nonEffectiveStartAllocations: 0,

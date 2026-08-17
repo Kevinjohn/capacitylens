@@ -8,8 +8,13 @@ import {
 import { blockHoursPerDay, MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import { effectiveWeekIncludes, type EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { m } from "@/i18n";
-import { FULL_DAY_HOURS, HALF_DAY_HOURS, hasPersonalWorkingPattern } from "@capacitylens/shared/types/entities";
-import type { Allocation, ID, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
+import {
+  FULL_DAY_HOURS,
+  HALF_DAY_HOURS,
+  hasPersonalWorkingPattern,
+  isExternalResource,
+} from "@capacitylens/shared/types/entities";
+import type { Allocation, Closure, ID, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 
 // Arithmetic-only tolerance: one nanohour is 3.6 microseconds, far below any scheduling input,
 // while comfortably absorbing the few-ULP drift from summing days-mode fractional allocations.
@@ -93,15 +98,12 @@ export function scheduledHoursOnDay(resource: Resource, date: ISODate, effective
   return scheduledHoursForWeekday(resource, weekdayOf(date), effectiveWeek);
 }
 
-/** THE applies-to-this-resource rule: an entry targets the resource itself or everyone. Both the
- * pre-filter and the day predicate below read it from here so they can never disagree. */
+/** THE applies-to-this-resource rule for personal time off. */
 function appliesTo(resourceId: ID, t: TimeOff): boolean {
-  return t.resourceId === null || t.resourceId === resourceId;
+  return t.resourceId === resourceId;
 }
 
-/** The entries that apply to this resource: their own plus every company-wide (null) closure.
- * Callers that pre-filter a slice for capacity/advisory math must use this, not strict equality,
- * or Everyone rows silently vanish from their tallies. */
+/** The personal time-off entries that apply to this resource. */
 export function timeOffApplyingTo(resourceId: ID, timeOff: TimeOff[]): TimeOff[] {
   return timeOff.filter((t) => appliesTo(resourceId, t));
 }
@@ -110,21 +112,28 @@ export function isOnTimeOff(resourceId: ID, date: ISODate, timeOff: TimeOff[]): 
   return timeOff.some((t) => appliesTo(resourceId, t) && isWithin(date, t.startDate, t.endDate));
 }
 
-/** Only the company-wide (Everyone) closures — the one slice of time off that applies to an
- * EXTERNAL party. Kept beside isOnTimeOff so both date-window predicates share one home. */
-export function isOnCompanyTimeOff(date: ISODate, timeOff: TimeOff[]): boolean {
-  return timeOff.some((t) => t.resourceId === null && isWithin(date, t.startDate, t.endDate));
+/** Whether a company closure covers this resource and date. The literal span includes weekends. */
+export function isOnClosure(resource: Resource, date: ISODate, closures: Closure[]): boolean {
+  return (
+    !isExternalResource(resource) && closures.some((closure) => isWithin(date, closure.startDate, closure.endDate))
+  );
+}
+
+/** The single availability funnel for personal time off and company closures. */
+function isUnavailable(resource: Resource, date: ISODate, timeOff: TimeOff[], closures: Closure[]): boolean {
+  return isOnTimeOff(resource.id, date, timeOff) || isOnClosure(resource, date, closures);
 }
 
 function availableHoursForWeekday(
   resource: Resource,
   date: ISODate,
   timeOff: TimeOff[],
+  closures: Closure[],
   weekday: Weekday,
   effectiveWeek: EffectiveWorkingWeek,
 ): number {
   if (!effectiveWeekIncludes(effectiveWeek, weekday)) return 0;
-  if (isOnTimeOff(resource.id, date, timeOff)) return 0;
+  if (isUnavailable(resource, date, timeOff, closures)) return 0;
   return scheduledHoursForWeekday(resource, weekday, effectiveWeek);
 }
 
@@ -135,8 +144,9 @@ export function availableHoursOnDay(
   date: ISODate,
   timeOff: TimeOff[],
   effectiveWeek: EffectiveWorkingWeek,
+  closures: Closure[] = [],
 ): number {
-  return availableHoursForWeekday(resource, date, timeOff, weekdayOf(date), effectiveWeek);
+  return availableHoursForWeekday(resource, date, timeOff, closures, weekdayOf(date), effectiveWeek);
 }
 
 /** Sum of allocated hours for `resource` on `date` across every overlapping allocation.
@@ -196,12 +206,13 @@ export function dayCapacity(
   allocations: Allocation[],
   timeOff: TimeOff[],
   effectiveWeek: EffectiveWorkingWeek,
+  closures: Closure[] = [],
 ): DayCapacity {
   // ONE parseISO for the whole resource-day: the availability and load halves each need the
   // weekday (twice over, for the working-week and half-day tests), and this runs per resource ×
   // per visible day on every model rebuild.
   const weekday = weekdayOf(date);
-  const available = availableHoursForWeekday(resource, date, timeOff, weekday, effectiveWeek);
+  const available = availableHoursForWeekday(resource, date, timeOff, closures, weekday, effectiveWeek);
   const allocated = allocatedHoursForWeekday(resource, date, allocations, weekday, effectiveWeek);
   return {
     date,
@@ -223,8 +234,9 @@ export function capacityForWindow(
   start: ISODate,
   end: ISODate,
   effectiveWeek: EffectiveWorkingWeek,
+  closures: Closure[] = [],
 ): DayCapacity[] {
-  return eachDayISO(start, end).map((d) => dayCapacity(resource, d, allocations, timeOff, effectiveWeek));
+  return eachDayISO(start, end).map((d) => dayCapacity(resource, d, allocations, timeOff, effectiveWeek, closures));
 }
 
 /** Reduce already-computed resource-day capacity into the visible-window utilisation ratio. */
@@ -252,8 +264,11 @@ export function utilization(
   start: ISODate,
   end: ISODate,
   effectiveWeek: EffectiveWorkingWeek,
+  closures: Closure[] = [],
 ): number {
-  return utilizationFromCapacity(capacityForWindow(resource, allocations, timeOff, start, end, effectiveWeek));
+  return utilizationFromCapacity(
+    capacityForWindow(resource, allocations, timeOff, start, end, effectiveWeek, closures),
+  );
 }
 
 export interface CapacityAdvisory {
@@ -330,6 +345,7 @@ function tallyAdvisory(
   loadByDay: CapacityLoadByDay,
   timeOff: TimeOff[],
   effectiveWeek: EffectiveWorkingWeek,
+  closures: Closure[],
 ): CapacityAdvisory {
   let overDays = 0;
   let timeOffDays = 0;
@@ -338,7 +354,7 @@ function tallyAdvisory(
     // would otherwise re-run isWorkingDay (and isOnTimeOff) a second time on this hot path.
     const weekday = weekdayOf(day);
     const working = effectiveWeekIncludes(effectiveWeek, weekday);
-    const onTimeOff = working && isOnTimeOff(resource.id, day, timeOff);
+    const onTimeOff = working && isUnavailable(resource, day, timeOff, closures);
     // Time off is its own category (counted, surfaced separately) and never folded into overDays —
     // a holiday only costs capacity on a day the resource would have worked, and it reads as "on
     // time off", not "over". `continue` so it can't also be tallied as over below.
@@ -375,11 +391,12 @@ export function capacityAdvisory(
   otherAllocations: readonly CapacityAllocationInput[],
   timeOff: TimeOff[],
   effectiveWeek: EffectiveWorkingWeek,
+  closures: Closure[] = [],
 ): CapacityAdvisory {
   const days = advisoryDays(proposal);
   if (!days) return { overDays: 0, timeOffDays: 0 };
   const loadByDay = bucketCapacityLoad(resource, otherAllocations, proposal.startDate, proposal.endDate, effectiveWeek);
-  return tallyAdvisory(resource, proposal, days, loadByDay, timeOff, effectiveWeek);
+  return tallyAdvisory(resource, proposal, days, loadByDay, timeOff, effectiveWeek, closures);
 }
 
 /** `capacityAdvisory` against a load bucket the caller already holds — for a BATCH of proposals on
@@ -391,10 +408,11 @@ export function capacityAdvisoryFromLoad(
   loadByDay: CapacityLoadByDay,
   timeOff: TimeOff[],
   effectiveWeek: EffectiveWorkingWeek,
+  closures: Closure[] = [],
 ): CapacityAdvisory {
   const days = advisoryDays(proposal);
   return days
-    ? tallyAdvisory(resource, proposal, days, loadByDay, timeOff, effectiveWeek)
+    ? tallyAdvisory(resource, proposal, days, loadByDay, timeOff, effectiveWeek, closures)
     : { overDays: 0, timeOffDays: 0 };
 }
 

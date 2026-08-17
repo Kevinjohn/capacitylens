@@ -5,13 +5,21 @@ import {
   isAllocationMoveStartBlocked,
   isCreationStartBlocked,
 } from "./creationAvailability";
-import type { Resource } from "@capacitylens/shared/types/entities";
+import type { Closure, Resource } from "@capacitylens/shared/types/entities";
 import { makeResource, makeTimeOff } from "../../test/fixtures";
 
 const person = makeResource({ name: "Bruce Wayne" });
 
 const holiday = makeTimeOff({ startDate: "2026-06-03", endDate: "2026-06-04" });
-const companyClosure = makeTimeOff({ resourceId: null, startDate: "2026-06-03", endDate: "2026-06-04" });
+const companyClosure: Closure = {
+  id: "closure",
+  accountId: "a1",
+  createdAt: "t",
+  updatedAt: "t",
+  name: "Company shutdown",
+  startDate: "2026-06-03",
+  endDate: "2026-06-04",
+};
 
 describe("creation start availability", () => {
   it("intersects the company and personal calendars for allocation gestures", () => {
@@ -42,12 +50,11 @@ describe("creation start availability", () => {
     expect(isCreationStartBlocked({ ...external, id: "r1" }, "2026-06-03", [holiday], [1, 2, 3, 4, 5])).toBe(false);
   });
 
-  it("blocks external starts only for company-wide time off", () => {
+  it("does not apply company closures to external resources", () => {
     const external: Resource = { ...person, kind: "external", workingDays: [] };
 
-    expect(isCreationStartBlocked(external, "2026-06-03", [companyClosure], [1, 2, 3, 4, 5])).toBe(true);
-    expect(isCreationStartBlocked(external, "2026-06-02", [companyClosure], [1, 2, 3, 4, 5])).toBe(false);
-    expect(creationBlockedAt(external, "2026-06-03", [companyClosure], [1, 2, 3, 4, 5], true)).toBe("time-off");
+    expect(isCreationStartBlocked(external, "2026-06-03", [], [1, 2, 3, 4, 5], [companyClosure])).toBe(false);
+    expect(creationBlockedAt(external, "2026-06-03", [], [1, 2, 3, 4, 5], true, [companyClosure])).toBe(null);
   });
 
   it("names which rule blocked the start, and scopes time off to the resource asked about", () => {
@@ -76,7 +83,7 @@ describe("#257 characterization: creation and move gate boundaries", () => {
     expect(creationBlockedAt(person, "2026-06-05", [fridayHoliday], [1, 2, 3, 4], true)).toBe("time-off");
   });
 
-  it("never lets the override bypass a company-wide closure", () => {
-    expect(creationBlockedAt(person, "2026-06-03", [companyClosure], [1, 2], true)).toBe("time-off");
+  it("never lets the override bypass a company closure", () => {
+    expect(creationBlockedAt(person, "2026-06-03", [], [1, 2], true, [companyClosure])).toBe("time-off");
   });
 });

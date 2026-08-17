@@ -103,7 +103,7 @@ function capacityAnnouncement(resourceId: ID): string {
 
   const timeOff = timeOffApplyingTo(resourceId, data.timeOff);
   const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDaysFor(storedData, activeAccountId));
-  const overDays = capacityForWindow(resource, allocations, timeOff, start, end, effectiveWeek).filter(
+  const overDays = capacityForWindow(resource, allocations, timeOff, start, end, effectiveWeek, data.closures).filter(
     (day) => day.over,
   ).length;
   if (overDays === 0) return m.scheduler_sr_announce_clear({ name });
@@ -398,6 +398,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
           others,
           timeOff,
           effectiveWorkingWeek(resource, accountWorkingDaysFor(storedData, activeAccountId)),
+          data.closures,
         );
         advisory = formatCapacityAdvisory(result, "toast");
       }

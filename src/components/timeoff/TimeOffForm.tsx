@@ -12,18 +12,10 @@ import { m } from "@/i18n";
 import { DateField, FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
 import { FieldError } from "../ui/field";
 import { timeOffTypeOptions, resourceDisplayName } from "../../lib/metadata";
-import {
-  COMPANY_WIDE_TIME_OFF_FALLBACK,
-  isCompanyWideTimeOffType,
-  isExternalResource,
-} from "@capacitylens/shared/types/entities";
+import { isExternalResource } from "@capacitylens/shared/types/entities";
 import type { ISODate, TimeOff, TimeOffType } from "@capacitylens/shared/types/entities";
 import { canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
 import { useRole } from "../../auth/permissionContext";
-
-// Radix uses the empty string for the unselected placeholder. Keep Everyone in a separate,
-// UI-only value domain and translate it to the persisted `null` company-assignee contract.
-const EVERYONE_RESOURCE_VALUE = "__capacitylens_everyone__";
 
 export function TimeOffForm({
   timeOff,
@@ -44,9 +36,7 @@ export function TimeOffForm({
   // Null is the OFF/demo/no-provider mode, where there is no server field projection to enforce.
   const canEditNote = role === null || canSeeTimeOffNote(role);
 
-  const [resourceId, setResourceId] = useState(
-    timeOff ? (timeOff.resourceId ?? EVERYONE_RESOURCE_VALUE) : (defaults?.resourceId ?? ""),
-  );
+  const [resourceId, setResourceId] = useState(timeOff?.resourceId ?? defaults?.resourceId ?? "");
   const [startDate, setStartDate] = useState(timeOff?.startDate ?? defaults?.startDate ?? todayISO(calendarTimeZone));
   const [endDate, setEndDate] = useState(timeOff?.endDate ?? defaults?.endDate ?? todayISO(calendarTimeZone));
   const [type, setType] = useState<TimeOffType>(timeOff?.type ?? "holiday");
@@ -73,31 +63,16 @@ export function TimeOffForm({
         .filter((r) => placeholdersEnabled || r.kind !== "placeholder" || r.id === resourceId),
     [resources, placeholdersEnabled, resourceId],
   );
-  const resourceOptions: Option[] = [
-    { value: EVERYONE_RESOURCE_VALUE, label: m.form_timeoff_everyone_option() },
-    ...filteredResources.map((r) => ({ value: r.id, label: resourceDisplayName(r) })),
-  ];
-  const everyoneSelected = resourceId === EVERYONE_RESOURCE_VALUE;
-  const typeOptions = timeOffTypeOptions().filter(
-    (option) => !everyoneSelected || isCompanyWideTimeOffType(option.value),
-  );
-  // Derived, never destructive: `type` always holds the user's last EXPLICIT choice. While
-  // Everyone is selected an out-of-set choice (e.g. Sick) merely DISPLAYS and persists as the
-  // fallback; switching back to a person restores the original pick instead of silently
-  // rewriting a sick-leave entry to Other because Everyone was momentarily selected.
-  const effectiveType = everyoneSelected && !isCompanyWideTimeOffType(type) ? COMPANY_WIDE_TIME_OFF_FALLBACK : type;
+  const resourceOptions: Option[] = filteredResources.map((r) => ({ value: r.id, label: resourceDisplayName(r) }));
 
   const submit = () => {
-    const persistedResourceId = everyoneSelected ? null : resourceId;
-    if (persistedResourceId !== null) {
-      // Reject an empty pick AND a resource that isn't a valid time-off target: externals have no
-      // capacity (the picker omits them, but a draw on an external lane could seed one), so guard
-      // the write boundary too rather than persist an orphan time-off the schedule never renders.
-      const chosen = resources.find((r) => r.id === persistedResourceId);
-      if (!chosen || isExternalResource(chosen)) {
-        fail("resource", m.form_timeoff_err_choose_resource());
-        return;
-      }
+    // Reject an empty pick AND a resource that isn't a valid time-off target: externals have no
+    // capacity (the picker omits them, but a draw on an external lane could seed one), so guard
+    // the write boundary too rather than persist an orphan time-off the schedule never renders.
+    const chosen = resources.find((r) => r.id === resourceId);
+    if (!chosen || isExternalResource(chosen)) {
+      fail("resource", m.form_timeoff_err_choose_resource());
+      return;
     }
     if (!startDate || !endDate) {
       fail("dates", m.form_timeoff_err_dates_required());
@@ -107,7 +82,7 @@ export function TimeOffForm({
       fail("dates", m.form_timeoff_err_end_before_start());
       return;
     }
-    const basePatch = { resourceId: persistedResourceId, startDate, endDate, type: effectiveType };
+    const basePatch = { resourceId, startDate, endDate, type };
     let cleanNote: string | undefined;
     if (canEditNote) {
       const validatedNote = validateText(note, fail, {
@@ -172,9 +147,9 @@ export function TimeOffForm({
       />
       <SelectField
         label={m.form_timeoff_type_label()}
-        value={effectiveType}
+        value={type}
         onChange={(v) => setType(v as TimeOffType)}
-        options={typeOptions}
+        options={timeOffTypeOptions()}
         layout="label-control"
       />
       {canEditNote && (

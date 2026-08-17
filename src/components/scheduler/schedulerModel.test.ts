@@ -19,6 +19,7 @@ const capacityForWindowOf = (
   windowStart: ISODate,
   windowEnd: ISODate,
   accountWorkingDays = DEFAULT_ACCOUNT_WORKING_DAYS,
+  closures: AppData["closures"] = [],
 ) =>
   capacityForWindowWithWeek(
     resource,
@@ -27,6 +28,7 @@ const capacityForWindowOf = (
     windowStart,
     windowEnd,
     effectiveWorkingWeek(resource, accountWorkingDays),
+    closures,
   );
 const utilizationOf = (
   resource: Resource,
@@ -35,6 +37,7 @@ const utilizationOf = (
   windowStart: ISODate,
   windowEnd: ISODate,
   accountWorkingDays = DEFAULT_ACCOUNT_WORKING_DAYS,
+  closures: AppData["closures"] = [],
 ) =>
   utilizationWithWeek(
     resource,
@@ -43,6 +46,7 @@ const utilizationOf = (
     windowStart,
     windowEnd,
     effectiveWorkingWeek(resource, accountWorkingDays),
+    closures,
   );
 
 const start = "2026-06-01";
@@ -662,15 +666,14 @@ describe("buildSchedulerModel", () => {
 
   it("refreshes visible utilisation without rebuilding static schedule rows", () => {
     const data = dataset();
-    data.timeOff.push({
+    data.closures.push({
       id: "company-wednesday",
       accountId: "acct-test",
       createdAt: "t",
       updatedAt: "t",
-      resourceId: null,
+      name: "Company shutdown",
       startDate: "2026-06-03",
       endDate: "2026-06-03",
-      type: "holiday",
     });
     const base = buildSchedulerModel({
       data,
@@ -2154,7 +2157,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
     expect(r2.dayStates[2]).toMatchObject({ unavailable: true, over: false, timeOffConflict: false });
   });
 
-  describe("company-wide time off", () => {
+  describe("company closures", () => {
     const companyData = (): AppData => {
       const d = withExternal();
       d.resources.push(
@@ -2180,38 +2183,36 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         status: "confirmed",
         ignoreWeekends: true,
       });
-      d.timeOff.push(
+      d.closures.push(
         {
           id: "company-wednesday",
           accountId: "acct-test",
           createdAt: "t",
           updatedAt: "t",
-          resourceId: null,
+          name: "Company shutdown",
           startDate: "2026-06-03",
           endDate: "2026-06-03",
-          type: "holiday",
         },
         {
           id: "company-saturday",
           accountId: "acct-test",
           createdAt: "t",
           updatedAt: "t",
-          resourceId: null,
+          name: "Weekend shutdown",
           startDate: "2026-06-06",
           endDate: "2026-06-06",
-          type: "other",
-        },
-        {
-          id: "personal-r1-wednesday",
-          accountId: "acct-test",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "r1",
-          startDate: "2026-06-03",
-          endDate: "2026-06-03",
-          type: "holiday",
         },
       );
+      d.timeOff.push({
+        id: "personal-r1-wednesday",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r1",
+        startDate: "2026-06-03",
+        endDate: "2026-06-03",
+        type: "holiday",
+      });
       return d;
     };
 
@@ -2231,7 +2232,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         },
       });
 
-    it("applies closure capacity, hatches and conflict cells to every tracked row", () => {
+    it("applies closure capacity and conflict cells to every tracked row", () => {
       const rows = buildCompany().flatMap((group) => group.rows);
       const r1 = rows.find((row) => row.resource.id === "r1")!;
       const r2 = rows.find((row) => row.resource.id === "r2")!;
@@ -2263,14 +2264,10 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       expect(r1.overSoon).toBe(true);
       expect(placeholder.overSoon).toBe(false);
 
-      for (const row of [r1, r2, placeholder]) {
-        expect(row.timeOff.map((entry) => entry.id)).toEqual(
-          expect.arrayContaining(["company-wednesday", "company-saturday"]),
-        );
-        expect(row.timeOff.find((entry) => entry.id === "company-wednesday")?.label).toBeTruthy();
-      }
-      // The personal + Everyone overlap is one conflicting day, even though both hatch records render.
+      // Personal time off remains a separate rendered fact while the closure independently removes capacity.
       expect(r1.timeOff.map((entry) => entry.id)).toContain("personal-r1-wednesday");
+      expect(r2.timeOff).toEqual([]);
+      expect(companyData().closures.map((entry) => entry.id)).toContain("company-wednesday");
       expect(r1.conflictDayCount).toBe(1);
     });
 
@@ -2283,7 +2280,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       expect(r1.conflictDayCount).toBe(1);
     });
 
-    it("keeps external capacity starved while company closures still gate starts", () => {
+    it("keeps external capacity starved and exempt from company closures", () => {
       const external = buildCompany().find((group) => group.external)!.rows[0]!;
 
       expect(external.timeOff).toEqual([]);
@@ -2291,8 +2288,8 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       expect(external.utilization).toBe(0);
       expect(external.overSoon).toBe(false);
       expect(external.dayStates[2]).toMatchObject({
-        creationBlocked: true,
-        unavailable: true,
+        creationBlocked: false,
+        unavailable: false,
         hasTimeOff: false,
         over: false,
         timeOffConflict: false,
@@ -2915,17 +2912,18 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       { ...alloc("b5", "r2", "2026-06-05", "2026-06-07", 4), ignoreWeekends: true },
       alloc("b6", "r2", "2026-06-01", "2026-06-03", 8),
     ];
-    d.timeOff = [
+    d.closures = [
       {
         id: "company-to",
         accountId: "acct-test",
         createdAt: "t",
         updatedAt: "t",
-        resourceId: null,
+        name: "Company shutdown",
         startDate: "2026-06-03",
         endDate: "2026-06-03",
-        type: "holiday",
       },
+    ];
+    d.timeOff = [
       {
         id: "to1",
         accountId: "acct-test",
@@ -2967,13 +2965,23 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
     for (const resourceId of ["r1", "r2"]) {
       const resource = d.resources.find((r) => r.id === resourceId)!;
       const allocs = d.allocations.filter((a) => a.resourceId === resourceId);
-      const off = d.timeOff.filter((t) => t.resourceId === null || t.resourceId === resourceId);
+      const off = d.timeOff.filter((t) => t.resourceId === resourceId);
       const row = rows.find((r) => r.resource.id === resourceId)!;
-      const naiveTimeline = capacityForWindowOf(resource, allocs, off, days[0]!, days[days.length - 1]!);
+      const naiveTimeline = capacityForWindowOf(
+        resource,
+        allocs,
+        off,
+        days[0]!,
+        days[days.length - 1]!,
+        DEFAULT_ACCOUNT_WORKING_DAYS,
+        d.closures,
+      );
       expect(row.dayStates).toEqual(
         naiveTimeline.map((c, index) => {
-          const creationBlocked = isCreationStartBlocked(resource, days[index]!, off, [1, 2, 3, 4, 5]);
-          const hasTimeOff = off.some((entry) => entry.startDate <= days[index]! && entry.endDate >= days[index]!);
+          const creationBlocked = isCreationStartBlocked(resource, days[index]!, off, [1, 2, 3, 4, 5], d.closures);
+          const hasTimeOff = [...off, ...d.closures].some(
+            (entry) => entry.startDate <= days[index]! && entry.endDate >= days[index]!,
+          );
           return {
             over: c.over,
             timeOffConflict: c.over && hasTimeOff,
@@ -2984,8 +2992,14 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
           };
         }),
       );
-      expect(row.utilization).toBe(utilizationOf(resource, allocs, off, visStart, visEnd));
-      expect(row.overSoon).toBe(capacityForWindowOf(resource, allocs, off, start, end).some((c) => c.over));
+      expect(row.utilization).toBe(
+        utilizationOf(resource, allocs, off, visStart, visEnd, DEFAULT_ACCOUNT_WORKING_DAYS, d.closures),
+      );
+      expect(row.overSoon).toBe(
+        capacityForWindowOf(resource, allocs, off, start, end, DEFAULT_ACCOUNT_WORKING_DAYS, d.closures).some(
+          (c) => c.over,
+        ),
+      );
     }
     // The fixture is only a guard if it actually exercises both states.
     const r1 = rows.find((r) => r.resource.id === "r1")!;

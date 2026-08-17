@@ -103,6 +103,7 @@ function normalize(data: Partial<AppData> | undefined): AppData {
     activities: asArray(data.activities),
     allocations: asArray(data.allocations),
     timeOff: asArray(data.timeOff),
+    closures: asArray(data.closures),
   };
 }
 
@@ -364,6 +365,7 @@ const POST_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
   { version: 14, apply: migrateV13toV14 },
   { version: 15, apply: migrateV14toV15 }, // no-op: repeat-series identity is forward-only
   { version: 16, apply: migrateV15toV16 }, // no-op: TimeOff.resourceId is widened to nullable
+  { version: 17, apply: (data) => data }, // structural split: import repair drops invalid legacy rows
 ];
 
 export interface MigrationWithRepairBase {

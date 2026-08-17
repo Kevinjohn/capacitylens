@@ -233,7 +233,7 @@ function memoisedAncestry(
 // Compile-time completeness guard for {@link activeOnly}'s projection: every scoped table except
 // `disciplines` (which carries no lifecycle edge) must be re-projected below, so adding a scoped
 // table fails the type-check here rather than silently passing through unprojected.
-type ProjectedLifecycleKey = Exclude<ScopedEntityKey, "disciplines">;
+type ProjectedLifecycleKey = Exclude<ScopedEntityKey, "disciplines" | "closures">;
 const PROJECTED_LIFECYCLE_KEYS = [
   "resources",
   "clients",

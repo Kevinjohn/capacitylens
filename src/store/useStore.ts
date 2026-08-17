@@ -12,7 +12,6 @@ import {
 import {
   assertActivityProjectAllowsDependents,
   assertAllocationRefs,
-  assertCompanyWideTimeOffType,
   assertDateRange,
   assertResourceExists,
   assertResourceKindAllowsDependents,
@@ -51,6 +50,7 @@ import type {
   Allocation,
   AppData,
   Client,
+  Closure,
   Discipline,
   Entity,
   ID,
@@ -450,6 +450,10 @@ export interface StoreState {
   addTimeOff: (input: Draft<TimeOff>) => TimeOff;
   updateTimeOff: (id: ID, patch: Patch<TimeOff>) => void;
   deleteTimeOff: (id: ID) => void;
+
+  addClosure: (input: Draft<Closure>) => Closure;
+  updateClosure: (id: ID, patch: Patch<Closure>) => void;
+  deleteClosure: (id: ID) => void;
 
   // --- Data-lifecycle (P2.5b): the Active → Archived → Soft-deleted → Purged machine for the three
   // tombstone-carrying tables (resources / clients / projects). These are the DEMO-build / OFF path —
@@ -1367,7 +1371,6 @@ export const useStore = create<StoreState>()((set, get, store) => {
       (e, input) => {
         assertResourceExists(get().data, e.accountId, input.resourceId);
         assertDateRange(input.startDate, input.endDate);
-        assertCompanyWideTimeOffType(input.resourceId, input.type);
         mutate((d) => ({ ...d, timeOff: [...d.timeOff, e] }));
         return e;
       },
@@ -1379,13 +1382,33 @@ export const useStore = create<StoreState>()((set, get, store) => {
         // would 400 there while succeeding here. See updateOwned.
         assertResourceExists(get().data, existing.accountId, merged.resourceId, existing);
         assertDateRange(merged.startDate, merged.endDate);
-        assertCompanyWideTimeOffType(merged.resourceId, merged.type);
         return patch;
       });
     }),
     deleteTimeOff: guarded((id: ID) => {
       if (!findOwned(get().data, "timeOff", id)) return;
       mutate((d) => ({ ...d, timeOff: d.timeOff.filter((t) => t.id !== id) }));
+    }),
+
+    addClosure: guardedAdd(
+      (input: Draft<Closure>): Closure => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
+      (closure) => {
+        if (closure.name.trim().length === 0) throw new Error("Closure name is required.");
+        assertDateRange(closure.startDate, closure.endDate);
+        mutate((data) => ({ ...data, closures: [...data.closures, closure] }));
+        return closure;
+      },
+    ),
+    updateClosure: guarded((id: ID, patch: Patch<Closure>) => {
+      updateOwned("closures", id, patch, (merged) => {
+        if (merged.name.trim().length === 0) throw new Error("Closure name is required.");
+        assertDateRange(merged.startDate, merged.endDate);
+        return patch;
+      });
+    }),
+    deleteClosure: guarded((id: ID) => {
+      if (!findOwned(get().data, "closures", id)) return;
+      mutate((data) => ({ ...data, closures: data.closures.filter((closure) => closure.id !== id) }));
     }),
 
     // --- Data-lifecycle actions (P2.5b DEMO-build path). See the StoreState block above for the

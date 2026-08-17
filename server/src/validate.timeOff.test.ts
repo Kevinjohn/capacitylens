@@ -2,45 +2,44 @@ import { describe, expect, it } from "vitest";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { sanitizeWrite, validateWrite } from "./validate";
 
-const row = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
-  id: "to1",
+const meta = {
+  id: "row1",
   accountId: "a1",
-  resourceId: null,
   startDate: "2026-12-24",
   endDate: "2026-12-25",
-  type: "holiday",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
-  ...over,
-});
+};
 
-describe("company-wide time-off validation", () => {
-  it("accepts explicit null without looking up a resource", () => {
-    const sanitized = sanitizeWrite("timeOff", row());
-    expect(sanitized.resourceId).toBeNull();
-    expect(() => validateWrite(emptyAppData(), "timeOff", sanitized)).not.toThrow();
+describe("time-off and closure validation", () => {
+  it("requires a personal time-off resource", () => {
+    expect(() => sanitizeWrite("timeOff", { ...meta, type: "holiday" })).toThrow(/missing required field.*resourceId/i);
+    expect(() => sanitizeWrite("timeOff", { ...meta, resourceId: null, type: "holiday" })).toThrow(/resourceId/i);
   });
 
-  it("rejects an omitted resourceId", () => {
-    const missing = row();
-    delete missing.resourceId;
-    expect(() => sanitizeWrite("timeOff", missing)).toThrow(/missing required field.*resourceId/i);
+  it("accepts a closure without a resource reference", () => {
+    const sanitized = sanitizeWrite("closures", { ...meta, name: "Christmas shutdown" });
+    expect(sanitized).not.toHaveProperty("resourceId");
+    expect(() => validateWrite(emptyAppData(), "closures", sanitized)).not.toThrow();
   });
 
-  it.each(["sick", "unpaid"])("repairs company-wide %s before the validation backstop", (type) => {
-    const sanitized = sanitizeWrite("timeOff", row({ type }));
-    expect(sanitized.type).toBe("other");
-    expect(() => validateWrite(emptyAppData(), "timeOff", sanitized)).not.toThrow();
-
-    // The validator remains a real backstop if a future caller bypasses the sanitizer.
-    expect(() => validateWrite(emptyAppData(), "timeOff", row({ type }))).toThrow(
-      /company-wide time off must use holiday or other/i,
+  it("rejects a closure carrying a resource reference", () => {
+    expect(() => sanitizeWrite("closures", { ...meta, name: "Christmas shutdown", resourceId: "r1" })).toThrow(
+      /closure.*resource/i,
     );
   });
 
-  it("still rejects reversed dates after sanitizing a company-wide row", () => {
-    expect(() => validateWrite(emptyAppData(), "timeOff", row({ endDate: "2026-12-23" }))).toThrow(
-      /end date cannot be before the start date/i,
-    );
+  it("rejects a blank closure name", () => {
+    expect(() => sanitizeWrite("closures", { ...meta, name: "   " })).toThrow(/closure name is required/i);
+  });
+
+  it("rejects reversed closure dates", () => {
+    expect(() =>
+      validateWrite(emptyAppData(), "closures", {
+        ...meta,
+        name: "Christmas shutdown",
+        endDate: "2026-12-23",
+      }),
+    ).toThrow(/end date cannot be before the start date/i);
   });
 });
