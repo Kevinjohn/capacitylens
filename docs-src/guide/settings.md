@@ -7,8 +7,8 @@ description: The company-wide switches that control what's visible on the schedu
 
 Settings is one scrollable page of plain-language switches — no tabs, no separate admin
 console. Most settings apply to the whole company; a few apply only to your own device.
-This page covers the two switches worth understanding early, plus a map of everything
-else. Each section has a question-mark button labelled **About &lt;section&gt;**: hover it
+This page covers the controls worth understanding early, plus a map of everything else.
+Each section has a question-mark button labelled **About &lt;section&gt;**: hover it
 for that short label, or activate it to open the fuller explanation without keeping that
 text on the page.
 
@@ -40,6 +40,21 @@ Changing the selection recalculates capacity, utilisation and conflicts for exis
 Allocation dates never move, but work on newly non-working days no longer counts unless the
 allocation has Ignore working days enabled.
 
+## Schedule on this device
+
+The three switches under **Schedule** change how the grid is drawn in this browser. They
+are device preferences, not company data, so they do not change a teammate's schedule or
+travel with an export:
+
+- **Minimise weekends** narrows Saturday and Sunday so the working week gets more room.
+  Weekend work still appears in those columns.
+- **Snap to week start** returns the left edge to the company's first day of the week
+  after free horizontal scrolling settles.
+- **Compact view** reduces the vertical spacing so more people fit on screen. It changes
+  no allocations or capacity.
+
+![The Schedule section in Settings with Minimise weekends and Snap to week start on, Compact view off, and the surrounding company settings](../screenshots/flows/settings_schedule_device.jpg)
+
 ## Internal work visibility
 
 Two switches under **Internal work**, both on by default, control whether internal and
@@ -64,6 +79,16 @@ on by default. Turning it off means everyone has to create new activities from t
 **Activities** page first, then pick from the existing list when they allocate — useful
 if you'd rather keep activity names tidy and reviewed.
 
+## Calendar
+
+The company's week start and time zone apply to the whole team. Week start controls the
+order of days and where each week begins. Time zone determines which calendar date counts
+as "today".
+
+Both choices are frozen after the company is created. Settings shows them in the
+read-only **Account Options Selected at Creation** summary so everyone can check the
+company-wide values, but nobody can change them there.
+
 ## Everything else on the page
 
 The rest of Settings, roughly top to bottom:
@@ -74,7 +99,7 @@ The rest of Settings, roughly top to bottom:
 | Global working days           | The company's shared working week. A person's capacity covers the days ticked here and in their own pattern; new work must start on such a day, and at least one day must stay selected.                                                                                                                                                |
 | Disciplines                   | Whether people are grouped by [discipline](/reference/glossary) (Design, Development, and so on) across the app. On by default. Disciplines themselves — their names and colours — are created on the standalone **Disciplines** page in the main navigation, not here; see [People and placeholders](/guide/people-and-placeholders). |
 | Engagement grouping           | Whether Resources separates Studio and Supplementary people. On the schedule, those bands hold people outside a discipline and become the main groups when disciplines are off. On by default; favourites stay first inside each engagement group. See [People and placeholders](/guide/people-and-placeholders).                                                                                         |
-| Schedule (this device)        | Minimise weekends, snap to week start, and compact view — your own display preferences, not shared with teammates.                                                                                                                                                                                                                     |
+| Schedule (this device)        | Three browser-only display preferences described in [Schedule on this device](#schedule-on-this-device).                                                                                                                                                                                                                               |
 | Internal work colours         | Whether internal work uses grey bars (default) or the same colour palette as everything else.                                                                                                                                                                                                                                          |
 | Placeholders                  | Whether unfilled [placeholder](/reference/glossary) slots are available. Off by default. See [People and placeholders](/guide/people-and-placeholders).                                                                                                                                                                                |
 | External                      | Whether [external parties](/reference/glossary) — outside companies you hand work to but don't manage, like print shops — are available. Off by default. See [People and placeholders](/guide/people-and-placeholders).                                                                                                                |
@@ -87,7 +112,7 @@ The rest of Settings, roughly top to bottom:
 | Security                      | Change your password and review your active sign-in sessions, in password mode.                                                                                                                                                                                                                                                        |
 | Archived & deleted            | A closed-by-default disclosure for restoring something you archived or permanently deleting it. See [People and placeholders](/guide/people-and-placeholders).                                                                                                                                                                         |
 | Import & export               | A closed-by-default disclosure for downloading this company's data as JSON or replacing it from an earlier export. Importing asks you to confirm first.                                                                                                                                                                                |
-| Account Options Selected at Creation | A compact, read-only summary of the company name, week start, time zone and language. These values were selected when the company was created.                                                                                                                                                                                   |
+| Account Options Selected at Creation | A compact, read-only summary of the company name, week start, time zone and language. Week start and time zone affect the whole team but are frozen after company creation; see [Calendar](#calendar).                                                                                                                             |
 
 **Device data**, **Archived & deleted** and **Import & export** are independent
 disclosures and start closed. Opening one does not close another. Destructive actions
@@ -97,11 +122,12 @@ still explain their consequences in the confirmation dialog.
 
 ::: tip
 Sections marked "this device" only affect your own browser. Everything else is shared
-by the whole company and needs Editor access or above to change.
+by the whole company. Editable company settings need Editor access or above; the calendar
+summary is read only because those choices are frozen after company creation.
 :::
 
 ## What's next
 
 [People and placeholders](/guide/people-and-placeholders) and
-[Projects and allocations](/guide/projects-and-allocations) cover the two switches
-above in more detail.
+[Projects and allocations](/guide/projects-and-allocations) cover team structure and
+booked work in more detail.

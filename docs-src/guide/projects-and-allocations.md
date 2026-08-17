@@ -64,7 +64,7 @@ There are two ways to book a person's time on the schedule:
    with the visible week.
 2. Draw it directly: click and drag across the days you want on that person's row.
 
-![The New allocation form with labels in a left column and Project, Activity, dates, workload, Repeat and Status controls aligned on the right](../screenshots/flows/allocation-form.jpg)
+![The New allocation form for Clark Kent with the Hours per day select showing Half day (4h), Weekly repeat details and the remaining controls aligned beneath](../screenshots/flows/allocation-form.jpg)
 
 Either way, choose **Internal**, **Any Project**, or a real project. Internal and Any
 Project show only internal and cross-project activities respectively; real projects
@@ -75,6 +75,11 @@ unless your company has turned that convenience off in [Settings](/guide/setting
 
 Status is a compact **Confirmed**, **Tentative** or **Completed** choice. Notes are
 single-line.
+
+When the company plans in Hours, **Hours / day** is a four-option select: **1 hour**,
+**Quarter day (2h)**, **Half day (4h)** or **Full day (8h)**. If an existing allocation
+stores a different number of hours, the closed select keeps showing that exact value. It
+is not rounded; choosing one of the four options is an explicit change.
 
 Leave **Ignore working days** unchecked to follow the person's effective working week — the days
 in both the company's [global working days](/guide/settings#global-working-days) and their own

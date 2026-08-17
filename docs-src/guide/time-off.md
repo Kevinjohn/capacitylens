@@ -24,6 +24,8 @@ recording it and how it interacts with allocations.
    exists without the detail. See
    [Roles and permissions](/getting-started/roles-and-permissions).
 
+![The Add time off form with the Resource picker open and Everyone shown before the individual DC demo teammates](../screenshots/flows/timeoff_everyone_picker.jpg)
+
 ![The Add time off form with Resource, Start, End and Type controls plus a compact single-line Note containing Conference](../screenshots/flows/timeoff_form.jpg)
 
 ![The schedule with draw mode switched to Time off: work allocations dim and a holiday block is highlighted](../screenshots/flows/timeoff-draw.jpg)
@@ -41,7 +43,7 @@ entries ordered by date, and any entry whose person no longer exists falls into 
 "unknown" group. Placeholder time off follows the company's **Show placeholders**
 setting.
 
-![The Time off page with current and upcoming entries grouped under alphabetical resource headings and ordered by date](../screenshots/flows/timeoff_grouped.jpg)
+![The Time off page with an Everyone group first for a company holiday, followed by Bruce Wayne's personal time off](../screenshots/flows/timeoff_grouped.jpg)
 
 ## How it shows on the schedule
 
