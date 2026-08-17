@@ -9,6 +9,7 @@ beforeEach(() => resetStoreWithAccount());
 
 describe("ResourceForm layout", () => {
   it("uses compact label-control rows while leaving working days full width", () => {
+    useStore.getState().addDiscipline({ name: "Design", color: "#737373", sortOrder: 0 });
     render(<ResourceForm kind="person" onClose={vi.fn()} />);
 
     for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
@@ -27,6 +28,57 @@ describe("ResourceForm layout", () => {
       "data-product-layout",
       "label-control",
     );
+  });
+});
+
+describe("ResourceForm disciplines", () => {
+  it("hides Discipline for people and placeholders when there are no scoped disciplines", () => {
+    const person = render(<ResourceForm kind="person" onClose={vi.fn()} />);
+    expect(screen.queryByLabelText("Discipline")).not.toBeInTheDocument();
+
+    person.unmount();
+    render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
+    expect(screen.queryByLabelText("Discipline")).not.toBeInTheDocument();
+  });
+
+  it("shows Discipline for people and placeholders when enabled with a scoped discipline", () => {
+    useStore.getState().addDiscipline({ name: "Design", color: "#737373", sortOrder: 0 });
+
+    const person = render(<ResourceForm kind="person" onClose={vi.fn()} />);
+    expect(screen.getByLabelText("Discipline")).toBeVisible();
+
+    person.unmount();
+    render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
+    expect(screen.getByLabelText("Discipline")).toBeVisible();
+  });
+
+  it("preserves an existing discipline when the disabled control is hidden", async () => {
+    const user = userEvent.setup();
+    const discipline = useStore.getState().addDiscipline({ name: "Design", color: "#737373", sortOrder: 0 });
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Barbara Gordon",
+      role: "Designer",
+      disciplineId: discipline.id,
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#737373",
+    });
+    useStore.getState().updateAccount(useStore.getState().data.accounts[0].id, { disciplinesEnabled: false });
+    render(<ResourceForm resource={resource} onClose={vi.fn()} />);
+
+    expect(screen.queryByLabelText("Discipline")).not.toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Role"));
+    await user.type(screen.getByLabelText("Role"), "Design lead");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.resources[0]).toMatchObject({
+      role: "Design lead",
+      disciplineId: discipline.id,
+    });
   });
 });
 
@@ -184,28 +236,10 @@ describe("ResourceForm engagement", () => {
 });
 
 describe("ResourceForm working days", () => {
-  it("shows company working days as read-only guidance for placeholders", () => {
-    useStore.getState().updateAccount(useStore.getState().data.accounts[0].id, { workingDays: [1, 3, 5] });
+  it("does not show working days for placeholders", () => {
     render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
 
-    expect(screen.getByRole("group", { name: "Working days" })).toBeVisible();
-    expect(
-      screen.getByText(
-        "Monday, Wednesday, Friday. Placeholders use the company working days. Change them in Settings.",
-      ),
-    ).toBeVisible();
-  });
-
-  it("orders a Sunday-inclusive company week from the configured week start", () => {
-    useStore.getState().updateAccount(useStore.getState().data.accounts[0].id, {
-      weekStartsOn: 1,
-      workingDays: [0, 1, 2],
-    });
-    render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
-
-    expect(
-      screen.getByText("Monday, Tuesday, Sunday. Placeholders use the company working days. Change them in Settings."),
-    ).toBeVisible();
+    expect(screen.queryByRole("group", { name: "Working days" })).not.toBeInTheDocument();
   });
 
   it("opens legacy working days as full days and unselected weekdays as not working", () => {

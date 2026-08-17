@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Hid unusable Discipline fields from resource forms and removed presumed company working-day
+  guidance from placeholder forms (#394).
+
 ## [0.53.7-alpha.1] — 2026-08-17
 
 ### Changed
