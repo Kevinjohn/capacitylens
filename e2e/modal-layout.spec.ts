@@ -60,7 +60,7 @@ test.describe("compact input modal layouts", () => {
     await openDialog(page, "Clients", "Add client", "Add client", 3);
     await openDialog(page, "Projects", "Add project", "Add project", 4);
     await openDialog(page, "Activities", "Add activity", "Add activity", 3);
-    await openDialog(page, "Time off", "Add time off", "Add time off", 5);
+    await openDialog(page, "Time off", "Add time off", "Add time off", 3);
   });
 
   test("stacks and contains every scoped form at 360px", async ({ page }) => {
@@ -73,7 +73,7 @@ test.describe("compact input modal layouts", () => {
     await openStackedDialog(page, "Clients", "Add client", "Add client", 3);
     await openStackedDialog(page, "Projects", "Add project", "Add project", 4);
     await openStackedDialog(page, "Activities", "Add activity", "Add activity", 3);
-    await openStackedDialog(page, "Time off", "Add time off", "Add time off", 5);
+    await openStackedDialog(page, "Time off", "Add time off", "Add time off", 3);
   });
 
   test("wraps a long label, stacks on a narrow screen, and preserves required-error association", async ({ page }) => {

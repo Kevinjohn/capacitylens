@@ -341,11 +341,12 @@ so neighbouring labels cannot overlap.
 
 ## Control labels (accessible names)
 
-**Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline`,
-`Engagement`, `Bound project`, `Working days` (a full-width Monday–Sunday radio grid aligned with
-the field label whose `Full day`, `Half day` and `Not working` column headings appear once; every
-cell's native radio is labelled by both its weekday and availability, and each row permits one
-choice; long labels remain on one line inside a horizontally scrollable narrow-width boundary),
+**Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline` (when disciplines are
+enabled and at least one exists), `Engagement`, `Bound project`, `Working days` (for people only: a
+full-width Monday–Sunday radio grid aligned with the field label whose `Full day`, `Half day` and
+`Not working` column headings appear once; every cell's native radio is labelled by both its weekday
+and availability, and each row permits one choice; long labels remain on one line inside a
+horizontally scrollable narrow-width boundary),
 `Colour (…)` (a swatch-picker trigger — its name carries the current colour, e.g.
 `Colour (Blue dark)` for a known swatch, else the raw hex — that opens a `radiogroup` of preset
 colour swatches, each `radio` labelled by a human-readable name like `Blue dark` /
@@ -675,6 +676,7 @@ kind and retain their existing resource-derived colours in both modes.
 link and route (a direct `/disciplines` URL redirects to `/`), the **Discipline** field in the
 resource form, the **Filter by discipline** control, the discipline part of each Resources-list
 row, the Disciplines command-palette entry, and the **Show Discipline Utilisation** toggle. The
+resource form also hides its **Discipline** field when the company has no disciplines to choose from.
 schedule then groups capacity-tracked resources by **Studio** and **Supplementary** engagement
 (or one **Unassigned** band when engagement grouping is off), followed by External / 3rd party.
 It's stored on the account
