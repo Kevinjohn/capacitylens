@@ -174,9 +174,9 @@ test.describe("Allocation editor", () => {
   test("edits an allocation and reflects the change on the bar", async ({ page }) => {
     await page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" }).click();
     const dialog = page.getByRole("dialog", { name: "Edit allocation" });
-    await dialog.getByLabel("Hours / day").fill("6");
+    await selectShadOption(dialog.getByRole("combobox", { name: "Hours / day" }), "4");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" })).toContainText("6h");
+    await expect(page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" })).toContainText("4h");
   });
 
   test("duplicates an allocation from the edit dialog", async ({ page }) => {
@@ -276,7 +276,7 @@ test.describe("Allocation editor", () => {
     await expect(page.getByRole("option", { name: /Metropolis Rebrand/ })).toHaveCount(0);
   });
 
-  test("rejects empty dates and zero hours with a field-associated error", async ({ page }) => {
+  test("rejects empty dates and accepts a listed hours option", async ({ page }) => {
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
@@ -289,8 +289,8 @@ test.describe("Allocation editor", () => {
     await dialog.getByLabel("Start").fill("2026-06-01");
     // A required field's label carries a trailing " *", so an exact match won't do.
     await dialog.getByLabel(/^End/).fill("2026-06-02");
-    await dialog.getByLabel("Hours / day").fill("0");
+    await selectShadOption(dialog.getByRole("combobox", { name: "Hours / day" }), "1");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByRole("alert")).toContainText(/greater than 0/i);
+    await expect(dialog).toHaveCount(0);
   });
 });

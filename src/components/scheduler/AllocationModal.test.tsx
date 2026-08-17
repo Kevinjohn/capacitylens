@@ -131,7 +131,7 @@ describe("AllocationModal create", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Hours / day")).toHaveValue(4);
+    expect(screen.getByRole("combobox", { name: "Hours / day" })).toHaveTextContent("Half day (4h)");
   });
 
   it("gives same-named activity options distinct accessible labels", async () => {
@@ -180,7 +180,29 @@ describe("AllocationModal create", () => {
     });
   });
 
-  it("rejects an empty date or zero hours instead of saving a broken allocation", async () => {
+  it.each([
+    ["1 hour", 1],
+    ["Quarter day (2h)", 2],
+    ["Half day (4h)", 4],
+    ["Full day (8h)", 8],
+  ] as const)("creates an allocation with the %s hours option", async (option, expectedHours) => {
+    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
+    const resourceId = useStore.getState().data.resources[0].id;
+    const user = userEvent.setup();
+    render(
+      <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={vi.fn()} />,
+    );
+
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+    await chooseOption(user, "Hours / day", option);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations).toHaveLength(1);
+    expect(useStore.getState().data.allocations[0]).toMatchObject({ hoursPerDay: expectedHours });
+  });
+
+  it("rejects an empty date instead of saving a broken allocation", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = useStore.getState().data.resources[0].id;
     const user = userEvent.setup();
@@ -199,41 +221,6 @@ describe("AllocationModal create", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/start and end dates are required/i);
     expect(screen.getByLabelText("Start Date")).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByLabelText("Start Date")).toHaveFocus();
-    expect(useStore.getState().data.allocations).toHaveLength(0);
-
-    // Zero hours is rejected too (would silently occupy a lane with no load).
-    fireEvent.change(screen.getByLabelText("Start Date"), {
-      target: { value: "2026-06-01" },
-    });
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Hours / day"), {
-      target: { value: "0" },
-    });
-    await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(screen.getByRole("alert")).toHaveTextContent(/greater than 0/i);
-    expect(screen.getByLabelText("Hours / day")).toHaveFocus();
-    expect(useStore.getState().data.allocations).toHaveLength(0);
-  });
-
-  it("rejects hours/day above the 24h cap submitted via Enter (no silent clamp)", async () => {
-    // The field caps at MAX_HOURS_PER_DAY on blur, but an Enter-submit without a blur can still
-    // carry a larger value the store would quietly clamp. The submit-path guard must reject it.
-    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = useStore.getState().data.resources[0].id;
-    const onClose = vi.fn();
-    const user = userEvent.setup();
-    render(
-      <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={onClose} />,
-    );
-
-    await chooseOption(user, "Project", "Acme / Lightning");
-    await chooseOption(user, "Activity", "Wireframes");
-    const hours = screen.getByLabelText("Hours / day");
-    fireEvent.change(hours, { target: { value: "40" } });
-    fireEvent.submit(hours.closest("form")!); // Enter-submit, no blur clamp
-
-    expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert")).toHaveTextContent(/can’t exceed 24/i);
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 
@@ -1183,6 +1170,58 @@ describe("AllocationModal blocks mode", () => {
 });
 
 describe("AllocationModal edit", () => {
+  it("shows an unmatched hours value and preserves it through an unrelated save", async () => {
+    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 6.4,
+      status: "confirmed",
+    });
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+
+    const hours = screen.getByRole("combobox", { name: "Hours / day" });
+    expect(hours).toHaveTextContent("6.4");
+    fireEvent.keyDown(hours, { key: "ArrowDown" });
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "1 hour",
+      "Quarter day (2h)",
+      "Half day (4h)",
+      "Full day (8h)",
+    ]);
+    await user.keyboard("{Escape}");
+    fireEvent.change(screen.getByLabelText("Note"), { target: { value: "Unrelated edit" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)).toMatchObject({
+      hoursPerDay: 6.4,
+      note: "Unrelated edit",
+    });
+  });
+
+  it("replaces an unmatched hours value when a listed option is chosen", async () => {
+    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 5,
+      status: "confirmed",
+    });
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+
+    expect(screen.getByRole("combobox", { name: "Hours / day" })).toHaveTextContent("5");
+    await chooseOption(user, "Hours / day", "Half day (4h)");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)?.hoursPerDay).toBe(4);
+  });
+
   it("preserves an untouched historical multiline note but saves a direct note edit as one line", async () => {
     const alice = person("Alice");
     const resource = useStore.getState().addResource({ ...alice, workingDays: [...alice.workingDays] });
@@ -1201,7 +1240,7 @@ describe("AllocationModal edit", () => {
     const note = screen.getByLabelText("Note");
     expect(note.tagName).toBe("INPUT");
     expect(note).toHaveAttribute("maxlength", "2000");
-    fireEvent.change(screen.getByLabelText("Hours / day"), { target: { value: "6" } });
+    await chooseOption(user, "Hours / day", "Half day (4h)");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)?.note).toBe(
       "First line\nSecond line",
@@ -1555,9 +1594,7 @@ describe("AllocationModal edit", () => {
     fireEvent.change(screen.getByLabelText("End"), {
       target: { value: "2026-06-05" },
     });
-    fireEvent.change(screen.getByLabelText("Hours / day"), {
-      target: { value: "4" },
-    });
+    await chooseOption(user, "Hours / day", "Half day (4h)");
     fireEvent.change(screen.getByLabelText("Note"), {
       target: { value: "Draft note" },
     });
@@ -1855,7 +1892,7 @@ describe("AllocationModal inline activity creation pref", () => {
 });
 
 describe("AllocationModal Enter key submission", () => {
-  it("submits when Enter is pressed in the Hours/day input (hourly mode)", async () => {
+  it("operates the Hours / day select with the keyboard", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = useStore.getState().data.resources[0].id;
     const onClose = vi.fn();
@@ -1867,12 +1904,15 @@ describe("AllocationModal Enter key submission", () => {
     await chooseOption(user, "Project", "Acme / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
 
-    // Pressing Enter in the Hours/day number input should submit
-    await user.click(screen.getByLabelText("Hours / day"));
-    await user.keyboard("{Enter}");
+    const hours = screen.getByRole("combobox", { name: "Hours / day" });
+    hours.focus();
+    fireEvent.keyDown(hours, { key: "ArrowDown" });
+    await user.keyboard("q{Enter}");
+    expect(hours).toHaveTextContent("Quarter day (2h)");
+    await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(onClose).toHaveBeenCalled();
-    expect(useStore.getState().data.allocations).toHaveLength(1);
+    expect(useStore.getState().data.allocations).toEqual([expect.objectContaining({ hoursPerDay: 2 })]);
   });
 
   it("submits when Enter is pressed in the single-line Note input", async () => {

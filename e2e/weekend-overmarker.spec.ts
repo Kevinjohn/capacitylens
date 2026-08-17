@@ -32,7 +32,7 @@ test.describe("Weekend over-marker", () => {
     await create.getByRole("button", { name: "Add activity" }).click();
     await create.getByLabel(/^Start/).fill("2026-06-12"); // Fri
     await create.getByLabel(/^End/).fill("2026-06-15"); // Mon
-    await create.getByLabel("Hours / day").fill("8"); // exactly at capacity, so the working days are NOT over
+    await selectShadOption(create.getByRole("combobox", { name: "Hours / day" }), "8"); // exactly at capacity, so the working days are NOT over
     await page.getByRole("button", { name: "Save" }).click();
 
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Weekend Verify" });
