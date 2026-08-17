@@ -122,6 +122,8 @@ appears once as a named band across every person and placeholder it covers, incl
 people added later. It does not cover the External group. A personal time-off block can
 overlap the band; both remain visible because they record independent facts.
 
+![The schedule with a Summer shutdown band across 24–26 August and overlapping allocations marked red](../screenshots/flows/schedule_closure_band.jpg)
+
 An Hours or Days allocation that exceeds the remaining availability gets the usual red
 over-capacity band. Blocks deliberately carry no hours and keep utilisation at 0%, but
 a Block that overlaps time off still gets the red conflict treatment so the clash cannot
@@ -134,12 +136,13 @@ Use **Show filters** at the right of the toolbar, after Undo and Redo, to open t
 row. Select **Hide filters** when you want the extra vertical space back. Hiding the row
 does not clear an active filter.
 
-![The open schedule filter row with Work and Time off draw modes, person search, four filter dropdowns and Hide tentative](../screenshots/flows/schedule_filters_open.jpg)
+![The open schedule filter row with person search, four filter dropdowns, Show tentative and Hide tentative, then Work and Time off draw modes](../screenshots/flows/schedule_filters_open.jpg)
 
-You can search people by name, filter by discipline, client, project or activity, or
-hide tentative work. Selecting a client or project narrows the bars and rows to that
-work. The active value stays visible in the row, and **Clear Filters** turns red so the
-filtered state cannot be mistaken for the complete schedule.
+The row starts with person search and the discipline, client, project and activity
+filters. Next are the **Show tentative** / **Hide tentative** and **Work** / **Time off**
+segmented controls. Selecting a client or project narrows the bars and rows to that work.
+The active value stays visible in the row, and **Clear Filters** turns red so the filtered
+state cannot be mistaken for the complete schedule.
 
 ![The Schedule filtered to Queen Consolidated and Project Watchtower, with Clear Filters active in red](../screenshots/flows/schedule_filter_project.jpg)
 
@@ -151,7 +154,8 @@ them useful candidates to staff without implying they are already booked to the 
 
 **Clear Filters** stays at the far right of the open row. It is quiet and disabled when
 nothing is filtered, then turns red with a bin icon when a filter is active. One click
-resets the search, every dropdown, **Hide tentative** and **Show unallocated**.
+resets the search, every dropdown and **Show unallocated**, and returns tentative work to
+**Show tentative**.
 
 Every change on the schedule — dragging, resizing, deleting an allocation — can be
 undone and redone from the toolbar, or with Ctrl/Cmd+Z, if you have edit access.
