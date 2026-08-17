@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Expanded the user guides with Everyone time-off visuals, device-only schedule
+  preferences, the allocation repeat cue, the hourly day-fraction select and a clearer
+  explanation of company-wide calendar choices that are frozen after creation (#375).
 - Clarified working-day documentation with a concrete company-and-person example, the calendar
   behaviour of placeholders and external parties, and screenshots of both entry-point guards
   (#376).

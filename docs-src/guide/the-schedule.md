@@ -80,6 +80,13 @@ plan in Blocks don't book hours at all — see
 [Projects and allocations](/guide/projects-and-allocations) for how the different
 scheduling modes work.
 
+Allocations created together with **Repeat** show a small repeat cue at the start of
+each linked bar. Hover or focus the bar to see the last surviving date in that series.
+The cue marks the link between occurrences; each occurrence can still be edited on its
+own.
+
+![The schedule with repeat cues at the start of two linked CMS Review allocation bars for Clark Kent](../screenshots/flows/schedule_repeat_cue.jpg)
+
 ## Reading overwork
 
 CapacityLens never makes you run a report to find out who's overbooked:
@@ -109,6 +116,10 @@ range.
 [Time off](/guide/time-off) — holiday, sick leave or unpaid leave — is drawn on the same
 grid as work, as a hatched block with no project colour, so a person's real availability
 is always visible in one place rather than hidden in a separate calendar.
+
+Choosing **Everyone** in the time-off workflow creates one company-wide closure. It is
+an assignee choice, not a setting. The closure appears across every capacity-tracked
+person and placeholder on the schedule, including people added later.
 
 An Hours or Days allocation that exceeds the remaining availability gets the usual red
 over-capacity band. Blocks deliberately carry no hours and keep utilisation at 0%, but
