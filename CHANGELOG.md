@@ -10,6 +10,8 @@ new features and **patch** versions carry fixes.
 ### Fixed
 
 - Placed the Start and End fields together on one full-width row in the time-off modal (#404).
+- Hid unusable Discipline fields from resource forms and removed presumed company working-day
+  guidance from placeholder forms (#394).
 
 ## [0.53.7-alpha.1] — 2026-08-17
 
