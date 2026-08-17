@@ -7,6 +7,16 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Reordered the schedule filter bar around search-first filtering and replaced the tentative checkbox
+  with an explicit Show/Hide segmented control (#406).
+
+### Fixed
+
+- Aligned the schedule filter bar vertically and standardised its controls on the small size scale;
+  the discipline filter now stays hidden until at least one discipline exists (#405, #406).
+
 ## [0.53.7-alpha.1] — 2026-08-17
 
 ### Changed

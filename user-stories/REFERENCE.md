@@ -518,9 +518,7 @@ left-edge date. (This is ALWAYS on; there is no setting.)
 **Undo**/**Redo** icon buttons (`undo-button` /
 `redo-button`, `aria-label` "Undo"/"Redo", disabled when the history stack is empty) — the
 visible counterpart to the global Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z shortcuts; their title hints use
-the current platform's conventional labels. The expanded filter row starts with the draw-mode
-radiogroup `Work`/`Time off` (radios using `aria-checked` — note "Time off" here is the _toggle_,
-distinct from the "Time off" _nav link_). **In `Time off` mode the grid signals the mode whole-view:
+the current platform's conventional labels. **In `Time off` mode the grid signals the mode whole-view:
 work allocation bars recede to a flat neutral (the theme-aware `var(--color-muted-foreground)` token, which adapts to light/dark) at 20% opacity AND go fully _inert_ (not
 clickable/draggable, no hover popover, not tab-reachable), while existing time-off blocks use the
 same vivid yellow background and dark label ink in both themes, retain their light-grey diagonal
@@ -533,16 +531,18 @@ omit work-allocation counts, and each eligible non-external resource row exposes
 External rows expose no time-off creation action.
 Undo/redo run
 from BOTH the toolbar **Undo**/**Redo** buttons (above) AND the global Cmd/Ctrl undo/redo shortcuts.
-The rest of the expanded filter row follows the draw-mode control:
-`Search people…` matches accent-insensitively across the displayed name, stored name and role as
-one phrase, so a query may span those fields. The remaining controls are `Filter by discipline`
-(in the scheduler grid's canonical discipline order), `Filter by client` (Internal first, then
+The expanded filter row starts with `Search people…`, which matches accent-insensitively across the
+displayed name, stored name and role as one phrase, so a query may span those fields. The remaining
+controls are `Filter by discipline` (shown only when disciplines are enabled and at least one exists,
+in the scheduler grid's canonical discipline order), `Filter by client` (Internal first, then
 alphabetical), `Filter by project` (Internal-owned projects first, then alphabetical by project name),
 `Filter by activity` (a grouped dropdown — `All activities`, then an `Internal` optgroup with
 `Internal — All` + each internal activity, then a `Cross-project` optgroup with `Cross-project — All` +
 each group's activities alphabetically; shown only when the account has internal/cross-project activities. Project-specific activities
 are reached via `Filter by project`). The activity lens is a **standalone** view: selecting it
-clears the client/project filter and vice-versa. `Hide tentative` checkbox, `Show unallocated`
+clears the client/project filter and vice-versa. The `Tentative visibility` radiogroup offers
+`Show tentative`/`Hide tentative` (radios using `aria-checked`), followed by the draw-mode radiogroup
+`Work`/`Time off` (note "Time off" here is the _toggle_, distinct from the "Time off" _nav link_), then `Show unallocated`
 (shown only while a client/project/activity filter is active, **off by default** — filtering hides
 resources with no matching work in the displayed timeline; ticking it brings them back
 visible-but-dimmed so you can see who's free to staff), `Clear Filters` (always shown at the far
