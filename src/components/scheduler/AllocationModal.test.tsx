@@ -131,7 +131,7 @@ describe("AllocationModal create", () => {
       />,
     );
 
-    expect(screen.getByRole("combobox", { name: "Hours / day" })).toHaveTextContent("Half day (4h)");
+    expect(screen.getByRole("combobox", { name: "Hours / day" })).toHaveTextContent("4 h - half day");
   });
 
   it("gives same-named activity options distinct accessible labels", async () => {
@@ -181,10 +181,10 @@ describe("AllocationModal create", () => {
   });
 
   it.each([
-    ["1 hour", 1],
-    ["Quarter day (2h)", 2],
-    ["Half day (4h)", 4],
-    ["Full day (8h)", 8],
+    ["1 h", 1],
+    ["2 h - quarter day", 2],
+    ["4 h - half day", 4],
+    ["8 h - full day", 8],
   ] as const)("creates an allocation with the %s hours option", async (option, expectedHours) => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = useStore.getState().data.resources[0].id;
@@ -1187,10 +1187,10 @@ describe("AllocationModal edit", () => {
     expect(hours).toHaveTextContent("6.4");
     fireEvent.keyDown(hours, { key: "ArrowDown" });
     expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
-      "1 hour",
-      "Quarter day (2h)",
-      "Half day (4h)",
-      "Full day (8h)",
+      "1 h",
+      "2 h - quarter day",
+      "4 h - half day",
+      "8 h - full day",
     ]);
     await user.keyboard("{Escape}");
     fireEvent.change(screen.getByLabelText("Note"), { target: { value: "Unrelated edit" } });
@@ -1216,7 +1216,7 @@ describe("AllocationModal edit", () => {
     render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
 
     expect(screen.getByRole("combobox", { name: "Hours / day" })).toHaveTextContent("5");
-    await chooseOption(user, "Hours / day", "Half day (4h)");
+    await chooseOption(user, "Hours / day", "4 h - half day");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)?.hoursPerDay).toBe(4);
@@ -1240,7 +1240,7 @@ describe("AllocationModal edit", () => {
     const note = screen.getByLabelText("Note");
     expect(note.tagName).toBe("INPUT");
     expect(note).toHaveAttribute("maxlength", "2000");
-    await chooseOption(user, "Hours / day", "Half day (4h)");
+    await chooseOption(user, "Hours / day", "4 h - half day");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)?.note).toBe(
       "First line\nSecond line",
@@ -1594,7 +1594,7 @@ describe("AllocationModal edit", () => {
     fireEvent.change(screen.getByLabelText("End"), {
       target: { value: "2026-06-05" },
     });
-    await chooseOption(user, "Hours / day", "Half day (4h)");
+    await chooseOption(user, "Hours / day", "4 h - half day");
     fireEvent.change(screen.getByLabelText("Note"), {
       target: { value: "Draft note" },
     });
@@ -1907,8 +1907,8 @@ describe("AllocationModal Enter key submission", () => {
     const hours = screen.getByRole("combobox", { name: "Hours / day" });
     hours.focus();
     fireEvent.keyDown(hours, { key: "ArrowDown" });
-    await user.keyboard("q{Enter}");
-    expect(hours).toHaveTextContent("Quarter day (2h)");
+    await user.keyboard("2{Enter}");
+    expect(hours).toHaveTextContent("2 h - quarter day");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(onClose).toHaveBeenCalled();
