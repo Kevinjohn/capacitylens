@@ -147,6 +147,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   setOfflineReadState("cleanup", false);
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -1288,7 +1289,10 @@ describe("MembersSection — invite mint", () => {
   });
 
   it("marks an invitation expired and removes its action without remounting Settings", async () => {
-    const expiresAt = new Date(Date.now() + 50).toISOString();
+    const expiryDelay = 60_000;
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-17T12:00:00.000Z"));
+    const expiresAt = new Date(Date.now() + expiryDelay).toISOString();
     const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }], {
       "GET /invites": () =>
         jsonResponse({
@@ -1307,8 +1311,14 @@ describe("MembersSection — invite mint", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     renderSection();
-    expect(await screen.findByTestId("invite-revoke")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText(/expired/i)).toBeInTheDocument());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByTestId("invite-revoke")).toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(expiryDelay + 1);
+    });
+    expect(screen.getByText(/expired/i)).toBeInTheDocument();
     expect(screen.queryByTestId("invite-revoke")).not.toBeInTheDocument();
   });
 
