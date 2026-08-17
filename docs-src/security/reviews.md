@@ -13,10 +13,16 @@ on its own page; this page just explains what each one is and when to reach for 
 
 ## [OWASP ASVS 5.0.0 ledger](/security/owasp-asvs-5.0.0)
 
-Dated 2026-07-14. Every one of the 345 requirements in the OWASP Application Security
+Dated 2026-08-18 for alpha4. Every one of the 345 requirements in the OWASP Application Security
 Verification Standard 5.0.0 (covering Levels 1 to 3), assessed as Pass, Partial, Gap or Not
 Applicable, with the repository evidence behind each one. Read this when you need to check a
 specific control by ASVS requirement id, or want the complete picture rather than a summary.
+
+## [Security review — 2026-08-18](/security/security-review-2026-08-18)
+
+The alpha4 reassessment covers the complete current source and the security-relevant delta since
+July. It records the fixed session-idle, strict-OIDC SSRF and provider-token findings, refreshes the
+threat model and inventories, and reconciles all 345 ASVS controls with current CI and ZAP evidence.
 
 ## [Security review — 2026-07-14](/security/security-review-2026-07-14)
 
@@ -28,7 +34,7 @@ what is left to the self-hosting operator. Read this for the narrative version o
 
 ## [Threat model](/security/threat-model)
 
-Dated 2026-07-14. States CapacityLens's security objectives in plain terms, lists the assets and
+Dated 2026-08-18. States CapacityLens's security objectives in plain terms, lists the assets and
 trust boundaries being protected, names the realistic attackers (a malicious teammate, a
 credential-stuffing bot, a compromised identity provider, a careless operator, and more), and maps
 each abuse case to the controls and tests that address it. Ends with the risks that are
@@ -37,7 +43,7 @@ that it does.
 
 ## [Control inventories](/security/control-inventories)
 
-Dated 2026-07-14. The reference tables behind the threat model and ASVS ledger: every entry point
+Dated 2026-08-18. The reference tables behind the threat model and ASVS ledger: every entry point
 and untrusted input, every class of sensitive data and how long it is kept, the full cryptographic
 inventory (what algorithm protects what, and its key lifecycle), service and rate limits, and the
 audit/security event log. Read this when you need the specific technical detail — for example,

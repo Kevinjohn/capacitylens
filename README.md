@@ -139,7 +139,7 @@ numbers, cross-browser checks and CI jobs. Also worth reading: the
 architecture, and the [changelog](CHANGELOG.md).
 
 [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) · [Security policy](SECURITY.md) ·
-[Security review](docs-src/security/security-review-2026-07-14.md) ·
+[Security review](docs-src/security/security-review-2026-08-18.md) ·
 [ASVS 5.0.0 ledger](docs-src/security/owasp-asvs-5.0.0.md) · [Trademarks](TRADEMARKS.md)
 
 ## Licence
