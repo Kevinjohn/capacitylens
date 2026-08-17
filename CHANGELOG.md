@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Led allocation hours-per-day options with their hour values for quicker comparison (#398).
+
 ## [0.53.7-alpha.1] — 2026-08-17
 
 ### Changed
