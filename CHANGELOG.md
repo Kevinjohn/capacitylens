@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Standardised product screenshots on the light theme and refreshed authenticated app-shell
+  captures after the latest navigation and schedule depth changes (#374).
+
 ## [0.53.5-alpha.1] — 2026-08-17
 
 ### Changed

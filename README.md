@@ -12,8 +12,7 @@ who is busy, who has room, and who is about to be buried, and move things around
 a problem.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs-src/screenshots/schedule-dark.png">
-  <img alt="The CapacityLens schedule: people grouped by discipline, coloured allocation bars across a two-week window, per-person utilisation, an over-capacity day highlighted in red, and a booked holiday." src="docs-src/screenshots/schedule-light.png">
+  <img alt="The CapacityLens schedule: people grouped by discipline, coloured allocation bars across a two-week window, per-person utilisation, an over-capacity day highlighted in red, and a booked holiday." src="docs-src/screenshots/schedule-light.jpg">
 </picture>
 
 One screen. People down the side, days across the top, the work in between. Red means someone is
