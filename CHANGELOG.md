@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Installation docs now start with the deployment choice.** Docker Compose and direct
+  Node 24 installation are presented as separate, supported routes, and Docker is no
+  longer described as a general prerequisite.
+
 ## [0.55.0-alpha.4] — 2026-08-17
 
 Alpha 4 brings the capacity-model, closure and schedule-control work completed since the Alpha 3

@@ -65,7 +65,7 @@ you get there. The same product runs at every size on this ladder:
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Just you, evaluating       | [Try the demo](/getting-started/try-the-demo) — one command, in-memory sample data, nothing installed beyond a copy of the code from GitHub.                      |
 | Your team, trusted network | Real persistence, no sign-in wall. Backups on by default.                                                                                                         |
-| Real sign-ins              | [Install CapacityLens](/getting-started/install) with password sign-in: one [Owner](/reference/glossary), invite links, four nested roles enforced on the server. |
+| Real sign-ins              | [Choose how to install CapacityLens](/getting-started/install) with password sign-in: one [Owner](/reference/glossary), invite links, four nested roles enforced on the server. |
 | Company-grade identity     | [Company login](/company-login/) (single sign-on) against your identity provider, with optional required multi-factor sign-in.                                    |
 | More than one company      | Each company fully isolated — [memberships](/reference/glossary), roles and data checked per company on every request.                                            |
 

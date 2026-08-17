@@ -1,13 +1,36 @@
 ---
 title: First steps after installing
-description: What happens the first time you sign in, and how to find your way around the schedule.
+description: Claim the first Owner account, create your company and find your way around the schedule.
 ---
 
 # First steps after installing
 
-Once you've [installed CapacityLens](/getting-started/install) and claimed the
-[Owner](/reference/glossary) account, this page covers the first few minutes inside the
-app: signing in, the welcome message, and getting oriented on the schedule.
+Once you've finished either [installation route](/getting-started/install), this page
+covers the first few minutes inside the app: claiming the first [Owner](/reference/glossary)
+account, creating your company and getting oriented on the schedule.
+
+## Claim the Owner account
+
+Open CapacityLens through the public URL you configured during installation. With an
+empty database, the sign-in page asks for your name, email, password and the setup token
+from your `.env` file.
+
+After you submit the form, self-registration closes. Nobody else can join the instance
+without an [invite](/reference/glossary), and every later visit shows the ordinary
+sign-in screen.
+
+::: warning
+Do not rely on `admin@admin.admin`. CapacityLens uses that bootstrap account only during
+local development and switches it off for a production install. There is no default
+production password: the Owner account you create here is the one that matters.
+:::
+
+## Create your company
+
+Enter your company name when CapacityLens asks. This also creates its built-in
+"Internal" client and your Owner [membership](/reference/glossary).
+
+![Choose a company screen listing Wayne Enterprises with an Owner badge](../screenshots/flows/choose-company.jpg)
 
 ## Sign in
 

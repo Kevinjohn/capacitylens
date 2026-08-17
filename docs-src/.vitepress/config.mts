@@ -83,7 +83,7 @@ export default defineConfig({
         items: [
           { text: "What is CapacityLens?", link: "/getting-started/what-is-capacitylens" },
           { text: "Try the demo", link: "/getting-started/try-the-demo" },
-          { text: "Install CapacityLens", link: "/getting-started/install" },
+          { text: "Choose how to install", link: "/getting-started/install" },
           { text: "First steps after installing", link: "/getting-started/first-steps" },
           { text: "Invite your team", link: "/getting-started/invite-your-team" },
           { text: "Roles and permissions", link: "/getting-started/roles-and-permissions" },

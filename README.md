@@ -83,8 +83,8 @@ pnpm run dev
 That starts the web app on `:5173` and the SQLite API on `:8787`, with sample data loaded.
 A fresh production instance starts empty.
 
-For a real deployment — Docker Compose, TLS, backups and upgrades — follow the
-[self-hosting guide](docs-src/self-hosting/index.md).
+For a real deployment with Docker Compose or plain Node 24 — including TLS, backups and
+upgrades — follow the [self-hosting guide](docs-src/self-hosting/index.md).
 
 ## Sign-in, in short
 
@@ -103,7 +103,7 @@ The docs ship with the repository. Open [`docs/index.html`](docs/) straight from
 server, no build — or read the Markdown sources under [`docs-src/`](docs-src/) on GitHub.
 
 - [Getting started](docs-src/getting-started/what-is-capacitylens.md) — the two-minute demo, the
-  five-minute install, invites and roles.
+  Docker and direct Node installation routes, invites and roles.
 - [Using CapacityLens](docs-src/guide/the-schedule.md) — the schedule, people and placeholders,
   projects and allocations, time off and settings.
 - [Company login (SSO)](docs-src/company-login/index.md) — connecting your provider and the guided

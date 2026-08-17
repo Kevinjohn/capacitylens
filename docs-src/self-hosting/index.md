@@ -9,16 +9,25 @@ CapacityLens runs as a small web app and API behind TLS, storing everything in a
 SQLite file. This page explains what to have ready before you install it, how the moving
 parts fit together, and which page to read next for the job in front of you.
 
-## What you need
+## Choose an installation route
 
-- A host that can run Docker Compose, or Node 24 and nginx for a bare-metal install.
-- A domain name and a TLS certificate if the instance is reachable from the internet. A
-  reverse proxy in front of CapacityLens terminates that TLS.
-- Persistent storage for the database, the audit log and, if you turn them on, scheduled
-  backups. This needs to survive container rebuilds and deploys.
+CapacityLens supports two ways to install. Choose the route that matches how you manage
+your host:
 
-A laptop with Docker already installed can have a working instance up in a few minutes.
-An internet-facing production instance takes longer, mostly for DNS and certificates.
+- [Install with Docker](/self-hosting/install-with-docker) requires Docker and Docker
+  Compose. The packaged stack manages the web app and API services.
+- [Install without Docker](/self-hosting/install-without-docker) requires Node 24, pnpm,
+  systemd and nginx. You manage the web app and API services directly.
+
+Docker is not a shared prerequisite. Each installation page lists only what its route
+needs.
+
+Whichever route you choose, you also need a domain name and a TLS certificate if the
+instance is reachable from the internet. You need persistent storage for the database,
+the audit log and, if you turn them on, scheduled backups.
+
+An internet-facing production instance takes longer than a local installation, mostly
+because of DNS and certificates.
 
 ## The moving parts
 
@@ -68,7 +77,8 @@ it.
 
 ## What's next
 
-- Installing for the first time: [Install with Docker](/self-hosting/install-with-docker).
+- Installing for the first time: choose [Install with Docker](/self-hosting/install-with-docker)
+  or [Install without Docker](/self-hosting/install-without-docker).
 - Choosing sign-in mode, secrets and other environment variables:
   [Configuration](/self-hosting/configuration).
 - Putting a domain and certificate in front of it:
