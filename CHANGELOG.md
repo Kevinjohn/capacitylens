@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Clarified working-day documentation with a concrete company-and-person example, the calendar
+  behaviour of placeholders and external parties, and screenshots of both entry-point guards
+  (#376).
+
 ## [0.53.3-alpha.1] — 2026-08-17
 
 ### Fixed

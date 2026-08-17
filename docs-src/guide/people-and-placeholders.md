@@ -103,7 +103,9 @@ own **Add placeholder** button. A placeholder's name is optional — you can lea
 blank and it shows by its role instead — but it must be bound to a project, since a
 placeholder only makes sense as capacity you're planning to book against specific work.
 Placeholder rows carry a small "placeholder" badge so they're never mistaken for a real
-person, and the same hatched styling carries through to their row on the schedule.
+person, and the same hatched styling carries through to their row on the schedule. A placeholder
+has no personal working pattern, so its capacity and ordinary allocations follow the company's
+working days.
 
 Turning placeholders off in Settings doesn't delete them — it hides the section, the
 schedule rows and the assignee picker entry, and everything reappears if you turn the
@@ -120,6 +122,7 @@ Use an external party instead of a placeholder when the work is genuinely leavin
 team — there's no working-hours or working-days figure to set, because there's no
 capacity to track. Use a placeholder instead when you're planning to fill the work with
 someone on your own team's capacity, even if you haven't hired or named them yet.
+An external party's bookings use their literal start and end dates.
 
 External parties are off by default; an Owner or Admin turns them on for the company in
 [Settings](/guide/settings).

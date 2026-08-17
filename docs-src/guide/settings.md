@@ -22,6 +22,8 @@ day of the company's configured week. New companies select the first five days. 
 combination, but at least one day must stay checked: when only one remains, its checkbox is
 disabled with an explanation until another day is selected.
 
+![Global working days in Settings with Monday as the only selected day and an explanation that at least one working day must remain](../screenshots/flows/settings_working_days_guard.jpg)
+
 Each person works the days that are ticked here **and** in their own working pattern. Days outside
 that combination hold no capacity: allocations skip them, they count for nothing in utilisation,
 and on such a start date the lane does not show the hover **+**, clicking or beginning a draw does
@@ -30,6 +32,9 @@ draw that begins on an allowed date may still cross blocked dates. The per-alloc
 **Ignore working days** checkbox makes that allocation use every calendar day in its span and lets
 an existing allocation be dragged or extended onto closed days — it never changes where a new
 allocation may start — and time off stays a separate, visible conflict.
+
+For example, if the company works Monday to Friday and Bruce Wayne works Monday, Wednesday and
+Friday, his capacity and ordinary allocations use Monday, Wednesday and Friday.
 
 Changing the selection recalculates capacity, utilisation and conflicts for existing allocations.
 Allocation dates never move, but work on newly non-working days no longer counts unless the
