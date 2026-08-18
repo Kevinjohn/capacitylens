@@ -21,7 +21,8 @@
     "cutover:preflight": "node scripts/check-node.mjs && tsx scripts/cutover-preflight.ts",
     "cutover:repair": "node scripts/check-node.mjs && tsx scripts/cutover-repair.ts",
     "fixtures:database": "node scripts/check-node.mjs && tsx scripts/generate-database-fixtures.ts",
-    "test": "pnpm run test:unit && pnpm run test:account-flows && pnpm run test:credential-durability && pnpm run test:migrations",
+    "test": "pnpm run test:coverage && pnpm run test:account-flows && pnpm run test:credential-durability && pnpm run test:migrations",
+    "test:coverage": "node scripts/check-node.mjs && vitest run --config vitest.coverage.config.ts --pool=forks --no-file-parallelism --coverage",
     "test:unit": "node scripts/check-node.mjs && node scripts/run-unit-shard.mjs 1/1",
     "test:unit-shard": "node scripts/check-node.mjs && node scripts/run-unit-shard.mjs",
     "test:account-flows": "node scripts/check-node.mjs && vitest run src/accounts/conformance/accountFlows.conformance.test.ts --pool=forks --no-file-parallelism",
@@ -40,6 +41,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.12.3",
+    "@vitest/coverage-v8": "^4.1.10",
     "esbuild": "0.28.1",
     "tsx": "4.23.1",
     "typescript": "~6.0.2"

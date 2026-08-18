@@ -193,6 +193,9 @@ importers:
       '@types/node':
         specifier: ^24.12.3
         version: 24.13.2
+      '@vitest/coverage-v8':
+        specifier: ^4.1.10
+        version: 4.1.10
       esbuild:
         specifier: 0.28.1
         version: 0.28.1
@@ -6834,6 +6837,19 @@ snapshots:
     dependencies:
       vite: 6.4.3(@types/node@24.13.2)
       vue: 3.5.41(typescript@6.0.3)
+
+  '@vitest/coverage-v8@4.1.10':
+    dependencies:
+      '@bcoe/v8-coverage': 1.0.2
+      '@vitest/utils': 4.1.10
+      ast-v8-to-istanbul: 1.0.4
+      istanbul-lib-coverage: 3.2.2
+      istanbul-lib-report: 3.0.1
+      istanbul-reports: 3.2.0
+      magicast: 0.5.3
+      obug: 2.1.3
+      std-env: 4.2.0
+      tinyrainbow: 3.1.0
 
   '@vitest/coverage-v8@4.1.10(vitest@4.1.10)':
     dependencies:

@@ -155,18 +155,43 @@ jobs:
           timeout --signal=TERM --kill-after=30s 4m
           pnpm --filter capacitylens-server test:credential-durability
 
+  server-coverage:
+    name: Server coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter capacitylens-server test:coverage
+      - name: Upload test coverage to Codecov
+        if: env.CODECOV_TOKEN != ''
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
+        with:
+          files: ./server/coverage/lcov.info
+          flags: server
+          # Coverage thresholds are enforced by `pnpm run gate`; reporting availability is not a
+          # code-quality signal and must not make this required job depend on Codecov uptime.
+          fail_ci_if_error: false
+          token: ${{ env.CODECOV_TOKEN }}
+
   server:
     name: Server typecheck · lint · unit
     runs-on: ubuntu-latest
     if: always()
-    needs: [server-static, server-unit, server-process-durability]
+    needs: [server-static, server-unit, server-process-durability, server-coverage]
     steps:
       - name: Require every server check and unit shard
         env:
+          COVERAGE_RESULT: ${{ needs.server-coverage.result }}
           DURABILITY_RESULT: ${{ needs.server-process-durability.result }}
           STATIC_RESULT: ${{ needs.server-static.result }}
           UNIT_RESULT: ${{ needs.server-unit.result }}
         run: |
+          test "$COVERAGE_RESULT" = success
           test "$DURABILITY_RESULT" = success
           test "$STATIC_RESULT" = success
           test "$UNIT_RESULT" = success
