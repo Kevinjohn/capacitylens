@@ -8,7 +8,6 @@ export const ZERO_COVERAGE_ALLOWLIST = new Set([
   "shared/src/account/sessionPolicy.ts",
   "src/components/scheduler/SchedulerView.tsx",
   "src/components/ui/skeleton.tsx",
-  "src/lib/tour.ts",
 ]);
 
 export function uncoveredExecutableFiles(lcov, allowlist = ZERO_COVERAGE_ALLOWLIST) {
