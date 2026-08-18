@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { createHmac } from "node:crypto";
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
 import { buildApp } from "./app";
-import { openDb } from "./db";
+import { openDb, type Db } from "./db";
 import {
   authFromEnv,
   countUsers,
@@ -454,6 +454,53 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(response.statusCode).toBe(409);
     expect(response.json().code).toBe("PROVIDER_ALREADY_LINKED");
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
+  });
+
+  it("refuses a corrupted principal with multiple strict-provider links", async () => {
+    const raw = openDb(":memory:");
+    const observed = new Proxy(raw, {
+      get(target, property) {
+        if (property === "prepare") {
+          return (sql: string) => {
+            const statement = target.prepare(sql);
+            if (/SELECT id FROM account WHERE userId = \? AND providerId = \? ORDER BY id LIMIT 2/.test(sql)) {
+              return new Proxy(statement, {
+                get(statementTarget, statementProperty) {
+                  if (statementProperty === "all") return () => [{ id: "link-1" }, { id: "link-2" }];
+                  const value = Reflect.get(statementTarget, statementProperty, statementTarget) as unknown;
+                  return typeof value === "function" ? value.bind(statementTarget) : value;
+                },
+              });
+            }
+            return statement;
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as Db;
+    const configured = authFromEnv(observed, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
+    await runAuthMigrations(configured.auth!);
+    const app = buildApp(observed, { authMode: "password", auth: configured.auth });
+    const signUp = await call(app, {
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      payload: { email: "multiple-links@example.com", password: "password-123456", name: "Multiple" },
+    });
+
+    const response = await call(app, {
+      method: "POST",
+      url: "/api/identity/link-provider",
+      headers: { cookie: cookiesOf(signUp) },
+      payload: {
+        callbackURL: "http://localhost:8787/settings",
+        errorCallbackURL: "http://localhost:8787/settings",
+      },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().code).toBe("MULTIPLE_PROVIDER_LINKS");
+    expect(raw.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
 
   it("guards provider-link initiation when no strict provider exists or the session principal does not match", async () => {

@@ -526,6 +526,34 @@ describe("startup configuration before database migration", () => {
   });
 });
 
+describe("first-owner database-hook races", () => {
+  it("rejects a delayed first-owner insertion after another principal wins", async () => {
+    const db = openDb(":memory:");
+    const { auth } = authFromEnv(db, PASSWORD_ENV);
+    await runAuthMigrations(auth!);
+    await auth!.createCredentialUser("winner@example.com", "Winner", "winner-password-123456", true);
+    const before = auth!.options.databaseHooks?.user?.create?.before;
+
+    await expect(
+      before!(
+        { email: "loser@example.com", name: "Loser" } as never,
+        { path: "/sign-up/email", bootstrapClaimToken: "losing-claim" } as never,
+      ),
+    ).rejects.toMatchObject({ body: expect.objectContaining({ code: "BOOTSTRAP_ALREADY_CLAIMED" }) });
+  });
+
+  it("rejects a first-owner insertion that reaches the hook without its claim token", async () => {
+    const db = openDb(":memory:");
+    const { auth } = authFromEnv(db, PASSWORD_ENV);
+    await runAuthMigrations(auth!);
+    const before = auth!.options.databaseHooks?.user?.create?.before;
+
+    await expect(
+      before!({ email: "owner@example.com", name: "Owner" } as never, { path: "/sign-up/email" } as never),
+    ).rejects.toMatchObject({ body: expect.objectContaining({ code: "BOOTSTRAP_ALREADY_IN_PROGRESS" }) });
+  });
+});
+
 describe("cookie/session hardening (P1.16)", () => {
   it("pins sameSite:lax + httpOnly on the session cookie", () => {
     const { auth } = authFromEnv(openDb(":memory:"), PASSWORD_ENV);
