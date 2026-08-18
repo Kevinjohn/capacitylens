@@ -183,6 +183,54 @@ describe("offline preference", () => {
     expect(close).toHaveBeenCalledTimes(2);
   });
 
+  it("uses the fallback open error when IndexedDB supplies no error", async () => {
+    const request = { error: null } as IDBOpenDBRequest;
+    vi.stubGlobal("indexedDB", { open: vi.fn(() => request) });
+    localStorage.setItem("capacitylens/offlineRead", "on");
+    const reading = readCachedAuthSnapshot();
+    request.onerror?.(new Event("error"));
+    await expect(reading).rejects.toThrow("The offline cache could not be opened");
+  });
+
+  it("uses the fallback request error when IndexedDB supplies no read error", async () => {
+    const originalGet = FakeIDBObjectStore.prototype.get;
+    vi.spyOn(FakeIDBObjectStore.prototype, "get").mockImplementation(function (this: IDBObjectStore, query) {
+      if (String(query).startsWith("auth:")) {
+        const request = { error: null } as IDBRequest;
+        Object.defineProperty(request, "onerror", {
+          set(callback: ((event: Event) => void) | null) {
+            if (callback) queueMicrotask(() => callback(new Event("error")));
+          },
+        });
+        return request;
+      }
+      return originalGet.call(this, query);
+    });
+    localStorage.setItem("capacitylens/offlineRead", "on");
+    await expect(readCachedAuthSnapshot()).rejects.toThrow("The offline cache could not be read");
+  });
+
+  it("closes the database and stringifies a non-Error retention-sweep failure", async () => {
+    const cursorRequest = { error: "cursor exploded" } as unknown as IDBRequest<IDBCursorWithValue | null>;
+    const tx = {
+      objectStore: vi.fn(() => ({ openCursor: () => cursorRequest })),
+    } as unknown as IDBTransaction;
+    const close = vi.fn();
+    const db = {
+      close,
+      transaction: vi.fn(() => tx),
+    } as unknown as IDBDatabase;
+    const request = { error: null, result: db } as IDBOpenDBRequest;
+    vi.stubGlobal("indexedDB", { open: vi.fn(() => request) });
+    localStorage.setItem("capacitylens/offlineRead", "on");
+
+    const reading = readCachedAuthSnapshot();
+    request.onsuccess?.(new Event("success"));
+    cursorRequest.onerror?.(new Event("error"));
+    await expect(reading).rejects.toThrow("cursor exploded");
+    expect(close).toHaveBeenCalledOnce();
+  });
+
   it("fails closed when this browser cannot install a service worker", async () => {
     vi.stubGlobal("navigator", {});
     await expect(setOfflineReadEnabled(true)).rejects.toThrow("not supported");
@@ -326,6 +374,118 @@ describe("offline preference", () => {
       "capacitylens-offline-shell-metadata-v1",
     ]);
   });
+
+  it("warns and fails closed when the promised shell cannot be inspected", async () => {
+    localStorage.setItem("capacitylens/offlineRead", "on");
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.stubGlobal("navigator", {});
+
+    await expect(revalidateOfflineShell()).resolves.toBe(false);
+    expect(warning).toHaveBeenCalledWith(
+      "offlineCache: the promised offline shell could not be revalidated",
+      expect.any(Error),
+    );
+    expect(offlineReadEnabled()).toBe(false);
+
+    localStorage.setItem("capacitylens/offlineRead", "on");
+    vi.stubGlobal("navigator", { serviceWorker: { getRegistrations: vi.fn().mockResolvedValue([]) } });
+    vi.stubGlobal("caches", { open: vi.fn().mockRejectedValue(new Error("cache blocked")) });
+    await expect(revalidateOfflineShell()).resolves.toBe(false);
+    expect(warning).toHaveBeenCalledWith(
+      "offlineCache: the promised offline shell could not be revalidated",
+      expect.objectContaining({ message: "cache blocked" }),
+    );
+  });
+
+  it("surfaces a stale-preference removal failure while still failing closed", async () => {
+    localStorage.setItem("capacitylens/offlineRead", "on");
+    vi.stubGlobal("navigator", { serviceWorker: { getRegistrations: vi.fn().mockResolvedValue([]) } });
+    vi.stubGlobal("caches", { open: vi.fn().mockResolvedValue({ match: vi.fn() }), has: vi.fn() });
+    const cause = new Error("storage blocked");
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+      throw cause;
+    });
+
+    await expect(revalidateOfflineShell()).resolves.toBe(false);
+    expect(warning).toHaveBeenCalledWith("offlineCache: the stale offline preference could not be removed", cause);
+  });
+
+  it.each([
+    ["waiting", "activated"],
+    ["active", "activated"],
+  ] as const)("accepts an already activated %s worker", async (slot, state) => {
+    const lifecycle = workerLifecycle(state);
+    vi.stubGlobal("navigator", {
+      serviceWorker: {
+        register: vi
+          .fn()
+          .mockResolvedValue({ installing: null, waiting: null, active: null, [slot]: lifecycle.worker }),
+      },
+    });
+    await expect(setOfflineReadEnabled(true)).resolves.toBeUndefined();
+    expect(offlineReadEnabled()).toBe(true);
+  });
+
+  it("rejects registrations without a worker and workers already made redundant", async () => {
+    const register = vi.fn().mockResolvedValueOnce({ installing: null, waiting: null, active: null });
+    vi.stubGlobal("navigator", { serviceWorker: { register } });
+    await expect(setOfflineReadEnabled(true)).rejects.toThrow("did not provide a service worker");
+
+    register.mockResolvedValueOnce({
+      installing: null,
+      waiting: null,
+      active: workerLifecycle("redundant").worker,
+    });
+    await expect(setOfflineReadEnabled(true)).rejects.toThrow("failed before activation");
+  });
+
+  it("times out a worker that never activates", async () => {
+    const lifecycle = workerLifecycle("installing");
+    const realSetTimeout = globalThis.setTimeout;
+    let activationTimeout!: () => void;
+    vi.spyOn(globalThis, "setTimeout").mockImplementation(((callback: TimerHandler, delay?: number) => {
+      if (delay === 30_000) {
+        activationTimeout = callback as () => void;
+        return 1 as unknown as ReturnType<typeof setTimeout>;
+      }
+      return realSetTimeout(callback, delay);
+    }) as typeof setTimeout);
+    vi.stubGlobal("navigator", {
+      serviceWorker: {
+        register: vi.fn().mockResolvedValue({ installing: lifecycle.worker, waiting: null, active: null }),
+      },
+    });
+    const enabling = setOfflineReadEnabled(true);
+    await vi.waitFor(() => expect(activationTimeout).toBeTypeOf("function"));
+    activationTimeout();
+    await expect(enabling).rejects.toThrow("did not finish in time");
+  });
+
+  it("warns when failed-enable cleanup cannot remove the preference and rethrows the original error", async () => {
+    const original = new Error("registration denied");
+    const cleanup = new Error("preference locked");
+    vi.stubGlobal("navigator", { serviceWorker: { register: vi.fn().mockRejectedValue(original) } });
+    const removeItem = vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+      throw cleanup;
+    });
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    await expect(setOfflineReadEnabled(true)).rejects.toBe(original);
+    expect(removeItem).toHaveBeenCalled();
+    expect(warning).toHaveBeenCalledWith("offlineCache: failed to clean up after offline enablement failed", cleanup);
+  });
+
+  it("leaves the preference disabled when browser cleanup itself fails", async () => {
+    localStorage.setItem("capacitylens/offlineRead", "on");
+    const cause = new Error("IndexedDB clear blocked");
+    vi.spyOn(FakeIDBObjectStore.prototype, "clear").mockImplementation(() => {
+      throw cause;
+    });
+
+    await expect(setOfflineReadEnabled(false)).rejects.toThrow(/abort/i);
+    expect(offlineReadEnabled()).toBe(false);
+  });
 });
 
 describe("offline tenant cache", () => {
@@ -380,6 +540,242 @@ describe("offline tenant cache", () => {
     });
     expect(warning).toHaveBeenCalledWith("capacitylens: offline encryption key persistence failed", cause);
     expect(offlineStateSnapshot().cacheWriteFailed).toBe(true);
+  });
+
+  it("uses the device key persisted by a competing tab after add fails", async () => {
+    const winner = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+    const originalGet = FakeIDBObjectStore.prototype.get;
+    const originalAdd = FakeIDBObjectStore.prototype.add;
+    let keyReads = 0;
+    vi.spyOn(FakeIDBObjectStore.prototype, "get").mockImplementation(function (this: IDBObjectStore, query) {
+      if (query !== "device-aes-gcm-v1" || ++keyReads === 1) return originalGet.call(this, query);
+      const request = { result: { id: "device-aes-gcm-v1", value: winner }, error: null } as IDBRequest;
+      Object.defineProperty(request, "onsuccess", {
+        set(callback: ((event: Event) => void) | null) {
+          if (callback) queueMicrotask(() => callback(new Event("success")));
+        },
+      });
+      return request;
+    });
+    vi.spyOn(FakeIDBObjectStore.prototype, "add").mockImplementation(function (this: IDBObjectStore, value, key) {
+      if ((value as { id?: unknown }).id === "device-aes-gcm-v1") {
+        throw new Error("constraint");
+      }
+      return originalAdd.call(this, value, key);
+    });
+
+    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ status: "written" });
+    await expect(readCachedAuthSnapshot()).resolves.toMatchObject({ value: { user: { id: "user-a" } } });
+  });
+
+  it("isolates invalid configured API URLs in their own encoded namespace", async () => {
+    vi.doMock("./apiConfig", () => ({ API_BASE: "http://[" }));
+    vi.resetModules();
+    const invalidBackend = await import("./offlineCache");
+    await invalidBackend.cacheAuthSnapshot(authSnapshot("invalid-origin-user"));
+
+    await expect(
+      getRaw(`auth:${window.location.origin}|api:invalid:${encodeURIComponent("http://[")}`),
+    ).resolves.toBeDefined();
+    await expect(getRaw(`auth:${currentCacheNamespace()}`)).resolves.toBeUndefined();
+    vi.doUnmock("./apiConfig");
+  });
+
+  it("fails a scoped read cleanly when IndexedDB disappears", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    vi.stubGlobal("indexedDB", undefined);
+    await expect(readCachedAccountSlice("a-studio")).rejects.toThrow("IndexedDB is unavailable");
+  });
+
+  it("fails enabling when Web Crypto is unavailable", async () => {
+    vi.stubGlobal("crypto", undefined);
+    vi.stubGlobal("navigator", { serviceWorker: {} });
+    await expect(setOfflineReadEnabled(true)).rejects.toThrow("Web Crypto is unavailable");
+  });
+
+  it("repairs a malformed durable boundary once and then preserves the stored token", async () => {
+    await putRawKey({ id: "wrong-id", token: 123 });
+    const originalPut = FakeIDBObjectStore.prototype.put;
+    const boundaryPuts: unknown[] = [];
+    vi.spyOn(FakeIDBObjectStore.prototype, "put").mockImplementation(function (this: IDBObjectStore, value, key) {
+      if ((value as { id?: unknown }).id === "write-boundary-v1") boundaryPuts.push(value);
+      return originalPut.call(this, value, key);
+    });
+    const activated = workerLifecycle("activated").worker;
+    vi.stubGlobal("navigator", {
+      serviceWorker: { register: vi.fn().mockResolvedValue({ installing: null, waiting: null, active: activated }) },
+    });
+
+    await setOfflineReadEnabled(true);
+    const firstToken = localStorage.getItem("capacitylens/offlineWriteBoundary");
+    await setOfflineReadEnabled(true);
+    expect(firstToken).toEqual(expect.any(String));
+    expect(localStorage.getItem("capacitylens/offlineWriteBoundary")).toBe(firstToken);
+    expect(boundaryPuts).toHaveLength(1);
+  });
+
+  it("surfaces a write-boundary preference read failure and refuses the cache write", async () => {
+    await putRawKey({ id: "write-boundary-v1", token: "durable-token" });
+    const cause = new Error("getItem blocked");
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation((key) => {
+      if (key.endsWith("offlineWriteBoundary")) throw cause;
+      return "on";
+    });
+
+    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ status: "written" });
+    await expect(getRaw(`auth:${currentCacheNamespace()}`)).resolves.toBeUndefined();
+    expect(warning).toHaveBeenCalledWith(
+      "offlineCache: the offline write boundary could not be read; rejecting cache writes",
+      cause,
+    );
+  });
+
+  it("rejects a write when the durable-boundary request errors", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const originalGet = FakeIDBObjectStore.prototype.get;
+    vi.spyOn(FakeIDBObjectStore.prototype, "get").mockImplementation(function (this: IDBObjectStore, query) {
+      if (query === "write-boundary-v1") {
+        const request = { error: null } as IDBRequest;
+        Object.defineProperty(request, "onerror", {
+          set(callback: ((event: Event) => void) | null) {
+            if (callback) queueMicrotask(() => callback(new Event("error")));
+          },
+        });
+        return request;
+      }
+      return originalGet.call(this, query);
+    });
+
+    await expect(cacheAccountSummaries([{ id: "a-studio", name: "Studio", role: "owner" }])).rejects.toThrow(
+      "The offline write boundary could not be read",
+    );
+  });
+
+  it("fails closed and warns when the offline preference cannot be read", () => {
+    const cause = new Error("getItem blocked");
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw cause;
+    });
+
+    expect(offlineReadEnabled()).toBe(false);
+    expect(warning).toHaveBeenCalledWith(
+      "offlineCache: the offline preference could not be read; disabling offline access",
+      cause,
+    );
+  });
+
+  it("falls back when randomUUID fails and completes cleanup", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    vi.spyOn(crypto, "randomUUID").mockImplementation(() => {
+      throw new Error("UUID unavailable");
+    });
+    await expect(clearAllOfflineData()).resolves.toBeUndefined();
+    await expect(getRaw(`auth:${currentCacheNamespace()}`)).resolves.toBeUndefined();
+  });
+
+  it("finishes deletion before surfacing a write-boundary storage failure", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const cause = new Error("setItem blocked");
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation((key) => {
+      if (key.endsWith("offlineWriteBoundary")) throw cause;
+    });
+
+    await expect(clearAllOfflineData()).rejects.toBe(cause);
+    await expect(getRaw(`auth:${currentCacheNamespace()}`)).resolves.toBeUndefined();
+  });
+
+  it("prefers the boundary storage error when IndexedDB is also unavailable", async () => {
+    const cause = new Error("setItem blocked");
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw cause;
+    });
+    vi.stubGlobal("indexedDB", undefined);
+    await expect(clearOfflineDataForCurrentUser()).rejects.toBe(cause);
+  });
+
+  it("surfaces a boundary storage failure after an otherwise successful user cleanup", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const cause = new Error("setItem blocked");
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation((key) => {
+      if (key.endsWith("offlineWriteBoundary")) throw cause;
+    });
+    await expect(clearOfflineDataForCurrentUser()).rejects.toBe(cause);
+    await expect(getRaw(`auth:${currentCacheNamespace()}`)).resolves.toBeUndefined();
+  });
+
+  it("drops writes whose generation changes during encryption", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const originalEncrypt = crypto.subtle.encrypt.bind(crypto.subtle);
+    vi.spyOn(crypto.subtle, "encrypt").mockImplementationOnce(async (algorithm, key, data) => {
+      await clearAllOfflineData();
+      return originalEncrypt(algorithm, key, data);
+    });
+
+    await expect(cacheAccountSummaries([{ id: "a-studio", name: "Studio", role: "owner" }])).resolves.toEqual({
+      status: "written",
+    });
+    await expect(getRaw(`accounts:${currentCacheNamespace()}:user-a`)).resolves.toBeUndefined();
+  });
+
+  it("drops an envelope that ages out while encryption is pending", async () => {
+    const savedAt = new Date("2026-01-01T00:00:00.000Z").getTime();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(savedAt);
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const originalEncrypt = crypto.subtle.encrypt.bind(crypto.subtle);
+    vi.spyOn(crypto.subtle, "encrypt").mockImplementationOnce(async (algorithm, key, data) => {
+      clock.mockReturnValue(savedAt + 7 * DAY_MS + 1);
+      return originalEncrypt(algorithm, key, data);
+    });
+    await cacheAccountSummaries([{ id: "a-studio", name: "Studio", role: "owner" }]);
+    await expect(getRaw(`accounts:${currentCacheNamespace()}:user-a`)).resolves.toBeUndefined();
+  });
+
+  it("deletes primitive and non-numeric-timestamp cache entries", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const key = `accounts:${currentCacheNamespace()}:user-a`;
+    const originalGet = FakeIDBObjectStore.prototype.get;
+    let returnedPrimitive = false;
+    vi.spyOn(FakeIDBObjectStore.prototype, "get").mockImplementation(function (this: IDBObjectStore, query) {
+      if (query === key && !returnedPrimitive) {
+        returnedPrimitive = true;
+        const request = { result: "poison", error: null } as IDBRequest;
+        Object.defineProperty(request, "onsuccess", {
+          set(callback: ((event: Event) => void) | null) {
+            if (callback) queueMicrotask(() => callback(new Event("success")));
+          },
+        });
+        return request;
+      }
+      return originalGet.call(this, query);
+    });
+    await expect(readCachedAccountSummaries()).resolves.toBeNull();
+    await putRaw({ key, savedAt: "yesterday", version: 1, iv: new ArrayBuffer(1), ciphertext: new ArrayBuffer(1) });
+    await expect(readCachedAccountSummaries()).resolves.toBeNull();
+    await expect(getRaw(key)).resolves.toBeUndefined();
+  });
+
+  it("sweeps a seeded envelope whose savedAt is not numeric", async () => {
+    const key = "malformed-saved-at";
+    await putRaw({ key, savedAt: "yesterday", version: 1, iv: new ArrayBuffer(1), ciphertext: new ArrayBuffer(1) });
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    await expect(getRaw(key)).resolves.toBeUndefined();
+  });
+
+  it.each([
+    ["auth user", { ...authSnapshot("user-a"), user: null }],
+    ["boolean flags", { ...authSnapshot("user-a"), canCreateAccount: "no" }],
+  ])("rejects poisoned authentication snapshots with invalid %s", async (_label, value) => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    await putEncryptedValue(`auth:${currentCacheNamespace()}`, value);
+    await expect(readCachedAuthSnapshot()).resolves.toBeNull();
+  });
+
+  it("rejects a non-array account-summary payload", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    await putEncryptedValue(`accounts:${currentCacheNamespace()}:user-a`, { id: "a-studio" });
+    await expect(readCachedAccountSummaries()).resolves.toBeNull();
   });
 
   it("observes offline preference and cleanup boundaries from another tab", async () => {
@@ -679,6 +1075,39 @@ describe("offline tenant cache", () => {
     await cacheAuthSnapshot(authSnapshot("abc"));
 
     expect((await readCachedAccountSlice("a-studio"))?.value.accounts[0]?.name).toBe("Wayne Enterprises");
+  });
+
+  it("with no verified scope, sign-out cleanup deletes only the identity key", async () => {
+    await clearAllOfflineData();
+    const auth = `auth:${currentCacheNamespace()}`;
+    const accountKey = `accounts:${currentCacheNamespace()}:user-a`;
+    await putRaw({ key: auth, savedAt: Date.now() });
+    await putRaw({ key: accountKey, savedAt: Date.now() });
+
+    await clearOfflineDataForCurrentUser();
+    await expect(getRaw(auth)).resolves.toBeUndefined();
+    await expect(getRaw(accountKey)).resolves.toBeDefined();
+  });
+
+  it("uses the fallback message when the sign-out key cursor errors without an error object", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const originalOpenKeyCursor = FakeIDBObjectStore.prototype.openKeyCursor;
+    vi.spyOn(FakeIDBObjectStore.prototype, "openKeyCursor").mockImplementation(function (
+      this: IDBObjectStore,
+      query,
+      direction,
+    ) {
+      if (this.name !== STORE_NAME) return originalOpenKeyCursor.call(this, query, direction);
+      const request = { error: null } as IDBRequest<IDBCursor | null>;
+      Object.defineProperty(request, "onerror", {
+        set(callback: ((event: Event) => void) | null) {
+          if (callback) queueMicrotask(() => callback(new Event("error")));
+        },
+      });
+      return request;
+    });
+
+    await expect(clearOfflineDataForCurrentUser()).rejects.toThrow("The offline cache could not be cleared");
   });
 
   it("reports unavailable browser storage so sign-out can disable stale offline data", async () => {
