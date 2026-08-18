@@ -33,7 +33,13 @@ jobs:
         with:
           ref: ${{ env.RELEASE_TAG }}
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      # Keep setup self-contained: historical tags predate the repository's local setup action.
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       - name: Package the web build
         run: tar -czf capacitylens-web.tar.gz dist
