@@ -116,8 +116,10 @@ review, but the operator must document retention, access groups, time synchroniz
   optional/experimental.
 - Build/test: pnpm registry packages, GitHub Actions, CodeQL, Playwright browsers, Vitest, ESLint,
   Stryker, Gitleaks, Syft/Anchore, Trivy and OWASP ZAP.
-- `pnpm-lock.yaml` pins the dependency graph. Docker base images are digest-pinned. GitHub actions
-  are full-commit pinned. Dependabot covers npm, Actions and Docker.
+- `pnpm-lock.yaml` pins the dependency graph. Reviewed overrides keep vulnerable transitive packages
+  on compatible patched releases where their parents have not raised their own minimums. Docker
+  base images are digest-pinned. GitHub actions are full-commit pinned. Dependabot covers npm,
+  Actions and Docker.
 - pnpm's lifecycle-script policy is fail closed; `allowBuilds` permits only esbuild's reviewed
   platform-binary linker, so a newly introduced dependency install script requires an explicit
   repository change before it can execute in a clean install.
@@ -129,7 +131,8 @@ review, but the operator must document retention, access groups, time synchroniz
   high/critical CVEs.
 - CI performs dependency review, production audit, secret scan (reviewed fixture values allowlisted
   in `.gitleaks.toml`, whose scope is itself gated), CodeQL, SBOM generation, container vulnerability scanning, DAST and
-  release provenance. DAST is two-tier: the blocking baseline validates the hardened posture — the
+  release provenance. Published releases attach their packaged build, SPDX SBOM and GitHub-issued
+  `.intoto.jsonl` provenance bundle as release assets. DAST is two-tier: the blocking baseline validates the hardened posture — the
   configuration the deployment guide recommends — while the out-of-the-box default posture is
   scanned weekly as a non-blocking published report, documenting rather than asserting its
   residual surface. The public-repository workflows run automatically on their documented events

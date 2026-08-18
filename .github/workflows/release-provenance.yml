@@ -1,0 +1,65 @@
+name: release provenance
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to rebuild and attest
+        required: true
+        type: string
+
+concurrency:
+  group: release-provenance-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  provenance:
+    name: Package, SBOM and provenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      attestations: write
+      contents: write
+      id-token: write
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm run build
+      - name: Package the web build
+        run: tar -czf capacitylens-web.tar.gz dist
+      - name: Generate the release SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          path: .
+          format: spdx-json
+          output-file: capacitylens.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Attest the release artifacts
+        id: provenance
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: |
+            capacitylens-web.tar.gz
+            capacitylens.spdx.json
+      - name: Publish artifacts and recognized provenance
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+        run: |
+          cp "$PROVENANCE_BUNDLE" capacitylens-release.intoto.jsonl
+          gh release upload "$RELEASE_TAG" \
+            capacitylens-web.tar.gz \
+            capacitylens.spdx.json \
+            capacitylens-release.intoto.jsonl \
+            --clobber

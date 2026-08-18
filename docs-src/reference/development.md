@@ -408,8 +408,11 @@ badges report independent status.
 
 CodeQL runs on `main` and its weekly schedule. OpenSSF Scorecard runs on `main` and
 weekly. The security workflow performs full-history secret scanning, dependency review,
-source SBOM generation, container vulnerability scanning, two OWASP ZAP
-baselines and tagged-release provenance. The blocking ZAP scan boots the hardened posture
+source SBOM generation, container vulnerability scanning and two OWASP ZAP
+baselines. A separate release-only workflow packages each published tag, generates its SBOM,
+creates GitHub build attestations and attaches the artifacts plus the recognized
+`.intoto.jsonl` provenance bundle to the GitHub Release. It is manually runnable with an existing
+release tag for deliberate rebuilds and backfills. The blocking ZAP scan boots the hardened posture
 — password authentication, required MFA, scheduled backups and operator attestations, with
 credentials minted and masked per run — so a finding there is a regression in the
 recommended configuration. A second, non-blocking job scans the out-of-the-box default
@@ -422,11 +425,13 @@ cancellation caused by a newer push is not reported, since that's `cancel-in-pro
 working as intended. See `docs-src/security/security-review-2026-07-14.md` for assessment
 scope and residual controls.
 
-`main` carries no branch protection and no ruleset, so nothing mechanically blocks a
-merge. A red `main` is found by looking at the run the merge produced, or at the badges in
-the README. If protection is ever added, note that required status checks are matched by
-display name and no workflow reports on a pull request any more — a required check that
-never runs leaves every pull request permanently unmergeable.
+`main` is protected against deletion and force pushes, and changes must arrive through a pull
+request. The rule deliberately requires neither an approval nor a status check while the project
+has one active maintainer and workflows report after merge rather than on pull requests. A red
+`main` is found by looking at the run the merge produced, or at the badges in the README. If status
+checks are added later, remember that they are matched by display name and no workflow currently
+reports on a pull request — a required check that never runs leaves every pull request permanently
+unmergeable.
 
 The coverage badge needs a Codecov project and a repository secret named `CODECOV_TOKEN`;
 uploads are deliberately skipped until that secret exists. Uploads are best-effort because
