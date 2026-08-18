@@ -36,7 +36,11 @@ import {
   runAuthMigrations,
 } from "./auth";
 import { TABLES } from "./tables";
-import { assertMigrationValuesPreserved, captureMigrationValues } from "./migrationPreservation";
+import {
+  assertMigrationValuesPreserved,
+  captureMigrationValues,
+  type MigrationValueSnapshot,
+} from "./migrationPreservation";
 import {
   FOREIGN_KEY_CHILD_INDEXES_V23,
   TENANT_ENTITY_ACCOUNT_INDEXES_V21,
@@ -2051,6 +2055,79 @@ describe("schema migration of an existing on-disk DB", () => {
     db.close();
   });
 
+  it.each([
+    [
+      "unexpected column",
+      `version INTEGER NOT NULL PRIMARY KEY, name TEXT NOT NULL, checksum TEXT NOT NULL, appliedAt TEXT NOT NULL, extra TEXT`,
+    ],
+    [
+      "wrong type",
+      `version TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, checksum TEXT NOT NULL, appliedAt TEXT NOT NULL`,
+    ],
+    [
+      "nullability mismatch",
+      `version INTEGER NOT NULL PRIMARY KEY, name TEXT, checksum TEXT NOT NULL, appliedAt TEXT NOT NULL`,
+    ],
+    [
+      "version not primary key",
+      `version INTEGER NOT NULL, name TEXT NOT NULL PRIMARY KEY, checksum TEXT NOT NULL, appliedAt TEXT NOT NULL`,
+    ],
+    ["missing column", `version INTEGER NOT NULL PRIMARY KEY, name TEXT NOT NULL, checksum TEXT NOT NULL`],
+  ])("refuses a migration-history table with an %s", (_name, columns) => {
+    const db = openDb(":memory:");
+    db.exec(`DROP TABLE ${DATABASE_MIGRATION_TABLE}; CREATE TABLE ${DATABASE_MIGRATION_TABLE} (${columns});`);
+    expect(() => planDatabaseMigrations(db)).toThrow(/migration history table is invalid/i);
+    db.close();
+  });
+
+  it.each([
+    ["out-of-order version", `UPDATE ${DATABASE_MIGRATION_TABLE} SET version = 0 WHERE version = 8`, /out of order/],
+    ["name drift", `UPDATE ${DATABASE_MIGRATION_TABLE} SET name = 'renamed' WHERE version = 8`, /name does not match/],
+    [
+      "missing appliedAt",
+      `UPDATE ${DATABASE_MIGRATION_TABLE} SET appliedAt = '' WHERE version = 8`,
+      /no applied timestamp/,
+    ],
+  ])("refuses migration-history %s", (_name, sql, message) => {
+    const db = openDb(":memory:");
+    db.exec(sql);
+    expect(() => planDatabaseMigrations(db)).toThrow(message);
+    db.close();
+  });
+
+  it("refuses startup when WAL or FULL synchronous durability cannot be established", () => {
+    const memoryHandle = new DatabaseSync(":memory:");
+    expect(() => initializeOpenDb(memoryHandle as Db, "not-an-in-memory-path.db")).toThrow(
+      /journal mode.*expected WAL/i,
+    );
+    memoryHandle.close();
+
+    const raw = openDb(":memory:");
+    const weakened = new Proxy(raw, {
+      get(target, property) {
+        if (property === "prepare") {
+          return (sql: string) => {
+            const statement = target.prepare(sql);
+            if (sql.trim().toLowerCase() === "pragma synchronous") {
+              return new Proxy(statement, {
+                get(statementTarget, statementProperty) {
+                  if (statementProperty === "get") return () => ({ synchronous: 1 });
+                  const value = Reflect.get(statementTarget, statementProperty, statementTarget) as unknown;
+                  return typeof value === "function" ? value.bind(statementTarget) : value;
+                },
+              });
+            }
+            return statement;
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as Db;
+    expect(() => initializeOpenDb(weakened, ":memory:")).toThrow(/synchronous durability policy.*expected FULL/);
+    raw.close();
+  });
+
   it("rolls back schema, history and version stamps when a migration fails before commit", () => {
     const copied = copyFixture("v7-off.db");
     try {
@@ -2814,6 +2891,139 @@ describe("migration ledger checksum supersession (v11 alpha-line amendment)", ()
     db.prepare(`UPDATE ${DATABASE_MIGRATION_TABLE} SET checksum = ? WHERE version = 12`).run(OLD_V11_CHECKSUM);
     expect(() => planDatabaseMigrations(db)).toThrow(/v12 checksum does not match/i);
     db.close();
+  });
+});
+
+describe("migration value preservation policy", () => {
+  const table = (rows: Array<Record<string, string | number | null>>, primaryKey = ["id"]) => ({
+    primaryKey,
+    rows,
+  });
+
+  it("allows only the versioned historical deletion repairs", () => {
+    const ownerInvite = { id: "invite-1", role: "owner", usedAt: null };
+    expect(() =>
+      assertMigrationValuesPreserved({ invites: table([ownerInvite]) }, { invites: table([]) }, 9),
+    ).not.toThrow();
+
+    const membership = { accountId: "a1", userId: "principal-1", status: "active", role: "owner" };
+    const verification = { id: "verification-1", value: "principal-1" };
+    expect(() =>
+      assertMigrationValuesPreserved(
+        {
+          account_members: table([membership], ["accountId", "userId"]),
+          verification: table([verification]),
+        },
+        {
+          account_members: table([membership], ["accountId", "userId"]),
+          verification: table([]),
+        },
+        13,
+      ),
+    ).not.toThrow();
+  });
+
+  it("allows pre-v8 Internal-client folding and its deterministic generated-row winner", () => {
+    const generated = {
+      id: "internal:a1",
+      accountId: "a1",
+      name: "Old Internal",
+      color: "#111111",
+      builtin: "true",
+      createdAt: TS,
+    };
+    const duplicate = {
+      id: "legacy-internal",
+      accountId: "a1",
+      name: "Duplicate",
+      color: "#222222",
+      builtin: "true",
+      createdAt: "2020-01-01T00:00:00.000Z",
+    };
+    const before: MigrationValueSnapshot = {
+      clients: table([duplicate, generated]),
+      projects: table([{ id: "p1", clientId: "legacy-internal" }]),
+    };
+    const after: MigrationValueSnapshot = {
+      clients: table([{ ...generated, name: "Internal", color: "#5c34d4" }]),
+      projects: table([{ id: "p1", clientId: "internal:a1" }]),
+    };
+    expect(() => assertMigrationValuesPreserved(before, after, 7)).not.toThrow();
+  });
+
+  it("uses createdAt then id to break pre-v8 fold ties", () => {
+    const before: MigrationValueSnapshot = {
+      clients: table([
+        {
+          id: "internal-b",
+          accountId: "a1",
+          name: "B",
+          color: "#111111",
+          builtin: "true",
+          createdAt: TS,
+        },
+        {
+          id: "internal-a",
+          accountId: "a1",
+          name: "A",
+          color: "#222222",
+          builtin: "true",
+          createdAt: TS,
+        },
+      ]),
+    };
+    const after: MigrationValueSnapshot = {
+      clients: table([
+        {
+          id: "internal-a",
+          accountId: "a1",
+          name: "Internal",
+          color: "#5c34d4",
+          builtin: "true",
+          createdAt: TS,
+        },
+      ]),
+    };
+    expect(() => assertMigrationValuesPreserved(before, after, 7)).not.toThrow();
+  });
+
+  it("allows pre-v22 built-in lifecycle cell repairs", () => {
+    const before = {
+      id: "internal:a1",
+      builtin: "true",
+      archivedAt: TS,
+      deletedAt: TS,
+      updatedAt: TS,
+    };
+    const after = { ...before, archivedAt: null, deletedAt: null, updatedAt: "2026-02-01T00:00:00.000Z" };
+    expect(() =>
+      assertMigrationValuesPreserved({ clients: table([before]) }, { clients: table([after]) }, 21),
+    ).not.toThrow();
+  });
+
+  it("rejects unapproved table removal, cell changes, and row additions", () => {
+    expect(() => assertMigrationValuesPreserved({ clients: table([]) }, {}, 34)).toThrow(
+      /migration removed table clients/,
+    );
+    expect(() =>
+      assertMigrationValuesPreserved(
+        { clients: table([{ id: "c1", name: "Before" }]) },
+        { clients: table([{ id: "c1", name: "After" }]) },
+        34,
+      ),
+    ).toThrow(/migration changed unapproved clients\.name/);
+    expect(() =>
+      assertMigrationValuesPreserved(
+        { clients: table([{ id: "c1", name: "Before" }]) },
+        {
+          clients: table([
+            { id: "c1", name: "Before" },
+            { id: "c2", name: "Added" },
+          ]),
+        },
+        34,
+      ),
+    ).toThrow(/migration added unapproved clients row/);
   });
 });
 

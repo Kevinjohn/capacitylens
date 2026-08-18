@@ -3,11 +3,13 @@ import { DatabaseSync } from "node:sqlite";
 import {
   ensureControlTables,
   assertControlTablesCurrent,
+  getMembershipRow,
   upsertMember,
   getMemberRole,
   listMembershipsForUser,
   listMembersForAccount,
   migrateSingleOwnerControlPlaneV10,
+  assertSingleOwnerControlPlaneV10,
   migrateOwnerlessControlPlaneV11,
   reportOwnerlessPromotionsV11,
   migrateOwnerResetCeremoniesV12,
@@ -25,6 +27,7 @@ import {
   markInviteUsed,
   InviteAlreadyUsedError,
   looksLikeEmail,
+  inviteTokenHash,
   type AccountMember,
 } from "./controlTables";
 import { ensureAccountBoundaryState } from "./accounts/state";
@@ -97,6 +100,34 @@ describe("ensureControlTables", () => {
     ).toBe(0);
     const columns = db.prepare(`PRAGMA table_info(invites)`).all() as Array<{ name: string }>;
     expect(columns.some((column) => column.name === "id")).toBe(false);
+  });
+});
+
+describe("corrupt role handling", () => {
+  it.each([
+    ["membership reader", (db: Db) => getMembershipRow(db, "acc-corrupt", "user-corrupt"), "membership" as const],
+    ["ownerless migration reader", (db: Db) => migrateOwnerlessControlPlaneV11(db), "membership" as const],
+    ["invite writer", (db: Db) => createInvite(db, invite({ role: "superuser" as never })), "none" as const],
+    ["invite lookup", (db: Db) => getInvite(db, "corrupt-token"), "invite" as const],
+    ["invite list", (db: Db) => listInvitesForAccount(db, "acc-corrupt"), "invite" as const],
+  ])("fails loudly for a superuser role in the %s", (_name, read, seed) => {
+    const db = freshDb();
+    if (seed === "membership") {
+      db.prepare(`INSERT INTO account_members (accountId, userId, role, status, createdAt) VALUES (?, ?, ?, ?, ?)`).run(
+        "acc-corrupt",
+        "user-corrupt",
+        "superuser",
+        "active",
+        TS,
+      );
+    } else if (seed === "invite") {
+      db.prepare(
+        `INSERT INTO invites (tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(inviteTokenHash("corrupt-token"), "corrupt-invite", "acc-corrupt", "superuser", null, TS_FUTURE, null, TS);
+    }
+
+    expect(() => read(db)).toThrow(/role|control table corrupted/i);
   });
 });
 
@@ -176,6 +207,22 @@ describe("listMembersForAccount", () => {
 });
 
 describe("single-Owner control-plane migration", () => {
+  it("detects duplicate active Owners and rejects unused Owner invitations", () => {
+    const duplicates = freshDb();
+    duplicates.exec(`
+      CREATE UNIQUE INDEX idx_account_members_single_active_owner
+        ON account_members(accountId)
+        WHERE role = 'owner' AND status = 'active' AND userId = 'never';
+    `);
+    upsertMember(duplicates, member({ userId: "owner-1", role: "owner" }));
+    upsertMember(duplicates, member({ userId: "owner-2", role: "owner" }));
+    expect(() => assertSingleOwnerControlPlaneV10(duplicates)).toThrow(/has 2 active Owners/);
+
+    const pendingInvite = freshDb();
+    migrateSingleOwnerControlPlaneV10(pendingInvite);
+    createInvite(pendingInvite, invite({ id: "owner-invite", role: "owner" }));
+    expect(() => assertSingleOwnerControlPlaneV10(pendingInvite)).toThrow(/unused Owner invite/);
+  });
   it("retains the oldest Owner, demotes co-owners, revokes live Owner invites and prevents recurrence", () => {
     const db = freshDb();
     upsertMember(db, member({ userId: "owner-later", role: "owner", createdAt: "2026-01-02T00:00:00.000Z" }));

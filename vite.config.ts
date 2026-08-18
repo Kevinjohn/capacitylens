@@ -144,11 +144,14 @@ export default defineConfig(({ mode }) => {
           // Paraglide-generated message/runtime code (P1.5.1) — not hand-written, not under test.
           "src/paraglide/**",
         ],
+        // Ratcheted 2026-08-18 against a measured 94.15% statements / 89.34% branches /
+        // 93.86% functions / 96.11% lines; kept just below so the gate catches
+        // regressions without flaking on small refactors.
         thresholds: {
-          statements: 84,
-          branches: 78,
-          functions: 85,
-          lines: 86,
+          statements: 92,
+          branches: 87,
+          functions: 92,
+          lines: 94,
         },
       },
     },

@@ -74,6 +74,19 @@ function markSsoCutoverActivated(db: Db, applicationId = "conformance-app"): voi
   );
 }
 
+const repairAudit = (id: string, action: "identity.email_corrected" | "identity.federated_link_removed") => ({
+  id,
+  occurredAt: NOW,
+  applicationId: "conformance-app",
+  workspaceId: "workspace-1",
+  actorPrincipalId: "owner-1",
+  targetPrincipalId: "principal-1",
+  commandId: null,
+  action,
+  outcome: "success" as const,
+  changedFields: ["identity"],
+});
+
 describe("local IdentityPort conformance", () => {
   let db: Db;
 
@@ -388,6 +401,61 @@ describe("local IdentityPort conformance", () => {
     expect(db.prepare(`SELECT id FROM verification WHERE id = 'malformed-link'`).get()).toEqual({
       id: "malformed-link",
     });
+  });
+
+  it.each([
+    ["non-object link", JSON.stringify({ link: "principal-1" })],
+    ["non-finite user id", JSON.stringify({ link: { userId: null } })],
+    ["object user id", JSON.stringify({ link: { userId: { id: "principal-1" } } })],
+  ])("fails closed on a %s in structured verification state", async (_name, value) => {
+    insertIdentityUser(db, sessionUser.id, sessionUser.name, sessionUser.email);
+    insertVerification(db, "malformed-link", value);
+    const port = identityPort({ auth: auth(async () => null) });
+
+    await expect(
+      port.deprovisionLocalPrincipal({
+        principalId: sessionUser.id,
+        reason: "identity-erasure",
+        command: { commandId: "malformed-command", idempotencyKey: "malformed-key" },
+      }),
+    ).rejects.toMatchObject({
+      failure: { code: "DEPENDENCY_INVALID_RESPONSE", commandId: "malformed-command" },
+    });
+    expect(db.prepare(`SELECT id FROM user WHERE id = ?`).get(sessionUser.id)).toEqual({ id: sessionUser.id });
+    expect(db.prepare(`SELECT id FROM verification`).all()).toEqual([{ id: "malformed-link" }]);
+  });
+
+  it("clears assurance while revoking zero sessions when the provider session table is absent", async () => {
+    const isolatedDb = openDb(":memory:");
+    try {
+      isolatedDb.exec(`
+        CREATE TABLE user (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          email TEXT NOT NULL UNIQUE,
+          emailVerified INTEGER NOT NULL,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL
+        );
+      `);
+      insertIdentityUser(isolatedDb, "principal-1", "One", "old@example.com");
+      recordSessionAssurance(isolatedDb, "assurance-only", "principal-1", "password");
+      const port = identityPort({ auth: auth(async () => null), db: isolatedDb });
+
+      await port.correctPrincipalEmail({
+        principalId: "principal-1",
+        email: "new@example.com",
+        authorizeInTransaction: vi.fn(),
+        audit: repairAudit("no-session-table-audit", "identity.email_corrected"),
+      });
+
+      expect(isolatedDb.prepare(`SELECT sessionId FROM account_session_assurance`).all()).toEqual([]);
+      expect(isolatedDb.prepare(`SELECT email FROM user WHERE id = 'principal-1'`).get()).toEqual({
+        email: "new@example.com",
+      });
+    } finally {
+      isolatedDb.close();
+    }
   });
 
   it("scans only structured verification candidates once when deprovisioning a principal set", async () => {
@@ -934,6 +1002,259 @@ describe("local IdentityPort conformance", () => {
       authMode: "sso",
     });
     await expect(failed.verifyApplicationSession({ headers: new Headers() })).rejects.toMatchObject({
+      failure: { code: "DEPENDENCY_UNAVAILABLE", retryable: true },
+    });
+  });
+
+  it("rejects a provider-link coordinate whose subject changed after inspection", async () => {
+    insertIdentityUser(db, "principal-1", "One", "one@example.com");
+    insertIdentityAccount(db, "link-1", "sso", "actual-subject", "principal-1");
+    const port = identityPort({ auth: auth(async () => null) });
+
+    await expect(
+      port.removeFederatedLinkForStoppedRepair({
+        principalId: "principal-1",
+        providerId: "sso",
+        rowId: "link-1",
+        subject: "stale-subject",
+        audit: repairAudit("stale-coordinate-audit", "identity.federated_link_removed"),
+      }),
+    ).rejects.toMatchObject({ failure: { code: "CONFLICT" } });
+    expect(db.prepare(`SELECT id FROM account WHERE id = 'link-1'`).get()).toEqual({ id: "link-1" });
+  });
+
+  it("rejects a provider-link removal when the conditional delete loses a race", async () => {
+    insertIdentityUser(db, "principal-1", "One", "one@example.com");
+    insertIdentityAccount(db, "link-1", "sso", "subject-1", "principal-1");
+    db.exec(`
+      CREATE TRIGGER ignore_test_link_delete
+      BEFORE DELETE ON account
+      WHEN OLD.id = 'link-1'
+      BEGIN
+        SELECT RAISE(IGNORE);
+      END;
+    `);
+    const port = identityPort({ auth: auth(async () => null) });
+
+    await expect(
+      port.removeFederatedLinkForStoppedRepair({
+        principalId: "principal-1",
+        providerId: "sso",
+        rowId: "link-1",
+        subject: "subject-1",
+        audit: repairAudit("lost-delete-audit", "identity.federated_link_removed"),
+      }),
+    ).rejects.toMatchObject({ failure: { code: "CONFLICT" } });
+  });
+
+  it("reports missing identities and a lost email-update race as NOT_FOUND", async () => {
+    const port = identityPort({ auth: auth(async () => null) });
+    await expect(
+      port.correctPrincipalEmail({
+        principalId: "absent",
+        email: "new@example.com",
+        authorizeInTransaction: vi.fn(),
+        audit: repairAudit("missing-email-audit", "identity.email_corrected"),
+      }),
+    ).rejects.toMatchObject({ failure: { code: "NOT_FOUND" } });
+
+    insertIdentityUser(db, "principal-1", "One", "old@example.com");
+    db.exec(`
+      CREATE TRIGGER ignore_test_email_update
+      BEFORE UPDATE OF email ON user
+      WHEN OLD.id = 'principal-1'
+      BEGIN
+        SELECT RAISE(IGNORE);
+      END;
+    `);
+    await expect(
+      port.correctPrincipalEmail({
+        principalId: "principal-1",
+        email: "new@example.com",
+        authorizeInTransaction: vi.fn(),
+        audit: repairAudit("lost-update-audit", "identity.email_corrected"),
+      }),
+    ).rejects.toMatchObject({ failure: { code: "NOT_FOUND" } });
+  });
+
+  it("maps both pre-write and driver-level email collisions", async () => {
+    insertIdentityUser(db, "principal-1", "One", "one@example.com");
+    insertIdentityUser(db, "principal-2", "Two", "two@example.com");
+    const port = identityPort({ auth: auth(async () => null) });
+    await expect(
+      port.correctPrincipalEmail({
+        principalId: "principal-1",
+        email: "two@example.com",
+        authorizeInTransaction: vi.fn(),
+        audit: repairAudit("collision-audit", "identity.email_corrected"),
+      }),
+    ).rejects.toMatchObject({ failure: { code: "IDENTITY_ALREADY_EXISTS" } });
+
+    db.exec(`
+      CREATE TRIGGER simulate_email_collision_race
+      BEFORE UPDATE OF email ON user
+      WHEN OLD.id = 'principal-1'
+      BEGIN
+        INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
+        VALUES ('racing-principal', 'Racer', NEW.email, 1, '${NOW}', '${NOW}');
+      END;
+    `);
+    await expect(
+      port.correctPrincipalEmail({
+        principalId: "principal-1",
+        email: "raced@example.com",
+        authorizeInTransaction: vi.fn(),
+        audit: repairAudit("race-collision-audit", "identity.email_corrected"),
+      }),
+    ).rejects.toMatchObject({ failure: { code: "IDENTITY_ALREADY_EXISTS" } });
+  });
+
+  it("rejects ambiguous, unbound, and non-federated SSO session assurance", async () => {
+    insertIdentityUser(db, sessionUser.id, sessionUser.name, sessionUser.email);
+    const resolved = async () => ({
+      user: sessionUser,
+      session: { id: "session-1", createdAt: NOW, expiresAt: LATER },
+    });
+
+    insertIdentityAccount(db, "link-1", "sso", "subject-1", sessionUser.id);
+    bindFederatedProvider(db, "conformance-app", "https://issuer.example", "sso");
+    recordSessionAssurance(db, "session-1", sessionUser.id, "federated", "sso");
+    const ambiguousDb = new Proxy(db, {
+      get(target, property) {
+        if (property === "prepare") {
+          return (sql: string) => {
+            const statement = target.prepare(sql);
+            if (/SELECT providerId, accountId[\s\S]*LIMIT 2/.test(sql)) {
+              return new Proxy(statement, {
+                get(statementTarget, statementProperty) {
+                  if (statementProperty === "all") {
+                    return () => [
+                      { providerId: "sso", accountId: "subject-1" },
+                      { providerId: "sso", accountId: "subject-2" },
+                    ];
+                  }
+                  const value = Reflect.get(statementTarget, statementProperty, statementTarget) as unknown;
+                  return typeof value === "function" ? value.bind(statementTarget) : value;
+                },
+              });
+            }
+            return statement;
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as Db;
+    await expect(
+      identityPort({ auth: auth(resolved), authMode: "sso", db: ambiguousDb }).verifyApplicationSession({
+        headers: new Headers(),
+      }),
+    ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_INVALID_RESPONSE" } });
+
+    const unboundAuth = auth(resolved);
+    unboundAuth.federatedIssuers = new Map();
+    await expect(
+      identityPort({ auth: unboundAuth, authMode: "sso" }).verifyApplicationSession({ headers: new Headers() }),
+    ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_INVALID_RESPONSE" } });
+
+    recordSessionAssurance(db, "session-1", sessionUser.id, "password");
+    await expect(
+      identityPort({ auth: auth(resolved), authMode: "sso" }).verifyApplicationSession({ headers: new Headers() }),
+    ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_INVALID_RESPONSE" } });
+  });
+
+  it("refuses one federated subject mapped to multiple local principals", async () => {
+    insertIdentityUser(db, "principal-1", "One", "one@example.com");
+    insertIdentityUser(db, "principal-2", "Two", "two@example.com");
+    insertIdentityAccount(db, "link-1", "sso", "shared-subject", "principal-1");
+    bindFederatedProvider(db, "conformance-app", "https://issuer.example", "sso");
+    const ambiguousDb = new Proxy(db, {
+      get(target, property) {
+        if (property === "prepare") {
+          return (sql: string) => {
+            const statement = target.prepare(sql);
+            if (/SELECT u\.id, u\.name, u\.email[\s\S]*LIMIT 2/.test(sql)) {
+              return new Proxy(statement, {
+                get(statementTarget, statementProperty) {
+                  if (statementProperty === "all") {
+                    return () => [
+                      { id: "principal-1", name: "One", email: "one@example.com" },
+                      { id: "principal-2", name: "Two", email: "two@example.com" },
+                    ];
+                  }
+                  const value = Reflect.get(statementTarget, statementProperty, statementTarget) as unknown;
+                  return typeof value === "function" ? value.bind(statementTarget) : value;
+                },
+              });
+            }
+            return statement;
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as Db;
+    const port = identityPort({ auth: auth(async () => null), db: ambiguousDb });
+
+    await expect(
+      port.findPrincipalByFederatedSubject({
+        subject: { issuer: "https://issuer.example", subject: "shared-subject" },
+      }),
+    ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_INVALID_RESPONSE" } });
+  });
+
+  it.each([
+    [
+      "summaries",
+      (port: ReturnType<typeof betterAuthIdentityPort>) => port.getPrincipalSummaries({ principalIds: ["p"] }),
+    ],
+    [
+      "federated lookup",
+      (port: ReturnType<typeof betterAuthIdentityPort>) =>
+        port.findPrincipalByFederatedSubject({ subject: { issuer: "https://issuer.example", subject: "subject" } }),
+    ],
+    [
+      "session listing",
+      (port: ReturnType<typeof betterAuthIdentityPort>) =>
+        port.listSessions({
+          actor: { principalId: "p", sessionId: "s", assurance: "password", fresh: true, mfaSatisfied: false },
+        }),
+    ],
+    [
+      "session revocation",
+      (port: ReturnType<typeof betterAuthIdentityPort>) =>
+        port.revokeOwnSession({
+          actor: { principalId: "p", sessionId: "s", assurance: "password", fresh: true, mfaSatisfied: false },
+          sessionId: "s",
+          command: { commandId: "c", idempotencyKey: "k" },
+        }),
+    ],
+    [
+      "password reset issuance",
+      (port: ReturnType<typeof betterAuthIdentityPort>) =>
+        port.issuePasswordReset({ targetPrincipalId: "p", command: { commandId: "c", idempotencyKey: "k" } }),
+    ],
+    [
+      "password reset revocation",
+      (port: ReturnType<typeof betterAuthIdentityPort>) =>
+        port.revokePasswordResetCeremony({
+          targetPrincipalId: "p",
+          ceremonyId: "ceremony",
+          command: { commandId: "c", idempotencyKey: "k" },
+        }),
+    ],
+    [
+      "principal session revocation",
+      (port: ReturnType<typeof betterAuthIdentityPort>) =>
+        port.revokePrincipalSessions({ targetPrincipalId: "p", command: { commandId: "c", idempotencyKey: "k" } }),
+    ],
+  ])("maps a closed identity database during %s", async (_name, invoke) => {
+    const closedDb = openDb(":memory:");
+    await identityTables(closedDb);
+    const port = identityPort({ auth: auth(async () => null), db: closedDb });
+    closedDb.close();
+
+    await expect(invoke(port)).rejects.toMatchObject({
       failure: { code: "DEPENDENCY_UNAVAILABLE", retryable: true },
     });
   });

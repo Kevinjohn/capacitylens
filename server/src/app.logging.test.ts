@@ -42,6 +42,51 @@ describe("CAPACITYLENS_LOG on", () => {
   });
 });
 
+describe("server error containment", () => {
+  it("records an unexpected 5xx security event and returns no exception internals", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const events: Array<Record<string, unknown>> = [];
+    const app = buildApp(openDb(":memory:"), { securityLog: (event) => events.push(event) });
+    app.get("/test/unexpected-error", async () => {
+      throw Object.assign(new Error("SENTINEL_PRIVATE_EXCEPTION"), { statusCode: 503 });
+    });
+
+    const response = await app.inject({ method: "GET", url: "/test/unexpected-error" });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual({ error: "Internal server error" });
+    expect(response.body).not.toContain("SENTINEL_PRIVATE_EXCEPTION");
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        event: "unexpected_error",
+        outcome: "failure",
+        method: "GET",
+        path: "/test/unexpected-error",
+        status: 503,
+      }),
+    );
+    await app.close();
+  });
+
+  it.each(["/api/state", "/api/auth/me"])(
+    "distinguishes an auth backend failure from no session on %s",
+    async (url) => {
+      const db = openDb(":memory:");
+      const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+      await runAuthMigrations(auth!);
+      vi.spyOn(auth!.api, "getSession").mockRejectedValue(new Error("identity backend unavailable"));
+      const app = buildApp(db, { authMode: mode, auth });
+
+      const response = await call(app, { method: "GET", url });
+
+      expect(response.statusCode).toBe(503);
+      expect(response.json()).toMatchObject({ error: "Sign-in is temporarily unavailable." });
+      await app.close();
+      db.close();
+    },
+  );
+});
+
 describe("CAPACITYLENS_LOG redaction (P0.5.5)", () => {
   it("wires remove:true to every secret header path before serializers run", () => {
     expect(requestLoggerOptions().redact).toEqual({
