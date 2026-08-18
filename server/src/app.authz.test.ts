@@ -1356,6 +1356,47 @@ describe("P1.5 authorize — OFF mode stays allow-all/no-op (the #1 invariant)",
   });
 });
 
+describe("batch ownership checks after authorization", () => {
+  it.each([
+    {
+      name: "PUT",
+      op: { method: "PUT", table: "clients", id: "c2", row: client("c2", "a1") },
+    },
+    {
+      name: "ARCHIVE",
+      op: { method: "ARCHIVE", table: "clients", id: "c2", accountId: "a1", updatedAt: TS },
+    },
+    {
+      name: "DELETE",
+      op: { method: "DELETE", table: "timeOff", id: "to-a2", accountId: "a1" },
+    },
+  ])("returns NOT_FOUND for a $name targeting another account's row", async ({ op }) => {
+    const { app, db } = await appWithAuth({ multiAccount: true });
+    seedTwo(db);
+    const { cookie, userId } = await signUp(app, `batch-owned-${op.method.toLowerCase()}@capacitylens.dev`);
+    upsertMember(db, {
+      accountId: "a1",
+      userId,
+      role: "admin",
+      status: "active",
+      createdAt: TS,
+    });
+
+    const response = await call(app, {
+      method: "POST",
+      url: "/api/batch",
+      payload: { ops: [op] },
+      headers: { cookie },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "NOT_FOUND" });
+    expect(getRow(db, op.table, op.id)).toMatchObject({ accountId: "a2" });
+    await app.close();
+    db.close();
+  });
+});
+
 describe("P1.5 access matrix sanity (pure can()) — companion to access.test.ts", () => {
   // The route gate above proves read/write tiers end-to-end; pin the remaining distinctions directly
   // against the pure authority too, including record purge vs whole-account deletion.

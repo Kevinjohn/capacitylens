@@ -456,6 +456,33 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
 
+  it("guards provider-link initiation when no strict provider exists or the session principal does not match", async () => {
+    const passwordDb = openDb(":memory:");
+    const password = authFromEnv(passwordDb, PASSWORD_ENV);
+    await runAuthMigrations(password.auth!);
+    await expect(
+      password.auth!.beginFederatedLink!({
+        headers: new Headers(),
+        principalId: "principal-1",
+        callbackURL: "http://localhost:8787/settings",
+        errorCallbackURL: "http://localhost:8787/settings",
+      }),
+    ).rejects.toMatchObject({ body: { code: "PROVIDER_NOT_FOUND" } });
+
+    const strictDb = openDb(":memory:");
+    const strict = authFromEnv(strictDb, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
+    await runAuthMigrations(strict.auth!);
+    await expect(
+      strict.auth!.beginFederatedLink!({
+        headers: new Headers(),
+        principalId: "different-principal",
+        callbackURL: "http://localhost:8787/settings",
+        errorCallbackURL: "http://localhost:8787/settings",
+      }),
+    ).rejects.toMatchObject({ body: { code: "SESSION_EXPIRED" } });
+    expect(strictDb.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
+  });
+
   it("rejects an untrusted link return URL before persisting a ceremony", async () => {
     const db = openDb(":memory:");
     const configured = authFromEnv(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
@@ -481,6 +508,35 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(response.json().code).toBe("INVALID_CALLBACK_URL");
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
+
+  it.each(["not an absolute URL", "http://user:password@localhost:8787/settings"])(
+    "rejects malformed or credentialed link return URL %j before persisting a ceremony",
+    async (callbackURL) => {
+      const db = openDb(":memory:");
+      const configured = authFromEnv(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
+      await runAuthMigrations(configured.auth!);
+      const app = buildApp(db, { authMode: "password", auth: configured.auth });
+      const signUp = await call(app, {
+        method: "POST",
+        url: "/api/auth/sign-up/email",
+        payload: { email: `link-url-${callbackURL.length}@example.com`, password: "password-123456", name: "Linker" },
+      });
+
+      const response = await call(app, {
+        method: "POST",
+        url: "/api/identity/link-provider",
+        headers: { cookie: cookiesOf(signUp) },
+        payload: {
+          callbackURL,
+          errorCallbackURL: "http://localhost:8787/settings",
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json().code).toBe("INVALID_CALLBACK_URL");
+      expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
+    },
+  );
 
   it("forwards the signed OAuth state cookie when a provider-link ceremony starts", async () => {
     const db = openDb(":memory:");
@@ -1016,6 +1072,127 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(db.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(stored.token)).toEqual({ updatedAt: newer });
   });
 
+  it("destroys a session resolved with a non-finite activity timestamp", async () => {
+    const db = openDb(":memory:");
+    db.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
+    db.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run("invalid-resolved", TS);
+
+    await expect(
+      enforceSessionActivity({ session: { token: "invalid-resolved", updatedAt: "not-a-timestamp" } }, db),
+    ).resolves.toBeNull();
+    expect(db.prepare(`SELECT token FROM session`).all()).toEqual([]);
+  });
+
+  it.each([
+    ["a vanished row", false],
+    ["an unparseable stored timestamp", true],
+  ])("fails closed for idle expiry with %s", async (_name, insertMalformed) => {
+    const db = openDb(":memory:");
+    db.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
+    if (insertMalformed) {
+      db.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run("idle-invalid", "not-a-timestamp");
+    }
+    const expired = Date.now() - (SESSION_INACTIVITY_TTL_SECONDS + 1) * 1_000;
+
+    await expect(
+      enforceSessionActivity({ session: { token: "idle-invalid", updatedAt: new Date(expired) } }, db),
+    ).resolves.toBeNull();
+    expect(db.prepare(`SELECT token FROM session`).all()).toEqual([]);
+  });
+
+  it("adopts a concurrent touch when the idle-expiry CAS delete loses", async () => {
+    const raw = openDb(":memory:");
+    raw.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
+    const expired = new Date(Date.now() - (SESSION_INACTIVITY_TTL_SECONDS + 1) * 1_000).toISOString();
+    const winner = new Date().toISOString();
+    raw.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run("idle-cas", expired);
+    const raced = new Proxy(raw, {
+      get(target, property) {
+        if (property === "prepare") {
+          return (sql: string) => {
+            const statement = target.prepare(sql);
+            if (/DELETE FROM session WHERE token = \? AND updatedAt = \?/.test(sql)) {
+              return new Proxy(statement, {
+                get(statementTarget, statementProperty) {
+                  if (statementProperty === "run") {
+                    return () => {
+                      target.prepare(`UPDATE session SET updatedAt = ? WHERE token = ?`).run(winner, "idle-cas");
+                      return { changes: 0 };
+                    };
+                  }
+                  const value = Reflect.get(statementTarget, statementProperty, statementTarget) as unknown;
+                  return typeof value === "function" ? value.bind(statementTarget) : value;
+                },
+              });
+            }
+            return statement;
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as typeof raw;
+
+    const session = { session: { token: "idle-cas", updatedAt: new Date(expired) } };
+    await expect(enforceSessionActivity(session, raced)).resolves.toBe(session);
+    expect(session.session.updatedAt.getTime()).toBe(Date.parse(winner));
+  });
+
+  it.each([
+    ["a vanished row", false],
+    ["an unparseable stored timestamp", true],
+  ])("fails closed on the activity-touch path with %s", async (_name, insertMalformed) => {
+    const db = openDb(":memory:");
+    db.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
+    if (insertMalformed) {
+      db.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run("touch-invalid", "not-a-timestamp");
+    }
+    const stale = Date.now() - 2 * 60 * 1_000;
+
+    await expect(
+      enforceSessionActivity({ session: { token: "touch-invalid", updatedAt: new Date(stale) } }, db),
+    ).resolves.toBeNull();
+    expect(db.prepare(`SELECT token FROM session`).all()).toEqual([]);
+  });
+
+  it("adopts the winner when the activity-touch CAS loses", async () => {
+    const raw = openDb(":memory:");
+    raw.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
+    const stale = new Date(Date.now() - 2 * 60 * 1_000).toISOString();
+    const winner = new Date(Date.now() + 1_000).toISOString();
+    raw.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run("touch-cas", stale);
+    const raced = new Proxy(raw, {
+      get(target, property) {
+        if (property === "prepare") {
+          return (sql: string) => {
+            const statement = target.prepare(sql);
+            if (/UPDATE session SET updatedAt = \? WHERE token = \? AND updatedAt = \?/.test(sql)) {
+              return new Proxy(statement, {
+                get(statementTarget, statementProperty) {
+                  if (statementProperty === "run") {
+                    return () => {
+                      target.prepare(`UPDATE session SET updatedAt = ? WHERE token = ?`).run(winner, "touch-cas");
+                      return { changes: 0 };
+                    };
+                  }
+                  const value = Reflect.get(statementTarget, statementProperty, statementTarget) as unknown;
+                  return typeof value === "function" ? value.bind(statementTarget) : value;
+                },
+              });
+            }
+            return statement;
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as typeof raw;
+
+    const session = { session: { token: "touch-cas", updatedAt: new Date(stale) } };
+    await expect(enforceSessionActivity(session, raced)).resolves.toBe(session);
+    expect(session.session.updatedAt.getTime()).toBe(Date.parse(winner));
+  });
+
   it("sign-out invalidates the session again", async () => {
     const app = await appWithAuth(PASSWORD_ENV);
     const signUp = await call(app, {
@@ -1545,6 +1722,16 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
 
     await expect(createBootstrapAdmin(db, mode, auth, () => {})).rejects.toThrow(
       /requires CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD/,
+    );
+    expect(countUsers(db)).toBe(0);
+  });
+
+  it.each(["short", "x".repeat(1_000)])("rejects an out-of-range operator bootstrap password", async (password) => {
+    vi.stubEnv("CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD", password);
+    const { db, mode, auth } = await bootstrapFixture();
+
+    await expect(createBootstrapAdmin(db, mode, auth, () => {})).rejects.toThrow(
+      /CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD must be/,
     );
     expect(countUsers(db)).toBe(0);
   });
