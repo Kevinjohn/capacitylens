@@ -12,7 +12,7 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 import { EXTERNAL_NAVIGATION_TIMEOUT_MS } from "./externalSignIn";
 
 const authClientMock = vi.hoisted(() => ({
-  signInEmail: vi.fn(async () => ({ error: null })),
+  signInEmail: vi.fn(async (): Promise<{ error: { message?: string } | null }> => ({ error: null })),
   signInOauth2: vi.fn(async () => ({ error: null })),
   signInSocial: vi.fn(async (input?: { fetchOptions?: { signal?: AbortSignal } }) => {
     void input;
@@ -52,6 +52,7 @@ vi.mock("../../lib/joinedAccountHandoff", async (importOriginal) => ({
 vi.mock("../../lib/reloadPage", () => reloadMock);
 
 beforeEach(() => {
+  window.history.replaceState({}, "", "/");
   vi.clearAllMocks();
   apiConfigMock.isServerConfigured.mockReturnValue(true);
 });
@@ -83,9 +84,9 @@ const signedInAuth: AuthContextValue = {
   signOut: async () => {},
 };
 
-function renderInvite(auth?: AuthContextValue, strict = false) {
+function renderInvite(auth?: AuthContextValue, strict = false, path = "/invite/secret-token") {
   const content = (
-    <MemoryRouter initialEntries={["/invite/secret-token"]}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/invite/:token" element={<InviteAccept />} />
         <Route path="/" element={<div data-testid="app-route">App</div>} />
@@ -97,6 +98,12 @@ function renderInvite(auth?: AuthContextValue, strict = false) {
 }
 
 describe("InviteAccept preview and acceptance", () => {
+  async function fillInviteCredentials(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByLabelText("Name"), "New Person");
+    await user.type(screen.getByLabelText("Email"), "new@example.com");
+    await user.type(screen.getByLabelText("Password"), "invite-password-123");
+  }
+
   it("identifies the signed-in account and offers to switch without losing the invite route", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
     const signOut = vi.fn(async () => {});
@@ -171,6 +178,26 @@ describe("InviteAccept preview and acceptance", () => {
       expect.objectContaining({ credentials: "include" }),
     );
     expect(fetchMock.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === "POST")).toBe(false);
+  });
+
+  it("strips an external sign-in error marker and surfaces stable SSO failure copy", async () => {
+    window.history.replaceState({}, "", "/invite/secret-token?externalSignInError=1&error=provider-secret");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+
+    renderInvite(
+      {
+        ...signedInAuth,
+        authMode: "sso",
+        user: null,
+        providers: [{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }],
+      },
+      false,
+      "/invite/secret-token?externalSignInError=1&error=provider-secret",
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_sso_failed());
+    expect(screen.getByRole("alert")).not.toHaveTextContent("provider-secret");
+    await vi.waitFor(() => expect(window.location.search).toBe(""));
   });
 
   it.each([
@@ -448,6 +475,53 @@ describe("InviteAccept preview and acceptance", () => {
     ).toHaveLength(1);
   });
 
+  it.each([
+    [true, m.invite_invalid_result_refreshed()],
+    [false, m.invite_invalid_result_refresh_failed()],
+  ])("reconciles an invalid successful accept result (accounts success: %s)", async (accountsOk, expected) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse();
+      if (url.endsWith("/accept") && init?.method === "POST") return Response.json({});
+      if (url.endsWith("/api/accounts")) {
+        return accountsOk ? Response.json([]) : Response.json({ error: "unavailable" }, { status: 500 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite(signedInAuth);
+    await user.click(await screen.findByRole("button", { name: "Accept invite" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+    expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/api/accounts"))).toBe(true);
+  });
+
+  it.each([
+    [true, m.invite_unknown_outcome_refreshed()],
+    [false, m.invite_unknown_outcome_refresh_failed()],
+  ])("reconciles a rejected accept request and offers Retry (accounts success: %s)", async (accountsOk, expected) => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse();
+      if (url.endsWith("/accept") && init?.method === "POST") throw new TypeError("offline");
+      if (url.endsWith("/api/accounts")) {
+        return accountsOk ? Response.json([]) : Response.json({ error: "unavailable" }, { status: 500 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite(signedInAuth);
+    await user.click(await screen.findByRole("button", { name: "Accept invite" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+    expect(screen.getByRole("button", { name: m.invite_retry_accept() })).toBeEnabled();
+  });
+
   it("keeps a confirmed join when the follow-up company activation refresh rejects", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.spyOn(useStore.getState(), "setAccountSummaries").mockImplementationOnce(() => {
@@ -580,6 +654,123 @@ describe("InviteAccept preview and acceptance", () => {
     await user.click(screen.getByRole("button", { name: m.common_try_again() }));
     expect(await screen.findByTestId("invite-preview")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("submits the existing-user sign-in form and reloads after success", async () => {
+    authClientMock.signInEmail.mockResolvedValueOnce({ error: null });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    const user = userEvent.setup();
+
+    renderInvite({ ...signedInAuth, user: null });
+    await screen.findByTestId("invite-preview");
+    await user.type(screen.getByLabelText("Email"), "existing@example.com");
+    await user.type(screen.getByLabelText("Password"), "existing-password-123");
+    await user.click(screen.getByRole("button", { name: m.invite_sign_in_accept() }));
+
+    await vi.waitFor(() => expect(reloadMock.reloadPage).toHaveBeenCalledOnce());
+    expect(authClientMock.signInEmail).toHaveBeenCalledWith({
+      email: "existing@example.com",
+      password: "existing-password-123",
+    });
+  });
+
+  it("surfaces an existing-user sign-in failure and re-enables the form", async () => {
+    authClientMock.signInEmail.mockResolvedValueOnce({ error: { message: "Invalid email or password." } });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    const user = userEvent.setup();
+
+    renderInvite({ ...signedInAuth, user: null });
+    await screen.findByTestId("invite-preview");
+    await user.type(screen.getByLabelText("Email"), "existing@example.com");
+    await user.type(screen.getByLabelText("Password"), "wrong-password-123");
+    await user.click(screen.getByRole("button", { name: m.invite_sign_in_accept() }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid email or password.");
+    expect(screen.getByRole("button", { name: m.invite_sign_in_accept() })).toBeEnabled();
+    expect(reloadMock.reloadPage).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the account picker when post-signup account refresh fails", async () => {
+    authClientMock.signInEmail.mockResolvedValueOnce({ error: null });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse();
+      if (url.endsWith("/signup") && init?.method === "POST") {
+        return Response.json({ accountId: "joined-account", role: "editor" }, { status: 201 });
+      }
+      if (url.endsWith("/api/accounts")) return Response.json({ error: "unavailable" }, { status: 500 });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ ...signedInAuth, user: null, refreshAuth: vi.fn(async () => {}) });
+    await screen.findByTestId("invite-preview");
+    await fillInviteCredentials(user);
+    await user.click(screen.getByRole("button", { name: m.invite_create_account() }));
+
+    await vi.waitFor(() => expect(handoffMock.replaceWithAccountPicker).toHaveBeenCalledOnce());
+    expect(handoffMock.replaceWithJoinedAccount).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a provider request rejection and re-enables the provider button", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    authClientMock.signInOauth2.mockRejectedValueOnce(new TypeError("offline"));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    renderInvite({
+      ...signedInAuth,
+      authMode: "sso",
+      user: null,
+      providers: [{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }],
+    });
+
+    const button = await screen.findByRole("button", {
+      name: m.invite_continue_provider({ provider: "Single sign-on" }),
+    });
+    fireEvent.click(button);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
+    expect(button).toBeEnabled();
+  });
+
+  it("rejects a successful signup response without an account result before signing in", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse();
+      if (url.endsWith("/signup") && init?.method === "POST") return Response.json({}, { status: 201 });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ ...signedInAuth, user: null });
+    await screen.findByTestId("invite-preview");
+    await fillInviteCredentials(user);
+    await user.click(screen.getByRole("button", { name: m.invite_create_account() }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.invite_signup_invalid_result());
+    expect(authClientMock.signInEmail).not.toHaveBeenCalled();
+  });
+
+  it("uses the login fallback when post-signup sign-in fails without a message", async () => {
+    authClientMock.signInEmail.mockResolvedValueOnce({ error: {} });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse();
+      if (url.endsWith("/signup") && init?.method === "POST") {
+        return Response.json({ accountId: "joined-account", role: "editor" }, { status: 201 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ ...signedInAuth, user: null });
+    await screen.findByTestId("invite-preview");
+    await fillInviteCredentials(user);
+    await user.click(screen.getByRole("button", { name: m.invite_create_account() }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_failed());
   });
 
   it("reloads the same invite after a transport-unknown signup signs in successfully", async () => {
