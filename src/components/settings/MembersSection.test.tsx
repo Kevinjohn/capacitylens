@@ -140,6 +140,41 @@ async function saveRoleVia(user: User, row: HTMLElement, option: string): Promis
   await user.click(within(dialog).getByTestId("member-role-save"));
 }
 
+async function findMemberRow(email: RegExp): Promise<HTMLElement> {
+  return (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(email))!;
+}
+
+async function confirmMemberAction(
+  user: User,
+  row: HTMLElement,
+  testId: string,
+  confirmationName: RegExp | string,
+): Promise<void> {
+  await chooseMemberAction(user, row, testId);
+  await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: confirmationName }));
+}
+
+const ownerAndEditor: RawMember[] = [
+  { userId: "owner", role: "owner" },
+  { userId: "me", role: "admin", isSelf: true, mayRevokeSessions: true },
+  { userId: "ed", role: "editor", mayResetPassword: true, mayRevokeSessions: true },
+];
+
+function stubPageReload(): ReturnType<typeof vi.fn> {
+  const reload = vi.fn();
+  const windowStub = Object.create(window) as Window;
+  Object.defineProperty(windowStub, "location", {
+    configurable: true,
+    value: { ...window.location, reload },
+  });
+  vi.stubGlobal("window", windowStub);
+  return reload;
+}
+
+async function expectNotice(message: RegExp): Promise<void> {
+  await waitFor(() => expect(useStore.getState().notice?.message).toMatch(message));
+}
+
 beforeEach(() => {
   resetStoreWithAccount(); // sets activeAccountId = DEFAULT_ACCOUNT_ID
   setOfflineReadState("cleanup", false);
@@ -1069,6 +1104,348 @@ describe("MembersSection — member lifecycle", () => {
   });
 });
 
+describe("MembersSection — mutation failure reconciliation", () => {
+  it("closes the company when a successful self-role change cannot refresh account access", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockApi(ownerAndEditor, { "GET /api/accounts": () => jsonResponse({ error: "Unavailable." }, 500) }),
+    );
+    renderSection();
+
+    await saveRoleVia(userEvent.setup(), await findMemberRow(/me@x\.io/), "Editor");
+
+    await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
+    expect(useStore.getState().notice).toMatchObject({
+      message: m.settings_members_access_refresh_failed(),
+      tone: "error",
+    });
+  });
+
+  it("closes the company silently after a successful self-removal", async () => {
+    vi.stubGlobal("fetch", mockApi(ownerAndEditor));
+    renderSection();
+
+    await confirmMemberAction(userEvent.setup(), await findMemberRow(/me@x\.io/), "member-remove", "Remove");
+
+    await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
+    expect(useStore.getState().notice).toBeNull();
+  });
+
+  it("reports an authoritative reload failure after an unknown non-self mutation", async () => {
+    let mutationSent = false;
+    vi.stubGlobal(
+      "fetch",
+      mockApi(ownerAndEditor, {
+        "PATCH /members/ed": () => {
+          mutationSent = true;
+          return jsonResponse({ error: "Unknown." }, 503);
+        },
+        "GET /members": () =>
+          mutationSent
+            ? jsonResponse({ error: "Reload failed." }, 500)
+            : jsonResponse({ members: ownerAndEditor.map((member) => rawMember(member)) }),
+      }),
+    );
+    renderSection();
+
+    await saveRoleVia(userEvent.setup(), await findMemberRow(/ed@x\.io/), "Viewer");
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/Reload the page before retrying/i);
+    expect(alert).not.toHaveTextContent(/company access was refreshed/i);
+  });
+
+  it("does not publish a role result after the active account switches mid-request", async () => {
+    const nextAccountId = "acc_second";
+    vi.stubGlobal(
+      "fetch",
+      mockApi(ownerAndEditor, {
+        "PATCH /members/ed": () => {
+          useStore.setState({ activeAccountId: nextAccountId });
+          return new Response(null, { status: 204 });
+        },
+      }),
+    );
+    renderSection();
+
+    await saveRoleVia(userEvent.setup(), await findMemberRow(/ed@x\.io/), "Viewer");
+
+    await waitFor(() => expect(useStore.getState().activeAccountId).toBe(nextAccountId));
+    expect(useStore.getState().notice).toBeNull();
+  });
+
+  it("does not publish an unknown reconcile whose member reread switches accounts", async () => {
+    const nextAccountId = "acc_second";
+    let mutationSent = false;
+    vi.stubGlobal(
+      "fetch",
+      mockApi(ownerAndEditor, {
+        "PATCH /members/ed": () => {
+          mutationSent = true;
+          return jsonResponse({}, 503);
+        },
+        "GET /members": () => {
+          if (mutationSent) useStore.setState({ activeAccountId: nextAccountId });
+          return jsonResponse({ members: ownerAndEditor.map((member) => rawMember(member)) });
+        },
+      }),
+    );
+    renderSection();
+
+    await saveRoleVia(userEvent.setup(), await findMemberRow(/ed@x\.io/), "Viewer");
+
+    await waitFor(() => expect(useStore.getState().activeAccountId).toBe(nextAccountId));
+    expect(useStore.getState().notice).toBeNull();
+  });
+
+  it("leaves the newly selected company open when the account switches during self-refresh", async () => {
+    const nextAccountId = "acc_second";
+    const refreshAuth = vi.fn(async () => {
+      useStore.setState({ activeAccountId: nextAccountId });
+    });
+    vi.stubGlobal("fetch", mockApi(ownerAndEditor));
+    renderSection({ refreshAuth });
+
+    await saveRoleVia(userEvent.setup(), await findMemberRow(/me@x\.io/), "Editor");
+
+    await waitFor(() => expect(useStore.getState().activeAccountId).toBe(nextAccountId));
+    expect(useStore.getState().notice?.message).toBe(m.settings_members_role_updated());
+    expect(useStore.getState().notice?.tone).not.toBe("error");
+  });
+
+  it("does not close a newly selected company for a late self-mutation failure", async () => {
+    const nextAccountId = "acc_second";
+    let finish!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      mockApi(ownerAndEditor, {
+        "PATCH /members/me": () => new Promise<Response>((resolve) => (finish = resolve)),
+      }),
+    );
+    renderSection();
+    const roleChange = saveRoleVia(userEvent.setup(), await findMemberRow(/me@x\.io/), "Editor");
+    await waitFor(() => expect(finish).toBeTypeOf("function"));
+
+    act(() => useStore.setState({ activeAccountId: nextAccountId }));
+    await act(async () => finish(jsonResponse({ error: "Forbidden." }, 403)));
+
+    await roleChange;
+
+    expect(useStore.getState().activeAccountId).toBe(nextAccountId);
+    expect(useStore.getState().notice).toBeNull();
+  });
+
+  it.each([
+    ["rejected", () => jsonResponse({ error: "Tracking forbidden." }, 403), /Tracking forbidden\./],
+    ["transport", () => Promise.reject(new Error("tracking offline")), /Could not reach the server.*tracking offline/i],
+  ])("reloads the directory after a %s sign-in-tracking failure", async (_kind, response, expected) => {
+    let memberReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi(
+        [
+          { userId: "me", role: "owner", isSelf: true, signInConfirmed: true },
+          { userId: "ed", role: "editor", signInConfirmed: false },
+        ],
+        {
+          "GET /members": () => {
+            memberReads += 1;
+            return jsonResponse({
+              signInTrackingEnabled: false,
+              members: [
+                rawMember({ userId: "me", role: "owner", isSelf: true, signInConfirmed: false }),
+                rawMember({ userId: "ed", role: "editor", signInConfirmed: false }),
+              ],
+            });
+          },
+          "PUT /member-sign-in-tracking": response,
+        },
+      ),
+    );
+    renderSection();
+
+    await userEvent.setup().click(await screen.findByTestId("member-sign-in-tracking"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+    await waitFor(() => expect(memberReads).toBeGreaterThanOrEqual(2));
+    expect(screen.getByTestId("member-sign-in-tracking")).not.toBeChecked();
+  });
+
+  it.each([
+    [503, { error: "Uncertain." }, /unknown outcome/i, true],
+    [403, { error: "Role forbidden." }, /Role forbidden\./, false],
+  ])("handles a %s role-change response without claiming success", async (status, body, expected, reconciles) => {
+    let memberReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi(ownerAndEditor, {
+        "GET /members": () => {
+          memberReads += 1;
+          return jsonResponse({ members: ownerAndEditor.map((member) => rawMember(member)) });
+        },
+        "PATCH /members/ed": () => jsonResponse(body, status),
+      }),
+    );
+    renderSection();
+
+    await saveRoleVia(userEvent.setup(), await findMemberRow(/ed@x\.io/), "Viewer");
+
+    if (reconciles) await expectNotice(expected);
+    else expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+    expect(useStore.getState().notice?.message).not.toBe(m.settings_members_role_updated());
+    expect(memberReads).toBe(reconciles ? 2 : 1);
+  });
+
+  it.each([
+    [503, { error: "Uncertain." }, /unknown outcome/i, true],
+    [403, { error: "Last owner cannot be removed." }, /Last owner cannot be removed\./, false],
+  ])("handles a %s member-removal response without removing the row", async (status, body, expected, reconciles) => {
+    let memberReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi(ownerAndEditor, {
+        "GET /members": () => {
+          memberReads += 1;
+          return jsonResponse({ members: ownerAndEditor.map((member) => rawMember(member)) });
+        },
+        "DELETE /members/ed": () => jsonResponse(body, status),
+      }),
+    );
+    renderSection();
+
+    await confirmMemberAction(userEvent.setup(), await findMemberRow(/ed@x\.io/), "member-remove", "Remove");
+
+    if (reconciles) await expectNotice(expected);
+    else expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+    expect(screen.getByText(/ed@x\.io/)).toBeInTheDocument();
+    expect(memberReads).toBe(reconciles ? 2 : 1);
+  });
+
+  it("reconciles a 503 status change without claiming success", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockApi(ownerAndEditor, { "PATCH /members/ed/status": () => jsonResponse({ error: "Uncertain." }, 503) }),
+    );
+    renderSection();
+
+    await confirmMemberAction(userEvent.setup(), await findMemberRow(/ed@x\.io/), "member-disable", /disable/i);
+
+    await expectNotice(/unknown outcome.*reloaded/i);
+    expect(useStore.getState().notice?.message).not.toBe(m.settings_members_status_changed());
+  });
+
+  it("includes transport detail when a status change throws", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockApi(ownerAndEditor, {
+        "PATCH /members/ed/status": () => Promise.reject(new Error("status connection lost")),
+      }),
+    );
+    renderSection();
+
+    await confirmMemberAction(userEvent.setup(), await findMemberRow(/ed@x\.io/), "member-disable", /disable/i);
+
+    await expectNotice(/unknown outcome.*status connection lost.*reloaded/i);
+  });
+});
+
+describe("MembersSection — password reset and session failures", () => {
+  async function requestReset(): Promise<void> {
+    await confirmMemberAction(
+      userEvent.setup(),
+      await findMemberRow(/ed@x\.io/),
+      "member-reset-password",
+      "Reset password",
+    );
+  }
+
+  it.each([
+    [503, jsonResponse({ error: "Uncertain." }, 503), /reset-token request had an unknown outcome/i],
+    [200, new Response("not-json", { status: 200 }), /one-time value was lost/i],
+    [400, jsonResponse({ error: "Password mode is disabled." }, 400), /Password mode is disabled\./],
+    [201, jsonResponse({ token: "TOKEN" }, 201), /one-time value was lost/i],
+  ])("handles reset response case %s without rendering a link", async (_status, response, expected) => {
+    vi.stubGlobal("fetch", mockApi(ownerAndEditor, { "POST /members/ed/reset-password": () => response }));
+    renderSection();
+
+    await requestReset();
+
+    if (_status === 400) expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+    else await expectNotice(expected);
+    expect(screen.queryByTestId("reset-link")).not.toBeInTheDocument();
+  });
+
+  it("clears a prior reset link and reports detail when a reset request throws", async () => {
+    let attempts = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi(ownerAndEditor, {
+        "POST /members/ed/reset-password": () => {
+          attempts += 1;
+          return attempts === 1
+            ? jsonResponse({ token: "TOKEN", expiresAt: "2026-12-01T00:00:00.000Z" }, 201)
+            : Promise.reject(new Error("reset transport lost"));
+        },
+      }),
+    );
+    renderSection();
+    await requestReset();
+    expect(await screen.findByTestId("reset-link")).toBeInTheDocument();
+
+    await requestReset();
+
+    await expectNotice(/unknown outcome.*reset transport lost/i);
+    expect(screen.queryByTestId("reset-link")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [503, false, false, /unknown outcome/i],
+    [503, true, true, null],
+  ])("handles a 503 session revocation (status=%s, self=%s)", async (status, self, reloads, expected) => {
+    const reload = stubPageReload();
+    vi.stubGlobal(
+      "fetch",
+      mockApi(ownerAndEditor, {
+        [`POST /members/${self ? "me" : "ed"}/revoke-sessions`]: () => jsonResponse({}, status),
+      }),
+    );
+    renderSection();
+    const row = await findMemberRow(self ? /me@x\.io/ : /ed@x\.io/);
+
+    await confirmMemberAction(userEvent.setup(), row, "member-revoke-sessions", "Revoke sessions");
+
+    await waitFor(() => expect(reload).toHaveBeenCalledTimes(reloads ? 1 : 0));
+    if (expected) await expectNotice(expected);
+    else expect(useStore.getState().notice).toBeNull();
+  });
+
+  it.each([
+    [true, true],
+    [false, false],
+  ])("handles a thrown session revocation (self=%s)", async (self, reloads) => {
+    const reload = stubPageReload();
+    vi.stubGlobal(
+      "fetch",
+      mockApi(ownerAndEditor, {
+        [`POST /members/${self ? "me" : "ed"}/revoke-sessions`]: () =>
+          Promise.reject(new Error("session transport lost")),
+      }),
+    );
+    renderSection();
+
+    await confirmMemberAction(
+      userEvent.setup(),
+      await findMemberRow(self ? /me@x\.io/ : /ed@x\.io/),
+      "member-revoke-sessions",
+      "Revoke sessions",
+    );
+
+    await waitFor(() => expect(reload).toHaveBeenCalledTimes(reloads ? 1 : 0));
+    if (!self) await expectNotice(/unknown outcome.*session transport lost/i);
+    else expect(useStore.getState().notice).toBeNull();
+  });
+});
+
 describe("MembersSection — invite mint", () => {
   it("distinguishes reset-link and invitation-link copy controls when both are visible", async () => {
     const user = userEvent.setup();
@@ -1441,6 +1818,214 @@ describe("MembersSection — invite mint", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/one-time link was lost|unknown invite/i);
     expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
   });
+
+  it("requires a preauthorised email for an SSO-only invite without posting", async () => {
+    const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }]);
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection({ authMode: "sso" });
+
+    await userEvent.setup().click(await screen.findByTestId("invite-submit"));
+
+    const field = screen.getByTestId("invite-preauth");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(m.settings_sso_invite_email_required());
+    expect(field).toHaveAttribute("aria-describedby", alert.id);
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+  });
+
+  it.each([
+    [503, { error: "Invite uncertain." }, /unknown outcome.*reloaded/i, false],
+    [403, { error: "Invite forbidden." }, /Invite forbidden\./, true],
+  ])("handles a %s invite-create response on the current account", async (status, body, expected, fieldError) => {
+    vi.stubGlobal(
+      "fetch",
+      mockApi(ownerAndEditor, {
+        "POST /api/invites": () => jsonResponse(body, status),
+      }),
+    );
+    renderSection();
+
+    await userEvent.setup().click(await screen.findByTestId("invite-submit"));
+
+    const alert = fieldError ? await screen.findByRole("alert") : null;
+    if (fieldError) expect(alert).toHaveTextContent(expected);
+    else await expectNotice(expected);
+    expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
+    if (fieldError) expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-describedby", alert!.id);
+  });
+
+  it("reconciles a thrown invite creation without minting a link", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+        "POST /api/invites": () => Promise.reject(new Error("invite transport lost")),
+      }),
+    );
+    renderSection();
+
+    await userEvent.setup().click(await screen.findByTestId("invite-submit"));
+
+    await expectNotice(/unknown outcome.*invite transport lost.*reloaded/i);
+    expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [503, { error: "Revoke uncertain." }, /unknown outcome.*reloaded/i, true],
+    [403, { error: "Revoke forbidden." }, /Revoke forbidden\./, false],
+  ])("handles a %s invite-revoke response without dropping the row", async (status, body, expected, reconciles) => {
+    let inviteReads = 0;
+    const invite = {
+      id: "inv-existing",
+      role: "editor",
+      preauthEmail: "existing@example.test",
+      expiresAt: "2026-12-01T00:00:00.000Z",
+      usedAt: null,
+      createdAt: "2026-07-17T00:00:00.000Z",
+    };
+    vi.stubGlobal(
+      "fetch",
+      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+        "GET /invites": () => {
+          inviteReads += 1;
+          return jsonResponse({ invites: [invite] });
+        },
+        "DELETE /invites/inv-existing": () => jsonResponse(body, status),
+      }),
+    );
+    renderSection();
+
+    await userEvent.setup().click(await screen.findByTestId("invite-revoke"));
+
+    if (reconciles) await expectNotice(expected);
+    else expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+    expect(screen.getByText(/existing@example\.test/)).toBeInTheDocument();
+    expect(inviteReads).toBe(reconciles ? 2 : 1);
+  });
+
+  it("warns and rereads invitations after a thrown revoke", async () => {
+    let inviteReads = 0;
+    const invite = {
+      id: "inv-existing",
+      role: "editor",
+      preauthEmail: "existing@example.test",
+      expiresAt: "2026-12-01T00:00:00.000Z",
+      usedAt: null,
+      createdAt: "2026-07-17T00:00:00.000Z",
+    };
+    vi.stubGlobal(
+      "fetch",
+      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+        "GET /invites": () => {
+          inviteReads += 1;
+          return jsonResponse({ invites: [invite] });
+        },
+        "DELETE /invites/inv-existing": () => Promise.reject(new Error("revoke transport lost")),
+      }),
+    );
+    renderSection();
+
+    await userEvent.setup().click(await screen.findByTestId("invite-revoke"));
+
+    await expectNotice(/unknown outcome.*revoke transport lost.*reloaded/i);
+    expect(inviteReads).toBe(2);
+  });
+
+  it("keeps invite A's minted link when invite B is revoked", async () => {
+    const inviteA = {
+      id: "invite-a",
+      role: "editor",
+      preauthEmail: null,
+      expiresAt: "2026-12-01T00:00:00.000Z",
+      usedAt: null,
+      createdAt: "2026-07-17T00:00:00.000Z",
+    };
+    const inviteB = { ...inviteA, id: "invite-b", preauthEmail: "b@example.test" };
+    let invites: Record<string, unknown>[] = [inviteB];
+    vi.stubGlobal(
+      "fetch",
+      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+        "GET /invites": () => jsonResponse({ invites }),
+        "POST /api/invites": () => {
+          invites = [inviteA, inviteB];
+          return jsonResponse({ id: inviteA.id, token: "TOKEN_A" }, 201);
+        },
+        "DELETE /invites/invite-b": () => {
+          invites = [inviteA];
+          return new Response(null, { status: 204 });
+        },
+      }),
+    );
+    renderSection();
+    await screen.findByText(/b@example\.test/);
+
+    await userEvent.setup().click(screen.getByTestId("invite-submit"));
+    expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/TOKEN_A");
+    const revokeButtons = await screen.findAllByTestId("invite-revoke");
+    await userEvent.setup().click(revokeButtons[1]!);
+
+    await waitFor(() => expect(screen.queryByText(/b@example\.test/)).not.toBeInTheDocument());
+    expect(screen.getByTestId("invite-link")).toHaveTextContent("/invite/TOKEN_A");
+  });
+
+  it("removes a minted link when an unknown-outcome authoritative list omits it", async () => {
+    const minted = {
+      id: "invite-a",
+      role: "editor",
+      preauthEmail: null,
+      expiresAt: "2026-12-01T00:00:00.000Z",
+      usedAt: null,
+      createdAt: "2026-07-17T00:00:00.000Z",
+    };
+    let created = false;
+    let inviteReadsAfterCreate = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi(ownerAndEditor, {
+        "GET /invites": () => {
+          if (!created) return jsonResponse({ invites: [] });
+          inviteReadsAfterCreate += 1;
+          return jsonResponse({ invites: inviteReadsAfterCreate === 1 ? [minted] : [] });
+        },
+        "POST /api/invites": () => {
+          created = true;
+          return jsonResponse({ id: minted.id, token: "TOKEN_A" }, 201);
+        },
+        "PATCH /members/ed": () => jsonResponse({}, 503),
+      }),
+    );
+    renderSection();
+    await userEvent.setup().click(await screen.findByTestId("invite-submit"));
+    expect(await screen.findByTestId("invite-link")).toBeInTheDocument();
+
+    await saveRoleVia(userEvent.setup(), await findMemberRow(/ed@x\.io/), "Viewer");
+
+    await waitFor(() => expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument());
+  });
+
+  it.each(["missing", "rejected"])("reports copy failure when clipboard is %s", async (kind) => {
+    const user = userEvent.setup();
+    if (kind === "missing") {
+      vi.spyOn(navigator, "clipboard", "get").mockReturnValue(undefined as unknown as Clipboard);
+    } else {
+      vi.spyOn(navigator, "clipboard", "get").mockReturnValue({
+        writeText: vi.fn().mockRejectedValue(new Error("denied")),
+      } as unknown as Clipboard);
+    }
+    vi.stubGlobal(
+      "fetch",
+      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+        "POST /api/invites": () => jsonResponse({ token: "TOKEN" }, 201),
+      }),
+    );
+    renderSection();
+    await user.click(await screen.findByTestId("invite-submit"));
+
+    await user.click(await screen.findByRole("button", { name: "Copy invitation link" }));
+
+    await waitFor(() =>
+      expect(useStore.getState().notice).toMatchObject({ message: m.settings_members_copy_failed(), tone: "error" }),
+    );
+  });
 });
 
 describe("MembersSection — SSO cutover repair", () => {
@@ -1547,6 +2132,185 @@ describe("MembersSection — SSO cutover repair", () => {
         }),
       ),
     );
+  });
+
+  it("rejects a malformed repair email beside the field without sending a request", async () => {
+    const user = userEvent.setup();
+    const fetchMock = ssoFetch(false, "member_not_linked");
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection({ providers });
+
+    await user.click(await screen.findByTestId("sso-correct-email"));
+    const input = screen.getByTestId("sso-correct-email-input");
+    await user.clear(input);
+    await user.type(input, "not-an-email");
+    await user.click(screen.getByTestId("sso-correct-email-save"));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(m.identity_err_email());
+    expect(input).toHaveAttribute("aria-describedby", alert.id);
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+  });
+
+  it("shows a refused email correction beside the repair field", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      mockApi(directory, {
+        "GET /sso-readiness": () => jsonResponse(ssoReadiness(false, "member_not_linked")),
+        "PATCH /members/target/email": () => jsonResponse({ error: "Email already belongs to another user." }, 409),
+      }),
+    );
+    renderSection({ providers });
+    await user.click(await screen.findByTestId("sso-correct-email"));
+    const input = screen.getByTestId("sso-correct-email-input");
+    await user.clear(input);
+    await user.type(input, "corrected@example.com");
+
+    await user.click(screen.getByTestId("sso-correct-email-save"));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Email already belongs to another user.");
+    expect(input).toHaveAttribute("aria-describedby", alert.id);
+  });
+
+  it("reloads after correcting the current user's email without refreshing the directory", async () => {
+    const reload = stubPageReload();
+    const selfReadiness = ssoReadiness(false, "member_not_linked");
+    selfReadiness.members[0]!.principalId = "me";
+    selfReadiness.members[0]!.email = "me@x.io";
+    let memberReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+        "GET /members": () => {
+          memberReads += 1;
+          return jsonResponse({ members: [rawMember({ userId: "me", role: "owner", isSelf: true })] });
+        },
+        "GET /sso-readiness": () => jsonResponse(selfReadiness),
+      }),
+    );
+    renderSection({ providers });
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId("sso-correct-email"));
+    const input = screen.getByTestId("sso-correct-email-input");
+    await user.clear(input);
+    await user.type(input, "corrected@example.com");
+
+    await user.click(screen.getByTestId("sso-correct-email-save"));
+
+    await waitFor(() => expect(reload).toHaveBeenCalledOnce());
+    expect(memberReads).toBe(1);
+  });
+
+  it("keeps the repair form open and marks its field after a thrown correction", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      mockApi(directory, {
+        "GET /sso-readiness": () => jsonResponse(ssoReadiness(false, "member_not_linked")),
+        "PATCH /members/target/email": () => Promise.reject(new Error("offline")),
+      }),
+    );
+    renderSection({ providers });
+    await user.click(await screen.findByTestId("sso-correct-email"));
+    const input = screen.getByTestId("sso-correct-email-input");
+    await user.clear(input);
+    await user.type(input, "corrected@example.com");
+
+    await user.click(screen.getByTestId("sso-correct-email-save"));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(m.settings_sso_correct_email_error());
+    expect(input).toBeInTheDocument();
+    expect(input).toHaveAttribute("aria-describedby", alert.id);
+  });
+
+  it("does not bump readiness when federated unlink is refused", async () => {
+    const user = userEvent.setup();
+    let readinessReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi(directory, {
+        "GET /sso-readiness": () => {
+          readinessReads += 1;
+          return jsonResponse(ssoReadiness(true, "unverified_provider_link"));
+        },
+        "DELETE /members/target/federated-link": () => jsonResponse({ error: "Unlink unavailable." }, 500),
+      }),
+    );
+    renderSection({ providers });
+    await user.click(await screen.findByTestId("sso-remove-link"));
+
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Remove incorrect link" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Unlink unavailable.");
+    expect(readinessReads).toBe(1);
+  });
+
+  it("reloads after unlinking the current user without bumping readiness", async () => {
+    const reload = stubPageReload();
+    const selfReadiness = ssoReadiness(true, "unverified_provider_link");
+    selfReadiness.members[0]!.principalId = "me";
+    selfReadiness.members[0]!.email = "me@x.io";
+    let readinessReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+        "GET /sso-readiness": () => {
+          readinessReads += 1;
+          return jsonResponse(selfReadiness);
+        },
+      }),
+    );
+    renderSection({ providers });
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId("sso-remove-link"));
+
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Remove incorrect link" }));
+
+    await waitFor(() => expect(reload).toHaveBeenCalledOnce());
+    expect(readinessReads).toBe(1);
+  });
+
+  it("shows the remove-link error when unlink throws", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      mockApi(directory, {
+        "GET /sso-readiness": () => jsonResponse(ssoReadiness(true, "unverified_provider_link")),
+        "DELETE /members/target/federated-link": () => Promise.reject(new Error("offline")),
+      }),
+    );
+    renderSection({ providers });
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId("sso-remove-link"));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Remove incorrect link" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_sso_remove_link_error());
+  });
+
+  it.each(["resolve", "reject"])("ignores a readiness request that finishes after unmount (%s)", async (outcome) => {
+    let settle!: (response?: Response) => void;
+    const pending = new Promise<Response>((resolve, reject) => {
+      settle = (response) => (outcome === "resolve" ? resolve(response!) : reject(new Error("late readiness")));
+    });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal("fetch", mockApi(directory, { "GET /sso-readiness": () => pending }));
+    const view = renderSection({ providers });
+    await screen.findByTestId("members-section");
+    await waitFor(() =>
+      expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith("/sso-readiness"))).toBe(true),
+    );
+
+    view.unmount();
+    await act(async () => {
+      settle(jsonResponse(ssoReadiness(false, "member_not_linked")));
+      await Promise.resolve();
+    });
+
+    expect(consoleError.mock.calls.flat().join(" ")).not.toMatch(/state update|not wrapped in act/i);
   });
 
   it("surfaces a readiness fetch failure instead of hiding the cutover state", async () => {
