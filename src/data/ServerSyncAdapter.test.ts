@@ -2273,13 +2273,13 @@ describe("ServerSyncAdapter fault-injection branches", () => {
   });
 
   it.each([
-    [null, "non-record"],
-    [{ id: "wrong", createdAt: TS1, updatedAt: TS2 }, "wrong id"],
-    [{ id: "c1", updatedAt: TS2 }, "missing createdAt"],
-    [{ id: "c1", createdAt: TS1 }, "missing updatedAt"],
-    [{ id: "c1", createdAt: TS1, updatedAt: TS2, archivedAt: TS2 }, "still archived"],
-    [{ id: "c1", createdAt: TS1, updatedAt: TS2, deletedAt: TS2 }, "still deleted"],
-  ])("forces reconciliation for an incomplete lifecycle restore receipt %#", async (body, _label) => {
+    { label: "non-record", body: null },
+    { label: "wrong id", body: { id: "wrong", createdAt: TS1, updatedAt: TS2 } },
+    { label: "missing createdAt", body: { id: "c1", updatedAt: TS2 } },
+    { label: "missing updatedAt", body: { id: "c1", createdAt: TS1 } },
+    { label: "still archived", body: { id: "c1", createdAt: TS1, updatedAt: TS2, archivedAt: TS2 } },
+    { label: "still deleted", body: { id: "c1", createdAt: TS1, updatedAt: TS2, deletedAt: TS2 } },
+  ])("forces reconciliation for an incomplete lifecycle restore receipt: $label", async ({ body }) => {
     const initial = withData({ clients: [client("c1")] });
     let archived = false;
     const fetchImpl = vi.fn(async (url: string | URL | Request) => {
