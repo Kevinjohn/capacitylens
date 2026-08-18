@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+- Protected `main` against deletion and force pushes while retaining the low-noise post-merge CI
+  model, remediated the known dependency advisories without audit exceptions, and made packaged
+  builds, SPDX SBOMs and recognized provenance bundles part of every published release.
+
 - Reassessed alpha4 against OWASP ASVS 5.0.0, the OWASP Top 10 and API Security Top 10; refreshed
   the threat model and security control inventories, recorded the fixed session/OIDC findings, and
   reconciled all 345 ASVS controls with current source and verification evidence.

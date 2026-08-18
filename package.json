@@ -62,7 +62,7 @@
     "e2e:all": "node scripts/e2e-all.mjs",
     "e2e:rehearsal": "playwright test --project=rehearsal",
     "test:account-conformance": "pnpm run paraglide:compile && vitest run shared/src/account && pnpm --filter capacitylens-server exec vitest run src/accounts/conformance src/accounts/sqliteAccountAdminPort.test.ts src/accounts/state.test.ts src/accountConfig.test.ts",
-    "gate:deps": "pnpm audit --prod --audit-level high --ignore GHSA-qwww-vcr4-c8h2 --ignore GHSA-c96f-x56v-gq3h",
+    "gate:deps": "pnpm audit --prod --audit-level high",
     "gate": "pnpm run gate:deps && pnpm run security:crypto-inventory && pnpm run security:gitleaks-config && pnpm run policy:dco:test && pnpm run policy:workflow-report:test && pnpm run ui:check && pnpm run format:check && pnpm run paraglide:compile && pnpm --filter @capacitylens/shared type-check && tsc -b && pnpm run typecheck:e2e && eslint . --max-warnings 0 && vitest run --coverage && pnpm run coverage:files && vite build && pnpm run bundle:check",
     "mutation": "pnpm run paraglide:compile && stryker run",
     "rehearse:migrations": "pnpm --filter capacitylens-server rehearse:migrations",
@@ -81,7 +81,7 @@
     "radix-ui": "^1.6.2",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-router-dom": "^7.18.1",
+    "react-router-dom": "^7.18.2",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "zustand": "^5.0.14"

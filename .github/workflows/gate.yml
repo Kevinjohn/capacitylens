@@ -205,7 +205,4 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
-      # CapacityLens uses React Router in browser-only library mode, so no RSC server actions exist.
-      # Fastify is created as an HTTP/1 server and packaged nginx proxies HTTP/1.1, so the HTTP/2
-      # request-routing path in the second advisory is unreachable. Keep both exceptions exact.
       - run: pnpm run gate:deps
