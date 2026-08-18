@@ -21,34 +21,6 @@ export function isTransportFailure(error: unknown): boolean {
   );
 }
 
-// Combine abort signals with a fallback for engines that ship `AbortSignal.timeout` but not the
-// newer `AbortSignal.any` (e.g. Safari 17.0–17.3): without this guard the FIRST API call throws
-// `AbortSignal.any is not a function` and the whole app can neither hydrate nor save. The fallback
-// mirrors `any` — a controller that aborts as soon as any input signal does.
-function anySignal(signals: AbortSignal[]): AbortSignal {
-  if (typeof AbortSignal.any === "function") return AbortSignal.any(signals);
-  const controller = new AbortController();
-  const listeners = new Map<AbortSignal, () => void>();
-  const cleanup = () => {
-    for (const [signal, listener] of listeners) signal.removeEventListener("abort", listener);
-    listeners.clear();
-  };
-  for (const signal of signals) {
-    if (signal.aborted) {
-      controller.abort(signal.reason);
-      cleanup();
-      break;
-    }
-    const listener = () => {
-      cleanup();
-      controller.abort(signal.reason);
-    };
-    listeners.set(signal, listener);
-    signal.addEventListener("abort", listener, { once: true });
-  }
-  return controller.signal;
-}
-
 /**
  * Build the abort signal for an API call. `timeoutMs` picks the deadline tier:
  *   - omitted → the interactive {@link API_REQUEST_TIMEOUT_MS} (15s) bound;
@@ -62,7 +34,7 @@ export function requestSignal(
   timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
 ): AbortSignal {
   const timeout = timeoutMs === null ? null : AbortSignal.timeout(timeoutMs);
-  if (timeout && signal) return anySignal([signal, timeout]);
+  if (timeout && signal) return AbortSignal.any([signal, timeout]);
   if (timeout) return timeout;
   if (signal) return signal;
   // No timeout and no caller signal: a signal that never aborts (equivalent to omitting one).
