@@ -1131,27 +1131,6 @@ describe("MembersSection — mutation failure reconciliation", () => {
     expect(useStore.getState().notice).toBeNull();
   });
 
-  it.skip("warns about company access and skips the directory reread when an unknown self-demotion removes access", async () => {
-    let memberReads = 0;
-    const fetchMock = mockApi(ownerAndEditor, {
-      "GET /members": () => {
-        memberReads += 1;
-        return jsonResponse({ members: ownerAndEditor.map((member) => rawMember(member)) });
-      },
-      "PATCH /members/me": () => jsonResponse({ error: "Unknown." }, 503),
-      "GET /api/accounts": () => jsonResponse([]),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    renderSection();
-
-    await saveRoleVia(userEvent.setup(), await findMemberRow(/me@x\.io/), "Editor");
-
-    await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-    expect(memberReads).toBe(1);
-    expect(useStore.getState().notice?.message).toContain(m.settings_members_unknown_role_change());
-    expect(useStore.getState().notice?.message).toMatch(/company access was refreshed/i);
-  });
-
   it("reports an authoritative reload failure after an unknown non-self mutation", async () => {
     let mutationSent = false;
     vi.stubGlobal(
