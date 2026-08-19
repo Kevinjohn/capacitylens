@@ -258,7 +258,8 @@ describe("AllocationModal create", () => {
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 
-  it("restricts a placeholder to its bound project plus the two general scopes, defaulting to it", async () => {
+  it("books an All-projects activity for a bound placeholder under its locked project", async () => {
+    const planning = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
     const ph = useStore.getState().addResource({
       kind: "placeholder",
       role: "Senior Designer",
@@ -285,22 +286,64 @@ describe("AllocationModal create", () => {
 
     const projectSelect = screen.getByRole("combobox", { name: "Project" });
     expect(projectSelect).toHaveTextContent("Acme / Lightning");
-    // Bound project + both project-less scopes are offered; another project (p2 / "Other") is not.
+    // Invalid scopes remain visible so the lock is explicit, but cannot be selected.
     fireEvent.keyDown(projectSelect, { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: "Internal" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Any Project" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Internal" })).toHaveAttribute("data-disabled");
+    expect(screen.getByRole("option", { name: "Any Project" })).toHaveAttribute("data-disabled");
     expect(screen.queryByRole("option", { name: "Acme / Other" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
 
-    // Only the bound project's activity is offered.
-    await chooseOption(user, "Activity", "Wireframes");
+    const activitySelect = screen.getByRole("combobox", { name: "Activity" });
+    fireEvent.keyDown(activitySelect, { key: "ArrowDown" });
+    const allProjectsGroup = screen.getByRole("group", { name: "All projects" });
+    const projectGroup = screen.getByRole("group", { name: "Project-specific" });
+    expect(allProjectsGroup.compareDocumentPosition(projectGroup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(allProjectsGroup).getByRole("option", { name: "Planning" })).toBeInTheDocument();
+    expect(within(projectGroup).getByRole("option", { name: "Wireframes" })).toBeInTheDocument();
+    fireEvent.click(within(allProjectsGroup).getByRole("option", { name: "Planning" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(onClose).toHaveBeenCalled();
     expect(useStore.getState().data.allocations[0]).toMatchObject({
       resourceId: ph.id,
-      activityId: "t1",
+      activityId: planning.id,
+      projectId: "p1",
     });
+  });
+
+  it("cannot attribute an All-projects activity for an unbound placeholder", async () => {
+    useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+    const placeholder = useStore.getState().addResource({
+      kind: "placeholder",
+      role: "Senior Designer",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#a855f7",
+    });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: placeholder.id, startDate: "2026-06-01", endDate: "2026-06-02" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const projectSelect = screen.getByRole("combobox", { name: "Project" });
+    fireEvent.keyDown(projectSelect, { key: "ArrowDown" });
+    expect(screen.getByRole("option", { name: "Internal" })).not.toHaveAttribute("data-disabled");
+    expect(screen.getByRole("option", { name: "Any Project" })).not.toHaveAttribute("data-disabled");
+    expect(screen.getByRole("option", { name: "Acme / Lightning" })).not.toHaveAttribute("data-disabled");
+    await user.keyboard("{Escape}");
+
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Planning");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("This placeholder is not bound to a project yet.");
+    expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 });
 
@@ -1642,7 +1685,7 @@ describe("AllocationModal edit", () => {
     expect(screen.getByRole("option", { name: "Kord Industries (external)" })).toBeInTheDocument();
   });
 
-  it("reopens a placeholder cross-project allocation with its exact scope still selected", async () => {
+  it("reopens and saves a legacy unattributed placeholder allocation unchanged", async () => {
     const ph = useStore.getState().addResource({
       kind: "placeholder",
       role: "Designer",
@@ -1663,10 +1706,19 @@ describe("AllocationModal edit", () => {
       hoursPerDay: 8,
       status: "confirmed",
     });
+    const user = userEvent.setup();
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
 
     expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Any Project");
     expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent("Admin");
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Project" }), { key: "ArrowDown" });
+    expect(screen.getByRole("option", { name: "Any Project" })).toHaveAttribute("data-disabled");
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations.find((candidate) => candidate.id === alloc.id)).not.toHaveProperty(
+      "projectId",
+    );
   });
 
   it("duplicates the current validated form values without changing the saved allocation", async () => {
