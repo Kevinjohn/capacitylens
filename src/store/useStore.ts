@@ -1329,7 +1329,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
         (merged, existing) => {
           // A partial patch touching only projectId OR only phaseId must still be checked for
           // activity↔phase coherence against the row's OTHER field.
-          assertScopedRefs(get().data, existing.accountId, "activities", merged, existing);
+          assertScopedRefs(get().data, existing.accountId, "activities", { ...merged }, existing);
           assertActivityProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
           return patch;
         },
