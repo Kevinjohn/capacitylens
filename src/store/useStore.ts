@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { newId } from "@capacitylens/shared/lib/id";
 import { type WeeksZoom } from "../lib/schedulerConfig";
 import {
+  allocationAttributionAllowed,
   deleteClientCascade,
   deleteDisciplineCascade,
   deletePhaseCascade,
@@ -647,8 +648,15 @@ export const useStore = create<StoreState>()((set, get, store) => {
   const mutateIrreversible = (producer: (d: AppData) => AppData) =>
     set((s) => ({ data: producer(s.data), past: [], future: [] }));
 
+  const applyPatch = <T extends Entity>(row: T, patch: Partial<Omit<T, keyof Entity>>): T => {
+    const next = { ...row, ...patch } as T;
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined) delete (next as Record<string, unknown>)[key];
+    }
+    return next;
+  };
   const updateById = <T extends Entity>(list: T[], id: ID, patch: Partial<Omit<T, keyof Entity>>): T[] =>
-    list.map((x) => (x.id === id ? { ...x, ...patch, updatedAt: touchAfter(x.updatedAt) } : x));
+    list.map((row) => (row.id === id ? { ...applyPatch(row, patch), updatedAt: touchAfter(row.updatedAt) } : row));
 
   // Every scoped add* stamps the active account. A non-null selection alone is insufficient. The
   // account must either exist in the published data or in the server-authorised summaries while a
@@ -777,29 +785,26 @@ export const useStore = create<StoreState>()((set, get, store) => {
    *  validation sees exactly what will be committed, then commit the patch `prepare` returns.
    *  Validating the raw patch instead used to let a note-only edit pass locally while the server —
    *  which always merges before it validates — rejected the full row, diverging local from synced
-   *  state. `prepare` may also throw (surface, don't swallow) and may repair the patch it returns. */
+   *  state. `prepare` may also throw (surface, don't swallow) and may repair the patch it returns;
+   *  `cascade` adds dependent table writes to that same mutation/history entry. */
   const updateOwned = <K extends ScopedEntityKey>(
     key: K,
     id: ID,
     patch: ScopedPatch<K>,
     prepare?: (merged: ScopedRow<K>, existing: ScopedRow<K>) => ScopedPatch<K>,
+    cascade?: (data: AppData, merged: ScopedRow<K>, existing: ScopedRow<K>) => AppData,
   ): boolean => {
     const existing = findOwned(get().data, key, id);
     if (!existing) return false;
-    const effective = prepare ? prepare({ ...existing, ...patch } as ScopedRow<K>, existing) : patch;
+    const requestedMerged = applyPatch(existing, patch as Partial<Omit<ScopedRow<K>, keyof Entity>>);
+    const effective = prepare ? prepare(requestedMerged, existing) : patch;
+    const merged = applyPatch(existing, effective as Partial<Omit<ScopedRow<K>, keyof Entity>>);
     // The table key is generic here, so TS can't narrow d[key] to a single row type; K pins the row
     // and patch types at every call site above, which is where correctness is actually checked.
     mutate((d) => {
       const rows = updateById(d[key] as Entity[], id, effective as Partial<Entity>);
-      if (
-        key === "allocations" &&
-        Object.prototype.hasOwnProperty.call(effective, "projectId") &&
-        (effective as Partial<Allocation>).projectId === undefined
-      ) {
-        const allocation = rows.find((row) => row.id === id) as Allocation | undefined;
-        if (allocation) delete allocation.projectId;
-      }
-      return { ...d, [key]: rows } as AppData;
+      const next = { ...d, [key]: rows } as AppData;
+      return cascade ? cascade(next, merged, existing) : next;
     });
     return true;
   };
@@ -1317,26 +1322,30 @@ export const useStore = create<StoreState>()((set, get, store) => {
       },
     ),
     updateActivity: guarded((id: ID, patch: Patch<Activity>) => {
-      const existing = findOwned(get().data, "activities", id);
-      if (!existing) return;
-      const merged = { ...existing, ...patch };
-      // A partial patch touching only projectId OR only phaseId must still be checked for
-      // activity↔phase coherence against the row's OTHER field.
-      assertScopedRefs(get().data, existing.accountId, "activities", { ...merged }, existing);
-      assertActivityProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
-      const clearAllocationProjects = existing.kind === "repeatable" && merged.kind !== "repeatable";
-      mutate((d) => ({
-        ...d,
-        activities: updateById(d.activities, id, patch),
-        allocations: clearAllocationProjects
-          ? d.allocations.map((allocation) => {
-              if (allocation.activityId !== id || allocation.projectId === undefined) return allocation;
-              const next = { ...allocation, updatedAt: touchAfter(allocation.updatedAt) };
-              delete next.projectId;
-              return next;
-            })
-          : d.allocations,
-      }));
+      updateOwned(
+        "activities",
+        id,
+        patch,
+        (merged, existing) => {
+          // A partial patch touching only projectId OR only phaseId must still be checked for
+          // activity↔phase coherence against the row's OTHER field.
+          assertScopedRefs(get().data, existing.accountId, "activities", { ...merged }, existing);
+          assertActivityProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
+          return patch;
+        },
+        (data, merged, existing) => ({
+          ...data,
+          allocations:
+            allocationAttributionAllowed(existing.kind) && !allocationAttributionAllowed(merged.kind)
+              ? data.allocations.map((allocation) => {
+                  if (allocation.activityId !== id || allocation.projectId === undefined) return allocation;
+                  const next = { ...allocation, updatedAt: touchAfter(allocation.updatedAt) };
+                  delete next.projectId;
+                  return next;
+                })
+              : data.allocations,
+        }),
+      );
     }),
     deleteActivity: guarded((id: ID) => {
       if (!findOwned(get().data, "activities", id)) return;

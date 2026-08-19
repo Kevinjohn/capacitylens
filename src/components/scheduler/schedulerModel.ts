@@ -376,11 +376,19 @@ export function buildSchedulerModel({
   const scopedAccountId = data.clients[0]?.accountId;
   const internalClient = scopedAccountId ? internalClientFor(data.clients, scopedAccountId) : undefined;
   const projectClientFor = (allocation: Allocation) => {
-    const projectId = effectiveProjectId(allocation, activityById.get(allocation.activityId) ?? {});
+    const activity = activityById.get(allocation.activityId);
+    const projectId = effectiveProjectId(allocation, activity ?? {});
     const project = projectId ? projectById.get(projectId) : undefined;
     // Project-less internal/repeatable work derives the built-in Internal client for display and
-    // filtering only. A dangling project reference must not be mistaken for project-less work.
-    const client = projectId ? (project ? clientById.get(project.clientId) : undefined) : internalClient;
+    // filtering only. A dangling activity or project reference must not be mistaken for
+    // project-less work; allocation-owned attribution still resolves without an activity row.
+    const client = projectId
+      ? project
+        ? clientById.get(project.clientId)
+        : undefined
+      : activity
+        ? internalClient
+        : undefined;
     return { projectId, project, client };
   };
   // Group allocations / time off by resource ONCE up front, so building each row

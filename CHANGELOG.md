@@ -11,6 +11,12 @@ new features and **patch** versions carry fixes.
   model, remediated the known dependency advisories without audit exceptions, and made packaged
   builds, SPDX SBOMs and recognized provenance bundles part of every published release.
 
+### Fixed
+
+- Changing an activity's kind away from **All projects** no longer fails with a spurious
+  "changed while you were editing" conflict when its bookings carried project attribution.
+- A booking whose activity record is missing no longer appears under the Internal client filter.
+
 - Reassessed alpha4 against OWASP ASVS 5.0.0, the OWASP Top 10 and API Security Top 10; refreshed
   the threat model and security control inventories, recorded the fixed session/OIDC findings, and
   reconciled all 345 ASVS controls with current source and verification evidence.

@@ -438,6 +438,10 @@ export function AllocationModal(props: AllocationModalProps) {
     [activityId, data.activities],
   );
   const attributedProjectId = attributedProjectForSelection(selectedActivity, projectSelection);
+  const selectedEffectiveProjectId = useMemo(
+    () => (selectedActivity ? effectiveProjectId({ projectId: attributedProjectId }, selectedActivity) : undefined),
+    [attributedProjectId, selectedActivity],
+  );
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;
   useFieldErrorFocus(fieldError);
@@ -560,13 +564,7 @@ export function AllocationModal(props: AllocationModalProps) {
       !(Number.isFinite(effHoursPerDay) && effHoursPerDay > 0 && effHoursPerDay <= MAX_HOURS_PER_DAY)
     )
       return null;
-    if (
-      !selectedActivity ||
-      !validateAllocationAssignment(
-        selectedResource,
-        effectiveProjectId({ projectId: attributedProjectId }, selectedActivity),
-      ).ok
-    )
+    if (!selectedActivity || !validateAllocationAssignment(selectedResource, selectedEffectiveProjectId).ok)
       return null;
     try {
       const { startDates } = generateRepeatingStartDates(startDate, repeatUntil, repeatPatternForSelection(repeat));
@@ -612,6 +610,7 @@ export function AllocationModal(props: AllocationModalProps) {
     repeatUntilMinimum,
     resourceId,
     selectedActivity,
+    selectedEffectiveProjectId,
     selectedResource,
     selectedEffectiveWeek,
     spanFitsDateDomain,
@@ -869,10 +868,7 @@ export function AllocationModal(props: AllocationModalProps) {
     });
     if (cleanNote === null) return null;
     if (selectedResource && selectedActivity) {
-      const check = validateAllocationAssignment(
-        selectedResource,
-        effectiveProjectId({ projectId: attributedProjectId }, selectedActivity),
-      );
+      const check = validateAllocationAssignment(selectedResource, selectedEffectiveProjectId);
       if (!check.ok) {
         fail("activity", domainErrorMessage(check.codes[0]));
         return null;

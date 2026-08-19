@@ -1,5 +1,6 @@
 import { newId } from "../lib/id";
 import {
+  allocationAttributionAllowed,
   effectiveProjectId,
   validateAllocationAssignment,
   validateDateRange,
@@ -356,7 +357,7 @@ export function assertAllocationRefs(
   if (existing?.resourceId !== resourceId && !isEffectivelyActive(data, "resources", resource, lookup)) {
     domainError("allocation_resource_inactive", "Allocation must reference an active resource in this company.");
   }
-  if (projectId !== undefined && activity.kind !== "repeatable") {
+  if (projectId !== undefined && !allocationAttributionAllowed(activity.kind)) {
     domainError(
       "allocation_project_forbidden",
       "Only an all-projects activity allocation can be attributed to a project.",
@@ -499,7 +500,9 @@ function assertAllocationPairStaysValid(
       const resource = ownedRow<Resource>(data, "resources", allocation.resourceId, accountId, lookup);
       if (!resource) continue;
       before = edit.existing && validateAllocationAssignment(resource, effectiveProjectId(allocation, edit.existing));
-      const allocationAfter = edit.merged.kind === "repeatable" ? allocation : { ...allocation, projectId: undefined };
+      const allocationAfter = allocationAttributionAllowed(edit.merged.kind)
+        ? allocation
+        : { ...allocation, projectId: undefined };
       after = validateAllocationAssignment(resource, effectiveProjectId(allocationAfter, edit.merged));
     }
     // An absent `existing` (a create) counts as "was valid", exactly as each caller's own check did.
@@ -797,7 +800,7 @@ export function remapAndValidateImport(
     const attributedProject = a.projectId === undefined ? undefined : projectById.get(a.projectId);
     const invalidAttribution =
       a.projectId !== undefined &&
-      (activity.kind !== "repeatable" ||
+      (!allocationAttributionAllowed(activity.kind) ||
         attributedProject === undefined ||
         attributedProject.accountId !== accountId ||
         !validateAllocationAssignment(resource, a.projectId).ok);
