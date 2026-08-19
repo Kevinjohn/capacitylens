@@ -789,7 +789,18 @@ export const useStore = create<StoreState>()((set, get, store) => {
     const effective = prepare ? prepare({ ...existing, ...patch } as ScopedRow<K>, existing) : patch;
     // The table key is generic here, so TS can't narrow d[key] to a single row type; K pins the row
     // and patch types at every call site above, which is where correctness is actually checked.
-    mutate((d) => ({ ...d, [key]: updateById(d[key] as Entity[], id, effective as Partial<Entity>) }) as AppData);
+    mutate((d) => {
+      const rows = updateById(d[key] as Entity[], id, effective as Partial<Entity>);
+      if (
+        key === "allocations" &&
+        Object.prototype.hasOwnProperty.call(effective, "projectId") &&
+        (effective as Partial<Allocation>).projectId === undefined
+      ) {
+        const allocation = rows.find((row) => row.id === id) as Allocation | undefined;
+        if (allocation) delete allocation.projectId;
+      }
+      return { ...d, [key]: rows } as AppData;
+    });
     return true;
   };
 
@@ -812,7 +823,14 @@ export const useStore = create<StoreState>()((set, get, store) => {
     if (blockedByViewer()) return allocations;
     const data = get().data;
     for (const allocation of allocations) {
-      assertAllocation(data, accountId, allocation.resourceId, allocation.activityId, allocation.hoursPerDay);
+      assertAllocation(
+        data,
+        accountId,
+        allocation.resourceId,
+        allocation.activityId,
+        allocation.hoursPerDay,
+        allocation.projectId,
+      );
       assertDateRange(allocation.startDate, allocation.endDate);
     }
     mutate((d) => ({ ...d, allocations: [...d.allocations, ...allocations] }));
@@ -1299,14 +1317,26 @@ export const useStore = create<StoreState>()((set, get, store) => {
       },
     ),
     updateActivity: guarded((id: ID, patch: Patch<Activity>) => {
-      updateOwned("activities", id, patch, (merged, existing) => {
-        // A partial patch touching only projectId OR only phaseId must still be checked for
-        // activity↔phase coherence against the row's OTHER field — hence the merged row (see
-        // updateOwned). `existing` enables the unchanged-parent relaxation (see assertScopedRefs).
-        assertScopedRefs(get().data, existing.accountId, "activities", { ...merged }, existing);
-        assertActivityProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
-        return patch;
-      });
+      const existing = findOwned(get().data, "activities", id);
+      if (!existing) return;
+      const merged = { ...existing, ...patch };
+      // A partial patch touching only projectId OR only phaseId must still be checked for
+      // activity↔phase coherence against the row's OTHER field.
+      assertScopedRefs(get().data, existing.accountId, "activities", { ...merged }, existing);
+      assertActivityProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
+      const clearAllocationProjects = existing.kind === "repeatable" && merged.kind !== "repeatable";
+      mutate((d) => ({
+        ...d,
+        activities: updateById(d.activities, id, patch),
+        allocations: clearAllocationProjects
+          ? d.allocations.map((allocation) => {
+              if (allocation.activityId !== id || allocation.projectId === undefined) return allocation;
+              const next = { ...allocation, updatedAt: touchAfter(allocation.updatedAt) };
+              delete next.projectId;
+              return next;
+            })
+          : d.allocations,
+      }));
     }),
     deleteActivity: guarded((id: ID) => {
       if (!findOwned(get().data, "activities", id)) return;
@@ -1329,6 +1359,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
             merged.resourceId,
             merged.activityId,
             merged.hoursPerDay,
+            merged.projectId,
             existing,
           );
           assertDateRange(merged.startDate, merged.endDate);

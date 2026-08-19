@@ -1092,6 +1092,7 @@
   "domain_error_activity_phase_project_mismatch": "Activity phase must belong to the activity’s project.",
   "domain_error_resource_project_forbidden": "Only a placeholder can be assigned to a project.",
   "domain_error_allocation_references_invalid": "Allocation must reference an existing resource and activity in this company.",
+  "domain_error_allocation_project_forbidden": "Only a cross-project activity allocation can be attributed to a project.",
   "domain_error_allocation_resource_inactive": "Allocation must reference an active resource in this company.",
   "domain_error_allocation_project_inactive": "Allocation must reference an activity under an active project in this company.",
   "domain_error_allocation_activity_inactive": "Allocation must reference an activity under an active project.",

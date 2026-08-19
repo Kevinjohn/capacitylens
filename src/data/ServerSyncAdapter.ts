@@ -94,6 +94,7 @@ const FK_EDGES = [
   { child: "phases", parent: "projects", field: "projectId" },
   { child: "activities", parent: "projects", field: "projectId" },
   { child: "resources", parent: "projects", field: "projectId" },
+  { child: "allocations", parent: "projects", field: "projectId" },
   { child: "activities", parent: "phases", field: "phaseId" },
   { child: "allocations", parent: "activities", field: "activityId" },
 ] as const satisfies readonly FkEdge[];

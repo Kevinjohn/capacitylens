@@ -119,6 +119,12 @@ describe("sanitizeImportedRecord", () => {
     expect(sanitizeImportedRecord("allocations", { seriesId: "  " })).not.toHaveProperty("seriesId");
   });
 
+  it("preserves a clean allocation project id and drops malformed or blank values", () => {
+    expect(sanitizeImportedRecord("allocations", { projectId: " p1 " }).projectId).toBe("p1");
+    expect(sanitizeImportedRecord("allocations", { projectId: 42 })).not.toHaveProperty("projectId");
+    expect(sanitizeImportedRecord("allocations", { projectId: "  " })).not.toHaveProperty("projectId");
+  });
+
   it("repairs missing names by resource kind while preserving nameless placeholders", () => {
     expect(sanitizeImportedRecord("resources", { kind: "person" }).name).toBe("Unnamed person");
     expect(sanitizeImportedRecord("resources", { kind: "external", name: "  " }).name).toBe("Unnamed company");

@@ -28,6 +28,30 @@ describe("migrate", () => {
     ).toThrow(UnsupportedSchemaVersionError);
   });
 
+  it("accepts v17 data without attribution and preserves v18 attribution", () => {
+    const allocation = {
+      id: "a1",
+      accountId: "account",
+      resourceId: "r1",
+      activityId: "activity",
+      startDate: "2026-01-01",
+      endDate: "2026-01-01",
+      hoursPerDay: 8,
+      status: "confirmed" as const,
+      createdAt: "t",
+      updatedAt: "t",
+    };
+    expect(
+      migrate({ schemaVersion: 17, data: { ...emptyAppData(), allocations: [allocation] } }).allocations[0],
+    ).not.toHaveProperty("projectId");
+    expect(
+      migrate({
+        schemaVersion: 18,
+        data: { ...emptyAppData(), allocations: [{ ...allocation, projectId: "p1" }] },
+      }).allocations[0]?.projectId,
+    ).toBe("p1");
+  });
+
   it.each([
     ["string", "9"],
     ["null", null],

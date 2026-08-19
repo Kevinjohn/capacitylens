@@ -715,6 +715,41 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
     expect(out.allocations.map(({ id }) => id)).toEqual(["allocation-1"]);
   });
 
+  it("hides a repeatable allocation attributed to an inactive project", () => {
+    const input: AppData = {
+      ...emptyAppData(),
+      projects: [
+        {
+          id: "archived-project",
+          accountId: "a1",
+          clientId: "missing-client",
+          name: "Archived",
+          color: "#2d75da",
+          archivedAt: T_ARCH,
+          createdAt: T_ARCH,
+          updatedAt: T_ARCH,
+        },
+      ],
+      allocations: [
+        {
+          id: "attributed",
+          accountId: "a1",
+          resourceId: "missing-resource",
+          activityId: "missing-activity",
+          projectId: "archived-project",
+          startDate: "2026-01-01",
+          endDate: "2026-01-01",
+          hoursPerDay: 8,
+          status: "confirmed",
+          createdAt: T_ARCH,
+          updatedAt: T_ARCH,
+        },
+      ],
+    };
+
+    expect(activeOnly(input).allocations).toEqual([]);
+  });
+
   it("identifies the exact inactive ancestor inherited through every projection edge", () => {
     const input = mixedData();
     const lookup: LifecycleAncestryLookup = (table, id) =>

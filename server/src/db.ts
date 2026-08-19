@@ -11,6 +11,7 @@ import {
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
+import { nextServerRevision } from "./revision";
 
 // Re-export the shared isEmpty so existing import sites (e.g. db.migrate.test.ts)
 // keep resolving it from this module; the single definition lives in shared/types.
@@ -36,6 +37,7 @@ import {
   assertSchemaV31,
   assertSchemaV32,
   assertSchemaV33,
+  assertSchemaV34,
   assertSchemaV8,
   assertSchemaV9,
   migrateSchemaV8,
@@ -59,10 +61,12 @@ import { ACCOUNT_BOUNDARY_STATE_V15_SQL, assertAccountBoundaryStateCurrent } fro
 import { AUDIT_OUTBOX_SQL, assertAuditOutboxCurrent } from "./auditOutbox";
 import { SYNC_ORDERING_SQL, assertSyncOrderingCurrent } from "./syncOrdering";
 import {
+  ALLOCATION_PROJECT_TENANT_INTEGRITY_V35_SQL,
   CLOSURE_TENANT_INTEGRITY_V34_SQL,
   TENANT_RELATIONSHIP_INTEGRITY_V19_SQL,
   assertTenantRelationshipIntegrityCurrent,
   assertTenantRelationshipIntegrityV19,
+  assertTenantRelationshipIntegrityV34,
 } from "./tenantIntegrity";
 import {
   assertBootstrapClaimCurrent,
@@ -70,9 +74,11 @@ import {
   migrateBootstrapClaimV20,
 } from "./bootstrapClaim";
 import {
+  ALLOCATION_PROJECT_INDEX_V35_SQL,
   assertTenantAccountIndexesV21,
   assertTenantEntityIndexesCurrent,
   assertTenantEntityIndexesV23,
+  assertTenantEntityIndexesV34,
   FOREIGN_KEY_CHILD_INDEXES_V23_SQL,
   TENANT_ENTITY_INDEXES_V21_SQL,
   TENANT_ENTITY_INDEXES_V34_SQL,
@@ -97,7 +103,7 @@ import {
 export type Db = DatabaseSync;
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 34;
+export const DB_SCHEMA_VERSION = 35;
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
 export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e;
@@ -817,10 +823,30 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   }),
   defineMigration(34, "separate-company-closures", COMPANY_CLOSURES_V34_DEFINITION, (db) => {
     migrateCompanyClosuresV34(db);
-    assertSchemaCurrent(db);
-    assertTenantRelationshipIntegrityCurrent(db);
-    assertTenantEntityIndexesCurrent(db);
+    assertSchemaV34(db);
+    assertTenantRelationshipIntegrityV34(db);
+    assertTenantEntityIndexesV34(db);
   }),
+  defineMigration(
+    35,
+    "add-allocation-project-id",
+    [
+      "guard:PRAGMA table_info(allocations):projectId-missing",
+      "ALTER TABLE allocations ADD COLUMN projectId TEXT REFERENCES projects(id) ON DELETE SET NULL;",
+      ALLOCATION_PROJECT_TENANT_INTEGRITY_V35_SQL,
+      ALLOCATION_PROJECT_INDEX_V35_SQL,
+    ].join("\n"),
+    (db) => {
+      if (!tableHasColumns(db, "allocations", ["projectId"])) {
+        db.exec("ALTER TABLE allocations ADD COLUMN projectId TEXT REFERENCES projects(id) ON DELETE SET NULL;");
+      }
+      db.exec(ALLOCATION_PROJECT_TENANT_INTEGRITY_V35_SQL);
+      db.exec(ALLOCATION_PROJECT_INDEX_V35_SQL);
+      assertSchemaCurrent(db);
+      assertTenantRelationshipIntegrityCurrent(db);
+      assertTenantEntityIndexesCurrent(db);
+    },
+  ),
 ];
 
 if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION) {
@@ -1335,6 +1361,15 @@ export function upsertRow(db: Db, table: string, obj: Row): void {
         `ON CONFLICT(id) DO UPDATE SET ${set}`,
     );
     stmt.run(...toRow(spec, obj));
+    if (table === "activities" && obj.kind !== "repeatable") {
+      const attributed = db
+        .prepare("SELECT id, updatedAt FROM allocations WHERE activityId = ? AND projectId IS NOT NULL")
+        .all(obj.id) as Array<{ id: string; updatedAt: unknown }>;
+      const clearAttribution = db.prepare("UPDATE allocations SET projectId = NULL, updatedAt = ? WHERE id = ?");
+      for (const allocation of attributed) {
+        clearAttribution.run(nextServerRevision(allocation.updatedAt), allocation.id);
+      }
+    }
     markInitialized(db);
   });
 }

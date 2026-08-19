@@ -18,6 +18,7 @@ const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
   activity_phase_project_mismatch: m.domain_error_activity_phase_project_mismatch,
   resource_project_forbidden: m.domain_error_resource_project_forbidden,
   allocation_references_invalid: m.domain_error_allocation_references_invalid,
+  allocation_project_forbidden: m.domain_error_allocation_project_forbidden,
   allocation_resource_inactive: m.domain_error_allocation_resource_inactive,
   allocation_project_inactive: m.domain_error_allocation_project_inactive,
   allocation_activity_inactive: m.domain_error_allocation_activity_inactive,

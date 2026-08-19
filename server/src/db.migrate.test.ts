@@ -100,8 +100,13 @@ const V34_MIGRATION = {
   name: "separate-company-closures",
   checksum: "43080e78377072e2e3133550d89b5eaf90fbca2d1c8babe38b7b8b7156a9350e",
 } as const;
+const V35_MIGRATION = {
+  version: 35,
+  name: "add-allocation-project-id",
+  checksum: "19c2729bf7048ca0a3e317f3d00088b29c7c7c2cd4d60febce28146d1c42c9a3",
+} as const;
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
-const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25] as const;
+const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25, 34] as const;
 const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
   `v${version}-off.db`,
   `v${version}-password.db`,
@@ -308,6 +313,15 @@ function dropTenantEntityIndexes(db: DatabaseSync): void {
   for (const { index } of TENANT_ENTITY_ACCOUNT_INDEXES_V21) db.exec(`DROP INDEX ${index}`);
 }
 
+function dropAllocationProjectAttribution(db: DatabaseSync): void {
+  db.exec(`
+    DROP TRIGGER capacitylens_tenant_allocations_projectId_insert;
+    DROP TRIGGER capacitylens_tenant_allocations_projectId_update;
+    DROP INDEX idx_allocations_projectId;
+    ALTER TABLE allocations DROP COLUMN projectId;
+  `);
+}
+
 describe("schema migration of an existing on-disk DB", () => {
   it("pins synchronous FULL even when the connection inherited a weaker setting", () => {
     const copied = copyFixture("v16-off.db");
@@ -473,6 +487,7 @@ describe("schema migration of an existing on-disk DB", () => {
       db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
       db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
       db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
+      dropAllocationProjectAttribution(db);
       db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
       db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version > 12`);
       db.exec(`PRAGMA user_version = 12`);
@@ -583,6 +598,7 @@ describe("schema migration of an existing on-disk DB", () => {
       db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
       db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
       db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
+      dropAllocationProjectAttribution(db);
       db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
       db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 14`);
       db.exec(`PRAGMA user_version = 13`);
@@ -646,6 +662,7 @@ describe("schema migration of an existing on-disk DB", () => {
       db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
       db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
       db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
+      dropAllocationProjectAttribution(db);
       db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
       db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 16`);
       db.exec(`PRAGMA user_version = 15`);
@@ -1279,6 +1296,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
     expect(history.every((row) => !Number.isNaN(Date.parse(row.appliedAt)))).toBe(true);
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
@@ -1341,7 +1359,7 @@ describe("schema migration of an existing on-disk DB", () => {
         },
       }) as Db;
 
-      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34]);
+      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
       expect(
@@ -1370,7 +1388,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
     const plan = planDatabaseMigrations(db).migrations;
     expect(plan.map((migration) => migration.version)).toEqual([
-      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
     ]);
     expect(plan[0]).toEqual({
       version: 17,
@@ -1538,6 +1556,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1644,7 +1663,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
-      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -1700,6 +1719,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1777,6 +1797,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1831,6 +1852,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1891,6 +1913,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -1951,6 +1974,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
     initializeOpenDb(clean, ":memory:");
     expect(() => assertFederatedIdentitySchemaCurrent(clean)).not.toThrow();
@@ -2192,6 +2216,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(
@@ -2307,6 +2332,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(getRow(db, "resources", resource.id)?.isFavourite).toBeUndefined();
@@ -2433,6 +2459,39 @@ describe("schema migration of an existing on-disk DB", () => {
       expect(getRow(reopened, "timeOff", "to-company")).toBeUndefined();
       expect(planDatabaseMigrations(reopened).migrations).toEqual([]);
       reopened.close();
+    } finally {
+      copied.cleanup();
+    }
+  });
+
+  it("v35 adds allocation project attribution with its FK, tenant guards and child index", () => {
+    const copied = copyFixture("v34-off.db");
+    try {
+      const db = openDbConnection(copied.path);
+      expect(planDatabaseMigrations(db).migrations).toEqual([V35_MIGRATION]);
+      initializeOpenDb(db, copied.path);
+
+      expect(
+        (db.prepare("PRAGMA table_info(allocations)").all() as Array<{ name: string }>).some(
+          (column) => column.name === "projectId",
+        ),
+      ).toBe(true);
+      expect(db.prepare("PRAGMA foreign_key_list(allocations)").all()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ from: "projectId", table: "projects", to: "id", on_delete: "SET NULL" }),
+        ]),
+      );
+      expect(db.prepare("PRAGMA index_list(allocations)").all()).toEqual(
+        expect.arrayContaining([expect.objectContaining({ name: "idx_allocations_projectId" })]),
+      );
+      expect(
+        db
+          .prepare(
+            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'capacitylens_tenant_allocations_projectId_%'",
+          )
+          .get(),
+      ).toEqual({ count: 2 });
+      db.close();
     } finally {
       copied.cleanup();
     }

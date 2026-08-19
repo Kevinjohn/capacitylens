@@ -178,6 +178,28 @@ describe("store CRUD covers every entity", () => {
     );
   });
 
+  it("activities: moving out of repeatable atomically clears allocation attribution", () => {
+    const resource = s().addResource({ ...personDraft });
+    const client = s().addClient({ name: "Acme", color: "#1" });
+    const project = s().addProject({ name: "P", clientId: client.id, color: "#2" });
+    const activity = s().addActivity({ name: "Shared", kind: "repeatable" });
+    const allocation = s().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      projectId: project.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+
+    s().updateActivity(activity.id, { kind: "internal" });
+    expect(s().data.activities.find((row) => row.id === activity.id)?.kind).toBe("internal");
+    const cleared = s().data.allocations.find((row) => row.id === allocation.id)!;
+    expect(cleared).not.toHaveProperty("projectId");
+    expectRevisionAdvanced(allocation, cleared);
+  });
+
   it("updateActivity validates the MERGED row, not the raw patch (partial phase/project patches)", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p1 = s().addProject({ name: "P1", clientId: c.id, color: "#2" });

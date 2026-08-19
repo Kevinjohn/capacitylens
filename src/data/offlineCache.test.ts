@@ -846,6 +846,25 @@ describe("offline tenant cache", () => {
     await expect(readCachedAccountSlice("a-studio")).resolves.toBeNull();
   });
 
+  it("round-trips attributed and unattributed allocation rows", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const slice = accountSlice("a-studio");
+    const original = slice.allocations[0];
+    const projectId = slice.projects[0]?.id;
+    expect(original).toBeDefined();
+    expect(projectId).toBeDefined();
+    slice.allocations = [
+      { ...original!, id: "attributed", projectId: projectId! },
+      { ...original!, id: "unattributed", projectId: undefined },
+    ];
+    delete slice.allocations[1].projectId;
+
+    await cacheAccountSlice("a-studio", slice);
+    const restored = await readCachedAccountSlice("a-studio");
+    expect(restored?.value.allocations.find((row) => row.id === "attributed")?.projectId).toBe(projectId);
+    expect(restored?.value.allocations.find((row) => row.id === "unattributed")).not.toHaveProperty("projectId");
+  });
+
   it("does not revoke a live identity scope when a concurrent cached-identity read misses", async () => {
     const originalEncrypt = crypto.subtle.encrypt.bind(crypto.subtle);
     let releaseEncryption!: () => void;
