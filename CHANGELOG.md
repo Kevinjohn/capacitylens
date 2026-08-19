@@ -13,6 +13,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Re-attributing a booking while an earlier save is still in flight no longer discards that edit
+  when the server's reply arrives; the edit is kept and saved with the next change.
 - Changing an activity's kind away from **All projects** no longer fails with a spurious
   "changed while you were editing" conflict when its bookings carried project attribution.
 - A booking whose activity record is missing no longer appears under the Internal client filter.
