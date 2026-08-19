@@ -643,6 +643,133 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     expect(Date.parse(allocationAfter.updatedAt)).toBeGreaterThan(Date.parse(before.allocations[0].updatedAt));
   });
 
+  it("keeps direct activity PATCH attribution clearing behavior", async () => {
+    const fixture = freshApp();
+    await post(fixture.app, "accounts", account("a1"));
+    await post(fixture.app, "clients", client("c1", "a1"));
+    await post(fixture.app, "projects", project("p1", "a1", "c1"));
+    await post(fixture.app, "resources", person("r1", "a1"));
+    await post(fixture.app, "activities", {
+      ...activity("repeatable", "a1", "p1"),
+      kind: "repeatable",
+      projectId: undefined,
+    });
+    await post(fixture.app, "allocations", allocation("allocation", "a1", "r1", "repeatable", { projectId: "p1" }));
+    const before = await state(fixture.app);
+
+    const response = await patch(fixture.app, "activities", "repeatable", {
+      kind: "internal",
+      projectId: undefined,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const allocationAfter = (await state(fixture.app)).allocations[0];
+    expect(allocationAfter).not.toHaveProperty("projectId");
+    expect(Date.parse(allocationAfter.updatedAt)).toBeGreaterThan(Date.parse(before.allocations[0].updatedAt));
+  });
+
+  it("repairs legacy attribution when a batch re-PUTs an already ineligible activity", async () => {
+    const fixture = freshApp();
+    await post(fixture.app, "accounts", account("a1"));
+    await post(fixture.app, "clients", client("c1", "a1"));
+    await post(fixture.app, "projects", project("p1", "a1", "c1"));
+    await post(fixture.app, "resources", person("r1", "a1"));
+    await post(fixture.app, "activities", {
+      ...activity("internal", "a1", "p1"),
+      kind: "internal",
+      projectId: undefined,
+    });
+    await post(fixture.app, "activities", {
+      ...activity("repeatable", "a1", "p1"),
+      kind: "repeatable",
+      projectId: undefined,
+    });
+    await post(fixture.app, "allocations", allocation("allocation", "a1", "r1", "repeatable", { projectId: "p1" }));
+    fixture.db.prepare("UPDATE allocations SET activityId = 'internal' WHERE id = 'allocation'").run();
+    const current = (await state(fixture.app)).activities.find((row: { id: string }) => row.id === "internal");
+
+    const response = await batch(fixture.app, [{ method: "PUT", table: "activities", id: "internal", row: current }]);
+
+    expect(response.statusCode).toBe(200);
+    const repaired = (await state(fixture.app)).allocations[0];
+    expect(repaired).not.toHaveProperty("projectId");
+    expect(response.json().revisions).toContainEqual({
+      table: "allocations",
+      id: repaired.id,
+      createdAt: repaired.createdAt,
+      updatedAt: repaired.updatedAt,
+    });
+  });
+
+  it("keeps projection validation consistent for a coalesced activity kind flip and placeholder rebind", async () => {
+    const fixture = freshApp();
+    await post(fixture.app, "accounts", account("a1"));
+    await post(fixture.app, "clients", client("c1", "a1"));
+    await post(fixture.app, "projects", project("p1", "a1", "c1"));
+    await post(fixture.app, "projects", project("p2", "a1", "c1"));
+    await post(fixture.app, "resources", placeholder("ph", "a1", "p1"));
+    await post(fixture.app, "activities", {
+      ...activity("repeatable", "a1", "p1"),
+      kind: "repeatable",
+      projectId: undefined,
+    });
+    await post(fixture.app, "allocations", allocation("allocation", "a1", "ph", "repeatable", { projectId: "p1" }));
+    const before = await state(fixture.app);
+
+    const response = await batch(fixture.app, [
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...before.activities[0], kind: "internal", projectId: undefined },
+      },
+      {
+        method: "PUT",
+        table: "resources",
+        id: "ph",
+        row: { ...before.resources[0], projectId: "p2" },
+      },
+    ]);
+
+    expect(response.statusCode).toBe(200);
+    expect((await state(fixture.app)).allocations[0]).not.toHaveProperty("projectId");
+  });
+
+  it("clears and echoes allocation attribution before a later lifecycle archive in the same batch", async () => {
+    const fixture = freshApp();
+    await post(fixture.app, "accounts", account("a1"));
+    await post(fixture.app, "clients", client("c1", "a1"));
+    await post(fixture.app, "projects", project("p1", "a1", "c1"));
+    await post(fixture.app, "resources", person("r1", "a1"));
+    await post(fixture.app, "activities", {
+      ...activity("repeatable", "a1", "p1"),
+      kind: "repeatable",
+      projectId: undefined,
+    });
+    await post(fixture.app, "allocations", allocation("allocation", "a1", "r1", "repeatable", { projectId: "p1" }));
+    const before = await state(fixture.app);
+
+    const response = await batch(fixture.app, [
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...before.activities[0], kind: "internal", projectId: undefined },
+      },
+      { method: "ARCHIVE", table: "projects", id: "p1", accountId: "a1" },
+    ]);
+
+    expect(response.statusCode).toBe(200);
+    const rewritten = (await state(fixture.app)).allocations[0];
+    expect(rewritten).not.toHaveProperty("projectId");
+    expect(response.json().revisions).toContainEqual({
+      table: "allocations",
+      id: rewritten.id,
+      createdAt: rewritten.createdAt,
+      updatedAt: rewritten.updatedAt,
+    });
+  });
+
   it("writes closures directly and in a batch, and rejects resource references", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));

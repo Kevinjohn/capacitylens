@@ -16,6 +16,7 @@ import { diffOpsFromPossibleBases } from "./syncOps";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type {
   Account,
+  Activity,
   Allocation,
   AppData,
   Client,
@@ -1081,6 +1082,102 @@ describe("ServerSyncAdapter.saveAll", () => {
     const a = new ServerSyncAdapter("http://x", fetchImpl);
 
     await expect(a.saveAll(withData({ clients: [client("c1"), client("c2")] }))).resolves.toBeUndefined();
+  });
+
+  it("accepts a second allocation revision as the authoritative server rewrite", async () => {
+    const rewrittenAt = "2030-01-02T00:00:00.000Z";
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      const ops = (JSON.parse(init?.body as string) as { ops: ReceiptOp[] }).ops;
+      return Response.json({
+        ok: true,
+        applied: ops.length,
+        revisions: [revisionFor(ops[0]), { ...revisionFor(ops[0]), updatedAt: rewrittenAt }],
+      });
+    }) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    const target = withData({
+      allocations: [{ ...allocation("allocation", "2026-01-01"), projectId: "p1" }],
+    });
+
+    await adapter.saveAll(target);
+    await adapter.saveAll(target);
+    await adapter.saveAll(
+      withData({
+        allocations: [{ ...target.allocations[0], note: "Edited", updatedAt: TS2 }],
+      }),
+    );
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect((batchOps(calls[1]) as unknown as Array<{ row: Allocation }>)[0].row.updatedAt).toBe(rewrittenAt);
+  });
+
+  it("folds a non-op allocation rewrite into the cache and revision provenance", async () => {
+    const activity: Activity = {
+      id: "t1",
+      accountId: "a1",
+      name: "Planning",
+      kind: "repeatable",
+      createdAt: TS1,
+      updatedAt: TS1,
+    };
+    const baseline = withData({
+      activities: [activity],
+      allocations: [{ ...allocation("allocation", "2026-01-01"), projectId: "p1" }],
+    });
+    const rewrittenAt = "2030-01-02T00:00:00.000Z";
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).endsWith("/api/state")) return Response.json(baseline);
+      const ops = (JSON.parse(init?.body as string) as { ops: ReceiptOp[] }).ops;
+      return Response.json({
+        ok: true,
+        applied: ops.length,
+        revisions: [
+          revisionFor(ops[0]),
+          {
+            table: "allocations",
+            id: "allocation",
+            createdAt: TS1,
+            updatedAt: rewrittenAt,
+          },
+        ],
+      });
+    }) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    await adapter.loadAll();
+    const target = withData({
+      ...baseline,
+      activities: [{ ...activity, kind: "internal", updatedAt: TS2 }],
+    });
+
+    await adapter.saveAll(target);
+    await adapter.saveAll(target);
+    await adapter.saveAll(
+      withData({
+        ...target,
+        allocations: [{ ...target.allocations[0], projectId: undefined, note: "Edited", updatedAt: TS2 }],
+      }),
+    );
+
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect((batchOps(calls[2]) as unknown as Array<{ row: Allocation }>)[0].row.updatedAt).toBe(rewrittenAt);
+  });
+
+  it("keeps duplicate revisions strict for non-allocation tables", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      const ops = (JSON.parse(init?.body as string) as { ops: ReceiptOp[] }).ops;
+      return Response.json({
+        ok: true,
+        applied: ops.length,
+        revisions: [revisionFor(ops[0]), revisionFor(ops[0])],
+      });
+    }) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+
+    await expect(adapter.saveAll(withData({ clients: [client("c1")] }))).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected or duplicate"));
   });
 
   it("coalesces overlapping saves to the latest state", async () => {

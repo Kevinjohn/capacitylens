@@ -1721,6 +1721,39 @@ describe("AllocationModal edit", () => {
     );
   });
 
+  it("uses a bound placeholder's project when an edited allocation has a dangling activity", () => {
+    const ph = useStore.getState().addResource({
+      kind: "placeholder",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#a",
+      projectId: "p1",
+    });
+    const activity = useStore.getState().addActivity({ name: "Temporary", kind: "repeatable" });
+    const alloc = useStore.getState().addAllocation({
+      resourceId: ph.id,
+      activityId: activity.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    useStore.setState((current) => ({
+      data: {
+        ...current.data,
+        activities: current.data.activities.filter((candidate) => candidate.id !== activity.id),
+      },
+    }));
+
+    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
+
+    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Acme / Lightning");
+  });
+
   it("duplicates the current validated form values without changing the saved allocation", async () => {
     const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const alloc = useStore.getState().addAllocation({

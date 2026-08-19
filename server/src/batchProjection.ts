@@ -107,6 +107,18 @@ export class BatchStateProjection implements ValidationDataLookup {
     }
   }
 
+  /** Clear attribution immediately for later same-batch validation without changing its revision. */
+  clearAllocationAttributionForActivity(activityId: string): void {
+    const relationship = this.findRelationshipIndex("activities", "allocations", "activityId");
+    for (const allocationId of relationship?.childrenByParent.get(activityId) ?? []) {
+      const allocation = this.row("allocations", allocationId);
+      if (!allocation || allocation.projectId === undefined) continue;
+      const cleared = { ...allocation } as ProjectionRow;
+      delete cleared.projectId;
+      this.upsert("allocations", cleared);
+    }
+  }
+
   delete(table: AppDataKey, id: string): void {
     if (!this.rowIndexes[table].has(id)) return;
 

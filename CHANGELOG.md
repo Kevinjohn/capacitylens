@@ -21,6 +21,11 @@ new features and **patch** versions carry fixes.
   bookings the server un-attributes on its own.
 - Creating an activity inline in the allocation dialog now places it inside its group instead of
   splitting the list with a duplicate group heading.
+- Other sessions no longer hit spurious "changed while you were editing" conflicts after the
+  server un-attributes bookings during an activity kind change - the save receipt now carries
+  those rewrites and every session applies them.
+- Editing a placeholder's booking whose activity record is missing opens in the placeholder's
+  bound project again instead of the Internal scope.
 
 - Reassessed alpha4 against OWASP ASVS 5.0.0, the OWASP Top 10 and API Security Top 10; refreshed
   the threat model and security control inventories, recorded the fixed session/OIDC findings, and
