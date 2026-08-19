@@ -370,16 +370,11 @@ export function assertAllocationRefs(
   // and the database FK make this impossible, but this validator is also the last line of defence
   // for legacy/corrupt state. Treat a missing or cross-account project exactly like an inactive
   // one instead of silently accepting the allocation because `project` resolved to undefined.
-  if (resolvedProjectId !== undefined && project === undefined) {
-    domainError(
-      "allocation_project_inactive",
-      "Allocation must reference an activity under an active project in this company.",
-    );
-  }
   if (
-    existing?.projectId !== projectId &&
-    project !== undefined &&
-    !isEffectivelyActive(data, "projects", project, lookup)
+    (resolvedProjectId !== undefined && project === undefined) ||
+    (existing?.projectId !== projectId &&
+      project !== undefined &&
+      !isEffectivelyActive(data, "projects", project, lookup))
   ) {
     domainError(
       "allocation_project_inactive",
@@ -789,6 +784,7 @@ export function remapAndValidateImport(
   // FK can still be nulled in place. Field-level safety lives in sanitize/validate — NOT the cast.
   const resources = new Map((brought.resources as unknown as Resource[]).map((r) => [r.id, r]));
   const activities = new Map((brought.activities as unknown as Activity[]).map((act) => [act.id, act]));
+  const projectById = new Map(brought.projects.map((project) => [project.id, project]));
   // Single pass: resolve the owning resource ONCE per allocation and use it for BOTH the keep/drop
   // decision (date range + resource/activity existence + placeholder rule) AND the external-load
   // coercion below, so the two can never diverge.
@@ -798,8 +794,7 @@ export function remapAndValidateImport(
     const activity = activities.get(a.activityId);
     if (!resource || !activity) return kept;
     let repaired = a;
-    const attributedProject =
-      a.projectId === undefined ? undefined : brought.projects.find((project) => project.id === a.projectId);
+    const attributedProject = a.projectId === undefined ? undefined : projectById.get(a.projectId);
     const invalidAttribution =
       a.projectId !== undefined &&
       (activity.kind !== "repeatable" ||

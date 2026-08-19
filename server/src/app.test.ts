@@ -15,7 +15,6 @@ import {
   FIXTURE_ACTIVITY,
   FIXTURE_ACTIVITY_INTERNAL,
   FIXTURE_ACTIVITY_REPEATABLE,
-  FIXTURE_REPEATABLE_ACTIVITY,
   FIXTURE_ALLOCATION,
   FIXTURE_ALLOCATION_ATTRIBUTED,
   FIXTURE_TIMEOFF,
@@ -3364,7 +3363,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     await seedFixtureDeps(app);
     await post(app, "resources", FIXTURE_RESOURCE);
     await post(app, "activities", FIXTURE_ACTIVITY);
-    await post(app, "activities", FIXTURE_REPEATABLE_ACTIVITY);
+    await post(app, "activities", FIXTURE_ACTIVITY_REPEATABLE);
     expect((await post(app, "allocations", FIXTURE_ALLOCATION)).statusCode).toBe(201);
     expect((await post(app, "allocations", FIXTURE_ALLOCATION_ATTRIBUTED)).statusCode).toBe(201);
     const allocations = (await state(app)).allocations;

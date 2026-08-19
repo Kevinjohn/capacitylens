@@ -85,7 +85,7 @@ import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
 import { useCanEdit } from "../../auth/permissionContext";
 import { ConfirmDialog } from "../common/dialogs";
 import { RepeatedAllocationDeleteDialog } from "./RepeatedAllocationDeleteDialog";
-import { buildActivityOptions } from "./activityOptions";
+import { buildActivityOptions, groupLabelForKind, sortGroupedOptions } from "./activityOptions";
 import { undoShortcut } from "../../lib/keyboardShortcuts";
 import { formatShortDate } from "../../lib/dateDisplay";
 import {
@@ -173,8 +173,7 @@ function DateRangeFields({
   );
 }
 
-function projectSelectionForActivity(activity: Activity | undefined, resolvedProjectId?: string): string {
-  if (resolvedProjectId) return resolvedProjectId;
+function projectSelectionForActivity(activity: Activity | undefined): string {
   if (activity?.kind === "repeatable") return ANY_PROJECT_SELECTION;
   if (activity?.kind === "project" && activity.projectId) return activity.projectId;
   return INTERNAL_PROJECT_SELECTION;
@@ -377,7 +376,7 @@ export function AllocationModal(props: AllocationModalProps) {
   // effective project while editing, so a legacy unattributed row remains in its exact scope.
   const [projectSelection, setProjectSelection] = useState(
     editing
-      ? projectSelectionForActivity(initialActivity, initialLocked ?? editing.projectId)
+      ? (initialLocked ?? editing.projectId ?? projectSelectionForActivity(initialActivity))
       : (initialLocked ?? INTERNAL_PROJECT_SELECTION),
   );
   const [activityId, setActivityId] = useState(editing?.activityId ?? "");
@@ -434,6 +433,11 @@ export function AllocationModal(props: AllocationModalProps) {
   const [inlineActivityOption, setInlineActivityOption] = useState<
     (Option & { kind: Activity["kind"]; projectId?: string }) | null
   >(null);
+  const selectedActivity = useMemo(
+    () => data.activities.find((activity) => activity.id === activityId),
+    [activityId, data.activities],
+  );
+  const attributedProjectId = attributedProjectForSelection(selectedActivity, projectSelection);
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;
   useFieldErrorFocus(fieldError);
@@ -556,12 +560,12 @@ export function AllocationModal(props: AllocationModalProps) {
       !(Number.isFinite(effHoursPerDay) && effHoursPerDay > 0 && effHoursPerDay <= MAX_HOURS_PER_DAY)
     )
       return null;
-    const activity = data.activities.find((candidate) => candidate.id === activityId);
-    const attributedProjectId = attributedProjectForSelection(activity, projectSelection);
     if (
-      !activity ||
-      !validateAllocationAssignment(selectedResource, effectiveProjectId({ projectId: attributedProjectId }, activity))
-        .ok
+      !selectedActivity ||
+      !validateAllocationAssignment(
+        selectedResource,
+        effectiveProjectId({ projectId: attributedProjectId }, selectedActivity),
+      ).ok
     )
       return null;
     try {
@@ -591,7 +595,7 @@ export function AllocationModal(props: AllocationModalProps) {
   }, [
     activityId,
     create,
-    data.activities,
+    attributedProjectId,
     daysOfWork,
     daysOver,
     effEndDate,
@@ -607,7 +611,7 @@ export function AllocationModal(props: AllocationModalProps) {
     repeatUntilMaximum,
     repeatUntilMinimum,
     resourceId,
-    projectSelection,
+    selectedActivity,
     selectedResource,
     selectedEffectiveWeek,
     spanFitsDateDomain,
@@ -661,8 +665,6 @@ export function AllocationModal(props: AllocationModalProps) {
         ) || null
       );
     }
-    const activity = data.activities.find((candidate) => candidate.id === activityId);
-    const attributedProjectId = attributedProjectForSelection(activity, projectSelection);
     return (
       formatCapacityAdvisory(
         capacityAdvisory(
@@ -684,9 +686,8 @@ export function AllocationModal(props: AllocationModalProps) {
       ) || null
     );
   }, [
-    activityId,
+    attributedProjectId,
     create,
-    data.activities,
     data.allocations,
     data.closures,
     data.timeOff,
@@ -696,7 +697,6 @@ export function AllocationModal(props: AllocationModalProps) {
     ignoreWeekends,
     isBlocks,
     isExternal,
-    projectSelection,
     repeat,
     repeatProjection,
     resourceId,
@@ -781,21 +781,10 @@ export function AllocationModal(props: AllocationModalProps) {
         projectSelection !== INTERNAL_PROJECT_SELECTION && projectSelection !== ANY_PROJECT_SELECTION
           ? {
               ...inlineActivityOption,
-              groupLabel:
-                inlineActivityOption.kind === "repeatable"
-                  ? m.scheduler_filter_all_projects()
-                  : m.form_activity_kind_project(),
+              groupLabel: groupLabelForKind(inlineActivityOption.kind),
             }
           : inlineActivityOption;
-      return [...baseActivityOptions, option].toSorted((left, right) => {
-        const groupOrder = left.groupLabel === m.scheduler_filter_all_projects() ? 0 : 1;
-        const rightGroupOrder = right.groupLabel === m.scheduler_filter_all_projects() ? 0 : 1;
-        return (
-          groupOrder - rightGroupOrder ||
-          left.label.localeCompare(right.label, undefined, { sensitivity: "base" }) ||
-          left.value.localeCompare(right.value)
-        );
-      });
+      return sortGroupedOptions([...baseActivityOptions, option]);
     }
     return baseActivityOptions;
   }, [baseActivityOptions, inlineActivityOption, projectSelection]);
@@ -879,12 +868,10 @@ export function AllocationModal(props: AllocationModalProps) {
       maxLength: MAX_NOTE_LENGTH,
     });
     if (cleanNote === null) return null;
-    const activity = data.activities.find((act) => act.id === activityId);
-    const attributedProjectId = attributedProjectForSelection(activity, projectSelection);
-    if (selectedResource && activity) {
+    if (selectedResource && selectedActivity) {
       const check = validateAllocationAssignment(
         selectedResource,
-        effectiveProjectId({ projectId: attributedProjectId }, activity),
+        effectiveProjectId({ projectId: attributedProjectId }, selectedActivity),
       );
       if (!check.ok) {
         fail("activity", domainErrorMessage(check.codes[0]));
