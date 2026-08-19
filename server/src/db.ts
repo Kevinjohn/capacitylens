@@ -1364,7 +1364,7 @@ export function upsertRow(db: Db, table: string, obj: Row): void {
     if (table === "activities" && obj.kind !== "repeatable") {
       const attributed = db
         .prepare("SELECT id, updatedAt FROM allocations WHERE activityId = ? AND projectId IS NOT NULL")
-        .all(obj.id) as Array<{ id: string; updatedAt: unknown }>;
+        .all(obj.id as string) as Array<{ id: string; updatedAt: unknown }>;
       const clearAttribution = db.prepare("UPDATE allocations SET projectId = NULL, updatedAt = ? WHERE id = ?");
       for (const allocation of attributed) {
         clearAttribution.run(nextServerRevision(allocation.updatedAt), allocation.id);
