@@ -885,6 +885,28 @@ describe("SelectField", () => {
     expect(baseElement.querySelector('[data-slot="select-separator"]')).toHaveAttribute("aria-hidden", "true");
   });
 
+  it("renders contiguous options in accessible labelled groups", () => {
+    render(
+      <SelectField
+        label="Activities"
+        value="all-projects"
+        onChange={vi.fn()}
+        options={[
+          { value: "all-projects", label: "Planning", groupLabel: "All projects" },
+          { value: "project", label: "Delivery", groupLabel: "Project-specific" },
+        ]}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByLabelText("Activities"), { key: "ArrowDown" });
+    expect(
+      within(screen.getByRole("group", { name: "All projects" })).getByRole("option", { name: "Planning" }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("group", { name: "Project-specific" })).getByRole("option", { name: "Delivery" }),
+    ).toBeInTheDocument();
+  });
+
   it("round-trips empty and sentinel-shaped option values without collision", () => {
     const onChange = vi.fn();
     const { rerender } = render(
