@@ -28,7 +28,8 @@ available without making every team configure it.
 - ✅ The per-account `internalColourMode` setting offers only `grey` and `palette`; absent defaults
   to `grey`, and the value syncs, persists and exports.
 - ✅ Grey mode renders `internal` activity bars and Internal-owned project bars/swatches neutral
-  grey. Cross-project activities remain distinct and keep their existing colours.
+  grey. Unattributed All-projects activities remain distinct and keep their existing colours;
+  attributed ones use their effective project's colour.
 - ✅ The project form hides the picker only while its selected client is Internal and the setting is
   Grey. The project colour remains stored and valid.
 - ✅ Palette mode reveals the same picker and restores the saved project colour immediately.

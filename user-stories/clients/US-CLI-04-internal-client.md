@@ -4,14 +4,14 @@
 
 ## Goal
 
-Use the built-in **Internal** client to capture project-less internal work (Admin, retros, cross-project
+Use the built-in **Internal** client to capture project-less internal work (Admin, retros, unattributed All-projects
 activities) and see it on the schedule — without it cluttering the Clients management list as if it
 were a client you maintain by hand.
 
 ## Why
 
 Not all work belongs to a paying client. CapacityLens gives every account ONE built-in **Internal**
-pseudo-client so project-less internal/cross-project activities have a home in the client view: they
+pseudo-client so project-less internal and unattributed All-projects activities have a home in the client view: they
 bucket under Internal for labelling and filtering, and Internal can also own real projects when the
 team wants to. But Internal is a behind-the-scenes data anchor, not a client you manage — so it is
 **hidden from the Clients management list** while staying fully selectable and bindable everywhere it
@@ -30,7 +30,7 @@ is actually used.
    `Team retro`, choose the **Internal** kind (the **Project** picker disappears), and **Save** — the
    activity lands in the **Internal activities** section with no project.
 4. Click **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and scroll to the start so the seed's project-less
-   cross-project _Design_ booking (Barry Allen, 8–10 June) is visible.
+   unattributed All-projects _Design_ booking (Barry Allen, 8–10 June) is visible.
 5. Open **Filter by client** and choose **Internal** (it's still an option here).
 
 ## Acceptance criteria
@@ -43,6 +43,6 @@ is actually used.
   ⌘K command palette.
 - ✅ An activity created with the **Internal** kind has **no project** and appears under
   **Internal activities** — no error anywhere downstream.
-- ✅ **Filter by client → Internal** shows project-less (internal/cross-project) work AND any work under
+- ✅ **Filter by client → Internal** shows project-less (internal/unattributed All-projects) work AND any work under
   Internal-owned projects, while hiding project work owned by other clients (e.g. _Brand System_
   under LexCorp disappears).

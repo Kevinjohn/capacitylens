@@ -18,18 +18,19 @@ Scheduling work is the core job of the app. A studio manager plans who does what
 2. Choose **Project** = _Queen Consolidated / Project Watchtower_.
 3. Choose **Activity** = _Wireframes_.
 4. Set **Start** = `2026-06-16` and **End** = `2026-06-18`.
-5. Set **Hours / day** = `6`.
+5. Set **Hours / day** = `4`.
 6. Choose **Status** = _Confirmed_ in the three-option status group.
 7. Optionally type a single-line **Note**.
 8. Click **Save**. The dialog closes.
 
 ## Acceptance criteria
 
-- ✅ After Save, a new `allocation-bar` appears on the **Bruce Wayne** row spanning 16–18 June, labelled with the activity (_Wireframes_) and `· 6h`.
+- ✅ After Save, a new `allocation-bar` appears on the **Bruce Wayne** row spanning 16–18 June, labelled with the activity (_Wireframes_) and `· 4h`.
 - ✅ The bar carries `data-status="confirmed"`.
 - ✅ When the modal is opened from the row **+**, the assignee is fixed to that row's resource (here _Bruce Wayne_): there is no **Assignee** select in create mode — the dialog title names the resource instead.
-- ✅ Choosing a **Project** repopulates **Activity** to that project; **Activity** only lists that project's activities.
-- ✅ The **Project** picker starts with _Internal_ and _Any Project_, then a divider and real projects sorted by client and project name. Those scopes expose only internal, cross-project and selected-project activities respectively, with each Activity list alphabetical.
+- ✅ Choosing a real **Project** repopulates **Activity** with an **All projects** group first and a **Project-specific** group second. Each group is alphabetical.
+- ✅ The **Project** picker starts with _Internal_ and _No specific project_, then a divider and real projects sorted by client and project name. Internal exposes internal activities; No specific project exposes All-projects activities and creates an unattributed booking.
+- ✅ Choosing an All-projects activity under a real project attributes that allocation to the project. Its bar carries the project/client label and matches their schedule filters; changing the scope to _No specific project_ clears that attribution.
 - ✅ **Status** is a labelled _Confirmed_ / _Tentative_ / _Completed_ radiogroup and **Note** is a single-line text field.
 - ✅ At normal modal widths, labels use the shared 25% column and controls use the 75% column.
   Date/workload controls stay side by side within that control area, **Status** fills it with three

@@ -273,13 +273,14 @@ test.describe("Allocation editor", () => {
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     const project = dialog.getByLabel("Project", { exact: true });
     await expect(project).toHaveText(/Project Watchtower/); // bound project preselected
-    // "Locked" = restricted to the bound project + both project-less scopes, but the select stays
-    // ENABLED so a placeholder can still take Internal or No specific project work. A non-bound project
-    // ("Metropolis Rebrand") is not offered.
+    // The trigger remains readable, but incompatible project-less scopes are disabled. The bound
+    // project can use both its own activities and All-projects activities.
     await expect(project).toBeEnabled();
     await project.click();
-    await expect(page.getByRole("option", { name: "Internal", exact: true })).toBeVisible();
-    await expect(page.getByRole("option", { name: "No specific project", exact: true })).toBeVisible();
+    await expect(page.getByRole("option", { name: "Internal", exact: true })).toHaveAttribute("data-disabled");
+    await expect(page.getByRole("option", { name: "No specific project", exact: true })).toHaveAttribute(
+      "data-disabled",
+    );
     await expect(page.getByRole("option", { name: /Metropolis Rebrand/ })).toHaveCount(0);
   });
 

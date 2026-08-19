@@ -58,6 +58,8 @@ surfaces here.
 - ✅ **Delete permanently** on a tombstone is **disabled** with the locked hint until it is ≥ 30 days
   old (`PURGE_MIN_AGE_DAYS`); once eligible it is enabled and requires a strong confirm. It is shown
   only to a caller who **may purge** (always in OFF/local; admin+ on an auth-on server).
+- ✅ Permanently deleting a client or project removes its owned project-specific work. A shared
+  All-projects allocation survives with its project attribution cleared.
 - ✅ In **server mode** each action POSTs the dedicated route (`POST /api/:entity/:id/{archive,
 unarchive,delete,purge} {accountId}`) and reloads the active slice; the server enforces the
   interlocks (delete-needs-archived, purge tier + 30 days, PII scrub) regardless of the UI. In

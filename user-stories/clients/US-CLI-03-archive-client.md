@@ -12,8 +12,10 @@ retained and can be restored, or later permanently deleted from Settings → Arc
 
 When an account pauses or ends, the manager wants the client off the schedule in one action — but
 without destroying months of work. Archiving hides the client from the active views while retaining
-its data; soft-delete and permanent removal (which DO cascade to children) are separate, later steps
-reached from Settings → Archived & deleted. Because archiving is reversible, the action is undoable.
+its data; soft-delete and permanent removal are separate, later steps reached from Settings →
+Archived & deleted. Permanent removal cascades client-owned projects and project-specific work;
+shared All-projects bookings remain and become unattributed. Because archiving is reversible, the
+action is undoable.
 
 ## How (end-to-end)
 
@@ -33,9 +35,9 @@ allocations.
 - ✅ The confirmation dialog is titled **Archive client?** and explains the client is hidden from the
   schedule and is restorable from Settings → Archived & deleted.
 - ✅ After confirming, **Queen Consolidated** is gone from the Clients management list (archived, not destroyed).
-- ✅ The client, its projects, activities and allocations are **retained** in the data — archiving
-  filters each row by its OWN status (it does not cascade-delete the children), so a project under the
-  archived client keeps its own active status.
+- ✅ The client, its projects, activities and allocations are **retained** in the data — the active
+  view hides descendants through their archived ancestry, so a project under the archived client
+  keeps its own active status.
 - ✅ Archived clients surface in **Settings → Archived & deleted**, where they can be restored or
   (after soft-delete + the 30-day grace) permanently deleted.
 - ✅ (LOCAL mode) Pressing **⌘Z** restores the client to the active list; in server mode, **Restore**

@@ -12,8 +12,9 @@ later permanently deleted from Settings → Archived & deleted.
 
 When a project pauses or is cancelled, the manager wants it off the schedule in one step — but without
 destroying its scheduled work. Archiving hides the project from the active views while keeping its
-data; soft-delete and permanent removal (which DO cascade to phases/activities/allocations and unbind
-placeholders) are separate, later steps reached from Settings → Archived & deleted. Archiving is
+data; soft-delete and permanent removal are separate, later steps reached from Settings → Archived
+& deleted. Permanent removal cascades project-specific work and unbinds placeholders, while shared
+All-projects bookings remain and become unattributed. Archiving is
 reversible, so the action is undoable.
 
 ## How (end-to-end)
@@ -35,8 +36,12 @@ Review_) and allocations.
   schedule and is restorable from Settings → Archived & deleted.
 - ✅ After confirming, **Project Watchtower** is gone from the Projects management list (archived, not
   destroyed).
-- ✅ The project, its phases, activities and allocations are **retained** in the data — archiving
-  filters each row by its OWN status (it does not cascade-delete the children).
+- ✅ The project, its phases, activities and allocations are **retained** in the data — the active
+  view hides descendants through their archived ancestry without changing their own status.
+- ✅ Restoring the project brings attributed All-projects allocations back with their attribution
+  intact, including after an ordinary allocation drag or edit.
+- ✅ Permanently deleting the project removes its project-specific activities and allocations, but
+  clears the project attribution from an All-projects allocation instead of deleting that booking.
 - ✅ Archived projects surface in **Settings → Archived & deleted**, where they can be restored or
   (after soft-delete + the 30-day grace) permanently deleted.
 - ✅ (LOCAL mode) Pressing **⌘Z** restores the project to the active list; in server mode, **Restore**
