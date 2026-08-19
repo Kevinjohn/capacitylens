@@ -160,6 +160,16 @@ function writeActivityRow(
   return clearAllocationAttributionForActivities(db, new Set([id]));
 }
 
+// Activity writes add rewritten allocation revisions beside the ordinary activity echo so
+// direct-route callers can reconcile the same server-owned cascade as batch callers.
+function shapeActivityWriteEcho(
+  entity: string,
+  echo: Record<string, unknown>,
+  rewrittenAllocations: RewrittenAllocationRevision[],
+): Record<string, unknown> {
+  return entity === "activities" ? { ...echo, rewrittenAllocations } : echo;
+}
+
 // Cap on ops per POST /api/batch request (the MAX_IMPORT_RECORDS precedent, applied to the sync
 // path). BODY_LIMIT bounds request BYTES, but not request WORK: every operation is sanitized,
 // authorized, validated and applied to the in-memory projection. The transaction reads each
@@ -2148,9 +2158,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         });
         // A write response is a read: apply the same note/private-name projections as /api/state.
         const echo = redactWriteEcho(entity, row, vis);
-        // Activity writes add rewritten allocation revisions beside the ordinary activity echo so
-        // direct-route callers can reconcile the same server-owned cascade as batch callers.
-        return reply.code(200).send(entity === "activities" ? { ...echo, rewrittenAllocations } : echo);
+        return reply.code(200).send(shapeActivityWriteEcho(entity, echo, rewrittenAllocations));
       } catch (err) {
         return sendFail(reply, err);
       }
@@ -2243,8 +2251,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         );
         // The merge carries stored protected fields into `merged`; apply the normal read projection.
         const echo = redactWriteEcho(entity, stamped, vis);
-        // See PUT above: activity responses expose additive cascade revisions to direct callers.
-        return reply.code(200).send(entity === "activities" ? { ...echo, rewrittenAllocations } : echo);
+        return reply.code(200).send(shapeActivityWriteEcho(entity, echo, rewrittenAllocations));
       } catch (err) {
         return sendFail(reply, err);
       }
