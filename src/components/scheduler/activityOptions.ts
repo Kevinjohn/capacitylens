@@ -1,6 +1,13 @@
 import type { Activity, Phase, Project } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import type { Option } from "../common/ui";
+import { compareDisplayNames } from "@/lib/displayOrder";
+
+type ActivityGroupKey = "all-projects" | "project";
+
+function groupKeyForKind(kind: Activity["kind"]): ActivityGroupKey {
+  return kind === "repeatable" ? "all-projects" : "project";
+}
 
 export function groupLabelForKind(kind: Activity["kind"]): string {
   return kind === "repeatable" ? m.scheduler_filter_all_projects() : m.form_activity_kind_project();
@@ -8,13 +15,13 @@ export function groupLabelForKind(kind: Activity["kind"]): string {
 
 export function sortGroupedOptions(options: readonly Option[]): Option[] {
   const allProjectsGroupLabel = m.scheduler_filter_all_projects();
+  const groupOrder = (option: Option): number =>
+    option.groupKey === "all-projects" || (option.groupKey === undefined && option.groupLabel === allProjectsGroupLabel)
+      ? 0
+      : 1;
   return options.toSorted((left, right) => {
-    const groupOrder = left.groupLabel === allProjectsGroupLabel ? 0 : 1;
-    const rightGroupOrder = right.groupLabel === allProjectsGroupLabel ? 0 : 1;
     return (
-      groupOrder - rightGroupOrder ||
-      left.label.localeCompare(right.label, undefined, { sensitivity: "base" }) ||
-      left.value.localeCompare(right.value)
+      groupOrder(left) - groupOrder(right) || compareDisplayNames(left.label, left.value, right.label, right.value)
     );
   });
 }
@@ -40,7 +47,9 @@ export function buildActivityOptions(
 
   const resolved = eligible
     .map((activity) => {
-      if (nameCounts.get(activity.name) === 1) return { activity, baseLabel: activity.name };
+      if (nameCounts.get(activity.name) === 1) {
+        return { activity, kind: activity.kind, baseLabel: activity.name };
+      }
       const context =
         (activity.phaseId ? phaseById.get(activity.phaseId) : undefined) ??
         (activity.kind === "internal"
@@ -48,7 +57,7 @@ export function buildActivityOptions(
           : activity.kind === "repeatable"
             ? m.form_activity_kind_repeatable()
             : (projectById.get(activity.projectId ?? "") ?? "Project"));
-      return { activity, baseLabel: `${activity.name} / ${context}` };
+      return { activity, kind: activity.kind, baseLabel: `${activity.name} / ${context}` };
     })
     .sort(
       (left, right) =>
@@ -59,21 +68,18 @@ export function buildActivityOptions(
   const labelCounts = new Map<string, number>();
   for (const { baseLabel } of resolved) labelCounts.set(baseLabel, (labelCounts.get(baseLabel) ?? 0) + 1);
   const occurrences = new Map<string, number>();
-  const options = resolved.map(({ activity, baseLabel }) => {
+  const options = resolved.map(({ activity, kind: resolvedKind, baseLabel }) => {
     const occurrence = (occurrences.get(baseLabel) ?? 0) + 1;
     occurrences.set(baseLabel, occurrence);
     return {
       value: activity.id,
       label: (labelCounts.get(baseLabel) ?? 0) > 1 ? `${baseLabel} (${occurrence})` : baseLabel,
+      ...(groupedProjectScope
+        ? { groupKey: groupKeyForKind(resolvedKind), groupLabel: groupLabelForKind(resolvedKind) }
+        : {}),
     };
   });
   if (!groupedProjectScope) return options;
 
-  const repeatableIds = new Set(repeatable.map((activity) => activity.id));
-  return sortGroupedOptions(
-    options.map((option) => ({
-      ...option,
-      groupLabel: groupLabelForKind(repeatableIds.has(option.value) ? "repeatable" : "project"),
-    })),
-  );
+  return sortGroupedOptions(options);
 }

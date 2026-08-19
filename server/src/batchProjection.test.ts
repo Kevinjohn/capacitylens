@@ -232,4 +232,16 @@ describe("BatchStateProjection", () => {
     expect(projection.allocationsForActivity("a1", "act1")).toEqual([]);
     expect(projection.allocationsForActivity("a1", "act2").map((row) => row.id)).toEqual(["al2", "al1"]);
   });
+
+  it("defers attribution clearing for allocations explicitly updated by the batch", () => {
+    const projection = new BatchStateProjection(relationshipFixture());
+
+    projection.upsert(
+      "activities",
+      { ...projection.data.activities[1], kind: "project", projectId: "p1" },
+      new Set(["al2"]),
+    );
+
+    expect(projection.row("allocations", "al2")).toHaveProperty("projectId", "p1");
+  });
 });

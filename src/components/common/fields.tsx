@@ -380,6 +380,8 @@ export interface Option {
   label: string;
   /** Labels a contiguous option group for assistive technology and visual scanning. */
   groupLabel?: string;
+  /** Stable semantic identity for a translated group label. */
+  groupKey?: "all-projects" | "project";
   /** Adds a structural, non-selectable divider immediately before this option. */
   separatorBefore?: boolean;
   /** Renders the option un-pickable while still SELECTABLE-by-value: a select whose current value
@@ -426,16 +428,13 @@ export function SelectField({
   const markDirty = useMarkFormDirty();
   const selectedOption = options.find((option) => option.value === value);
   const unresolvedValue = value !== "" && selectedOption === undefined;
-  const optionGroups = options.some((option) => option.groupLabel !== undefined)
-    ? options.reduce<Array<{ label?: string; options: Option[] }>>((groups, option) => {
-        const previous = groups.at(-1);
-        if (previous && previous.label === option.groupLabel) previous.options.push(option);
-        else groups.push({ label: option.groupLabel, options: [option] });
-        return groups;
-      }, [])
-    : options.length > 0
-      ? [{ options }]
-      : [];
+  const optionGroups = options.reduce<Array<{ key?: string; label?: string; options: Option[] }>>((groups, option) => {
+    const previous = groups.at(-1);
+    const key = option.groupKey ?? option.groupLabel;
+    if (previous && previous.key === key) previous.options.push(option);
+    else groups.push({ key, label: option.groupLabel, options: [option] });
+    return groups;
+  }, []);
   return (
     <Field
       data-invalid={invalid || undefined}
@@ -466,7 +465,7 @@ export function SelectField({
         </SelectTrigger>
         <SelectContent>
           {optionGroups.map((group, index) => (
-            <SelectGroup key={`${group.label ?? "ungrouped"}-${index}`}>
+            <SelectGroup key={`${group.key ?? "ungrouped"}-${index}`}>
               {group.label && <SelectLabel>{group.label}</SelectLabel>}
               {group.options.map((o) => (
                 <Fragment key={o.value}>

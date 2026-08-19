@@ -1494,6 +1494,59 @@ describe("built-in Internal client bucketing + filter", () => {
 
     expect(internalBarIds(model)).not.toContain("aIntProj");
   });
+
+  it("does not bucket an unattributed dangling-activity allocation under any client or project", () => {
+    const data = withInternal();
+    data.allocations.push(
+      {
+        id: "dangling-unattributed",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r1",
+        activityId: "missing-activity",
+        startDate: "2026-06-05",
+        endDate: "2026-06-05",
+        hoursPerDay: 2,
+        status: "confirmed",
+      },
+      {
+        id: "dangling-attributed",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r1",
+        activityId: "missing-activity",
+        projectId: "p1",
+        startDate: "2026-06-05",
+        endDate: "2026-06-05",
+        hoursPerDay: 2,
+        status: "confirmed",
+      },
+    );
+    const buildDangling = (filters = emptyFilters(), showInternalProjects = true) =>
+      buildSchedulerModel({
+        data,
+        geom,
+        days,
+        visibleWindow: { start, end },
+        overSoonWindow: { start, end },
+        filters,
+        preferences: {
+          disciplinesEnabled: true,
+          placeholdersEnabled: true,
+          externalEnabled: true,
+          showInternalProjects,
+        },
+      });
+
+    expect(barIds(buildDangling({ ...emptyFilters(), clientId: internalId }))).not.toContain("dangling-unattributed");
+    expect(barIds(buildDangling({ ...emptyFilters(), clientId: "c1" }))).not.toContain("dangling-unattributed");
+    expect(barIds(buildDangling({ ...emptyFilters(), projectId: "p1" }))).not.toContain("dangling-unattributed");
+    expect(barIds(buildDangling(emptyFilters(), false))).toContain("dangling-unattributed");
+    expect(barIds(buildDangling({ ...emptyFilters(), clientId: "c1" }))).toContain("dangling-attributed");
+    expect(barIds(buildDangling({ ...emptyFilters(), projectId: "p1" }))).toContain("dangling-attributed");
+  });
 });
 
 // Per-account BAR-ONLY hide prefs for internal work (showInternalProjects / showInternalActivities).

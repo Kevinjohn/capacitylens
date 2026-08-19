@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  allocationAttributionAllowed,
   deleteClientCascade,
   deleteDisciplineCascade,
   deletePhaseCascade,
@@ -18,6 +19,15 @@ import { addDaysISO } from "./dateMath";
 import { MAX_SPAN_DAYS } from "./schedulingDays";
 
 const CASCADE_REVISION = "2026-07-15T00:00:00.000Z";
+
+describe("allocationAttributionAllowed", () => {
+  it("allows allocation-level project attribution only for repeatable activities", () => {
+    expect(allocationAttributionAllowed("repeatable")).toBe(true);
+    expect(allocationAttributionAllowed("project")).toBe(false);
+    expect(allocationAttributionAllowed("internal")).toBe(false);
+    expect(allocationAttributionAllowed("unknown")).toBe(false);
+  });
+});
 
 const placeholder = (over: Partial<Resource> = {}): Resource => ({
   id: "ph1",

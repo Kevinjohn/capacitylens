@@ -11,6 +11,7 @@ import {
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
+import { allocationAttributionAllowed } from "@capacitylens/shared/lib/integrity";
 import { nextServerRevision } from "./revision";
 
 // Re-export the shared isEmpty so existing import sites (e.g. db.migrate.test.ts)
@@ -1346,7 +1347,7 @@ export function insertRow(db: Db, table: string, obj: Row): void {
 /** Idempotent insert-or-replace by id — the write the sync adapter uses for every
  *  create/update, so replaying a batch after a partial failure can't double-insert
  *  (a re-PUT of an already-written row just overwrites it). */
-export function upsertRow(db: Db, table: string, obj: Row): void {
+export function upsertRow(db: Db, table: string, obj: Row, skipAttributionClearFor?: ReadonlySet<string>): void {
   const spec = resolveTable(table);
   const cols = spec.columns.map((c) => c.name);
   // Exclude id (the conflict key) AND createdAt from the UPDATE: createdAt is immutable
@@ -1363,7 +1364,7 @@ export function upsertRow(db: Db, table: string, obj: Row): void {
         `ON CONFLICT(id) DO UPDATE SET ${set}`,
     );
     stmt.run(...toRow(spec, obj));
-    if (table === "activities" && obj.kind !== "repeatable") {
+    if (table === "activities" && !allocationAttributionAllowed(obj.kind)) {
       const cache = statementCache(db);
       cache.attributedAllocationsByActivitySelect ??= db.prepare(
         "SELECT id, updatedAt FROM allocations WHERE activityId = ? AND projectId IS NOT NULL",
@@ -1376,6 +1377,7 @@ export function upsertRow(db: Db, table: string, obj: Row): void {
         "UPDATE allocations SET projectId = NULL, updatedAt = ? WHERE id = ?",
       );
       for (const allocation of attributed) {
+        if (skipAttributionClearFor?.has(allocation.id)) continue;
         cache.clearAllocationAttribution.run(nextServerRevision(allocation.updatedAt), allocation.id);
       }
     }

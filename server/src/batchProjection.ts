@@ -6,6 +6,7 @@ import {
   type AppDataKey,
 } from "@capacitylens/shared/types/entities";
 import type { ValidationDataLookup } from "@capacitylens/shared/domain/mutations";
+import { allocationAttributionAllowed } from "@capacitylens/shared/lib/integrity";
 import { nextServerRevision } from "./revision";
 
 type ProjectionRow = Record<string, unknown> & { id: string };
@@ -79,14 +80,15 @@ export class BatchStateProjection implements ValidationDataLookup {
     }
   }
 
-  upsert(table: AppDataKey, row: Record<string, unknown>): void {
+  upsert(table: AppDataKey, row: Record<string, unknown>, skipAttributionClearFor?: ReadonlySet<string>): void {
     // Defensive re-check: every caller already passed through sanitizeWrite's assertIdPresent
     // (validate.ts), the universal write-path guard, so row.id should already be a string here.
     // Kept as a second gate rather than trusted, per the caller-can't-bypass-safety rule.
     if (typeof row.id !== "string") throw new Error("Batch projection rows require a string id.");
-    if (table === "activities" && row.kind !== "repeatable") {
+    if (table === "activities" && !allocationAttributionAllowed(row.kind)) {
       for (const allocation of this.allocationsForActivity(String(row.accountId), row.id)) {
         if (allocation.projectId === undefined) continue;
+        if (skipAttributionClearFor?.has(allocation.id)) continue;
         const cleared = { ...allocation, updatedAt: nextServerRevision(allocation.updatedAt) } as ProjectionRow;
         delete cleared.projectId;
         this.upsert("allocations", cleared);

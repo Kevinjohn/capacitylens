@@ -2339,6 +2339,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           if (orderedRejection) return reply.code(orderedRejection.status).send({ error: orderedRejection.error });
         }
       }
+      const batchAllocationPutIds = new Set(
+        ops.filter((op) => op.method === "PUT" && op.table === "allocations").map((op) => op.id),
+      );
       if (ops.length === 0 && syncOrder === null) {
         return reply.code(200).send({
           ok: true,
@@ -2662,8 +2665,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                       projection.replaceGeneratedBuiltin(generatedReplacement, clean);
                     } else {
                       validateWrite(state, table, clean, existing, projection);
-                      upsertRow(db, table, clean);
-                      projection.upsert(table as AppDataKey, clean);
+                      upsertRow(db, table, clean, batchAllocationPutIds);
+                      projection.upsert(table as AppDataKey, clean, batchAllocationPutIds);
                     }
                     if (table === "accounts" && !existing) {
                       const internalClient = buildInternalClient(id, clean.createdAt as string) as unknown as Record<

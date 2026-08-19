@@ -513,6 +513,72 @@ describe("generic lifecycle deletion guard", () => {
 });
 
 describe("batch sync (/api/batch — transactional, ordered)", () => {
+  it("changes repeatable activity kind with an explicit allocation attribution update", async () => {
+    const seedAttributed = async () => {
+      const fixture = freshApp();
+      await post(fixture.app, "accounts", account("a1"));
+      await post(fixture.app, "clients", client("c1", "a1"));
+      await post(fixture.app, "projects", project("p1", "a1", "c1"));
+      await post(fixture.app, "resources", person("r1", "a1"));
+      await post(fixture.app, "activities", {
+        ...activity("repeatable", "a1", "p1"),
+        kind: "repeatable",
+        projectId: undefined,
+      });
+      await post(fixture.app, "allocations", allocation("allocation", "a1", "r1", "repeatable", { projectId: "p1" }));
+      return fixture;
+    };
+
+    const explicit = await seedAttributed();
+    const explicitBefore = await state(explicit.app);
+    const explicitActivity = explicitBefore.activities.find((row: { id: string }) => row.id === "repeatable");
+    const explicitAllocation = explicitBefore.allocations.find((row: { id: string }) => row.id === "allocation");
+    const clearedAllocation = { ...explicitAllocation };
+    delete clearedAllocation.projectId;
+    const explicitResponse = await orderedBatch(explicit.app, "browser-session-kind-change-0001", 1, [
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...explicitActivity, kind: "project", projectId: "p1" },
+      },
+      { method: "PUT", table: "allocations", id: "allocation", row: clearedAllocation },
+    ]);
+    expect(explicitResponse.statusCode).toBe(200);
+    expect((await state(explicit.app)).allocations[0]).not.toHaveProperty("projectId");
+
+    const implicit = await seedAttributed();
+    const implicitBefore = await state(implicit.app);
+    const implicitActivity = implicitBefore.activities.find((row: { id: string }) => row.id === "repeatable");
+    const implicitResponse = await orderedBatch(implicit.app, "browser-session-kind-change-0002", 1, [
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...implicitActivity, kind: "project", projectId: "p1" },
+      },
+    ]);
+    expect(implicitResponse.statusCode).toBe(200);
+    expect((await state(implicit.app)).allocations[0]).not.toHaveProperty("projectId");
+
+    const forbidden = await seedAttributed();
+    const forbiddenBefore = await state(forbidden.app);
+    const forbiddenActivity = forbiddenBefore.activities.find((row: { id: string }) => row.id === "repeatable");
+    const forbiddenAllocation = forbiddenBefore.allocations.find((row: { id: string }) => row.id === "allocation");
+    const forbiddenResponse = await orderedBatch(forbidden.app, "browser-session-kind-change-0003", 1, [
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...forbiddenActivity, kind: "project", projectId: "p1" },
+      },
+      { method: "PUT", table: "allocations", id: "allocation", row: forbiddenAllocation },
+    ]);
+    expect(forbiddenResponse.statusCode).toBe(400);
+    expect(forbiddenResponse.json()).toMatchObject({ code: "allocation_project_forbidden" });
+    expect((await state(forbidden.app)).activities[0]).toMatchObject({ kind: "repeatable" });
+  });
+
   it("writes closures directly and in a batch, and rejects resource references", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));

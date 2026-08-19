@@ -154,6 +154,11 @@ export function effectiveProjectId(
   return allocation.projectId ?? activity.projectId;
 }
 
+/** Allocation-level project attribution belongs only to all-projects activities. */
+export function allocationAttributionAllowed(kind: unknown): boolean {
+  return kind === "repeatable";
+}
+
 export function validateAllocationAssignment(resource: Resource, projectId: ID | undefined): ValidationResult {
   const issues: ValidationIssue[] = [];
   // Only PLACEHOLDERS are project-restricted. `person` and `external` are intentionally
