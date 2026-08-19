@@ -94,7 +94,7 @@ describe("AllocationModal create", () => {
     fireEvent.keyDown(project, { key: "ArrowDown" });
     expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
       "Internal",
-      "Any Project",
+      "No specific project",
       "Acme / Lightning",
       "Acme / Other",
       "Zeta / Alpha",
@@ -106,7 +106,7 @@ describe("AllocationModal create", () => {
     expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Admin", "Support"]);
     fireEvent.click(screen.getByRole("option", { name: "Admin" }));
 
-    await chooseOption(user, "Project", "Any Project");
+    await chooseOption(user, "Project", "No specific project");
     fireEvent.keyDown(activity, { key: "ArrowDown" });
     expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Retrospective", "Strategy"]);
     await user.keyboard("{Escape}");
@@ -186,7 +186,7 @@ describe("AllocationModal create", () => {
 
   it.each([
     ["Internal", "Operations", undefined],
-    ["Any Project", "Planning", undefined],
+    ["No specific project", "Planning", undefined],
     ["Acme / Lightning", "Planning", "p1"],
   ] as const)("derives create attribution for the %s scope", async (scope, activityName, expectedProjectId) => {
     useStore.getState().addActivity({ name: "Operations", kind: "internal" });
@@ -289,7 +289,7 @@ describe("AllocationModal create", () => {
     // Invalid scopes remain visible so the lock is explicit, but cannot be selected.
     fireEvent.keyDown(projectSelect, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Internal" })).toHaveAttribute("data-disabled");
-    expect(screen.getByRole("option", { name: "Any Project" })).toHaveAttribute("data-disabled");
+    expect(screen.getByRole("option", { name: "No specific project" })).toHaveAttribute("data-disabled");
     expect(screen.queryByRole("option", { name: "Acme / Other" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
 
@@ -334,7 +334,7 @@ describe("AllocationModal create", () => {
     const projectSelect = screen.getByRole("combobox", { name: "Project" });
     fireEvent.keyDown(projectSelect, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Internal" })).not.toHaveAttribute("data-disabled");
-    expect(screen.getByRole("option", { name: "Any Project" })).not.toHaveAttribute("data-disabled");
+    expect(screen.getByRole("option", { name: "No specific project" })).not.toHaveAttribute("data-disabled");
     expect(screen.getByRole("option", { name: "Acme / Lightning" })).not.toHaveAttribute("data-disabled");
     await user.keyboard("{Escape}");
 
@@ -1249,7 +1249,7 @@ describe("AllocationModal blocks mode", () => {
 describe("AllocationModal edit", () => {
   it.each([
     ["attributed All-projects", "repeatable", "p1", "Acme / Lightning", "Planning"],
-    ["legacy unattributed All-projects", "repeatable", undefined, "Any Project", "Planning"],
+    ["legacy unattributed All-projects", "repeatable", undefined, "No specific project", "Planning"],
     ["internal", "internal", undefined, "Internal", "Operations"],
     ["project-specific", "project", undefined, "Acme / Lightning", "Wireframes"],
   ] as const)(
@@ -1297,7 +1297,7 @@ describe("AllocationModal edit", () => {
     const user = userEvent.setup();
     render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
 
-    await chooseOption(user, "Project", "Any Project");
+    await chooseOption(user, "Project", "No specific project");
     await chooseOption(user, "Activity", "Planning");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -1709,10 +1709,10 @@ describe("AllocationModal edit", () => {
     const user = userEvent.setup();
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
 
-    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Any Project");
+    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("No specific project");
     expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent("Admin");
     fireEvent.keyDown(screen.getByRole("combobox", { name: "Project" }), { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: "Any Project" })).toHaveAttribute("data-disabled");
+    expect(screen.getByRole("option", { name: "No specific project" })).toHaveAttribute("data-disabled");
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -1761,7 +1761,7 @@ describe("AllocationModal edit", () => {
     });
   });
 
-  it("keeps Duplicate for an unlinked cross-project allocation and hides it for a linked occurrence", () => {
+  it("keeps Duplicate for an unlinked all-projects allocation and hides it for a linked occurrence", () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const activity = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
     const oneOff = useStore.getState().addAllocation({
@@ -2256,7 +2256,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
 
   it.each([
     ["Internal", "Operations", undefined],
-    ["Any Project", "Planning", undefined],
+    ["No specific project", "Planning", undefined],
     ["Acme / Lightning", "Planning", "p1"],
   ] as const)(
     "derives every repeated allocation's attribution for the %s scope",

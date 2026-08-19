@@ -248,7 +248,7 @@ export interface SchedulerModelOptions {
     internalColourMode?: InternalColourMode;
     // Per-account BAR-ONLY view prefs (both default ON). When false they hide, from the schedule bars
     // ONLY, allocations on internal PROJECTS (activity kind 'project' whose project's client is the
-    // built-in Internal client) / internal ACTIVITIES (kind 'internal' ONLY — cross-project
+    // built-in Internal client) / internal ACTIVITIES (kind 'internal' ONLY — all-projects
     // 'repeatable' work is a distinct third group and is never hidden) respectively. See the
     // `barVisibleByInternalPref` filter below for the truthful-utilisation guarantee.
     showInternalProjects?: boolean;
@@ -409,7 +409,7 @@ export function buildSchedulerModel({
     return true;
   };
   // The activity lens (standalone — mutually exclusive with project/client via setFilters): a
-  // specific internal/cross-project activity, or a whole kind ('Internal — All' / 'Cross-project — All').
+  // specific internal/all-projects activity, or a whole kind ('Internal — All' / 'All projects — All').
   const matchesActivity = (a: Allocation): boolean => {
     if (filters.activityId) return a.activityId === filters.activityId;
     if (filters.activityKind) return activityById.get(a.activityId)?.kind === filters.activityKind;

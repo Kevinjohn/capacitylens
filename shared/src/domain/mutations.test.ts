@@ -941,7 +941,7 @@ describe("parent project edits preserve placeholder allocation assignments", () 
     ).not.toThrow();
   });
 
-  it("rejects converting a person with cross-project work into a bound placeholder", () => {
+  it("rejects converting a person with all-projects work into a bound placeholder", () => {
     const existing = person("r1", A1);
     const data: AppData = {
       ...base(),

@@ -25,7 +25,7 @@ test.describe("Filters", () => {
       "All activities",
       "Internal — All",
       "Admin / Internal",
-      "Cross-project — All",
+      "All projects — All",
       "Design",
       "Workshop",
     ]);
@@ -116,10 +116,10 @@ test.describe("Filters", () => {
     await expect(page.getByTestId("allocation-bar").first()).toBeVisible();
   });
 
-  test("filters the schedule to a cross-project activity (the activity lens)", async ({ page }) => {
+  test("filters the schedule to an all-projects activity (the activity lens)", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    // Seed books "Design" (a cross-project activity) for Barry across 8-10 June.
+    // Seed books "Design" (an all-projects activity) for Barry across 8-10 June.
     await selectShadOption(page.getByLabel("Filter by activity"), "kind:repeatable");
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Design" })).toBeVisible();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(1);

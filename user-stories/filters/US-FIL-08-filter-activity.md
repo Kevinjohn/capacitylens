@@ -1,6 +1,6 @@
 # US-FIL-08 — Filter by activity (the activity lens)
 
-**Area:** Filters · **Persona:** Studio manager · **Linked E2E:** `e2e/filters.spec.ts` → "filters the schedule to a cross-project activity (the activity lens)" · "the activity lens is mutually exclusive with the client / project lens"
+**Area:** Filters · **Persona:** Studio manager · **Linked E2E:** `e2e/filters.spec.ts` → "filters the schedule to an all-projects activity (the activity lens)" · "the activity lens is mutually exclusive with the client / project lens"
 
 ## Goal
 

@@ -34,7 +34,7 @@ test.describe("Allocation editor", () => {
     await project.click();
     await expect(page.getByRole("option")).toHaveText([
       "Internal",
-      "Any Project",
+      "No specific project",
       "LexCorp / Metropolis Rebrand",
       "Queen Consolidated / Project Watchtower",
     ]);
@@ -47,7 +47,7 @@ test.describe("Allocation editor", () => {
     await page.keyboard.press("Escape");
 
     await project.click();
-    await page.getByRole("option", { name: "Any Project", exact: true }).click();
+    await page.getByRole("option", { name: "No specific project", exact: true }).click();
     await activity.click();
     await expect(page.getByRole("option")).toHaveText(["Design", "Workshop"]);
     await page.keyboard.press("Escape");
@@ -274,12 +274,12 @@ test.describe("Allocation editor", () => {
     const project = dialog.getByLabel("Project", { exact: true });
     await expect(project).toHaveText(/Project Watchtower/); // bound project preselected
     // "Locked" = restricted to the bound project + both project-less scopes, but the select stays
-    // ENABLED so a placeholder can still take Internal or Any Project work. A non-bound project
+    // ENABLED so a placeholder can still take Internal or No specific project work. A non-bound project
     // ("Metropolis Rebrand") is not offered.
     await expect(project).toBeEnabled();
     await project.click();
     await expect(page.getByRole("option", { name: "Internal", exact: true })).toBeVisible();
-    await expect(page.getByRole("option", { name: "Any Project", exact: true })).toBeVisible();
+    await expect(page.getByRole("option", { name: "No specific project", exact: true })).toBeVisible();
     await expect(page.getByRole("option", { name: /Metropolis Rebrand/ })).toHaveCount(0);
   });
 
