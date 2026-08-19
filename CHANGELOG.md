@@ -7,6 +7,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.57.0-alpha.1] — 2026-08-19
+
 - Protected `main` against deletion and force pushes while retaining the low-noise post-merge CI
   model, remediated the known dependency advisories without audit exceptions, and made packaged
   builds, SPDX SBOMs and recognized provenance bundles part of every published release.
@@ -3890,7 +3892,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.56.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.1...HEAD
+[0.57.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.56.0-alpha.1...v0.57.0-alpha.1
 [0.56.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...v0.56.0-alpha.1
 [0.55.0-alpha.4]: https://github.com/Kevinjohn/capacitylens/compare/v0.54.0-alpha.1...v0.55.0-alpha.4
 [0.54.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.7-alpha.1...v0.54.0-alpha.1
