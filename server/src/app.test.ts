@@ -513,6 +513,22 @@ describe("generic lifecycle deletion guard", () => {
 });
 
 describe("batch sync (/api/batch — transactional, ordered)", () => {
+  const seedAttributedActivity = async () => {
+    const fixture = freshApp();
+    await post(fixture.app, "accounts", account("a1"));
+    await post(fixture.app, "clients", client("c1", "a1"));
+    await post(fixture.app, "projects", project("p1", "a1", "c1"));
+    await post(fixture.app, "projects", project("p2", "a1", "c1"));
+    await post(fixture.app, "resources", placeholder("ph", "a1", "p1"));
+    await post(fixture.app, "activities", {
+      ...activity("repeatable", "a1", "p1"),
+      kind: "repeatable",
+      projectId: undefined,
+    });
+    await post(fixture.app, "allocations", allocation("allocation", "a1", "ph", "repeatable", { projectId: "p1" }));
+    return fixture;
+  };
+
   it("reconciles attributed allocations after repeatable activity kind changes", async () => {
     const seedAttributed = async () => {
       const fixture = freshApp();
@@ -555,6 +571,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       id: "allocation",
       createdAt: rewrittenAllocation.createdAt,
       updatedAt: rewrittenAllocation.updatedAt,
+      rewrite: true,
     });
 
     const explicit = await seedAttributed();
@@ -594,6 +611,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       id: "allocation",
       createdAt: implicitAllocation.createdAt,
       updatedAt: implicitAllocation.updatedAt,
+      rewrite: true,
     });
 
     const forbidden = await seedAttributed();
@@ -612,6 +630,62 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     expect(forbiddenResponse.statusCode).toBe(400);
     expect(forbiddenResponse.json()).toMatchObject({ code: "allocation_project_forbidden" });
     expect((await state(forbidden.app)).activities[0]).toMatchObject({ kind: "repeatable" });
+  });
+
+  it("keeps at-flip-time clearing after an activity flips back before a dependent write", async () => {
+    const fixture = await seedAttributedActivity();
+    const before = await state(fixture.app);
+    const currentActivity = before.activities.find((row: { id: string }) => row.id === "repeatable");
+
+    const response = await batch(fixture.app, [
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...currentActivity, kind: "internal", projectId: undefined },
+      },
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...currentActivity, kind: "repeatable", projectId: undefined },
+      },
+      {
+        method: "PUT",
+        table: "resources",
+        id: "ph",
+        row: { ...before.resources[0], projectId: "p2" },
+      },
+    ]);
+
+    expect(response.statusCode, response.body).toBe(200);
+    const rewritten = (await state(fixture.app)).allocations[0];
+    expect(rewritten).not.toHaveProperty("projectId");
+    expect(response.json().revisions).toContainEqual({
+      table: "allocations",
+      id: rewritten.id,
+      createdAt: rewritten.createdAt,
+      updatedAt: rewritten.updatedAt,
+      rewrite: true,
+    });
+  });
+
+  it("validates an activity edit against corrupt attribution before clearing it", async () => {
+    const fixture = await seedAttributedActivity();
+    fixture.db.prepare("UPDATE resources SET projectId = 'p2' WHERE id = 'ph'").run();
+    const before = await state(fixture.app);
+
+    const response = await batch(fixture.app, [
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...before.activities[0], kind: "project", projectId: "p1" },
+      },
+    ]);
+
+    expect(response.statusCode).toBe(200);
+    expect((await state(fixture.app)).allocations[0]).not.toHaveProperty("projectId");
   });
 
   it("keeps direct activity PUT attribution clearing behavior", async () => {
@@ -641,6 +715,9 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     const allocationAfter = (await state(fixture.app)).allocations[0];
     expect(allocationAfter).not.toHaveProperty("projectId");
     expect(Date.parse(allocationAfter.updatedAt)).toBeGreaterThan(Date.parse(before.allocations[0].updatedAt));
+    expect(response.json().rewrittenAllocations).toEqual([
+      { id: allocationAfter.id, createdAt: allocationAfter.createdAt, updatedAt: allocationAfter.updatedAt },
+    ]);
   });
 
   it("keeps direct activity PATCH attribution clearing behavior", async () => {
@@ -666,6 +743,9 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     const allocationAfter = (await state(fixture.app)).allocations[0];
     expect(allocationAfter).not.toHaveProperty("projectId");
     expect(Date.parse(allocationAfter.updatedAt)).toBeGreaterThan(Date.parse(before.allocations[0].updatedAt));
+    expect(response.json().rewrittenAllocations).toEqual([
+      { id: allocationAfter.id, createdAt: allocationAfter.createdAt, updatedAt: allocationAfter.updatedAt },
+    ]);
   });
 
   it("repairs legacy attribution when a batch re-PUTs an already ineligible activity", async () => {
@@ -698,6 +778,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       id: repaired.id,
       createdAt: repaired.createdAt,
       updatedAt: repaired.updatedAt,
+      rewrite: true,
     });
   });
 
@@ -767,6 +848,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       id: rewritten.id,
       createdAt: rewritten.createdAt,
       updatedAt: rewritten.updatedAt,
+      rewrite: true,
     });
   });
 

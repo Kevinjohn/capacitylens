@@ -7,6 +7,7 @@ import {
 } from "@capacitylens/shared/types/entities";
 import type { ValidationDataLookup } from "@capacitylens/shared/domain/mutations";
 import type { RewrittenAllocationRevision } from "./db";
+import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
 
 type ProjectionRow = Record<string, unknown> & { id: string };
 type DeleteAction = "cascade" | "set-null";
@@ -56,6 +57,7 @@ const rowsFor = (data: AppData, table: AppDataKey): ProjectionRow[] => data[tabl
  * projection is never serialized, and validation treats every table as an unordered entity set.
  */
 export class BatchStateProjection implements ValidationDataLookup {
+  private readonly attributionClearedActivityIds = new Set<string>();
   readonly data: AppData;
   private readonly rowIndexes: Record<AppDataKey, Map<string, number>>;
   private readonly relationshipIndexes: RelationshipIndex[];
@@ -84,7 +86,12 @@ export class BatchStateProjection implements ValidationDataLookup {
     // (validate.ts), the universal write-path guard, so row.id should already be a string here.
     // Kept as a second gate rather than trusted, per the caller-can't-bypass-safety rule.
     if (typeof row.id !== "string") throw new Error("Batch projection rows require a string id.");
-    const next = row as ProjectionRow;
+    const next =
+      table === "allocations" &&
+      typeof row.activityId === "string" &&
+      this.attributionClearedActivityIds.has(row.activityId)
+        ? (withoutAllocationAttribution(row) as ProjectionRow)
+        : (row as ProjectionRow);
     const rows = rowsFor(this.data, table);
     const index = this.rowIndexes[table].get(next.id);
     if (index === undefined) {
@@ -101,21 +108,18 @@ export class BatchStateProjection implements ValidationDataLookup {
     for (const revision of revisions) {
       const allocation = this.row("allocations", revision.id);
       if (!allocation || allocation.projectId === undefined) continue;
-      const cleared = { ...allocation, updatedAt: revision.updatedAt } as ProjectionRow;
-      delete cleared.projectId;
-      this.upsert("allocations", cleared);
+      this.upsert("allocations", withoutAllocationAttribution(allocation, revision.updatedAt));
     }
   }
 
   /** Clear attribution immediately for later same-batch validation without changing its revision. */
   clearAllocationAttributionForActivity(activityId: string): void {
+    this.attributionClearedActivityIds.add(activityId);
     const relationship = this.findRelationshipIndex("activities", "allocations", "activityId");
     for (const allocationId of relationship?.childrenByParent.get(activityId) ?? []) {
       const allocation = this.row("allocations", allocationId);
       if (!allocation || allocation.projectId === undefined) continue;
-      const cleared = { ...allocation } as ProjectionRow;
-      delete cleared.projectId;
-      this.upsert("allocations", cleared);
+      this.upsert("allocations", withoutAllocationAttribution(allocation));
     }
   }
 

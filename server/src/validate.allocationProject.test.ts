@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyAppData, type Allocation, type AppData } from "@capacitylens/shared/types/entities";
-import { clearInvalidAllocationAttribution, insertAll, loadState, openDb, upsertRow } from "./db";
+import { clearAllocationAttributionForActivities, insertAll, loadState, openDb, upsertRow } from "./db";
 import { validateWrite } from "./validate";
 
 const TS = "2026-01-01T00:00:00.000Z";
@@ -92,7 +92,7 @@ describe("server allocation project attribution", () => {
 
     upsertRow(db, "activities", { ...data.activities[0], kind: "internal", updatedAt: "2026-01-02T00:00:00.000Z" });
     expect(loadState(db).allocations[0]).toHaveProperty("projectId", "p1");
-    clearInvalidAllocationAttribution(db, new Set([data.activities[0]!.id]));
+    clearAllocationAttributionForActivities(db, new Set([data.activities[0]!.id]));
     expect(loadState(db).allocations[0]).not.toHaveProperty("projectId");
     expect(Date.parse(loadState(db).allocations[0]!.updatedAt)).toBeGreaterThan(Date.parse(TS));
     db.close();

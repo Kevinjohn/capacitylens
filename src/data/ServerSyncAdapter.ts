@@ -1,4 +1,4 @@
-import { LoadError, type PersistenceAdapter } from "./PersistenceAdapter";
+import { LoadError, type AllocationRewriteRevision, type PersistenceAdapter } from "./PersistenceAdapter";
 import { emptyAppData, SCOPED_KEYS } from "@capacitylens/shared/types/entities";
 import type { AppData, AppDataKey, Entity, ScopedEntityKey } from "@capacitylens/shared/types/entities";
 import { KNOWN_KEYS, migrateWithRepairBase } from "@capacitylens/shared/data/migrate";
@@ -10,6 +10,7 @@ import { apiErrorFromBody } from "../lib/readApiError";
 import { cacheAccountSlice, readCachedAccountSlice, readCachedAuthSnapshot, setOfflineReadState } from "./offlineCache";
 import { isTransportFailure, requestSignal, API_REQUEST_TIMEOUT_MS, API_BULK_TIMEOUT_MS } from "./requestTimeout";
 import { isRecord, validateAccountSliceWithRepairBase } from "./validateAccountSlice";
+import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
 
 // diffOps/applyOps now live in ./syncOps (the pure diff/apply core). Re-exported here
 // so existing import sites (e.g. ServerSyncAdapter.test.ts) keep resolving them from
@@ -22,7 +23,7 @@ interface CommittedRevision {
   createdAt: string;
   updatedAt: string;
   /** The server changed allocation content as well as its revision stamp. */
-  serverRewrite?: true;
+  rewrite?: true;
 }
 
 /** One durable client-stamp → server-revision translation; see canonicalizeAcknowledged. */
@@ -160,10 +161,9 @@ function applyCommittedRevision(row: Entity, revision: CommittedRevision): Entit
     createdAt: revision.createdAt,
     updatedAt: revision.updatedAt,
   };
-  if (revision.table !== "allocations" || revision.serverRewrite !== true) return revised;
-  const rewritten = { ...revised } as Entity & { projectId?: string };
-  delete rewritten.projectId;
-  return rewritten;
+  return revision.table === "allocations" && revision.rewrite === true
+    ? withoutAllocationAttribution(revised)
+    : revised;
 }
 
 function applyCommittedRevisions(data: AppData, revisions: CommittedRevision[]): AppData {
@@ -337,6 +337,8 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   // generation it was diffed-to-be against.
   private queuedSeedGen = 0;
   private acknowledgedRevisions = new Map<string, AcknowledgedRevision>();
+  private allocationRewriteHandler: ((revisions: readonly AllocationRewriteRevision[]) => void) | null = null;
+  private currentData: (() => AppData) | null = null;
   /** Lifecycle rows this adapter successfully archived after a local disappearance. If the same id
    * returns through undo/redo, it must be unarchived before ordinary descendant writes can land. */
   private archivedBySync = new Set<string>();
@@ -349,6 +351,14 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   constructor(baseUrl: string, fetchImpl: typeof fetch = fetch.bind(globalThis)) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.fetchImpl = fetchImpl;
+  }
+
+  setAllocationRewriteHandler(
+    handler: ((revisions: readonly AllocationRewriteRevision[]) => void) | null,
+    getData?: () => AppData,
+  ): void {
+    this.allocationRewriteHandler = handler;
+    this.currentData = handler && getData ? getData : null;
   }
 
   private request(
@@ -425,8 +435,11 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   }
 
   private rememberRevisions(ops: Op[], revisions: CommittedRevision[], data?: AppData): void {
-    const byRow = new Map(revisions.map((revision) => [rowKey(revision.table, revision.id), revision]));
-    const remembered = new Set<string>();
+    const byRow = new Map(
+      revisions
+        .filter((revision) => revision.rewrite !== true)
+        .map((revision) => [rowKey(revision.table, revision.id), revision]),
+    );
     for (const op of ops) {
       if (op.method !== "PUT" || !op.row) continue;
       const key = rowKey(op.table, op.id);
@@ -436,14 +449,19 @@ export class ServerSyncAdapter implements PersistenceAdapter {
           client: op.row.updatedAt,
           server,
         });
-        remembered.add(key);
       }
     }
     if (!data) return;
+    const rowsByTable = new Map<Op["table"], Map<string, Entity>>();
     for (const revision of revisions) {
       const key = rowKey(revision.table, revision.id);
-      if (revision.serverRewrite !== true || remembered.has(key)) continue;
-      const row = data[revision.table].find((candidate) => candidate.id === revision.id);
+      if (revision.rewrite !== true) continue;
+      let rows = rowsByTable.get(revision.table);
+      if (!rows) {
+        rows = new Map((data[revision.table] as Entity[]).map((row) => [row.id, row]));
+        rowsByTable.set(revision.table, rows);
+      }
+      const row = rows.get(revision.id);
       if (row) {
         this.acknowledgedRevisions.set(key, {
           client: row.updatedAt,
@@ -451,6 +469,14 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         });
       }
     }
+  }
+
+  private publishAllocationRewrites(revisions: readonly CommittedRevision[]): void {
+    const rewrites = revisions.filter(
+      (revision): revision is CommittedRevision & AllocationRewriteRevision =>
+        revision.table === "allocations" && revision.rewrite === true,
+    );
+    if (rewrites.length > 0) this.allocationRewriteHandler?.(rewrites);
   }
 
   /** Drop translations for rows absent from the fully committed target. Defer this until lifecycle
@@ -753,7 +779,8 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       archiveLifecycleDeletes: true,
     });
     if (!receipt.superseded) {
-      this.rememberRevisions(batchOps, receipt.revisions, canonicalTarget);
+      this.rememberRevisions(batchOps, receipt.revisions, this.currentData?.() ?? next);
+      this.publishAllocationRewrites(receipt.revisions);
       this.rememberLifecycleArchives(lifecycleDeletes, receipt.archivedLifecycleKeys);
     }
   }
@@ -832,7 +859,8 @@ export class ServerSyncAdapter implements PersistenceAdapter {
           continue;
         }
         if (targetSeedGen === this.seedGen) {
-          this.rememberRevisions(batchOps, receipt.revisions, canonicalTarget);
+          this.rememberRevisions(batchOps, receipt.revisions, this.currentData?.() ?? target);
+          this.publishAllocationRewrites(receipt.revisions);
           committedTarget = applyCommittedRevisions(canonicalTarget, receipt.revisions);
         }
       }
@@ -1280,14 +1308,14 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     const compatibleRevisions: CommittedRevision[] = [];
     for (const revision of revisions) {
       const key = rowKey(revision.table, revision.id);
-      if (expected.has(key) && !received.has(key)) {
+      if (revision.rewrite !== true && expected.has(key) && !received.has(key)) {
         received.add(key);
         compatibleRevisions.push(revision);
         continue;
       }
-      if (revision.table === "allocations" && !serverRewrites.has(key)) {
+      if (revision.rewrite === true && revision.table === "allocations" && !serverRewrites.has(key)) {
         serverRewrites.add(key);
-        compatibleRevisions.push({ ...revision, serverRewrite: true });
+        compatibleRevisions.push(revision);
         continue;
       }
       warnCompatibilityOnce(

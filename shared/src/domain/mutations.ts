@@ -2,6 +2,7 @@ import { newId } from "../lib/id";
 import {
   allocationAttributionAllowed,
   effectiveProjectId,
+  withoutAllocationAttribution,
   validateAllocationAssignment,
   validateDateRange,
   type ValidationResult,
@@ -502,7 +503,7 @@ function assertAllocationPairStaysValid(
       before = edit.existing && validateAllocationAssignment(resource, effectiveProjectId(allocation, edit.existing));
       const allocationAfter = allocationAttributionAllowed(edit.merged.kind)
         ? allocation
-        : { ...allocation, projectId: undefined };
+        : withoutAllocationAttribution(allocation);
       after = validateAllocationAssignment(resource, effectiveProjectId(allocationAfter, edit.merged));
     }
     // An absent `existing` (a create) counts as "was valid", exactly as each caller's own check did.
@@ -804,7 +805,7 @@ export function remapAndValidateImport(
         attributedProject === undefined ||
         attributedProject.accountId !== accountId ||
         !validateAllocationAssignment(resource, a.projectId).ok);
-    if (invalidAttribution) repaired = { ...a, projectId: undefined };
+    if (invalidAttribution) repaired = withoutAllocationAttribution(a);
     if (!validateAllocationAssignment(resource, effectiveProjectId(repaired, activity)).ok) return kept;
     // An external resource's allocations carry NO load (the form forces hoursPerDay 0). Import is
     // the one write path that bypasses the form, and sanitizeImportedRecord is per-record so it

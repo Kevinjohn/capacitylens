@@ -1,4 +1,10 @@
-import type { AppData } from "@capacitylens/shared/types/entities";
+import type { AppData, ISOTimestamp } from "@capacitylens/shared/types/entities";
+
+export interface AllocationRewriteRevision {
+  id: string;
+  createdAt: ISOTimestamp;
+  updatedAt: ISOTimestamp;
+}
 
 // Persistence contract shared by the in-memory demo and server-backed application.
 export interface PersistenceAdapter {
@@ -10,6 +16,12 @@ export interface PersistenceAdapter {
    *  adapter must then DISPATCH every write up-front (a sequential await-loop would only
    *  get the first request out before the event loop dies). Synchronous adapters ignore it. */
   saveAll(data: AppData, opts?: { unload?: boolean }): Promise<void>;
+  /** Optional server-rewrite bridge. The persistence coordinator supplies live store access so a
+   * receipt can update visible state and preserve the row's current client revision provenance. */
+  setAllocationRewriteHandler?(
+    handler: ((revisions: readonly AllocationRewriteRevision[]) => void) | null,
+    getData?: () => AppData,
+  ): void;
   /** True when a dataset was ever persisted — lets bootstrap distinguish a
    *  genuine first run from a user who deliberately cleared everything.
    *

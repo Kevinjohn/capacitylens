@@ -159,6 +159,14 @@ export function allocationAttributionAllowed(kind: unknown): boolean {
   return kind === "repeatable";
 }
 
+/** Return a fresh row with allocation-level attribution removed and, when supplied, restamped. */
+export function withoutAllocationAttribution<T extends object>(row: T, updatedAt?: unknown): T {
+  const cleared = { ...row } as T & { projectId?: unknown; updatedAt?: unknown };
+  delete cleared.projectId;
+  if (updatedAt !== undefined) cleared.updatedAt = updatedAt;
+  return cleared;
+}
+
 export function validateAllocationAssignment(resource: Resource, projectId: ID | undefined): ValidationResult {
   const issues: ValidationIssue[] = [];
   // Only PLACEHOLDERS are project-restricted. `person` and `external` are intentionally
