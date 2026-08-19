@@ -173,8 +173,8 @@ function DateRangeFields({
   );
 }
 
-function projectSelectionForActivity(activity: Activity | undefined, allocationProjectId?: string): string {
-  if (allocationProjectId) return allocationProjectId;
+function projectSelectionForActivity(activity: Activity | undefined, resolvedProjectId?: string): string {
+  if (resolvedProjectId) return resolvedProjectId;
   if (activity?.kind === "repeatable") return ANY_PROJECT_SELECTION;
   if (activity?.kind === "project" && activity.projectId) return activity.projectId;
   return INTERNAL_PROJECT_SELECTION;
@@ -359,7 +359,12 @@ export function AllocationModal(props: AllocationModalProps) {
   const initialResourceId = editing?.resourceId ?? create?.resourceId ?? "";
   const initialResource = resourceById.get(initialResourceId);
   const initialEffectiveWeek = initialResource ? effectiveWorkingWeek(initialResource, accountWorkingDays) : null;
-  const initialLocked = initialResource?.kind === "placeholder" ? initialResource.projectId : undefined;
+  const initialLocked =
+    initialResource?.kind === "placeholder"
+      ? editing && initialActivity
+        ? effectiveProjectId(editing, initialActivity)
+        : initialResource.projectId
+      : undefined;
   const initialStart = editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone);
   const initialScheduledHours =
     initialResource && initialEffectiveWeek
@@ -368,11 +373,11 @@ export function AllocationModal(props: AllocationModalProps) {
 
   const [resourceId, setResourceId] = useState(initialResourceId);
   // Editing derives the exact activity scope so project-less Internal and Any Project work no
-  // longer reopen as one ambiguous bucket. `initialLocked` remains only the create-time default
-  // for a placeholder's bound project.
+  // longer reopen as one ambiguous bucket. For placeholders, `initialLocked` is the allocation's
+  // effective project while editing, so a legacy unattributed row remains in its exact scope.
   const [projectSelection, setProjectSelection] = useState(
     editing
-      ? projectSelectionForActivity(initialActivity, editing.projectId)
+      ? projectSelectionForActivity(initialActivity, initialLocked ?? editing.projectId)
       : (initialLocked ?? INTERNAL_PROJECT_SELECTION),
   );
   const [activityId, setActivityId] = useState(editing?.activityId ?? "");
@@ -741,8 +746,16 @@ export function AllocationModal(props: AllocationModalProps) {
       );
     });
   const projectOptions: Option[] = [
-    { value: INTERNAL_PROJECT_SELECTION, label: m.form_allocation_project_internal() },
-    { value: ANY_PROJECT_SELECTION, label: m.form_allocation_project_any() },
+    {
+      value: INTERNAL_PROJECT_SELECTION,
+      label: m.form_allocation_project_internal(),
+      disabled: lockedProjectId !== undefined,
+    },
+    {
+      value: ANY_PROJECT_SELECTION,
+      label: m.form_allocation_project_any(),
+      disabled: lockedProjectId !== undefined,
+    },
     ...sortedProjects.map((project, index) => {
       const clientName = clientNameById.get(project.clientId);
       return {
