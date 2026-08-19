@@ -15,7 +15,7 @@ Studios often repeat a booking — the same person on the same activity for the 
 **Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Note the current count of bars on the **Bruce Wayne** row.
 
 The source must be an unlinked allocation. Allocations created in a linked repeat batch deliberately
-do not offer **Duplicate**; an unlinked Cross-project allocation still does.
+do not offer **Duplicate**; an unlinked All-projects allocation still does.
 
 1. Click the **Wireframes** bar. The **Edit allocation** dialog opens.
 2. Click **Duplicate**. The dialog closes immediately (no confirmation).

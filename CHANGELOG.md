@@ -17,6 +17,10 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Shared activities can count towards real projects.** An **All projects** activity can be booked
+  under any project; each allocation keeps that attribution for labels, colours, filters, repeat
+  series and lifecycle changes, while **No specific project** remains an unattributed option.
+- Renamed **Cross-project** activities to **All projects** throughout the product and documentation.
 - **Installation docs now start with the deployment choice.** Docker Compose and direct
   Node 24 installation are presented as separate, supported routes, and Docker is no
   longer described as a general prerequisite.
