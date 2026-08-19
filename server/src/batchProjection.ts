@@ -6,8 +6,7 @@ import {
   type AppDataKey,
 } from "@capacitylens/shared/types/entities";
 import type { ValidationDataLookup } from "@capacitylens/shared/domain/mutations";
-import { allocationAttributionAllowed } from "@capacitylens/shared/lib/integrity";
-import { nextServerRevision } from "./revision";
+import type { RewrittenAllocationRevision } from "./db";
 
 type ProjectionRow = Record<string, unknown> & { id: string };
 type DeleteAction = "cascade" | "set-null";
@@ -80,20 +79,11 @@ export class BatchStateProjection implements ValidationDataLookup {
     }
   }
 
-  upsert(table: AppDataKey, row: Record<string, unknown>, skipAttributionClearFor?: ReadonlySet<string>): void {
+  upsert(table: AppDataKey, row: Record<string, unknown>): void {
     // Defensive re-check: every caller already passed through sanitizeWrite's assertIdPresent
     // (validate.ts), the universal write-path guard, so row.id should already be a string here.
     // Kept as a second gate rather than trusted, per the caller-can't-bypass-safety rule.
     if (typeof row.id !== "string") throw new Error("Batch projection rows require a string id.");
-    if (table === "activities" && !allocationAttributionAllowed(row.kind)) {
-      for (const allocation of this.allocationsForActivity(String(row.accountId), row.id)) {
-        if (allocation.projectId === undefined) continue;
-        if (skipAttributionClearFor?.has(allocation.id)) continue;
-        const cleared = { ...allocation, updatedAt: nextServerRevision(allocation.updatedAt) } as ProjectionRow;
-        delete cleared.projectId;
-        this.upsert("allocations", cleared);
-      }
-    }
     const next = row as ProjectionRow;
     const rows = rowsFor(this.data, table);
     const index = this.rowIndexes[table].get(next.id);
@@ -105,6 +95,16 @@ export class BatchStateProjection implements ValidationDataLookup {
       rows[index] = next;
     }
     this.addChildRelationships(table, next);
+  }
+
+  clearAllocationAttribution(revisions: readonly RewrittenAllocationRevision[]): void {
+    for (const revision of revisions) {
+      const allocation = this.row("allocations", revision.id);
+      if (!allocation || allocation.projectId === undefined) continue;
+      const cleared = { ...allocation, updatedAt: revision.updatedAt } as ProjectionRow;
+      delete cleared.projectId;
+      this.upsert("allocations", cleared);
+    }
   }
 
   delete(table: AppDataKey, id: string): void {

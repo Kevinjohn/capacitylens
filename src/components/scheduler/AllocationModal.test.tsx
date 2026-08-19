@@ -2016,6 +2016,7 @@ describe("AllocationModal inline activity creation pref", () => {
 
     const allProjectsGroup = screen.getByRole("group", { name: "All projects" });
     const projectGroup = screen.getByRole("group", { name: "Project-specific" });
+    expect(screen.getAllByRole("group", { name: "Project-specific" })).toHaveLength(1);
     expect(allProjectsGroup.compareDocumentPosition(projectGroup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(
       within(screen.getByRole("group", { name: "Project-specific" })).getByRole("option", {

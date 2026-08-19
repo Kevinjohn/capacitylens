@@ -16,6 +16,11 @@ new features and **patch** versions carry fixes.
 - Changing an activity's kind away from **All projects** no longer fails with a spurious
   "changed while you were editing" conflict when its bookings carried project attribution.
 - A booking whose activity record is missing no longer appears under the Internal client filter.
+- A saved edit that changes an activity's kind can no longer leave one of its bookings attributed
+  to a project, whatever order the changes reach the server in, and other sessions now learn about
+  bookings the server un-attributes on its own.
+- Creating an activity inline in the allocation dialog now places it inside its group instead of
+  splitting the list with a duplicate group heading.
 
 - Reassessed alpha4 against OWASP ASVS 5.0.0, the OWASP Top 10 and API Security Top 10; refreshed
   the threat model and security control inventories, recorded the fixed session/OIDC findings, and

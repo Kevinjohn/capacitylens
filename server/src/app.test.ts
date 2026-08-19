@@ -513,7 +513,7 @@ describe("generic lifecycle deletion guard", () => {
 });
 
 describe("batch sync (/api/batch — transactional, ordered)", () => {
-  it("changes repeatable activity kind with an explicit allocation attribution update", async () => {
+  it("reconciles attributed allocations after repeatable activity kind changes", async () => {
     const seedAttributed = async () => {
       const fixture = freshApp();
       await post(fixture.app, "accounts", account("a1"));
@@ -529,13 +529,41 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       return fixture;
     };
 
+    const allocationFirst = await seedAttributed();
+    const allocationFirstBefore = await state(allocationFirst.app);
+    const allocationFirstActivity = allocationFirstBefore.activities.find(
+      (row: { id: string }) => row.id === "repeatable",
+    );
+    const allocationFirstAllocation = allocationFirstBefore.allocations.find(
+      (row: { id: string }) => row.id === "allocation",
+    );
+    const allocationFirstResponse = await orderedBatch(allocationFirst.app, "browser-session-kind-change-0001", 1, [
+      { method: "PUT", table: "allocations", id: "allocation", row: allocationFirstAllocation },
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...allocationFirstActivity, kind: "project", projectId: "p1" },
+      },
+    ]);
+    expect(allocationFirstResponse.statusCode).toBe(200);
+    const allocationFirstState = await state(allocationFirst.app);
+    const rewrittenAllocation = allocationFirstState.allocations[0];
+    expect(rewrittenAllocation).not.toHaveProperty("projectId");
+    expect(allocationFirstResponse.json().revisions).toContainEqual({
+      table: "allocations",
+      id: "allocation",
+      createdAt: rewrittenAllocation.createdAt,
+      updatedAt: rewrittenAllocation.updatedAt,
+    });
+
     const explicit = await seedAttributed();
     const explicitBefore = await state(explicit.app);
     const explicitActivity = explicitBefore.activities.find((row: { id: string }) => row.id === "repeatable");
     const explicitAllocation = explicitBefore.allocations.find((row: { id: string }) => row.id === "allocation");
     const clearedAllocation = { ...explicitAllocation };
     delete clearedAllocation.projectId;
-    const explicitResponse = await orderedBatch(explicit.app, "browser-session-kind-change-0001", 1, [
+    const explicitResponse = await orderedBatch(explicit.app, "browser-session-kind-change-0002", 1, [
       {
         method: "PUT",
         table: "activities",
@@ -550,7 +578,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     const implicit = await seedAttributed();
     const implicitBefore = await state(implicit.app);
     const implicitActivity = implicitBefore.activities.find((row: { id: string }) => row.id === "repeatable");
-    const implicitResponse = await orderedBatch(implicit.app, "browser-session-kind-change-0002", 1, [
+    const implicitResponse = await orderedBatch(implicit.app, "browser-session-kind-change-0003", 1, [
       {
         method: "PUT",
         table: "activities",
@@ -559,13 +587,20 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       },
     ]);
     expect(implicitResponse.statusCode).toBe(200);
-    expect((await state(implicit.app)).allocations[0]).not.toHaveProperty("projectId");
+    const implicitAllocation = (await state(implicit.app)).allocations[0];
+    expect(implicitAllocation).not.toHaveProperty("projectId");
+    expect(implicitResponse.json().revisions).toContainEqual({
+      table: "allocations",
+      id: "allocation",
+      createdAt: implicitAllocation.createdAt,
+      updatedAt: implicitAllocation.updatedAt,
+    });
 
     const forbidden = await seedAttributed();
     const forbiddenBefore = await state(forbidden.app);
     const forbiddenActivity = forbiddenBefore.activities.find((row: { id: string }) => row.id === "repeatable");
     const forbiddenAllocation = forbiddenBefore.allocations.find((row: { id: string }) => row.id === "allocation");
-    const forbiddenResponse = await orderedBatch(forbidden.app, "browser-session-kind-change-0003", 1, [
+    const forbiddenResponse = await orderedBatch(forbidden.app, "browser-session-kind-change-0004", 1, [
       {
         method: "PUT",
         table: "activities",
@@ -577,6 +612,35 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     expect(forbiddenResponse.statusCode).toBe(400);
     expect(forbiddenResponse.json()).toMatchObject({ code: "allocation_project_forbidden" });
     expect((await state(forbidden.app)).activities[0]).toMatchObject({ kind: "repeatable" });
+  });
+
+  it("keeps direct activity PUT attribution clearing behavior", async () => {
+    const fixture = freshApp();
+    await post(fixture.app, "accounts", account("a1"));
+    await post(fixture.app, "clients", client("c1", "a1"));
+    await post(fixture.app, "projects", project("p1", "a1", "c1"));
+    await post(fixture.app, "resources", person("r1", "a1"));
+    await post(fixture.app, "activities", {
+      ...activity("repeatable", "a1", "p1"),
+      kind: "repeatable",
+      projectId: undefined,
+    });
+    await post(fixture.app, "allocations", allocation("allocation", "a1", "r1", "repeatable", { projectId: "p1" }));
+    const before = await state(fixture.app);
+    const existingActivity = before.activities.find((row: { id: string }) => row.id === "repeatable");
+
+    const response = await put(fixture.app, "activities", "repeatable", {
+      ...existingActivity,
+      kind: "internal",
+      projectId: undefined,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ id: "repeatable", kind: "internal" });
+    expect(response.json()).not.toHaveProperty("table");
+    const allocationAfter = (await state(fixture.app)).allocations[0];
+    expect(allocationAfter).not.toHaveProperty("projectId");
+    expect(Date.parse(allocationAfter.updatedAt)).toBeGreaterThan(Date.parse(before.allocations[0].updatedAt));
   });
 
   it("writes closures directly and in a batch, and rejects resource references", async () => {
