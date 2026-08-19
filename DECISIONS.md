@@ -10,8 +10,9 @@ This is the short, present-tense record of decisions that constrain future work.
 - Clients own projects; projects and internal work contain activities; allocations connect a
   resource to an activity over a date range.
 - Activities are `project`, `internal` or `repeatable` (the user-facing label is **Project-specific**,
-  **Internal** or **Cross-project**). Only project-specific activities may reference a project or
-  phase.
+  **Internal** or **All projects**). Only project-specific activities may reference a project or
+  phase. An all-projects activity stays project-less, but each of its allocations may optionally
+  attribute the booking to a project; project-specific and internal allocations must not.
 - Resources are people, placeholders or external parties. External parties have no capacity and
   do not contribute to utilisation.
 - Time off does not recur. Neither a personal entry nor a company closure has a repeat or series

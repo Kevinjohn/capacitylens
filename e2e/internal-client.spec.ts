@@ -47,13 +47,13 @@ test.describe("Internal client", () => {
   test("Filter by client → Internal shows project-less (Internal-bucketed) work", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    // Widen + scroll to the origin so the seed's project-less cross-project "Design" booking (Barry,
+    // Widen + scroll to the origin so the seed's project-less all-projects "Design" booking (Barry,
     // 8–10 June) is on-screen.
     await setZoom(page, 4);
     await resetSchedulerScroll(page);
     // A clearly project-owned bar (LexCorp / Metropolis Rebrand) is visible before filtering…
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Brand System" })).toBeVisible();
-    // …and the project-less cross-project "Design" booking is too (assigned to Barry Allen's row).
+    // …and the project-less all-projects "Design" booking is too (assigned to Barry Allen's row).
     const barryRow = page.getByTestId("scheduler-row").filter({ hasText: "Barry Allen" });
     const internalDesignBar = barryRow.getByTestId("allocation-bar").filter({ hasText: "Design" });
     await expect(internalDesignBar).toBeVisible();

@@ -23,7 +23,7 @@ const kindOptions = (): { value: ActivityKind; label: string }[] => {
 };
 
 /** Add (no `activity`) or edit an activity. Pick a kind first: a `project` activity takes a project (and keeps
- *  its phase); `internal`/cross-project (`repeatable`) are project-less, so the project picker is hidden and their
+ *  its phase); `internal`/all-projects (`repeatable`) are project-less, so the project picker is hidden and their
  *  project/phase forced empty. `onClose` fires on save or cancel. */
 export function ActivityForm({ activity, onClose }: { activity?: Activity; onClose: () => void }) {
   const add = useStore((s) => s.addActivity);
@@ -80,7 +80,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
 
   const onKindChange = (next: ActivityKind) => {
     setKind(next);
-    // Internal/cross-project activities are project-less — drop any project/phase the form held so a
+    // Internal/all-projects activities are project-less — drop any project/phase the form held so a
     // toggle can't submit an incoherent activity (the store would reject it anyway).
     if (next !== "project") {
       setProjectId("");
@@ -96,7 +96,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
   const submit = () => {
     const trimmed = validateName(name, fail);
     if (!trimmed) return;
-    // A project-specific activity MUST have a project; internal/cross-project are project-less (projectId/phaseId
+    // A project-specific activity MUST have a project; internal/all-projects are project-less (projectId/phaseId
     // undefined). Surface the project requirement as a field error rather than relying on the
     // store throw, so the invalid control is marked.
     if (kind === "project" && !projectId) {

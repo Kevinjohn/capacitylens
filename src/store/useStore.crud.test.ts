@@ -155,7 +155,7 @@ describe("store CRUD covers every entity", () => {
     expect(s().data.activities[0].name).toBe("Admin");
   });
 
-  it("activities: a project-specific activity converts to cross-project by clearing its project + kind together", () => {
+  it("activities: a project-specific activity converts to all-projects by clearing its project + kind together", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
     const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
@@ -172,7 +172,7 @@ describe("store CRUD covers every entity", () => {
     expect(() => s().updateActivity(t.id, { projectId: undefined })).toThrow(
       /project-specific activity must be assigned/i,
     );
-    // And an internal/cross-project activity may not carry a project.
+    // And an internal/all-projects activity may not carry a project.
     expect(() => s().addActivity({ name: "X", kind: "internal", projectId: p.id })).toThrow(
       /cannot belong to a project/i,
     );
@@ -216,7 +216,7 @@ describe("store CRUD covers every entity", () => {
     // merged row still carries projectId from the existing activity, so coherence holds.
     expect(() => s().updateActivity(t.id, { phaseId: ph1.id })).not.toThrow();
 
-    // A projectId-ONLY patch that would leave a STALE cross-project phaseId IS rejected
+    // A projectId-ONLY patch that would leave a STALE all-projects phaseId IS rejected
     // (merged row: projectId=p2 but phaseId=ph1-of-p1) instead of silently persisting an
     // incoherent activity the server would later 400 on sync.
     expect(() => s().updateActivity(t.id, { projectId: p2.id })).toThrow(/phase/i);

@@ -1,6 +1,6 @@
 # US-ACT-01 — Add an activity (internal, cross-project, or project-specific)
 
-**Area:** Activities · **Persona:** Studio manager · **Linked E2E:** `e2e/activities.spec.ts` → "adds an internal, a cross-project, and a project-specific activity into their three sections", "groups and sorts project activities by client, project, then activity"
+**Area:** Activities · **Persona:** Studio manager · **Linked E2E:** `e2e/activities.spec.ts` → "adds an internal, an all-projects, and a project-specific activity into their three sections", "groups and sorts project activities by client, project, then activity"
 
 ## Goal
 

@@ -14,7 +14,7 @@ describe("ActivityList", () => {
 
     expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual([
       "Internal activities",
-      "Cross-project activities",
+      "All-projects activities",
       "Project-specific activities",
     ]);
 
@@ -25,7 +25,7 @@ describe("ActivityList", () => {
       within(dialog)
         .getAllByRole("radio")
         .map((radio) => radio.textContent),
-    ).toEqual(["Internal", "Cross-project", "Project-specific"]);
+    ).toEqual(["Internal", "All projects", "Project-specific"]);
     expect(within(dialog).getByRole("radio", { name: "Project-specific" })).toBeChecked();
     expect(within(dialog).getByLabelText("Project")).toBeInTheDocument();
   });
@@ -71,7 +71,7 @@ describe("ActivityList", () => {
     expect(row).toHaveTextContent("Internal sync");
   });
 
-  it("saves a cross-project activity under the Cross-project activities section", async () => {
+  it("saves an all-projects activity under the All-projects activities section", async () => {
     const user = userEvent.setup();
     render(<ActivityList />);
 
@@ -79,12 +79,12 @@ describe("ActivityList", () => {
     const dialog = screen.getByRole("dialog", { name: "Add activity" });
 
     await user.type(within(dialog).getByLabelText("Name"), "Design");
-    await user.click(within(dialog).getByRole("radio", { name: "Cross-project" }));
+    await user.click(within(dialog).getByRole("radio", { name: "All projects" }));
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(useStore.getState().data.activities[0].kind).toBe("repeatable");
-    expect(screen.getByRole("heading", { name: "Cross-project activities" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "All-projects activities" })).toBeInTheDocument();
     const row = within(screen.getByTestId("cross-project-activities")).getByTestId("activity-row");
     expect(row).toHaveTextContent("Design");
   });

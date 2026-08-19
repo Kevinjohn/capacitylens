@@ -242,7 +242,7 @@ describe("SchedulerToolbar filter ordering", () => {
     ]);
   });
 
-  it("alphabetises activities within the existing Internal and Cross-project groups", () => {
+  it("alphabetises activities within the existing Internal and All projects groups", () => {
     useStore.getState().addActivity({ name: "Studio meeting", kind: "internal" });
     useStore.getState().addActivity({ name: "Admin", kind: "internal" });
     useStore.getState().addActivity({ name: "Workshop", kind: "repeatable" });
@@ -255,7 +255,7 @@ describe("SchedulerToolbar filter ordering", () => {
       "Internal — All",
       "Admin",
       "Studio meeting",
-      "Cross-project — All",
+      "All projects — All",
       "Design",
       "Workshop",
     ]);
@@ -435,14 +435,14 @@ describe("SchedulerToolbar Clear filter button", () => {
 });
 
 describe("SchedulerToolbar Activities filter (standalone lens)", () => {
-  // Seed one internal + one cross-project activity so the Activities dropdown renders (it covers only the
+  // Seed one internal + one all-projects activity so the Activities dropdown renders (it covers only the
   // project-less kinds; project-specific activities are reached via the Projects dropdown).
   const seedLensActivities = () => ({
     internal: useStore.getState().addActivity({ name: "Admin", kind: "internal" }),
     repeatable: useStore.getState().addActivity({ name: "Design", kind: "repeatable" }),
   });
 
-  it("renders the Activities dropdown with grouped Internal / Cross-project options", async () => {
+  it("renders the Activities dropdown with grouped Internal / All projects options", async () => {
     seedLensActivities();
     render(<SchedulerToolbar />);
     showFilters();
@@ -450,7 +450,7 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
     expect(select).toBeInTheDocument();
     fireEvent.keyDown(select, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Internal — All" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Cross-project — All" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "All projects — All" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Admin" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Design" })).toBeInTheDocument();
   });

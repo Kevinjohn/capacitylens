@@ -72,7 +72,7 @@ describe("compact input modal layouts", () => {
     expect(kind.children).toHaveLength(3);
     expect(screen.getAllByRole("radio").map((segment) => segment.textContent)).toEqual([
       "Internal",
-      "Cross-project",
+      "All projects",
       "Project-specific",
     ]);
     expectCompact(screen.getByLabelText("Project"));

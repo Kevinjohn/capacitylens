@@ -714,8 +714,8 @@ describe("buildSchedulerModel", () => {
     expect(refreshedRow.timeOff).toBe(baseRow.timeOff);
   });
 
-  // dataset() + project-less activities (one internal, one cross-project) with an allocation each, so the
-  // activity lens has something to filter. r1 picks up an internal bar, r2 a cross-project one.
+  // dataset() + project-less activities (one internal, one all-projects) with an allocation each, so the
+  // activity lens has something to filter. r1 picks up an internal bar, r2 an all-projects one.
   function withLensActivities(): AppData {
     const d = dataset();
     d.activities.push(
@@ -790,7 +790,7 @@ describe("buildSchedulerModel", () => {
     expect(bars).toEqual(["a-rep"]);
   });
 
-  it('activity lens: "Cross-project — All" (activityKind) shows only cross-project activity allocations', () => {
+  it('activity lens: "All projects — All" (activityKind) shows only all-projects activity allocations', () => {
     const bars = buildLens({ ...emptyFilters(), activityKind: "repeatable" })
       .flatMap((g) => g.rows)
       .flatMap((r) => r.bars)
@@ -1584,7 +1584,7 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
     expect(ids).toContain("aIntNoProj"); // internal-kind activity bar
   });
 
-  it("(a) showInternalActivities=false hides internal-KIND bars only (cross-project + internal-client project stay)", () => {
+  it("(a) showInternalActivities=false hides internal-KIND bars only (all-projects + internal-client project stay)", () => {
     const ids = barIds(buildPrefs(true, false));
     expect(ids).not.toContain("aIntNoProj"); // kind 'internal' — hidden
     expect(ids).toContain("aRep"); // kind 'repeatable' — a distinct group, NEVER hidden by this toggle
@@ -1607,7 +1607,7 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
     expect(ids).not.toContain("aIntProj");
     expect(ids).not.toContain("aIntNoProj");
     expect(ids).not.toContain("aRepAttributedInternal");
-    expect(ids).toContain("aRep"); // cross-project is the third group — visible with BOTH toggles off
+    expect(ids).toContain("aRep"); // all-projects is the third group — visible with BOTH toggles off
     expect(ids).toContain("a1");
   });
 

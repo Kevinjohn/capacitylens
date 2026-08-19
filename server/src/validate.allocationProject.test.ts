@@ -71,7 +71,7 @@ describe("server allocation project attribution", () => {
     expect(() => validateWrite(data, "allocations", allocation() as unknown as Record<string, unknown>)).not.toThrow();
     expect(() =>
       validateWrite(data, "allocations", allocation({ activityId: "internal" }) as unknown as Record<string, unknown>),
-    ).toThrow(/only a cross-project activity/i);
+    ).toThrow(/only an all-projects activity/i);
     expect(() =>
       validateWrite(data, "allocations", allocation({ projectId: "missing" }) as unknown as Record<string, unknown>),
     ).toThrow(/active project/i);

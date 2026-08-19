@@ -225,7 +225,7 @@ export function assertScopedRefs(
       break;
     case "activities": {
       // Activity.kind coherence, checked first: a project-specific ('project') activity MUST carry a project; an
-      // internal/cross-project ('repeatable') activity is project-less by definition, so it may carry NEITHER a
+      // internal/all-projects ('repeatable') activity is project-less by definition, so it may carry NEITHER a
       // project nor a phase. (Only enforced when kind is present — a partial patch that doesn't
       // touch kind is validated against the merged row by the store, which always has it.)
       if (present("kind")) {
@@ -238,11 +238,11 @@ export function assertScopedRefs(
           if (present("projectId")) {
             domainError(
               "activity_project_forbidden",
-              "An internal or cross-project activity cannot belong to a project.",
+              "An internal or all-projects activity cannot belong to a project.",
             );
           }
           if (present("phaseId")) {
-            domainError("activity_phase_forbidden", "An internal or cross-project activity cannot belong to a phase.");
+            domainError("activity_phase_forbidden", "An internal or all-projects activity cannot belong to a phase.");
           }
         }
       }
@@ -359,7 +359,7 @@ export function assertAllocationRefs(
   if (projectId !== undefined && activity.kind !== "repeatable") {
     domainError(
       "allocation_project_forbidden",
-      "Only a cross-project activity allocation can be attributed to a project.",
+      "Only an all-projects activity allocation can be attributed to a project.",
     );
   }
   const resolvedProjectId = effectiveProjectId({ projectId }, activity);
@@ -756,7 +756,7 @@ export function remapAndValidateImport(
   }
 
   // activities: keep kind ⇆ projectId/phaseId coherent (assertScopedRefs throws on a mismatch, and
-  // import bypasses it). An internal/cross-project activity is project-less — strip any project/phase it
+  // import bypasses it). An internal/all-projects activity is project-less — strip any project/phase it
   // carries. A project-specific activity whose project didn't survive can no longer BE project-specific, so it
   // becomes 'repeatable' (and loses its now-orphaned phase). A surviving phase that belongs to a
   // DIFFERENT project is unbound — an activity's phase must be a phase of the activity's own project.

@@ -372,7 +372,7 @@ export function AllocationModal(props: AllocationModalProps) {
       : FULL_DAY_HOURS;
 
   const [resourceId, setResourceId] = useState(initialResourceId);
-  // Editing derives the exact activity scope so project-less Internal and Any Project work no
+  // Editing derives the exact activity scope so project-less Internal and No specific project work no
   // longer reopen as one ambiguous bucket. For placeholders, `initialLocked` is the allocation's
   // effective project while editing, so a legacy unattributed row remains in its exact scope.
   const [projectSelection, setProjectSelection] = useState(

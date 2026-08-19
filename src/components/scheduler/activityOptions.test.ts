@@ -93,7 +93,7 @@ describe("buildActivityOptions", () => {
 
   it.each([
     ["internal", "Internal"],
-    ["repeatable", "Cross-project"],
+    ["repeatable", "All projects"],
   ] as const)("uses the %s kind as context when duplicate names need disambiguation", (kind, context) => {
     const activities: Activity[] = [
       { ...row, id: `${kind}-b`, name: "Planning", kind },
@@ -158,7 +158,7 @@ describe("buildActivityOptions", () => {
 
     expect(buildActivityOptions(activities, [], [project], "project", project.id)).toEqual([
       { value: "repeat-admin", label: "Admin", groupLabel: "All projects" },
-      { value: "repeat-design", label: "Design / Cross-project", groupLabel: "All projects" },
+      { value: "repeat-design", label: "Design / All projects", groupLabel: "All projects" },
       { value: "project-build", label: "Build", groupLabel: "Project-specific" },
       { value: "project-design", label: "Design / Website", groupLabel: "Project-specific" },
     ]);

@@ -138,7 +138,7 @@ describe("resolveBarColor", () => {
     expect(resolveProjectColor(saved, internalClient, "palette")).toBe("#abcdef");
   });
 
-  it("does not treat a project-less cross-project activity as internal work", () => {
+  it("does not treat a project-less all-projects activity as internal work", () => {
     const crossProject: Activity = {
       id: "cross",
       accountId: "acct",
