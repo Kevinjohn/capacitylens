@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "./fixtures";
+import { test, expect, type Locator, type Page } from "./fixtures";
 import {
   boundingBoxOrThrow,
   openApp,
@@ -12,6 +12,22 @@ import { EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/entities";
 
 const attributedBar = (page: Page) =>
   page.locator('[data-resource-id="r-nike"]').getByTestId("allocation-bar").filter({ hasText: "Design" });
+
+async function stableBoundingBox(locator: Locator) {
+  let previous: Awaited<ReturnType<typeof boundingBoxOrThrow>> | undefined;
+  await expect
+    .poll(
+      async () => {
+        const current = await boundingBoxOrThrow(locator);
+        const stable = previous !== undefined && current.x === previous.x && current.y === previous.y;
+        previous = current;
+        return stable;
+      },
+      { intervals: [150, 150, 250], timeout: 5_000 },
+    )
+    .toBe(true);
+  return boundingBoxOrThrow(locator);
+}
 
 async function createAttributedDesign(page: Page, repeatUntil?: string) {
   await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
@@ -122,8 +138,7 @@ test.describe("All-projects allocation attribution", () => {
     await placeholderCreate.getByRole("button", { name: "Save" }).click();
     const placeholderBar = page
       .locator('[data-resource-id="r-ph-designer"]')
-      .getByTestId("allocation-bar")
-      .filter({ hasText: "Design" });
+      .getByRole("button", { name: /· Design, 8h per day,/ });
     await placeholderBar.click();
     await expect(
       page.getByRole("dialog", { name: "Edit allocation" }).getByLabel("Project", { exact: true }),
@@ -164,16 +179,17 @@ test.describe("All-projects allocation attribution", () => {
     await resetSchedulerScroll(page);
 
     const bar = attributedBar(page);
-    const barBox = await boundingBoxOrThrow(bar);
-    const targetLane = page.locator('[data-resource-id="r-pam"]');
-    const targetBox = await boundingBoxOrThrow(targetLane);
+    await bar.scrollIntoViewIfNeeded();
+    const barBox = await stableBoundingBox(bar);
     const x = barBox.x + barBox.width / 2;
-    await page.mouse.move(x, barBox.y + barBox.height / 2);
+    const y = barBox.y + barBox.height / 2;
+    await page.mouse.move(x, y);
     await page.mouse.down();
-    await page.mouse.move(x, targetBox.y + targetBox.height / 2, { steps: 10 });
+    await page.mouse.move(x - 120, y, { steps: 10 });
     await page.mouse.up();
-    const moved = targetLane.getByTestId("allocation-bar").filter({ hasText: "Design" });
-    await moved.click();
+    const movedBox = await stableBoundingBox(bar);
+    expect(movedBox.x).toBeLessThan(barBox.x - 20);
+    await bar.click();
     await expect(
       page.getByRole("dialog", { name: "Edit allocation" }).getByLabel("Project", { exact: true }),
     ).toHaveText(/Project Watchtower/);
