@@ -1,4 +1,5 @@
 import { isExternalResource } from "../types/entities";
+import { effectiveProjectId } from "./integrity";
 import type { Allocation, Client, ID, InternalColourMode, Project, Resource, Activity } from "../types/entities";
 
 /** The single neutral grey — the bar/colour fallback AND the colour of external / 3rd-party
@@ -144,8 +145,8 @@ export function resolveProjectColor(
 }
 
 /** Resolve an allocation bar colour. External work is always grey. In the default Internal-grey
- * mode, `internal` activities and activities under Internal-owned projects are also grey; otherwise
- * bars use project → client → resource → neutral fallback order. */
+ * mode, `internal` activities and allocations whose effective project is Internal-owned are also
+ * grey; otherwise bars use project → client → resource → neutral fallback order. */
 export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): string {
   const resource = maps.resources.get(allocation.resourceId);
   // External / 3rd-party work reads as a single neutral colour (an "awareness" signal),
@@ -153,7 +154,8 @@ export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): str
   // our own. See DECISIONS.md "external kind": single neutral colour.
   if (resource && isExternalResource(resource)) return NEUTRAL_COLOR;
   const activity = maps.activities.get(allocation.activityId);
-  const project = activity?.projectId ? maps.projects.get(activity.projectId) : undefined;
+  const projectId = effectiveProjectId(allocation, activity ?? {});
+  const project = projectId ? maps.projects.get(projectId) : undefined;
   const client = project ? maps.clients.get(project.clientId) : undefined;
   const internalColourMode = maps.internalColourMode ?? "grey";
   if (internalColourMode === "grey" && (activity?.kind === "internal" || client?.builtin === true))

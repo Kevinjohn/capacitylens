@@ -1363,6 +1363,85 @@ function withInternal(): AppData {
   return d;
 }
 
+function withAttributedRepeatable(): AppData {
+  const d = withInternal();
+  d.activities.push({
+    id: "tRep",
+    accountId: "acct-test",
+    createdAt: "t",
+    updatedAt: "t",
+    name: "Design",
+    kind: "repeatable",
+  });
+  d.allocations.push(
+    {
+      id: "aRepAttributed",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: "r2",
+      activityId: "tRep",
+      projectId: "p1",
+      startDate: "2026-06-03",
+      endDate: "2026-06-03",
+      hoursPerDay: 4,
+      status: "confirmed",
+    },
+    {
+      id: "aRepUnattributed",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: "r2",
+      activityId: "tRep",
+      startDate: "2026-06-04",
+      endDate: "2026-06-04",
+      hoursPerDay: 4,
+      status: "confirmed",
+    },
+  );
+  return d;
+}
+
+describe("repeatable allocation effective project", () => {
+  const buildAttributed = (filters = emptyFilters()) =>
+    buildSchedulerModel({
+      data: withAttributedRepeatable(),
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters,
+      preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+    });
+
+  it("labels and colours attributed work by its project while preserving the unattributed fallback", () => {
+    const bars = allBars(buildAttributed());
+    expect(bars.find((bar) => bar.allocation.id === "aRepAttributed")).toMatchObject({
+      project: "P1",
+      client: "Acme",
+      color: "#2",
+    });
+    expect(bars.find((bar) => bar.allocation.id === "aRepUnattributed")).toMatchObject({
+      project: undefined,
+      client: "Internal",
+      color: "#5",
+    });
+  });
+
+  it("matches attributed work through either project/client lenses or its activity lens", () => {
+    const projectBars = barIds(buildAttributed({ ...emptyFilters(), projectId: "p1" }));
+    const clientBars = barIds(buildAttributed({ ...emptyFilters(), clientId: "c1" }));
+    const activityBars = barIds(buildAttributed({ ...emptyFilters(), activityId: "tRep" }));
+
+    expect(projectBars).toContain("aRepAttributed");
+    expect(clientBars).toContain("aRepAttributed");
+    expect(activityBars).toEqual(["aRepAttributed", "aRepUnattributed"]);
+    expect(projectBars).not.toContain("aRepUnattributed");
+    expect(clientBars).not.toContain("aRepUnattributed");
+  });
+});
+
 describe("built-in Internal client bucketing + filter", () => {
   const internalId = "c-internal";
   const buildInternal = (filters = emptyFilters()) =>
@@ -1420,10 +1499,9 @@ describe("built-in Internal client bucketing + filter", () => {
 // Per-account BAR-ONLY hide prefs for internal work (showInternalProjects / showInternalActivities).
 // withInternal() gives r1 four allocations: a1 (Acme project), aIntProj (a project under the built-in
 // Internal client), aIntNoProj (a project-less internal-KIND activity), plus a2 (tentative Acme); we
-// add aRep (a project-less REPEATABLE activity) to pin the OWNER DECISION (2026-07-22) that
-// internal, cross-project and client-project work are three DISTINCT groups: the activities
-// toggle hides kind 'internal' ONLY, and cross-project bars survive both toggles being off
-// (even though they display under the derived Internal client label). The
+// add an unattributed repeatable allocation and one attributed to the Internal-owned project to pin
+// the revised OWNER DECISION (2026-08-19): only unattributed all-projects work keeps the derived
+// Internal label without becoming an Internal-project bar. The
 // two prefs are the two LAST positional args after blocksMode + internalColourMode.
 describe("internal-work bar-only hide prefs (showInternalProjects / showInternalActivities)", () => {
   function withInternalAndRepeatable(): AppData {
@@ -1436,18 +1514,33 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
       name: "Design",
       kind: "repeatable",
     });
-    d.allocations.push({
-      id: "aRep",
-      accountId: "acct-test",
-      createdAt: "t",
-      updatedAt: "t",
-      resourceId: "r1",
-      activityId: "tRep",
-      startDate: "2026-06-05",
-      endDate: "2026-06-05",
-      hoursPerDay: 4,
-      status: "confirmed",
-    });
+    d.allocations.push(
+      {
+        id: "aRep",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r1",
+        activityId: "tRep",
+        startDate: "2026-06-05",
+        endDate: "2026-06-05",
+        hoursPerDay: 4,
+        status: "confirmed",
+      },
+      {
+        id: "aRepAttributedInternal",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r1",
+        activityId: "tRep",
+        projectId: "pInt",
+        startDate: "2026-06-05",
+        endDate: "2026-06-05",
+        hoursPerDay: 2,
+        status: "confirmed",
+      },
+    );
     return d;
   }
   const buildPrefs = (showInternalProjects: boolean, showInternalActivities: boolean) =>
@@ -1495,6 +1588,7 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
     const ids = barIds(buildPrefs(true, false));
     expect(ids).not.toContain("aIntNoProj"); // kind 'internal' — hidden
     expect(ids).toContain("aRep"); // kind 'repeatable' — a distinct group, NEVER hidden by this toggle
+    expect(ids).toContain("aRepAttributedInternal"); // effective client does not change the activity kind
     expect(ids).toContain("aIntProj"); // a 'project' activity — NOT an internal activity, still shown
     expect(ids).toContain("a1"); // ordinary Acme work untouched
   });
@@ -1502,15 +1596,17 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
   it("(b) showInternalProjects=false hides internal-CLIENT project bars only (project-less activities stay)", () => {
     const ids = barIds(buildPrefs(false, true));
     expect(ids).not.toContain("aIntProj"); // project under the built-in Internal client — hidden
+    expect(ids).not.toContain("aRepAttributedInternal"); // attributed repeatable work follows that project
     expect(ids).toContain("aIntNoProj"); // project-less internal-kind activity — still shown
     expect(ids).toContain("aRep"); // project-less repeatable activity — still shown
     expect(ids).toContain("a1"); // ordinary Acme project (non-Internal client) untouched
   });
 
-  it("both false hides internal projects + internal activities, but cross-project and ordinary work survive", () => {
+  it("both false hides internal projects + internal activities, but unattributed all-projects and ordinary work survive", () => {
     const ids = barIds(buildPrefs(false, false));
     expect(ids).not.toContain("aIntProj");
     expect(ids).not.toContain("aIntNoProj");
+    expect(ids).not.toContain("aRepAttributedInternal");
     expect(ids).toContain("aRep"); // cross-project is the third group — visible with BOTH toggles off
     expect(ids).toContain("a1");
   });
@@ -1545,6 +1641,8 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
     // Sanity: r1 genuinely carries load (so the equality isn't a trivial 0 === 0), and the bar count
     // really did drop — proving the toggles took effect while utilisation held.
     expect(shown).toBeGreaterThan(0);
+    expect(barIds(buildPrefs(true, true))).toContain("aRepAttributedInternal");
+    expect(barIds(buildPrefs(false, true))).not.toContain("aRepAttributedInternal");
     expect(barIds(buildPrefs(false, false)).length).toBeLessThan(barIds(buildPrefs(true, true)).length);
   });
 });

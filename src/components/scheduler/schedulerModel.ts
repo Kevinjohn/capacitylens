@@ -10,7 +10,7 @@ import {
 import { eachDayISO, rangesOverlap, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { isValidISODate } from "@capacitylens/shared/lib/integrity";
+import { effectiveProjectId, isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { resolveBarColor } from "@capacitylens/shared/lib/color";
 import { placeholderDisplayName, timeOffTypeLabel, resourceDisplayName } from "../../lib/metadata";
 import { externalBand, resourcesByDiscipline, type DisciplineGroup } from "../../store/selectors";
@@ -375,17 +375,14 @@ export function buildSchedulerModel({
   // itself (all rows here belong to the active account); absent any client, there's no builtin.
   const scopedAccountId = data.clients[0]?.accountId;
   const internalClient = scopedAccountId ? internalClientFor(data.clients, scopedAccountId) : undefined;
-  const activityMeta = new Map(
-    data.activities.map((act) => {
-      // A project-specific activity's client is its project's client. A project-less internal/cross-project
-      // activity has NO project, so its client is DERIVED as the account's built-in Internal client
-      // (purely for the view-model — never persisted). `kind` feeds the activity lens
-      // ('Internal — All' / 'Cross-project — All') without a second activity lookup.
-      const project = act.projectId ? projectById.get(act.projectId) : undefined;
-      const clientId = act.projectId ? project?.clientId : internalClient?.id;
-      return [act.id, { projectId: act.projectId, clientId, kind: act.kind }];
-    }),
-  );
+  const projectClientFor = (allocation: Allocation) => {
+    const projectId = effectiveProjectId(allocation, activityById.get(allocation.activityId) ?? {});
+    const project = projectId ? projectById.get(projectId) : undefined;
+    // Project-less internal/repeatable work derives the built-in Internal client for display and
+    // filtering only. A dangling project reference must not be mistaken for project-less work.
+    const client = projectId ? (project ? clientById.get(project.clientId) : undefined) : internalClient;
+    return { projectId, project, client };
+  };
   // Group allocations / time off by resource ONCE up front, so building each row
   // is a Map lookup instead of a full-array scan per resource (was O(resources ×
   // (allocations + timeOff)); now O(allocations + timeOff + resources)).
@@ -406,16 +403,16 @@ export function buildSchedulerModel({
 
   // Does this allocation match the active project/client filter (ignoring tentative)?
   const matchesProjectClient = (a: Allocation): boolean => {
-    const meta = activityMeta.get(a.activityId);
-    if (filters.projectId && meta?.projectId !== filters.projectId) return false;
-    if (filters.clientId && meta?.clientId !== filters.clientId) return false;
+    const { projectId, client } = projectClientFor(a);
+    if (filters.projectId && projectId !== filters.projectId) return false;
+    if (filters.clientId && client?.id !== filters.clientId) return false;
     return true;
   };
   // The activity lens (standalone — mutually exclusive with project/client via setFilters): a
   // specific internal/cross-project activity, or a whole kind ('Internal — All' / 'Cross-project — All').
   const matchesActivity = (a: Allocation): boolean => {
     if (filters.activityId) return a.activityId === filters.activityId;
-    if (filters.activityKind) return activityMeta.get(a.activityId)?.kind === filters.activityKind;
+    if (filters.activityKind) return activityById.get(a.activityId)?.kind === filters.activityKind;
     return true;
   };
   // Any "what work" filter is active — drives the dimmed / show-unmatched staffing view, which
@@ -428,19 +425,16 @@ export function buildSchedulerModel({
   // applied ONLY when building `visibleAllocs` (bars + lane packing) — NEVER to `allAllocs`, which
   // feeds the capacity cache / utilisation below. Utilisation and capacity numbers MUST stay TRUTHFUL:
   // a person fully booked on internal work still shows as fully booked even when their internal bars
-  // are hidden. Internal-project detection uses the pre-built maps (no extra scans): a 'project'
-  // activity → its project's client (via activityMeta.clientId) → `builtin === true`.
+  // are hidden. Internal-project detection resolves each allocation's effective client through the
+  // pre-built maps, so attributed repeatable work follows the target project's visibility.
   const barVisibleByInternalPref = (a: Allocation): boolean => {
     const activity = activityById.get(a.activityId);
     if (!activity) return true; // dangling activityId — leave to the existing safe-fallback path
-    // OWNER DECISION (2026-07-22): internal, cross-project and client-project work are three
-    // DISTINCT groups — this toggle hides only kind 'internal'. Cross-project ('repeatable')
-    // bars stay visible even though they display under the derived Internal client label.
+    // OWNER DECISION (revised 2026-08-19): internal, unattributed all-projects and client-project
+    // work are distinct groups. Attributed all-projects work displays under its client project.
     if (!showInternalActivities && activity.kind === "internal") return false;
-    if (!showInternalProjects && activity.kind === "project") {
-      const clientId = activityMeta.get(a.activityId)?.clientId;
-      if (clientId !== undefined && clientById.get(clientId)?.builtin === true) return false;
-    }
+    const { project, client } = projectClientFor(a);
+    if (!showInternalProjects && project && client?.builtin === true) return false;
     return true;
   };
   const resourceVisible = (r: Resource): boolean => {
@@ -685,9 +679,7 @@ export function buildSchedulerModel({
           const { lanes, laneCount } = packLanes(visibleAllocs);
           const laneById = new Map(lanes.map((l) => [l.id, l.lane]));
           const bars: BarLayout[] = visibleAllocs.map((a) => {
-            const meta = activityMeta.get(a.activityId);
-            const project = meta?.projectId ? projectById.get(meta.projectId) : undefined;
-            const client = meta?.clientId ? clientById.get(meta.clientId) : undefined;
+            const { project, client } = projectClientFor(a);
             return {
               allocation: a,
               x: geom.xForDateInGeom(a.startDate),
