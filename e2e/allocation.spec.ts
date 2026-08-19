@@ -54,7 +54,14 @@ test.describe("Allocation editor", () => {
 
     await selectShadOption(project, "p-acme");
     await activity.click();
-    await expect(page.getByRole("option")).toHaveText(["CMS Review", "Visual Design", "Wireframes"]);
+    // A real-project scope lists All-projects activities first, then the project's own.
+    await expect(page.getByRole("option")).toHaveText([
+      "Design",
+      "Workshop",
+      "CMS Review",
+      "Visual Design",
+      "Wireframes",
+    ]);
     await page.keyboard.press("Escape");
 
     const status = dialog.getByRole("radiogroup", { name: "Status" });
