@@ -915,22 +915,19 @@ export function attachPersistence(
     hasUnsavedWrites: myRegisteredHasUnsaved,
   });
   resetPersistenceDiagnostics();
-  adapter.setAllocationRewriteHandler?.(
-    (revisions) => {
-      const byId = new Map(revisions.map((revision) => [revision.id, revision]));
-      store.setState((state) => {
-        let changed = false;
-        const allocations = state.data.allocations.map((allocation) => {
-          const revision = byId.get(allocation.id);
-          if (!revision) return allocation;
-          changed = true;
-          return withoutAllocationAttribution(allocation, revision.updatedAt);
-        });
-        return changed ? { ...state, data: { ...state.data, allocations } } : state;
+  adapter.setAllocationRewriteHandler?.((revisions) => {
+    const byId = new Map(revisions.map((revision) => [revision.id, revision]));
+    store.setState((state) => {
+      let changed = false;
+      const allocations = state.data.allocations.map((allocation) => {
+        const revision = byId.get(allocation.id);
+        if (!revision || allocation.updatedAt !== revision.flushedUpdatedAt) return allocation;
+        changed = true;
+        return withoutAllocationAttribution(allocation, revision.updatedAt);
       });
-    },
-    () => store.getState().data,
-  );
+      return changed ? { ...state, data: { ...state.data, allocations } } : state;
+    });
+  });
 
   const onPageHide = () => flushOnUnload();
   const onVisibility = () => {

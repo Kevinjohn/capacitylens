@@ -16,6 +16,8 @@ new features and **patch** versions carry fixes.
 - Saving several changes at once now applies them strictly in order: a booking attributed to a
   project after its activity was changed back to **All projects** in the same save keeps that
   attribution instead of silently losing it.
+- Re-attributing a booking while an earlier save is still in flight no longer discards that edit
+  when the server's reply arrives; the edit is kept and saved with the next change.
 - Changing an activity's kind away from **All projects** no longer fails with a spurious
   "changed while you were editing" conflict when its bookings carried project attribution.
 - A booking whose activity record is missing no longer appears under the Internal client filter.

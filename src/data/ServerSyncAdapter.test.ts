@@ -1168,7 +1168,7 @@ describe("ServerSyncAdapter.saveAll", () => {
     expect((batchOps(calls[2]) as unknown as Array<{ row: Allocation }>)[0].row.updatedAt).toBe(rewrittenAt);
   });
 
-  it("remembers a tagged rewrite from the current store stamp without a phantom follow-up PUT", async () => {
+  it("remembers a tagged rewrite from the committed snapshot without a phantom follow-up PUT", async () => {
     const activity: Activity = {
       id: "t1",
       accountId: "a1",
@@ -1198,18 +1198,15 @@ describe("ServerSyncAdapter.saveAll", () => {
     }) as unknown as typeof fetch;
     const adapter = new ServerSyncAdapter("http://x", fetchImpl);
     let visible = await adapter.loadAll();
-    adapter.setAllocationRewriteHandler(
-      (revisions) => {
-        const revision = revisions[0]!;
-        visible = {
-          ...visible,
-          allocations: visible.allocations.map((row) =>
-            row.id === revision.id ? withoutAllocationAttribution(row, revision.updatedAt) : row,
-          ),
-        };
-      },
-      () => visible,
-    );
+    adapter.setAllocationRewriteHandler((revisions) => {
+      const revision = revisions[0]!;
+      visible = {
+        ...visible,
+        allocations: visible.allocations.map((row) =>
+          row.id === revision.id ? withoutAllocationAttribution(row, revision.updatedAt) : row,
+        ),
+      };
+    });
 
     visible = {
       ...visible,
@@ -1226,6 +1223,93 @@ describe("ServerSyncAdapter.saveAll", () => {
     expect(visible.allocations[0].updatedAt).toBe(rewrittenAt);
     await adapter.saveAll(visible);
     expect(batchNumber).toBe(2);
+  });
+
+  it.each([
+    ["ordinary", undefined],
+    ["unload", { unload: true }],
+  ] as const)("keeps a concurrent allocation edit dirty after an %s rewrite receipt", async (_label, options) => {
+    const activity: Activity = {
+      id: "t1",
+      accountId: "a1",
+      name: "Planning",
+      kind: "repeatable",
+      createdAt: TS1,
+      updatedAt: TS1,
+    };
+    const allocationRow = { ...allocation("allocation", "2026-01-01"), projectId: "p1" };
+    const baseline = withData({ activities: [activity], allocations: [allocationRow] });
+    const rewrittenAt = "2030-01-02T00:00:00.000Z";
+    let releaseReceipt: ((response: Response) => void) | null = null;
+    const fetchImpl = vi.fn((url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).endsWith("/api/state")) return Promise.resolve(Response.json(baseline));
+      if (!releaseReceipt) {
+        return new Promise<Response>((resolve) => {
+          releaseReceipt = resolve;
+        });
+      }
+      return Promise.resolve(commitReceipt(init));
+    }) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    let visible = await adapter.loadAll();
+    // Supply the removed live-data callback through the old signature so this regression test also
+    // fails against the pre-fix adapter. The current implementation deliberately ignores argument 2.
+    const installRewriteHandler = adapter.setAllocationRewriteHandler.bind(adapter) as (
+      handler: Parameters<typeof adapter.setAllocationRewriteHandler>[0],
+      legacyGetData: () => AppData,
+    ) => void;
+    installRewriteHandler(
+      (revisions) => {
+        const revision = revisions[0]!;
+        visible = {
+          ...visible,
+          allocations: visible.allocations.map((row) =>
+            row.id === revision.id && row.updatedAt === revision.flushedUpdatedAt
+              ? withoutAllocationAttribution(row, revision.updatedAt)
+              : row,
+          ),
+        };
+      },
+      () => visible,
+    );
+    const flushed = withData({
+      ...visible,
+      activities: [{ ...visible.activities[0], kind: "internal", updatedAt: TS2 }],
+    });
+
+    const saving = adapter.saveAll(flushed, options);
+    visible = {
+      ...flushed,
+      allocations: [{ ...flushed.allocations[0], projectId: "p2", updatedAt: "2026-01-03T00:00:00.000Z" }],
+    };
+    releaseReceipt!(
+      Response.json({
+        ok: true,
+        applied: 1,
+        revisions: [
+          revisionFor({ method: "PUT", table: "activities", id: activity.id, row: flushed.activities[0] }),
+          {
+            table: "allocations",
+            id: allocationRow.id,
+            createdAt: TS1,
+            updatedAt: rewrittenAt,
+            rewrite: true,
+          },
+        ],
+      }),
+    );
+    await saving;
+
+    expect(visible.allocations[0]).toMatchObject({
+      projectId: "p2",
+      updatedAt: "2026-01-03T00:00:00.000Z",
+    });
+    await adapter.saveAll(visible);
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    const followUpOps = calls.slice(2).flatMap((call) => batchOps(call));
+    expect(followUpOps).toEqual(
+      expect.arrayContaining([expect.objectContaining({ table: "allocations", id: allocationRow.id })]),
+    );
   });
 
   it("keeps duplicate revisions strict for non-allocation tables", async () => {

@@ -16,7 +16,7 @@ import {
   BatchValidationError,
   BatchTooLargeError,
 } from "./ServerSyncAdapter";
-import { LoadError, type PersistenceAdapter } from "./PersistenceAdapter";
+import { LoadError, type AllocationRewriteRevision, type PersistenceAdapter } from "./PersistenceAdapter";
 import { useStore } from "../store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
@@ -68,14 +68,22 @@ describe("attachPersistence", () => {
       status: "confirmed",
     });
     const rewrittenAt = "2030-01-02T00:00:00.000Z";
-    let publish: ((revisions: readonly { id: string; createdAt: string; updatedAt: string }[]) => void) | null = null;
+    let publish: ((revisions: readonly AllocationRewriteRevision[]) => void) | null = null;
     let rewrote = false;
     const adapter: PersistenceAdapter = {
       loadAll: async () => emptyAppData(),
-      saveAll: async () => {
+      saveAll: async (data) => {
         if (!rewrote) {
           rewrote = true;
-          publish?.([{ id: allocation.id, createdAt: allocation.createdAt, updatedAt: rewrittenAt }]);
+          const flushedAllocation = data.allocations.find((row) => row.id === allocation.id)!;
+          publish?.([
+            {
+              id: allocation.id,
+              createdAt: allocation.createdAt,
+              updatedAt: rewrittenAt,
+              flushedUpdatedAt: flushedAllocation.updatedAt,
+            },
+          ]);
         }
       },
       setAllocationRewriteHandler: (handler) => {
@@ -88,6 +96,80 @@ describe("attachPersistence", () => {
     await vi.waitFor(() => expect(useStore.getState().data.allocations[0].updatedAt).toBe(rewrittenAt));
 
     expect(useStore.getState().data.allocations[0]).not.toHaveProperty("projectId");
+    detach();
+  });
+
+  it("keeps an allocation edit made while its rewrite receipt is in flight dirty", async () => {
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Bruce Wayne",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#111111",
+    });
+    const client = useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
+    const firstProject = useStore.getState().addProject({ name: "First", clientId: client.id, color: "#222222" });
+    const secondProject = useStore.getState().addProject({ name: "Second", clientId: client.id, color: "#333333" });
+    const activity = useStore.getState().addActivity({ name: "Shared", kind: "repeatable" });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      projectId: firstProject.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const rewrittenAt = "2030-01-02T00:00:00.000Z";
+    let publish: ((revisions: readonly AllocationRewriteRevision[]) => void) | null = null;
+    let releaseReceipt: (() => void) | null = null;
+    const flushed = new Promise<void>((resolve) => {
+      releaseReceipt = resolve;
+    });
+    const saved: AppData[] = [];
+    const adapter: PersistenceAdapter = {
+      loadAll: async () => emptyAppData(),
+      saveAll: async (data) => {
+        saved.push(data);
+        if (saved.length !== 1) return;
+        await flushed;
+        const flushedAllocation = data.allocations.find((row) => row.id === allocation.id)!;
+        publish?.([
+          {
+            id: allocation.id,
+            createdAt: allocation.createdAt,
+            updatedAt: rewrittenAt,
+            flushedUpdatedAt: flushedAllocation.updatedAt,
+          },
+        ]);
+      },
+      setAllocationRewriteHandler: (handler) => {
+        publish = handler;
+      },
+    };
+    const detach = attachPersistence(useStore, adapter, 0);
+
+    useStore.getState().updateAllocation(allocation.id, { note: "Flushed edit" });
+    await vi.waitFor(() => expect(saved).toHaveLength(1));
+    const flushedStamp = saved[0].allocations.find((row) => row.id === allocation.id)!.updatedAt;
+    useStore.getState().updateAllocation(allocation.id, { projectId: secondProject.id });
+    const concurrentStamp = useStore.getState().data.allocations.find((row) => row.id === allocation.id)!.updatedAt;
+    expect(concurrentStamp).not.toBe(flushedStamp);
+
+    releaseReceipt!();
+    await vi.waitFor(() => expect(saved).toHaveLength(2));
+
+    const visible = useStore.getState().data.allocations.find((row) => row.id === allocation.id)!;
+    expect(visible.projectId).toBe(secondProject.id);
+    expect(visible.updatedAt).toBe(concurrentStamp);
+    expect(saved[1].allocations.find((row) => row.id === allocation.id)).toMatchObject({
+      projectId: secondProject.id,
+      updatedAt: concurrentStamp,
+    });
     detach();
   });
 
