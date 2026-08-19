@@ -17,13 +17,18 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Installation docs now start with the deployment choice.** Docker Compose and direct
+  Node 24 installation are presented as separate, supported routes, and Docker is no
+  longer described as a general prerequisite.
+
+## [0.56.0-alpha.1] — 2026-08-19
+
+### Changed
+
 - **Shared activities can count towards real projects.** An **All projects** activity can be booked
   under any project; each allocation keeps that attribution for labels, colours, filters, repeat
   series and lifecycle changes, while **No specific project** remains an unattributed option.
 - Renamed **Cross-project** activities to **All projects** throughout the product and documentation.
-- **Installation docs now start with the deployment choice.** Docker Compose and direct
-  Node 24 installation are presented as separate, supported routes, and Docker is no
-  longer described as a general prerequisite.
 
 ## [0.55.0-alpha.4] — 2026-08-17
 
@@ -3864,7 +3869,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.56.0-alpha.1...HEAD
+[0.56.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...v0.56.0-alpha.1
 [0.55.0-alpha.4]: https://github.com/Kevinjohn/capacitylens/compare/v0.54.0-alpha.1...v0.55.0-alpha.4
 [0.54.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.7-alpha.1...v0.54.0-alpha.1
 [0.53.7-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.6-alpha.1...v0.53.7-alpha.1
