@@ -146,19 +146,17 @@ function writeActivityRow(
   projection: BatchStateProjection | undefined,
   row: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
-  collectedActivityIds?: Set<string>,
 ): RewrittenAllocationRevision[] {
   upsertRow(db, "activities", row);
   projection?.upsert("activities", row);
-  // A newly created activity cannot have an allocation referencing it yet, so POST/PUT-create
-  // never needs a sweep. Existing rows are collected exactly when this write lands ineligible.
-  if (!existing || allocationAttributionAllowed(row.kind)) return [];
   const id = row.id as string;
-  if (projection && collectedActivityIds) {
-    collectedActivityIds.add(id);
-    projection.clearAllocationAttributionForActivity(id);
+  if (projection) {
+    projection.reconcileAllocationAttributionForActivity(id, allocationAttributionAllowed(row.kind));
     return [];
   }
+  // A newly created activity cannot have an allocation referencing it yet, so POST/PUT-create
+  // never needs a sweep. Direct writes retain their immediate database reconciliation.
+  if (!existing || allocationAttributionAllowed(row.kind)) return [];
   return clearAllocationAttributionForActivities(db, new Set([id]));
 }
 
@@ -2588,7 +2586,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                   appendAppDataSlice(state, store.readSlice(accountId, FULL_SLICE_READ));
                 }
                 const projection = new BatchStateProjection(state);
-                const attributionClearedActivityIds = new Set<string>();
                 // Recompute under the provisioning lock: the earlier cap projection may have waited
                 // behind another top-level account mutation. A scalar COUNT is sufficient; validation's
                 // account rows are already present in the affected slices above.
@@ -2604,7 +2601,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                       throw new ValidationError("Each PUT op needs a row whose id matches the op id.");
                     }
                     // accountId is immutable (ownsRow): a write must not re-home an existing row.
-                    const existing = getRow(db, table, id);
+                    const persistedExisting = getRow(db, table, id);
+                    const existing =
+                      table === "allocations"
+                        ? (projection.row("allocations", id) as Record<string, unknown> | undefined)
+                        : persistedExisting;
                     // Built-in Internal guard (Finding 7 — ONE implementation). The batch's own minted-
                     // Internal exception accepts only the canonical duplicate a client emitted alongside
                     // the account create; malformed or re-homed bodies roll the whole batch back.
@@ -2666,8 +2667,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                     // 409 + { current } shape.
                     if (
                       (opts.optimisticConcurrency !== false || syncOrder !== null) &&
-                      isStaleWrite(existing, row as Record<string, unknown>) &&
-                      !(syncOrder && isSameSessionSuccessor(db, syncOrder, table, id, existing))
+                      isStaleWrite(persistedExisting, row as Record<string, unknown>) &&
+                      !(syncOrder && isSameSessionSuccessor(db, syncOrder, table, id, persistedExisting))
                     ) {
                       // The 409's `current` payload is a READ of the stored row: redact the time-off
                       // note for a note-blind writer, exactly like the write echo (P1.6) — the conflict
@@ -2675,7 +2676,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                       throw new StaleWriteError(
                         redactWriteEcho(
                           table,
-                          existing,
+                          persistedExisting,
                           fieldVisFor(table, (row as { accountId?: unknown }).accountId),
                         ),
                       );
@@ -2706,7 +2707,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                     } else {
                       validateWrite(state, table, clean, existing, projection);
                       if (table === "activities") {
-                        writeActivityRow(db, projection, clean, existing, attributionClearedActivityIds);
+                        writeActivityRow(db, projection, clean, existing);
                       } else {
                         upsertRow(db, table, clean);
                         projection.upsert(table as AppDataKey, clean);
@@ -2803,9 +2804,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                     throw new ValidationError(`Unknown op method: ${String(method)}`);
                   }
                 }
-                const rewrittenAllocations = clearAllocationAttributionForActivities(db, attributionClearedActivityIds);
-                projection.clearAllocationAttribution(rewrittenAllocations);
-                for (const revision of rewrittenAllocations) {
+                for (const revision of projection.rewrittenAllocationRevisions()) {
+                  const allocation = projection.row("allocations", revision.id);
+                  if (!allocation) throw new Error("Projected allocation rewrite is missing its final row.");
+                  upsertRow(db, "allocations", allocation);
                   revisions.push({ table: "allocations", ...revision, rewrite: true });
                 }
                 for (const record of auditRecords) {
