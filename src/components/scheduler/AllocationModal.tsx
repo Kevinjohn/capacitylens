@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { daysInclusive, eachDayISO, MAX_ISO_DATE, parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
-import { isValidISODate } from "@capacitylens/shared/lib/integrity";
+import { effectiveProjectId, isValidISODate } from "@capacitylens/shared/lib/integrity";
 import {
   effectiveWorkingWeek,
   lacksEffectiveWorkingDays,
@@ -173,10 +173,28 @@ function DateRangeFields({
   );
 }
 
-function projectSelectionForActivity(activity: Activity | undefined): string {
+function projectSelectionForActivity(activity: Activity | undefined, allocationProjectId?: string): string {
+  if (allocationProjectId) return allocationProjectId;
   if (activity?.kind === "repeatable") return ANY_PROJECT_SELECTION;
   if (activity?.kind === "project" && activity.projectId) return activity.projectId;
   return INTERNAL_PROJECT_SELECTION;
+}
+
+function attributedProjectForSelection(activity: Activity | undefined, selection: string): string | undefined {
+  if (
+    activity?.kind !== "repeatable" ||
+    selection === INTERNAL_PROJECT_SELECTION ||
+    selection === ANY_PROJECT_SELECTION
+  ) {
+    return undefined;
+  }
+  return selection;
+}
+
+function activityBelongsToProjectSelection(activity: Pick<Activity, "kind" | "projectId">, selection: string): boolean {
+  if (selection === INTERNAL_PROJECT_SELECTION) return activity.kind === "internal";
+  if (selection === ANY_PROJECT_SELECTION) return activity.kind === "repeatable";
+  return activity.kind === "repeatable" || (activity.kind === "project" && activity.projectId === selection);
 }
 
 function activityScopeForProjectSelection(selection: string): { kind: Activity["kind"]; projectId?: string } {
@@ -353,7 +371,9 @@ export function AllocationModal(props: AllocationModalProps) {
   // longer reopen as one ambiguous bucket. `initialLocked` remains only the create-time default
   // for a placeholder's bound project.
   const [projectSelection, setProjectSelection] = useState(
-    editing ? projectSelectionForActivity(initialActivity) : (initialLocked ?? INTERNAL_PROJECT_SELECTION),
+    editing
+      ? projectSelectionForActivity(initialActivity, editing.projectId)
+      : (initialLocked ?? INTERNAL_PROJECT_SELECTION),
   );
   const [activityId, setActivityId] = useState(editing?.activityId ?? "");
   const [startDate, setStartDate] = useState<ISODate>(initialStart);
@@ -532,7 +552,13 @@ export function AllocationModal(props: AllocationModalProps) {
     )
       return null;
     const activity = data.activities.find((candidate) => candidate.id === activityId);
-    if (!activity || !validateAllocationAssignment(selectedResource, activity.projectId).ok) return null;
+    const attributedProjectId = attributedProjectForSelection(activity, projectSelection);
+    if (
+      !activity ||
+      !validateAllocationAssignment(selectedResource, effectiveProjectId({ projectId: attributedProjectId }, activity))
+        .ok
+    )
+      return null;
     try {
       const { startDates } = generateRepeatingStartDates(startDate, repeatUntil, repeatPatternForSelection(repeat));
       const drafts = projectAllocationDates(
@@ -545,6 +571,7 @@ export function AllocationModal(props: AllocationModalProps) {
           status,
           note: note || undefined,
           ignoreWeekends: isExternal ? true : ignoreWeekends,
+          ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
         },
         startDates,
         { schedulingMode: mode, daysOver, resource: selectedResource, effectiveWeek: selectedEffectiveWeek },
@@ -575,6 +602,7 @@ export function AllocationModal(props: AllocationModalProps) {
     repeatUntilMaximum,
     repeatUntilMinimum,
     resourceId,
+    projectSelection,
     selectedResource,
     selectedEffectiveWeek,
     spanFitsDateDomain,
@@ -628,6 +656,8 @@ export function AllocationModal(props: AllocationModalProps) {
         ) || null
       );
     }
+    const activity = data.activities.find((candidate) => candidate.id === activityId);
+    const attributedProjectId = attributedProjectForSelection(activity, projectSelection);
     return (
       formatCapacityAdvisory(
         capacityAdvisory(
@@ -638,6 +668,7 @@ export function AllocationModal(props: AllocationModalProps) {
             endDate: effEndDate,
             hoursPerDay: effHoursPerDay,
             ignoreWeekends,
+            ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
           },
           others,
           resourceTimeOff,
@@ -648,7 +679,9 @@ export function AllocationModal(props: AllocationModalProps) {
       ) || null
     );
   }, [
+    activityId,
     create,
+    data.activities,
     data.allocations,
     data.closures,
     data.timeOff,
@@ -658,6 +691,7 @@ export function AllocationModal(props: AllocationModalProps) {
     ignoreWeekends,
     isBlocks,
     isExternal,
+    projectSelection,
     repeat,
     repeatProjection,
     resourceId,
@@ -727,18 +761,31 @@ export function AllocationModal(props: AllocationModalProps) {
   const activityOptions = useMemo(() => {
     if (
       inlineActivityOption &&
-      inlineActivityOption.kind === activityScope.kind &&
-      inlineActivityOption.projectId === activityScope.projectId &&
+      activityBelongsToProjectSelection(inlineActivityOption, projectSelection) &&
       !baseActivityOptions.some((option) => option.value === inlineActivityOption.value)
     ) {
-      return [...baseActivityOptions, inlineActivityOption].toSorted(
-        (left, right) =>
+      const option =
+        projectSelection !== INTERNAL_PROJECT_SELECTION && projectSelection !== ANY_PROJECT_SELECTION
+          ? {
+              ...inlineActivityOption,
+              groupLabel:
+                inlineActivityOption.kind === "repeatable"
+                  ? m.scheduler_filter_all_projects()
+                  : m.form_activity_kind_project(),
+            }
+          : inlineActivityOption;
+      return [...baseActivityOptions, option].toSorted((left, right) => {
+        const groupOrder = left.groupLabel === m.scheduler_filter_all_projects() ? 0 : 1;
+        const rightGroupOrder = right.groupLabel === m.scheduler_filter_all_projects() ? 0 : 1;
+        return (
+          groupOrder - rightGroupOrder ||
           left.label.localeCompare(right.label, undefined, { sensitivity: "base" }) ||
-          left.value.localeCompare(right.value),
-      );
+          left.value.localeCompare(right.value)
+        );
+      });
     }
     return baseActivityOptions;
-  }, [activityScope.kind, activityScope.projectId, baseActivityOptions, inlineActivityOption]);
+  }, [baseActivityOptions, inlineActivityOption, projectSelection]);
   const onAssigneeChange = (v: string) => {
     clear();
     setResourceId(v);
@@ -820,8 +867,12 @@ export function AllocationModal(props: AllocationModalProps) {
     });
     if (cleanNote === null) return null;
     const activity = data.activities.find((act) => act.id === activityId);
+    const attributedProjectId = attributedProjectForSelection(activity, projectSelection);
     if (selectedResource && activity) {
-      const check = validateAllocationAssignment(selectedResource, activity.projectId);
+      const check = validateAllocationAssignment(
+        selectedResource,
+        effectiveProjectId({ projectId: attributedProjectId }, activity),
+      );
       if (!check.ok) {
         fail("activity", domainErrorMessage(check.codes[0]));
         return null;
@@ -845,6 +896,7 @@ export function AllocationModal(props: AllocationModalProps) {
       hoursPerDay: effHoursPerDay,
       status,
       note: cleanNote || undefined,
+      ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
       // Externals have no working week — weekends are plain calendar days for them, so a span is
       // literal (ignoreWeekends: true) and the toggle is hidden below.
       ignoreWeekends: isExternal ? true : ignoreWeekends,
@@ -896,6 +948,8 @@ export function AllocationModal(props: AllocationModalProps) {
         const { hoursPerDay: draftHoursPerDay, ...fields } = draft;
         updateAllocation(editing.id, {
           ...fields,
+          // The store treats an own `undefined` value as a request to delete the persisted key.
+          projectId: draft.projectId,
           ...(!isBlocks || isExternal ? { hoursPerDay: draftHoursPerDay } : {}),
         });
       } else if (repeat === "none") {

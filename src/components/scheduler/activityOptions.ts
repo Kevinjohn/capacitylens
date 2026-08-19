@@ -10,9 +10,12 @@ export function buildActivityOptions(
   kind: Activity["kind"],
   projectId?: string,
 ): Option[] {
-  const eligible = activities.filter(
+  const groupedProjectScope = kind === "project" && projectId !== undefined;
+  const repeatable = groupedProjectScope ? activities.filter((activity) => activity.kind === "repeatable") : [];
+  const scoped = activities.filter(
     (activity) => activity.kind === kind && (kind !== "project" || activity.projectId === projectId),
   );
+  const eligible = groupedProjectScope ? [...repeatable, ...scoped] : scoped;
   const phaseById = new Map(phases.map((phase) => [phase.id, phase.name]));
   const projectById = new Map(projects.map((project) => [project.id, project.name]));
   const nameCounts = new Map<string, number>();
@@ -39,7 +42,7 @@ export function buildActivityOptions(
   const labelCounts = new Map<string, number>();
   for (const { baseLabel } of resolved) labelCounts.set(baseLabel, (labelCounts.get(baseLabel) ?? 0) + 1);
   const occurrences = new Map<string, number>();
-  return resolved.map(({ activity, baseLabel }) => {
+  const options = resolved.map(({ activity, baseLabel }) => {
     const occurrence = (occurrences.get(baseLabel) ?? 0) + 1;
     occurrences.set(baseLabel, occurrence);
     return {
@@ -47,4 +50,23 @@ export function buildActivityOptions(
       label: (labelCounts.get(baseLabel) ?? 0) > 1 ? `${baseLabel} (${occurrence})` : baseLabel,
     };
   });
+  if (!groupedProjectScope) return options;
+
+  const repeatableIds = new Set(repeatable.map((activity) => activity.id));
+  const allProjectsGroupLabel = m.scheduler_filter_all_projects();
+  const projectGroupLabel = m.form_activity_kind_project();
+  return options
+    .map((option) => ({
+      ...option,
+      groupLabel: repeatableIds.has(option.value) ? allProjectsGroupLabel : projectGroupLabel,
+    }))
+    .toSorted((left, right) => {
+      const groupOrder = left.groupLabel === allProjectsGroupLabel ? 0 : 1;
+      const rightGroupOrder = right.groupLabel === allProjectsGroupLabel ? 0 : 1;
+      return (
+        groupOrder - rightGroupOrder ||
+        left.label.localeCompare(right.label, undefined, { sensitivity: "base" }) ||
+        left.value.localeCompare(right.value)
+      );
+    });
 }

@@ -35,8 +35,8 @@ describe("buildActivityOptions", () => {
 
     expect(options).toHaveLength(200);
     expect(options.slice(0, 2)).toEqual([
-      { value: "activity-0", label: "Workshop / Discovery (1)" },
-      { value: "activity-1", label: "Workshop / Discovery (2)" },
+      { value: "activity-0", label: "Workshop / Discovery (1)", groupLabel: "Project-specific" },
+      { value: "activity-1", label: "Workshop / Discovery (2)", groupLabel: "Project-specific" },
     ]);
     expect(phaseFind).not.toHaveBeenCalled();
     expect(projectFind).not.toHaveBeenCalled();
@@ -60,7 +60,9 @@ describe("buildActivityOptions", () => {
       { value: "repeat-z", label: "Strategy" },
     ]);
     expect(buildActivityOptions(activities, [], [], "project", "project")).toEqual([
-      { value: "project", label: "Briefing" },
+      { value: "repeat-a", label: "Retrospective", groupLabel: "All projects" },
+      { value: "repeat-z", label: "Strategy", groupLabel: "All projects" },
+      { value: "project", label: "Briefing", groupLabel: "Project-specific" },
     ]);
   });
 
@@ -71,7 +73,7 @@ describe("buildActivityOptions", () => {
     ];
 
     expect(buildActivityOptions(activities, [], [], "project", "wayne-project")).toEqual([
-      { value: "wayne", label: "Briefing" },
+      { value: "wayne", label: "Briefing", groupLabel: "Project-specific" },
     ]);
   });
 
@@ -127,15 +129,38 @@ describe("buildActivityOptions", () => {
     ];
 
     expect(buildActivityOptions(activities, [phase], [project], "project", project.id)).toEqual([
-      { value: "with-phase", label: "Workshop / Discovery" },
-      { value: "with-project", label: "Workshop / Website (1)" },
-      { value: "without-metadata", label: "Workshop / Website (2)" },
+      { value: "with-phase", label: "Workshop / Discovery", groupLabel: "Project-specific" },
+      { value: "with-project", label: "Workshop / Website (1)", groupLabel: "Project-specific" },
+      { value: "without-metadata", label: "Workshop / Website (2)", groupLabel: "Project-specific" },
     ]);
 
     expect(buildActivityOptions(activities, [], [], "project", project.id)).toEqual([
-      { value: "with-phase", label: "Workshop / Project (1)" },
-      { value: "with-project", label: "Workshop / Project (2)" },
-      { value: "without-metadata", label: "Workshop / Project (3)" },
+      { value: "with-phase", label: "Workshop / Project (1)", groupLabel: "Project-specific" },
+      { value: "with-project", label: "Workshop / Project (2)", groupLabel: "Project-specific" },
+      { value: "without-metadata", label: "Workshop / Project (3)", groupLabel: "Project-specific" },
+    ]);
+  });
+
+  it("groups All-projects activities first and disambiguates names across the combined project scope", () => {
+    const project: Project = {
+      ...row,
+      id: "project",
+      clientId: "client",
+      name: "Website",
+      color: "#123456",
+    };
+    const activities: Activity[] = [
+      { ...row, id: "repeat-design", name: "Design", kind: "repeatable" },
+      { ...row, id: "repeat-admin", name: "Admin", kind: "repeatable" },
+      { ...row, id: "project-design", name: "Design", kind: "project", projectId: project.id },
+      { ...row, id: "project-build", name: "Build", kind: "project", projectId: project.id },
+    ];
+
+    expect(buildActivityOptions(activities, [], [project], "project", project.id)).toEqual([
+      { value: "repeat-admin", label: "Admin", groupLabel: "All projects" },
+      { value: "repeat-design", label: "Design / Cross-project", groupLabel: "All projects" },
+      { value: "project-build", label: "Build", groupLabel: "Project-specific" },
+      { value: "project-design", label: "Design / Website", groupLabel: "Project-specific" },
     ]);
   });
 

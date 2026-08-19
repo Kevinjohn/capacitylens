@@ -25,6 +25,9 @@ const capacityAdvisoryMock = vi.hoisted(() => vi.fn(() => ({ overDays: 0, timeOf
 // existing load), not merely on how often the advisory ran. It is the THIRD argument — the second
 // is the proposed allocation itself.
 const lastAdvisoryOthers = () => (capacityAdvisoryMock.mock.calls.at(-1) as unknown as unknown[] | undefined)?.[2];
+const lastAdvisoryProposal = () =>
+  (capacityAdvisoryMock.mock.calls.at(-1) as unknown as unknown[] | undefined)?.[1] as
+    { projectId?: string } | undefined;
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
 // (`capacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
 // care only about the advisory VERDICTS the modal renders.
@@ -178,6 +181,37 @@ describe("AllocationModal create", () => {
       startDate: "2026-06-01",
       endDate: "2026-06-03",
     });
+    expect(allocs[0]).not.toHaveProperty("projectId");
+  });
+
+  it.each([
+    ["Internal", "Operations", undefined],
+    ["Any Project", "Planning", undefined],
+    ["Acme / Lightning", "Planning", "p1"],
+  ] as const)("derives create attribution for the %s scope", async (scope, activityName, expectedProjectId) => {
+    useStore.getState().addActivity({ name: "Operations", kind: "internal" });
+    useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await chooseOption(user, "Project", scope);
+    await chooseOption(user, "Activity", activityName);
+    if (scope === "Acme / Lightning") {
+      expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent(scope);
+    }
+    if (expectedProjectId) expect(lastAdvisoryProposal()).toHaveProperty("projectId", expectedProjectId);
+    else expect(lastAdvisoryProposal()).not.toHaveProperty("projectId");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const allocation = useStore.getState().data.allocations[0];
+    if (expectedProjectId) expect(allocation).toHaveProperty("projectId", expectedProjectId);
+    else expect(allocation).not.toHaveProperty("projectId");
   });
 
   it.each([
@@ -1170,6 +1204,65 @@ describe("AllocationModal blocks mode", () => {
 });
 
 describe("AllocationModal edit", () => {
+  it.each([
+    ["attributed All-projects", "repeatable", "p1", "Acme / Lightning", "Planning"],
+    ["legacy unattributed All-projects", "repeatable", undefined, "Any Project", "Planning"],
+    ["internal", "internal", undefined, "Internal", "Operations"],
+    ["project-specific", "project", undefined, "Acme / Lightning", "Wireframes"],
+  ] as const)(
+    "reverse-maps and saves an %s allocation",
+    async (_caseName, activityKind, allocationProjectId, expectedScope, activityName) => {
+      const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+      const activity =
+        activityKind === "project"
+          ? useStore.getState().data.activities.find((candidate) => candidate.id === "t1")!
+          : useStore.getState().addActivity({ name: activityName, kind: activityKind });
+      const allocation = useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: activity.id,
+        ...(allocationProjectId ? { projectId: allocationProjectId } : {}),
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      });
+      const user = userEvent.setup();
+      render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+
+      expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent(expectedScope);
+      expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent(activityName);
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      const saved = useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)!;
+      if (allocationProjectId) expect(saved).toHaveProperty("projectId", allocationProjectId);
+      else expect(saved).not.toHaveProperty("projectId");
+    },
+  );
+
+  it("clears attributed All-projects work when its scope changes", async () => {
+    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+    const activity = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      projectId: "p1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+
+    await chooseOption(user, "Project", "Any Project");
+    await chooseOption(user, "Activity", "Planning");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)).not.toHaveProperty(
+      "projectId",
+    );
+  });
+
   it("shows an unmatched hours value and preserves it through an unrelated save", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -1856,6 +1949,29 @@ describe("AllocationModal inline activity creation pref", () => {
     expect(screen.getByRole("button", { name: "Add activity" })).toBeInTheDocument();
   });
 
+  it("places an inline-created project activity in the project-specific group", async () => {
+    useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+    const resourceId = addPerson();
+    const user = userEvent.setup();
+    render(
+      <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={vi.fn()} />,
+    );
+
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await user.type(screen.getByLabelText("New activity name"), "Alpha delivery");
+    await user.click(screen.getByRole("button", { name: "Add activity" }));
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Activity" }), { key: "ArrowDown" });
+
+    const allProjectsGroup = screen.getByRole("group", { name: "All projects" });
+    const projectGroup = screen.getByRole("group", { name: "Project-specific" });
+    expect(allProjectsGroup.compareDocumentPosition(projectGroup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      within(screen.getByRole("group", { name: "Project-specific" })).getByRole("option", {
+        name: "Alpha delivery",
+      }),
+    ).toBeInTheDocument();
+  });
+
   it('hides the inline "Add activity" input + button when inlineActivityCreateEnabled is false — the Activity picker still works', () => {
     const resourceId = addPerson();
     useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: false });
@@ -2085,6 +2201,40 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     bulkSpy.mockRestore();
     oneSpy.mockRestore();
   });
+
+  it.each([
+    ["Internal", "Operations", undefined],
+    ["Any Project", "Planning", undefined],
+    ["Acme / Lightning", "Planning", "p1"],
+  ] as const)(
+    "derives every repeated allocation's attribution for the %s scope",
+    async (scope, activityName, projectId) => {
+      useStore.getState().addActivity({ name: "Operations", kind: "internal" });
+      useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+      const resource = addPerson();
+      const bulkSpy = vi.spyOn(useStore.getState(), "addAllocations");
+      const user = userEvent.setup();
+      render(
+        <AllocationModal
+          create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
+          onClose={vi.fn()}
+        />,
+      );
+
+      await chooseOption(user, "Project", scope);
+      await chooseOption(user, "Activity", activityName);
+      await chooseOption(user, "Repeat", "Weekly");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      const drafts = bulkSpy.mock.calls[0][0];
+      expect(drafts.length).toBeGreaterThan(1);
+      for (const draft of drafts) {
+        if (projectId) expect(draft).toHaveProperty("projectId", projectId);
+        else expect(draft).not.toHaveProperty("projectId");
+      }
+      bulkSpy.mockRestore();
+    },
+  );
 
   it("keeps the original monthly numeric day while preserving a multi-day span", async () => {
     // A seven-day company and person make the Saturday day-31 anchor an effective start — the
