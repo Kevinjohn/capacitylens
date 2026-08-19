@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { daysInclusive, eachDayISO, MAX_ISO_DATE, parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
-import { effectiveProjectId, isValidISODate } from "@capacitylens/shared/lib/integrity";
+import { allocationAttributionAllowed, effectiveProjectId, isValidISODate } from "@capacitylens/shared/lib/integrity";
 import {
   effectiveWorkingWeek,
   lacksEffectiveWorkingDays,
@@ -85,7 +85,7 @@ import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
 import { useCanEdit } from "../../auth/permissionContext";
 import { ConfirmDialog } from "../common/dialogs";
 import { RepeatedAllocationDeleteDialog } from "./RepeatedAllocationDeleteDialog";
-import { buildActivityOptions, groupLabelForKind, sortGroupedOptions } from "./activityOptions";
+import { buildActivityOptions, groupKeyForKind, groupLabelForKind, sortGroupedOptions } from "./activityOptions";
 import { undoShortcut } from "../../lib/keyboardShortcuts";
 import { formatShortDate } from "../../lib/dateDisplay";
 import {
@@ -174,14 +174,14 @@ function DateRangeFields({
 }
 
 function projectSelectionForActivity(activity: Activity | undefined): string {
-  if (activity?.kind === "repeatable") return ANY_PROJECT_SELECTION;
+  if (allocationAttributionAllowed(activity?.kind)) return ANY_PROJECT_SELECTION;
   if (activity?.kind === "project" && activity.projectId) return activity.projectId;
   return INTERNAL_PROJECT_SELECTION;
 }
 
 function attributedProjectForSelection(activity: Activity | undefined, selection: string): string | undefined {
   if (
-    activity?.kind !== "repeatable" ||
+    !allocationAttributionAllowed(activity?.kind) ||
     selection === INTERNAL_PROJECT_SELECTION ||
     selection === ANY_PROJECT_SELECTION
   ) {
@@ -358,11 +358,10 @@ export function AllocationModal(props: AllocationModalProps) {
   const initialResourceId = editing?.resourceId ?? create?.resourceId ?? "";
   const initialResource = resourceById.get(initialResourceId);
   const initialEffectiveWeek = initialResource ? effectiveWorkingWeek(initialResource, accountWorkingDays) : null;
-  const initialLocked =
-    initialResource?.kind === "placeholder"
-      ? editing && initialActivity
-        ? effectiveProjectId(editing, initialActivity)
-        : initialResource.projectId
+  const initialLocked = editing
+    ? (editing.projectId ?? projectSelectionForActivity(initialActivity))
+    : initialResource?.kind === "placeholder"
+      ? initialResource.projectId
       : undefined;
   const initialStart = editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone);
   const initialScheduledHours =
@@ -371,14 +370,9 @@ export function AllocationModal(props: AllocationModalProps) {
       : FULL_DAY_HOURS;
 
   const [resourceId, setResourceId] = useState(initialResourceId);
-  // Editing derives the exact activity scope so project-less Internal and No specific project work no
-  // longer reopen as one ambiguous bucket. For placeholders, `initialLocked` is the allocation's
-  // effective project while editing, so a legacy unattributed row remains in its exact scope.
-  const [projectSelection, setProjectSelection] = useState(
-    editing
-      ? (initialLocked ?? editing.projectId ?? projectSelectionForActivity(initialActivity))
-      : (initialLocked ?? INTERNAL_PROJECT_SELECTION),
-  );
+  // `initialLocked` preserves the exact activity scope while editing and a placeholder's bound
+  // project while creating, so legacy unattributed rows reopen in their original scope.
+  const [projectSelection, setProjectSelection] = useState(initialLocked ?? INTERNAL_PROJECT_SELECTION);
   const [activityId, setActivityId] = useState(editing?.activityId ?? "");
   const [startDate, setStartDate] = useState<ISODate>(initialStart);
   const [endDate, setEndDate] = useState<ISODate>(editing?.endDate ?? create?.endDate ?? todayISO(calendarTimeZone));
@@ -780,6 +774,7 @@ export function AllocationModal(props: AllocationModalProps) {
         projectSelection !== INTERNAL_PROJECT_SELECTION && projectSelection !== ANY_PROJECT_SELECTION
           ? {
               ...inlineActivityOption,
+              groupKey: groupKeyForKind(inlineActivityOption.kind),
               groupLabel: groupLabelForKind(inlineActivityOption.kind),
             }
           : inlineActivityOption;

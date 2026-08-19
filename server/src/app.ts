@@ -78,6 +78,7 @@ import {
 // Shared lifecycle allow-list also protects the generic entity routes; the dedicated transition
 // pipeline is registered through routes/lifecycleRoutes below.
 import { archive, isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
+import { allocationAttributionAllowed } from "@capacitylens/shared/lib/integrity";
 import { seed } from "@capacitylens/shared/data/seed";
 import { TABLES } from "./tables";
 import {
@@ -105,6 +106,7 @@ import {
 } from "./writePipeline";
 import {
   type Db,
+  clearInvalidAllocationAttribution,
   deleteRow,
   getRow,
   insertAll,
@@ -2116,6 +2118,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             replaceGeneratedBuiltin(db, scopedState, generatedReplacement, row);
           } else {
             // Validation already ran in the funnel above.
+            // Activity kind changes implicitly restamp and clear attributed allocations. By
+            // contract this direct response still echoes only the explicitly written activity.
             upsertRow(db, entity, row);
           }
         });
@@ -2339,9 +2343,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           if (orderedRejection) return reply.code(orderedRejection.status).send({ error: orderedRejection.error });
         }
       }
-      const batchAllocationPutIds = new Set(
-        ops.filter((op) => op.method === "PUT" && op.table === "allocations").map((op) => op.id),
-      );
       if (ops.length === 0 && syncOrder === null) {
         return reply.code(200).send({
           ok: true,
@@ -2549,6 +2550,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                   appendAppDataSlice(state, store.readSlice(accountId, FULL_SLICE_READ));
                 }
                 const projection = new BatchStateProjection(state);
+                const activitiesLosingAttribution = new Set<string>();
                 // Recompute under the provisioning lock: the earlier cap projection may have waited
                 // behind another top-level account mutation. A scalar COUNT is sufficient; validation's
                 // account rows are already present in the affected slices above.
@@ -2665,8 +2667,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                       projection.replaceGeneratedBuiltin(generatedReplacement, clean);
                     } else {
                       validateWrite(state, table, clean, existing, projection);
-                      upsertRow(db, table, clean, batchAllocationPutIds);
-                      projection.upsert(table as AppDataKey, clean, batchAllocationPutIds);
+                      if (
+                        table === "activities" &&
+                        existing &&
+                        allocationAttributionAllowed(existing.kind) &&
+                        !allocationAttributionAllowed(clean.kind)
+                      ) {
+                        activitiesLosingAttribution.add(id);
+                      }
+                      upsertRow(db, table, clean, false);
+                      projection.upsert(table as AppDataKey, clean);
                     }
                     if (table === "accounts" && !existing) {
                       const internalClient = buildInternalClient(id, clean.createdAt as string) as unknown as Record<
@@ -2759,6 +2769,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                     throw new ValidationError(`Unknown op method: ${String(method)}`);
                   }
                 }
+                const rewrittenAllocations = clearInvalidAllocationAttribution(db, activitiesLosingAttribution);
+                projection.clearAllocationAttribution(rewrittenAllocations);
+                revisions.push(...rewrittenAllocations.map((revision) => ({ table: "allocations", ...revision })));
                 for (const record of auditRecords) {
                   if (record) enqueueAudit(db, record);
                 }
@@ -2804,8 +2817,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const auditFailed = !drainProductAudit(reply);
         if (auditFailed) reply.header("x-capacitylens-audit-warning", "true");
         // `applied` is the atomic receipt count: every submitted op was accepted and processed, so
-        // the sync client can require equality with ops.length. `changed` excludes idempotent
-        // deletes of absent rows and therefore matches the projected audit/revision mutation count.
+        // the sync client can require equality with ops.length. `changed` counts submitted mutations
+        // and excludes idempotent deletes; revisions may additionally report implicit allocation
+        // rewrites caused by an activity kind change.
         return reply.code(200).send({
           ok: true,
           applied: ops.length,

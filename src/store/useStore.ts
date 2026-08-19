@@ -796,15 +796,17 @@ export const useStore = create<StoreState>()((set, get, store) => {
   ): boolean => {
     const existing = findOwned(get().data, key, id);
     if (!existing) return false;
-    const requestedMerged = applyPatch(existing, patch as Partial<Omit<ScopedRow<K>, keyof Entity>>);
-    const effective = prepare ? prepare(requestedMerged, existing) : patch;
-    const merged = applyPatch(existing, effective as Partial<Omit<ScopedRow<K>, keyof Entity>>);
+    const effective = prepare
+      ? prepare(applyPatch(existing, patch as Partial<Omit<ScopedRow<K>, keyof Entity>>), existing)
+      : patch;
     // The table key is generic here, so TS can't narrow d[key] to a single row type; K pins the row
     // and patch types at every call site above, which is where correctness is actually checked.
     mutate((d) => {
       const rows = updateById(d[key] as Entity[], id, effective as Partial<Entity>);
       const next = { ...d, [key]: rows } as AppData;
-      return cascade ? cascade(next, merged, existing) : next;
+      return cascade
+        ? cascade(next, applyPatch(existing, effective as Partial<Omit<ScopedRow<K>, keyof Entity>>), existing)
+        : next;
     });
     return true;
   };

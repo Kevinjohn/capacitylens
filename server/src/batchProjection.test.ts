@@ -233,15 +233,16 @@ describe("BatchStateProjection", () => {
     expect(projection.allocationsForActivity("a1", "act2").map((row) => row.id)).toEqual(["al2", "al1"]);
   });
 
-  it("defers attribution clearing for allocations explicitly updated by the batch", () => {
+  it("mirrors allocation attribution revisions produced by the database sweep", () => {
     const projection = new BatchStateProjection(relationshipFixture());
 
-    projection.upsert(
-      "activities",
-      { ...projection.data.activities[1], kind: "project", projectId: "p1" },
-      new Set(["al2"]),
-    );
+    projection.upsert("activities", { ...projection.data.activities[1], kind: "project", projectId: "p1" });
+    projection.clearAllocationAttribution([{ id: "al2", createdAt: TS, updatedAt: "2026-01-02T00:00:00.000Z" }]);
 
-    expect(projection.row("allocations", "al2")).toHaveProperty("projectId", "p1");
+    expect(projection.row("allocations", "al2")).toMatchObject({
+      id: "al2",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    });
+    expect(projection.row("allocations", "al2")).not.toHaveProperty("projectId");
   });
 });

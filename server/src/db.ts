@@ -1344,10 +1344,46 @@ export function insertRow(db: Db, table: string, obj: Row): void {
   });
 }
 
+export interface RewrittenAllocationRevision {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Clear attribution that became invalid after an activity kind change. */
+export function clearInvalidAllocationAttribution(
+  db: Db,
+  activityIds: ReadonlySet<string>,
+): RewrittenAllocationRevision[] {
+  const cache = statementCache(db);
+  cache.attributedAllocationsByActivitySelect ??= db.prepare(
+    "SELECT id, createdAt, updatedAt FROM allocations WHERE activityId = ? AND projectId IS NOT NULL",
+  );
+  cache.clearAllocationAttribution ??= db.prepare(
+    "UPDATE allocations SET projectId = NULL, updatedAt = ? WHERE id = ?",
+  );
+  const rewritten: RewrittenAllocationRevision[] = [];
+  for (const activityId of activityIds) {
+    const activity = getRow(db, "activities", activityId);
+    if (!activity || allocationAttributionAllowed(activity.kind)) continue;
+    const attributed = cache.attributedAllocationsByActivitySelect.all(activityId) as Array<{
+      id: string;
+      createdAt: string;
+      updatedAt: unknown;
+    }>;
+    for (const allocation of attributed) {
+      const updatedAt = nextServerRevision(allocation.updatedAt);
+      cache.clearAllocationAttribution.run(updatedAt, allocation.id);
+      rewritten.push({ id: allocation.id, createdAt: allocation.createdAt, updatedAt });
+    }
+  }
+  return rewritten;
+}
+
 /** Idempotent insert-or-replace by id — the write the sync adapter uses for every
  *  create/update, so replaying a batch after a partial failure can't double-insert
  *  (a re-PUT of an already-written row just overwrites it). */
-export function upsertRow(db: Db, table: string, obj: Row, skipAttributionClearFor?: ReadonlySet<string>): void {
+export function upsertRow(db: Db, table: string, obj: Row, clearActivityAttribution = true): void {
   const spec = resolveTable(table);
   const cols = spec.columns.map((c) => c.name);
   // Exclude id (the conflict key) AND createdAt from the UPDATE: createdAt is immutable
@@ -1364,22 +1400,8 @@ export function upsertRow(db: Db, table: string, obj: Row, skipAttributionClearF
         `ON CONFLICT(id) DO UPDATE SET ${set}`,
     );
     stmt.run(...toRow(spec, obj));
-    if (table === "activities" && !allocationAttributionAllowed(obj.kind)) {
-      const cache = statementCache(db);
-      cache.attributedAllocationsByActivitySelect ??= db.prepare(
-        "SELECT id, updatedAt FROM allocations WHERE activityId = ? AND projectId IS NOT NULL",
-      );
-      const attributed = cache.attributedAllocationsByActivitySelect.all(obj.id as string) as Array<{
-        id: string;
-        updatedAt: unknown;
-      }>;
-      cache.clearAllocationAttribution ??= db.prepare(
-        "UPDATE allocations SET projectId = NULL, updatedAt = ? WHERE id = ?",
-      );
-      for (const allocation of attributed) {
-        if (skipAttributionClearFor?.has(allocation.id)) continue;
-        cache.clearAllocationAttribution.run(nextServerRevision(allocation.updatedAt), allocation.id);
-      }
+    if (clearActivityAttribution && table === "activities" && !allocationAttributionAllowed(obj.kind)) {
+      clearInvalidAllocationAttribution(db, new Set([obj.id as string]));
     }
     markInitialized(db);
   });
