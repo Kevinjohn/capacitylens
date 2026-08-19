@@ -21,6 +21,7 @@ import { useStore } from "../store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { seed } from "@capacitylens/shared/data/seed";
+import { deleteProjectCascade } from "@capacitylens/shared/lib/integrity";
 import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "../test/fixtures";
 import { persistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 
@@ -60,6 +61,37 @@ describe("attachPersistence", () => {
     const loaded = await adapter.loadAll();
     expect(loaded.clients).toHaveLength(1);
     detach();
+  });
+
+  it("persists the demo project cascade with attributed bookings unbound", async () => {
+    const adapter = new InMemoryDemoAdapter();
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Bruce Wayne",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#111111",
+    });
+    const client = useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
+    const project = useStore.getState().addProject({ name: "Project", clientId: client.id, color: "#222222" });
+    const activity = useStore.getState().addActivity({ name: "Shared", kind: "repeatable" });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      projectId: project.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+
+    await adapter.saveAll(deleteProjectCascade(useStore.getState().data, project.id, "2026-06-02T00:00:00.000Z"));
+    const saved = await adapter.loadAll();
+    expect(saved.allocations.find((row) => row.id === allocation.id)?.projectId).toBeUndefined();
   });
 
   it("stops persisting after detach", async () => {

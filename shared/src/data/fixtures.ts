@@ -167,6 +167,15 @@ export const FIXTURE_ACTIVITY_REPEATABLE: Activity = {
   updatedAt: TS2,
 };
 
+export const FIXTURE_REPEATABLE_ACTIVITY: Activity = {
+  id: "fix-t4",
+  accountId: "fix-a1",
+  name: "Fixture Attributable Repeatable Activity",
+  kind: "repeatable",
+  createdAt: TS1,
+  updatedAt: TS2,
+};
+
 export const FIXTURE_ALLOCATION: Allocation = {
   id: "fix-al1",
   accountId: "fix-a1",
@@ -181,6 +190,13 @@ export const FIXTURE_ALLOCATION: Allocation = {
   ignoreWeekends: true,
   createdAt: TS1,
   updatedAt: TS2,
+};
+
+export const FIXTURE_ALLOCATION_ATTRIBUTED: Allocation = {
+  ...FIXTURE_ALLOCATION,
+  id: "fix-al2",
+  activityId: "fix-t4",
+  projectId: "fix-p1",
 };
 
 export const FIXTURE_TIMEOFF: TimeOff = {

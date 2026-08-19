@@ -6,6 +6,7 @@ import {
   type AppDataKey,
 } from "@capacitylens/shared/types/entities";
 import type { ValidationDataLookup } from "@capacitylens/shared/domain/mutations";
+import { nextServerRevision } from "./revision";
 
 type ProjectionRow = Record<string, unknown> & { id: string };
 type DeleteAction = "cascade" | "set-null";
@@ -36,6 +37,7 @@ const RELATIONSHIPS: Relationship[] = [
   { parent: "projects", child: "phases", field: "projectId", onDelete: "cascade" },
   { parent: "projects", child: "activities", field: "projectId", onDelete: "cascade" },
   { parent: "projects", child: "resources", field: "projectId", onDelete: "set-null" },
+  { parent: "projects", child: "allocations", field: "projectId", onDelete: "set-null" },
   { parent: "phases", child: "activities", field: "phaseId", onDelete: "set-null" },
   { parent: "disciplines", child: "resources", field: "disciplineId", onDelete: "set-null" },
   { parent: "resources", child: "allocations", field: "resourceId", onDelete: "cascade" },
@@ -82,6 +84,14 @@ export class BatchStateProjection implements ValidationDataLookup {
     // (validate.ts), the universal write-path guard, so row.id should already be a string here.
     // Kept as a second gate rather than trusted, per the caller-can't-bypass-safety rule.
     if (typeof row.id !== "string") throw new Error("Batch projection rows require a string id.");
+    if (table === "activities" && row.kind !== "repeatable") {
+      for (const allocation of this.allocationsForActivity(String(row.accountId), row.id)) {
+        if (allocation.projectId === undefined) continue;
+        const cleared = { ...allocation, updatedAt: nextServerRevision(allocation.updatedAt) } as ProjectionRow;
+        delete cleared.projectId;
+        this.upsert("allocations", cleared);
+      }
+    }
     const next = row as ProjectionRow;
     const rows = rowsFor(this.data, table);
     const index = this.rowIndexes[table].get(next.id);

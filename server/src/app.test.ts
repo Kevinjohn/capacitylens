@@ -15,7 +15,9 @@ import {
   FIXTURE_ACTIVITY,
   FIXTURE_ACTIVITY_INTERNAL,
   FIXTURE_ACTIVITY_REPEATABLE,
+  FIXTURE_REPEATABLE_ACTIVITY,
   FIXTURE_ALLOCATION,
+  FIXTURE_ALLOCATION_ATTRIBUTED,
   FIXTURE_TIMEOFF,
 } from "@capacitylens/shared/data/fixtures";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
@@ -3357,13 +3359,23 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     );
   });
 
-  it("allocation: every field round-trips (including optional note + json ignoreWeekends + hoursPerDay 0)", async () => {
+  it("allocation: every field round-trips (including optional project attribution)", async () => {
     const { app } = freshApp();
     await seedFixtureDeps(app);
     await post(app, "resources", FIXTURE_RESOURCE);
     await post(app, "activities", FIXTURE_ACTIVITY);
+    await post(app, "activities", FIXTURE_REPEATABLE_ACTIVITY);
     expect((await post(app, "allocations", FIXTURE_ALLOCATION)).statusCode).toBe(201);
-    expectFixture((await state(app)).allocations[0], FIXTURE_ALLOCATION);
+    expect((await post(app, "allocations", FIXTURE_ALLOCATION_ATTRIBUTED)).statusCode).toBe(201);
+    const allocations = (await state(app)).allocations;
+    expectFixture(
+      allocations.find((allocation: { id: string }) => allocation.id === FIXTURE_ALLOCATION.id),
+      FIXTURE_ALLOCATION,
+    );
+    expectFixture(
+      allocations.find((allocation: { id: string }) => allocation.id === FIXTURE_ALLOCATION_ATTRIBUTED.id),
+      FIXTURE_ALLOCATION_ATTRIBUTED,
+    );
   });
 
   it("timeOff: every field round-trips (including optional note)", async () => {

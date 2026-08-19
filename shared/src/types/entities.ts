@@ -219,7 +219,8 @@ export interface Activity extends ScopedEntity {
    *  discriminant the schedule's activity lens filters on. See {@link ActivityKind}. */
   kind: ActivityKind;
   /** Set ONLY for `kind: 'project'` — the project this activity belongs to. Internal and
-   *  cross-project (`repeatable`) activities are project-less (and so are their allocations). */
+   *  cross-project (`repeatable`) activities are project-less at the activity level; repeatable
+   *  allocations may carry their own project attribution. */
   projectId?: ID;
   phaseId?: ID;
 }
@@ -227,6 +228,9 @@ export interface Activity extends ScopedEntity {
 export interface Allocation extends ScopedEntity {
   resourceId: ID;
   activityId: ID;
+  /** Set only for `repeatable`-activity allocations to attribute this booking to a project.
+   *  Absent means unattributed; `project` and `internal` activities must not carry it. */
+  projectId?: ID;
   /** System-owned identity shared by allocations created in one repeat batch. Absent = one-off or legacy repeat. */
   seriesId?: ID;
   startDate: ISODate; // inclusive
@@ -455,8 +459,9 @@ export function placeholderCapacityDefaults(): Pick<Resource, "workingDays" | "h
  *  working days, defaulting legacy accounts to the first five days of their configured week; v15
  *  adds optional Allocation.seriesId without inferring links for legacy repeat batches; v16 widens
  *  TimeOff.resourceId to nullable, where null represents company-wide time off for Everyone; v17
- *  separates company closures into their own table and restores required TimeOff.resourceId.) */
-export const EXPORT_SCHEMA_VERSION = 17;
+ *  separates company closures into their own table and restores required TimeOff.resourceId; v18
+ *  adds optional per-allocation project attribution for repeatable activities.) */
+export const EXPORT_SCHEMA_VERSION = 18;
 
 export interface PersistedState {
   schemaVersion: number;

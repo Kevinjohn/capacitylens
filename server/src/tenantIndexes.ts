@@ -40,6 +40,14 @@ export const FOREIGN_KEY_CHILD_INDEXES_V23_SQL = FOREIGN_KEY_CHILD_INDEXES_V23.m
   ({ table, column, index }) => `CREATE INDEX IF NOT EXISTS ${index} ON ${table}(${column});`,
 ).join("\n");
 
+/** Foreign-key child index introduced with allocation project attribution in v35. */
+export const ALLOCATION_PROJECT_INDEX_V35 = {
+  table: "allocations",
+  column: "projectId",
+  index: "idx_allocations_projectId",
+} as const;
+export const ALLOCATION_PROJECT_INDEX_V35_SQL = `CREATE INDEX IF NOT EXISTS ${ALLOCATION_PROJECT_INDEX_V35.index} ON ${ALLOCATION_PROJECT_INDEX_V35.table}(${ALLOCATION_PROJECT_INDEX_V35.column});`;
+
 export const quoteIdentifier = (value: string): string => `"${value.replaceAll('"', '""')}"`;
 
 /** Shared shape check behind assertTenantAccountIndexesV21 and assertTenantEntityIndexesCurrent's
@@ -104,8 +112,8 @@ export function assertTenantEntityIndexesV23(db: Db): void {
   }
 }
 
-/** Verify every current tenant-slice and foreign-key child index. */
-export function assertTenantEntityIndexesCurrent(db: Db): void {
+/** Verify the released v34 tenant-slice and foreign-key child indexes. */
+export function assertTenantEntityIndexesV34(db: Db): void {
   assertTenantEntityIndexesV23(db);
   for (const { table, index } of TENANT_ENTITY_ACCOUNT_INDEXES_V34) {
     assertSingleColumnIndex(
@@ -116,4 +124,17 @@ export function assertTenantEntityIndexesCurrent(db: Db): void {
       `Tenant entity index ${index} does not match ${table}(accountId).`,
     );
   }
+}
+
+/** Verify every current tenant-slice and foreign-key child index. */
+export function assertTenantEntityIndexesCurrent(db: Db): void {
+  assertTenantEntityIndexesV34(db);
+  const { table, column, index } = ALLOCATION_PROJECT_INDEX_V35;
+  assertSingleColumnIndex(
+    db,
+    table,
+    index,
+    column,
+    `Foreign-key child index ${index} does not match ${table}(${column}).`,
+  );
 }

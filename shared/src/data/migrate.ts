@@ -366,6 +366,7 @@ const POST_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
   { version: 15, apply: migrateV14toV15 }, // no-op: repeat-series identity is forward-only
   { version: 16, apply: migrateV15toV16 }, // no-op: TimeOff.resourceId is widened to nullable
   { version: 17, apply: (data) => data }, // structural split: import repair drops invalid legacy rows
+  { version: 18, apply: (data) => data }, // optional allocation attribution; import repair owns semantics
 ];
 
 export interface MigrationWithRepairBase {

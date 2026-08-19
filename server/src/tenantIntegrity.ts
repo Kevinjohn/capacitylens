@@ -8,7 +8,7 @@ export interface TenantRelationship {
 
 /** Every product relationship whose child and parent must carry the same accountId. Shared with
  *  erasure.ts, which builds its account-scoped edge check from this same canonical list. */
-export const TENANT_RELATIONSHIPS: readonly TenantRelationship[] = [
+export const TENANT_RELATIONSHIPS_V19: readonly TenantRelationship[] = [
   { childTable: "resources", parentColumn: "disciplineId", parentTable: "disciplines" },
   { childTable: "projects", parentColumn: "clientId", parentTable: "clients" },
   { childTable: "phases", parentColumn: "projectId", parentTable: "projects" },
@@ -18,6 +18,12 @@ export const TENANT_RELATIONSHIPS: readonly TenantRelationship[] = [
   { childTable: "allocations", parentColumn: "resourceId", parentTable: "resources" },
   { childTable: "allocations", parentColumn: "activityId", parentTable: "activities" },
   { childTable: "timeOff", parentColumn: "resourceId", parentTable: "resources" },
+];
+
+/** Current product relationships. Historical migrations use the frozen v19 subset above. */
+export const TENANT_RELATIONSHIPS: readonly TenantRelationship[] = [
+  ...TENANT_RELATIONSHIPS_V19,
+  { childTable: "allocations", parentColumn: "projectId", parentTable: "projects" },
 ];
 
 const SCOPED_TABLES = [
@@ -63,7 +69,7 @@ BEGIN
 END;`;
 
 const TRIGGER_DEFINITIONS_V19 = [
-  ...TENANT_RELATIONSHIPS.flatMap((relationship) => [
+  ...TENANT_RELATIONSHIPS_V19.flatMap((relationship) => [
     { name: relationshipTriggerName(relationship, "insert"), sql: relationshipTriggerSql(relationship, "insert") },
     { name: relationshipTriggerName(relationship, "update"), sql: relationshipTriggerSql(relationship, "update") },
   ]),
@@ -83,7 +89,25 @@ const CLOSURE_ACCOUNT_TRIGGER = {
 /** Tenant guard installed with the first-class closure table in v34. */
 export const CLOSURE_TENANT_INTEGRITY_V34_SQL = `DROP TRIGGER IF EXISTS ${CLOSURE_ACCOUNT_TRIGGER.name};\n${CLOSURE_ACCOUNT_TRIGGER.sql}`;
 
-const CURRENT_TRIGGER_DEFINITIONS = [...TRIGGER_DEFINITIONS_V19, CLOSURE_ACCOUNT_TRIGGER] as const;
+const ALLOCATION_PROJECT_RELATIONSHIP = TENANT_RELATIONSHIPS.at(-1)!;
+const ALLOCATION_PROJECT_TRIGGER_DEFINITIONS = [
+  {
+    name: relationshipTriggerName(ALLOCATION_PROJECT_RELATIONSHIP, "insert"),
+    sql: relationshipTriggerSql(ALLOCATION_PROJECT_RELATIONSHIP, "insert"),
+  },
+  {
+    name: relationshipTriggerName(ALLOCATION_PROJECT_RELATIONSHIP, "update"),
+    sql: relationshipTriggerSql(ALLOCATION_PROJECT_RELATIONSHIP, "update"),
+  },
+] as const;
+
+/** Tenant guards introduced with allocation project attribution in v35. */
+export const ALLOCATION_PROJECT_TENANT_INTEGRITY_V35_SQL = ALLOCATION_PROJECT_TRIGGER_DEFINITIONS.map(
+  ({ name, sql }) => `DROP TRIGGER IF EXISTS ${name};\n${sql}`,
+).join("\n");
+
+const TRIGGER_DEFINITIONS_V34 = [...TRIGGER_DEFINITIONS_V19, CLOSURE_ACCOUNT_TRIGGER] as const;
+const CURRENT_TRIGGER_DEFINITIONS = [...TRIGGER_DEFINITIONS_V34, ...ALLOCATION_PROJECT_TRIGGER_DEFINITIONS] as const;
 
 interface CrossTenantEdge {
   relationship: string;
@@ -93,20 +117,25 @@ interface CrossTenantEdge {
   parentAccountId: string;
 }
 
-const crossTenantEdgeSql =
-  TENANT_RELATIONSHIPS.map(
-    (relationship) => `
+const crossTenantEdgeSql = (relationships: readonly TenantRelationship[]): string =>
+  relationships
+    .map(
+      (relationship) => `
   SELECT '${relationship.childTable}.${relationship.parentColumn} -> ${relationship.parentTable}.id' AS relationship,
          parent.id AS parentId, child.id AS childId,
          child.accountId AS childAccountId, parent.accountId AS parentAccountId
     FROM ${relationship.parentTable} AS parent
     JOIN ${relationship.childTable} AS child ON child.${relationship.parentColumn} = parent.id
    WHERE child.accountId <> parent.accountId`,
-  ).join("\n  UNION ALL") + "\n  LIMIT 1";
+    )
+    .join("\n  UNION ALL") + "\n  LIMIT 1";
 
 /** Reject a database whose individually valid foreign keys form a cross-account relationship. */
-export function assertNoCrossTenantRelationships(db: Db): void {
-  const edge = db.prepare(crossTenantEdgeSql).get() as CrossTenantEdge | undefined;
+export function assertNoCrossTenantRelationships(
+  db: Db,
+  relationships: readonly TenantRelationship[] = TENANT_RELATIONSHIPS,
+): void {
+  const edge = db.prepare(crossTenantEdgeSql(relationships)).get() as CrossTenantEdge | undefined;
   if (!edge) return;
   throw new Error(
     `Database tenant integrity check failed: ${edge.relationship} has parent account ` +
@@ -117,10 +146,11 @@ export function assertNoCrossTenantRelationships(db: Db): void {
 
 function assertTenantRelationshipIntegrity(
   db: Db,
-  definitions: typeof CURRENT_TRIGGER_DEFINITIONS,
+  definitions: readonly { name: string; sql: string }[],
+  relationships: readonly TenantRelationship[],
   allowCompatibleExtensions = false,
 ): void {
-  assertNoCrossTenantRelationships(db);
+  assertNoCrossTenantRelationships(db, relationships);
   const normalizeSql = (sql: string): string => sql.replace(/\s+/g, " ").trim().replace(/;$/, "");
   const expected = new Map(definitions.map(({ name, sql }) => [name, normalizeSql(sql)]));
   const actual = (
@@ -149,10 +179,15 @@ function assertTenantRelationshipIntegrity(
 
 /** Verify the released v19 trigger set while replaying migrations before v34. */
 export function assertTenantRelationshipIntegrityV19(db: Db): void {
-  assertTenantRelationshipIntegrity(db, TRIGGER_DEFINITIONS_V19 as unknown as typeof CURRENT_TRIGGER_DEFINITIONS, true);
+  assertTenantRelationshipIntegrity(db, TRIGGER_DEFINITIONS_V19, TENANT_RELATIONSHIPS_V19, true);
+}
+
+/** Verify the released v34 trigger set without requiring v35's allocation-project column. */
+export function assertTenantRelationshipIntegrityV34(db: Db): void {
+  assertTenantRelationshipIntegrity(db, TRIGGER_DEFINITIONS_V34, TENANT_RELATIONSHIPS_V19, true);
 }
 
 /** Verify both live data and the complete current trigger set on every database open. */
 export function assertTenantRelationshipIntegrityCurrent(db: Db): void {
-  assertTenantRelationshipIntegrity(db, CURRENT_TRIGGER_DEFINITIONS);
+  assertTenantRelationshipIntegrity(db, CURRENT_TRIGGER_DEFINITIONS, TENANT_RELATIONSHIPS);
 }

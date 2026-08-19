@@ -91,6 +91,10 @@ describe("tenant relationship database integrity", () => {
       "timeOff.resourceId",
       `INSERT INTO timeOff (id, accountId, resourceId, startDate, endDate, type, createdAt, updatedAt) VALUES ('bad-tor', 'a1', 'r2', '2026-01-01', '2026-01-02', 'holiday', '${TS}', '${TS}')`,
     ],
+    [
+      "allocations.projectId",
+      `INSERT INTO allocations (id, accountId, resourceId, activityId, projectId, startDate, endDate, hoursPerDay, status, createdAt, updatedAt) VALUES ('bad-alp', 'a1', 'r1', 'act1', 'p2', '2026-01-01', '2026-01-02', 4, 'tentative', '${TS}', '${TS}')`,
+    ],
   ] as const)("rejects a cross-account %s insert", (relationship, sql) => {
     expect(() => db.exec(sql)).toThrow(`cross-account relationship: ${relationship}`);
     expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);

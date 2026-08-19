@@ -381,10 +381,13 @@ describe("cascade deletes", () => {
       endDate: "2026-06-06",
       hoursPerDay: 8,
       status: "confirmed",
+      projectId: "p1",
     });
     const next = deleteProjectCascade(data, "p1", CASCADE_REVISION);
     expect(next.activities.map((t) => t.id)).toEqual(["t3"]);
     expect(next.allocations.map((a) => a.id)).toEqual(["a3"]);
+    expect(next.allocations[0].projectId).toBeUndefined();
+    expect(next.allocations[0].updatedAt).toBe(CASCADE_REVISION);
   });
 
   it("deleteProjectCascade unbinds a surviving activity’s phaseId that pointed at a deleted phase", () => {
@@ -556,11 +559,35 @@ describe("cascade deletes", () => {
   });
 
   it("deleteClientCascade cascades through its projects", () => {
-    const next = deleteClientCascade(sampleData(), "c1", CASCADE_REVISION);
+    const data = sampleData();
+    data.activities.push({
+      id: "shared",
+      accountId: "acct-test",
+      name: "Shared",
+      kind: "repeatable",
+      createdAt: "t",
+      updatedAt: "t",
+    });
+    data.allocations.push({
+      id: "attributed",
+      accountId: "acct-test",
+      resourceId: "r1",
+      activityId: "shared",
+      projectId: "p1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+      createdAt: "t",
+      updatedAt: "t",
+    });
+    const next = deleteClientCascade(data, "c1", CASCADE_REVISION);
     expect(next.clients).toHaveLength(0);
     expect(next.projects).toHaveLength(0);
-    expect(next.activities).toHaveLength(0);
-    expect(next.allocations).toHaveLength(0);
+    expect(next.activities.map((activity) => activity.id)).toEqual(["shared"]);
+    expect(next.allocations.map((allocation) => allocation.id)).toEqual(["attributed"]);
+    expect(next.allocations[0].projectId).toBeUndefined();
+    expect(next.allocations[0].updatedAt).toBe(CASCADE_REVISION);
     expect(next.resources.find((r) => r.id === "ph1")!.projectId).toBeUndefined();
   });
 

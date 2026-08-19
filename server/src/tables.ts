@@ -178,6 +178,7 @@ const COLS_allocations = [
   { name: "accountId" },
   { name: "resourceId" },
   { name: "activityId" },
+  { name: "projectId", optional: true },
   { name: "startDate" },
   { name: "endDate" },
   { name: "hoursPerDay", sqlType: "REAL" },
@@ -283,6 +284,7 @@ export const SCOPED_ORDER = SCOPED_WRITE_ORDER;
 //   phase    → activities.phaseId         : SET NULL       (deletePhaseCascade: unbind)
 //   project  → phases/activities          : CASCADE        (deleteProjectCascade)
 //   project  → resources.projectId   : SET NULL       (placeholder unbind)
+//   project  → allocations.projectId : SET NULL       (repeatable booking attribution unbind)
 //   client   → projects              : CASCADE        (deleteClientCascade)
 //   discipline → resources.disciplineId : SET NULL    (deleteDisciplineCascade: ungroup)
 //   account  → everything scoped     : CASCADE        (deleteAccountCascade — the one account-scoped
@@ -401,6 +403,10 @@ export const SCHEMA_SQL = `${SCHEMA_V8_SQL.replace(
   .replace(
     "  status TEXT NOT NULL, note TEXT, ignoreWeekends TEXT,",
     "  status TEXT NOT NULL, note TEXT, ignoreWeekends TEXT, seriesId TEXT,",
+  )
+  .replace(
+    "  activityId TEXT NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  startDate TEXT NOT NULL",
+    "  activityId TEXT NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  projectId TEXT REFERENCES projects(id) ON DELETE SET NULL,\n  startDate TEXT NOT NULL",
   )}\nCREATE TABLE IF NOT EXISTS closures (
   id TEXT NOT NULL PRIMARY KEY,
   accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,

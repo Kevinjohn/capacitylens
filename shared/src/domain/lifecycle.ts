@@ -138,6 +138,7 @@ const LIFECYCLE_ANCESTRY: readonly LifecycleAncestryRelation[] = [
   { child: "activities", parent: "projects", field: "projectId", optional: true },
   { child: "activities", parent: "phases", field: "phaseId", optional: true },
   { child: "resources", parent: "projects", field: "projectId", optional: true },
+  { child: "allocations", parent: "projects", field: "projectId", optional: true },
   { child: "allocations", parent: "resources", field: "resourceId" },
   { child: "allocations", parent: "activities", field: "activityId" },
   { child: "timeOff", parent: "resources", field: "resourceId" },
