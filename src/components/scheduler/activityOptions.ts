@@ -13,20 +13,14 @@ export function groupLabelForKind(kind: Activity["kind"]): string {
   return kind === "repeatable" ? m.scheduler_filter_all_projects() : m.form_activity_kind_project();
 }
 
+function groupOrder(groupKey: Option["groupKey"]): number {
+  return groupKey === "all-projects" ? 0 : 1;
+}
+
 export function sortGroupedOptions(options: readonly Option[]): Option[] {
-  const allProjectsGroupLabel = m.scheduler_filter_all_projects();
-  const groupOrder = new Map(
-    options.map((option) => [
-      option,
-      option.groupKey === "all-projects" ||
-      (option.groupKey === undefined && option.groupLabel === allProjectsGroupLabel)
-        ? 0
-        : 1,
-    ]),
-  );
   return options.toSorted((left, right) => {
     return (
-      groupOrder.get(left)! - groupOrder.get(right)! ||
+      groupOrder(left.groupKey) - groupOrder(right.groupKey) ||
       compareDisplayNames(left.label, left.value, right.label, right.value)
     );
   });
@@ -41,16 +35,11 @@ export function buildActivityOptions(
   projectId?: string,
 ): Option[] {
   const groupedProjectScope = kind === "project" && projectId !== undefined;
-  const eligible: Activity[] = [];
-  for (const activity of activities) {
-    if (
-      groupedProjectScope
-        ? activity.kind === "repeatable" || (activity.kind === "project" && activity.projectId === projectId)
-        : activity.kind === kind && (kind !== "project" || activity.projectId === projectId)
-    ) {
-      eligible.push(activity);
-    }
-  }
+  const eligible = activities.filter((activity) =>
+    groupedProjectScope
+      ? activity.kind === "repeatable" || (activity.kind === "project" && activity.projectId === projectId)
+      : activity.kind === kind && (kind !== "project" || activity.projectId === projectId),
+  );
   const phaseById = new Map(phases.map((phase) => [phase.id, phase.name]));
   const projectById = new Map(projects.map((project) => [project.id, project.name]));
   const nameCounts = new Map<string, number>();
@@ -75,7 +64,7 @@ export function buildActivityOptions(
   const occurrences = new Map<string, number>();
   resolved.sort(
     (left, right) =>
-      (groupedProjectScope ? Number(left.kind !== "repeatable") - Number(right.kind !== "repeatable") : 0) ||
+      (groupedProjectScope ? groupOrder(groupKeyForKind(left.kind)) - groupOrder(groupKeyForKind(right.kind)) : 0) ||
       compareDisplayNames(left.baseLabel, left.activity.id, right.baseLabel, right.activity.id),
   );
   return resolved.map(({ activity, kind: resolvedKind, baseLabel }) => {

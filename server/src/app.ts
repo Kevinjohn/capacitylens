@@ -2037,7 +2037,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           row.id as string,
           appliedRequestedFieldNames(entity, requestRow, undefined, row),
         );
-        commitProductAudit(reply, auditRecord, () => insertRow(db, entity, row));
+        commitProductAudit(reply, auditRecord, () => {
+          insertRow(db, entity, row);
+          if (entity === "activities") {
+            clearInvalidAllocationAttribution(db, new Set([row.id as string]));
+          }
+        });
         return reply.code(201).send(row);
       } catch (err) {
         return sendFail(reply, err);
@@ -2118,9 +2123,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             replaceGeneratedBuiltin(db, scopedState, generatedReplacement, row);
           } else {
             // Validation already ran in the funnel above.
-            // Activity kind changes implicitly restamp and clear attributed allocations. By
-            // contract this direct response still echoes only the explicitly written activity.
             upsertRow(db, entity, row);
+            if (entity === "activities") {
+              clearInvalidAllocationAttribution(db, new Set([id]));
+            }
           }
         });
         // A write response is a read: apply the same note/private-name projections as /api/state.
@@ -2206,7 +2212,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             id,
             appliedRequestedFieldNames(entity, req.body, existing, stamped),
           ),
-          () => upsertRow(db, entity, stamped),
+          () => {
+            upsertRow(db, entity, stamped);
+            if (entity === "activities") {
+              clearInvalidAllocationAttribution(db, new Set([id]));
+            }
+          },
         );
         // The merge carries stored protected fields into `merged`; apply the normal read projection.
         return reply.code(200).send(redactWriteEcho(entity, stamped, vis));
@@ -2550,7 +2561,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                   appendAppDataSlice(state, store.readSlice(accountId, FULL_SLICE_READ));
                 }
                 const projection = new BatchStateProjection(state);
-                const activitiesLosingAttribution = new Set<string>();
+                const writtenActivityIds = new Set<string>();
                 // Recompute under the provisioning lock: the earlier cap projection may have waited
                 // behind another top-level account mutation. A scalar COUNT is sufficient; validation's
                 // account rows are already present in the affected slices above.
@@ -2666,17 +2677,15 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                       replaceGeneratedBuiltin(db, state, generatedReplacement, clean);
                       projection.replaceGeneratedBuiltin(generatedReplacement, clean);
                     } else {
-                      validateWrite(state, table, clean, existing, projection);
-                      if (
-                        table === "activities" &&
-                        existing &&
-                        allocationAttributionAllowed(existing.kind) &&
-                        !allocationAttributionAllowed(clean.kind)
-                      ) {
-                        activitiesLosingAttribution.add(id);
+                      if (table === "activities" && !allocationAttributionAllowed(clean.kind)) {
+                        projection.clearAllocationAttributionForActivity(id);
                       }
-                      upsertRow(db, table, clean, false);
+                      validateWrite(state, table, clean, existing, projection);
+                      upsertRow(db, table, clean);
                       projection.upsert(table as AppDataKey, clean);
+                      if (table === "activities") {
+                        writtenActivityIds.add(id);
+                      }
                     }
                     if (table === "accounts" && !existing) {
                       const internalClient = buildInternalClient(id, clean.createdAt as string) as unknown as Record<
@@ -2769,9 +2778,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                     throw new ValidationError(`Unknown op method: ${String(method)}`);
                   }
                 }
-                const rewrittenAllocations = clearInvalidAllocationAttribution(db, activitiesLosingAttribution);
+                const rewrittenAllocations = clearInvalidAllocationAttribution(db, writtenActivityIds);
                 projection.clearAllocationAttribution(rewrittenAllocations);
-                revisions.push(...rewrittenAllocations.map((revision) => ({ table: "allocations", ...revision })));
+                for (const revision of rewrittenAllocations) {
+                  revisions.push({ table: "allocations", ...revision });
+                }
                 for (const record of auditRecords) {
                   if (record) enqueueAudit(db, record);
                 }

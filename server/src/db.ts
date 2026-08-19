@@ -1350,7 +1350,7 @@ export interface RewrittenAllocationRevision {
   updatedAt: string;
 }
 
-/** Clear attribution that became invalid after an activity kind change. */
+/** The single allocation-attribution clearing mechanism. Every activity write path must invoke it. */
 export function clearInvalidAllocationAttribution(
   db: Db,
   activityIds: ReadonlySet<string>,
@@ -1383,7 +1383,7 @@ export function clearInvalidAllocationAttribution(
 /** Idempotent insert-or-replace by id — the write the sync adapter uses for every
  *  create/update, so replaying a batch after a partial failure can't double-insert
  *  (a re-PUT of an already-written row just overwrites it). */
-export function upsertRow(db: Db, table: string, obj: Row, clearActivityAttribution = true): void {
+export function upsertRow(db: Db, table: string, obj: Row): void {
   const spec = resolveTable(table);
   const cols = spec.columns.map((c) => c.name);
   // Exclude id (the conflict key) AND createdAt from the UPDATE: createdAt is immutable
@@ -1400,9 +1400,6 @@ export function upsertRow(db: Db, table: string, obj: Row, clearActivityAttribut
         `ON CONFLICT(id) DO UPDATE SET ${set}`,
     );
     stmt.run(...toRow(spec, obj));
-    if (clearActivityAttribution && table === "activities" && !allocationAttributionAllowed(obj.kind)) {
-      clearInvalidAllocationAttribution(db, new Set([obj.id as string]));
-    }
     markInitialized(db);
   });
 }
