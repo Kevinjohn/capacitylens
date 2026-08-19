@@ -403,6 +403,7 @@ export function buildSchedulerModel({
 
   // Does this allocation match the active project/client filter (ignoring tentative)?
   const matchesProjectClient = (a: Allocation): boolean => {
+    if (!filters.projectId && !filters.clientId) return true;
     const { projectId, client } = projectClientFor(a);
     if (filters.projectId && projectId !== filters.projectId) return false;
     if (filters.clientId && client?.id !== filters.clientId) return false;
@@ -433,8 +434,10 @@ export function buildSchedulerModel({
     // OWNER DECISION (revised 2026-08-19): internal, unattributed all-projects and client-project
     // work are distinct groups. Attributed all-projects work displays under its client project.
     if (!showInternalActivities && activity.kind === "internal") return false;
-    const { project, client } = projectClientFor(a);
-    if (!showInternalProjects && project && client?.builtin === true) return false;
+    if (!showInternalProjects) {
+      const { project, client } = projectClientFor(a);
+      if (project && client?.builtin === true) return false;
+    }
     return true;
   };
   const resourceVisible = (r: Resource): boolean => {

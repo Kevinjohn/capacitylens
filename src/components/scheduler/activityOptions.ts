@@ -2,6 +2,23 @@ import type { Activity, Phase, Project } from "@capacitylens/shared/types/entiti
 import { m } from "@/i18n";
 import type { Option } from "../common/ui";
 
+export function groupLabelForKind(kind: Activity["kind"]): string {
+  return kind === "repeatable" ? m.scheduler_filter_all_projects() : m.form_activity_kind_project();
+}
+
+export function sortGroupedOptions(options: readonly Option[]): Option[] {
+  const allProjectsGroupLabel = m.scheduler_filter_all_projects();
+  return options.toSorted((left, right) => {
+    const groupOrder = left.groupLabel === allProjectsGroupLabel ? 0 : 1;
+    const rightGroupOrder = right.groupLabel === allProjectsGroupLabel ? 0 : 1;
+    return (
+      groupOrder - rightGroupOrder ||
+      left.label.localeCompare(right.label, undefined, { sensitivity: "base" }) ||
+      left.value.localeCompare(right.value)
+    );
+  });
+}
+
 /** Build alphabetized, distinct activity labels from pre-indexed project and phase metadata. */
 export function buildActivityOptions(
   activities: readonly Activity[],
@@ -53,20 +70,10 @@ export function buildActivityOptions(
   if (!groupedProjectScope) return options;
 
   const repeatableIds = new Set(repeatable.map((activity) => activity.id));
-  const allProjectsGroupLabel = m.scheduler_filter_all_projects();
-  const projectGroupLabel = m.form_activity_kind_project();
-  return options
-    .map((option) => ({
+  return sortGroupedOptions(
+    options.map((option) => ({
       ...option,
-      groupLabel: repeatableIds.has(option.value) ? allProjectsGroupLabel : projectGroupLabel,
-    }))
-    .toSorted((left, right) => {
-      const groupOrder = left.groupLabel === allProjectsGroupLabel ? 0 : 1;
-      const rightGroupOrder = right.groupLabel === allProjectsGroupLabel ? 0 : 1;
-      return (
-        groupOrder - rightGroupOrder ||
-        left.label.localeCompare(right.label, undefined, { sensitivity: "base" }) ||
-        left.value.localeCompare(right.value)
-      );
-    });
+      groupLabel: groupLabelForKind(repeatableIds.has(option.value) ? "repeatable" : "project"),
+    })),
+  );
 }

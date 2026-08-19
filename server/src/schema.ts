@@ -479,7 +479,8 @@ function assertSchemaVersion(db: Db, tableSpecs: Record<string, TableSpec>, allo
       ["accountId", "accounts", "id", "CASCADE"],
     ],
     allocations: [
-      ...(tableSpecs === TABLES || (allowCompatibleExtensions && hasColumn(db, "allocations", "projectId"))
+      ...(tableSpecs.allocations.columns.some((column) => column.name === "projectId") ||
+      (allowCompatibleExtensions && hasColumn(db, "allocations", "projectId"))
         ? [["projectId", "projects", "id", "SET NULL"] as [string, string, string, string]]
         : []),
       ["activityId", "activities", "id", "CASCADE"],

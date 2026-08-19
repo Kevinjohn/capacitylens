@@ -20,10 +20,16 @@ export const TENANT_RELATIONSHIPS_V19: readonly TenantRelationship[] = [
   { childTable: "timeOff", parentColumn: "resourceId", parentTable: "resources" },
 ];
 
+const ALLOCATION_PROJECT_RELATIONSHIP: TenantRelationship = {
+  childTable: "allocations",
+  parentColumn: "projectId",
+  parentTable: "projects",
+};
+
 /** Current product relationships. Historical migrations use the frozen v19 subset above. */
 export const TENANT_RELATIONSHIPS: readonly TenantRelationship[] = [
   ...TENANT_RELATIONSHIPS_V19,
-  { childTable: "allocations", parentColumn: "projectId", parentTable: "projects" },
+  ALLOCATION_PROJECT_RELATIONSHIP,
 ];
 
 const SCOPED_TABLES = [
@@ -89,7 +95,6 @@ const CLOSURE_ACCOUNT_TRIGGER = {
 /** Tenant guard installed with the first-class closure table in v34. */
 export const CLOSURE_TENANT_INTEGRITY_V34_SQL = `DROP TRIGGER IF EXISTS ${CLOSURE_ACCOUNT_TRIGGER.name};\n${CLOSURE_ACCOUNT_TRIGGER.sql}`;
 
-const ALLOCATION_PROJECT_RELATIONSHIP = TENANT_RELATIONSHIPS.at(-1)!;
 const ALLOCATION_PROJECT_TRIGGER_DEFINITIONS = [
   {
     name: relationshipTriggerName(ALLOCATION_PROJECT_RELATIONSHIP, "insert"),

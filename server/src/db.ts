@@ -1279,6 +1279,8 @@ interface StatementCache {
   accountByIdSelect?: PreparedStatement;
   markInitialized?: PreparedStatement;
   accountSummariesSelect?: PreparedStatement;
+  attributedAllocationsByActivitySelect?: PreparedStatement;
+  clearAllocationAttribution?: PreparedStatement;
 }
 
 const statementCaches = new WeakMap<Db, StatementCache>();
@@ -1362,12 +1364,19 @@ export function upsertRow(db: Db, table: string, obj: Row): void {
     );
     stmt.run(...toRow(spec, obj));
     if (table === "activities" && obj.kind !== "repeatable") {
-      const attributed = db
-        .prepare("SELECT id, updatedAt FROM allocations WHERE activityId = ? AND projectId IS NOT NULL")
-        .all(obj.id as string) as Array<{ id: string; updatedAt: unknown }>;
-      const clearAttribution = db.prepare("UPDATE allocations SET projectId = NULL, updatedAt = ? WHERE id = ?");
+      const cache = statementCache(db);
+      cache.attributedAllocationsByActivitySelect ??= db.prepare(
+        "SELECT id, updatedAt FROM allocations WHERE activityId = ? AND projectId IS NOT NULL",
+      );
+      const attributed = cache.attributedAllocationsByActivitySelect.all(obj.id as string) as Array<{
+        id: string;
+        updatedAt: unknown;
+      }>;
+      cache.clearAllocationAttribution ??= db.prepare(
+        "UPDATE allocations SET projectId = NULL, updatedAt = ? WHERE id = ?",
+      );
       for (const allocation of attributed) {
-        clearAttribution.run(nextServerRevision(allocation.updatedAt), allocation.id);
+        cache.clearAllocationAttribution.run(nextServerRevision(allocation.updatedAt), allocation.id);
       }
     }
     markInitialized(db);

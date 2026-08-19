@@ -426,12 +426,16 @@ export function SelectField({
   const markDirty = useMarkFormDirty();
   const selectedOption = options.find((option) => option.value === value);
   const unresolvedValue = value !== "" && selectedOption === undefined;
-  const optionGroups = options.reduce<Array<{ label?: string; options: Option[] }>>((groups, option) => {
-    const previous = groups.at(-1);
-    if (previous && previous.label === option.groupLabel) previous.options.push(option);
-    else groups.push({ label: option.groupLabel, options: [option] });
-    return groups;
-  }, []);
+  const optionGroups = options.some((option) => option.groupLabel !== undefined)
+    ? options.reduce<Array<{ label?: string; options: Option[] }>>((groups, option) => {
+        const previous = groups.at(-1);
+        if (previous && previous.label === option.groupLabel) previous.options.push(option);
+        else groups.push({ label: option.groupLabel, options: [option] });
+        return groups;
+      }, [])
+    : options.length > 0
+      ? [{ options }]
+      : [];
   return (
     <Field
       data-invalid={invalid || undefined}
