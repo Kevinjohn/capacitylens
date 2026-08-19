@@ -338,7 +338,6 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   private queuedSeedGen = 0;
   private acknowledgedRevisions = new Map<string, AcknowledgedRevision>();
   private allocationRewriteHandler: ((revisions: readonly AllocationRewriteRevision[]) => void) | null = null;
-  private currentData: (() => AppData) | null = null;
   /** Lifecycle rows this adapter successfully archived after a local disappearance. If the same id
    * returns through undo/redo, it must be unarchived before ordinary descendant writes can land. */
   private archivedBySync = new Set<string>();
@@ -353,12 +352,8 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     this.fetchImpl = fetchImpl;
   }
 
-  setAllocationRewriteHandler(
-    handler: ((revisions: readonly AllocationRewriteRevision[]) => void) | null,
-    getData?: () => AppData,
-  ): void {
+  setAllocationRewriteHandler(handler: ((revisions: readonly AllocationRewriteRevision[]) => void) | null): void {
     this.allocationRewriteHandler = handler;
-    this.currentData = handler && getData ? getData : null;
   }
 
   private request(
@@ -434,7 +429,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     this.archivedBySync.clear();
   }
 
-  private rememberRevisions(ops: Op[], revisions: CommittedRevision[], data?: AppData): void {
+  private rememberRevisions(ops: Op[], revisions: CommittedRevision[], committedSnapshot: AppData): void {
     const byRow = new Map(
       revisions
         .filter((revision) => revision.rewrite !== true)
@@ -451,14 +446,13 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         });
       }
     }
-    if (!data) return;
     const rowsByTable = new Map<Op["table"], Map<string, Entity>>();
     for (const revision of revisions) {
       const key = rowKey(revision.table, revision.id);
       if (revision.rewrite !== true) continue;
       let rows = rowsByTable.get(revision.table);
       if (!rows) {
-        rows = new Map((data[revision.table] as Entity[]).map((row) => [row.id, row]));
+        rows = new Map((committedSnapshot[revision.table] as Entity[]).map((row) => [row.id, row]));
         rowsByTable.set(revision.table, rows);
       }
       const row = rows.get(revision.id);
@@ -471,11 +465,12 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     }
   }
 
-  private publishAllocationRewrites(revisions: readonly CommittedRevision[]): void {
-    const rewrites = revisions.filter(
-      (revision): revision is CommittedRevision & AllocationRewriteRevision =>
-        revision.table === "allocations" && revision.rewrite === true,
-    );
+  private publishAllocationRewrites(revisions: readonly CommittedRevision[], committedSnapshot: AppData): void {
+    const rewrites = revisions.flatMap((revision): AllocationRewriteRevision[] => {
+      if (revision.table !== "allocations" || revision.rewrite !== true) return [];
+      const flushed = committedSnapshot.allocations.find((allocation) => allocation.id === revision.id);
+      return flushed ? [{ ...revision, flushedUpdatedAt: flushed.updatedAt }] : [];
+    });
     if (rewrites.length > 0) this.allocationRewriteHandler?.(rewrites);
   }
 
@@ -779,8 +774,8 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       archiveLifecycleDeletes: true,
     });
     if (!receipt.superseded) {
-      this.rememberRevisions(batchOps, receipt.revisions, this.currentData?.() ?? next);
-      this.publishAllocationRewrites(receipt.revisions);
+      this.rememberRevisions(batchOps, receipt.revisions, canonicalTarget);
+      this.publishAllocationRewrites(receipt.revisions, canonicalTarget);
       this.rememberLifecycleArchives(lifecycleDeletes, receipt.archivedLifecycleKeys);
     }
   }
@@ -859,8 +854,8 @@ export class ServerSyncAdapter implements PersistenceAdapter {
           continue;
         }
         if (targetSeedGen === this.seedGen) {
-          this.rememberRevisions(batchOps, receipt.revisions, this.currentData?.() ?? target);
-          this.publishAllocationRewrites(receipt.revisions);
+          this.rememberRevisions(batchOps, receipt.revisions, canonicalTarget);
+          this.publishAllocationRewrites(receipt.revisions, canonicalTarget);
           committedTarget = applyCommittedRevisions(canonicalTarget, receipt.revisions);
         }
       }
@@ -974,7 +969,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       this.lastSynced = writeRows(this.lastSynced, [{ table: op.table, row }], { replaceExisting: true });
       const key = this.lifecycleKey(op);
       this.acknowledgedRevisions.delete(key);
-      if (sameEntityContent(op.row, row)) this.rememberRevisions([op], [revision]);
+      if (sameEntityContent(op.row, row)) this.rememberRevisions([op], [revision], this.lastSynced);
       this.archivedBySync.delete(this.lifecycleKey(op));
       restored = true;
     }
