@@ -11,7 +11,6 @@ import {
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { allocationAttributionAllowed } from "@capacitylens/shared/lib/integrity";
 import { nextServerRevision } from "./revision";
 
 // Re-export the shared isEmpty so existing import sites (e.g. db.migrate.test.ts)
@@ -1350,8 +1349,8 @@ export interface RewrittenAllocationRevision {
   updatedAt: string;
 }
 
-/** The single allocation-attribution clearing mechanism. Every activity write path must invoke it. */
-export function clearInvalidAllocationAttribution(
+/** The single allocation-attribution clearing mechanism. Activity write paths supply ids collected at flip time. */
+export function clearAllocationAttributionForActivities(
   db: Db,
   activityIds: ReadonlySet<string>,
 ): RewrittenAllocationRevision[] {
@@ -1364,8 +1363,6 @@ export function clearInvalidAllocationAttribution(
   );
   const rewritten: RewrittenAllocationRevision[] = [];
   for (const activityId of activityIds) {
-    const activity = getRow(db, "activities", activityId);
-    if (!activity || allocationAttributionAllowed(activity.kind)) continue;
     const attributed = cache.attributedAllocationsByActivitySelect.all(activityId) as Array<{
       id: string;
       createdAt: string;

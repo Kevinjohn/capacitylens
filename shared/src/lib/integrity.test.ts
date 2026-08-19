@@ -12,6 +12,7 @@ import {
   validateAllocationAssignment,
   validateDateRange,
   validateProjectClient,
+  withoutAllocationAttribution,
 } from "./integrity";
 import { emptyAppData } from "../types/entities";
 import type { AppData, Resource } from "../types/entities";
@@ -26,6 +27,14 @@ describe("allocationAttributionAllowed", () => {
     expect(allocationAttributionAllowed("project")).toBe(false);
     expect(allocationAttributionAllowed("internal")).toBe(false);
     expect(allocationAttributionAllowed("unknown")).toBe(false);
+  });
+});
+
+describe("withoutAllocationAttribution", () => {
+  it("returns a restamped copy without projectId", () => {
+    const original = { id: "al1", projectId: "p1", updatedAt: "before" };
+    expect(withoutAllocationAttribution(original, "after")).toEqual({ id: "al1", updatedAt: "after" });
+    expect(original).toHaveProperty("projectId", "p1");
   });
 });
 

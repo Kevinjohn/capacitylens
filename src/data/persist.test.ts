@@ -43,6 +43,54 @@ beforeEach(() => {
 });
 
 describe("attachPersistence", () => {
+  it("publishes allocation rewrites into the visible Zustand row", async () => {
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Bruce Wayne",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#111111",
+    });
+    const client = useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
+    const project = useStore.getState().addProject({ name: "Project", clientId: client.id, color: "#222222" });
+    const activity = useStore.getState().addActivity({ name: "Shared", kind: "repeatable" });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      projectId: project.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const rewrittenAt = "2030-01-02T00:00:00.000Z";
+    let publish: ((revisions: readonly { id: string; createdAt: string; updatedAt: string }[]) => void) | null = null;
+    let rewrote = false;
+    const adapter: PersistenceAdapter = {
+      loadAll: async () => emptyAppData(),
+      saveAll: async () => {
+        if (!rewrote) {
+          rewrote = true;
+          publish?.([{ id: allocation.id, createdAt: allocation.createdAt, updatedAt: rewrittenAt }]);
+        }
+      },
+      setAllocationRewriteHandler: (handler) => {
+        publish = handler;
+      },
+    };
+    const detach = attachPersistence(useStore, adapter, 0);
+
+    useStore.getState().updateAllocation(allocation.id, { note: "Trigger save" });
+    await vi.waitFor(() => expect(useStore.getState().data.allocations[0].updatedAt).toBe(rewrittenAt));
+
+    expect(useStore.getState().data.allocations[0]).not.toHaveProperty("projectId");
+    detach();
+  });
+
   it("rejects a second live persistence owner", () => {
     const detach = attachPersistence(useStore, new InMemoryDemoAdapter(), 0);
     try {

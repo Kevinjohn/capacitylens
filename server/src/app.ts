@@ -106,7 +106,8 @@ import {
 } from "./writePipeline";
 import {
   type Db,
-  clearInvalidAllocationAttribution,
+  clearAllocationAttributionForActivities,
+  type RewrittenAllocationRevision,
   deleteRow,
   getRow,
   insertAll,
@@ -139,6 +140,27 @@ import { nextServerRevision } from "./revision";
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
 const BODY_LIMIT = 5 * 1024 * 1024;
+
+function writeActivityRow(
+  db: Db,
+  projection: BatchStateProjection | undefined,
+  row: Record<string, unknown>,
+  existing: Record<string, unknown> | undefined,
+  collectedActivityIds?: Set<string>,
+): RewrittenAllocationRevision[] {
+  upsertRow(db, "activities", row);
+  projection?.upsert("activities", row);
+  // A newly created activity cannot have an allocation referencing it yet, so POST/PUT-create
+  // never needs a sweep. Existing rows are collected exactly when this write lands ineligible.
+  if (!existing || allocationAttributionAllowed(row.kind)) return [];
+  const id = row.id as string;
+  if (projection && collectedActivityIds) {
+    collectedActivityIds.add(id);
+    projection.clearAllocationAttributionForActivity(id);
+    return [];
+  }
+  return clearAllocationAttributionForActivities(db, new Set([id]));
+}
 
 // Cap on ops per POST /api/batch request (the MAX_IMPORT_RECORDS precedent, applied to the sync
 // path). BODY_LIMIT bounds request BYTES, but not request WORK: every operation is sanitized,
@@ -2039,9 +2061,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         );
         commitProductAudit(reply, auditRecord, () => {
           insertRow(db, entity, row);
-          if (entity === "activities") {
-            clearInvalidAllocationAttribution(db, new Set([row.id as string]));
-          }
         });
         return reply.code(201).send(row);
       } catch (err) {
@@ -2118,19 +2137,22 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           id,
           appliedRequestedFieldNames(entity, body, existing, row),
         );
+        let rewrittenAllocations: RewrittenAllocationRevision[] = [];
         commitProductAudit(reply, auditRecord, () => {
           if (generatedReplacement) {
             replaceGeneratedBuiltin(db, scopedState, generatedReplacement, row);
+          } else if (entity === "activities") {
+            rewrittenAllocations = writeActivityRow(db, undefined, row, existing);
           } else {
             // Validation already ran in the funnel above.
             upsertRow(db, entity, row);
-            if (entity === "activities") {
-              clearInvalidAllocationAttribution(db, new Set([id]));
-            }
           }
         });
         // A write response is a read: apply the same note/private-name projections as /api/state.
-        return reply.code(200).send(redactWriteEcho(entity, row, vis));
+        const echo = redactWriteEcho(entity, row, vis);
+        // Activity writes add rewritten allocation revisions beside the ordinary activity echo so
+        // direct-route callers can reconcile the same server-owned cascade as batch callers.
+        return reply.code(200).send(entity === "activities" ? { ...echo, rewrittenAllocations } : echo);
       } catch (err) {
         return sendFail(reply, err);
       }
@@ -2202,6 +2224,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           entity === "clients" || lookup === undefined ? store.readFullSlice(scopeId) : emptyAppData();
         validateWrite(validationState, entity, stamped, existing, lookup);
         // Record only requested keys whose sanitized, pinned result actually differs from storage.
+        let rewrittenAllocations: RewrittenAllocationRevision[] = [];
         commitProductAudit(
           reply,
           buildAuditRecord(
@@ -2213,14 +2236,17 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             appliedRequestedFieldNames(entity, req.body, existing, stamped),
           ),
           () => {
-            upsertRow(db, entity, stamped);
             if (entity === "activities") {
-              clearInvalidAllocationAttribution(db, new Set([id]));
+              rewrittenAllocations = writeActivityRow(db, undefined, stamped, existing);
+            } else {
+              upsertRow(db, entity, stamped);
             }
           },
         );
         // The merge carries stored protected fields into `merged`; apply the normal read projection.
-        return reply.code(200).send(redactWriteEcho(entity, stamped, vis));
+        const echo = redactWriteEcho(entity, stamped, vis);
+        // See PUT above: activity responses expose additive cascade revisions to direct callers.
+        return reply.code(200).send(entity === "activities" ? { ...echo, rewrittenAllocations } : echo);
       } catch (err) {
         return sendFail(reply, err);
       }
@@ -2478,6 +2504,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         id: string;
         createdAt: string;
         updatedAt: string;
+        rewrite?: true;
       }> = [];
       const lifecycleArchives: Array<{ table: string; id: string; archived: boolean }> = [];
       let supersededSyncBatch = false;
@@ -2561,7 +2588,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                   appendAppDataSlice(state, store.readSlice(accountId, FULL_SLICE_READ));
                 }
                 const projection = new BatchStateProjection(state);
-                const writtenActivityIds = new Set<string>();
+                const attributionClearedActivityIds = new Set<string>();
                 // Recompute under the provisioning lock: the earlier cap projection may have waited
                 // behind another top-level account mutation. A scalar COUNT is sufficient; validation's
                 // account rows are already present in the affected slices above.
@@ -2677,14 +2704,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                       replaceGeneratedBuiltin(db, state, generatedReplacement, clean);
                       projection.replaceGeneratedBuiltin(generatedReplacement, clean);
                     } else {
-                      if (table === "activities" && !allocationAttributionAllowed(clean.kind)) {
-                        projection.clearAllocationAttributionForActivity(id);
-                      }
                       validateWrite(state, table, clean, existing, projection);
-                      upsertRow(db, table, clean);
-                      projection.upsert(table as AppDataKey, clean);
                       if (table === "activities") {
-                        writtenActivityIds.add(id);
+                        writeActivityRow(db, projection, clean, existing, attributionClearedActivityIds);
+                      } else {
+                        upsertRow(db, table, clean);
+                        projection.upsert(table as AppDataKey, clean);
                       }
                     }
                     if (table === "accounts" && !existing) {
@@ -2778,10 +2803,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                     throw new ValidationError(`Unknown op method: ${String(method)}`);
                   }
                 }
-                const rewrittenAllocations = clearInvalidAllocationAttribution(db, writtenActivityIds);
+                const rewrittenAllocations = clearAllocationAttributionForActivities(db, attributionClearedActivityIds);
                 projection.clearAllocationAttribution(rewrittenAllocations);
                 for (const revision of rewrittenAllocations) {
-                  revisions.push({ table: "allocations", ...revision });
+                  revisions.push({ table: "allocations", ...revision, rewrite: true });
                 }
                 for (const record of auditRecords) {
                   if (record) enqueueAudit(db, record);

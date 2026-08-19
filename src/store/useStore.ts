@@ -3,6 +3,7 @@ import { newId } from "@capacitylens/shared/lib/id";
 import { type WeeksZoom } from "../lib/schedulerConfig";
 import {
   allocationAttributionAllowed,
+  withoutAllocationAttribution,
   deleteClientCascade,
   deleteDisciplineCascade,
   deletePhaseCascade,
@@ -1339,12 +1340,11 @@ export const useStore = create<StoreState>()((set, get, store) => {
           ...data,
           allocations:
             allocationAttributionAllowed(existing.kind) && !allocationAttributionAllowed(merged.kind)
-              ? data.allocations.map((allocation) => {
-                  if (allocation.activityId !== id || allocation.projectId === undefined) return allocation;
-                  const next = { ...allocation, updatedAt: touchAfter(allocation.updatedAt) };
-                  delete next.projectId;
-                  return next;
-                })
+              ? data.allocations.map((allocation) =>
+                  allocation.activityId === id && allocation.projectId !== undefined
+                    ? withoutAllocationAttribution(allocation, touchAfter(allocation.updatedAt))
+                    : allocation,
+                )
               : data.allocations,
         }),
       );

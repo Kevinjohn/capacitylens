@@ -36,6 +36,7 @@ import {
 import * as offlineCacheModule from "./offlineCache";
 import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
 import { makeResource } from "../test/fixtures";
+import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
 
 // Unit tests for the diff engine and the sync flush, with a fake fetch. Proves:
 // the diff classifies create/update/delete correctly, orders parent-before-child for
@@ -1084,7 +1085,8 @@ describe("ServerSyncAdapter.saveAll", () => {
     await expect(a.saveAll(withData({ clients: [client("c1"), client("c2")] }))).resolves.toBeUndefined();
   });
 
-  it("accepts a second allocation revision as the authoritative server rewrite", async () => {
+  it("drops an untagged duplicate allocation revision without touching local revision state", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const rewrittenAt = "2030-01-02T00:00:00.000Z";
     const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
       const ops = (JSON.parse(init?.body as string) as { ops: ReceiptOp[] }).ops;
@@ -1109,7 +1111,8 @@ describe("ServerSyncAdapter.saveAll", () => {
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
-    expect((batchOps(calls[1]) as unknown as Array<{ row: Allocation }>)[0].row.updatedAt).toBe(rewrittenAt);
+    expect((batchOps(calls[1]) as unknown as Array<{ row: Allocation }>)[0].row.updatedAt).not.toBe(rewrittenAt);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected or duplicate"));
   });
 
   it("folds a non-op allocation rewrite into the cache and revision provenance", async () => {
@@ -1139,6 +1142,7 @@ describe("ServerSyncAdapter.saveAll", () => {
             id: "allocation",
             createdAt: TS1,
             updatedAt: rewrittenAt,
+            rewrite: true,
           },
         ],
       });
@@ -1162,6 +1166,66 @@ describe("ServerSyncAdapter.saveAll", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(3);
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
     expect((batchOps(calls[2]) as unknown as Array<{ row: Allocation }>)[0].row.updatedAt).toBe(rewrittenAt);
+  });
+
+  it("remembers a tagged rewrite from the current store stamp without a phantom follow-up PUT", async () => {
+    const activity: Activity = {
+      id: "t1",
+      accountId: "a1",
+      name: "Planning",
+      kind: "repeatable",
+      createdAt: TS1,
+      updatedAt: TS1,
+    };
+    const allocationRow = { ...allocation("allocation", "2026-01-01"), projectId: "p1" };
+    const baseline = withData({ activities: [activity], allocations: [allocationRow] });
+    const rewrittenAt = "2030-01-02T00:00:00.000Z";
+    let batchNumber = 0;
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).endsWith("/api/state")) return Response.json(baseline);
+      batchNumber += 1;
+      const ops = (JSON.parse(init?.body as string) as { ops: ReceiptOp[] }).ops;
+      return Response.json({
+        ok: true,
+        applied: ops.length,
+        revisions: [
+          ...ops.map(revisionFor),
+          ...(batchNumber === 2
+            ? [{ table: "allocations", id: allocationRow.id, createdAt: TS1, updatedAt: rewrittenAt, rewrite: true }]
+            : []),
+        ],
+      });
+    }) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    let visible = await adapter.loadAll();
+    adapter.setAllocationRewriteHandler(
+      (revisions) => {
+        const revision = revisions[0]!;
+        visible = {
+          ...visible,
+          allocations: visible.allocations.map((row) =>
+            row.id === revision.id ? withoutAllocationAttribution(row, revision.updatedAt) : row,
+          ),
+        };
+      },
+      () => visible,
+    );
+
+    visible = {
+      ...visible,
+      allocations: [{ ...visible.allocations[0], note: "Tab edit", updatedAt: TS2 }],
+    };
+    await adapter.saveAll(visible);
+    visible = {
+      ...visible,
+      activities: [{ ...visible.activities[0], kind: "internal", updatedAt: "2026-01-03T00:00:00.000Z" }],
+    };
+    await adapter.saveAll(visible);
+
+    expect(visible.allocations[0]).not.toHaveProperty("projectId");
+    expect(visible.allocations[0].updatedAt).toBe(rewrittenAt);
+    await adapter.saveAll(visible);
+    expect(batchNumber).toBe(2);
   });
 
   it("keeps duplicate revisions strict for non-allocation tables", async () => {

@@ -358,17 +358,14 @@ export function AllocationModal(props: AllocationModalProps) {
   const initialResourceId = editing?.resourceId ?? create?.resourceId ?? "";
   const initialResource = resourceById.get(initialResourceId);
   const initialEffectiveWeek = initialResource ? effectiveWorkingWeek(initialResource, accountWorkingDays) : null;
+  const initialPlaceholderProjectId = initialResource?.kind === "placeholder" ? initialResource.projectId : undefined;
   const initialLocked = editing
     ? (editing.projectId ??
       (initialActivity
         ? projectSelectionForActivity(initialActivity)
         : // A dangling activity cannot identify the scope; a placeholder's binding remains authoritative.
-          initialResource?.kind === "placeholder"
-          ? initialResource.projectId
-          : undefined))
-    : initialResource?.kind === "placeholder"
-      ? initialResource.projectId
-      : undefined;
+          initialPlaceholderProjectId))
+    : initialPlaceholderProjectId;
   const initialStart = editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone);
   const initialScheduledHours =
     initialResource && initialEffectiveWeek
