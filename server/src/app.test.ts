@@ -513,39 +513,31 @@ describe("generic lifecycle deletion guard", () => {
 });
 
 describe("batch sync (/api/batch — transactional, ordered)", () => {
-  const seedAttributedActivity = async () => {
+  const seedAttributedActivity = async (resourceKind: "person" | "placeholder" = "person") => {
     const fixture = freshApp();
     await post(fixture.app, "accounts", account("a1"));
     await post(fixture.app, "clients", client("c1", "a1"));
     await post(fixture.app, "projects", project("p1", "a1", "c1"));
-    await post(fixture.app, "projects", project("p2", "a1", "c1"));
-    await post(fixture.app, "resources", placeholder("ph", "a1", "p1"));
+    if (resourceKind === "placeholder") {
+      await post(fixture.app, "projects", project("p2", "a1", "c1"));
+    }
+    const resource = resourceKind === "placeholder" ? placeholder("ph", "a1", "p1") : person("r1", "a1");
+    await post(fixture.app, "resources", resource);
     await post(fixture.app, "activities", {
       ...activity("repeatable", "a1", "p1"),
       kind: "repeatable",
       projectId: undefined,
     });
-    await post(fixture.app, "allocations", allocation("allocation", "a1", "ph", "repeatable", { projectId: "p1" }));
+    await post(
+      fixture.app,
+      "allocations",
+      allocation("allocation", "a1", resource.id, "repeatable", { projectId: "p1" }),
+    );
     return fixture;
   };
 
   it("reconciles attributed allocations after repeatable activity kind changes", async () => {
-    const seedAttributed = async () => {
-      const fixture = freshApp();
-      await post(fixture.app, "accounts", account("a1"));
-      await post(fixture.app, "clients", client("c1", "a1"));
-      await post(fixture.app, "projects", project("p1", "a1", "c1"));
-      await post(fixture.app, "resources", person("r1", "a1"));
-      await post(fixture.app, "activities", {
-        ...activity("repeatable", "a1", "p1"),
-        kind: "repeatable",
-        projectId: undefined,
-      });
-      await post(fixture.app, "allocations", allocation("allocation", "a1", "r1", "repeatable", { projectId: "p1" }));
-      return fixture;
-    };
-
-    const allocationFirst = await seedAttributed();
+    const allocationFirst = await seedAttributedActivity();
     const allocationFirstBefore = await state(allocationFirst.app);
     const allocationFirstActivity = allocationFirstBefore.activities.find(
       (row: { id: string }) => row.id === "repeatable",
@@ -574,7 +566,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       rewrite: true,
     });
 
-    const explicit = await seedAttributed();
+    const explicit = await seedAttributedActivity();
     const explicitBefore = await state(explicit.app);
     const explicitActivity = explicitBefore.activities.find((row: { id: string }) => row.id === "repeatable");
     const explicitAllocation = explicitBefore.allocations.find((row: { id: string }) => row.id === "allocation");
@@ -592,7 +584,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     expect(explicitResponse.statusCode).toBe(200);
     expect((await state(explicit.app)).allocations[0]).not.toHaveProperty("projectId");
 
-    const implicit = await seedAttributed();
+    const implicit = await seedAttributedActivity();
     const implicitBefore = await state(implicit.app);
     const implicitActivity = implicitBefore.activities.find((row: { id: string }) => row.id === "repeatable");
     const implicitResponse = await orderedBatch(implicit.app, "browser-session-kind-change-0003", 1, [
@@ -614,7 +606,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       rewrite: true,
     });
 
-    const forbidden = await seedAttributed();
+    const forbidden = await seedAttributedActivity();
     const forbiddenBefore = await state(forbidden.app);
     const forbiddenActivity = forbiddenBefore.activities.find((row: { id: string }) => row.id === "repeatable");
     const forbiddenAllocation = forbiddenBefore.allocations.find((row: { id: string }) => row.id === "allocation");
@@ -633,7 +625,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
   });
 
   it("keeps at-flip-time clearing after an activity flips back before a dependent write", async () => {
-    const fixture = await seedAttributedActivity();
+    const fixture = await seedAttributedActivity("placeholder");
     const before = await state(fixture.app);
     const currentActivity = before.activities.find((row: { id: string }) => row.id === "repeatable");
 
@@ -671,7 +663,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
   });
 
   it("validates an activity edit against corrupt attribution before clearing it", async () => {
-    const fixture = await seedAttributedActivity();
+    const fixture = await seedAttributedActivity("placeholder");
     fixture.db.prepare("UPDATE resources SET projectId = 'p2' WHERE id = 'ph'").run();
     const before = await state(fixture.app);
 
@@ -689,17 +681,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
   });
 
   it("keeps direct activity PUT attribution clearing behavior", async () => {
-    const fixture = freshApp();
-    await post(fixture.app, "accounts", account("a1"));
-    await post(fixture.app, "clients", client("c1", "a1"));
-    await post(fixture.app, "projects", project("p1", "a1", "c1"));
-    await post(fixture.app, "resources", person("r1", "a1"));
-    await post(fixture.app, "activities", {
-      ...activity("repeatable", "a1", "p1"),
-      kind: "repeatable",
-      projectId: undefined,
-    });
-    await post(fixture.app, "allocations", allocation("allocation", "a1", "r1", "repeatable", { projectId: "p1" }));
+    const fixture = await seedAttributedActivity();
     const before = await state(fixture.app);
     const existingActivity = before.activities.find((row: { id: string }) => row.id === "repeatable");
 
@@ -721,17 +703,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
   });
 
   it("keeps direct activity PATCH attribution clearing behavior", async () => {
-    const fixture = freshApp();
-    await post(fixture.app, "accounts", account("a1"));
-    await post(fixture.app, "clients", client("c1", "a1"));
-    await post(fixture.app, "projects", project("p1", "a1", "c1"));
-    await post(fixture.app, "resources", person("r1", "a1"));
-    await post(fixture.app, "activities", {
-      ...activity("repeatable", "a1", "p1"),
-      kind: "repeatable",
-      projectId: undefined,
-    });
-    await post(fixture.app, "allocations", allocation("allocation", "a1", "r1", "repeatable", { projectId: "p1" }));
+    const fixture = await seedAttributedActivity();
     const before = await state(fixture.app);
 
     const response = await patch(fixture.app, "activities", "repeatable", {
