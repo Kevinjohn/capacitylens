@@ -40,7 +40,7 @@
     "jose": "6.2.8"
   },
   "devDependencies": {
-    "@types/node": "^24.12.3",
+    "@types/node": "^25.9.5",
     "@vitest/coverage-v8": "^4.1.10",
     "esbuild": "0.28.2",
     "tsx": "4.23.12",
