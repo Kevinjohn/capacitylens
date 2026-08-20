@@ -10,6 +10,36 @@ owns the [activities](/reference/glossary) people are actually booked against. T
 covers setting that up and creating the [allocations](/reference/glossary) that appear
 as bars on [the schedule](/guide/the-schedule).
 
+## Choose where an activity can be used
+
+Before you create an allocation, decide whether its activity is for internal work,
+reusable across projects or unique to one project:
+
+| Activity kind | Use it for | Where it is available |
+| --- | --- | --- |
+| **Internal** | Non-billable work such as administration or an internal meeting | Only when the allocation's Project is **Internal** |
+| **All projects** | Work your team does in the same way for many projects, such as account management, design or workshops | Under every real project, or under **No specific project** when the work is not attributed to one project |
+| **Project-specific** | Work created for one project, such as that project's discovery, wireframes or launch | Only under the project it belongs to |
+
+The activity kind controls where an activity is available. The allocation records the
+actual booking. This means one **All projects** activity can be reused many times: one
+allocation can count towards Project Watchtower, another can count towards Metropolis
+Rebrand and a third can remain under **No specific project**.
+
+When you create an allocation, choose its context from **Project** first:
+
+- Choose **Internal** for an Internal activity.
+- Choose **No specific project** for an unattributed All-projects activity.
+- Choose a real project to use either a shared **All projects** activity or one of that
+  project's **Project-specific** activities.
+
+![The allocation Project picker with Internal and No specific project before the available client projects](../screenshots/flows/allocation_project_scopes.jpg)
+
+After you choose a real project, the **Activity** picker separates reusable **All projects**
+activities from the activities in that project's **Project-specific** group.
+
+![The allocation Activity picker for Project Watchtower with separate All projects and Project-specific groups](../screenshots/flows/allocation_activity_scopes.jpg)
+
 ## Clients and projects
 
 1. Open **Clients**.
