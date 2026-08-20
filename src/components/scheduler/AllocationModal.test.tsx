@@ -25,6 +25,9 @@ const capacityAdvisoryMock = vi.hoisted(() => vi.fn(() => ({ overDays: 0, timeOf
 // existing load), not merely on how often the advisory ran. It is the THIRD argument — the second
 // is the proposed allocation itself.
 const lastAdvisoryOthers = () => (capacityAdvisoryMock.mock.calls.at(-1) as unknown as unknown[] | undefined)?.[2];
+const lastAdvisoryProposal = () =>
+  (capacityAdvisoryMock.mock.calls.at(-1) as unknown as unknown[] | undefined)?.[1] as
+    { projectId?: string } | undefined;
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
 // (`capacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
 // care only about the advisory VERDICTS the modal renders.
@@ -91,7 +94,7 @@ describe("AllocationModal create", () => {
     fireEvent.keyDown(project, { key: "ArrowDown" });
     expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
       "Internal",
-      "Any Project",
+      "No specific project",
       "Acme / Lightning",
       "Acme / Other",
       "Zeta / Alpha",
@@ -103,7 +106,7 @@ describe("AllocationModal create", () => {
     expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Admin", "Support"]);
     fireEvent.click(screen.getByRole("option", { name: "Admin" }));
 
-    await chooseOption(user, "Project", "Any Project");
+    await chooseOption(user, "Project", "No specific project");
     fireEvent.keyDown(activity, { key: "ArrowDown" });
     expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Retrospective", "Strategy"]);
     await user.keyboard("{Escape}");
@@ -178,6 +181,37 @@ describe("AllocationModal create", () => {
       startDate: "2026-06-01",
       endDate: "2026-06-03",
     });
+    expect(allocs[0]).not.toHaveProperty("projectId");
+  });
+
+  it.each([
+    ["Internal", "Operations", undefined],
+    ["No specific project", "Planning", undefined],
+    ["Acme / Lightning", "Planning", "p1"],
+  ] as const)("derives create attribution for the %s scope", async (scope, activityName, expectedProjectId) => {
+    useStore.getState().addActivity({ name: "Operations", kind: "internal" });
+    useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await chooseOption(user, "Project", scope);
+    await chooseOption(user, "Activity", activityName);
+    if (scope === "Acme / Lightning") {
+      expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent(scope);
+    }
+    if (expectedProjectId) expect(lastAdvisoryProposal()).toHaveProperty("projectId", expectedProjectId);
+    else expect(lastAdvisoryProposal()).not.toHaveProperty("projectId");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const allocation = useStore.getState().data.allocations[0];
+    if (expectedProjectId) expect(allocation).toHaveProperty("projectId", expectedProjectId);
+    else expect(allocation).not.toHaveProperty("projectId");
   });
 
   it.each([
@@ -224,7 +258,8 @@ describe("AllocationModal create", () => {
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 
-  it("restricts a placeholder to its bound project plus the two general scopes, defaulting to it", async () => {
+  it("books an All-projects activity for a bound placeholder under its locked project", async () => {
+    const planning = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
     const ph = useStore.getState().addResource({
       kind: "placeholder",
       role: "Senior Designer",
@@ -251,22 +286,64 @@ describe("AllocationModal create", () => {
 
     const projectSelect = screen.getByRole("combobox", { name: "Project" });
     expect(projectSelect).toHaveTextContent("Acme / Lightning");
-    // Bound project + both project-less scopes are offered; another project (p2 / "Other") is not.
+    // Invalid scopes remain visible so the lock is explicit, but cannot be selected.
     fireEvent.keyDown(projectSelect, { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: "Internal" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Any Project" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Internal" })).toHaveAttribute("data-disabled");
+    expect(screen.getByRole("option", { name: "No specific project" })).toHaveAttribute("data-disabled");
     expect(screen.queryByRole("option", { name: "Acme / Other" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
 
-    // Only the bound project's activity is offered.
-    await chooseOption(user, "Activity", "Wireframes");
+    const activitySelect = screen.getByRole("combobox", { name: "Activity" });
+    fireEvent.keyDown(activitySelect, { key: "ArrowDown" });
+    const allProjectsGroup = screen.getByRole("group", { name: "All projects" });
+    const projectGroup = screen.getByRole("group", { name: "Project-specific" });
+    expect(allProjectsGroup.compareDocumentPosition(projectGroup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(allProjectsGroup).getByRole("option", { name: "Planning" })).toBeInTheDocument();
+    expect(within(projectGroup).getByRole("option", { name: "Wireframes" })).toBeInTheDocument();
+    fireEvent.click(within(allProjectsGroup).getByRole("option", { name: "Planning" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(onClose).toHaveBeenCalled();
     expect(useStore.getState().data.allocations[0]).toMatchObject({
       resourceId: ph.id,
-      activityId: "t1",
+      activityId: planning.id,
+      projectId: "p1",
     });
+  });
+
+  it("cannot attribute an All-projects activity for an unbound placeholder", async () => {
+    useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+    const placeholder = useStore.getState().addResource({
+      kind: "placeholder",
+      role: "Senior Designer",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#a855f7",
+    });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: placeholder.id, startDate: "2026-06-01", endDate: "2026-06-02" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const projectSelect = screen.getByRole("combobox", { name: "Project" });
+    fireEvent.keyDown(projectSelect, { key: "ArrowDown" });
+    expect(screen.getByRole("option", { name: "Internal" })).not.toHaveAttribute("data-disabled");
+    expect(screen.getByRole("option", { name: "No specific project" })).not.toHaveAttribute("data-disabled");
+    expect(screen.getByRole("option", { name: "Acme / Lightning" })).not.toHaveAttribute("data-disabled");
+    await user.keyboard("{Escape}");
+
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Planning");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("This placeholder is not bound to a project yet.");
+    expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 });
 
@@ -1170,6 +1247,65 @@ describe("AllocationModal blocks mode", () => {
 });
 
 describe("AllocationModal edit", () => {
+  it.each([
+    ["attributed All-projects", "repeatable", "p1", "Acme / Lightning", "Planning"],
+    ["legacy unattributed All-projects", "repeatable", undefined, "No specific project", "Planning"],
+    ["internal", "internal", undefined, "Internal", "Operations"],
+    ["project-specific", "project", undefined, "Acme / Lightning", "Wireframes"],
+  ] as const)(
+    "reverse-maps and saves an %s allocation",
+    async (_caseName, activityKind, allocationProjectId, expectedScope, activityName) => {
+      const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+      const activity =
+        activityKind === "project"
+          ? useStore.getState().data.activities.find((candidate) => candidate.id === "t1")!
+          : useStore.getState().addActivity({ name: activityName, kind: activityKind });
+      const allocation = useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: activity.id,
+        ...(allocationProjectId ? { projectId: allocationProjectId } : {}),
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      });
+      const user = userEvent.setup();
+      render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+
+      expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent(expectedScope);
+      expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent(activityName);
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      const saved = useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)!;
+      if (allocationProjectId) expect(saved).toHaveProperty("projectId", allocationProjectId);
+      else expect(saved).not.toHaveProperty("projectId");
+    },
+  );
+
+  it("clears attributed All-projects work when its scope changes", async () => {
+    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+    const activity = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      projectId: "p1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+
+    await chooseOption(user, "Project", "No specific project");
+    await chooseOption(user, "Activity", "Planning");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)).not.toHaveProperty(
+      "projectId",
+    );
+  });
+
   it("shows an unmatched hours value and preserves it through an unrelated save", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -1549,7 +1685,7 @@ describe("AllocationModal edit", () => {
     expect(screen.getByRole("option", { name: "Kord Industries (external)" })).toBeInTheDocument();
   });
 
-  it("reopens a placeholder cross-project allocation with its exact scope still selected", async () => {
+  it("reopens and saves a legacy unattributed placeholder allocation unchanged", async () => {
     const ph = useStore.getState().addResource({
       kind: "placeholder",
       role: "Designer",
@@ -1570,10 +1706,52 @@ describe("AllocationModal edit", () => {
       hoursPerDay: 8,
       status: "confirmed",
     });
+    const user = userEvent.setup();
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
 
-    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Any Project");
+    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("No specific project");
     expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent("Admin");
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Project" }), { key: "ArrowDown" });
+    expect(screen.getByRole("option", { name: "No specific project" })).toHaveAttribute("data-disabled");
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations.find((candidate) => candidate.id === alloc.id)).not.toHaveProperty(
+      "projectId",
+    );
+  });
+
+  it("uses a bound placeholder's project when an edited allocation has a dangling activity", () => {
+    const ph = useStore.getState().addResource({
+      kind: "placeholder",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#a",
+      projectId: "p1",
+    });
+    const activity = useStore.getState().addActivity({ name: "Temporary", kind: "repeatable" });
+    const alloc = useStore.getState().addAllocation({
+      resourceId: ph.id,
+      activityId: activity.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    useStore.setState((current) => ({
+      data: {
+        ...current.data,
+        activities: current.data.activities.filter((candidate) => candidate.id !== activity.id),
+      },
+    }));
+
+    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
+
+    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Acme / Lightning");
   });
 
   it("duplicates the current validated form values without changing the saved allocation", async () => {
@@ -1616,7 +1794,7 @@ describe("AllocationModal edit", () => {
     });
   });
 
-  it("keeps Duplicate for an unlinked cross-project allocation and hides it for a linked occurrence", () => {
+  it("keeps Duplicate for an unlinked all-projects allocation and hides it for a linked occurrence", () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const activity = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
     const oneOff = useStore.getState().addAllocation({
@@ -1856,6 +2034,30 @@ describe("AllocationModal inline activity creation pref", () => {
     expect(screen.getByRole("button", { name: "Add activity" })).toBeInTheDocument();
   });
 
+  it("places an inline-created project activity in the project-specific group", async () => {
+    useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+    const resourceId = addPerson();
+    const user = userEvent.setup();
+    render(
+      <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={vi.fn()} />,
+    );
+
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await user.type(screen.getByLabelText("New activity name"), "Alpha delivery");
+    await user.click(screen.getByRole("button", { name: "Add activity" }));
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Activity" }), { key: "ArrowDown" });
+
+    const allProjectsGroup = screen.getByRole("group", { name: "All projects" });
+    const projectGroup = screen.getByRole("group", { name: "Project-specific" });
+    expect(screen.getAllByRole("group", { name: "Project-specific" })).toHaveLength(1);
+    expect(allProjectsGroup.compareDocumentPosition(projectGroup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      within(screen.getByRole("group", { name: "Project-specific" })).getByRole("option", {
+        name: "Alpha delivery",
+      }),
+    ).toBeInTheDocument();
+  });
+
   it('hides the inline "Add activity" input + button when inlineActivityCreateEnabled is false — the Activity picker still works', () => {
     const resourceId = addPerson();
     useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: false });
@@ -2085,6 +2287,40 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     bulkSpy.mockRestore();
     oneSpy.mockRestore();
   });
+
+  it.each([
+    ["Internal", "Operations", undefined],
+    ["No specific project", "Planning", undefined],
+    ["Acme / Lightning", "Planning", "p1"],
+  ] as const)(
+    "derives every repeated allocation's attribution for the %s scope",
+    async (scope, activityName, projectId) => {
+      useStore.getState().addActivity({ name: "Operations", kind: "internal" });
+      useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+      const resource = addPerson();
+      const bulkSpy = vi.spyOn(useStore.getState(), "addAllocations");
+      const user = userEvent.setup();
+      render(
+        <AllocationModal
+          create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
+          onClose={vi.fn()}
+        />,
+      );
+
+      await chooseOption(user, "Project", scope);
+      await chooseOption(user, "Activity", activityName);
+      await chooseOption(user, "Repeat", "Weekly");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      const drafts = bulkSpy.mock.calls[0][0];
+      expect(drafts.length).toBeGreaterThan(1);
+      for (const draft of drafts) {
+        if (projectId) expect(draft).toHaveProperty("projectId", projectId);
+        else expect(draft).not.toHaveProperty("projectId");
+      }
+      bulkSpy.mockRestore();
+    },
+  );
 
   it("keeps the original monthly numeric day while preserving a multi-day span", async () => {
     // A seven-day company and person make the Saturday day-31 anchor an effective start — the

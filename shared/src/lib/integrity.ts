@@ -1,7 +1,7 @@
 import { daysInclusive } from "./dateMath";
 import { MAX_SPAN_DAYS } from "./schedulingDays";
 import type { DomainErrorCode } from "../domain/errors";
-import type { AppData, ID, ISODate, Resource } from "../types/entities";
+import type { Activity, Allocation, AppData, ID, ISODate, Resource } from "../types/entities";
 
 // Referential-integrity rules and cascade-delete transforms. All pure: cascade helpers return a
 // NEW AppData rather than mutating. Callers that own a clock may pass an updatedAt revision for
@@ -142,22 +142,42 @@ export function validateDateRange(startDate?: ISODate | null, endDate?: ISODate 
 }
 
 /**
- * Placeholder rule: a placeholder is bound to one project and may only take activities
- * from that project — EXCEPT project-less activities (internal/cross-project kinds), which
- * anyone (people and placeholders alike) can be assigned. So the rule only bites when the
- * activity itself belongs to a project.
+ * Placeholder rule: a placeholder is bound to one project and may only take allocations whose
+ * effective project matches that binding. Unattributed work remains assignable to any resource.
  */
-export function validateAllocationAssignment(resource: Resource, activityProjectId: ID | undefined): ValidationResult {
+/** Resolve the project a booking counts toward. Allocation attribution takes precedence over the
+ * activity's project because repeatable activities are project-less and attribute each booking. */
+export function effectiveProjectId(
+  allocation: Pick<Allocation, "projectId">,
+  activity: Pick<Activity, "projectId">,
+): ID | undefined {
+  return allocation.projectId ?? activity.projectId;
+}
+
+/** Allocation-level project attribution belongs only to all-projects activities. */
+export function allocationAttributionAllowed(kind: unknown): boolean {
+  return kind === "repeatable";
+}
+
+/** Return a fresh row with allocation-level attribution removed and, when supplied, restamped. */
+export function withoutAllocationAttribution<T extends object>(row: T, updatedAt?: unknown): T {
+  const cleared = { ...row } as T & { projectId?: unknown; updatedAt?: unknown };
+  delete cleared.projectId;
+  if (updatedAt !== undefined) cleared.updatedAt = updatedAt;
+  return cleared;
+}
+
+export function validateAllocationAssignment(resource: Resource, projectId: ID | undefined): ValidationResult {
   const issues: ValidationIssue[] = [];
   // Only PLACEHOLDERS are project-restricted. `person` and `external` are intentionally
   // unrestricted (an external 3rd party can be assigned any activity) — don't add a guard here.
-  if (resource.kind === "placeholder" && activityProjectId !== undefined) {
+  if (resource.kind === "placeholder" && projectId !== undefined) {
     if (!resource.projectId) {
       issues.push({
         code: "placeholder_project_missing",
         message: "This placeholder is not bound to a project yet.",
       });
-    } else if (resource.projectId !== activityProjectId) {
+    } else if (resource.projectId !== projectId) {
       issues.push({
         code: "placeholder_project_mismatch",
         message: "A placeholder can only be assigned to activities from its bound project.",
@@ -240,7 +260,11 @@ function dropProjectSubtree(data: AppData, removedProjectIds: Set<ID>, updatedAt
       .map((t) =>
         t.phaseId !== undefined && removedPhaseIds.has(t.phaseId) ? { ...t, phaseId: undefined, updatedAt } : t,
       ),
-    allocations: data.allocations.filter((a) => !removedActivityIds.has(a.activityId)),
+    allocations: data.allocations
+      .filter((a) => !removedActivityIds.has(a.activityId))
+      .map((a) =>
+        a.projectId !== undefined && removedProjectIds.has(a.projectId) ? { ...a, projectId: undefined, updatedAt } : a,
+      ),
     resources: data.resources.map((r) =>
       r.projectId !== undefined && removedProjectIds.has(r.projectId) ? { ...r, projectId: undefined, updatedAt } : r,
     ),

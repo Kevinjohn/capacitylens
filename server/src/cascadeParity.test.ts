@@ -94,13 +94,15 @@ function seed(): AppData {
     { id: "t3", accountId: ACCOUNT, name: "Support", kind: "project", projectId: "p3", phaseId: "ph1", ...meta },
     // Project-less (internal) activity in a phase of p1: same survivor-with-unbound-phase rule.
     { id: "t4", accountId: ACCOUNT, name: "Admin", kind: "internal", phaseId: "ph1", ...meta },
+    { id: "t5", accountId: ACCOUNT, name: "Design system", kind: "repeatable", ...meta },
     { id: "t9", accountId: OTHER_ACCOUNT, name: "Theirs", kind: "project", projectId: "p9", ...meta },
   ];
-  const allocation = (id: string, resourceId: string, activityId: string, accountId = ACCOUNT) => ({
+  const allocation = (id: string, resourceId: string, activityId: string, accountId = ACCOUNT, projectId?: string) => ({
     id,
     accountId,
     resourceId,
     activityId,
+    ...(projectId ? { projectId } : {}),
     startDate: "2026-01-01",
     endDate: "2026-01-05",
     hoursPerDay: 8,
@@ -112,6 +114,8 @@ function seed(): AppData {
     allocation("al2", "r1", "t2"),
     allocation("al3", "r2", "t3"),
     allocation("al4", "r3", "t4"),
+    allocation("al5", "r1", "t5", ACCOUNT, "p1"),
+    allocation("al6", "r1", "t5", ACCOUNT, "p3"),
     allocation("al9", "r9", "t9", OTHER_ACCOUNT),
   ];
   const off = (id: string, resourceId: string, accountId = ACCOUNT) => ({
@@ -136,7 +140,7 @@ const FK_COLUMNS = {
   phases: ["accountId", "projectId"],
   resources: ["accountId", "disciplineId", "projectId"],
   activities: ["accountId", "projectId", "phaseId"],
-  allocations: ["accountId", "resourceId", "activityId"],
+  allocations: ["accountId", "resourceId", "activityId", "projectId"],
   timeOff: ["accountId", "resourceId"],
 } as const satisfies Record<string, readonly string[]>;
 

@@ -59,12 +59,12 @@ test.describe("Activities", () => {
       }
     };
 
-    await expect(segments).toHaveText(["Internal", "Cross-project", "Project-specific"]);
+    await expect(segments).toHaveText(["Internal", "All projects", "Project-specific"]);
     await expectEqualFullWidthSegments(false);
     await selectShadOption(dialog.getByLabel("Project"), "p-acme");
 
     const projectSpecific = dialog.getByRole("radio", { name: "Project-specific" });
-    const crossProject = dialog.getByRole("radio", { name: "Cross-project" });
+    const crossProject = dialog.getByRole("radio", { name: "All projects" });
     await projectSpecific.focus();
     await page.keyboard.press("ArrowLeft");
     await expect(crossProject).toBeFocused();
@@ -85,7 +85,7 @@ test.describe("Activities", () => {
     await expect(dialog.getByLabel("Project")).toHaveCount(0);
   });
 
-  test("adds an internal, a cross-project, and a project-specific activity into their three sections", async ({
+  test("adds an internal, an all-projects, and a project-specific activity into their three sections", async ({
     page,
   }) => {
     await openApp(page, "Wayne Enterprises", "/activities");
@@ -94,7 +94,7 @@ test.describe("Activities", () => {
     await page.getByRole("button", { name: "Add activity" }).click();
     await expect(page.getByRole("radiogroup", { name: "Activity kind" }).getByRole("radio")).toHaveText([
       "Internal",
-      "Cross-project",
+      "All projects",
       "Project-specific",
     ]);
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Internal sync");
@@ -104,10 +104,10 @@ test.describe("Activities", () => {
       page.getByTestId("internal-activities").getByTestId("activity-row").filter({ hasText: "Internal sync" }),
     ).toBeVisible();
 
-    // Cross-project kind → project-less and usable across projects, lands in the "Cross-project activities" section.
+    // All-projects kind → project-less and usable across projects, lands in the "All-projects activities" section.
     await page.getByRole("button", { name: "Add activity" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Discovery workshop");
-    await page.getByRole("radio", { name: "Cross-project" }).click();
+    await page.getByRole("radio", { name: "All projects" }).click();
     await page.getByRole("button", { name: "Save" }).click();
     await expect(
       page

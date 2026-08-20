@@ -135,6 +135,23 @@ describe("atomic allocation creation", () => {
     expect(state().data.allocations).toEqual(created);
   });
 
+  it("copies attribution across a repeat batch and isolates a single-occurrence clear", () => {
+    const { draft } = allocationSetup();
+    const client = state().addClient({ name: "Client", color: "#111111" });
+    const project = state().addProject({ name: "Project", clientId: client.id, color: "#222222" });
+    const created = state().addAllocations([
+      draft({ projectId: project.id, seriesId: "series-attributed" }),
+      draft({ projectId: project.id, seriesId: "series-attributed", startDate: "2026-06-08", endDate: "2026-06-10" }),
+    ]);
+
+    expect(created.map((allocation) => allocation.projectId)).toEqual([project.id, project.id]);
+    state().updateAllocation(created[0].id, { projectId: undefined });
+    expect(state().data.allocations.find((allocation) => allocation.id === created[0].id)).not.toHaveProperty(
+      "projectId",
+    );
+    expect(state().data.allocations.find((allocation) => allocation.id === created[1].id)?.projectId).toBe(project.id);
+  });
+
   it("applies the Viewer guard to the whole batch", () => {
     const { draft } = allocationSetup();
     state().setActiveRole("viewer");

@@ -1,13 +1,20 @@
 import { copyFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { authFromEnv, assertFederatedIdentitySchemaCurrent, runAuthMigrations } from "../src/auth";
-import { DB_SCHEMA_VERSION, openDb } from "../src/db";
+import { DB_SCHEMA_VERSION, initializeOpenDb, openDb, openDbConnection } from "../src/db";
 
 const [sourceValue, targetValue] = process.argv.slice(2);
 const sourceVersion = Number(sourceValue);
 const targetVersion = Number(targetValue);
-if (!Number.isInteger(sourceVersion) || !Number.isInteger(targetVersion) || targetVersion !== DB_SCHEMA_VERSION) {
-  console.error(`Usage: tsx scripts/generate-database-fixtures.ts <source-version> ${DB_SCHEMA_VERSION}`);
+if (
+  !Number.isInteger(sourceVersion) ||
+  !Number.isInteger(targetVersion) ||
+  sourceVersion >= targetVersion ||
+  targetVersion > DB_SCHEMA_VERSION
+) {
+  console.error(
+    `Usage: tsx scripts/generate-database-fixtures.ts <source-version> <target-version<=${DB_SCHEMA_VERSION}>`,
+  );
   process.exitCode = 2;
 } else {
   const directory = resolve("src/fixtures/databases");
@@ -23,7 +30,23 @@ if (!Number.isInteger(sourceVersion) || !Number.isInteger(targetVersion) || targ
 
   for (const { mode, source, target } of targets) {
     copyFileSync(source, target);
-    const db = openDb(target);
+    const db =
+      targetVersion === DB_SCHEMA_VERSION
+        ? openDb(target)
+        : (() => {
+            const connection = openDbConnection(target);
+            const stopBeforeNextVersion = new Error(`fixture reached v${targetVersion}`);
+            try {
+              initializeOpenDb(connection, target, {
+                beforeCommit: (migration) => {
+                  if (migration.version > targetVersion) throw stopBeforeNextVersion;
+                },
+              });
+            } catch (error) {
+              if (error !== stopBeforeNextVersion) throw error;
+            }
+            return connection;
+          })();
     try {
       if (mode === "password") {
         // Keep the deterministic fixture credential obvious at runtime without storing a

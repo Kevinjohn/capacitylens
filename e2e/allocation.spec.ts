@@ -34,7 +34,7 @@ test.describe("Allocation editor", () => {
     await project.click();
     await expect(page.getByRole("option")).toHaveText([
       "Internal",
-      "Any Project",
+      "No specific project",
       "LexCorp / Metropolis Rebrand",
       "Queen Consolidated / Project Watchtower",
     ]);
@@ -47,14 +47,21 @@ test.describe("Allocation editor", () => {
     await page.keyboard.press("Escape");
 
     await project.click();
-    await page.getByRole("option", { name: "Any Project", exact: true }).click();
+    await page.getByRole("option", { name: "No specific project", exact: true }).click();
     await activity.click();
     await expect(page.getByRole("option")).toHaveText(["Design", "Workshop"]);
     await page.keyboard.press("Escape");
 
     await selectShadOption(project, "p-acme");
     await activity.click();
-    await expect(page.getByRole("option")).toHaveText(["CMS Review", "Visual Design", "Wireframes"]);
+    // A real-project scope lists All-projects activities first, then the project's own.
+    await expect(page.getByRole("option")).toHaveText([
+      "Design",
+      "Workshop",
+      "CMS Review",
+      "Visual Design",
+      "Wireframes",
+    ]);
     await page.keyboard.press("Escape");
 
     const status = dialog.getByRole("radiogroup", { name: "Status" });
@@ -266,13 +273,14 @@ test.describe("Allocation editor", () => {
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     const project = dialog.getByLabel("Project", { exact: true });
     await expect(project).toHaveText(/Project Watchtower/); // bound project preselected
-    // "Locked" = restricted to the bound project + both project-less scopes, but the select stays
-    // ENABLED so a placeholder can still take Internal or Any Project work. A non-bound project
-    // ("Metropolis Rebrand") is not offered.
+    // The trigger remains readable, but incompatible project-less scopes are disabled. The bound
+    // project can use both its own activities and All-projects activities.
     await expect(project).toBeEnabled();
     await project.click();
-    await expect(page.getByRole("option", { name: "Internal", exact: true })).toBeVisible();
-    await expect(page.getByRole("option", { name: "Any Project", exact: true })).toBeVisible();
+    await expect(page.getByRole("option", { name: "Internal", exact: true })).toHaveAttribute("data-disabled");
+    await expect(page.getByRole("option", { name: "No specific project", exact: true })).toHaveAttribute(
+      "data-disabled",
+    );
     await expect(page.getByRole("option", { name: /Metropolis Rebrand/ })).toHaveCount(0);
   });
 

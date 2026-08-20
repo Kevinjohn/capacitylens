@@ -16,6 +16,7 @@ import { diffOpsFromPossibleBases } from "./syncOps";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type {
   Account,
+  Activity,
   Allocation,
   AppData,
   Client,
@@ -32,8 +33,10 @@ import {
   setOfflineReadState,
   type OfflineAuthSnapshot,
 } from "./offlineCache";
+import * as offlineCacheModule from "./offlineCache";
 import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
 import { makeResource } from "../test/fixtures";
+import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
 
 // Unit tests for the diff engine and the sync flush, with a fake fetch. Proves:
 // the diff classifies create/update/delete correctly, orders parent-before-child for
@@ -1082,6 +1085,249 @@ describe("ServerSyncAdapter.saveAll", () => {
     await expect(a.saveAll(withData({ clients: [client("c1"), client("c2")] }))).resolves.toBeUndefined();
   });
 
+  it("drops an untagged duplicate allocation revision without touching local revision state", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const rewrittenAt = "2030-01-02T00:00:00.000Z";
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      const ops = (JSON.parse(init?.body as string) as { ops: ReceiptOp[] }).ops;
+      return Response.json({
+        ok: true,
+        applied: ops.length,
+        revisions: [revisionFor(ops[0]), { ...revisionFor(ops[0]), updatedAt: rewrittenAt }],
+      });
+    }) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    const target = withData({
+      allocations: [{ ...allocation("allocation", "2026-01-01"), projectId: "p1" }],
+    });
+
+    await adapter.saveAll(target);
+    await adapter.saveAll(target);
+    await adapter.saveAll(
+      withData({
+        allocations: [{ ...target.allocations[0], note: "Edited", updatedAt: TS2 }],
+      }),
+    );
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect((batchOps(calls[1]) as unknown as Array<{ row: Allocation }>)[0].row.updatedAt).not.toBe(rewrittenAt);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected or duplicate"));
+  });
+
+  it("folds a non-op allocation rewrite into the cache and revision provenance", async () => {
+    const activity: Activity = {
+      id: "t1",
+      accountId: "a1",
+      name: "Planning",
+      kind: "repeatable",
+      createdAt: TS1,
+      updatedAt: TS1,
+    };
+    const baseline = withData({
+      activities: [activity],
+      allocations: [{ ...allocation("allocation", "2026-01-01"), projectId: "p1" }],
+    });
+    const rewrittenAt = "2030-01-02T00:00:00.000Z";
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).endsWith("/api/state")) return Response.json(baseline);
+      const ops = (JSON.parse(init?.body as string) as { ops: ReceiptOp[] }).ops;
+      return Response.json({
+        ok: true,
+        applied: ops.length,
+        revisions: [
+          revisionFor(ops[0]),
+          {
+            table: "allocations",
+            id: "allocation",
+            createdAt: TS1,
+            updatedAt: rewrittenAt,
+            rewrite: true,
+          },
+        ],
+      });
+    }) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    await adapter.loadAll();
+    const target = withData({
+      ...baseline,
+      activities: [{ ...activity, kind: "internal", updatedAt: TS2 }],
+    });
+
+    await adapter.saveAll(target);
+    await adapter.saveAll(target);
+    await adapter.saveAll(
+      withData({
+        ...target,
+        allocations: [{ ...target.allocations[0], projectId: undefined, note: "Edited", updatedAt: TS2 }],
+      }),
+    );
+
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect((batchOps(calls[2]) as unknown as Array<{ row: Allocation }>)[0].row.updatedAt).toBe(rewrittenAt);
+  });
+
+  it("remembers a tagged rewrite from the committed snapshot without a phantom follow-up PUT", async () => {
+    const activity: Activity = {
+      id: "t1",
+      accountId: "a1",
+      name: "Planning",
+      kind: "repeatable",
+      createdAt: TS1,
+      updatedAt: TS1,
+    };
+    const allocationRow = { ...allocation("allocation", "2026-01-01"), projectId: "p1" };
+    const baseline = withData({ activities: [activity], allocations: [allocationRow] });
+    const rewrittenAt = "2030-01-02T00:00:00.000Z";
+    let batchNumber = 0;
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).endsWith("/api/state")) return Response.json(baseline);
+      batchNumber += 1;
+      const ops = (JSON.parse(init?.body as string) as { ops: ReceiptOp[] }).ops;
+      return Response.json({
+        ok: true,
+        applied: ops.length,
+        revisions: [
+          ...ops.map(revisionFor),
+          ...(batchNumber === 2
+            ? [{ table: "allocations", id: allocationRow.id, createdAt: TS1, updatedAt: rewrittenAt, rewrite: true }]
+            : []),
+        ],
+      });
+    }) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    let visible = await adapter.loadAll();
+    adapter.setAllocationRewriteHandler((revisions) => {
+      const revision = revisions[0]!;
+      visible = {
+        ...visible,
+        allocations: visible.allocations.map((row) =>
+          row.id === revision.id ? withoutAllocationAttribution(row, revision.updatedAt) : row,
+        ),
+      };
+    });
+
+    visible = {
+      ...visible,
+      allocations: [{ ...visible.allocations[0], note: "Tab edit", updatedAt: TS2 }],
+    };
+    await adapter.saveAll(visible);
+    visible = {
+      ...visible,
+      activities: [{ ...visible.activities[0], kind: "internal", updatedAt: "2026-01-03T00:00:00.000Z" }],
+    };
+    await adapter.saveAll(visible);
+
+    expect(visible.allocations[0]).not.toHaveProperty("projectId");
+    expect(visible.allocations[0].updatedAt).toBe(rewrittenAt);
+    await adapter.saveAll(visible);
+    expect(batchNumber).toBe(2);
+  });
+
+  it.each([
+    ["ordinary", undefined],
+    ["unload", { unload: true }],
+  ] as const)("keeps a concurrent allocation edit dirty after an %s rewrite receipt", async (_label, options) => {
+    const activity: Activity = {
+      id: "t1",
+      accountId: "a1",
+      name: "Planning",
+      kind: "repeatable",
+      createdAt: TS1,
+      updatedAt: TS1,
+    };
+    const allocationRow = { ...allocation("allocation", "2026-01-01"), projectId: "p1" };
+    const baseline = withData({ activities: [activity], allocations: [allocationRow] });
+    const rewrittenAt = "2030-01-02T00:00:00.000Z";
+    let releaseReceipt: ((response: Response) => void) | null = null;
+    const fetchImpl = vi.fn((url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).endsWith("/api/state")) return Promise.resolve(Response.json(baseline));
+      if (!releaseReceipt) {
+        return new Promise<Response>((resolve) => {
+          releaseReceipt = resolve;
+        });
+      }
+      return Promise.resolve(commitReceipt(init));
+    }) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    let visible = await adapter.loadAll();
+    // Supply the removed live-data callback through the old signature so this regression test also
+    // fails against the pre-fix adapter. The current implementation deliberately ignores argument 2.
+    const installRewriteHandler = adapter.setAllocationRewriteHandler.bind(adapter) as (
+      handler: Parameters<typeof adapter.setAllocationRewriteHandler>[0],
+      legacyGetData: () => AppData,
+    ) => void;
+    installRewriteHandler(
+      (revisions) => {
+        const revision = revisions[0]!;
+        visible = {
+          ...visible,
+          allocations: visible.allocations.map((row) =>
+            row.id === revision.id && row.updatedAt === revision.flushedUpdatedAt
+              ? withoutAllocationAttribution(row, revision.updatedAt)
+              : row,
+          ),
+        };
+      },
+      () => visible,
+    );
+    const flushed = withData({
+      ...visible,
+      activities: [{ ...visible.activities[0], kind: "internal", updatedAt: TS2 }],
+    });
+
+    const saving = adapter.saveAll(flushed, options);
+    visible = {
+      ...flushed,
+      allocations: [{ ...flushed.allocations[0], projectId: "p2", updatedAt: "2026-01-03T00:00:00.000Z" }],
+    };
+    releaseReceipt!(
+      Response.json({
+        ok: true,
+        applied: 1,
+        revisions: [
+          revisionFor({ method: "PUT", table: "activities", id: activity.id, row: flushed.activities[0] }),
+          {
+            table: "allocations",
+            id: allocationRow.id,
+            createdAt: TS1,
+            updatedAt: rewrittenAt,
+            rewrite: true,
+          },
+        ],
+      }),
+    );
+    await saving;
+
+    expect(visible.allocations[0]).toMatchObject({
+      projectId: "p2",
+      updatedAt: "2026-01-03T00:00:00.000Z",
+    });
+    await adapter.saveAll(visible);
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    const followUpOps = calls.slice(2).flatMap((call) => batchOps(call));
+    expect(followUpOps).toEqual(
+      expect.arrayContaining([expect.objectContaining({ table: "allocations", id: allocationRow.id })]),
+    );
+  });
+
+  it("keeps duplicate revisions strict for non-allocation tables", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      const ops = (JSON.parse(init?.body as string) as { ops: ReceiptOp[] }).ops;
+      return Response.json({
+        ok: true,
+        applied: ops.length,
+        revisions: [revisionFor(ops[0]), revisionFor(ops[0])],
+      });
+    }) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+
+    await expect(adapter.saveAll(withData({ clients: [client("c1")] }))).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected or duplicate"));
+  });
+
   it("coalesces overlapping saves to the latest state", async () => {
     let resolveFirst: (() => void) | null = null;
     const fetchImpl = vi.fn(
@@ -2024,5 +2270,277 @@ describe("snapshot generation guard (superseded loads / in-flight batches)", () 
     (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
     await a.saveAll(slice);
     expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
+});
+
+describe("ServerSyncAdapter fault-injection branches", () => {
+  async function saveAgainstReceipt(
+    receipt: unknown,
+    options: { initial?: AppData; next?: AppData; unload?: boolean } = {},
+  ): Promise<void> {
+    const initial = options.initial ?? emptyAppData();
+    const next = options.next ?? withData({ clients: [client("c1")] });
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+      if (String(url).includes("/api/state")) return new Response(JSON.stringify(initial), { status: 200 });
+      return new Response(JSON.stringify(receipt), { status: 200 });
+    });
+    const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
+    await adapter.loadAll();
+    await adapter.saveAll(next, options.unload ? { unload: true } : undefined);
+  }
+
+  it.each([[[]], ["not-an-object"]])("rejects a valid JSON %j state body that is not a record", async (body) => {
+    const adapter = new ServerSyncAdapter(
+      "http://api.test",
+      vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })) as unknown as typeof fetch,
+    );
+    await expect(adapter.loadAll()).rejects.toThrow("invalid state payload");
+  });
+
+  it("does not let a superseded unscoped 400 seed or clear offline state", async () => {
+    let resolveFirst!: (response: Response) => void;
+    const first = new Promise<Response>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const fresh = withData({ clients: [client("fresh")] });
+    const fetchImpl = vi
+      .fn()
+      .mockReturnValueOnce(first)
+      .mockResolvedValueOnce(new Response(JSON.stringify(fresh), { status: 200 }));
+    const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
+    const staleLoad = adapter.loadAll();
+    await expect(adapter.loadAll()).resolves.toMatchObject({ clients: [{ id: "fresh" }] });
+    setOfflineReadState("tenant", true, 123);
+    resolveFirst(new Response(null, { status: 400 }));
+    await expect(staleLoad).resolves.toEqual(emptyAppData());
+    expect(offlineStateSnapshot()).toMatchObject({ readOnly: true, lastUpdated: 123 });
+
+    await adapter.saveAll(fresh);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    setOfflineReadState("cleanup", false);
+  });
+
+  it("warns when background offline-cache refresh fails without failing hydration", async () => {
+    const cause = new Error("cache write failed");
+    vi.spyOn(offlineCacheModule, "cacheAccountSlice").mockRejectedValueOnce(cause);
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const slice = scopedData("a1", {});
+    const adapter = new ServerSyncAdapter(
+      "http://api.test",
+      vi.fn(async () => new Response(JSON.stringify(slice), { status: 200 })) as unknown as typeof fetch,
+    );
+
+    await expect(adapter.loadAll("a1")).resolves.toMatchObject({
+      accounts: [{ id: "a1" }],
+      clients: expect.arrayContaining([expect.objectContaining({ id: "internal:a1" })]),
+    });
+    await vi.waitFor(() =>
+      expect(warning).toHaveBeenCalledWith(
+        "ServerSyncAdapter: the offline account snapshot could not be updated",
+        cause,
+      ),
+    );
+  });
+
+  it("hydrates a scoped cached slice on a fetch TypeError and publishes its saved time", async () => {
+    await withOfflineCache(async () => {
+      const cached = scopedData("a1", {});
+      await cacheAccountSlice("a1", cached);
+      const adapter = new ServerSyncAdapter(
+        "http://api.test",
+        vi.fn().mockRejectedValue(new TypeError("offline")) as unknown as typeof fetch,
+      );
+      await expect(adapter.loadAll("a1")).resolves.toMatchObject({
+        accounts: [{ id: "a1" }],
+        clients: expect.arrayContaining([expect.objectContaining({ id: "internal:a1" })]),
+      });
+      expect(offlineStateSnapshot().readOnly).toBe(true);
+      expect(offlineStateSnapshot().lastUpdated).toEqual(expect.any(Number));
+    });
+  });
+
+  it("warns on scoped and identity cache read failures while surfacing the real LoadError", async () => {
+    const cause = new Error("cache corrupt");
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(offlineCacheModule, "readCachedAccountSlice").mockRejectedValueOnce(cause);
+    const scoped = new ServerSyncAdapter(
+      "http://api.test",
+      vi.fn().mockRejectedValue(new TypeError("network down")) as unknown as typeof fetch,
+    );
+    await expect(scoped.loadAll("a1")).rejects.toMatchObject({ kind: "unavailable" });
+    expect(warning).toHaveBeenCalledWith("ServerSyncAdapter: the offline account snapshot could not be read", cause);
+
+    vi.spyOn(offlineCacheModule, "readCachedAuthSnapshot").mockRejectedValueOnce(cause);
+    const identity = new ServerSyncAdapter(
+      "http://api.test",
+      vi.fn().mockRejectedValue(new TypeError("network down")) as unknown as typeof fetch,
+    );
+    await expect(identity.loadAll()).rejects.toMatchObject({ kind: "unavailable" });
+    expect(warning).toHaveBeenCalledWith("ServerSyncAdapter: the offline identity snapshot could not be read", cause);
+  });
+
+  it("returns null from both offline hydration arms when no cache exists", async () => {
+    localStorage.removeItem("capacitylens/offlineRead");
+    const adapter = new ServerSyncAdapter(
+      "http://api.test",
+      vi.fn().mockRejectedValue(new TypeError("network down")) as unknown as typeof fetch,
+    );
+    await expect(adapter.loadAll()).rejects.toMatchObject({ kind: "unavailable" });
+    await expect(adapter.loadAll("a1")).rejects.toMatchObject({ kind: "unavailable" });
+  });
+
+  it("rejects a non-OK metadata response", async () => {
+    const adapter = new ServerSyncAdapter(
+      "http://api.test",
+      vi.fn(async () => new Response(null, { status: 503 })) as unknown as typeof fetch,
+    );
+    await expect(adapter.hasExisting()).rejects.toThrow("Failed to read meta (503)");
+  });
+
+  it("maps an unrecognised empty 400 batch response to a generic validation error", async () => {
+    const fetchImpl = vi.fn(async (url: string | URL | Request) =>
+      String(url).includes("/api/state")
+        ? new Response(JSON.stringify(emptyAppData()), { status: 200 })
+        : new Response(null, { status: 400 }),
+    );
+    const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
+    await adapter.loadAll();
+    const failure = await adapter.saveAll(withData({ clients: [client("c1")] })).catch((error) => error);
+    expect(failure).toBeInstanceOf(BatchValidationError);
+    expect(failure).toMatchObject({ message: "Batch sync failed (400): validation rejected", code: undefined });
+  });
+
+  it.each([
+    [{ ok: true, applied: 1, superseded: "yes", revisions: [] }, "invalid ordering receipt"],
+    [{ ok: true, applied: 1, revisions: [null] }, "complete server revisions"],
+    [
+      { ok: true, applied: 1, revisions: [{ table: "clients", id: 1, createdAt: TS1, updatedAt: TS1 }] },
+      "complete server revisions",
+    ],
+  ])("rejects malformed ordinary commit receipt %#", async (receipt, message) => {
+    await expect(saveAgainstReceipt(receipt)).rejects.toThrow(message);
+  });
+
+  it("accepts a superseded receipt without revisions and re-loops without advancing", async () => {
+    let batches = 0;
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).includes("/api/state")) return new Response(JSON.stringify(emptyAppData()), { status: 200 });
+      batches += 1;
+      return batches === 1
+        ? new Response(JSON.stringify({ ok: true, applied: 1, superseded: true }), { status: 200 })
+        : commitReceipt(init);
+    });
+    const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
+    await adapter.loadAll();
+    const next = withData({ clients: [client("c1")] });
+    await adapter.saveAll(next);
+    await adapter.saveAll(next);
+    expect(batches).toBe(2);
+  });
+
+  it.each([
+    [{ ok: true, applied: 1, revisions: [] }, "committed without lifecycle archive receipts"],
+    [{ ok: true, applied: 1, revisions: [], archives: [null] }, "invalid lifecycle archive receipt"],
+    [
+      { ok: true, applied: 1, revisions: [], archives: [{ table: "projects", id: "c1", archived: true }] },
+      "invalid lifecycle archive receipt",
+    ],
+    [
+      { ok: true, applied: 1, revisions: [], archives: [{ table: "clients", id: 1, archived: true }] },
+      "invalid lifecycle archive receipt",
+    ],
+    [
+      { ok: true, applied: 1, revisions: [], archives: [{ table: "clients", id: "c1", archived: "yes" }] },
+      "invalid lifecycle archive receipt",
+    ],
+    [
+      { ok: true, applied: 1, revisions: [], archives: [{ table: "clients", id: "unexpected", archived: true }] },
+      "invalid lifecycle archive receipt",
+    ],
+    [{ ok: true, applied: 1, revisions: [], archives: [] }, "complete lifecycle archive receipts"],
+  ])("rejects malformed teardown lifecycle receipt %#", async (receipt, message) => {
+    const initial = withData({ clients: [client("c1")] });
+    await expect(saveAgainstReceipt(receipt, { initial, next: emptyAppData(), unload: true })).rejects.toThrow(message);
+  });
+
+  it("accepts archived:false as a complete teardown lifecycle receipt", async () => {
+    const initial = withData({ clients: [client("c1")] });
+    await expect(
+      saveAgainstReceipt(
+        {
+          ok: true,
+          applied: 1,
+          revisions: [],
+          archives: [{ table: "clients", id: "c1", archived: false }],
+        },
+        { initial, next: emptyAppData(), unload: true },
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it("sets keepalive on unload lifecycle archives", async () => {
+    const initial = withData({ clients: [client("c1")] });
+    const calls: RequestInit[] = [];
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).includes("/api/state")) return new Response(JSON.stringify(initial), { status: 200 });
+      calls.push(init ?? {});
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          applied: 1,
+          revisions: [],
+          archives: [{ table: "clients", id: "c1", archived: true }],
+        }),
+        { status: 200 },
+      );
+    });
+    const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
+    await adapter.loadAll();
+    await adapter.saveAll(emptyAppData(), { unload: true });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.keepalive).toBe(true);
+  });
+
+  it("uses the safe response error for an unrecognised 409 lifecycle archive", async () => {
+    const initial = withData({ clients: [client("c1")] });
+    const fetchImpl = vi.fn(async (url: string | URL | Request) =>
+      String(url).includes("/api/state")
+        ? new Response(JSON.stringify(initial), { status: 200 })
+        : new Response(JSON.stringify({ code: "protected" }), { status: 409 }),
+    );
+    const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
+    await adapter.loadAll();
+    const failure = await adapter.saveAll(emptyAppData()).catch((error) => error);
+    expect(failure).toMatchObject({
+      message: "Lifecycle archive of clients/c1 failed (409).",
+      cause: expect.objectContaining({ message: JSON.stringify({ code: "protected" }) }),
+    });
+  });
+
+  it.each([
+    { label: "non-record", body: null },
+    { label: "wrong id", body: { id: "wrong", createdAt: TS1, updatedAt: TS2 } },
+    { label: "missing createdAt", body: { id: "c1", updatedAt: TS2 } },
+    { label: "missing updatedAt", body: { id: "c1", createdAt: TS1 } },
+    { label: "still archived", body: { id: "c1", createdAt: TS1, updatedAt: TS2, archivedAt: TS2 } },
+    { label: "still deleted", body: { id: "c1", createdAt: TS1, updatedAt: TS2, deletedAt: TS2 } },
+  ])("forces reconciliation for an incomplete lifecycle restore receipt: $label", async ({ body }) => {
+    const initial = withData({ clients: [client("c1")] });
+    let archived = false;
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+      const target = String(url);
+      if (target.includes("/api/state")) return new Response(JSON.stringify(initial), { status: 200 });
+      if (target.endsWith("/archive")) {
+        archived = true;
+        return new Response(null, { status: 200 });
+      }
+      if (target.endsWith("/unarchive")) return new Response(JSON.stringify(body), { status: 200 });
+      return new Response(null, { status: 500 });
+    });
+    const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
+    await adapter.loadAll();
+    await adapter.saveAll(emptyAppData());
+    expect(archived).toBe(true);
+    await expect(adapter.saveAll(initial)).rejects.toBeInstanceOf(LifecycleRestoreError);
   });
 });

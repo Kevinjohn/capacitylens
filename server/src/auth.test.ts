@@ -328,7 +328,13 @@ describe("startup configuration before database migration", () => {
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     expect(() => ensureAuthControlTables(db, PASSWORD_ENV)).toThrow(/does not match the current application schema/i);
 
-    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining({ version: 34 }));
+    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(
+      expect.objectContaining({
+        version: 35,
+        name: "add-allocation-project-id",
+        checksum: "19c2729bf7048ca0a3e317f3d00088b29c7c7c2cd4d60febce28146d1c42c9a3",
+      }),
+    );
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
     expect(() => assertBootstrapClaimCurrent(db)).not.toThrow();
@@ -512,6 +518,11 @@ describe("startup configuration before database migration", () => {
       expect.objectContaining({ version: 32, name: "add-allocation-series-id" }),
       expect.objectContaining({ version: 33, name: "allow-company-wide-time-off" }),
       expect.objectContaining({ version: 34, name: "separate-company-closures" }),
+      expect.objectContaining({
+        version: 35,
+        name: "add-allocation-project-id",
+        checksum: "19c2729bf7048ca0a3e317f3d00088b29c7c7c2cd4d60febce28146d1c42c9a3",
+      }),
     ]);
     const before = await planAuthSchemaMigrations(configured.auth!);
     expect(before.pending).toBe(true);
@@ -523,6 +534,34 @@ describe("startup configuration before database migration", () => {
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
     await expect(planAuthSchemaMigrations(configured.auth!)).resolves.toEqual({ pending: false, tables: [] });
     db.close();
+  });
+});
+
+describe("first-owner database-hook races", () => {
+  it("rejects a delayed first-owner insertion after another principal wins", async () => {
+    const db = openDb(":memory:");
+    const { auth } = authFromEnv(db, PASSWORD_ENV);
+    await runAuthMigrations(auth!);
+    await auth!.createCredentialUser("winner@example.com", "Winner", "winner-password-123456", true);
+    const before = auth!.options.databaseHooks?.user?.create?.before;
+
+    await expect(
+      before!(
+        { email: "loser@example.com", name: "Loser" } as never,
+        { path: "/sign-up/email", bootstrapClaimToken: "losing-claim" } as never,
+      ),
+    ).rejects.toMatchObject({ body: expect.objectContaining({ code: "BOOTSTRAP_ALREADY_CLAIMED" }) });
+  });
+
+  it("rejects a first-owner insertion that reaches the hook without its claim token", async () => {
+    const db = openDb(":memory:");
+    const { auth } = authFromEnv(db, PASSWORD_ENV);
+    await runAuthMigrations(auth!);
+    const before = auth!.options.databaseHooks?.user?.create?.before;
+
+    await expect(
+      before!({ email: "owner@example.com", name: "Owner" } as never, { path: "/sign-up/email" } as never),
+    ).rejects.toMatchObject({ body: expect.objectContaining({ code: "BOOTSTRAP_ALREADY_IN_PROGRESS" }) });
   });
 });
 

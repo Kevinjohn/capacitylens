@@ -299,7 +299,7 @@ success for the rebase never hides the independent loss.
 - **Projects:** Project Watchtower (Queen Consolidated), Metropolis Rebrand (LexCorp).
 - **Phases (Project Watchtower):** Discovery, Build.
 - **Activities** (every activity has a **kind**): _Project-specific_ — Wireframes, Visual Design, CMS Review
-  (Watchtower), Brand System (Metropolis Rebrand); _Internal_ — Admin / Internal; _Cross-project_ —
+  (Watchtower), Brand System (Metropolis Rebrand); _Internal_ — Admin / Internal; _All projects_ —
   Design, Workshop. "Design" is also booked for Barry (8–10 June) to demo the activity lens.
 - **Canonical allocations (June 2026):** Bruce is **over-allocated on 3–4 June** (8h + 4h > 8h).
 - **Canonical time off:** Bruce — 10–12 June (Holiday).
@@ -369,11 +369,16 @@ the control column; inline activity creation and repeat hints align with that co
 with three equal segments. The
 Resource form's `Working days` grid fills that same field width without widening the modal at narrow
 sizes. Administrative modal layouts are unchanged.
-The allocation modal's `Project` picker begins with `Internal` and `Any Project`, followed by a
-separator and the real projects sorted by client name and then project name. `Internal` exposes only
-internal activities; `Any Project` exposes only cross-project activities; a real project exposes
-only its project-specific activities. Each resulting `Activity` list is alphabetical. `Any Project`
-is wording local to this picker: cross-project activities keep their established name elsewhere.
+The allocation modal's `Project` picker begins with `Internal` and `No specific project`, followed
+by a separator and the real projects sorted by client name and then project name. `Internal`
+exposes only internal activities. `No specific project` exposes only All-projects activities and
+creates an unattributed booking. A real project exposes labelled `All projects` and
+`Project-specific` activity groups in that order, with each group alphabetical. Choosing an
+All-projects activity under a real project attributes that allocation to the selected project; the
+activity itself remains available to every project. The allocation's effective project — its own
+attribution when present, otherwise the activity's project — drives its bar label, colour,
+client/project filters and lifecycle visibility. Editing an attributed allocation starts in that
+project scope; switching it to `Internal` or `No specific project` clears the attribution.
 Allocation `Status` is a three-option `Confirmed` / `Tentative` / `Completed` radiogroup, and `Note`
 is a single-line text field. A historical multiline note remains byte-for-byte intact when another
 field is edited and saved; editing the note itself adopts the single-line value shown by the field.
@@ -391,9 +396,9 @@ nothing, and shows `This client changed while you were editing. Close and reopen
 re-apply your changes.` or the equivalent `This project changed…` message.
 Resource, external-party, time-off and closure edit forms use the same stale-edit contract and show the
 equivalent entity-specific `changed while you were editing` message.
-The **activity form** has an `Activity kind` radiogroup ordered `Internal` / `Cross-project` /
+The **activity form** has an `Activity kind` radiogroup ordered `Internal` / `All projects` /
 `Project-specific` (with `Project-specific` selected by default); the
-`Project` field shows (and is required) only for the `Project-specific` kind — internal/cross-project
+`Project` field shows (and is required) only for the `Project-specific` kind — internal/All-projects
 activities are project-less.
 The **time-off form** presents `Note` as a single-line text field and shows/submits it only for
 Owner/Admin (and open/demo mode, where no membership role applies); Editor/Viewer never receive or
@@ -534,8 +539,8 @@ controls are `Filter by discipline` (shown only when disciplines are enabled and
 in the scheduler grid's canonical discipline order), `Filter by client` (Internal first, then
 alphabetical), `Filter by project` (Internal-owned projects first, then alphabetical by project name),
 `Filter by activity` (a grouped dropdown — `All activities`, then an `Internal` optgroup with
-`Internal — All` + each internal activity, then a `Cross-project` optgroup with `Cross-project — All` +
-each group's activities alphabetically; shown only when the account has internal/cross-project activities. Project-specific activities
+`Internal — All` + each internal activity, then an `All projects` optgroup with `All projects — All` +
+each group's activities alphabetically; shown only when the account has internal/All-projects activities. Project-specific activities
 are reached via `Filter by project`). The activity lens is a **standalone** view: selecting it
 clears the client/project filter and vice-versa. The `Tentative visibility` radiogroup offers
 `Show tentative`/`Hide tentative` (radios using `aria-checked`), followed by the draw-mode radiogroup
@@ -664,8 +669,8 @@ activities and for projects owned by the built-in **Internal** client use the ne
 Internal-owned project's saved colour is overridden by grey in the Projects list. The project
 form hides its existing **Colour** swatch picker whenever the selected client is Internal; the
 saved palette colour is retained rather than cleared. Switching to **Use colour palette** restores
-those saved project colours and reveals the picker. Cross-project activities remain a distinct
-kind and retain their existing resource-derived colours in both modes.
+those saved project colours and reveals the picker. Unattributed All-projects allocations retain
+their resource-derived colours in both modes; attributed ones use their effective project's colour.
 
 **Disciplines (account-level).** Settings → **Disciplines** has a single switch **Use disciplines**
 (on by default). Turning it off hides disciplines across the whole app — the **Disciplines** nav
@@ -1173,11 +1178,16 @@ multiple).
 
 - **A project must belong to a client. An activity has a `kind`:** `project` (a project-specific activity;
   belongs to a project and may carry a phase), `internal` (project-less internal work), or `repeatable`
-  (a project-less cross-project activity). Internal/cross-project activities carry no project or phase. The Activities page
+  (a project-less All-projects activity). Internal/All-projects activities carry no project or phase. The Activities page
   shows three sections — `internal-activities`, `cross-project-activities`, `project-specific-activities` (testids).
-  Internal and cross-project rows are alphabetical. Project-specific rows are grouped and sorted by
+  Internal and All-projects rows are alphabetical. Project-specific rows are grouped and sorted by
   **client → project → activity**, with each client and project name shown once. Scoped rows whose
   parent metadata is unavailable remain visible in a clearly labelled fallback group.
+- **All-projects attribution belongs to the allocation, not the activity.** A `repeatable`
+  activity stays project-less. Its allocation may carry `projectId` when booked under a real
+  project; absent means unattributed. Project-specific and internal allocations never carry this
+  field. The effective project is the allocation attribution when present, otherwise the
+  project-specific activity's project.
 - **Private client/project names.** A normal client or project may be marked private by an account
   **owner** and given a required code name. The real `name` and raw `codeName` remain persisted, but
   only owners receive them from the server. Admins, editors and viewers receive the code name in the
@@ -1234,15 +1244,16 @@ multiple).
   **project form's Client `<select>`** (a project can be created under Internal), as a **Filter by
   client → Internal** option, and as a **Clients** entry in the command palette; a project bound to
   Internal still shows "· Internal" as its client in the Projects list. It can own real projects, AND a
-  project-less internal/cross-project activity is **bucketed under it for display + filtering** (its
+  project-less internal or unattributed All-projects activity is **bucketed under it for display + filtering** (its
   bars/labels read "Internal", and **Filter by client → Internal** shows BOTH the project-less
   activities AND any activities under Internal-owned projects). No `clientId` is stored on the
   activity; the association is derived in the view-model.
   In the project form, **Internal is pinned first**, followed by a non-selectable divider and then
   active ordinary clients in alphabetical display-name order. An archived current client remains a
   disabled final option while editing so an unrelated change can still preserve that relationship.
-- **Placeholders** are bound to exactly one project and may take that project's activities **plus any
-  project-less (internal/cross-project) activity**. They are **hidden by default** behind the
+- **Placeholders** are bound to exactly one project and may take that project's activities **plus
+  All-projects activities attributed to that project**. Legacy unattributed All-projects bookings
+  reopen unchanged until explicitly attributed. They are **hidden by default** behind the
   per-account **Show placeholders** pref (Settings → Placeholders, `placeholdersEnabled` on the
   Account, default off); when shown they display as the literal name **"Placeholder"** with a **"?"** avatar.
 - **External / 3rd parties** are a resource kind for outsourced work: a **company name** (+ optional
@@ -1347,8 +1358,9 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   the standard tenant guard (**403** non-member, or **404** when the id isn't in the asserted account's
   slice); an **absent** row → **404**; an insufficient role → **403**.
 - **Purge interlock (server-enforced):** purge is refused (**409**) unless the row is a **soft-deleted
-  tombstone aged ≥ 30 days** (`PURGE_MIN_AGE_DAYS`); the cascade then removes the row **and its
-  descendants** (client → projects/phases/activities/allocations, etc.), same rules as a normal delete.
+  tombstone aged ≥ 30 days** (`PURGE_MIN_AGE_DAYS`); the cascade then removes the row and its
+  owned descendants. All-projects allocations attributed to a removed client/project survive with
+  that attribution cleared.
 - **Built-in Internal client guard:** the protected built-in **Internal** client cannot be
   archived/deleted/purged — any of the three on it is a **409**. Import and load repair also clear
   legacy or hand-edited lifecycle tombstones so the singleton always returns active.
@@ -1363,9 +1375,10 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   (archived + soft-deleted rows retained). It is gated at the **purge tier (admin+ with a session
   signed in within the last 15 minutes)**: a non-admin gets **403**, while a stale privileged session
   gets `403 SESSION_NOT_FRESH`; OFF mode always allows; omitting the flag = today's active-only read.
-- **Cascade deletes:** deleting a client removes its projects → activities → allocations;
-  deleting a project removes its phases/activities/allocations and _unbinds_ (does not delete)
-  placeholders; deleting an activity removes its allocations; deleting a resource removes its
+- **Cascade deletes:** deleting a client removes its projects and their project-specific activities
+  and allocations; deleting a project removes its phases/project-specific activities and allocations
+  and _unbinds_ (does not delete) placeholders. In either case, an All-projects allocation attributed
+  to the removed project survives and becomes unattributed. Deleting an activity removes its allocations; deleting a resource removes its
   allocations + time off. Deleting a **discipline** or **phase** is _non-destructive_
   (ungroups resources / ungroups activities). These ordinary CRUD deletes are undoable. Lifecycle
   **soft-delete and purge** of an archived person, client or project are irreversible and clear the

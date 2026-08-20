@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { newId } from "@capacitylens/shared/lib/id";
 import { type WeeksZoom } from "../lib/schedulerConfig";
 import {
+  allocationAttributionAllowed,
+  withoutAllocationAttribution,
   deleteClientCascade,
   deleteDisciplineCascade,
   deletePhaseCascade,
@@ -151,10 +153,10 @@ export interface Filters {
   disciplineId: ID | null;
   clientId: ID | null;
   projectId: ID | null;
-  /** Activity lens: a specific internal/cross-project activity. Mutually exclusive with the
+  /** Activity lens: a specific internal/all-projects activity. Mutually exclusive with the
    *  client/project lens and with `activityKind` (enforced in setFilters). */
   activityId: ID | null;
-  /** Activity lens: ALL activities of a kind ('Internal — All' / 'Cross-project — All'). Mutually
+  /** Activity lens: ALL activities of a kind ('Internal — All' / 'All projects — All'). Mutually
    *  exclusive with the client/project lens and with `activityId`. */
   activityKind: "internal" | "repeatable" | null;
   search: string;
@@ -647,8 +649,15 @@ export const useStore = create<StoreState>()((set, get, store) => {
   const mutateIrreversible = (producer: (d: AppData) => AppData) =>
     set((s) => ({ data: producer(s.data), past: [], future: [] }));
 
+  const applyPatch = <T extends Entity>(row: T, patch: Partial<Omit<T, keyof Entity>>): T => {
+    const next = { ...row, ...patch } as T;
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined) delete (next as Record<string, unknown>)[key];
+    }
+    return next;
+  };
   const updateById = <T extends Entity>(list: T[], id: ID, patch: Partial<Omit<T, keyof Entity>>): T[] =>
-    list.map((x) => (x.id === id ? { ...x, ...patch, updatedAt: touchAfter(x.updatedAt) } : x));
+    list.map((row) => (row.id === id ? { ...applyPatch(row, patch), updatedAt: touchAfter(row.updatedAt) } : row));
 
   // Every scoped add* stamps the active account. A non-null selection alone is insufficient. The
   // account must either exist in the published data or in the server-authorised summaries while a
@@ -777,19 +786,29 @@ export const useStore = create<StoreState>()((set, get, store) => {
    *  validation sees exactly what will be committed, then commit the patch `prepare` returns.
    *  Validating the raw patch instead used to let a note-only edit pass locally while the server —
    *  which always merges before it validates — rejected the full row, diverging local from synced
-   *  state. `prepare` may also throw (surface, don't swallow) and may repair the patch it returns. */
+   *  state. `prepare` may also throw (surface, don't swallow) and may repair the patch it returns;
+   *  `cascade` adds dependent table writes to that same mutation/history entry. */
   const updateOwned = <K extends ScopedEntityKey>(
     key: K,
     id: ID,
     patch: ScopedPatch<K>,
     prepare?: (merged: ScopedRow<K>, existing: ScopedRow<K>) => ScopedPatch<K>,
+    cascade?: (data: AppData, merged: ScopedRow<K>, existing: ScopedRow<K>) => AppData,
   ): boolean => {
     const existing = findOwned(get().data, key, id);
     if (!existing) return false;
-    const effective = prepare ? prepare({ ...existing, ...patch } as ScopedRow<K>, existing) : patch;
+    const effective = prepare
+      ? prepare(applyPatch(existing, patch as Partial<Omit<ScopedRow<K>, keyof Entity>>), existing)
+      : patch;
     // The table key is generic here, so TS can't narrow d[key] to a single row type; K pins the row
     // and patch types at every call site above, which is where correctness is actually checked.
-    mutate((d) => ({ ...d, [key]: updateById(d[key] as Entity[], id, effective as Partial<Entity>) }) as AppData);
+    mutate((d) => {
+      const rows = updateById(d[key] as Entity[], id, effective as Partial<Entity>);
+      const next = { ...d, [key]: rows } as AppData;
+      return cascade
+        ? cascade(next, applyPatch(existing, effective as Partial<Omit<ScopedRow<K>, keyof Entity>>), existing)
+        : next;
+    });
     return true;
   };
 
@@ -812,7 +831,14 @@ export const useStore = create<StoreState>()((set, get, store) => {
     if (blockedByViewer()) return allocations;
     const data = get().data;
     for (const allocation of allocations) {
-      assertAllocation(data, accountId, allocation.resourceId, allocation.activityId, allocation.hoursPerDay);
+      assertAllocation(
+        data,
+        accountId,
+        allocation.resourceId,
+        allocation.activityId,
+        allocation.hoursPerDay,
+        allocation.projectId,
+      );
       assertDateRange(allocation.startDate, allocation.endDate);
     }
     mutate((d) => ({ ...d, allocations: [...d.allocations, ...allocations] }));
@@ -1299,14 +1325,29 @@ export const useStore = create<StoreState>()((set, get, store) => {
       },
     ),
     updateActivity: guarded((id: ID, patch: Patch<Activity>) => {
-      updateOwned("activities", id, patch, (merged, existing) => {
-        // A partial patch touching only projectId OR only phaseId must still be checked for
-        // activity↔phase coherence against the row's OTHER field — hence the merged row (see
-        // updateOwned). `existing` enables the unchanged-parent relaxation (see assertScopedRefs).
-        assertScopedRefs(get().data, existing.accountId, "activities", { ...merged }, existing);
-        assertActivityProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
-        return patch;
-      });
+      updateOwned(
+        "activities",
+        id,
+        patch,
+        (merged, existing) => {
+          // A partial patch touching only projectId OR only phaseId must still be checked for
+          // activity↔phase coherence against the row's OTHER field.
+          assertScopedRefs(get().data, existing.accountId, "activities", { ...merged }, existing);
+          assertActivityProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
+          return patch;
+        },
+        (data, merged, existing) => ({
+          ...data,
+          allocations:
+            allocationAttributionAllowed(existing.kind) && !allocationAttributionAllowed(merged.kind)
+              ? data.allocations.map((allocation) =>
+                  allocation.activityId === id && allocation.projectId !== undefined
+                    ? withoutAllocationAttribution(allocation, touchAfter(allocation.updatedAt))
+                    : allocation,
+                )
+              : data.allocations,
+        }),
+      );
     }),
     deleteActivity: guarded((id: ID) => {
       if (!findOwned(get().data, "activities", id)) return;
@@ -1329,6 +1370,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
             merged.resourceId,
             merged.activityId,
             merged.hoursPerDay,
+            merged.projectId,
             existing,
           );
           assertDateRange(merged.startDate, merged.endDate);

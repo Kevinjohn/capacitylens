@@ -42,7 +42,7 @@ function ownedLifecycleRow(
 
 function restampRows(
   db: Db,
-  table: "resources" | "activities",
+  table: "resources" | "activities" | "allocations",
   rows: Array<{ id: string; updatedAt: unknown }>,
   clearedColumn: "projectId" | "phaseId",
 ): void {
@@ -82,6 +82,9 @@ function purgeLifecycleRow(
   const before = scopedRowCounts(db, accountId);
 
   if (entity === "projects") {
+    const allocations = db
+      .prepare(`SELECT id, updatedAt FROM allocations WHERE accountId = ? AND projectId = ?`)
+      .all(accountId, id) as Array<{ id: string; updatedAt: unknown }>;
     const resources = db
       .prepare(`SELECT id, updatedAt FROM resources WHERE accountId = ? AND projectId = ?`)
       .all(accountId, id) as Array<{ id: string; updatedAt: unknown }>;
@@ -96,7 +99,16 @@ function purgeLifecycleRow(
       .all(accountId, id, id) as Array<{ id: string; updatedAt: unknown }>;
     restampRows(db, "resources", resources, "projectId");
     restampRows(db, "activities", activities, "phaseId");
+    restampRows(db, "allocations", allocations, "projectId");
   } else if (entity === "clients") {
+    const allocations = db
+      .prepare(
+        `SELECT allocations.id, allocations.updatedAt
+         FROM allocations
+         JOIN projects ON projects.id = allocations.projectId
+        WHERE allocations.accountId = ? AND projects.clientId = ?`,
+      )
+      .all(accountId, id) as Array<{ id: string; updatedAt: unknown }>;
     const resources = db
       .prepare(
         `SELECT resources.id, resources.updatedAt
@@ -120,6 +132,7 @@ function purgeLifecycleRow(
       .all(accountId, id, id) as Array<{ id: string; updatedAt: unknown }>;
     restampRows(db, "resources", resources, "projectId");
     restampRows(db, "activities", activities, "phaseId");
+    restampRows(db, "allocations", allocations, "projectId");
   }
 
   deleteRow(db, entity, id);

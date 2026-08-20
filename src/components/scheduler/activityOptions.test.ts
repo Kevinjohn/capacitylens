@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Activity, Phase, Project } from "@capacitylens/shared/types/entities";
-import { buildActivityOptions } from "./activityOptions";
+import { buildActivityOptions, sortGroupedOptions } from "./activityOptions";
 
 const row = { accountId: "account", createdAt: "t", updatedAt: "t" } as const;
 
@@ -35,8 +35,18 @@ describe("buildActivityOptions", () => {
 
     expect(options).toHaveLength(200);
     expect(options.slice(0, 2)).toEqual([
-      { value: "activity-0", label: "Workshop / Discovery (1)" },
-      { value: "activity-1", label: "Workshop / Discovery (2)" },
+      {
+        value: "activity-0",
+        label: "Workshop / Discovery (1)",
+        groupKey: "project",
+        groupLabel: "Project-specific",
+      },
+      {
+        value: "activity-1",
+        label: "Workshop / Discovery (2)",
+        groupKey: "project",
+        groupLabel: "Project-specific",
+      },
     ]);
     expect(phaseFind).not.toHaveBeenCalled();
     expect(projectFind).not.toHaveBeenCalled();
@@ -60,7 +70,9 @@ describe("buildActivityOptions", () => {
       { value: "repeat-z", label: "Strategy" },
     ]);
     expect(buildActivityOptions(activities, [], [], "project", "project")).toEqual([
-      { value: "project", label: "Briefing" },
+      { value: "repeat-a", label: "Retrospective", groupKey: "all-projects", groupLabel: "All projects" },
+      { value: "repeat-z", label: "Strategy", groupKey: "all-projects", groupLabel: "All projects" },
+      { value: "project", label: "Briefing", groupKey: "project", groupLabel: "Project-specific" },
     ]);
   });
 
@@ -71,7 +83,7 @@ describe("buildActivityOptions", () => {
     ];
 
     expect(buildActivityOptions(activities, [], [], "project", "wayne-project")).toEqual([
-      { value: "wayne", label: "Briefing" },
+      { value: "wayne", label: "Briefing", groupKey: "project", groupLabel: "Project-specific" },
     ]);
   });
 
@@ -91,7 +103,7 @@ describe("buildActivityOptions", () => {
 
   it.each([
     ["internal", "Internal"],
-    ["repeatable", "Cross-project"],
+    ["repeatable", "All projects"],
   ] as const)("uses the %s kind as context when duplicate names need disambiguation", (kind, context) => {
     const activities: Activity[] = [
       { ...row, id: `${kind}-b`, name: "Planning", kind },
@@ -127,15 +139,78 @@ describe("buildActivityOptions", () => {
     ];
 
     expect(buildActivityOptions(activities, [phase], [project], "project", project.id)).toEqual([
-      { value: "with-phase", label: "Workshop / Discovery" },
-      { value: "with-project", label: "Workshop / Website (1)" },
-      { value: "without-metadata", label: "Workshop / Website (2)" },
+      {
+        value: "with-phase",
+        label: "Workshop / Discovery",
+        groupKey: "project",
+        groupLabel: "Project-specific",
+      },
+      {
+        value: "with-project",
+        label: "Workshop / Website (1)",
+        groupKey: "project",
+        groupLabel: "Project-specific",
+      },
+      {
+        value: "without-metadata",
+        label: "Workshop / Website (2)",
+        groupKey: "project",
+        groupLabel: "Project-specific",
+      },
     ]);
 
     expect(buildActivityOptions(activities, [], [], "project", project.id)).toEqual([
-      { value: "with-phase", label: "Workshop / Project (1)" },
-      { value: "with-project", label: "Workshop / Project (2)" },
-      { value: "without-metadata", label: "Workshop / Project (3)" },
+      {
+        value: "with-phase",
+        label: "Workshop / Project (1)",
+        groupKey: "project",
+        groupLabel: "Project-specific",
+      },
+      {
+        value: "with-project",
+        label: "Workshop / Project (2)",
+        groupKey: "project",
+        groupLabel: "Project-specific",
+      },
+      {
+        value: "without-metadata",
+        label: "Workshop / Project (3)",
+        groupKey: "project",
+        groupLabel: "Project-specific",
+      },
+    ]);
+  });
+
+  it("groups All-projects activities first and disambiguates names across the combined project scope", () => {
+    const project: Project = {
+      ...row,
+      id: "project",
+      clientId: "client",
+      name: "Website",
+      color: "#123456",
+    };
+    const activities: Activity[] = [
+      { ...row, id: "repeat-design", name: "Design", kind: "repeatable" },
+      { ...row, id: "repeat-admin", name: "Admin", kind: "repeatable" },
+      { ...row, id: "project-design", name: "Design", kind: "project", projectId: project.id },
+      { ...row, id: "project-build", name: "Build", kind: "project", projectId: project.id },
+    ];
+
+    expect(buildActivityOptions(activities, [], [project], "project", project.id)).toEqual([
+      { value: "repeat-admin", label: "Admin", groupKey: "all-projects", groupLabel: "All projects" },
+      {
+        value: "repeat-design",
+        label: "Design / All projects",
+        groupKey: "all-projects",
+        groupLabel: "All projects",
+      },
+      { value: "project-build", label: "Build", groupKey: "project", groupLabel: "Project-specific" },
+      {
+        value: "project-design",
+        label: "Design / Website",
+        groupKey: "project",
+        groupLabel: "Project-specific",
+      },
     ]);
   });
 
@@ -174,6 +249,20 @@ describe("buildActivityOptions", () => {
     expect(buildActivityOptions(activities, [], [], "internal")).toEqual([
       { value: "a", label: "Résumé" },
       { value: "z", label: "resume" },
+    ]);
+  });
+
+  it("uses semantic group identity and numeric-aware pinned-locale ordering", () => {
+    expect(
+      sortGroupedOptions([
+        { value: "project-2", label: "Workshop 2", groupKey: "project", groupLabel: "All projects" },
+        { value: "repeat-10", label: "Workshop 10", groupKey: "all-projects", groupLabel: "Translated" },
+        { value: "repeat-2", label: "Workshop 2", groupKey: "all-projects", groupLabel: "Translated" },
+      ]),
+    ).toEqual([
+      { value: "repeat-2", label: "Workshop 2", groupKey: "all-projects", groupLabel: "Translated" },
+      { value: "repeat-10", label: "Workshop 10", groupKey: "all-projects", groupLabel: "Translated" },
+      { value: "project-2", label: "Workshop 2", groupKey: "project", groupLabel: "All projects" },
     ]);
   });
 });

@@ -1,5 +1,12 @@
 import { newId } from "../lib/id";
-import { validateAllocationAssignment, validateDateRange, type ValidationResult } from "../lib/integrity";
+import {
+  allocationAttributionAllowed,
+  effectiveProjectId,
+  withoutAllocationAttribution,
+  validateAllocationAssignment,
+  validateDateRange,
+  type ValidationResult,
+} from "../lib/integrity";
 import { sanitizeImportedRecord } from "../lib/sanitizeImport";
 import {
   buildInternalClient,
@@ -220,7 +227,7 @@ export function assertScopedRefs(
       break;
     case "activities": {
       // Activity.kind coherence, checked first: a project-specific ('project') activity MUST carry a project; an
-      // internal/cross-project ('repeatable') activity is project-less by definition, so it may carry NEITHER a
+      // internal/all-projects ('repeatable') activity is project-less by definition, so it may carry NEITHER a
       // project nor a phase. (Only enforced when kind is present — a partial patch that doesn't
       // touch kind is validated against the merged row by the store, which always has it.)
       if (present("kind")) {
@@ -233,11 +240,11 @@ export function assertScopedRefs(
           if (present("projectId")) {
             domainError(
               "activity_project_forbidden",
-              "An internal or cross-project activity cannot belong to a project.",
+              "An internal or all-projects activity cannot belong to a project.",
             );
           }
           if (present("phaseId")) {
-            domainError("activity_phase_forbidden", "An internal or cross-project activity cannot belong to a phase.");
+            domainError("activity_phase_forbidden", "An internal or all-projects activity cannot belong to a phase.");
           }
         }
       }
@@ -322,7 +329,8 @@ export function assertScopedRefs(
 
 /**
  * An allocation must reference a real resource + activity IN THE ACTIVE ACCOUNT, a
- * placeholder may only take activities from its bound project, and an external /
+ * repeatable attribution may only reference a live project when changed, a placeholder may only
+ * take allocations effective under its bound project, and an external /
  * 3rd-party resource (which has no capacity) may only carry a zero load. `hoursPerDay`
  * is REQUIRED — every allocation write knows its load, and making the parameter
  * mandatory forces the compiler to surface it so the capacity-free rule below can never
@@ -335,7 +343,8 @@ export function assertAllocationRefs(
   resourceId: ID,
   activityId: ID,
   hoursPerDay: number,
-  existing?: Pick<Allocation, "resourceId" | "activityId">,
+  projectId?: ID,
+  existing?: Pick<Allocation, "resourceId" | "activityId" | "projectId">,
   lookup?: ValidationDataLookup,
 ): void {
   const resource = ownedRow<Resource>(data, "resources", resourceId, accountId, lookup);
@@ -349,14 +358,26 @@ export function assertAllocationRefs(
   if (existing?.resourceId !== resourceId && !isEffectivelyActive(data, "resources", resource, lookup)) {
     domainError("allocation_resource_inactive", "Allocation must reference an active resource in this company.");
   }
-  const project = activity.projectId
-    ? ownedRow<AppData["projects"][number]>(data, "projects", activity.projectId, accountId, lookup)
+  if (projectId !== undefined && !allocationAttributionAllowed(activity.kind)) {
+    domainError(
+      "allocation_project_forbidden",
+      "Only an all-projects activity allocation can be attributed to a project.",
+    );
+  }
+  const resolvedProjectId = effectiveProjectId({ projectId }, activity);
+  const project = resolvedProjectId
+    ? ownedRow<AppData["projects"][number]>(data, "projects", resolvedProjectId, accountId, lookup)
     : undefined;
   // A project-bound activity must resolve to a project in this account. Normally assertScopedRefs
   // and the database FK make this impossible, but this validator is also the last line of defence
   // for legacy/corrupt state. Treat a missing or cross-account project exactly like an inactive
   // one instead of silently accepting the allocation because `project` resolved to undefined.
-  if (activity.projectId !== undefined && project === undefined) {
+  if (
+    (resolvedProjectId !== undefined && project === undefined) ||
+    (existing?.projectId !== projectId &&
+      project !== undefined &&
+      !isEffectivelyActive(data, "projects", project, lookup))
+  ) {
     domainError(
       "allocation_project_inactive",
       "Allocation must reference an activity under an active project in this company.",
@@ -365,7 +386,7 @@ export function assertAllocationRefs(
   if (existing?.activityId !== activityId && !isEffectivelyActive(data, "activities", activity, lookup)) {
     domainError("allocation_activity_inactive", "Allocation must reference an activity under an active project.");
   }
-  throwIfInvalid(validateAllocationAssignment(resource, activity.projectId));
+  throwIfInvalid(validateAllocationAssignment(resource, resolvedProjectId));
   // External / 3rd parties have NO capacity: their allocations carry no load (hoursPerDay 0). The
   // form forces 0 and a drag-reassign reconciles to 0, but those are UI-only — enforce it at the
   // write boundary too so a direct store / API write can't land a phantom load on a capacity-free
@@ -453,7 +474,7 @@ export function assertResourceProjectAllowsDependents(
 /** The shared body of the two mirrored "did this edit retroactively invalidate an existing
  * allocation?" guards. `edit` says which END of the allocation is being written: that end is held
  * fixed at its before/after values while the OTHER end is resolved per allocation, and
- * validateAllocationAssignment is always fed (resource, activity project id). Only NEWLY introduced
+ * validateAllocationAssignment is always fed (resource, effective project id). Only NEWLY introduced
  * invalidity is rejected, so a legacy/corrupt pair never makes an unrelated edit the repair
  * boundary. Each caller keeps its own early-return guard — the two sides deliberately differ. */
 function assertAllocationPairStaysValid(
@@ -473,13 +494,17 @@ function assertAllocationPairStaysValid(
     if (edit.side === "resource") {
       const activity = ownedRow<Activity>(data, "activities", allocation.activityId, accountId, lookup);
       if (!activity) continue;
-      before = edit.existing && validateAllocationAssignment(edit.existing, activity.projectId);
-      after = validateAllocationAssignment(edit.merged, activity.projectId);
+      const projectId = effectiveProjectId(allocation, activity);
+      before = edit.existing && validateAllocationAssignment(edit.existing, projectId);
+      after = validateAllocationAssignment(edit.merged, projectId);
     } else {
       const resource = ownedRow<Resource>(data, "resources", allocation.resourceId, accountId, lookup);
       if (!resource) continue;
-      before = edit.existing && validateAllocationAssignment(resource, edit.existing.projectId);
-      after = validateAllocationAssignment(resource, edit.merged.projectId);
+      before = edit.existing && validateAllocationAssignment(resource, effectiveProjectId(allocation, edit.existing));
+      const allocationAfter = allocationAttributionAllowed(edit.merged.kind)
+        ? allocation
+        : withoutAllocationAttribution(allocation);
+      after = validateAllocationAssignment(resource, effectiveProjectId(allocationAfter, edit.merged));
     }
     // An absent `existing` (a create) counts as "was valid", exactly as each caller's own check did.
     if ((before === undefined || before.ok) && !after.ok) domainError(code, message);
@@ -499,9 +524,9 @@ export function assertActivityProjectAllowsDependents(
   existing?: Activity,
   lookup?: ValidationDataLookup,
 ): void {
-  // The activity side short-circuits on projectId alone: an activity's kind is not an input to the
-  // placeholder rule (deliberately narrower than the resource guard above).
-  if (existing !== undefined && merged.projectId === existing.projectId) return;
+  // Kind changes can change whether allocation-level attribution is effective, so both fields feed
+  // the placeholder rule on this side.
+  if (existing !== undefined && merged.kind === existing.kind && merged.projectId === existing.projectId) return;
   assertAllocationPairStaysValid(
     data,
     accountId,
@@ -730,7 +755,7 @@ export function remapAndValidateImport(
   }
 
   // activities: keep kind ⇆ projectId/phaseId coherent (assertScopedRefs throws on a mismatch, and
-  // import bypasses it). An internal/cross-project activity is project-less — strip any project/phase it
+  // import bypasses it). An internal/all-projects activity is project-less — strip any project/phase it
   // carries. A project-specific activity whose project didn't survive can no longer BE project-specific, so it
   // becomes 'repeatable' (and loses its now-orphaned phase). A surviving phase that belongs to a
   // DIFFERENT project is unbound — an activity's phase must be a phase of the activity's own project.
@@ -753,10 +778,9 @@ export function remapAndValidateImport(
     }
   }
 
-  // allocations / time-off: resource + activity are REQUIRED. Also enforce the date range
-  // and the placeholder rule, exactly as the store / server validators do. (An
-  // allocation to a now-unbound placeholder on a project activity fails the placeholder
-  // rule and is dropped here — the same outcome the store would produce.)
+  // allocations / time-off: resource + activity are REQUIRED. Repair invalid optional attribution
+  // before enforcing the effective-project placeholder rule; a booking is dropped only when an
+  // independent required-reference, range or assignment invariant still fails.
   // The `as unknown as <Entity>[]` casts in this block are sound: every row in `brought[*]` was
   // just produced by sanitizeImportedRecord (value-level fields coerced to their typed shape) and
   // stamped with id/accountId/timestamps, so reading them as typed entities for the referential
@@ -764,6 +788,7 @@ export function remapAndValidateImport(
   // FK can still be nulled in place. Field-level safety lives in sanitize/validate — NOT the cast.
   const resources = new Map((brought.resources as unknown as Resource[]).map((r) => [r.id, r]));
   const activities = new Map((brought.activities as unknown as Activity[]).map((act) => [act.id, act]));
+  const projectById = new Map(brought.projects.map((project) => [project.id, project]));
   // Single pass: resolve the owning resource ONCE per allocation and use it for BOTH the keep/drop
   // decision (date range + resource/activity existence + placeholder rule) AND the external-load
   // coercion below, so the two can never diverge.
@@ -772,12 +797,21 @@ export function remapAndValidateImport(
     const resource = resources.get(a.resourceId);
     const activity = activities.get(a.activityId);
     if (!resource || !activity) return kept;
-    if (!validateAllocationAssignment(resource, activity.projectId).ok) return kept;
+    let repaired = a;
+    const attributedProject = a.projectId === undefined ? undefined : projectById.get(a.projectId);
+    const invalidAttribution =
+      a.projectId !== undefined &&
+      (!allocationAttributionAllowed(activity.kind) ||
+        attributedProject === undefined ||
+        attributedProject.accountId !== accountId ||
+        !validateAllocationAssignment(resource, a.projectId).ok);
+    if (invalidAttribution) repaired = withoutAllocationAttribution(a);
+    if (!validateAllocationAssignment(resource, effectiveProjectId(repaired, activity)).ok) return kept;
     // An external resource's allocations carry NO load (the form forces hoursPerDay 0). Import is
     // the one write path that bypasses the form, and sanitizeImportedRecord is per-record so it
     // can't see the owning resource's kind — coerce it here, where the whole resource set is in
     // scope, so a hand-edited/legacy file can't land a non-zero load on a capacity-free resource.
-    let repaired = isExternalResource(resource) && a.hoursPerDay !== 0 ? { ...a, hoursPerDay: 0 } : a;
+    repaired = isExternalResource(resource) && repaired.hoursPerDay !== 0 ? { ...repaired, hoursPerDay: 0 } : repaired;
     // Resource deletion is an erasure boundary, not only a display-name transition. The normal
     // lifecycle route clears dependent free text; apply the same repair to legacy, restored or
     // hand-edited imports so a tombstone cannot reintroduce private project context.

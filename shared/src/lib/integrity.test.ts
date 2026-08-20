@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  allocationAttributionAllowed,
   deleteClientCascade,
   deleteDisciplineCascade,
   deletePhaseCascade,
@@ -11,6 +12,7 @@ import {
   validateAllocationAssignment,
   validateDateRange,
   validateProjectClient,
+  withoutAllocationAttribution,
 } from "./integrity";
 import { emptyAppData } from "../types/entities";
 import type { AppData, Resource } from "../types/entities";
@@ -18,6 +20,23 @@ import { addDaysISO } from "./dateMath";
 import { MAX_SPAN_DAYS } from "./schedulingDays";
 
 const CASCADE_REVISION = "2026-07-15T00:00:00.000Z";
+
+describe("allocationAttributionAllowed", () => {
+  it("allows allocation-level project attribution only for repeatable activities", () => {
+    expect(allocationAttributionAllowed("repeatable")).toBe(true);
+    expect(allocationAttributionAllowed("project")).toBe(false);
+    expect(allocationAttributionAllowed("internal")).toBe(false);
+    expect(allocationAttributionAllowed("unknown")).toBe(false);
+  });
+});
+
+describe("withoutAllocationAttribution", () => {
+  it("returns a restamped copy without projectId", () => {
+    const original = { id: "al1", projectId: "p1", updatedAt: "before" };
+    expect(withoutAllocationAttribution(original, "after")).toEqual({ id: "al1", updatedAt: "after" });
+    expect(original).toHaveProperty("projectId", "p1");
+  });
+});
 
 const placeholder = (over: Partial<Resource> = {}): Resource => ({
   id: "ph1",
@@ -381,10 +400,13 @@ describe("cascade deletes", () => {
       endDate: "2026-06-06",
       hoursPerDay: 8,
       status: "confirmed",
+      projectId: "p1",
     });
     const next = deleteProjectCascade(data, "p1", CASCADE_REVISION);
     expect(next.activities.map((t) => t.id)).toEqual(["t3"]);
     expect(next.allocations.map((a) => a.id)).toEqual(["a3"]);
+    expect(next.allocations[0].projectId).toBeUndefined();
+    expect(next.allocations[0].updatedAt).toBe(CASCADE_REVISION);
   });
 
   it("deleteProjectCascade unbinds a surviving activity’s phaseId that pointed at a deleted phase", () => {
@@ -556,11 +578,35 @@ describe("cascade deletes", () => {
   });
 
   it("deleteClientCascade cascades through its projects", () => {
-    const next = deleteClientCascade(sampleData(), "c1", CASCADE_REVISION);
+    const data = sampleData();
+    data.activities.push({
+      id: "shared",
+      accountId: "acct-test",
+      name: "Shared",
+      kind: "repeatable",
+      createdAt: "t",
+      updatedAt: "t",
+    });
+    data.allocations.push({
+      id: "attributed",
+      accountId: "acct-test",
+      resourceId: "r1",
+      activityId: "shared",
+      projectId: "p1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+      createdAt: "t",
+      updatedAt: "t",
+    });
+    const next = deleteClientCascade(data, "c1", CASCADE_REVISION);
     expect(next.clients).toHaveLength(0);
     expect(next.projects).toHaveLength(0);
-    expect(next.activities).toHaveLength(0);
-    expect(next.allocations).toHaveLength(0);
+    expect(next.activities.map((activity) => activity.id)).toEqual(["shared"]);
+    expect(next.allocations.map((allocation) => allocation.id)).toEqual(["attributed"]);
+    expect(next.allocations[0].projectId).toBeUndefined();
+    expect(next.allocations[0].updatedAt).toBe(CASCADE_REVISION);
     expect(next.resources.find((r) => r.id === "ph1")!.projectId).toBeUndefined();
   });
 

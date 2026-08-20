@@ -80,15 +80,22 @@ function insertActivity(
   ).run(id, accountId, id, refs.projectId ?? null, refs.phaseId ?? null, TS, TS);
 }
 
-function insertAllocation(db: Db, id: string, accountId: string, resourceId: string, activityId: string): void {
+function insertAllocation(
+  db: Db,
+  id: string,
+  accountId: string,
+  resourceId: string,
+  activityId: string,
+  projectId?: string,
+): void {
   db.prepare(
     `
     INSERT INTO allocations (
-      id, accountId, resourceId, activityId, startDate, endDate, hoursPerDay, status,
+      id, accountId, resourceId, activityId, projectId, startDate, endDate, hoursPerDay, status,
       createdAt, updatedAt
-    ) VALUES (?, ?, ?, ?, '2026-01-05', '2026-01-09', 8, 'confirmed', ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, '2026-01-05', '2026-01-09', 8, 'confirmed', ?, ?)
   `,
-  ).run(id, accountId, resourceId, activityId, TS, TS);
+  ).run(id, accountId, resourceId, activityId, projectId ?? null, TS, TS);
 }
 
 function insertTimeOff(db: Db, id: string, accountId: string, resourceId: string): void {
@@ -177,6 +184,16 @@ const crossTenantEdges: Array<{
       insertTimeOff(db, "to2", "a2", "r1");
     },
   },
+  {
+    relationship: "allocations.projectId -> projects.id",
+    seed(db) {
+      insertClient(db, "c1", "a1");
+      insertProject(db, "p1", "a1", "c1");
+      insertResource(db, "r2", "a2");
+      insertActivity(db, "act2", "a2");
+      insertAllocation(db, "al2", "a2", "r2", "act2", "p1");
+    },
+  },
 ];
 
 describe("CROSS_TENANT_ERASURE_EDGE_SQL", () => {
@@ -239,6 +256,12 @@ describe("CROSS_TENANT_ERASURE_EDGE_SQL", () => {
          parent.id AS parentId, child.id AS childId, child.accountId AS childAccountId
     FROM resources AS parent
     JOIN timeOff AS child ON child.resourceId = parent.id
+   WHERE parent.accountId = ?1 AND child.accountId <> ?1
+  UNION ALL
+  SELECT 'allocations.projectId -> projects.id' AS relationship,
+         parent.id AS parentId, child.id AS childId, child.accountId AS childAccountId
+    FROM projects AS parent
+    JOIN allocations AS child ON child.projectId = parent.id
    WHERE parent.accountId = ?1 AND child.accountId <> ?1
   LIMIT 1`);
   });

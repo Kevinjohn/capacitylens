@@ -88,6 +88,8 @@ function SelectContent({
   );
 }
 
+// CapacityLens uses Radix's labelled group structure for mixed-domain product selects so the
+// grouping remains available to assistive technology instead of relying on visual separators.
 function SelectLabel({
   className,
   ...props

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { initializeOpenDb, openDb } from "./db";
 import {
+  ALLOCATION_PROJECT_INDEX_V35,
   FOREIGN_KEY_CHILD_INDEXES_V23,
   TENANT_ENTITY_ACCOUNT_INDEXES_V21,
   assertTenantEntityIndexesCurrent,
@@ -28,7 +29,7 @@ describe("tenant entity account indexes", () => {
 
   it("uses a child-column index for every non-account foreign-key lookup", () => {
     const db = openDb(":memory:");
-    for (const { table, column, index } of FOREIGN_KEY_CHILD_INDEXES_V23) {
+    for (const { table, column, index } of [...FOREIGN_KEY_CHILD_INDEXES_V23, ALLOCATION_PROJECT_INDEX_V35]) {
       const statement = `SELECT id FROM ${table} WHERE ${column} = ?`;
       const plan = db.prepare(`EXPLAIN QUERY PLAN ${statement}`).all("parent-id") as Array<{ detail: string }>;
       expect(
@@ -36,6 +37,14 @@ describe("tenant entity account indexes", () => {
         `${statement}: ${plan.map((step) => step.detail).join(" | ")}`,
       ).toBe(true);
     }
+    db.close();
+  });
+
+  it("refuses a current database without the allocation-project child index", () => {
+    const db = openDb(":memory:");
+    db.exec("DROP INDEX idx_allocations_projectId");
+
+    expect(() => assertTenantEntityIndexesCurrent(db)).toThrow(/idx_allocations_projectId/);
     db.close();
   });
 

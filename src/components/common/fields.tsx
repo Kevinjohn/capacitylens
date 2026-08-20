@@ -13,6 +13,7 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectSeparator,
   SelectTrigger,
   SelectValue,
@@ -377,6 +378,10 @@ export function DateField({
 export interface Option {
   value: string;
   label: string;
+  /** Labels a contiguous option group for assistive technology and visual scanning. */
+  groupLabel?: string;
+  /** Stable semantic identity for a translated group label. */
+  groupKey?: "all-projects" | "project";
   /** Adds a structural, non-selectable divider immediately before this option. */
   separatorBefore?: boolean;
   /** Renders the option un-pickable while still SELECTABLE-by-value: a select whose current value
@@ -423,6 +428,13 @@ export function SelectField({
   const markDirty = useMarkFormDirty();
   const selectedOption = options.find((option) => option.value === value);
   const unresolvedValue = value !== "" && selectedOption === undefined;
+  const optionGroups = options.reduce<Array<{ key?: string; label?: string; options: Option[] }>>((groups, option) => {
+    const previous = groups.at(-1);
+    const key = option.groupKey ?? option.groupLabel;
+    if (previous && previous.key === key) previous.options.push(option);
+    else groups.push({ key, label: option.groupLabel, options: [option] });
+    return groups;
+  }, []);
   return (
     <Field
       data-invalid={invalid || undefined}
@@ -452,16 +464,19 @@ export function SelectField({
           <SelectValue placeholder={placeholder}>{selectedOption?.label ?? placeholder ?? value}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectGroup>
-            {options.map((o) => (
-              <Fragment key={o.value}>
-                {o.separatorBefore && <SelectSeparator />}
-                <SelectItem value={encodeSelectValue(o.value)} data-value={o.value} disabled={o.disabled}>
-                  {o.label}
-                </SelectItem>
-              </Fragment>
-            ))}
-          </SelectGroup>
+          {optionGroups.map((group, index) => (
+            <SelectGroup key={`${group.key ?? "ungrouped"}-${index}`}>
+              {group.label && <SelectLabel>{group.label}</SelectLabel>}
+              {group.options.map((o) => (
+                <Fragment key={o.value}>
+                  {o.separatorBefore && <SelectSeparator />}
+                  <SelectItem value={encodeSelectValue(o.value)} data-value={o.value} disabled={o.disabled}>
+                    {o.label}
+                  </SelectItem>
+                </Fragment>
+              ))}
+            </SelectGroup>
+          ))}
         </SelectContent>
       </Select>
     </Field>

@@ -29,5 +29,6 @@ Plans change constantly — a booking stretches, drops to part-time, becomes ten
 - ✅ Setting **Status** = _Tentative_ renders the bar with a dashed border + hatched overlay and `data-status="tentative"`; setting it to _Completed_ prefixes the label with a `✓` and sets `data-status="completed"`.
 - ✅ Adding a **Note** adds a trailing `•` marker to the bar label (and the note shows in the hover popover).
 - ✅ Saving another field without editing a historical multiline note preserves that stored note exactly; directly editing **Note** adopts the field's single-line value.
+- ✅ An attributed All-projects allocation reopens with its project selected and keeps the attribution when another field changes. A legacy unattributed All-projects allocation reopens as **No specific project** and stays unattributed unless explicitly assigned.
 - ✅ Edit uses the same responsive 25/75 label/control layout as create, including its **Assignee**
   row, while keeping every existing value and omitting the create-only **Repeat** controls.

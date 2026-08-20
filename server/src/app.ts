@@ -78,6 +78,7 @@ import {
 // Shared lifecycle allow-list also protects the generic entity routes; the dedicated transition
 // pipeline is registered through routes/lifecycleRoutes below.
 import { archive, isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
+import { allocationAttributionAllowed } from "@capacitylens/shared/lib/integrity";
 import { seed } from "@capacitylens/shared/data/seed";
 import { TABLES } from "./tables";
 import {
@@ -105,6 +106,8 @@ import {
 } from "./writePipeline";
 import {
   type Db,
+  clearAllocationAttributionForActivities,
+  type RewrittenAllocationRevision,
   deleteRow,
   getRow,
   insertAll,
@@ -137,6 +140,35 @@ import { nextServerRevision } from "./revision";
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
 const BODY_LIMIT = 5 * 1024 * 1024;
+
+function writeActivityRow(
+  db: Db,
+  projection: BatchStateProjection | undefined,
+  row: Record<string, unknown>,
+  existing: Record<string, unknown> | undefined,
+): RewrittenAllocationRevision[] {
+  upsertRow(db, "activities", row);
+  projection?.upsert("activities", row);
+  const id = row.id as string;
+  if (projection) {
+    projection.reconcileAllocationAttributionForActivity(id, allocationAttributionAllowed(row.kind));
+    return [];
+  }
+  // A newly created activity cannot have an allocation referencing it yet, so POST/PUT-create
+  // never needs a sweep. Direct writes retain their immediate database reconciliation.
+  if (!existing || allocationAttributionAllowed(row.kind)) return [];
+  return clearAllocationAttributionForActivities(db, new Set([id]));
+}
+
+// Activity writes add rewritten allocation revisions beside the ordinary activity echo so
+// direct-route callers can reconcile the same server-owned cascade as batch callers.
+function shapeActivityWriteEcho(
+  entity: string,
+  echo: Record<string, unknown>,
+  rewrittenAllocations: RewrittenAllocationRevision[],
+): Record<string, unknown> {
+  return entity === "activities" ? { ...echo, rewrittenAllocations } : echo;
+}
 
 // Cap on ops per POST /api/batch request (the MAX_IMPORT_RECORDS precedent, applied to the sync
 // path). BODY_LIMIT bounds request BYTES, but not request WORK: every operation is sanitized,
@@ -2035,7 +2067,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           row.id as string,
           appliedRequestedFieldNames(entity, requestRow, undefined, row),
         );
-        commitProductAudit(reply, auditRecord, () => insertRow(db, entity, row));
+        commitProductAudit(reply, auditRecord, () => {
+          insertRow(db, entity, row);
+        });
         return reply.code(201).send(row);
       } catch (err) {
         return sendFail(reply, err);
@@ -2111,16 +2145,20 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           id,
           appliedRequestedFieldNames(entity, body, existing, row),
         );
+        let rewrittenAllocations: RewrittenAllocationRevision[] = [];
         commitProductAudit(reply, auditRecord, () => {
           if (generatedReplacement) {
             replaceGeneratedBuiltin(db, scopedState, generatedReplacement, row);
+          } else if (entity === "activities") {
+            rewrittenAllocations = writeActivityRow(db, undefined, row, existing);
           } else {
             // Validation already ran in the funnel above.
             upsertRow(db, entity, row);
           }
         });
         // A write response is a read: apply the same note/private-name projections as /api/state.
-        return reply.code(200).send(redactWriteEcho(entity, row, vis));
+        const echo = redactWriteEcho(entity, row, vis);
+        return reply.code(200).send(shapeActivityWriteEcho(entity, echo, rewrittenAllocations));
       } catch (err) {
         return sendFail(reply, err);
       }
@@ -2192,6 +2230,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           entity === "clients" || lookup === undefined ? store.readFullSlice(scopeId) : emptyAppData();
         validateWrite(validationState, entity, stamped, existing, lookup);
         // Record only requested keys whose sanitized, pinned result actually differs from storage.
+        let rewrittenAllocations: RewrittenAllocationRevision[] = [];
         commitProductAudit(
           reply,
           buildAuditRecord(
@@ -2202,10 +2241,17 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             id,
             appliedRequestedFieldNames(entity, req.body, existing, stamped),
           ),
-          () => upsertRow(db, entity, stamped),
+          () => {
+            if (entity === "activities") {
+              rewrittenAllocations = writeActivityRow(db, undefined, stamped, existing);
+            } else {
+              upsertRow(db, entity, stamped);
+            }
+          },
         );
         // The merge carries stored protected fields into `merged`; apply the normal read projection.
-        return reply.code(200).send(redactWriteEcho(entity, stamped, vis));
+        const echo = redactWriteEcho(entity, stamped, vis);
+        return reply.code(200).send(shapeActivityWriteEcho(entity, echo, rewrittenAllocations));
       } catch (err) {
         return sendFail(reply, err);
       }
@@ -2463,6 +2509,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         id: string;
         createdAt: string;
         updatedAt: string;
+        rewrite?: true;
       }> = [];
       const lifecycleArchives: Array<{ table: string; id: string; archived: boolean }> = [];
       let supersededSyncBatch = false;
@@ -2561,7 +2608,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                       throw new ValidationError("Each PUT op needs a row whose id matches the op id.");
                     }
                     // accountId is immutable (ownsRow): a write must not re-home an existing row.
-                    const existing = getRow(db, table, id);
+                    const persistedExisting = getRow(db, table, id);
+                    const existing =
+                      table === "allocations"
+                        ? (projection.row("allocations", id) as Record<string, unknown> | undefined)
+                        : persistedExisting;
                     // Built-in Internal guard (Finding 7 — ONE implementation). The batch's own minted-
                     // Internal exception accepts only the canonical duplicate a client emitted alongside
                     // the account create; malformed or re-homed bodies roll the whole batch back.
@@ -2623,8 +2674,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                     // 409 + { current } shape.
                     if (
                       (opts.optimisticConcurrency !== false || syncOrder !== null) &&
-                      isStaleWrite(existing, row as Record<string, unknown>) &&
-                      !(syncOrder && isSameSessionSuccessor(db, syncOrder, table, id, existing))
+                      isStaleWrite(persistedExisting, row as Record<string, unknown>) &&
+                      !(syncOrder && isSameSessionSuccessor(db, syncOrder, table, id, persistedExisting))
                     ) {
                       // The 409's `current` payload is a READ of the stored row: redact the time-off
                       // note for a note-blind writer, exactly like the write echo (P1.6) — the conflict
@@ -2632,7 +2683,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                       throw new StaleWriteError(
                         redactWriteEcho(
                           table,
-                          existing,
+                          persistedExisting,
                           fieldVisFor(table, (row as { accountId?: unknown }).accountId),
                         ),
                       );
@@ -2662,8 +2713,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                       projection.replaceGeneratedBuiltin(generatedReplacement, clean);
                     } else {
                       validateWrite(state, table, clean, existing, projection);
-                      upsertRow(db, table, clean);
-                      projection.upsert(table as AppDataKey, clean);
+                      if (table === "activities") {
+                        writeActivityRow(db, projection, clean, existing);
+                      } else {
+                        upsertRow(db, table, clean);
+                        projection.upsert(table as AppDataKey, clean);
+                      }
                     }
                     if (table === "accounts" && !existing) {
                       const internalClient = buildInternalClient(id, clean.createdAt as string) as unknown as Record<
@@ -2756,6 +2811,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                     throw new ValidationError(`Unknown op method: ${String(method)}`);
                   }
                 }
+                for (const revision of projection.rewrittenAllocationRevisions()) {
+                  const allocation = projection.row("allocations", revision.id);
+                  if (!allocation) throw new Error("Projected allocation rewrite is missing its final row.");
+                  upsertRow(db, "allocations", allocation);
+                  revisions.push({ table: "allocations", ...revision, rewrite: true });
+                }
                 for (const record of auditRecords) {
                   if (record) enqueueAudit(db, record);
                 }
@@ -2801,8 +2862,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const auditFailed = !drainProductAudit(reply);
         if (auditFailed) reply.header("x-capacitylens-audit-warning", "true");
         // `applied` is the atomic receipt count: every submitted op was accepted and processed, so
-        // the sync client can require equality with ops.length. `changed` excludes idempotent
-        // deletes of absent rows and therefore matches the projected audit/revision mutation count.
+        // the sync client can require equality with ops.length. `changed` counts submitted mutations
+        // and excludes idempotent deletes; revisions may additionally report implicit allocation
+        // rewrites caused by an activity kind change.
         return reply.code(200).send({
           ok: true,
           applied: ops.length,

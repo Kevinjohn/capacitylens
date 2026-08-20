@@ -17,10 +17,10 @@ export default {
       reporter: ["text-summary", "html", "lcov"],
       include: ["src/**/*.ts"],
       exclude: ["src/**/*.test.ts", "src/**/*.spec.ts", "src/fixtures/**"],
-      // Baseline measured 2026-08-18: 87.77% statements, 80.46% branches, 92.04% functions,
-      // 89.73% lines. Thresholds sit just below so the gate catches regressions without
+      // Baseline measured 2026-08-18: 89.69% statements, 82.93% branches, 92.63% functions,
+      // 91.44% lines. Thresholds sit just below so the gate catches regressions without
       // flaking on small refactors; ratchet them upward as coverage improves.
-      thresholds: { statements: 85, branches: 78, functions: 90, lines: 87 },
+      thresholds: { statements: 87, branches: 80, functions: 90, lines: 89 },
     },
   },
 };

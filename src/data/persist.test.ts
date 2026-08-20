@@ -16,11 +16,12 @@ import {
   BatchValidationError,
   BatchTooLargeError,
 } from "./ServerSyncAdapter";
-import { LoadError, type PersistenceAdapter } from "./PersistenceAdapter";
+import { LoadError, type AllocationRewriteRevision, type PersistenceAdapter } from "./PersistenceAdapter";
 import { useStore } from "../store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { seed } from "@capacitylens/shared/data/seed";
+import { deleteProjectCascade } from "@capacitylens/shared/lib/integrity";
 import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "../test/fixtures";
 import { persistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 
@@ -42,6 +43,136 @@ beforeEach(() => {
 });
 
 describe("attachPersistence", () => {
+  it("publishes allocation rewrites into the visible Zustand row", async () => {
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Bruce Wayne",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#111111",
+    });
+    const client = useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
+    const project = useStore.getState().addProject({ name: "Project", clientId: client.id, color: "#222222" });
+    const activity = useStore.getState().addActivity({ name: "Shared", kind: "repeatable" });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      projectId: project.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const rewrittenAt = "2030-01-02T00:00:00.000Z";
+    let publish: ((revisions: readonly AllocationRewriteRevision[]) => void) | null = null;
+    let rewrote = false;
+    const adapter: PersistenceAdapter = {
+      loadAll: async () => emptyAppData(),
+      saveAll: async (data) => {
+        if (!rewrote) {
+          rewrote = true;
+          const flushedAllocation = data.allocations.find((row) => row.id === allocation.id)!;
+          publish?.([
+            {
+              id: allocation.id,
+              createdAt: allocation.createdAt,
+              updatedAt: rewrittenAt,
+              flushedUpdatedAt: flushedAllocation.updatedAt,
+            },
+          ]);
+        }
+      },
+      setAllocationRewriteHandler: (handler) => {
+        publish = handler;
+      },
+    };
+    const detach = attachPersistence(useStore, adapter, 0);
+
+    useStore.getState().updateAllocation(allocation.id, { note: "Trigger save" });
+    await vi.waitFor(() => expect(useStore.getState().data.allocations[0].updatedAt).toBe(rewrittenAt));
+
+    expect(useStore.getState().data.allocations[0]).not.toHaveProperty("projectId");
+    detach();
+  });
+
+  it("keeps an allocation edit made while its rewrite receipt is in flight dirty", async () => {
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Bruce Wayne",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#111111",
+    });
+    const client = useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
+    const firstProject = useStore.getState().addProject({ name: "First", clientId: client.id, color: "#222222" });
+    const secondProject = useStore.getState().addProject({ name: "Second", clientId: client.id, color: "#333333" });
+    const activity = useStore.getState().addActivity({ name: "Shared", kind: "repeatable" });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      projectId: firstProject.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const rewrittenAt = "2030-01-02T00:00:00.000Z";
+    let publish: ((revisions: readonly AllocationRewriteRevision[]) => void) | null = null;
+    let releaseReceipt: (() => void) | null = null;
+    const flushed = new Promise<void>((resolve) => {
+      releaseReceipt = resolve;
+    });
+    const saved: AppData[] = [];
+    const adapter: PersistenceAdapter = {
+      loadAll: async () => emptyAppData(),
+      saveAll: async (data) => {
+        saved.push(data);
+        if (saved.length !== 1) return;
+        await flushed;
+        const flushedAllocation = data.allocations.find((row) => row.id === allocation.id)!;
+        publish?.([
+          {
+            id: allocation.id,
+            createdAt: allocation.createdAt,
+            updatedAt: rewrittenAt,
+            flushedUpdatedAt: flushedAllocation.updatedAt,
+          },
+        ]);
+      },
+      setAllocationRewriteHandler: (handler) => {
+        publish = handler;
+      },
+    };
+    const detach = attachPersistence(useStore, adapter, 0);
+
+    useStore.getState().updateAllocation(allocation.id, { note: "Flushed edit" });
+    await vi.waitFor(() => expect(saved).toHaveLength(1));
+    const flushedStamp = saved[0].allocations.find((row) => row.id === allocation.id)!.updatedAt;
+    useStore.getState().updateAllocation(allocation.id, { projectId: secondProject.id });
+    const concurrentStamp = useStore.getState().data.allocations.find((row) => row.id === allocation.id)!.updatedAt;
+    expect(concurrentStamp).not.toBe(flushedStamp);
+
+    releaseReceipt!();
+    await vi.waitFor(() => expect(saved).toHaveLength(2));
+
+    const visible = useStore.getState().data.allocations.find((row) => row.id === allocation.id)!;
+    expect(visible.projectId).toBe(secondProject.id);
+    expect(visible.updatedAt).toBe(concurrentStamp);
+    expect(saved[1].allocations.find((row) => row.id === allocation.id)).toMatchObject({
+      projectId: secondProject.id,
+      updatedAt: concurrentStamp,
+    });
+    detach();
+  });
+
   it("rejects a second live persistence owner", () => {
     const detach = attachPersistence(useStore, new InMemoryDemoAdapter(), 0);
     try {
@@ -60,6 +191,37 @@ describe("attachPersistence", () => {
     const loaded = await adapter.loadAll();
     expect(loaded.clients).toHaveLength(1);
     detach();
+  });
+
+  it("persists the demo project cascade with attributed bookings unbound", async () => {
+    const adapter = new InMemoryDemoAdapter();
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Bruce Wayne",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#111111",
+    });
+    const client = useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
+    const project = useStore.getState().addProject({ name: "Project", clientId: client.id, color: "#222222" });
+    const activity = useStore.getState().addActivity({ name: "Shared", kind: "repeatable" });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      projectId: project.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+
+    await adapter.saveAll(deleteProjectCascade(useStore.getState().data, project.id, "2026-06-02T00:00:00.000Z"));
+    const saved = await adapter.loadAll();
+    expect(saved.allocations.find((row) => row.id === allocation.id)?.projectId).toBeUndefined();
   });
 
   it("stops persisting after detach", async () => {
@@ -2357,6 +2519,373 @@ describe("bootstrap", () => {
     expect(saveAll).not.toHaveBeenCalled();
 
     useStore.getState().setConnectionError(false);
+    detach();
+  });
+
+  it.each([
+    ["a corrupt LoadError", new LoadError("corrupt", "bad bytes")],
+    ["a plain Error", new Error("unexpected load failure")],
+  ])("routes %s to storage recovery rather than the connection screen", async (_label, failure) => {
+    useStore.getState().setLoadError(false);
+    useStore.getState().setConnectionError(false);
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const detach = await bootstrap(
+      useStore,
+      { loadAll: () => Promise.reject(failure), saveAll },
+      { debounceMs: 0, seedIfEmpty: seed() },
+    );
+
+    expect(useStore.getState().loadError).toBe(true);
+    expect(useStore.getState().connectionError).toBe(false);
+    useStore.getState().addAccount({ name: "Unsaved", color: "#111111" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(saveAll).not.toHaveBeenCalled();
+    useStore.getState().setLoadError(false);
+    detach();
+  });
+});
+
+describe("persistence coordinator fault-injection branches", () => {
+  it("owns a reconciliation failure after sign-out without starting a reload", async () => {
+    let rejectSave!: (error: Error) => void;
+    const saveAll = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectSave = reject;
+        }),
+    );
+    const loadAll = vi.fn().mockResolvedValue(emptyAppData());
+    const onError = vi.fn();
+    const detach = attachPersistence(useStore, { loadAll, saveAll }, 0, onError, undefined, true);
+    useStore.getState().addClient({ name: "Pending", color: "#111111" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    useStore.getState().setActiveAccount(null);
+    rejectSave(new BatchCommitUncertainError("uncertain"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(BatchCommitUncertainError);
+    expect(loadAll).not.toHaveBeenCalled();
+    await expect(flushPendingWrites()).resolves.toBe(false);
+    detach();
+  });
+
+  it("discards a superseded non-null account load without running the sign-out rebase", async () => {
+    const a1 = {
+      ...emptyAppData(),
+      accounts: [{ id: "a1", name: "Alpha", color: "#1", createdAt: "t", updatedAt: "t" }],
+    };
+    const a2 = a2Slice();
+    let releaseA2!: () => void;
+    const loadAll = vi.fn((id?: string) =>
+      id === "a2"
+        ? new Promise<AppData>((resolve) => {
+            releaseA2 = () => resolve(a2);
+          })
+        : Promise.resolve(a1),
+    );
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setAccountSummaries([
+      { id: "a1", name: "Alpha", role: "owner" },
+      { id: "a2", name: "Beta", role: "owner" },
+    ]);
+    const detach = attachPersistence(
+      useStore,
+      { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
+      0,
+      undefined,
+      undefined,
+      true,
+    );
+    useStore.getState().setActiveAccount("a2");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    useStore.getState().setActiveAccount("a1");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    releaseA2();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(useStore.getState().activeAccountId).toBe("a1");
+    expect(useStore.getState().data.accounts.map((row) => row.id)).toEqual(["a1"]);
+    expect(persistenceDiagnosticsSnapshot().reloadsSuperseded).toBeGreaterThan(0);
+    detach();
+  });
+
+  it("retries the current store data when an older failure lands after the latest snapshot was acknowledged", async () => {
+    let rejectFirst!: (error: Error) => void;
+    const first = new Promise<void>((_resolve, reject) => {
+      rejectFirst = reject;
+    });
+    const saveAll = vi.fn().mockReturnValueOnce(first).mockResolvedValue(undefined);
+    const detach = attachPersistence(useStore, { loadAll: async () => emptyAppData(), saveAll }, 0);
+    useStore.getState().addClient({ name: "First", color: "#111111" });
+    useStore.getState().addClient({ name: "Latest", color: "#222222" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    rejectFirst(new Error("older failure"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    window.dispatchEvent(new Event("online"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(saveAll).toHaveBeenCalledTimes(3);
+    expect((saveAll.mock.calls[2]?.[0] as AppData).clients.map((row) => row.name)).toEqual(["First", "Latest"]);
+    detach();
+  });
+
+  it("does not replay an armed retry after disposal", async () => {
+    vi.useFakeTimers();
+    try {
+      const saveAll = vi.fn().mockRejectedValue(new Error("offline"));
+      const detach = attachPersistence(useStore, { loadAll: async () => emptyAppData(), saveAll }, 0);
+      useStore.getState().addClient({ name: "Retry", color: "#111111" });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(saveAll).toHaveBeenCalledOnce();
+
+      detach();
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(saveAll).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not replay an armed retry while an external suspension is active", async () => {
+    vi.useFakeTimers();
+    try {
+      const saveAll = vi.fn().mockRejectedValue(new Error("offline"));
+      const detach = attachPersistence(
+        useStore,
+        { loadAll: async () => emptyAppData(), saveAll },
+        0,
+        undefined,
+        undefined,
+        true,
+      );
+      useStore.getState().addClient({ name: "Retry", color: "#111111" });
+      await vi.advanceTimersByTimeAsync(0);
+      const resume = suspendServerWrites();
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(saveAll).toHaveBeenCalledOnce();
+      resume();
+      detach();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each(["resolve", "reject"] as const)(
+    "ignores a teardown keepalive that settles after disposal (%s)",
+    async (settlement) => {
+      let settleKeepalive!: () => void;
+      const keepalive = new Promise<void>((resolve, reject) => {
+        settleKeepalive = () => (settlement === "resolve" ? resolve() : reject(new Error("late failure")));
+      });
+      const ordinary = new Promise<void>(() => undefined);
+      const saveAll = vi.fn((_data: AppData, opts?: { unload?: boolean }) => (opts?.unload ? keepalive : ordinary));
+      const onError = vi.fn();
+      const onSuccess = vi.fn();
+      const detach = attachPersistence(
+        useStore,
+        { loadAll: async () => emptyAppData(), saveAll },
+        0,
+        onError,
+        onSuccess,
+      );
+      useStore.getState().addClient({ name: "Pending", color: "#111111" });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      window.dispatchEvent(new Event("pagehide"));
+      expect(saveAll).toHaveBeenCalledTimes(2);
+      detach();
+      settleKeepalive();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(onError).not.toHaveBeenCalled();
+      expect(onSuccess).not.toHaveBeenCalled();
+    },
+  );
+
+  it("makes resume idempotent and keeps a nested external suspension active until its final owner resumes", async () => {
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const detach = attachPersistence(
+      useStore,
+      { loadAll: async () => emptyAppData(), saveAll },
+      0,
+      undefined,
+      undefined,
+      true,
+    );
+    const resumeOuter = suspendServerWrites();
+    const resumeInner = suspendServerWrites();
+    useStore.getState().addClient({ name: "Parked", color: "#111111" });
+
+    resumeInner();
+    resumeInner();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(saveAll).not.toHaveBeenCalled();
+
+    resumeOuter();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(saveAll).toHaveBeenCalledOnce();
+    detach();
+  });
+
+  it("returns skipped without onError when a detached owner receives a late refresh rejection", async () => {
+    const initial = a2Slice();
+    let rejectRefresh!: (error: Error) => void;
+    let calls = 0;
+    const loadAll = vi.fn(() => {
+      calls += 1;
+      if (calls === 1) return Promise.resolve(initial);
+      return new Promise<AppData>((_resolve, reject) => {
+        rejectRefresh = reject;
+      });
+    });
+    const onError = vi.fn();
+    const detach = await attachActiveA2({ loadAll, saveAll: vi.fn().mockResolvedValue(undefined) }, 0, onError);
+    const refreshing = refreshActiveAccountSlice("a2");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    detach();
+    rejectRefresh(new Error("late load failure"));
+
+    await expect(refreshing).resolves.toBe("skipped");
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("collapses concurrent focus refreshes behind one in-flight load", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
+    const initial = a2Slice();
+    let releaseRefresh!: () => void;
+    let calls = 0;
+    const loadAll = vi.fn(() => {
+      calls += 1;
+      if (calls === 1) return Promise.resolve(initial);
+      return new Promise<AppData>((resolve) => {
+        releaseRefresh = () => resolve(initial);
+      });
+    });
+    const detach = await attachActiveA2({ loadAll, saveAll: vi.fn().mockResolvedValue(undefined) });
+    now.mockReturnValue(131_000);
+
+    window.dispatchEvent(new Event("focus"));
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(loadAll).toHaveBeenCalledTimes(2);
+    releaseRefresh();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    detach();
+    now.mockRestore();
+  });
+
+  it("does not consume the focus throttle when the account switch reload fails", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
+    const loadAll = vi.fn().mockRejectedValueOnce(new Error("switch failed")).mockResolvedValueOnce(a2Slice());
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    const detach = attachPersistence(
+      useStore,
+      { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
+      0,
+      vi.fn(),
+      undefined,
+      true,
+    );
+    useStore.getState().setActiveAccount("a2");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(loadAll).toHaveBeenCalledTimes(2);
+    detach();
+    now.mockRestore();
+  });
+
+  it("waits for an in-flight-only flush round and reports quiescence after it settles", async () => {
+    let resolveSave!: () => void;
+    const saveAll = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const detach = attachPersistence(
+      useStore,
+      { loadAll: async () => emptyAppData(), saveAll },
+      0,
+      undefined,
+      undefined,
+      true,
+    );
+    useStore.getState().addClient({ name: "In flight", color: "#111111" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const flushing = flushPendingWrites();
+    resolveSave();
+    await expect(flushing).resolves.toBe(true);
+    detach();
+  });
+
+  it("refuses coordinator flushes while an authoritative reload is required", async () => {
+    const initial = a2Slice();
+    let holdReload = false;
+    const loadAll = vi.fn(() => (holdReload ? new Promise<AppData>(() => undefined) : Promise.resolve(initial)));
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const detach = await attachActiveA2({ loadAll, saveAll });
+    holdReload = true;
+    saveAll.mockRejectedValueOnce(new BatchCommitUncertainError("uncertain"));
+    useStore.getState().addClient({ name: "Uncertain", color: "#111111" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    await expect(flushPendingWrites()).resolves.toBe(false);
+    detach();
+  });
+
+  it("routes a teardown reconciliation failure to an authoritative reload instead of backoff", async () => {
+    vi.useFakeTimers();
+    try {
+      const slice = a2Slice();
+      const loadAll = vi.fn().mockResolvedValue(slice);
+      const saveAll = vi.fn((_data: AppData, opts?: { unload?: boolean }) =>
+        opts?.unload ? Promise.reject(new BatchConflictError("teardown conflict")) : Promise.resolve(undefined),
+      );
+      const detachPromise = attachActiveA2({ loadAll, saveAll }, 300);
+      await vi.advanceTimersByTimeAsync(5);
+      const detach = await detachPromise;
+      const loadsAfterPick = loadAll.mock.calls.length;
+      useStore.getState().addClient({ name: "Pending", color: "#111111" });
+      window.dispatchEvent(new Event("pagehide"));
+      await vi.advanceTimersByTimeAsync(5);
+
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
+      const savesAfterReload = saveAll.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(35_000);
+      expect(saveAll.mock.calls.length).toBe(savesAfterReload);
+      detach();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("skips the post-reconciliation acknowledgement when the active account changes mid-reload", async () => {
+    const slice = a2Slice();
+    let releaseReload!: () => void;
+    let loads = 0;
+    const loadAll = vi.fn(() => {
+      loads += 1;
+      if (loads === 1) return Promise.resolve(slice);
+      return new Promise<AppData>((resolve) => {
+        releaseReload = () => resolve(slice);
+      });
+    });
+    const saveAll = vi.fn().mockRejectedValueOnce(new BatchCommitUncertainError("uncertain"));
+    const detach = await attachActiveA2({ loadAll, saveAll });
+    saveAll.mockClear();
+    saveAll.mockRejectedValueOnce(new BatchCommitUncertainError("uncertain"));
+    useStore.getState().addClient({ name: "Uncertain", color: "#111111" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(releaseReload).toBeTypeOf("function");
+
+    useStore.getState().setActiveAccount(null);
+    releaseReload();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(saveAll).toHaveBeenCalledOnce();
     detach();
   });
 });

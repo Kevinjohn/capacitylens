@@ -34,13 +34,14 @@ describe("canonical palette", () => {
 });
 
 const TS = "t";
-const alloc = (resourceId: string, activityId: string): Allocation => ({
+const alloc = (resourceId: string, activityId: string, projectId?: string): Allocation => ({
   id: "a",
   accountId: "acct",
   createdAt: TS,
   updatedAt: TS,
   resourceId,
   activityId,
+  ...(projectId ? { projectId } : {}),
   startDate: "2026-06-01",
   endDate: "2026-06-02",
   hoursPerDay: 0,
@@ -137,7 +138,7 @@ describe("resolveBarColor", () => {
     expect(resolveProjectColor(saved, internalClient, "palette")).toBe("#abcdef");
   });
 
-  it("does not treat a project-less cross-project activity as internal work", () => {
+  it("does not treat a project-less all-projects activity as internal work", () => {
     const crossProject: Activity = {
       id: "cross",
       accountId: "acct",
@@ -148,6 +149,24 @@ describe("resolveBarColor", () => {
     };
     const m = maps({ activities: [crossProject], resources: [resource("r", "person")] });
     expect(resolveBarColor(alloc("r", "cross"), m)).toBe("#123456");
+  });
+
+  it("colours an attributed repeatable allocation by its effective project", () => {
+    const repeatable: Activity = {
+      id: "repeatable",
+      accountId: "acct",
+      createdAt: TS,
+      updatedAt: TS,
+      name: "Design",
+      kind: "repeatable",
+    };
+    const m = maps({
+      activities: [repeatable],
+      projects: [project("p", "#abcdef")],
+      resources: [resource("r", "person")],
+    });
+
+    expect(resolveBarColor(alloc("r", "repeatable", "p"), m)).toBe("#abcdef");
   });
 
   it("falls back to the client's colour when its project has no colour of its own", () => {

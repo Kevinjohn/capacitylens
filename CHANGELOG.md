@@ -7,9 +7,37 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Made the allocation guide's Internal, All-projects and Project-specific activity model explicit,
+  with real allocation-form screenshots showing where each kind is available.
+
+## [0.57.0-alpha.1] — 2026-08-19
+
 - Protected `main` against deletion and force pushes while retaining the low-noise post-merge CI
   model, remediated the known dependency advisories without audit exceptions, and made packaged
   builds, SPDX SBOMs and recognized provenance bundles part of every published release.
+
+### Fixed
+
+- Saving several changes at once now applies them strictly in order: a booking attributed to a
+  project after its activity was changed back to **All projects** in the same save keeps that
+  attribution instead of silently losing it.
+- Re-attributing a booking while an earlier save is still in flight no longer discards that edit
+  when the server's reply arrives; the edit is kept and saved with the next change.
+- Changing an activity's kind away from **All projects** no longer fails with a spurious
+  "changed while you were editing" conflict when its bookings carried project attribution.
+- A booking whose activity record is missing no longer appears under the Internal client filter.
+- A saved edit that changes an activity's kind can no longer leave one of its bookings attributed
+  to a project, whatever order the changes reach the server in, and other sessions now learn about
+  bookings the server un-attributes on its own.
+- Creating an activity inline in the allocation dialog now places it inside its group instead of
+  splitting the list with a duplicate group heading.
+- Other sessions no longer hit spurious "changed while you were editing" conflicts after the
+  server un-attributes bookings during an activity kind change - the save receipt now carries
+  those rewrites and every session applies them.
+- Editing a placeholder's booking whose activity record is missing opens in the placeholder's
+  bound project again instead of the Internal scope.
 
 - Reassessed alpha4 against OWASP ASVS 5.0.0, the OWASP Top 10 and API Security Top 10; refreshed
   the threat model and security control inventories, recorded the fixed session/OIDC findings, and
@@ -20,6 +48,15 @@ new features and **patch** versions carry fixes.
 - **Installation docs now start with the deployment choice.** Docker Compose and direct
   Node 24 installation are presented as separate, supported routes, and Docker is no
   longer described as a general prerequisite.
+
+## [0.56.0-alpha.1] — 2026-08-19
+
+### Changed
+
+- **Shared activities can count towards real projects.** An **All projects** activity can be booked
+  under any project; each allocation keeps that attribution for labels, colours, filters, repeat
+  series and lifecycle changes, while **No specific project** remains an unattributed option.
+- Renamed **Cross-project** activities to **All projects** throughout the product and documentation.
 
 ## [0.55.0-alpha.4] — 2026-08-17
 
@@ -3860,7 +3897,9 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.1...HEAD
+[0.57.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.56.0-alpha.1...v0.57.0-alpha.1
+[0.56.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...v0.56.0-alpha.1
 [0.55.0-alpha.4]: https://github.com/Kevinjohn/capacitylens/compare/v0.54.0-alpha.1...v0.55.0-alpha.4
 [0.54.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.7-alpha.1...v0.54.0-alpha.1
 [0.53.7-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.6-alpha.1...v0.53.7-alpha.1

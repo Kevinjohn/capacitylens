@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ReauthDialog } from "./ReauthDialog";
 import { reauthPending, requestReauth, resolveReauth, subscribeReauth } from "./reauthCoordinator";
 import type { AuthProviderInfo, AuthUser } from "./authContext";
+import { m } from "@/i18n";
 
 // DEFECT B — the "Confirm it's you" step-up dialog. Better Auth's client is mocked so we can drive a
 // success / failure without a network. The dialog resolves the coordinator on success (which the
@@ -70,6 +71,17 @@ afterEach(() => {
 const user: AuthUser = { id: "u1", email: "owner@acme.test" };
 
 describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
+  async function enterSecondFactor() {
+    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
+    render(<Harness user={user} />);
+    const outcome = requestReauth();
+    await screen.findByRole("heading", { name: "Confirm it's you" });
+    fireEvent.change(screen.getByTestId("reauth-password"), { target: { value: "correct horse" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await screen.findByTestId("reauth-2fa-code");
+    return { outcome };
+  }
+
   it("a pending re-auth request triggers the dialog", async () => {
     render(<Harness user={user} />);
     expect(screen.getByText("no-dialog")).toBeInTheDocument();
@@ -146,6 +158,31 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     expect(reauthPending()).toBe(true);
   });
 
+  it("fails locally when password re-auth has no user email", async () => {
+    render(<Harness user={null} />);
+    void requestReauth();
+    await screen.findByRole("heading", { name: "Confirm it's you" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.reauth_failed());
+    expect(signInEmail).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a network error and re-enables Confirm when password verification throws", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    signInEmail.mockRejectedValue(new TypeError("offline"));
+    render(<Harness user={user} />);
+    void requestReauth();
+    await screen.findByRole("heading", { name: "Confirm it's you" });
+
+    fireEvent.change(screen.getByTestId("reauth-password"), { target: { value: "correct horse" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
+    expect(screen.getByRole("button", { name: "Confirm" })).toBeEnabled();
+  });
+
   it("associates a rejected second factor with its authentication-code input", async () => {
     signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
     verifyTotp.mockResolvedValue({ data: null, error: { message: "Authentication code is incorrect." } });
@@ -163,6 +200,30 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     expect(alert).toHaveTextContent("Authentication code is incorrect.");
     expect(code).toHaveAttribute("aria-invalid", "true");
     expect(code).toHaveAttribute("aria-describedby", alert.id);
+  });
+
+  it("surfaces a network error and re-enables verification when the second factor throws", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    verifyTotp.mockRejectedValue(new TypeError("offline"));
+    await enterSecondFactor();
+
+    fireEvent.change(screen.getByTestId("reauth-2fa-code"), { target: { value: "123456" } });
+    fireEvent.click(screen.getByTestId("reauth-2fa-submit"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
+    expect(screen.getByTestId("reauth-2fa-submit")).toBeEnabled();
+  });
+
+  it("guards a double second-factor submission while verification is in flight", async () => {
+    verifyTotp.mockImplementation(() => new Promise(() => {}));
+    await enterSecondFactor();
+    fireEvent.change(screen.getByTestId("reauth-2fa-code"), { target: { value: "123456" } });
+
+    const submit = screen.getByTestId("reauth-2fa-submit");
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+
+    await waitFor(() => expect(verifyTotp).toHaveBeenCalledTimes(1));
   });
 
   it("uses a recovery code for in-place step-up without trusting the browser", async () => {
@@ -261,6 +322,101 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
         errorCallbackURL: "http://localhost:3000/team?tab=access&externalSignInError=1",
       }),
     );
+  });
+
+  it.each([
+    [{ message: "Provider refused the request." }, "Provider refused the request."],
+    [{}, m.reauth_failed()],
+  ])("surfaces an SSO re-auth failure and keeps the dialog retryable", async (error, expected) => {
+    signInOauth2.mockResolvedValue({ data: null, error });
+    render(
+      <Harness
+        authMode="sso"
+        user={user}
+        providers={[{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }]}
+      />,
+    );
+    void requestReauth();
+    await screen.findByRole("heading", { name: "Confirm it's you" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Single sign-on" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+    expect(screen.getByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue with Single sign-on" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+  });
+
+  it("surfaces a network error and clears busy when SSO re-auth throws", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    signInOauth2.mockRejectedValue(new TypeError("offline"));
+    render(
+      <Harness
+        authMode="sso"
+        user={user}
+        providers={[{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }]}
+      />,
+    );
+    void requestReauth();
+    await screen.findByRole("heading", { name: "Confirm it's you" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Single sign-on" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
+    expect(screen.getByRole("button", { name: "Continue with Single sign-on" })).toBeEnabled();
+  });
+
+  it("shows only Cancel when provider re-auth has no matching provider", async () => {
+    render(<Harness authMode="password" reauthMethod="provider" user={user} providers={[]} />);
+    void requestReauth();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_sso_unavailable());
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+  });
+
+  it("guards SSO modal dismissal while busy and cancels once idle", async () => {
+    signInOauth2.mockImplementation(() => new Promise(() => {}));
+    render(
+      <Harness
+        authMode="sso"
+        user={user}
+        providers={[{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }]}
+      />,
+    );
+    void requestReauth();
+    await screen.findByRole("heading", { name: "Confirm it's you" });
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Single sign-on" }));
+    await waitFor(() => expect(signInOauth2).toHaveBeenCalledOnce());
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(reauthPending()).toBe(true);
+    expect(screen.getByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
+
+    resolveReauth(false);
+    await screen.findByText("no-dialog");
+    const second = requestReauth();
+    await screen.findByRole("heading", { name: "Confirm it's you" });
+    fireEvent.keyDown(document, { key: "Escape" });
+    await expect(second).resolves.toBe(false);
+  });
+
+  it("guards the 2FA modal dismissal while busy", async () => {
+    verifyTotp.mockImplementation(() => new Promise(() => {}));
+    await enterSecondFactor();
+    fireEvent.change(screen.getByTestId("reauth-2fa-code"), { target: { value: "123456" } });
+    fireEvent.click(screen.getByTestId("reauth-2fa-submit"));
+    await waitFor(() => expect(verifyTotp).toHaveBeenCalledOnce());
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(reauthPending()).toBe(true);
+    expect(screen.getByTestId("reauth-2fa-code")).toBeInTheDocument();
+  });
+
+  it("cancels the 2FA modal with Escape while idle", async () => {
+    const { outcome } = await enterSecondFactor();
+    fireEvent.keyDown(document, { key: "Escape" });
+    await expect(outcome).resolves.toBe(false);
   });
 });
 

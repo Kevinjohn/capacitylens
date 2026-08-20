@@ -885,6 +885,58 @@ describe("SelectField", () => {
     expect(baseElement.querySelector('[data-slot="select-separator"]')).toHaveAttribute("aria-hidden", "true");
   });
 
+  it("renders contiguous options in accessible labelled groups", () => {
+    render(
+      <SelectField
+        label="Activities"
+        value="all-projects"
+        onChange={vi.fn()}
+        options={[
+          { value: "all-projects", label: "Planning", groupLabel: "All projects" },
+          { value: "project", label: "Delivery", groupLabel: "Project-specific" },
+        ]}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByLabelText("Activities"), { key: "ArrowDown" });
+    expect(
+      within(screen.getByRole("group", { name: "All projects" })).getByRole("option", { name: "Planning" }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("group", { name: "Project-specific" })).getByRole("option", { name: "Delivery" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps adjacent translated labels in one group when they share semantic identity", () => {
+    render(
+      <SelectField
+        label="Semantic groups"
+        value="planning"
+        onChange={vi.fn()}
+        options={[
+          {
+            value: "planning",
+            label: "Planning",
+            groupKey: "all-projects",
+            groupLabel: "All projects",
+          },
+          {
+            value: "design",
+            label: "Design",
+            groupKey: "all-projects",
+            groupLabel: "Tous les projets",
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByLabelText("Semantic groups"), { key: "ArrowDown" });
+    const group = screen.getByRole("group", { name: "All projects" });
+    expect(within(group).getByRole("option", { name: "Planning" })).toBeInTheDocument();
+    expect(within(group).getByRole("option", { name: "Design" })).toBeInTheDocument();
+    expect(screen.getAllByRole("group")).toHaveLength(1);
+  });
+
   it("round-trips empty and sentinel-shaped option values without collision", () => {
     const onChange = vi.fn();
     const { rerender } = render(

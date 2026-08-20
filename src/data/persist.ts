@@ -5,6 +5,7 @@ import type { StoreState } from "../store/useStore";
 import { LoadError, type PersistenceAdapter } from "./PersistenceAdapter";
 import { BatchReconciliationError, BatchTooLargeError } from "./ServerSyncAdapter";
 import { applyOps, diffOps } from "./syncOps";
+import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
 import {
   incrementPersistenceDiagnostic,
   resetPersistenceDiagnostics,
@@ -914,6 +915,19 @@ export function attachPersistence(
     hasUnsavedWrites: myRegisteredHasUnsaved,
   });
   resetPersistenceDiagnostics();
+  adapter.setAllocationRewriteHandler?.((revisions) => {
+    const byId = new Map(revisions.map((revision) => [revision.id, revision]));
+    store.setState((state) => {
+      let changed = false;
+      const allocations = state.data.allocations.map((allocation) => {
+        const revision = byId.get(allocation.id);
+        if (!revision || allocation.updatedAt !== revision.flushedUpdatedAt) return allocation;
+        changed = true;
+        return withoutAllocationAttribution(allocation, revision.updatedAt);
+      });
+      return changed ? { ...state, data: { ...state.data, allocations } } : state;
+    });
+  });
 
   const onPageHide = () => flushOnUnload();
   const onVisibility = () => {
@@ -956,6 +970,7 @@ export function attachPersistence(
     unsubscribe();
     unsubscribeSwitch?.();
     unregisterCoordinator();
+    adapter.setAllocationRewriteHandler?.(null);
     if (canListen) {
       window.removeEventListener("pagehide", onPageHide);
       window.removeEventListener("online", onOnline);

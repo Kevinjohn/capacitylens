@@ -63,10 +63,11 @@ export async function repairSsoCutover(input: CutoverRepairInput): Promise<Cutov
     // only the optional forward-only repeat-series identity on allocations; v33 widens
     // timeOff.resourceId to nullable; and v34 restores the personal time-off resource requirement,
     // deliberately dropping pre-existing company-wide rows without converting them because there
-    // are no users requiring a data-compatibility window, while adding first-class closures.
+    // are no users requiring a data-compatibility window, while adding first-class closures; and
+    // v35 adds only the optional project attribution on allocations.
     // These are safe to remain pending before this stopped-server repair. Keep this allowlist explicit
     // so a future migration requires review.
-    if (plan.migrations.some(({ version }) => ![25, 26, 27, 28, 29, 30, 31, 32, 33, 34].includes(version))) {
+    if (plan.migrations.some(({ version }) => ![25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35].includes(version))) {
       throw new Error(
         `Database schema v${plan.fromVersion} has unrelated pending migrations; start the matching release before repair.`,
       );

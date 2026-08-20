@@ -36,7 +36,11 @@ import {
   runAuthMigrations,
 } from "./auth";
 import { TABLES } from "./tables";
-import { assertMigrationValuesPreserved, captureMigrationValues } from "./migrationPreservation";
+import {
+  assertMigrationValuesPreserved,
+  captureMigrationValues,
+  type MigrationValueSnapshot,
+} from "./migrationPreservation";
 import {
   FOREIGN_KEY_CHILD_INDEXES_V23,
   TENANT_ENTITY_ACCOUNT_INDEXES_V21,
@@ -96,8 +100,13 @@ const V34_MIGRATION = {
   name: "separate-company-closures",
   checksum: "43080e78377072e2e3133550d89b5eaf90fbca2d1c8babe38b7b8b7156a9350e",
 } as const;
+const V35_MIGRATION = {
+  version: 35,
+  name: "add-allocation-project-id",
+  checksum: "19c2729bf7048ca0a3e317f3d00088b29c7c7c2cd4d60febce28146d1c42c9a3",
+} as const;
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
-const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25] as const;
+const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25, 34] as const;
 const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
   `v${version}-off.db`,
   `v${version}-password.db`,
@@ -304,6 +313,15 @@ function dropTenantEntityIndexes(db: DatabaseSync): void {
   for (const { index } of TENANT_ENTITY_ACCOUNT_INDEXES_V21) db.exec(`DROP INDEX ${index}`);
 }
 
+function dropAllocationProjectAttribution(db: DatabaseSync): void {
+  db.exec(`
+    DROP TRIGGER capacitylens_tenant_allocations_projectId_insert;
+    DROP TRIGGER capacitylens_tenant_allocations_projectId_update;
+    DROP INDEX idx_allocations_projectId;
+    ALTER TABLE allocations DROP COLUMN projectId;
+  `);
+}
+
 describe("schema migration of an existing on-disk DB", () => {
   it("pins synchronous FULL even when the connection inherited a weaker setting", () => {
     const copied = copyFixture("v16-off.db");
@@ -469,6 +487,7 @@ describe("schema migration of an existing on-disk DB", () => {
       db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
       db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
       db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
+      dropAllocationProjectAttribution(db);
       db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
       db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version > 12`);
       db.exec(`PRAGMA user_version = 12`);
@@ -579,6 +598,7 @@ describe("schema migration of an existing on-disk DB", () => {
       db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
       db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
       db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
+      dropAllocationProjectAttribution(db);
       db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
       db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 14`);
       db.exec(`PRAGMA user_version = 13`);
@@ -642,6 +662,7 @@ describe("schema migration of an existing on-disk DB", () => {
       db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
       db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
       db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
+      dropAllocationProjectAttribution(db);
       db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
       db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 16`);
       db.exec(`PRAGMA user_version = 15`);
@@ -1275,6 +1296,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
     expect(history.every((row) => !Number.isNaN(Date.parse(row.appliedAt)))).toBe(true);
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
@@ -1337,7 +1359,7 @@ describe("schema migration of an existing on-disk DB", () => {
         },
       }) as Db;
 
-      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34]);
+      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
       expect(
@@ -1366,7 +1388,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
     const plan = planDatabaseMigrations(db).migrations;
     expect(plan.map((migration) => migration.version)).toEqual([
-      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
     ]);
     expect(plan[0]).toEqual({
       version: 17,
@@ -1534,6 +1556,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1640,7 +1663,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
-      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -1696,6 +1719,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1773,6 +1797,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1827,6 +1852,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1887,6 +1913,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -1947,6 +1974,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
     initializeOpenDb(clean, ":memory:");
     expect(() => assertFederatedIdentitySchemaCurrent(clean)).not.toThrow();
@@ -2051,6 +2079,79 @@ describe("schema migration of an existing on-disk DB", () => {
     db.close();
   });
 
+  it.each([
+    [
+      "unexpected column",
+      `version INTEGER NOT NULL PRIMARY KEY, name TEXT NOT NULL, checksum TEXT NOT NULL, appliedAt TEXT NOT NULL, extra TEXT`,
+    ],
+    [
+      "wrong type",
+      `version TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, checksum TEXT NOT NULL, appliedAt TEXT NOT NULL`,
+    ],
+    [
+      "nullability mismatch",
+      `version INTEGER NOT NULL PRIMARY KEY, name TEXT, checksum TEXT NOT NULL, appliedAt TEXT NOT NULL`,
+    ],
+    [
+      "version not primary key",
+      `version INTEGER NOT NULL, name TEXT NOT NULL PRIMARY KEY, checksum TEXT NOT NULL, appliedAt TEXT NOT NULL`,
+    ],
+    ["missing column", `version INTEGER NOT NULL PRIMARY KEY, name TEXT NOT NULL, checksum TEXT NOT NULL`],
+  ])("refuses a migration-history table with an %s", (_name, columns) => {
+    const db = openDb(":memory:");
+    db.exec(`DROP TABLE ${DATABASE_MIGRATION_TABLE}; CREATE TABLE ${DATABASE_MIGRATION_TABLE} (${columns});`);
+    expect(() => planDatabaseMigrations(db)).toThrow(/migration history table is invalid/i);
+    db.close();
+  });
+
+  it.each([
+    ["out-of-order version", `UPDATE ${DATABASE_MIGRATION_TABLE} SET version = 0 WHERE version = 8`, /out of order/],
+    ["name drift", `UPDATE ${DATABASE_MIGRATION_TABLE} SET name = 'renamed' WHERE version = 8`, /name does not match/],
+    [
+      "missing appliedAt",
+      `UPDATE ${DATABASE_MIGRATION_TABLE} SET appliedAt = '' WHERE version = 8`,
+      /no applied timestamp/,
+    ],
+  ])("refuses migration-history %s", (_name, sql, message) => {
+    const db = openDb(":memory:");
+    db.exec(sql);
+    expect(() => planDatabaseMigrations(db)).toThrow(message);
+    db.close();
+  });
+
+  it("refuses startup when WAL or FULL synchronous durability cannot be established", () => {
+    const memoryHandle = new DatabaseSync(":memory:");
+    expect(() => initializeOpenDb(memoryHandle as Db, "not-an-in-memory-path.db")).toThrow(
+      /journal mode.*expected WAL/i,
+    );
+    memoryHandle.close();
+
+    const raw = openDb(":memory:");
+    const weakened = new Proxy(raw, {
+      get(target, property) {
+        if (property === "prepare") {
+          return (sql: string) => {
+            const statement = target.prepare(sql);
+            if (sql.trim().toLowerCase() === "pragma synchronous") {
+              return new Proxy(statement, {
+                get(statementTarget, statementProperty) {
+                  if (statementProperty === "get") return () => ({ synchronous: 1 });
+                  const value = Reflect.get(statementTarget, statementProperty, statementTarget) as unknown;
+                  return typeof value === "function" ? value.bind(statementTarget) : value;
+                },
+              });
+            }
+            return statement;
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as Db;
+    expect(() => initializeOpenDb(weakened, ":memory:")).toThrow(/synchronous durability policy.*expected FULL/);
+    raw.close();
+  });
+
   it("rolls back schema, history and version stamps when a migration fails before commit", () => {
     const copied = copyFixture("v7-off.db");
     try {
@@ -2115,6 +2216,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(
@@ -2230,6 +2332,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V32_MIGRATION,
       V33_MIGRATION,
       V34_MIGRATION,
+      V35_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(getRow(db, "resources", resource.id)?.isFavourite).toBeUndefined();
@@ -2356,6 +2459,39 @@ describe("schema migration of an existing on-disk DB", () => {
       expect(getRow(reopened, "timeOff", "to-company")).toBeUndefined();
       expect(planDatabaseMigrations(reopened).migrations).toEqual([]);
       reopened.close();
+    } finally {
+      copied.cleanup();
+    }
+  });
+
+  it("v35 adds allocation project attribution with its FK, tenant guards and child index", () => {
+    const copied = copyFixture("v34-off.db");
+    try {
+      const db = openDbConnection(copied.path);
+      expect(planDatabaseMigrations(db).migrations).toEqual([V35_MIGRATION]);
+      initializeOpenDb(db, copied.path);
+
+      expect(
+        (db.prepare("PRAGMA table_info(allocations)").all() as Array<{ name: string }>).some(
+          (column) => column.name === "projectId",
+        ),
+      ).toBe(true);
+      expect(db.prepare("PRAGMA foreign_key_list(allocations)").all()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ from: "projectId", table: "projects", to: "id", on_delete: "SET NULL" }),
+        ]),
+      );
+      expect(db.prepare("PRAGMA index_list(allocations)").all()).toEqual(
+        expect.arrayContaining([expect.objectContaining({ name: "idx_allocations_projectId" })]),
+      );
+      expect(
+        db
+          .prepare(
+            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'capacitylens_tenant_allocations_projectId_%'",
+          )
+          .get(),
+      ).toEqual({ count: 2 });
+      db.close();
     } finally {
       copied.cleanup();
     }
@@ -2814,6 +2950,139 @@ describe("migration ledger checksum supersession (v11 alpha-line amendment)", ()
     db.prepare(`UPDATE ${DATABASE_MIGRATION_TABLE} SET checksum = ? WHERE version = 12`).run(OLD_V11_CHECKSUM);
     expect(() => planDatabaseMigrations(db)).toThrow(/v12 checksum does not match/i);
     db.close();
+  });
+});
+
+describe("migration value preservation policy", () => {
+  const table = (rows: Array<Record<string, string | number | null>>, primaryKey = ["id"]) => ({
+    primaryKey,
+    rows,
+  });
+
+  it("allows only the versioned historical deletion repairs", () => {
+    const ownerInvite = { id: "invite-1", role: "owner", usedAt: null };
+    expect(() =>
+      assertMigrationValuesPreserved({ invites: table([ownerInvite]) }, { invites: table([]) }, 9),
+    ).not.toThrow();
+
+    const membership = { accountId: "a1", userId: "principal-1", status: "active", role: "owner" };
+    const verification = { id: "verification-1", value: "principal-1" };
+    expect(() =>
+      assertMigrationValuesPreserved(
+        {
+          account_members: table([membership], ["accountId", "userId"]),
+          verification: table([verification]),
+        },
+        {
+          account_members: table([membership], ["accountId", "userId"]),
+          verification: table([]),
+        },
+        13,
+      ),
+    ).not.toThrow();
+  });
+
+  it("allows pre-v8 Internal-client folding and its deterministic generated-row winner", () => {
+    const generated = {
+      id: "internal:a1",
+      accountId: "a1",
+      name: "Old Internal",
+      color: "#111111",
+      builtin: "true",
+      createdAt: TS,
+    };
+    const duplicate = {
+      id: "legacy-internal",
+      accountId: "a1",
+      name: "Duplicate",
+      color: "#222222",
+      builtin: "true",
+      createdAt: "2020-01-01T00:00:00.000Z",
+    };
+    const before: MigrationValueSnapshot = {
+      clients: table([duplicate, generated]),
+      projects: table([{ id: "p1", clientId: "legacy-internal" }]),
+    };
+    const after: MigrationValueSnapshot = {
+      clients: table([{ ...generated, name: "Internal", color: "#5c34d4" }]),
+      projects: table([{ id: "p1", clientId: "internal:a1" }]),
+    };
+    expect(() => assertMigrationValuesPreserved(before, after, 7)).not.toThrow();
+  });
+
+  it("uses createdAt then id to break pre-v8 fold ties", () => {
+    const before: MigrationValueSnapshot = {
+      clients: table([
+        {
+          id: "internal-b",
+          accountId: "a1",
+          name: "B",
+          color: "#111111",
+          builtin: "true",
+          createdAt: TS,
+        },
+        {
+          id: "internal-a",
+          accountId: "a1",
+          name: "A",
+          color: "#222222",
+          builtin: "true",
+          createdAt: TS,
+        },
+      ]),
+    };
+    const after: MigrationValueSnapshot = {
+      clients: table([
+        {
+          id: "internal-a",
+          accountId: "a1",
+          name: "Internal",
+          color: "#5c34d4",
+          builtin: "true",
+          createdAt: TS,
+        },
+      ]),
+    };
+    expect(() => assertMigrationValuesPreserved(before, after, 7)).not.toThrow();
+  });
+
+  it("allows pre-v22 built-in lifecycle cell repairs", () => {
+    const before = {
+      id: "internal:a1",
+      builtin: "true",
+      archivedAt: TS,
+      deletedAt: TS,
+      updatedAt: TS,
+    };
+    const after = { ...before, archivedAt: null, deletedAt: null, updatedAt: "2026-02-01T00:00:00.000Z" };
+    expect(() =>
+      assertMigrationValuesPreserved({ clients: table([before]) }, { clients: table([after]) }, 21),
+    ).not.toThrow();
+  });
+
+  it("rejects unapproved table removal, cell changes, and row additions", () => {
+    expect(() => assertMigrationValuesPreserved({ clients: table([]) }, {}, 34)).toThrow(
+      /migration removed table clients/,
+    );
+    expect(() =>
+      assertMigrationValuesPreserved(
+        { clients: table([{ id: "c1", name: "Before" }]) },
+        { clients: table([{ id: "c1", name: "After" }]) },
+        34,
+      ),
+    ).toThrow(/migration changed unapproved clients\.name/);
+    expect(() =>
+      assertMigrationValuesPreserved(
+        { clients: table([{ id: "c1", name: "Before" }]) },
+        {
+          clients: table([
+            { id: "c1", name: "Before" },
+            { id: "c2", name: "Added" },
+          ]),
+        },
+        34,
+      ),
+    ).toThrow(/migration added unapproved clients row/);
   });
 });
 

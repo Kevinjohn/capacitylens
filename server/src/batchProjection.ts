@@ -6,6 +6,9 @@ import {
   type AppDataKey,
 } from "@capacitylens/shared/types/entities";
 import type { ValidationDataLookup } from "@capacitylens/shared/domain/mutations";
+import type { RewrittenAllocationRevision } from "./db";
+import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
+import { nextServerRevision } from "./revision";
 
 type ProjectionRow = Record<string, unknown> & { id: string };
 type DeleteAction = "cascade" | "set-null";
@@ -36,6 +39,7 @@ const RELATIONSHIPS: Relationship[] = [
   { parent: "projects", child: "phases", field: "projectId", onDelete: "cascade" },
   { parent: "projects", child: "activities", field: "projectId", onDelete: "cascade" },
   { parent: "projects", child: "resources", field: "projectId", onDelete: "set-null" },
+  { parent: "projects", child: "allocations", field: "projectId", onDelete: "set-null" },
   { parent: "phases", child: "activities", field: "phaseId", onDelete: "set-null" },
   { parent: "disciplines", child: "resources", field: "disciplineId", onDelete: "set-null" },
   { parent: "resources", child: "allocations", field: "resourceId", onDelete: "cascade" },
@@ -54,6 +58,8 @@ const rowsFor = (data: AppData, table: AppDataKey): ProjectionRow[] => data[tabl
  * projection is never serialized, and validation treats every table as an unordered entity set.
  */
 export class BatchStateProjection implements ValidationDataLookup {
+  private readonly attributionClearedActivityIds = new Set<string>();
+  private readonly attributionRewrites = new Map<string, RewrittenAllocationRevision>();
   readonly data: AppData;
   private readonly rowIndexes: Record<AppDataKey, Map<string, number>>;
   private readonly relationshipIndexes: RelationshipIndex[];
@@ -82,17 +88,48 @@ export class BatchStateProjection implements ValidationDataLookup {
     // (validate.ts), the universal write-path guard, so row.id should already be a string here.
     // Kept as a second gate rather than trusted, per the caller-can't-bypass-safety rule.
     if (typeof row.id !== "string") throw new Error("Batch projection rows require a string id.");
-    const next = row as ProjectionRow;
-    const rows = rowsFor(this.data, table);
-    const index = this.rowIndexes[table].get(next.id);
-    if (index === undefined) {
-      this.rowIndexes[table].set(next.id, rows.length);
-      rows.push(next);
-    } else {
-      this.removeChildRelationships(table, rows[index]);
-      rows[index] = next;
+    if (table === "allocations") this.attributionRewrites.delete(row.id);
+    const next =
+      table === "allocations" &&
+      typeof row.activityId === "string" &&
+      this.attributionClearedActivityIds.has(row.activityId)
+        ? (withoutAllocationAttribution(row) as ProjectionRow)
+        : (row as ProjectionRow);
+    this.upsertProjectedRow(table, next);
+  }
+
+  clearAllocationAttribution(revisions: readonly RewrittenAllocationRevision[]): void {
+    for (const revision of revisions) {
+      const allocation = this.row("allocations", revision.id);
+      if (!allocation || allocation.projectId === undefined) continue;
+      this.upsertProjectedRow("allocations", withoutAllocationAttribution(allocation, revision.updatedAt));
     }
-    this.addChildRelationships(table, next);
+  }
+
+  /** Restore the attribution invariant now and retain only rewrites still present at commit. */
+  reconcileAllocationAttributionForActivity(activityId: string, attributionAllowed: boolean): void {
+    if (attributionAllowed) {
+      this.attributionClearedActivityIds.delete(activityId);
+      return;
+    }
+
+    this.attributionClearedActivityIds.add(activityId);
+    const relationship = this.findRelationshipIndex("activities", "allocations", "activityId");
+    for (const allocationId of relationship?.childrenByParent.get(activityId) ?? []) {
+      const allocation = this.row("allocations", allocationId);
+      if (!allocation || allocation.projectId === undefined) continue;
+      const updatedAt = nextServerRevision(allocation.updatedAt);
+      this.upsertProjectedRow("allocations", withoutAllocationAttribution(allocation, updatedAt));
+      this.attributionRewrites.set(allocationId, {
+        id: allocationId,
+        createdAt: allocation.createdAt as string,
+        updatedAt,
+      });
+    }
+  }
+
+  rewrittenAllocationRevisions(): readonly RewrittenAllocationRevision[] {
+    return [...this.attributionRewrites.values()];
   }
 
   delete(table: AppDataKey, id: string): void {
@@ -187,6 +224,7 @@ export class BatchStateProjection implements ValidationDataLookup {
     if (index === undefined) return;
     const rows = rowsFor(this.data, table);
     const removed = rows[index];
+    if (table === "allocations") this.attributionRewrites.delete(id);
     this.removeChildRelationships(table, removed);
     const last = rows.pop()!;
     indexes.delete(id);
@@ -202,6 +240,20 @@ export class BatchStateProjection implements ValidationDataLookup {
         this.addRelationship(relationshipIndex, row);
       }
     }
+  }
+
+  private upsertProjectedRow(table: AppDataKey, row: Record<string, unknown>): void {
+    const rows = rowsFor(this.data, table);
+    const next = row as ProjectionRow;
+    const index = this.rowIndexes[table].get(next.id);
+    if (index === undefined) {
+      this.rowIndexes[table].set(next.id, rows.length);
+      rows.push(next);
+    } else {
+      this.removeChildRelationships(table, rows[index]);
+      rows[index] = next;
+    }
+    this.addChildRelationships(table, next);
   }
 
   private removeChildRelationships(table: AppDataKey, row: ProjectionRow): void {

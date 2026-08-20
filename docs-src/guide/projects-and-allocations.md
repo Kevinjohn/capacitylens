@@ -10,6 +10,36 @@ owns the [activities](/reference/glossary) people are actually booked against. T
 covers setting that up and creating the [allocations](/reference/glossary) that appear
 as bars on [the schedule](/guide/the-schedule).
 
+## Choose where an activity can be used
+
+Before you create an allocation, decide whether its activity is for internal work,
+reusable across projects or unique to one project:
+
+| Activity kind | Use it for | Where it is available |
+| --- | --- | --- |
+| **Internal** | Non-billable work such as administration or an internal meeting | Only when the allocation's Project is **Internal** |
+| **All projects** | Work your team does in the same way for many projects, such as account management, design or workshops | Under every real project, or under **No specific project** when the work is not attributed to one project |
+| **Project-specific** | Work created for one project, such as that project's discovery, wireframes or launch | Only under the project it belongs to |
+
+The activity kind controls where an activity is available. The allocation records the
+actual booking. This means one **All projects** activity can be reused many times: one
+allocation can count towards Project Watchtower, another can count towards Metropolis
+Rebrand and a third can remain under **No specific project**.
+
+When you create an allocation, choose its context from **Project** first:
+
+- Choose **Internal** for an Internal activity.
+- Choose **No specific project** for an unattributed All-projects activity.
+- Choose a real project to use either a shared **All projects** activity or one of that
+  project's **Project-specific** activities.
+
+![The allocation Project picker with Internal and No specific project before the available client projects](../screenshots/flows/allocation_project_scopes.jpg)
+
+After you choose a real project, the **Activity** picker separates reusable **All projects**
+activities from the activities in that project's **Project-specific** group.
+
+![The allocation Activity picker for Project Watchtower with separate All projects and Project-specific groups](../screenshots/flows/allocation_activity_scopes.jpg)
+
 ## Clients and projects
 
 1. Open **Clients**.
@@ -44,17 +74,17 @@ Under **Activities**, an activity is the specific thing a person is booked to do
 it comes in three kinds:
 
 - **Internal** — non-billable work that isn't tied to a project.
-- **Cross-project** — work that applies across projects, like general account
-  management.
+- **[All projects](/reference/glossary#all-projects)** — shared work that can be booked
+  against any project, like general account management.
 - **Project-specific** — belongs to one project.
 
-![The Add activity form with equal-width Internal, Cross-project and Project-specific choices](../screenshots/flows/activity_form.jpg)
+![The Add activity form with equal-width Internal, All projects and Project-specific choices](../screenshots/flows/activity_form.jpg)
 
-Internal and cross-project activities are alphabetical. Project-specific activities are
+Internal and All-projects activities are alphabetical. Project-specific activities are
 grouped in client, project and then activity order, with each client and project name
 shown once as a heading rather than repeated on every row.
 
-![The Activities page with alphabetical Internal and Cross-project sections followed by project-specific activities grouped under client and project headings](../screenshots/flows/activities_grouped.jpg)
+![The Activities page with alphabetical Internal and All-projects sections followed by project-specific activities grouped under client and project headings](../screenshots/flows/activities_grouped.jpg)
 
 ## Create an allocation
 
@@ -66,12 +96,24 @@ There are two ways to book a person's time on the schedule:
 
 ![The New allocation form for Clark Kent with the Hours per day select showing Half day (4h), Weekly repeat details and the remaining controls aligned beneath](../screenshots/flows/allocation-form.jpg)
 
-Either way, choose **Internal**, **Any Project**, or a real project. Internal and Any
-Project show only internal and cross-project activities respectively; real projects
-follow after a divider in client-and-project order and show only their own activities.
-Every resulting activity list is alphabetical. If the activity you need doesn't exist
-yet, an "Add activity" option inside the same form can create it in the selected scope —
-unless your company has turned that convenience off in [Settings](/guide/settings).
+Either way, choose **Internal**, **No specific project**, or a real project. Internal
+shows only internal activities. No specific project shows only
+[All-projects activities](/reference/glossary#all-projects) and leaves the booking
+unattributed. Real projects follow after a divider in client-and-project order. Their
+activity picker shows the shared **All projects** group first, followed by that project's
+**Project-specific** group. Each group is alphabetical.
+
+Choosing an All-projects activity under a real project makes that booking count towards
+the project. The schedule uses the chosen project for the bar's client and project label,
+colour and filters. The activity itself remains shared, so another booking can count
+towards a different project. When you edit the booking, choosing **No specific project**
+clears that attribution. Existing unattributed bookings stay unattributed until you make
+that choice explicitly.
+
+If the activity you need doesn't exist yet, an "Add activity" option inside the same form
+can create it in the selected scope — unless your company has turned that convenience off
+in [Settings](/guide/settings). Adding one under a real project creates a project-specific
+activity and places it in that group.
 
 Status is a compact **Confirmed**, **Tentative** or **Completed** choice. Notes are
 single-line.
@@ -104,7 +146,8 @@ an occurrence may finish after the cutoff when it starts on or before it. Save o
 create the complete group. One Undo removes that group; after creation, you can edit each
 occurrence independently. Deleting a linked occurrence lets you remove only that occurrence
 or it and every future occurrence in the same series. Leave **Doesn’t repeat** selected for
-a single allocation.
+a single allocation. When the activity is All projects, every occurrence copies the chosen
+project attribution.
 
 ## Edit, move and remove allocations
 
@@ -118,6 +161,11 @@ a single allocation.
   to duplicate or delete it. Duplicate is available for unlinked allocations, but not
   occurrences in a linked repeat series. Deleting can be undone from the toolbar, or
   with Ctrl/Cmd+Z.
+
+Archiving a project temporarily hides every booking attributed to it. Restoring the
+project brings those bookings back with their attribution intact. Permanently deleting
+the project removes its project-specific work, but a shared All-projects booking remains
+and becomes unattributed.
 
 ![The Edit allocation form for an existing bar, with its assignee, project, activity, dates and status aligned in label and control columns](../screenshots/flows/allocation-open.jpg)
 

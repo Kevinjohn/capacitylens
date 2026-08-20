@@ -609,7 +609,7 @@ describe("assertAllocationRefs", () => {
       "Allocation must reference an activity under an active project.",
     );
     expect(() =>
-      assertAllocationRefs(data, A1, "r1", "t1", 8, {
+      assertAllocationRefs(data, A1, "r1", "t1", 8, undefined, {
         resourceId: "r1",
         activityId: "t1",
       }),
@@ -640,19 +640,19 @@ describe("assertAllocationRefs", () => {
     };
 
     expect(() =>
-      assertAllocationRefs(data, A1, "r2", "t2", 8, {
+      assertAllocationRefs(data, A1, "r2", "t2", 8, undefined, {
         resourceId: "r2",
         activityId: "t2",
       }),
     ).not.toThrow();
     expect(() =>
-      assertAllocationRefs(data, A1, "r2", "t1", 8, {
+      assertAllocationRefs(data, A1, "r2", "t1", 8, undefined, {
         resourceId: "r1",
         activityId: "t1",
       }),
     ).toThrow("Allocation must reference an active resource in this company.");
     expect(() =>
-      assertAllocationRefs(data, A1, "r1", "t2", 8, {
+      assertAllocationRefs(data, A1, "r1", "t2", 8, undefined, {
         resourceId: "r1",
         activityId: "t1",
       }),
@@ -684,6 +684,44 @@ describe("assertAllocationRefs", () => {
 
   it("allows a non-zero load on a normal resource", () => {
     expect(() => assertAllocationRefs(world(), A1, "r1", "t1", 8)).not.toThrow();
+  });
+
+  it("enforces repeatable-only attribution, project ownership/liveness and placeholder scope", () => {
+    const repeatable = { ...activity("repeatable", A1, "p1"), kind: "repeatable" as const, projectId: undefined };
+    const data: AppData = {
+      ...world(),
+      projects: [project("p1", A1, "c1"), project("p2", A1, "c1"), project("foreign", A2, "c2")],
+      activities: [world().activities[0], repeatable],
+      resources: [person("r1", A1), placeholder("bound", A1, "p1"), placeholder("unbound", A1, undefined)],
+    };
+
+    expect(() => assertAllocationRefs(data, A1, "r1", "repeatable", 8, "p1")).not.toThrow();
+    expect(() => assertAllocationRefs(data, A1, "r1", "t1", 8, "p1")).toThrowError(
+      expect.objectContaining({ code: "allocation_project_forbidden" }),
+    );
+    expect(() => assertAllocationRefs(data, A1, "r1", "repeatable", 8, "missing")).toThrow(/active project/i);
+    expect(() => assertAllocationRefs(data, A1, "r1", "repeatable", 8, "foreign")).toThrow(/active project/i);
+    expect(() => assertAllocationRefs(data, A1, "bound", "repeatable", 8, "p1")).not.toThrow();
+    expect(() => assertAllocationRefs(data, A1, "bound", "repeatable", 8, "p2")).toThrow(/bound project/i);
+    expect(() => assertAllocationRefs(data, A1, "unbound", "repeatable", 8, "p1")).toThrow(/not bound/i);
+  });
+
+  it("allows an unchanged archived allocation attribution but rejects changing to it", () => {
+    const repeatable = { ...activity("repeatable", A1, "p1"), kind: "repeatable" as const, projectId: undefined };
+    const data: AppData = {
+      ...world(),
+      projects: [{ ...project("p1", A1, "c1"), archivedAt: TS }],
+      activities: [repeatable],
+    };
+    const existing = { resourceId: "r1", activityId: "repeatable", projectId: "p1" };
+
+    expect(() => assertAllocationRefs(data, A1, "r1", "repeatable", 8, "p1", existing)).not.toThrow();
+    expect(() =>
+      assertAllocationRefs(data, A1, "r1", "repeatable", 8, "p1", {
+        ...existing,
+        projectId: undefined,
+      }),
+    ).toThrow(/active project/i);
   });
 });
 
@@ -861,7 +899,49 @@ describe("parent project edits preserve placeholder allocation assignments", () 
     ).not.toThrow();
   });
 
-  it("rejects converting a person with cross-project work into a bound placeholder", () => {
+  it("rejects rebinding a placeholder with repeatable work attributed to its bound project", () => {
+    const existing = placeholder("ph", A1, "p1");
+    const repeatable: Activity = { ...meta("shared", A1), name: "Shared", kind: "repeatable" };
+    const data: AppData = {
+      ...base(),
+      clients: [client("c1", A1)],
+      projects: [project("p1", A1, "c1"), project("p2", A1, "c1")],
+      resources: [existing],
+      activities: [repeatable],
+      allocations: [allocation("al", A1, "ph", "shared", { projectId: "p1" })],
+    };
+
+    expect(() =>
+      assertResourceProjectAllowsDependents(data, A1, "ph", { ...existing, projectId: "p2" }, existing),
+    ).toThrow(rejectResource);
+  });
+
+  it("validates the post-clear effective project when repeatable work becomes project-specific", () => {
+    const existing: Activity = { ...meta("shared", A1), name: "Shared", kind: "repeatable" };
+    const data: AppData = {
+      ...base(),
+      clients: [client("c1", A1)],
+      projects: [project("p1", A1, "c1"), project("p2", A1, "c1")],
+      resources: [placeholder("ph", A1, "p1")],
+      activities: [existing],
+      allocations: [allocation("al", A1, "ph", "shared", { projectId: "p1" })],
+    };
+
+    expect(() =>
+      assertActivityProjectAllowsDependents(
+        data,
+        A1,
+        "shared",
+        { ...existing, kind: "project", projectId: "p2" },
+        existing,
+      ),
+    ).toThrow(rejectActivity);
+    expect(() =>
+      assertActivityProjectAllowsDependents(data, A1, "shared", { ...existing, kind: "internal" }, existing),
+    ).not.toThrow();
+  });
+
+  it("rejects converting a person with all-projects work into a bound placeholder", () => {
     const existing = person("r1", A1);
     const data: AppData = {
       ...base(),
@@ -1640,5 +1720,29 @@ describe("remapAndValidateImport", () => {
     expect(a).toBeDefined(); // kept (repaired), not dropped
     expect(a?.startDate).toBe("2026-06-01");
     expect(a?.endDate).toBe("2026-06-05");
+  });
+
+  it("clears invalid allocation attribution before placeholder validation without dropping bookings", () => {
+    const repeatable: Activity = { ...meta("repeatable", "src"), name: "Shared", kind: "repeatable" };
+    const incoming: AppData = {
+      ...emptyAppData(),
+      clients: [client("c", "src")],
+      projects: [project("p1", "src", "c"), project("p2", "src", "c")],
+      activities: [repeatable, activity("project", "src", "p1")],
+      resources: [person("person", "src"), placeholder("placeholder", "src", "p1")],
+      allocations: [
+        allocation("valid", "src", "person", "repeatable", { projectId: "p1", note: "valid" }),
+        allocation("dangling", "src", "person", "repeatable", { projectId: "missing", note: "dangling" }),
+        allocation("forbidden", "src", "person", "project", { projectId: "p1", note: "forbidden" }),
+        allocation("mismatch", "src", "placeholder", "repeatable", { projectId: "p2", note: "mismatch" }),
+      ],
+    };
+
+    const { data } = remapAndValidateImport(base(), A1, incoming, TS);
+    expect(data.allocations).toHaveLength(4);
+    expect(data.allocations.find((row) => row.note === "valid")?.projectId).toBeDefined();
+    for (const note of ["dangling", "forbidden", "mismatch"]) {
+      expect(data.allocations.find((row) => row.note === note)?.projectId).toBeUndefined();
+    }
   });
 });

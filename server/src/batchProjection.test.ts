@@ -58,6 +58,13 @@ function relationshipFixture(): AppData {
         phaseId: "ph1",
         ...meta,
       },
+      {
+        id: "act2",
+        accountId: "a1",
+        name: "Shared activity",
+        kind: "repeatable",
+        ...meta,
+      },
     ],
     allocations: [
       {
@@ -67,6 +74,18 @@ function relationshipFixture(): AppData {
         activityId: "act1",
         startDate: "2026-01-01",
         endDate: "2026-01-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+        ...meta,
+      },
+      {
+        id: "al2",
+        accountId: "a1",
+        resourceId: "r1",
+        activityId: "act2",
+        projectId: "p1",
+        startDate: "2026-01-03",
+        endDate: "2026-01-04",
         hoursPerDay: 8,
         status: "confirmed",
         ...meta,
@@ -201,16 +220,29 @@ describe("BatchStateProjection", () => {
   it("keeps reverse allocation lookups current across resource and activity edits", () => {
     const projection = new BatchStateProjection(relationshipFixture());
 
-    expect(projection.allocationsForResource("a1", "r1").map((row) => row.id)).toEqual(["al1"]);
+    expect(projection.allocationsForResource("a1", "r1").map((row) => row.id)).toEqual(["al1", "al2"]);
     expect(projection.allocationsForActivity("a1", "act1").map((row) => row.id)).toEqual(["al1"]);
     projection.upsert("allocations", {
       ...projection.data.allocations[0],
       resourceId: "r2",
       activityId: "act2",
     });
-    expect(projection.allocationsForResource("a1", "r1")).toEqual([]);
+    expect(projection.allocationsForResource("a1", "r1").map((row) => row.id)).toEqual(["al2"]);
     expect(projection.allocationsForResource("a1", "r2").map((row) => row.id)).toEqual(["al1"]);
     expect(projection.allocationsForActivity("a1", "act1")).toEqual([]);
-    expect(projection.allocationsForActivity("a1", "act2").map((row) => row.id)).toEqual(["al1"]);
+    expect(projection.allocationsForActivity("a1", "act2").map((row) => row.id)).toEqual(["al2", "al1"]);
+  });
+
+  it("mirrors allocation attribution revisions produced by the database sweep", () => {
+    const projection = new BatchStateProjection(relationshipFixture());
+
+    projection.upsert("activities", { ...projection.data.activities[1], kind: "project", projectId: "p1" });
+    projection.clearAllocationAttribution([{ id: "al2", createdAt: TS, updatedAt: "2026-01-02T00:00:00.000Z" }]);
+
+    expect(projection.row("allocations", "al2")).toMatchObject({
+      id: "al2",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    });
+    expect(projection.row("allocations", "al2")).not.toHaveProperty("projectId");
   });
 });

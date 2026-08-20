@@ -51,7 +51,7 @@ export type TimeOffType = "holiday" | "sick" | "unpaid" | "other";
  * What an activity IS — the axis the schedule's "activity view" filters on. Three kinds:
  * - `project`    — project-specific: belongs to one project (carries `projectId`, optionally a `phaseId`).
  * - `internal`   — project-less internal work (Admin, internal review/meeting).
- * - `repeatable` — cross-project: project-less activity used across many projects (Design, Workshop).
+ * - `repeatable` — all-projects: project-less activity used across many projects (Design, Workshop).
  * Coherence (enforced in assertScopedRefs, repaired on import): `project` HAS a `projectId`;
  * `internal`/`repeatable` have NEITHER `projectId` nor `phaseId`.
  */
@@ -170,7 +170,7 @@ export interface Client extends ScopedEntity {
   codeName?: string;
   /** True ONLY for the built-in "Internal" pseudo-client — exactly one per account, created by
    *  seed / addAccount / migrate. A built-in client cannot be renamed or deleted, and a project-less
-   *  internal/cross-project activity buckets under it for display + filtering. Absent/false = a normal,
+   *  internal/all-projects activity buckets under it for display + filtering. Absent/false = a normal,
    *  user-managed client. Identified at runtime by THIS flag, never a hard-coded id (so it survives
    *  import-remap). See shared/src/data/internalClient.ts. */
   builtin?: boolean;
@@ -215,11 +215,12 @@ export interface Phase extends ScopedEntity {
 
 export interface Activity extends ScopedEntity {
   name: string;
-  /** What this activity is: project-specific work, internal work, or a cross-project activity. The
+  /** What this activity is: project-specific work, internal work, or an all-projects activity. The
    *  discriminant the schedule's activity lens filters on. See {@link ActivityKind}. */
   kind: ActivityKind;
   /** Set ONLY for `kind: 'project'` — the project this activity belongs to. Internal and
-   *  cross-project (`repeatable`) activities are project-less (and so are their allocations). */
+   *  all-projects (`repeatable`) activities are project-less at the activity level; repeatable
+   *  allocations may carry their own project attribution. */
   projectId?: ID;
   phaseId?: ID;
 }
@@ -227,6 +228,9 @@ export interface Activity extends ScopedEntity {
 export interface Allocation extends ScopedEntity {
   resourceId: ID;
   activityId: ID;
+  /** Set only for `repeatable`-activity allocations to attribute this booking to a project.
+   *  Absent means unattributed; `project` and `internal` activities must not carry it. */
+  projectId?: ID;
   /** System-owned identity shared by allocations created in one repeat batch. Absent = one-off or legacy repeat. */
   seriesId?: ID;
   startDate: ISODate; // inclusive
@@ -455,8 +459,9 @@ export function placeholderCapacityDefaults(): Pick<Resource, "workingDays" | "h
  *  working days, defaulting legacy accounts to the first five days of their configured week; v15
  *  adds optional Allocation.seriesId without inferring links for legacy repeat batches; v16 widens
  *  TimeOff.resourceId to nullable, where null represents company-wide time off for Everyone; v17
- *  separates company closures into their own table and restores required TimeOff.resourceId.) */
-export const EXPORT_SCHEMA_VERSION = 17;
+ *  separates company closures into their own table and restores required TimeOff.resourceId; v18
+ *  adds optional per-allocation project attribution for repeatable activities.) */
+export const EXPORT_SCHEMA_VERSION = 18;
 
 export interface PersistedState {
   schemaVersion: number;

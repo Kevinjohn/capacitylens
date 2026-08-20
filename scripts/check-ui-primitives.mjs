@@ -20,7 +20,7 @@ const sourceOwnedPrimitives = {
   "src/components/ui/empty.tsx": "7a1a93dfb6e50fd48828adda4190d5c41d1d3eab291c90cdb15f5fc7ee85a35e",
   "src/components/ui/item.tsx": "2ec94891e2816cf8a26a93be75f9c662bc5b3646b494215f6cbc1fa61e71d157",
   "src/components/ui/popover.tsx": "f61dada3673fe5a39c3a13bec2f4d13cda295b50284ec59468e33da70be8b3eb",
-  "src/components/ui/select.tsx": "30d044a3996978c563a9a1a1d23f8106327a49fe2f95752b34be77261779e1a9",
+  "src/components/ui/select.tsx": "7436a6e6038632222389ff5b91cb2144776679305b58deaf143b1fef1c5bcaeb",
   "src/components/ui/sheet.tsx": "6be9428d6cbd836f873775c304bbacce1d5466faef038e96b8946a418c566051",
   "src/components/ui/sidebar.tsx": "20448ce1be6a481a85e5e97a12fb1c65d6eff987330436a018df998553695e29",
   "src/components/ui/toggle.tsx": "edfc0cff9f0493b8fc3a69e76f3776ed76d7ca94051dd430788d6c3a37c7e23f",

@@ -22,10 +22,10 @@ When booking work, the right activity often doesn't exist yet. Forcing the manag
 
 ## Acceptance criteria
 
-- ✅ The inline activity field is always present; its placeholder follows the **Project** selection (`…or add a new internal activity`, `…or add a new cross-project activity`, or `…or add a new activity` for a real project).
+- ✅ The inline activity field is always present; its placeholder follows the **Project** selection (`…or add a new internal activity`, `…or add a new all-projects activity`, or `…or add a new activity` for a real project).
 - ✅ Typing a name and clicking **Add activity** creates the activity under the selected project and immediately selects it as the allocation's **Activity** (the **Activity** select now shows _Accessibility Audit_), and the input clears.
-- ✅ The new activity is a real activity of that project — it appears on the **Activities** page and in the **Activity** dropdown afterwards.
-- ✅ Clicking **Add activity** with an empty name creates no activity and shows "Enter a name for the new activity." With _Internal_ or _Any Project_ selected, a named **Add activity** creates the corresponding internal or cross-project activity.
+- ✅ The new activity is a real activity of that project — it appears on the **Activities** page and in the **Project-specific** group of the **Activity** dropdown afterwards.
+- ✅ Clicking **Add activity** with an empty name creates no activity and shows "Enter a name for the new activity." With _Internal_ or _No specific project_ selected, a named **Add activity** creates the corresponding internal or All-projects activity.
 - ✅ Saving with the newly-added activity selected creates an allocation bar labelled _Accessibility Audit_.
 - ✅ The inline name and **Add activity** button remain side by side inside the allocation form's
   control column and stack with the surrounding fields without horizontal overflow on narrow screens.

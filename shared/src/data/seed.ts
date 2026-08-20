@@ -193,7 +193,7 @@ export function seed(): AppData {
     ],
     clients: [
       // One built-in "Internal" pseudo-client per account (builtin: true) — owns project-less
-      // internal/cross-project work and can own real projects. Protected (no rename/delete). See
+      // internal/all-projects work and can own real projects. Protected (no rename/delete). See
       // internalClient.ts; the invariant is also enforced by migrate (v5→v6) and addAccount.
       buildInternalClient(STUDIO, TS, "c-internal-studio"),
       buildInternalClient(LOFT, TS, "c-internal-loft"),
@@ -317,7 +317,7 @@ export function seed(): AppData {
         name: "Admin / Internal",
         kind: "internal",
       },
-      // Cross-project (no-project) activities — available across any project; the schedule's activity lens
+      // All-projects (no-project) activities — available across any project; the schedule's activity lens
       // groups them so you can see "all design" / "all workshops" regardless of project.
       {
         id: "t-design",
@@ -433,7 +433,7 @@ export function seed(): AppData {
         hoursPerDay: 6,
         status: "confirmed",
       },
-      // A cross-project activity ("Design") booked across a project boundary — demonstrates the
+      // An all-projects activity ("Design") booked across a project boundary — demonstrates the
       // schedule's activity lens ("all design work", regardless of project/client).
       {
         id: "a-alex-design",

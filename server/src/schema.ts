@@ -112,9 +112,13 @@ const V30_ACCOUNTS: TableSpec = {
   ...TABLES.accounts,
   columns: TABLES.accounts.columns.filter((column) => column.name !== "workingDays"),
 };
-const V31_ALLOCATIONS: TableSpec = {
+const PRE_V35_ALLOCATIONS: TableSpec = {
   ...TABLES.allocations,
-  columns: TABLES.allocations.columns.filter((column) => column.name !== "seriesId"),
+  columns: TABLES.allocations.columns.filter((column) => column.name !== "projectId"),
+};
+const V31_ALLOCATIONS: TableSpec = {
+  ...PRE_V35_ALLOCATIONS,
+  columns: PRE_V35_ALLOCATIONS.columns.filter((column) => column.name !== "seriesId"),
 };
 const V32_TIME_OFF: TableSpec = {
   ...TABLES.timeOff,
@@ -124,6 +128,7 @@ const PRE_V34_TABLES = Object.fromEntries(Object.entries(TABLES).filter(([key]) 
   string,
   TableSpec
 >;
+PRE_V34_TABLES.allocations = PRE_V35_ALLOCATIONS;
 const V27_TABLES: Record<string, TableSpec> = {
   ...PRE_V34_TABLES,
   accounts: V29_ACCOUNTS,
@@ -173,6 +178,10 @@ const V33_TABLES: Record<string, TableSpec> = {
       column.name === "resourceId" ? { name: column.name, optional: true, preserveNull: true } : column,
     ),
   },
+};
+const V34_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  allocations: PRE_V35_ALLOCATIONS,
 };
 
 /**
@@ -470,6 +479,10 @@ function assertSchemaVersion(db: Db, tableSpecs: Record<string, TableSpec>, allo
       ["accountId", "accounts", "id", "CASCADE"],
     ],
     allocations: [
+      ...(tableSpecs.allocations.columns.some((column) => column.name === "projectId") ||
+      (allowCompatibleExtensions && hasColumn(db, "allocations", "projectId"))
+        ? [["projectId", "projects", "id", "SET NULL"] as [string, string, string, string]]
+        : []),
       ["activityId", "activities", "id", "CASCADE"],
       ["resourceId", "resources", "id", "CASCADE"],
       ["accountId", "accounts", "id", "CASCADE"],
@@ -583,6 +596,11 @@ export function assertSchemaV32(db: Db): void {
 /** Assert the released v33 nullable-time-off shape before the closure table exists. */
 export function assertSchemaV33(db: Db): void {
   assertSchemaVersion(db, V33_TABLES, true);
+}
+
+/** Assert the released v34 shape before allocation project attribution exists. */
+export function assertSchemaV34(db: Db): void {
+  assertSchemaVersion(db, V34_TABLES, true);
 }
 
 /** Assert that the live database matches the current entity/table specification. */

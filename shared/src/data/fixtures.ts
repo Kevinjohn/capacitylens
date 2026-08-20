@@ -183,6 +183,13 @@ export const FIXTURE_ALLOCATION: Allocation = {
   updatedAt: TS2,
 };
 
+export const FIXTURE_ALLOCATION_ATTRIBUTED: Allocation = {
+  ...FIXTURE_ALLOCATION,
+  id: "fix-al2",
+  activityId: FIXTURE_ACTIVITY_REPEATABLE.id,
+  projectId: "fix-p1",
+};
+
 export const FIXTURE_TIMEOFF: TimeOff = {
   id: "fix-to1",
   accountId: "fix-a1",

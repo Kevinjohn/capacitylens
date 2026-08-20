@@ -387,6 +387,7 @@ export function validateWrite(
         row.resourceId as string,
         row.activityId as string,
         row.hoursPerDay as number,
+        row.projectId as string | undefined,
         existing as never,
         lookup,
       );

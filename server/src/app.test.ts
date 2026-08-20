@@ -16,6 +16,7 @@ import {
   FIXTURE_ACTIVITY_INTERNAL,
   FIXTURE_ACTIVITY_REPEATABLE,
   FIXTURE_ALLOCATION,
+  FIXTURE_ALLOCATION_ATTRIBUTED,
   FIXTURE_TIMEOFF,
 } from "@capacitylens/shared/data/fixtures";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
@@ -512,6 +513,317 @@ describe("generic lifecycle deletion guard", () => {
 });
 
 describe("batch sync (/api/batch — transactional, ordered)", () => {
+  const seedAttributedActivity = async (resourceKind: "person" | "placeholder" = "person") => {
+    const fixture = freshApp();
+    await post(fixture.app, "accounts", account("a1"));
+    await post(fixture.app, "clients", client("c1", "a1"));
+    await post(fixture.app, "projects", project("p1", "a1", "c1"));
+    if (resourceKind === "placeholder") {
+      await post(fixture.app, "projects", project("p2", "a1", "c1"));
+    }
+    const resource = resourceKind === "placeholder" ? placeholder("ph", "a1", "p1") : person("r1", "a1");
+    await post(fixture.app, "resources", resource);
+    await post(fixture.app, "activities", {
+      ...activity("repeatable", "a1", "p1"),
+      kind: "repeatable",
+      projectId: undefined,
+    });
+    await post(
+      fixture.app,
+      "allocations",
+      allocation("allocation", "a1", resource.id, "repeatable", { projectId: "p1" }),
+    );
+    return fixture;
+  };
+
+  it("reconciles attributed allocations after repeatable activity kind changes", async () => {
+    const allocationFirst = await seedAttributedActivity();
+    const allocationFirstBefore = await state(allocationFirst.app);
+    const allocationFirstActivity = allocationFirstBefore.activities.find(
+      (row: { id: string }) => row.id === "repeatable",
+    );
+    const allocationFirstAllocation = allocationFirstBefore.allocations.find(
+      (row: { id: string }) => row.id === "allocation",
+    );
+    const allocationFirstResponse = await orderedBatch(allocationFirst.app, "browser-session-kind-change-0001", 1, [
+      { method: "PUT", table: "allocations", id: "allocation", row: allocationFirstAllocation },
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...allocationFirstActivity, kind: "project", projectId: "p1" },
+      },
+    ]);
+    expect(allocationFirstResponse.statusCode).toBe(200);
+    const allocationFirstState = await state(allocationFirst.app);
+    const rewrittenAllocation = allocationFirstState.allocations[0];
+    expect(rewrittenAllocation).not.toHaveProperty("projectId");
+    expect(allocationFirstResponse.json().revisions).toContainEqual({
+      table: "allocations",
+      id: "allocation",
+      createdAt: rewrittenAllocation.createdAt,
+      updatedAt: rewrittenAllocation.updatedAt,
+      rewrite: true,
+    });
+
+    const explicit = await seedAttributedActivity();
+    const explicitBefore = await state(explicit.app);
+    const explicitActivity = explicitBefore.activities.find((row: { id: string }) => row.id === "repeatable");
+    const explicitAllocation = explicitBefore.allocations.find((row: { id: string }) => row.id === "allocation");
+    const clearedAllocation = { ...explicitAllocation };
+    delete clearedAllocation.projectId;
+    const explicitResponse = await orderedBatch(explicit.app, "browser-session-kind-change-0002", 1, [
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...explicitActivity, kind: "project", projectId: "p1" },
+      },
+      { method: "PUT", table: "allocations", id: "allocation", row: clearedAllocation },
+    ]);
+    expect(explicitResponse.statusCode).toBe(200);
+    expect((await state(explicit.app)).allocations[0]).not.toHaveProperty("projectId");
+
+    const implicit = await seedAttributedActivity();
+    const implicitBefore = await state(implicit.app);
+    const implicitActivity = implicitBefore.activities.find((row: { id: string }) => row.id === "repeatable");
+    const implicitResponse = await orderedBatch(implicit.app, "browser-session-kind-change-0003", 1, [
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...implicitActivity, kind: "project", projectId: "p1" },
+      },
+    ]);
+    expect(implicitResponse.statusCode).toBe(200);
+    const implicitAllocation = (await state(implicit.app)).allocations[0];
+    expect(implicitAllocation).not.toHaveProperty("projectId");
+    expect(implicitResponse.json().revisions).toContainEqual({
+      table: "allocations",
+      id: "allocation",
+      createdAt: implicitAllocation.createdAt,
+      updatedAt: implicitAllocation.updatedAt,
+      rewrite: true,
+    });
+
+    const forbidden = await seedAttributedActivity();
+    const forbiddenBefore = await state(forbidden.app);
+    const forbiddenActivity = forbiddenBefore.activities.find((row: { id: string }) => row.id === "repeatable");
+    const forbiddenAllocation = forbiddenBefore.allocations.find((row: { id: string }) => row.id === "allocation");
+    const forbiddenResponse = await orderedBatch(forbidden.app, "browser-session-kind-change-0004", 1, [
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...forbiddenActivity, kind: "project", projectId: "p1" },
+      },
+      { method: "PUT", table: "allocations", id: "allocation", row: forbiddenAllocation },
+    ]);
+    expect(forbiddenResponse.statusCode).toBe(400);
+    expect(forbiddenResponse.json()).toMatchObject({ code: "allocation_project_forbidden" });
+    expect((await state(forbidden.app)).activities[0]).toMatchObject({ kind: "repeatable" });
+  });
+
+  it("keeps at-flip-time clearing after an activity flips back before a dependent write", async () => {
+    const fixture = await seedAttributedActivity("placeholder");
+    const before = await state(fixture.app);
+    const currentActivity = before.activities.find((row: { id: string }) => row.id === "repeatable");
+
+    const response = await batch(fixture.app, [
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...currentActivity, kind: "internal", projectId: undefined },
+      },
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...currentActivity, kind: "repeatable", projectId: undefined },
+      },
+      {
+        method: "PUT",
+        table: "resources",
+        id: "ph",
+        row: { ...before.resources[0], projectId: "p2" },
+      },
+    ]);
+
+    expect(response.statusCode, response.body).toBe(200);
+    const rewritten = (await state(fixture.app)).allocations[0];
+    expect(rewritten).not.toHaveProperty("projectId");
+    expect(response.json().revisions).toContainEqual({
+      table: "allocations",
+      id: rewritten.id,
+      createdAt: rewritten.createdAt,
+      updatedAt: rewritten.updatedAt,
+      rewrite: true,
+    });
+  });
+
+  it("validates an activity edit against corrupt attribution before clearing it", async () => {
+    const fixture = await seedAttributedActivity("placeholder");
+    fixture.db.prepare("UPDATE resources SET projectId = 'p2' WHERE id = 'ph'").run();
+    const before = await state(fixture.app);
+
+    const response = await batch(fixture.app, [
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...before.activities[0], kind: "project", projectId: "p1" },
+      },
+    ]);
+
+    expect(response.statusCode).toBe(200);
+    expect((await state(fixture.app)).allocations[0]).not.toHaveProperty("projectId");
+  });
+
+  it("keeps direct activity PUT attribution clearing behavior", async () => {
+    const fixture = await seedAttributedActivity();
+    const before = await state(fixture.app);
+    const existingActivity = before.activities.find((row: { id: string }) => row.id === "repeatable");
+
+    const response = await put(fixture.app, "activities", "repeatable", {
+      ...existingActivity,
+      kind: "internal",
+      projectId: undefined,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ id: "repeatable", kind: "internal" });
+    expect(response.json()).not.toHaveProperty("table");
+    const allocationAfter = (await state(fixture.app)).allocations[0];
+    expect(allocationAfter).not.toHaveProperty("projectId");
+    expect(Date.parse(allocationAfter.updatedAt)).toBeGreaterThan(Date.parse(before.allocations[0].updatedAt));
+    expect(response.json().rewrittenAllocations).toEqual([
+      { id: allocationAfter.id, createdAt: allocationAfter.createdAt, updatedAt: allocationAfter.updatedAt },
+    ]);
+  });
+
+  it("keeps direct activity PATCH attribution clearing behavior", async () => {
+    const fixture = await seedAttributedActivity();
+    const before = await state(fixture.app);
+
+    const response = await patch(fixture.app, "activities", "repeatable", {
+      kind: "internal",
+      projectId: undefined,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const allocationAfter = (await state(fixture.app)).allocations[0];
+    expect(allocationAfter).not.toHaveProperty("projectId");
+    expect(Date.parse(allocationAfter.updatedAt)).toBeGreaterThan(Date.parse(before.allocations[0].updatedAt));
+    expect(response.json().rewrittenAllocations).toEqual([
+      { id: allocationAfter.id, createdAt: allocationAfter.createdAt, updatedAt: allocationAfter.updatedAt },
+    ]);
+  });
+
+  it("repairs legacy attribution when a batch re-PUTs an already ineligible activity", async () => {
+    const fixture = freshApp();
+    await post(fixture.app, "accounts", account("a1"));
+    await post(fixture.app, "clients", client("c1", "a1"));
+    await post(fixture.app, "projects", project("p1", "a1", "c1"));
+    await post(fixture.app, "resources", person("r1", "a1"));
+    await post(fixture.app, "activities", {
+      ...activity("internal", "a1", "p1"),
+      kind: "internal",
+      projectId: undefined,
+    });
+    await post(fixture.app, "activities", {
+      ...activity("repeatable", "a1", "p1"),
+      kind: "repeatable",
+      projectId: undefined,
+    });
+    await post(fixture.app, "allocations", allocation("allocation", "a1", "r1", "repeatable", { projectId: "p1" }));
+    fixture.db.prepare("UPDATE allocations SET activityId = 'internal' WHERE id = 'allocation'").run();
+    const current = (await state(fixture.app)).activities.find((row: { id: string }) => row.id === "internal");
+
+    const response = await batch(fixture.app, [{ method: "PUT", table: "activities", id: "internal", row: current }]);
+
+    expect(response.statusCode).toBe(200);
+    const repaired = (await state(fixture.app)).allocations[0];
+    expect(repaired).not.toHaveProperty("projectId");
+    expect(response.json().revisions).toContainEqual({
+      table: "allocations",
+      id: repaired.id,
+      createdAt: repaired.createdAt,
+      updatedAt: repaired.updatedAt,
+      rewrite: true,
+    });
+  });
+
+  it("keeps projection validation consistent for a coalesced activity kind flip and placeholder rebind", async () => {
+    const fixture = freshApp();
+    await post(fixture.app, "accounts", account("a1"));
+    await post(fixture.app, "clients", client("c1", "a1"));
+    await post(fixture.app, "projects", project("p1", "a1", "c1"));
+    await post(fixture.app, "projects", project("p2", "a1", "c1"));
+    await post(fixture.app, "resources", placeholder("ph", "a1", "p1"));
+    await post(fixture.app, "activities", {
+      ...activity("repeatable", "a1", "p1"),
+      kind: "repeatable",
+      projectId: undefined,
+    });
+    await post(fixture.app, "allocations", allocation("allocation", "a1", "ph", "repeatable", { projectId: "p1" }));
+    const before = await state(fixture.app);
+
+    const response = await batch(fixture.app, [
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...before.activities[0], kind: "internal", projectId: undefined },
+      },
+      {
+        method: "PUT",
+        table: "resources",
+        id: "ph",
+        row: { ...before.resources[0], projectId: "p2" },
+      },
+    ]);
+
+    expect(response.statusCode).toBe(200);
+    expect((await state(fixture.app)).allocations[0]).not.toHaveProperty("projectId");
+  });
+
+  it("clears and echoes allocation attribution before a later lifecycle archive in the same batch", async () => {
+    const fixture = freshApp();
+    await post(fixture.app, "accounts", account("a1"));
+    await post(fixture.app, "clients", client("c1", "a1"));
+    await post(fixture.app, "projects", project("p1", "a1", "c1"));
+    await post(fixture.app, "resources", person("r1", "a1"));
+    await post(fixture.app, "activities", {
+      ...activity("repeatable", "a1", "p1"),
+      kind: "repeatable",
+      projectId: undefined,
+    });
+    await post(fixture.app, "allocations", allocation("allocation", "a1", "r1", "repeatable", { projectId: "p1" }));
+    const before = await state(fixture.app);
+
+    const response = await batch(fixture.app, [
+      {
+        method: "PUT",
+        table: "activities",
+        id: "repeatable",
+        row: { ...before.activities[0], kind: "internal", projectId: undefined },
+      },
+      { method: "ARCHIVE", table: "projects", id: "p1", accountId: "a1" },
+    ]);
+
+    expect(response.statusCode).toBe(200);
+    const rewritten = (await state(fixture.app)).allocations[0];
+    expect(rewritten).not.toHaveProperty("projectId");
+    expect(response.json().revisions).toContainEqual({
+      table: "allocations",
+      id: rewritten.id,
+      createdAt: rewritten.createdAt,
+      updatedAt: rewritten.updatedAt,
+      rewrite: true,
+    });
+  });
+
   it("writes closures directly and in a batch, and rejects resource references", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -684,6 +996,51 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     });
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/object/i);
+  });
+});
+
+describe("batch pre-scan validation", () => {
+  it.each([
+    [{ "x-capacitylens-sync-session": "short", "x-capacitylens-sync-sequence": "1" }],
+    [{ "x-capacitylens-sync-session": "browser-session-valid-0001", "x-capacitylens-sync-sequence": "0" }],
+    [{ "x-capacitylens-sync-session": "browser-session-valid-0001" }],
+  ])("rejects malformed browser ordering headers %#", async (headers) => {
+    const { app } = freshApp();
+    const response = await call(app, {
+      method: "POST",
+      url: "/api/batch",
+      headers,
+      payload: body({ ops: [] }),
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ error: "Invalid browser sync ordering headers." });
+  });
+
+  it.each([
+    ["PUT", { method: "PUT", table: "clients", id: "c1", row: { ...client("c1", "a1"), updatedAt: 1 } }],
+    ["DELETE", { method: "DELETE", table: "disciplines", id: "d1", accountId: "a1", updatedAt: null }],
+    ["ARCHIVE", { method: "ARCHIVE", table: "clients", id: "c1", accountId: "a1", updatedAt: false }],
+  ])("requires a string updatedAt for ordered %s operations", async (verb, op) => {
+    const { app } = freshApp();
+    const response = await orderedBatch(app, "browser-session-valid-0002", 1, [op]);
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toContain(`ordered ${verb} op needs a string updatedAt`);
+  });
+
+  it.each([
+    ["unknown method", { method: "PATCH", table: "clients", id: "c1" }, /Unknown op method/],
+    ["DELETE account", { method: "DELETE", table: "disciplines", id: "d1", accountId: 1 }, /string accountId/],
+    [
+      "ARCHIVE non-lifecycle",
+      { method: "ARCHIVE", table: "disciplines", id: "d1", accountId: "a1" },
+      /only for lifecycle/,
+    ],
+    ["ARCHIVE account", { method: "ARCHIVE", table: "clients", id: "c1" }, /string accountId/],
+  ])("rejects an invalid $name during pre-scan", async (_name, op, message) => {
+    const { app } = freshApp();
+    const response = await batch(app, [op]);
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toMatch(message);
   });
 });
 
@@ -2946,6 +3303,37 @@ describe("optimistic concurrency (default-on)", () => {
     expect(current.disciplines).toEqual([]);
   });
 
+  it("ordered stale ARCHIVE rolls back its batch when it is not a same-session successor", async () => {
+    const app = buildApp(openDb(":memory:"), { optimisticConcurrency: false });
+    await post(app, "accounts", account("a1"));
+    const created = await post(app, "clients", client("c1", "a1"));
+    const createdRow = created.json() as Record<string, unknown>;
+    const baseRevision = createdRow.updatedAt as string;
+    const external = await put(app, "clients", "c1", {
+      ...createdRow,
+      name: "Externally edited",
+      updatedAt: baseRevision,
+    });
+    expect(external.statusCode).toBe(200);
+
+    const response = await orderedBatch(app, "stale-archive-browser-1", 1, [
+      {
+        method: "ARCHIVE",
+        table: "clients",
+        id: "c1",
+        accountId: "a1",
+        updatedAt: baseRevision,
+      },
+    ]);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      error: "The record was modified more recently on the server.",
+      current: { id: "c1", name: "Externally edited" },
+    });
+    expect((await state(app)).clients).toEqual([expect.objectContaining({ id: "c1", name: "Externally edited" })]);
+  });
+
   it.each(["first-before-undo", "undo-before-first"])(
     "ordered creation followed by a non-lifecycle deletion cannot be resurrected (%s)",
     async (arrivalOrder) => {
@@ -3281,13 +3669,23 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     );
   });
 
-  it("allocation: every field round-trips (including optional note + json ignoreWeekends + hoursPerDay 0)", async () => {
+  it("allocation: every field round-trips (including optional project attribution)", async () => {
     const { app } = freshApp();
     await seedFixtureDeps(app);
     await post(app, "resources", FIXTURE_RESOURCE);
     await post(app, "activities", FIXTURE_ACTIVITY);
+    await post(app, "activities", FIXTURE_ACTIVITY_REPEATABLE);
     expect((await post(app, "allocations", FIXTURE_ALLOCATION)).statusCode).toBe(201);
-    expectFixture((await state(app)).allocations[0], FIXTURE_ALLOCATION);
+    expect((await post(app, "allocations", FIXTURE_ALLOCATION_ATTRIBUTED)).statusCode).toBe(201);
+    const allocations = (await state(app)).allocations;
+    expectFixture(
+      allocations.find((allocation: { id: string }) => allocation.id === FIXTURE_ALLOCATION.id),
+      FIXTURE_ALLOCATION,
+    );
+    expectFixture(
+      allocations.find((allocation: { id: string }) => allocation.id === FIXTURE_ALLOCATION_ATTRIBUTED.id),
+      FIXTURE_ALLOCATION_ATTRIBUTED,
+    );
   });
 
   it("timeOff: every field round-trips (including optional note)", async () => {

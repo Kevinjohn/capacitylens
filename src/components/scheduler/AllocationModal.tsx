@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { daysInclusive, eachDayISO, MAX_ISO_DATE, parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
-import { isValidISODate } from "@capacitylens/shared/lib/integrity";
+import { allocationAttributionAllowed, effectiveProjectId, isValidISODate } from "@capacitylens/shared/lib/integrity";
 import {
   effectiveWorkingWeek,
   lacksEffectiveWorkingDays,
@@ -85,7 +85,7 @@ import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
 import { useCanEdit } from "../../auth/permissionContext";
 import { ConfirmDialog } from "../common/dialogs";
 import { RepeatedAllocationDeleteDialog } from "./RepeatedAllocationDeleteDialog";
-import { buildActivityOptions } from "./activityOptions";
+import { buildActivityOptions, groupKeyForKind, groupLabelForKind, sortGroupedOptions } from "./activityOptions";
 import { undoShortcut } from "../../lib/keyboardShortcuts";
 import { formatShortDate } from "../../lib/dateDisplay";
 import {
@@ -174,9 +174,26 @@ function DateRangeFields({
 }
 
 function projectSelectionForActivity(activity: Activity | undefined): string {
-  if (activity?.kind === "repeatable") return ANY_PROJECT_SELECTION;
+  if (allocationAttributionAllowed(activity?.kind)) return ANY_PROJECT_SELECTION;
   if (activity?.kind === "project" && activity.projectId) return activity.projectId;
   return INTERNAL_PROJECT_SELECTION;
+}
+
+function attributedProjectForSelection(activity: Activity | undefined, selection: string): string | undefined {
+  if (
+    !allocationAttributionAllowed(activity?.kind) ||
+    selection === INTERNAL_PROJECT_SELECTION ||
+    selection === ANY_PROJECT_SELECTION
+  ) {
+    return undefined;
+  }
+  return selection;
+}
+
+function activityBelongsToProjectSelection(activity: Pick<Activity, "kind" | "projectId">, selection: string): boolean {
+  if (selection === INTERNAL_PROJECT_SELECTION) return activity.kind === "internal";
+  if (selection === ANY_PROJECT_SELECTION) return activity.kind === "repeatable";
+  return activity.kind === "repeatable" || (activity.kind === "project" && activity.projectId === selection);
 }
 
 function activityScopeForProjectSelection(selection: string): { kind: Activity["kind"]; projectId?: string } {
@@ -341,7 +358,14 @@ export function AllocationModal(props: AllocationModalProps) {
   const initialResourceId = editing?.resourceId ?? create?.resourceId ?? "";
   const initialResource = resourceById.get(initialResourceId);
   const initialEffectiveWeek = initialResource ? effectiveWorkingWeek(initialResource, accountWorkingDays) : null;
-  const initialLocked = initialResource?.kind === "placeholder" ? initialResource.projectId : undefined;
+  const initialPlaceholderProjectId = initialResource?.kind === "placeholder" ? initialResource.projectId : undefined;
+  const initialLocked = editing
+    ? (editing.projectId ??
+      (initialActivity
+        ? projectSelectionForActivity(initialActivity)
+        : // A dangling activity cannot identify the scope; a placeholder's binding remains authoritative.
+          initialPlaceholderProjectId))
+    : initialPlaceholderProjectId;
   const initialStart = editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone);
   const initialScheduledHours =
     initialResource && initialEffectiveWeek
@@ -349,12 +373,9 @@ export function AllocationModal(props: AllocationModalProps) {
       : FULL_DAY_HOURS;
 
   const [resourceId, setResourceId] = useState(initialResourceId);
-  // Editing derives the exact activity scope so project-less Internal and Any Project work no
-  // longer reopen as one ambiguous bucket. `initialLocked` remains only the create-time default
-  // for a placeholder's bound project.
-  const [projectSelection, setProjectSelection] = useState(
-    editing ? projectSelectionForActivity(initialActivity) : (initialLocked ?? INTERNAL_PROJECT_SELECTION),
-  );
+  // `initialLocked` preserves the exact activity scope while editing and a placeholder's bound
+  // project while creating, so legacy unattributed rows reopen in their original scope.
+  const [projectSelection, setProjectSelection] = useState(initialLocked ?? INTERNAL_PROJECT_SELECTION);
   const [activityId, setActivityId] = useState(editing?.activityId ?? "");
   const [startDate, setStartDate] = useState<ISODate>(initialStart);
   const [endDate, setEndDate] = useState<ISODate>(editing?.endDate ?? create?.endDate ?? todayISO(calendarTimeZone));
@@ -409,6 +430,15 @@ export function AllocationModal(props: AllocationModalProps) {
   const [inlineActivityOption, setInlineActivityOption] = useState<
     (Option & { kind: Activity["kind"]; projectId?: string }) | null
   >(null);
+  const selectedActivity = useMemo(
+    () => data.activities.find((activity) => activity.id === activityId),
+    [activityId, data.activities],
+  );
+  const attributedProjectId = attributedProjectForSelection(selectedActivity, projectSelection);
+  const selectedEffectiveProjectId = useMemo(
+    () => (selectedActivity ? effectiveProjectId({ projectId: attributedProjectId }, selectedActivity) : undefined),
+    [attributedProjectId, selectedActivity],
+  );
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;
   useFieldErrorFocus(fieldError);
@@ -531,8 +561,8 @@ export function AllocationModal(props: AllocationModalProps) {
       !(Number.isFinite(effHoursPerDay) && effHoursPerDay > 0 && effHoursPerDay <= MAX_HOURS_PER_DAY)
     )
       return null;
-    const activity = data.activities.find((candidate) => candidate.id === activityId);
-    if (!activity || !validateAllocationAssignment(selectedResource, activity.projectId).ok) return null;
+    if (!selectedActivity || !validateAllocationAssignment(selectedResource, selectedEffectiveProjectId).ok)
+      return null;
     try {
       const { startDates } = generateRepeatingStartDates(startDate, repeatUntil, repeatPatternForSelection(repeat));
       const drafts = projectAllocationDates(
@@ -545,6 +575,7 @@ export function AllocationModal(props: AllocationModalProps) {
           status,
           note: note || undefined,
           ignoreWeekends: isExternal ? true : ignoreWeekends,
+          ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
         },
         startDates,
         { schedulingMode: mode, daysOver, resource: selectedResource, effectiveWeek: selectedEffectiveWeek },
@@ -559,7 +590,7 @@ export function AllocationModal(props: AllocationModalProps) {
   }, [
     activityId,
     create,
-    data.activities,
+    attributedProjectId,
     daysOfWork,
     daysOver,
     effEndDate,
@@ -575,6 +606,8 @@ export function AllocationModal(props: AllocationModalProps) {
     repeatUntilMaximum,
     repeatUntilMinimum,
     resourceId,
+    selectedActivity,
+    selectedEffectiveProjectId,
     selectedResource,
     selectedEffectiveWeek,
     spanFitsDateDomain,
@@ -638,6 +671,7 @@ export function AllocationModal(props: AllocationModalProps) {
             endDate: effEndDate,
             hoursPerDay: effHoursPerDay,
             ignoreWeekends,
+            ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
           },
           others,
           resourceTimeOff,
@@ -648,6 +682,7 @@ export function AllocationModal(props: AllocationModalProps) {
       ) || null
     );
   }, [
+    attributedProjectId,
     create,
     data.allocations,
     data.closures,
@@ -707,8 +742,16 @@ export function AllocationModal(props: AllocationModalProps) {
       );
     });
   const projectOptions: Option[] = [
-    { value: INTERNAL_PROJECT_SELECTION, label: m.form_allocation_project_internal() },
-    { value: ANY_PROJECT_SELECTION, label: m.form_allocation_project_any() },
+    {
+      value: INTERNAL_PROJECT_SELECTION,
+      label: m.form_allocation_project_internal(),
+      disabled: lockedProjectId !== undefined,
+    },
+    {
+      value: ANY_PROJECT_SELECTION,
+      label: m.form_allocation_project_any(),
+      disabled: lockedProjectId !== undefined,
+    },
     ...sortedProjects.map((project, index) => {
       const clientName = clientNameById.get(project.clientId);
       return {
@@ -727,18 +770,21 @@ export function AllocationModal(props: AllocationModalProps) {
   const activityOptions = useMemo(() => {
     if (
       inlineActivityOption &&
-      inlineActivityOption.kind === activityScope.kind &&
-      inlineActivityOption.projectId === activityScope.projectId &&
+      activityBelongsToProjectSelection(inlineActivityOption, projectSelection) &&
       !baseActivityOptions.some((option) => option.value === inlineActivityOption.value)
     ) {
-      return [...baseActivityOptions, inlineActivityOption].toSorted(
-        (left, right) =>
-          left.label.localeCompare(right.label, undefined, { sensitivity: "base" }) ||
-          left.value.localeCompare(right.value),
-      );
+      const option =
+        projectSelection !== INTERNAL_PROJECT_SELECTION && projectSelection !== ANY_PROJECT_SELECTION
+          ? {
+              ...inlineActivityOption,
+              groupKey: groupKeyForKind(inlineActivityOption.kind),
+              groupLabel: groupLabelForKind(inlineActivityOption.kind),
+            }
+          : inlineActivityOption;
+      return sortGroupedOptions([...baseActivityOptions, option]);
     }
     return baseActivityOptions;
-  }, [activityScope.kind, activityScope.projectId, baseActivityOptions, inlineActivityOption]);
+  }, [baseActivityOptions, inlineActivityOption, projectSelection]);
   const onAssigneeChange = (v: string) => {
     clear();
     setResourceId(v);
@@ -819,9 +865,8 @@ export function AllocationModal(props: AllocationModalProps) {
       maxLength: MAX_NOTE_LENGTH,
     });
     if (cleanNote === null) return null;
-    const activity = data.activities.find((act) => act.id === activityId);
-    if (selectedResource && activity) {
-      const check = validateAllocationAssignment(selectedResource, activity.projectId);
+    if (selectedResource && selectedActivity) {
+      const check = validateAllocationAssignment(selectedResource, selectedEffectiveProjectId);
       if (!check.ok) {
         fail("activity", domainErrorMessage(check.codes[0]));
         return null;
@@ -845,6 +890,7 @@ export function AllocationModal(props: AllocationModalProps) {
       hoursPerDay: effHoursPerDay,
       status,
       note: cleanNote || undefined,
+      ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
       // Externals have no working week — weekends are plain calendar days for them, so a span is
       // literal (ignoreWeekends: true) and the toggle is hidden below.
       ignoreWeekends: isExternal ? true : ignoreWeekends,
@@ -896,6 +942,8 @@ export function AllocationModal(props: AllocationModalProps) {
         const { hoursPerDay: draftHoursPerDay, ...fields } = draft;
         updateAllocation(editing.id, {
           ...fields,
+          // The store treats an own `undefined` value as a request to delete the persisted key.
+          projectId: draft.projectId,
           ...(!isBlocks || isExternal ? { hoursPerDay: draftHoursPerDay } : {}),
         });
       } else if (repeat === "none") {

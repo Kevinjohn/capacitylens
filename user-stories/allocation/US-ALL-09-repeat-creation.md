@@ -45,6 +45,7 @@ intended scope.
 - ✅ The preview shows the cutoff and final start using the app's short weekday/day/month date style.
 - ✅ Saving a repeat is all-or-nothing and produces one undo step.
 - ✅ Generated bars remain independently editable while retaining their hidden series membership.
+- ✅ When an All-projects activity is booked under a real project, every generated occurrence copies that project attribution. Editing one occurrence changes only that row.
 - ✅ Linked bars show a repeat cue and expose the last surviving series end on hover, focus and to
   assistive technology; one-offs and legacy unlinked repeat batches do not.
 - ✅ Delete can remove one occurrence or the selected and future occurrences; earlier starts remain.
