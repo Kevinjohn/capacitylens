@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Made the allocation guide's Internal, All-projects and Project-specific activity model explicit,
+  with real allocation-form screenshots showing where each kind is available.
+
 ## [0.57.0-alpha.1] — 2026-08-19
 
 - Protected `main` against deletion and force pushes while retaining the low-noise post-merge CI
