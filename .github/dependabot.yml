@@ -1,5 +1,17 @@
-# Monthly, grouped — enough to keep Better Auth & friends patched without
-# a weekly PR drizzle on a solo-maintainer repo.
+# Patch-only, monthly. Minor and major updates are not opened automatically: on a
+# solo-maintainer repo their churn costs more validation time than they return, and
+# the security-relevant runtime dependencies here (Better Auth, jose) ship fixes in
+# the patch stream. Advisories are caught independently by `gate:deps` (the
+# production-audit job in gate.yml), which runs on every merge to main — so a real
+# vulnerability surfaces there even when no Dependabot PR is raised for it.
+#
+# `ignore` suppresses Dependabot security PRs as well as version PRs. That is the
+# deliberate trade: gate:deps is the advisory signal, and a forced minor/major is
+# bumped by hand with its reason recorded in the pull request.
+#
+# Base images are the standing exception to review periodically: holding a
+# distribution at patch level eventually parks it on an end-of-life branch, so
+# re-check Alpine's and Node's support windows rather than waiting for a PR.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -10,14 +22,29 @@ updates:
     schedule:
       interval: monthly
     groups:
-      minor-and-patch:
-        update-types: [minor, patch]
+      patch:
+        update-types: [patch]
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
     open-pull-requests-limit: 5
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: monthly
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
