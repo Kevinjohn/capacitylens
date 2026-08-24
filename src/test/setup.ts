@@ -24,18 +24,25 @@ class MemoryStorage implements Storage {
   }
 }
 
-// Node 26 exposes an experimental global localStorage accessor that resolves to undefined unless
-// the process receives --localstorage-file. It can shadow jsdom's Storage globals and cascade one
-// teardown failure through an entire test file. Pin the globals to jsdom's real Storage instances;
-// tests that intercept Storage.prototype must still exercise their quota/SecurityError paths.
+// Node >=25 exposes an experimental global localStorage accessor that resolves to undefined unless
+// the process receives --localstorage-file, and under a jsdom opaque origin `window.localStorage`
+// itself comes through as undefined — so the value captured here must never be trusted blindly.
+// Fall back to an in-memory Storage whenever the environment's own storage is missing or unusable,
+// pinning the globals so tests that intercept Storage.prototype still exercise their
+// quota/SecurityError paths when a real storage exists.
+function usableStorage(candidate: unknown): Storage {
+  return candidate && typeof (candidate as Storage).getItem === "function"
+    ? (candidate as Storage)
+    : new MemoryStorage();
+}
 Object.defineProperties(globalThis, {
   localStorage: {
     configurable: true,
-    value: typeof window === "undefined" ? new MemoryStorage() : window.localStorage,
+    value: usableStorage(typeof window === "undefined" ? undefined : window.localStorage),
   },
   sessionStorage: {
     configurable: true,
-    value: typeof window === "undefined" ? new MemoryStorage() : window.sessionStorage,
+    value: usableStorage(typeof window === "undefined" ? undefined : window.sessionStorage),
   },
 });
 

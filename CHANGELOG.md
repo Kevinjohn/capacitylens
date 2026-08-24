@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Hardened the vitest setup's `localStorage`/`sessionStorage` pinning so the suite passes on Node
+  releases shipping the experimental global storage accessor (Node >= 25), not only the pinned
+  Node 24 gate.
+
 ### Changed
 
 - Made the allocation guide's Internal, All-projects and Project-specific activity model explicit,
