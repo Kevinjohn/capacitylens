@@ -319,6 +319,10 @@ mode stays usable when Web Crypto is unavailable, but offline snapshot creation 
 visibly instead of falling back to plaintext. Obsolete or plugin browsers are unsupported;
 the application doesn't weaken headers or crypto for them.
 
+Node 24 is the supported gate, but the vitest setup pins `globalThis.localStorage`/`sessionStorage`
+to a usable Storage instance (falling back to an in-memory stub), so contributor runs on newer Node
+releases with the experimental global storage accessor don't cascade failures through test files.
+
 User-text hygiene is single-sourced across the browser and server, but its Unicode
 property escapes use each engine's bundled Unicode tables. Keep the supported browser
 matrix and Node version current together: during a staggered engine upgrade, newly
