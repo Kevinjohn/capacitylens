@@ -7,7 +7,13 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-## [0.57.0-alpha.11] — 2026-08-23
+## [0.57.0-alpha.12] — 2026-08-23
+
+### Fixed
+
+- The shared package's exports test anchors its package manifest on the test file's own location,
+  so the package's own `pnpm test` works from any working directory.
+  — 2026-08-23
 
 ### Fixed
 
@@ -3968,7 +3974,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.11...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.12...HEAD
+[0.57.0-alpha.12]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.11...v0.57.0-alpha.12
 [0.57.0-alpha.11]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.10...v0.57.0-alpha.11
 [0.57.0-alpha.10]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.9...v0.57.0-alpha.10
 [0.57.0-alpha.9]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.8...v0.57.0-alpha.9

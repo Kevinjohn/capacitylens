@@ -1,9 +1,14 @@
 import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("@capacitylens/shared package exports", () => {
-  const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), "shared/package.json"), "utf8")) as {
+  // Anchor on THIS FILE's location (src/ is one level below the package root) so the manifest is
+  // found no matter which working directory vitest was invoked from — the package's own `pnpm test`
+  // used to fail with ENOENT because cwd-based resolution looked for shared/shared/package.json.
+  const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+  const packageJson = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8")) as {
     exports: Record<string, string>;
   };
 
