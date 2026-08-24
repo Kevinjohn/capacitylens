@@ -5,7 +5,6 @@ import {
   assertControlTablesCurrent,
   getMembershipRow,
   upsertMember,
-  getMemberRole,
   listMembershipsForUser,
   listMembersForAccount,
   migrateSingleOwnerControlPlaneV10,
@@ -17,7 +16,9 @@ import {
   assertSingleOwnerControlPlaneCurrent,
   removeMember,
   createInvite,
+  getActiveMemberRole,
   getInvite,
+  getMemberRole,
   newInviteId,
   listInvitesForAccount,
   revokeInvite,
@@ -675,5 +676,23 @@ describe("revokeInvite", () => {
     createInvite(db, invite({ token: "tok-1", id: "inv-1", accountId: "acc-1" }));
     revokeInvite(db, "acc-2", "inv-1"); // wrong account predicate → no row matches
     expect(getInvite(db, "tok-1")).not.toBeNull(); // survives
+  });
+});
+
+describe("corrupt-role surfacing in scalar readers", () => {
+  it("getMemberRole throws on a present membership with an unreadable role instead of returning null", () => {
+    const db = freshDb();
+    upsertMember(db, member());
+    db.prepare(`UPDATE account_members SET role = 'wizard' WHERE accountId = 'acc-1'`).run();
+    expect(() => getMemberRole(db, "acc-1", "user-1")).toThrow(/control table corrupted/);
+  });
+
+  it("getActiveMemberRole throws on corruption but still returns null for genuine absence", () => {
+    const db = freshDb();
+    upsertMember(db, member());
+    db.prepare(`UPDATE account_members SET role = 'wizard' WHERE accountId = 'acc-1'`).run();
+    expect(() => getActiveMemberRole(db, "acc-1", "user-1")).toThrow(/control table corrupted/);
+    expect(getActiveMemberRole(db, "acc-1", "nobody")).toBeNull();
+    expect(getMemberRole(db, "acc-1", "nobody")).toBeNull();
   });
 });

@@ -596,14 +596,31 @@ export function getMembershipRow(db: Db, accountId: string, userId: string): Acc
  */
 export function getMemberRole(db: Db, accountId: string, userId: string): Role | null {
   const row = memberRoleStatement(db).get(accountId, userId) as { role?: string } | undefined;
-  return isKnownRole(row?.role) ? row.role : null;
+  // A MISSING membership is `null`; a PRESENT membership with an unreadable role is corruption and
+  // must surface like every other control-table reader, never masquerade as absence.
+  if (!row) return null;
+  if (!isKnownRole(row.role)) {
+    throw new Error(
+      `getMemberRole: stored role ${JSON.stringify(row.role)} for (${accountId}, ${userId}) is not a known role — control table corrupted.`,
+    );
+  }
+  return row.role;
 }
 
 /** Security-sensitive role lookup. Legacy control rows may carry a non-active status; those rows
  * never confer application or administrative authority and must be indistinguishable from absence. */
 export function getActiveMemberRole(db: Db, accountId: string, userId: string): Role | null {
   const row = activeMemberRoleStatement(db).get(accountId, userId) as { role?: string } | undefined;
-  return isKnownRole(row?.role) ? row.role : null;
+  // Same distinction as getMemberRole: legacy NON-ACTIVE status is filtered out by the statement
+  // itself and stays indistinguishable from absence, but a returned row whose role cannot be read
+  // is corruption and surfaces rather than degrading authority to `null`.
+  if (!row) return null;
+  if (!isKnownRole(row.role)) {
+    throw new Error(
+      `getActiveMemberRole: stored role ${JSON.stringify(row.role)} for (${accountId}, ${userId}) is not a known role — control table corrupted.`,
+    );
+  }
+  return row.role;
 }
 
 /**
