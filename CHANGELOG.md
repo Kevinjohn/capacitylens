@@ -7,13 +7,19 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-## [0.57.0-alpha.14] — 2026-08-23
+## [0.57.0-alpha.15] — 2026-08-23
+
+### Fixed
+
+- Invite documentation corrected: the raw token is never stored — only its hash is persisted, and
+  the hash (not the raw token) is the invites table's primary key.
+  — 2026-08-23
 
 ### Fixed
 
 - Selecting an unknown company while already on the account picker now shows the not-found notice
   instead of failing silently (the picker-to-picker case detected no "switch").
- — 2026-08-23
+  — 2026-08-23
 
 ### Fixed
 
@@ -3987,7 +3993,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.14...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.15...HEAD
+[0.57.0-alpha.15]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.14...v0.57.0-alpha.15
 [0.57.0-alpha.14]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.13...v0.57.0-alpha.14
 [0.57.0-alpha.13]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.12...v0.57.0-alpha.13
 [0.57.0-alpha.12]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.11...v0.57.0-alpha.12
