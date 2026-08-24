@@ -158,3 +158,36 @@ describe("PATCH /api/accounts/:id foreign-accountId parity with PUT", () => {
     db.close();
   });
 });
+
+describe("audit attribution for account mutations", () => {
+  it("attributes account-mutation audit records to the mutated account id, never a caller-supplied value", async () => {
+    const db = openDb(":memory:");
+    seedTwo(db);
+    const captured: Array<Record<string, unknown>> = [];
+    const capturingSink = {
+      append: (record: Record<string, unknown>) => {
+        captured.push(record);
+        return true;
+      },
+      degraded: false,
+    };
+    const app = buildApp(db, { multiAccount: true, audit: capturingSink });
+
+    // A rejected foreign assertion must produce NO audit record attributed to the asserted tenant:
+    await app.inject({
+      method: "PUT",
+      url: "/api/accounts/a2",
+      payload: { ...account("a2"), accountId: "a1" },
+    });
+    expect(captured.every((r) => r.accountId !== "a1" || r.id === "a1")).toBe(true);
+
+    // An accepted mutation of a2 (no assertion) is attributed to a2:
+    await app.inject({ method: "PATCH", url: "/api/accounts/a2", payload: { name: "Renamed" } });
+    const last = captured[captured.length - 1];
+    expect(last.accountId).toBe("a2");
+    expect(last.action).toBe("patch");
+
+    await app.close();
+    db.close();
+  });
+});

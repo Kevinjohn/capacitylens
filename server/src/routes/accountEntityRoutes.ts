@@ -378,7 +378,10 @@ export function registerAccountEntityRoutes(app: FastifyInstance, dependencies: 
       const auditRecord: AuditRecord = {
         ts: new Date().toISOString(),
         userId: req.user!.id,
-        accountId: (body.accountId as string | undefined) ?? id,
+        // Attribution is the MUTATED account's own id. A caller-supplied body accountId is an
+        // assertion the ownsRow guard may reject; it must never decide which tenant's ledger
+        // records this mutation.
+        accountId: id,
         action: existing ? "update" : "create",
         entity: "accounts",
         id,
@@ -499,7 +502,6 @@ export function registerAccountEntityRoutes(app: FastifyInstance, dependencies: 
   // transaction.
   app.delete("/api/accounts/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const { accountId } = req.query as { accountId?: string };
     try {
       const targetExisted = Boolean(getRow(db, "accounts", id));
       // The completed erasure receipt is deliberately retained after membership removal. An exact
@@ -527,7 +529,7 @@ export function registerAccountEntityRoutes(app: FastifyInstance, dependencies: 
       const auditRecord: AuditRecord = {
         ts: new Date().toISOString(),
         userId: req.user!.id,
-        accountId: accountId ?? id,
+        accountId: id, // attribution is the erased account itself, never a caller-supplied query value
         action: "delete",
         entity: "accounts",
         id,

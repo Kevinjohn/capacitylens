@@ -7,7 +7,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-## [0.57.0-alpha.6] — 2026-08-23
+## [0.57.0-alpha.7] — 2026-08-23
+
+### Fixed
+
+- Account PUT/DELETE audit records are now always attributed to the mutated account's own id; a
+  caller-supplied accountId (body assertion or query parameter) can no longer choose which tenant's
+  ledger records the mutation.
+ — 2026-08-23
 
 ### Fixed
 
@@ -3933,7 +3940,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.6...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.7...HEAD
+[0.57.0-alpha.7]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.6...v0.57.0-alpha.7
 [0.57.0-alpha.6]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.5...v0.57.0-alpha.6
 [0.57.0-alpha.5]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.4...v0.57.0-alpha.5
 [0.57.0-alpha.4]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.3...v0.57.0-alpha.4

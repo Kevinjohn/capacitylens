@@ -302,7 +302,18 @@ describe("audit recovery corruption surfacing", () => {
     const errors: string[] = [];
     const sink = fileAuditSink(file, (m) => errors.push(m));
     expect(sink.degraded).toBe(false); // nothing latched before first use
-    const delivered: AuditEntry[] = [{ auditId: "a-3" }];
+    const delivered: AuditEntry[] = [
+      {
+        ts: "2026-01-01T00:00:00.000Z",
+        userId: "demo",
+        accountId: "a1",
+        action: "update",
+        entity: "accounts",
+        id: "a1",
+        changedFields: ["name"],
+        auditId: "a-3",
+      },
+    ];
     expect(sink.appendMany!(delivered)).toBe(true); // append still succeeds (safe replay direction)
     expect(sink.degraded).toBe(true); // corruption is now surfaced, not silently accepted
     expect(errors.join("\n")).toMatch(/malformed JSONL line/);
@@ -314,7 +325,18 @@ describe("audit recovery corruption surfacing", () => {
     writeFileSync(file, '{"noAuditIdHere":true}\n');
     const errors: string[] = [];
     const sink = fileAuditSink(file, (m) => errors.push(m));
-    expect(sink.append({ auditId: "a-1" })).toBe(true);
+    expect(
+      sink.append({
+        ts: "2026-01-01T00:00:00.000Z",
+        userId: "demo",
+        accountId: "a1",
+        action: "update",
+        entity: "accounts",
+        id: "a1",
+        changedFields: ["name"],
+        auditId: "a-1",
+      }),
+    ).toBe(true);
     expect(sink.degraded).toBe(true);
     expect(errors.join("\n")).toMatch(/no usable auditId/);
   });
@@ -325,7 +347,18 @@ describe("audit recovery corruption surfacing", () => {
     writeFileSync(file, '{"auditId":"a-1"}\n{"auditId":"a-2"}\n');
     const errors: string[] = [];
     const sink = fileAuditSink(file, (m) => errors.push(m));
-    expect(sink.append({ auditId: "a-3" })).toBe(true);
+    expect(
+      sink.append({
+        ts: "2026-01-01T00:00:00.000Z",
+        userId: "demo",
+        accountId: "a1",
+        action: "update",
+        entity: "accounts",
+        id: "a1",
+        changedFields: ["name"],
+        auditId: "a-3",
+      }),
+    ).toBe(true);
     expect(sink.degraded).toBe(false);
     expect(errors).toHaveLength(0);
   });
