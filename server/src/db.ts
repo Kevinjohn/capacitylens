@@ -972,86 +972,103 @@ export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationH
     throw new Error(`SQLite synchronous durability policy is ${synchronous}; expected FULL (2).`);
   }
   db.exec("PRAGMA foreign_keys = OFF;");
+  // Holds the FIRST failure inside the guarded region so a failing cleanup PRAGMA in the finally
+  // block can never mask it; if the body succeeded, a cleanup failure surfaces on its own.
+  const initErrorRef: { error?: unknown } = {};
+  let bodyFailed = false;
   try {
-    for (const pending of plan.migrations) {
-      const migration = DATABASE_MIGRATIONS.find((candidate) => candidate.version === pending.version);
-      if (!migration) throw new Error(`Missing database migration implementation for v${pending.version}.`);
-      let afterCommit: (() => void) | undefined;
+    try {
+      for (const pending of plan.migrations) {
+        const migration = DATABASE_MIGRATIONS.find((candidate) => candidate.version === pending.version);
+        if (!migration) throw new Error(`Missing database migration implementation for v${pending.version}.`);
+        let afterCommit: (() => void) | undefined;
+        tx(
+          db,
+          () => {
+            // Planning is deliberately read-only and happens before BEGIN IMMEDIATE so startup can take a
+            // rollback snapshot first. Another same-version process may therefore finish this step while
+            // this handle waits for SQLite's writer lock. Re-read only AFTER acquiring that lock and
+            // validate the winner's immutable ledger before treating its commit as our clean no-op.
+            const currentVersion = pragmaNumber(db, "user_version");
+            if (currentVersion >= migration.version) {
+              if (currentVersion > DB_SCHEMA_VERSION) {
+                throw new Error(
+                  `Database schema version ${currentVersion} is newer than this server supports (${DB_SCHEMA_VERSION}); refusing a downgrade.`,
+                );
+              }
+              assertMigrationHistory(db, currentVersion);
+              return;
+            }
+            db.exec(MIGRATION_HISTORY_SQL);
+            assertMigrationHistoryTable(db);
+            afterCommit = migration.up(db) ?? undefined;
+            const fkViolations = db.prepare("PRAGMA foreign_key_check").all();
+            if (fkViolations.length > 0) {
+              throw new Error(
+                `Database migration v${migration.version} (${migration.name}) left ${fkViolations.length} foreign-key violation(s).`,
+              );
+            }
+            db.prepare(
+              `INSERT INTO ${DATABASE_MIGRATION_TABLE} (version, name, checksum, appliedAt) VALUES (?, ?, ?, ?)`,
+            ).run(migration.version, migration.name, migration.checksum, new Date().toISOString());
+            db.exec(`PRAGMA application_id = ${CAPACITYLENS_APPLICATION_ID}`);
+            db.exec(`PRAGMA user_version = ${migration.version}`);
+            hooks.beforeCommit?.({
+              version: migration.version,
+              name: migration.name,
+              checksum: migration.checksum,
+            });
+          },
+          "immediate",
+        );
+        afterCommit?.();
+      }
+
+      // Control tables are an idempotent every-boot repair boundary, not only a v8 migration helper.
+      // Reserve the writer before inspecting them so a concurrent process cannot race the repair.
       tx(
         db,
         () => {
-          // Planning is deliberately read-only and happens before BEGIN IMMEDIATE so startup can take a
-          // rollback snapshot first. Another same-version process may therefore finish this step while
-          // this handle waits for SQLite's writer lock. Re-read only AFTER acquiring that lock and
-          // validate the winner's immutable ledger before treating its commit as our clean no-op.
-          const currentVersion = pragmaNumber(db, "user_version");
-          if (currentVersion >= migration.version) {
-            if (currentVersion > DB_SCHEMA_VERSION) {
-              throw new Error(
-                `Database schema version ${currentVersion} is newer than this server supports (${DB_SCHEMA_VERSION}); refusing a downgrade.`,
-              );
-            }
-            assertMigrationHistory(db, currentVersion);
-            return;
-          }
-          db.exec(MIGRATION_HISTORY_SQL);
-          assertMigrationHistoryTable(db);
-          afterCommit = migration.up(db) ?? undefined;
-          const fkViolations = db.prepare("PRAGMA foreign_key_check").all();
-          if (fkViolations.length > 0) {
-            throw new Error(
-              `Database migration v${migration.version} (${migration.name}) left ${fkViolations.length} foreign-key violation(s).`,
-            );
-          }
-          db.prepare(
-            `INSERT INTO ${DATABASE_MIGRATION_TABLE} (version, name, checksum, appliedAt) VALUES (?, ?, ?, ?)`,
-          ).run(migration.version, migration.name, migration.checksum, new Date().toISOString());
-          db.exec(`PRAGMA application_id = ${CAPACITYLENS_APPLICATION_ID}`);
-          db.exec(`PRAGMA user_version = ${migration.version}`);
-          hooks.beforeCommit?.({
-            version: migration.version,
-            name: migration.name,
-            checksum: migration.checksum,
-          });
+          ensureControlTables(db);
+          repairEmptyAccountWorkingDays(db);
         },
         "immediate",
       );
-      afterCommit?.();
-    }
 
-    // Control tables are an idempotent every-boot repair boundary, not only a v8 migration helper.
-    // Reserve the writer before inspecting them so a concurrent process cannot race the repair.
-    tx(
-      db,
-      () => {
-        ensureControlTables(db);
-        repairEmptyAccountWorkingDays(db);
-      },
-      "immediate",
-    );
-
-    assertSchemaCurrent(db);
-    assertControlTablesCurrent(db);
-    assertMemberSignInTrackingSchemaCurrent(db);
-    assertSingleOwnerControlPlaneCurrent(db);
-    assertAccountBoundaryStateCurrent(db);
-    assertAuditOutboxCurrent(db);
-    assertSyncOrderingCurrent(db);
-    assertTenantRelationshipIntegrityCurrent(db);
-    assertBootstrapClaimCurrent(db);
-    assertTenantEntityIndexesCurrent(db);
-    assertMigrationHistory(db, DB_SCHEMA_VERSION);
-    if (pragmaNumber(db, "user_version") !== DB_SCHEMA_VERSION) {
-      throw new Error(`Database migration did not reach expected version ${DB_SCHEMA_VERSION}.`);
-    }
-    if (pragmaNumber(db, "application_id") !== CAPACITYLENS_APPLICATION_ID) {
-      throw new Error("Database migration did not stamp the CapacityLens application_id.");
+      assertSchemaCurrent(db);
+      assertControlTablesCurrent(db);
+      assertMemberSignInTrackingSchemaCurrent(db);
+      assertSingleOwnerControlPlaneCurrent(db);
+      assertAccountBoundaryStateCurrent(db);
+      assertAuditOutboxCurrent(db);
+      assertSyncOrderingCurrent(db);
+      assertTenantRelationshipIntegrityCurrent(db);
+      assertBootstrapClaimCurrent(db);
+      assertTenantEntityIndexesCurrent(db);
+      assertMigrationHistory(db, DB_SCHEMA_VERSION);
+      if (pragmaNumber(db, "user_version") !== DB_SCHEMA_VERSION) {
+        throw new Error(`Database migration did not reach expected version ${DB_SCHEMA_VERSION}.`);
+      }
+      if (pragmaNumber(db, "application_id") !== CAPACITYLENS_APPLICATION_ID) {
+        throw new Error("Database migration did not stamp the CapacityLens application_id.");
+      }
+    } catch (initError) {
+      bodyFailed = true;
+      throw initError;
     }
   } finally {
     // This handle may be retained by migration tooling after a surfaced failure. Never leave its
     // connection-scoped integrity enforcement disabled merely because initialization did not finish.
-    db.exec("PRAGMA foreign_keys = ON;");
+    // A cleanup PRAGMA failure on a broken connection must never MASK the original init failure,
+    // so it is recorded here and rethrown below only when the body itself had succeeded.
+    try {
+      db.exec("PRAGMA foreign_keys = ON;");
+    } catch (pragmaError) {
+      if (!bodyFailed) initErrorRef.error = pragmaError;
+    }
   }
+
+  if (initErrorRef.error !== undefined) throw initErrorRef.error;
 
   const fkViolations = db.prepare("PRAGMA foreign_key_check").all();
   if (fkViolations.length > 0) {

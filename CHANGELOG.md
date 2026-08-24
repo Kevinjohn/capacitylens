@@ -7,7 +7,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-## [0.57.0-alpha.9] — 2026-08-23
+## [0.57.0-alpha.10] — 2026-08-23
+
+### Fixed
+
+- A failing foreign-keys cleanup PRAGMA during database initialization no longer masks the original
+  init failure; the cleanup error surfaces only when initialization itself had succeeded. (Covers
+  both review findings DBR-0011 and DBR-0014, which share this root cause.)
+  — 2026-08-23
 
 ### Fixed
 
@@ -3954,7 +3961,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.9...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.10...HEAD
+[0.57.0-alpha.10]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.9...v0.57.0-alpha.10
 [0.57.0-alpha.9]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.8...v0.57.0-alpha.9
 [0.57.0-alpha.8]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.7...v0.57.0-alpha.8
 [0.57.0-alpha.7]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.6...v0.57.0-alpha.7
