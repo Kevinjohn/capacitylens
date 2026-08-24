@@ -319,7 +319,7 @@ describe("audit recovery corruption surfacing", () => {
     expect(errors.join("\n")).toMatch(/malformed JSONL line/);
   });
 
-  it("latches degraded health for a complete line lacking a usable auditId", () => {
+  it("skips a well-formed line without an auditId silently — it is not corruption", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-no-id-"));
     const file = join(dir, "audit.jsonl");
     writeFileSync(file, '{"noAuditIdHere":true}\n');
@@ -337,8 +337,8 @@ describe("audit recovery corruption surfacing", () => {
         auditId: "a-1",
       }),
     ).toBe(true);
-    expect(sink.degraded).toBe(true);
-    expect(errors.join("\n")).toMatch(/no usable auditId/);
+    expect(sink.degraded).toBe(false); // parseable line: no suppression, but not degradation
+    expect(errors).toHaveLength(0);
   });
 
   it("does not latch degraded for a healthy prior generation", () => {
