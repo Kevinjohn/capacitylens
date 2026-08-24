@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useStore } from "./useStore";
 import { makeAccount, makeAppData, WORKDAYS } from "../test/fixtures";
 import type { AppData } from "@capacitylens/shared/types/entities";
@@ -257,5 +257,18 @@ describe("foreign-key refs must stay in the active account", () => {
     const t = s().addActivity({ name: "An Activity", kind: "project", projectId: p.id });
     expect(t.accountId).toBe(A);
     expect(s().data.projects.find((x) => x.id === p.id)!.clientId).toBe(c.id);
+  });
+});
+
+describe("unknown account selection while on the picker", () => {
+  it("surfaces the not-found notice even when activeAccountId is already null", () => {
+    s().setActiveAccount(null); // on the picker
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    s().setActiveAccount("company-does-not-exist");
+
+    expect(s().activeAccountId).toBeNull(); // still safe: picker
+    expect(s().notice).toMatchObject({ tone: "error" }); // but no longer silent
+    warn.mockRestore();
   });
 });

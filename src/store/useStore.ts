@@ -1018,17 +1018,18 @@ export const useStore = create<StoreState>()((set, get, store) => {
           // These values describe work or UI owned by the account being left. Clear them in the
           // same publication as activeAccountId so no subscriber can observe stale tenant ids,
           // form guards or messages under the new account.
-          ...(switchingAccount
-            ? {
-                notice: unknownAccount
-                  ? {
-                      message: m.notice_company_not_found(),
-                      tone: "error" as const,
-                    }
-                  : null,
-                ...clearedSession(),
+          ...(unknownAccount
+            ? // An unknown id ALWAYS surfaces — including when already on the picker, where
+              // activeAccountId is already null and no "switch" would otherwise be detected.
+              {
+                notice: {
+                  message: m.notice_company_not_found(),
+                  tone: "error" as const,
+                },
               }
-            : {}),
+            : switchingAccount
+              ? { notice: null, ...clearedSession() }
+              : {}),
           // Open the switched-into company on the current week (mirrors defaultUI) rather
           // than inheriting the previous tenant's panned origin/focus. The account's tz/weekStartsOn
           // come from its slice when loaded; in server mode the slice loads a frame later (the switch
