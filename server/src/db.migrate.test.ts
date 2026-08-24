@@ -3131,3 +3131,25 @@ describe("init failure is not masked by the cleanup PRAGMA", () => {
     real.close();
   });
 });
+
+describe("migration preservation oracle — removed columns", () => {
+  it("refuses a populated column that a migration drops without approval", () => {
+    expect(() =>
+      assertMigrationValuesPreserved(
+        { things: { primaryKey: ["id"], rows: [{ id: "r1", durableValue: "must-survive" }] } },
+        { things: { primaryKey: ["id"], rows: [{ id: "r1" }] } },
+        7,
+      ),
+    ).toThrow(/removed unapproved things\.durableValue/);
+  });
+
+  it("allows dropping an EMPTY column without approval", () => {
+    expect(() =>
+      assertMigrationValuesPreserved(
+        { things: { primaryKey: ["id"], rows: [{ id: "r1", note: null }] } },
+        { things: { primaryKey: ["id"], rows: [{ id: "r1" }] } },
+        7,
+      ),
+    ).not.toThrow();
+  });
+});

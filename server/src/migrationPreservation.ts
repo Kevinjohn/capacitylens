@@ -117,6 +117,15 @@ function approvedAddition(table: string, row: SnapshotRow, fromVersion: number):
   );
 }
 
+/** Column REMOVALS the migration chain deliberately makes. Every entry needs a version-scoped,
+ * reviewed justification — an empty list means no populated column may ever disappear unexamined.
+ * Renames are modelled as removal+addition and must be approved on the removal side too. */
+function approvedColumnRemoval(): boolean {
+  // Intentionally empty: no populated column removal is classified yet. Future migrations that
+  // deliberately drop a populated column must add a version-scoped, reviewed entry here.
+  return false;
+}
+
 function approvedCellChange(
   table: string,
   column: string,
@@ -179,7 +188,17 @@ export function assertMigrationValuesPreserved(
         throw new Error(`migration removed unapproved ${tableName} row ${key}`);
       }
       for (const [column, beforeValue] of Object.entries(beforeRow)) {
-        if (!(column in afterRow)) continue; // renamed/removed schema has no common value to compare
+        if (!(column in afterRow)) {
+          // The migration DROPPED this column. A populated value silently disappearing is exactly
+          // the data loss this oracle exists to catch (review finding DBR-0003): refuse it unless
+          // the value carried nothing or the removal is explicitly classified below.
+          const hadValue = beforeValue !== undefined && beforeValue !== null && String(beforeValue) !== "";
+          if (!hadValue || approvedColumnRemoval()) continue;
+          throw new Error(
+            `migration removed unapproved ${tableName}.${column} in row ${key}: ` +
+              `populated value ${canonicalCell(beforeValue)} would be lost`,
+          );
+        }
         const afterValue = afterRow[column];
         if (canonicalCell(beforeValue) === canonicalCell(afterValue)) continue;
         if (approvedCellChange(tableName, column, beforeRow, afterRow, fromVersion, foldedInternalClients)) continue;
