@@ -7,14 +7,21 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-## [0.57.0-alpha.7] — 2026-08-23
+## [0.57.0-alpha.8] — 2026-08-23
+
+### Fixed
+
+- Allocation edits clamp hours/day through the shared clamp BEFORE domain validation, so an
+  over-day drag-resize lands on 24 like creation and import instead of being rejected; the
+  external-resource zero-load rule still rejects after clamping.
+  — 2026-08-23
 
 ### Fixed
 
 - Account PUT/DELETE audit records are now always attributed to the mutated account's own id; a
   caller-supplied accountId (body assertion or query parameter) can no longer choose which tenant's
   ledger records the mutation.
- — 2026-08-23
+  — 2026-08-23
 
 ### Fixed
 
@@ -3940,7 +3947,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.7...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.8...HEAD
+[0.57.0-alpha.8]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.7...v0.57.0-alpha.8
 [0.57.0-alpha.7]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.6...v0.57.0-alpha.7
 [0.57.0-alpha.6]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.5...v0.57.0-alpha.6
 [0.57.0-alpha.5]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.4...v0.57.0-alpha.5
