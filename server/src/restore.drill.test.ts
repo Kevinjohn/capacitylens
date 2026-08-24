@@ -1,6 +1,6 @@
 import { afterEach, describe, it, expect } from "vitest";
 import { DatabaseSync } from "node:sqlite";
-import { mkdtempSync, writeFileSync, copyFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, writeFileSync, copyFileSync, rmSync, existsSync, chmodSync, renameSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startBackups } from "./backup";
@@ -95,9 +95,16 @@ describe("P3.3 restore drill", () => {
     }
     expect(corrupt?.isOpen).toBe(false);
 
-    // 7. Restore — the runbook sequence EXACTLY: copy the snapshot over the live file, then remove
-    //    the WAL/SHM sidecars.
-    copyFileSync(snapshot, livePath);
+    // 7. Restore — the runbook sequence EXACTLY (backups-and-restore.md step 2): copy the snapshot
+    //    to a TEMPORARY sibling, pin + verify its mode and owner, ATOMICALLY rename it over the
+    //    live file, then remove the WAL/SHM sidecars. The earlier direct copyFileSync skipped the
+    //    temp+rename sequence entirely, so the drill never exercised what operators actually run.
+    const temporary = livePath + ".restore";
+    copyFileSync(snapshot, temporary);
+    chmodSync(temporary, 0o600);
+    expect(statSync(temporary).mode & 0o777).toBe(0o600); // runbook: verify pinned mode
+    expect(statSync(temporary).uid).toBe(process.getuid?.() ?? statSync(livePath).uid); // owner is us
+    renameSync(temporary, livePath); // atomic replacement — no partially-written live file window
     rmSync(livePath + "-wal", { force: true });
     rmSync(livePath + "-shm", { force: true });
 

@@ -7,7 +7,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-## [0.57.0-alpha.12] — 2026-08-23
+## [0.57.0-alpha.13] — 2026-08-23
+
+### Fixed
+
+- The codified restore drill now mirrors the runbook's actual restore sequence (temporary copy,
+  mode/owner verification, atomic rename, sidecar removal) instead of a plain overwrite, so the
+  procedure operators run is what CI continuously verifies.
+  — 2026-08-23
 
 ### Fixed
 
@@ -3974,7 +3981,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.12...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.13...HEAD
+[0.57.0-alpha.13]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.12...v0.57.0-alpha.13
 [0.57.0-alpha.12]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.11...v0.57.0-alpha.12
 [0.57.0-alpha.11]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.10...v0.57.0-alpha.11
 [0.57.0-alpha.10]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.9...v0.57.0-alpha.10
