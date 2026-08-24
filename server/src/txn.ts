@@ -2,6 +2,10 @@ import type { Db } from "./db";
 
 let savepointId = 0;
 const activeTransactionModes = new WeakMap<Db, "deferred" | "immediate">();
+// Handles whose rollback failed while the connection remained inside a transaction. SQLite never
+// told us the transaction ended, so later acknowledged writes could land outside any durability
+// boundary; the only safe continuation is refusal.
+const poisonedHandles = new WeakSet<Db>();
 
 export type SynchronousCallback<Fn extends () => unknown> = Fn &
   ([Extract<ReturnType<Fn>, PromiseLike<unknown>>] extends [never] ? unknown : never);
@@ -58,6 +62,11 @@ export function tx<Fn extends () => unknown>(
   mode: "deferred" | "immediate" = "deferred",
   reportRollbackFailure: RollbackFailureReporter = defaultRollbackFailureReporter,
 ): ReturnType<Fn> {
+  if (poisonedHandles.has(db)) {
+    throw new Error(
+      "This database handle is quarantined: an earlier ROLLBACK failed while the transaction stayed active, so no further writes can be acknowledged on it.",
+    );
+  }
   if (db.isTransaction) {
     if (mode === "immediate" && activeTransactionModes.get(db) !== "immediate") {
       throw new Error("A nested immediate transaction requires its enclosing tx() transaction to be immediate.");
@@ -95,6 +104,10 @@ export function tx<Fn extends () => unknown>(
     try {
       db.exec("ROLLBACK");
     } catch (rollbackError) {
+      // If SQLite says the transaction is STILL active after a failed ROLLBACK, later commits
+      // cannot be trusted to sit on a durability boundary. Quarantine the handle before rethrowing
+      // so no later write can be acknowledged against it.
+      if (db.isTransaction) poisonedHandles.add(db);
       reportRollbackFailureSafely(reportRollbackFailure, { scope: "transaction", error: rollbackError });
     }
     throw e;

@@ -7,7 +7,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-## [0.57.0-alpha.3] — 2026-08-23
+## [0.57.0-alpha.4] — 2026-08-23
+
+### Fixed
+
+- Quarantined the shared SQLite handle when a ROLLBACK fails while the transaction remains active,
+  so no later write can be acknowledged outside a durability boundary; the original error and the
+  rollback failure are both still surfaced.
+  — 2026-08-23
 
 ### Fixed
 
@@ -3913,7 +3920,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.3...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.4...HEAD
+[0.57.0-alpha.4]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.3...v0.57.0-alpha.4
 [0.57.0-alpha.3]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.2...v0.57.0-alpha.3
 [0.57.0-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.1...v0.57.0-alpha.2
 [0.57.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.56.0-alpha.1...v0.57.0-alpha.1

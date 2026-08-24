@@ -147,3 +147,50 @@ function compileOnlyAsyncCallbackRejection(db: DatabaseSync): void {
   void tx(db, maybeAsync);
 }
 void compileOnlyAsyncCallbackRejection;
+
+describe("rollback-failure quarantine", () => {
+  it("quarantines the handle when a failed ROLLBACK leaves the transaction active", () => {
+    const original = new Error("operation failed");
+    const rollback = new Error("rollback failed");
+    const handle = { isTransaction: false } as { isTransaction: boolean };
+    const db = {
+      get isTransaction() {
+        return handle.isTransaction;
+      },
+      exec: vi.fn((sql: string) => {
+        if (sql === "BEGIN" || sql === "BEGIN IMMEDIATE") handle.isTransaction = true;
+        else if (sql === "COMMIT") handle.isTransaction = false;
+        else if (sql === "ROLLBACK") {
+          // Simulate SQLite failing the ROLLBACK while leaving the transaction active.
+          throw rollback;
+        }
+      }),
+    } as unknown as Db;
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    expect(() =>
+      tx(db, () => {
+        throw original;
+      }),
+    ).toThrow(original);
+
+    expect(() => tx(db, () => "ack")).toThrow(/quarantined/);
+  });
+
+  it("does NOT quarantine when the rollback succeeded or ended the transaction", () => {
+    const original = new Error("operation failed");
+    const db = {
+      isTransaction: false, // ROLLBACK failure but transaction already ended underneath us
+      exec: vi.fn((sql: string) => {
+        if (sql === "ROLLBACK") throw new Error("rollback failed but txn is gone");
+      }),
+    } as unknown as Db;
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(() =>
+      tx(db, () => {
+        throw original;
+      }),
+    ).toThrow(original);
+    expect(tx(db, () => "ok")).toBe("ok"); // still usable
+  });
+});
