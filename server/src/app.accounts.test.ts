@@ -167,7 +167,7 @@ describe("audit attribution for account mutations", () => {
     const captured: Array<Record<string, unknown>> = [];
     const capturingSink: AuditSink = {
       append: (record) => {
-        captured.push(record as Record<string, unknown>);
+        captured.push(record as unknown as Record<string, unknown>);
         return true;
       },
       degraded: false,
