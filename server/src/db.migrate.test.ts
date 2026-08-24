@@ -3102,3 +3102,32 @@ describe("v13 migration is self-contained (frozen palette folded into the checks
     expect(V13_FROZEN_PRESET_COLORS).toEqual(PRESET_COLORS);
   });
 });
+
+describe("init failure is not masked by the cleanup PRAGMA", () => {
+  it("surfaces the ORIGINAL init error when the finally-block foreign_keys PRAGMA also fails", () => {
+    const real = new DatabaseSync(":memory:");
+    // Force a late body failure: the application_id assertion at the end of initializeOpenDb.
+    real.exec(`PRAGMA application_id = 123456;`);
+    const failingExec = real.exec.bind(real);
+    const db = new Proxy(real, {
+      get(target, prop) {
+        if (prop === "exec") {
+          return (sql: string) => {
+            if (sql === "PRAGMA foreign_keys = ON;") throw new Error("connection broken during cleanup");
+            return failingExec(sql);
+          };
+        }
+        const value = Reflect.get(target, prop);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as Db;
+    let thrown = "";
+    try {
+      initializeOpenDb(db, ":memory:");
+    } catch (e) {
+      thrown = e instanceof Error ? e.message : String(e);
+    }
+    expect(thrown).toMatch(/application_id/); // original, not "connection broken during cleanup"
+    real.close();
+  });
+});
