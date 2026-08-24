@@ -7,6 +7,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.57.0-alpha.3] — 2026-08-23
+
+### Fixed
+
+- Audit recovery now surfaces a complete malformed or auditId-less JSONL line by latching degraded
+  health and logging one redacted line, instead of silently accepting file corruption; affected
+  outbox rows replay (the safe direction).
+
 ### Changed
 
 - Made the allocation guide's Internal, All-projects and Project-specific activity model explicit,
@@ -3905,7 +3913,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.2...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.3...HEAD
+[0.57.0-alpha.3]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.2...v0.57.0-alpha.3
 [0.57.0-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.1...v0.57.0-alpha.2
 [0.57.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.56.0-alpha.1...v0.57.0-alpha.1
 [0.56.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...v0.56.0-alpha.1
