@@ -1133,13 +1133,13 @@ export function betterAuthIdentityPort(input: {
 
     async revokePrincipalSessions({ targetPrincipalId, command }): Promise<OperationReceipt> {
       try {
-        const sessions = db.prepare(`SELECT token FROM session WHERE userId = ?`).all(targetPrincipalId) as Array<{
-          token: string;
-        }>;
         await auth.revokeUserSessions(targetPrincipalId);
-        for (const session of sessions) {
-          removeSessionAssurance(db, applicationSessionHandle(applicationId, session.token));
-        }
+        // Revocation is principal-wide in Better Auth, so the assurance sweep must be too. Cleaning
+        // only the sessions snapshotted BEFORE the await would orphan the assurance of a session
+        // created inside the revocation window (revoked by the provider, invisible to our
+        // snapshot). removePrincipalSessionAssurance covers every session of the principal,
+        // whenever it was created.
+        removePrincipalSessionAssurance(db, targetPrincipalId);
         return receipt(command.commandId);
       } catch (error) {
         throw providerFailure("Session revocation is temporarily unavailable.", error);

@@ -462,3 +462,44 @@ describe("IdentityPort conformance calibration", () => {
     expect(error.failure.code).toBe("UNSUPPORTED_CAPABILITY");
   });
 });
+
+describe("revocation window race", () => {
+  it("removes assurance for sessions created inside the revocation window, not only the snapshot", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, PASSWORD_ENV);
+    const realAuth = configured.auth!;
+    await runAuthMigrations(realAuth);
+    const created = await realAuth.createCredentialUser(
+      PRINCIPAL.email,
+      PRINCIPAL.displayName,
+      "conformance-password-123",
+      true,
+    );
+    const seedSession = (suffix: string) => {
+      const bearer = `race-session-${suffix}`;
+      const handle = applicationSessionHandle(APPLICATION_ID, bearer);
+      db.prepare(
+        `
+        INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, ipAddress, userAgent, userId)
+        VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)
+      `,
+      ).run(`session-row-${suffix}`, LATER, bearer, NOW, NOW, created.id);
+      recordSessionAssurance(db, handle, created.id, "password");
+      return handle;
+    };
+    seedSession("before"); // visible before revocation
+    seedSession("window"); // simulates a sign-in landing inside the provider-revocation window
+
+    const port = betterAuthIdentityPort({ applicationId: APPLICATION_ID, auth: realAuth, authMode: "password", db });
+    const operation = command("principal-sessions-race");
+    await expect(
+      port.revokePrincipalSessions({ targetPrincipalId: created.id, command: operation }),
+    ).resolves.toMatchObject({ commandId: operation.commandId });
+
+    const remaining = db
+      .prepare(`SELECT COUNT(*) AS n FROM account_session_assurance WHERE principalId = ?`)
+      .get(created.id) as { n: number };
+    expect(remaining.n).toBe(0); // no orphaned assurance — including the in-window session
+    db.close();
+  });
+});

@@ -7,7 +7,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-## [0.57.0-alpha.10] — 2026-08-23
+## [0.57.0-alpha.11] — 2026-08-23
+
+### Fixed
+
+- Principal-wide session revocation now sweeps session-assurance rows after the provider revocation
+  completes, so a sign-in landing inside the revocation window can no longer leave orphaned
+  assurance for an already-revoked session.
+  — 2026-08-23
 
 ### Fixed
 
@@ -3961,7 +3968,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.10...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.11...HEAD
+[0.57.0-alpha.11]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.10...v0.57.0-alpha.11
 [0.57.0-alpha.10]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.9...v0.57.0-alpha.10
 [0.57.0-alpha.9]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.8...v0.57.0-alpha.9
 [0.57.0-alpha.8]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.7...v0.57.0-alpha.8
