@@ -293,3 +293,40 @@ describe("durable audit outbox", () => {
     db.close();
   });
 });
+
+describe("audit recovery corruption surfacing", () => {
+  it("latches degraded health when recovery finds a complete malformed line", () => {
+    const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-corrupt-line-"));
+    const file = join(dir, "audit.jsonl");
+    writeFileSync(file, '{"auditId":"a-1"}\n{"auditId":"a-2","broken":\n');
+    const errors: string[] = [];
+    const sink = fileAuditSink(file, (m) => errors.push(m));
+    expect(sink.degraded).toBe(false); // nothing latched before first use
+    const delivered: AuditEntry[] = [{ auditId: "a-3" }];
+    expect(sink.appendMany!(delivered)).toBe(true); // append still succeeds (safe replay direction)
+    expect(sink.degraded).toBe(true); // corruption is now surfaced, not silently accepted
+    expect(errors.join("\n")).toMatch(/malformed JSONL line/);
+  });
+
+  it("latches degraded health for a complete line lacking a usable auditId", () => {
+    const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-no-id-"));
+    const file = join(dir, "audit.jsonl");
+    writeFileSync(file, '{"noAuditIdHere":true}\n');
+    const errors: string[] = [];
+    const sink = fileAuditSink(file, (m) => errors.push(m));
+    expect(sink.append({ auditId: "a-1" })).toBe(true);
+    expect(sink.degraded).toBe(true);
+    expect(errors.join("\n")).toMatch(/no usable auditId/);
+  });
+
+  it("does not latch degraded for a healthy prior generation", () => {
+    const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-healthy-"));
+    const file = join(dir, "audit.jsonl");
+    writeFileSync(file, '{"auditId":"a-1"}\n{"auditId":"a-2"}\n');
+    const errors: string[] = [];
+    const sink = fileAuditSink(file, (m) => errors.push(m));
+    expect(sink.append({ auditId: "a-3" })).toBe(true);
+    expect(sink.degraded).toBe(false);
+    expect(errors).toHaveLength(0);
+  });
+});

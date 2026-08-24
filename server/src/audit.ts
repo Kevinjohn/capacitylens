@@ -220,9 +220,23 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
           if (deliveredAuditIds.size > MAX_RECOVERY_DELIVERY_IDS) {
             deliveredAuditIds.delete(deliveredAuditIds.values().next().value!);
           }
+        } else {
+          // A complete line without a usable audit id cannot suppress replay. That is safe (the
+          // outbox row replays, audit stays complete), but the file no longer matches what this
+          // server wrote — surface it as degraded health rather than accepting it silently.
+          degraded = true;
+          log(
+            "capacitylens-server: audit recovery found a complete line with no usable auditId — latching degraded health; affected outbox rows will replay",
+          );
         }
       } catch {
-        // A complete malformed historical line has no trusted delivery id and cannot suppress replay.
+        // A complete malformed historical line has no trusted delivery id and cannot suppress
+        // replay. Same as a missing id above: replay is the safe direction, but silent acceptance
+        // would hide file corruption from deep health, so latch degraded and say so.
+        degraded = true;
+        log(
+          "capacitylens-server: audit recovery found a complete malformed JSONL line — latching degraded health; affected outbox rows will replay",
+        );
       }
     }
   };
