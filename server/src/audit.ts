@@ -409,14 +409,41 @@ export function noopAuditSink(): AuditSink {
   };
 }
 
-/** JSON-line audit stream suitable for container stdout and a separate log collector. */
+/** JSON-line audit stream suitable for container stdout and a separate log collector.
+ *
+ * Retry-idempotent: when a sibling destination in a composite sink fails, the outbox retains the
+ * records and redelivers them later. Without dedup, every retry re-printed records this sink had
+ * already emitted, amplifying stdout copies. A bounded set of recently emitted auditIds makes
+ * redelivery a no-op; beyond the window, at-worst-duplicate delivery resumes (stdout is the
+ * best-effort copy — the durable JSONL file is the evidence of record). */
 export function streamAuditSink(write: (line: string) => void): AuditSink {
   let degraded = false;
+  const recentlyEmitted = new Set<string>();
+  const remember = (auditId: string | undefined) => {
+    if (auditId === undefined) return;
+    if (recentlyEmitted.size >= MAX_RECOVERY_DELIVERY_IDS) {
+      recentlyEmitted.delete(recentlyEmitted.values().next().value!);
+    }
+    recentlyEmitted.add(auditId);
+  };
   return {
     append(record) {
+      return this.appendMany!([record]);
+    },
+    appendMany(records) {
       try {
-        write(JSON.stringify({ type: "capacitylens.audit", ...record }));
-        return true;
+        let ok = true;
+        for (const record of records) {
+          if (record.auditId !== undefined && recentlyEmitted.has(record.auditId)) continue; // already delivered
+          try {
+            write(JSON.stringify({ type: "capacitylens.audit", ...record }));
+            remember(record.auditId);
+          } catch {
+            degraded = true;
+            ok = false;
+          }
+        }
+        return ok;
       } catch {
         degraded = true;
         return false;

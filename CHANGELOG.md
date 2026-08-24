@@ -7,7 +7,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-## [0.57.0-alpha.8] — 2026-08-23
+## [0.57.0-alpha.9] — 2026-08-23
+
+### Fixed
+
+- The stdout audit stream is now retry-idempotent: when a sibling destination fails and the outbox
+  redelivers, already-emitted records are no longer re-printed, so a file-sink failure no longer
+  amplifies duplicate stdout copies on every drain.
+  — 2026-08-23
 
 ### Fixed
 
@@ -3947,7 +3954,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.8...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.9...HEAD
+[0.57.0-alpha.9]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.8...v0.57.0-alpha.9
 [0.57.0-alpha.8]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.7...v0.57.0-alpha.8
 [0.57.0-alpha.7]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.6...v0.57.0-alpha.7
 [0.57.0-alpha.6]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.5...v0.57.0-alpha.6
