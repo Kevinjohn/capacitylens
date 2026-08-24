@@ -7,16 +7,18 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Made the allocation guide's Internal, All-projects and Project-specific activity model explicit,
+  with real allocation-form screenshots showing where each kind is available.
+
+## [0.57.0-alpha.2] — 2026-08-23
+
 ### Fixed
 
 - Hardened the vitest setup's `localStorage`/`sessionStorage` pinning so the suite passes on Node
   releases shipping the experimental global storage accessor (Node >= 25), not only the pinned
   Node 24 gate.
-
-### Changed
-
-- Made the allocation guide's Internal, All-projects and Project-specific activity model explicit,
-  with real allocation-form screenshots showing where each kind is available.
 
 ## [0.57.0-alpha.1] — 2026-08-19
 
@@ -3903,7 +3905,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.2...HEAD
+[0.57.0-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.1...v0.57.0-alpha.2
 [0.57.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.56.0-alpha.1...v0.57.0-alpha.1
 [0.56.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...v0.56.0-alpha.1
 [0.55.0-alpha.4]: https://github.com/Kevinjohn/capacitylens/compare/v0.54.0-alpha.1...v0.55.0-alpha.4
