@@ -435,22 +435,20 @@ export function registerAccountEntityRoutes(app: FastifyInstance, dependencies: 
       // P1.5 account-write gate (see the PUT route): always an UPDATE, so always membership + write
       // tier for the account's own id. OFF: no-op allow.
       if (!authorize(req, reply, id, "write")) return;
-      const vis = fieldVisibility(
-        req,
-        "accounts",
-        (req.body as { accountId?: unknown }).accountId ?? existing.accountId,
-      );
+      const assertedAccountId = (req.body as { accountId?: unknown }).accountId;
+      const vis = fieldVisibility(req, "accounts", assertedAccountId ?? existing.accountId);
       const merged = sanitizeWrite(
         "accounts",
         { ...existing, ...(req.body as Record<string, unknown>), id },
         existing,
         vis,
       );
-      // accountId is immutable (ownsRow). `merged` is sanitised, so an unscoped table drops any
-      // asserted accountId; the guard stays as the one shared expression of the rule. `merged`
-      // already pins stored frozen values when malformed input is dropped: missing legacy values
-      // may be set once, different valid stored values stay frozen. Guard sequence shared with
-      // PUT — see accountWriteGuards.
+      // accountId is immutable (ownsRow). `accounts` is unscoped, so sanitisation drops any
+      // asserted accountId from `merged`; like PUT, the ownsRow guard receives the CALLER's raw
+      // assertion so a claim on another company is REJECTED (404) rather than silently ignored.
+      // `merged` already pins stored frozen values when malformed input is dropped: missing legacy
+      // values may be set once, different valid stored values stay frozen. Guard sequence shared
+      // with PUT — see accountWriteGuards.
       if (
         accountWriteGuards({
           reply,
@@ -458,7 +456,7 @@ export function registerAccountEntityRoutes(app: FastifyInstance, dependencies: 
           ownsRow,
           isStaleWrite,
           redact,
-          checkOwnsRow: { accountId: merged.accountId },
+          checkOwnsRow: { accountId: assertedAccountId ?? existing.accountId },
           checkFrozen: { candidate: merged },
           checkStale: {
             optimisticConcurrency,

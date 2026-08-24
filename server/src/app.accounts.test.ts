@@ -123,3 +123,38 @@ describe("auth-on (password) — membership-existence guard", () => {
     expect((await call(app, { method: "GET", url: "/api/accounts" })).statusCode).toBe(401);
   });
 });
+
+describe("PATCH /api/accounts/:id foreign-accountId parity with PUT", () => {
+  it("rejects an asserted foreign accountId like PUT does, instead of silently dropping it", async () => {
+    const db = openDb(":memory:");
+    seedTwo(db);
+    const app = buildApp(db, { multiAccount: true });
+
+    const put = await app.inject({
+      method: "PUT",
+      url: "/api/accounts/a2",
+      payload: { ...account("a2"), accountId: "a1" },
+    });
+    expect(put.statusCode).toBe(404); // ownsRow concealment — the established PUT contract
+
+    const patch = await app.inject({
+      method: "PATCH",
+      url: "/api/accounts/a2",
+      payload: { name: "Renamed", accountId: "a1" },
+    });
+    expect(patch.statusCode).toBe(404); // parity: same assertion, same rejection
+    const row = db.prepare(`SELECT name FROM accounts WHERE id = 'a2'`).get() as { name: string };
+    expect(row.name).toBe("Studio a2"); // nothing was applied
+
+    // A PATCH without any accountId assertion keeps working:
+    const plain = await app.inject({
+      method: "PATCH",
+      url: "/api/accounts/a2",
+      payload: { name: "Renamed" },
+    });
+    expect(plain.statusCode).toBe(200);
+
+    await app.close();
+    db.close();
+  });
+});

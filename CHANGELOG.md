@@ -7,14 +7,20 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-## [0.57.0-alpha.5] — 2026-08-23
+## [0.57.0-alpha.6] — 2026-08-23
+
+### Fixed
+
+- PATCH /api/accounts/:id now rejects a body asserting another account's accountId with the same
+  404 the PUT route returns, instead of silently ignoring the claim.
+  — 2026-08-23
 
 ### Fixed
 
 - Scalar membership-role readers now surface a stored-but-unreadable role as control-table
   corruption instead of silently degrading the membership to "no role" (genuine absence and legacy
   non-active rows still return null).
- — 2026-08-23
+  — 2026-08-23
 
 ### Fixed
 
@@ -3927,7 +3933,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.5...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.6...HEAD
+[0.57.0-alpha.6]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.5...v0.57.0-alpha.6
 [0.57.0-alpha.5]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.4...v0.57.0-alpha.5
 [0.57.0-alpha.4]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.3...v0.57.0-alpha.4
 [0.57.0-alpha.3]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.2...v0.57.0-alpha.3
