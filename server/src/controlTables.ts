@@ -1055,8 +1055,9 @@ export function removeAllInvitesForAccount(db: Db, accountId: string): void {
  * One row of the `invites` control table (P1.9): a single-use, expiring link that, when accepted by
  * a signed-in caller, binds {@link role} to that caller's membership of {@link accountId}.
  *
- * @property token         The opaque, unguessable invite secret — the link's `:token` segment AND
- *   the table's PRIMARY KEY. Treat it like a password: never log it, never return it on a read path.
+ * @property token         The opaque, unguessable invite secret — the link's `:token` segment.
+ *   NEVER STORED: only `inviteTokenHash(token)` persists, and that hash is the table's PRIMARY KEY.
+ *   Treat it like a password: never log it, never return it on a read path.
  * @property id            A NON-SECRET handle (P1.11), distinct from {@link token}. list/revoke key on
  *   THIS, so the bearer `token` is write-once: minted + returned to the authorised creator and never
  *   read back. Safe to surface on a read path (it grants nothing on its own).
