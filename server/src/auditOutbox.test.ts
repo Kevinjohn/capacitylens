@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { existsSync, fsyncSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileAuditSink, type AuditEntry, type AuditRecord, type AuditSink } from "./audit";
+import { fileAuditSink, streamAuditSink, type AuditEntry, type AuditRecord, type AuditSink } from "./audit";
 import { AUDIT_DRAIN_PAGE_SIZE, drainAuditOutbox, enqueueAudit, pendingAuditCount } from "./auditOutbox";
 import { openDb } from "./db";
 import { tx } from "./txn";
@@ -361,5 +361,37 @@ describe("audit recovery corruption surfacing", () => {
     ).toBe(true);
     expect(sink.degraded).toBe(false);
     expect(errors).toHaveLength(0);
+  });
+});
+
+describe("stream sink retry idempotence", () => {
+  const entry = (auditId: string): AuditEntry => ({
+    ts: "2026-01-01T00:00:00.000Z",
+    userId: "demo",
+    accountId: "a1",
+    action: "update",
+    entity: "accounts",
+    id: "a1",
+    changedFields: ["name"],
+    auditId,
+  });
+
+  it("does not re-emit a record it already delivered when the outbox retries", () => {
+    const lines: string[] = [];
+    const sink = streamAuditSink((line) => lines.push(line));
+    expect(sink.appendMany!([entry("x-1"), entry("x-2")])).toBe(true);
+    expect(lines).toHaveLength(2);
+    // Retry of the same delivery (e.g. a sibling file sink failed on the first pass):
+    expect(sink.appendMany!([entry("x-1"), entry("x-2")])).toBe(true);
+    expect(lines).toHaveLength(2); // no amplification
+  });
+
+  it("emits distinct new records after deduped retries", () => {
+    const lines: string[] = [];
+    const sink = streamAuditSink((line) => lines.push(line));
+    sink.appendMany!([entry("y-1")]);
+    sink.appendMany!([entry("y-1")]); // retry — skipped
+    sink.appendMany!([entry("y-2")]); // fresh record — emitted
+    expect(lines).toHaveLength(2);
   });
 });
