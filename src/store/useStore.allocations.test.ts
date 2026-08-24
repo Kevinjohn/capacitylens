@@ -213,3 +213,36 @@ describe("repeat-series allocation mutations", () => {
     expect(state().past).toHaveLength(0);
   });
 });
+
+describe("updateAllocation clamp ordering", () => {
+  it("clamps an over-day hours patch before validation instead of rejecting it", () => {
+    const { draft } = allocationSetup();
+    const allocation = state().addAllocation(draft({}));
+
+    state().updateAllocation(allocation.id, { hoursPerDay: 99 });
+
+    expect(state().data.allocations.find(({ id }) => id === allocation.id)).toMatchObject({
+      hoursPerDay: 24, // clamped into [0,24] like creation and import — not rejected
+    });
+    expect(state().notice).toBeNull();
+  });
+
+  it("still rejects a non-zero-hours write onto an external resource after clamping", () => {
+    const { draft } = allocationSetup();
+    const allocation = state().addAllocation(draft({}));
+    // Flip the resource to external behind the store's back (legacy data path):
+    useStore.setState((s) => ({
+      data: {
+        ...s.data,
+        resources: s.data.resources.map((r) =>
+          r.id === allocation.resourceId ? { ...r, kind: "external" as const } : r,
+        ),
+      },
+    }));
+
+    expect(() => state().updateAllocation(allocation.id, { hoursPerDay: 99 })).toThrow(/external/);
+
+    const row = state().data.allocations.find(({ id }) => id === allocation.id);
+    expect(row?.hoursPerDay).not.toBe(0); // unchanged: the domain rule still rejects post-clamp
+  });
+});
