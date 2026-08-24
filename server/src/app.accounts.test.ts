@@ -6,6 +6,7 @@ import { upsertMember } from "./controlTables";
 import { authFromEnv, runAuthMigrations } from "./auth";
 import { PASSWORD_ENV, call, signUp } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import type { AuditSink } from "./audit";
 
 // P1.4 endpoint coverage: GET /api/accounts + the new ?accountId= form of GET /api/state, in both
 // OFF (trusted-local, no gate) and auth-on (membership-existence guard) postures. The no-arg
@@ -164,9 +165,9 @@ describe("audit attribution for account mutations", () => {
     const db = openDb(":memory:");
     seedTwo(db);
     const captured: Array<Record<string, unknown>> = [];
-    const capturingSink = {
-      append: (record: Record<string, unknown>) => {
-        captured.push(record);
+    const capturingSink: AuditSink = {
+      append: (record) => {
+        captured.push(record as Record<string, unknown>);
         return true;
       },
       degraded: false,
