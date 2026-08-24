@@ -7,7 +7,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-## [0.57.0-alpha.17] — 2026-08-24
+## [0.57.0-alpha.18] — 2026-08-24
+
+### Fixed
+
+- The migration preservation oracle now refuses a populated column that a migration drops without
+  an explicit, reviewed approval — previously the disappearance was skipped silently, so rehearsal
+  could certify an upgrade that discards stored values. The entire released chain passes unchanged.
+  — 2026-08-24
 
 ### Fixed
 
@@ -4006,7 +4013,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.17...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.18...HEAD
+[0.57.0-alpha.18]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.17...v0.57.0-alpha.18
 [0.57.0-alpha.17]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.16...v0.57.0-alpha.17
 [0.57.0-alpha.16]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.15...v0.57.0-alpha.16
 [0.57.0-alpha.15]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.14...v0.57.0-alpha.15
