@@ -79,7 +79,9 @@ export function canonicalAccountProductPayload(row: Record<string, unknown>): Re
 
 /**
  * True when a sanitised accounts write would CHANGE an already-set frozen field (P1.14) — the
- * violation signal the PUT/PATCH/batch handlers turn into a 409 (per-route) / 400 (batch).
+ * violation signal the PUT/PATCH/batch handlers all turn into a 409 — the batch path throws an
+ * AccountContractError with code CONFLICT, which the sync client maps through
+ * statusForAccountFailure to the same 409 (its authoritative-reload trigger), not a 400.
  *
  * Reports a violation ONLY when `existing` has a stored value AND the sanitised incoming value
  * differs. Four deliberate rules:
