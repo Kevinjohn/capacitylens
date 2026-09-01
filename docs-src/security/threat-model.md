@@ -84,6 +84,12 @@ must not be publicly reachable and the proxy must overwrite rather than append f
 - IdP disablement does not revoke already-issued local sessions. The accepted maximum is the
   remaining twelve-hour absolute lifetime or thirty minutes inactivity; local revocation is an
   incident-response requirement and back-channel logout must be reconsidered before hosted GA.
+- Identity masquerade is a session-scoped, account-confined read projection for Owners and Admins.
+  A root unsafe-method guard and a separate Better Auth proxy guard reject changes while it is
+  active; actor-dependent reads use the target member's role and redaction. The process-local
+  registry deliberately disappears on restart, which ends access rather than restoring uncertain
+  state. Start and end events are audited, with the start event carrying the session expiry that
+  bounds a record if the process stops before an end event can be written.
 - SSO-only cutover retains dormant password credentials for the documented mixed-mode rollback.
   Protecting the host/database and using the stopped-server repair tooling carefully remain operator
   responsibilities.

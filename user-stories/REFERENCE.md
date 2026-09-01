@@ -896,6 +896,15 @@ The management section has four parts:
   reporting its state through `aria-expanded`) which reveals a second table of the same columns
   (`data-testid="members-inactive-table"`). The disclosure is absent when no membership is in that
   state, and its rows carry the same badges, gear and confirmations as the main table. The
+  Owner/Admin also sees a **View the app as _member_** eye button on every other active member
+  (`data-testid="member-masquerade"`). It opens a confirmation naming that member. Once confirmed,
+  the app reloads the account through that member's read projection, hides every write affordance
+  and shows a bright red **Masquerading as _name_** status bar
+  (`data-testid="masquerade-banner"`) with **End now**. Switching company ends the projection
+  first. Ending restores the real member's projection before writes resume and returns to `/`.
+  Disabled, archived and self rows never offer the eye button; auth-off/demo mode never exposes it.
+  The server enforces the read-only boundary even if a stale client attempts a write.
+  The
   owner-only **Record member sign-ins** switch (`data-testid="member-sign-in-tracking"`) is off by
   default. While it is on, the table adds **Signed in** (`data-testid="member-sign-in-confirmed"`),
   showing **Yes** or **Not yet** for a successful sign-in during the current observation window.
