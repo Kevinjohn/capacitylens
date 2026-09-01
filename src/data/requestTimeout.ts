@@ -1,3 +1,4 @@
+import { MASQUERADE_ERROR_CODES, type MasqueradeErrorCode } from "@capacitylens/shared/domain/masquerade";
 import { noteAuditWarning } from "../lib/auditWarning";
 
 let masqueradeEndedHandler: (() => void) | null = null;
@@ -48,6 +49,23 @@ export function requestSignal(
   return new AbortController().signal;
 }
 
+/** Read a recognized masquerade failure code without consuming the caller's response body. */
+export async function masqueradeErrorCode(response: Response): Promise<MasqueradeErrorCode | null> {
+  let body: unknown;
+  try {
+    body = await response.clone().json();
+  } catch {
+    // Error classification is best-effort; the caller still handles the original HTTP failure.
+    return null;
+  }
+  if (typeof body !== "object" || body === null) return null;
+  const code = (body as { code?: unknown }).code;
+  if (typeof code !== "string") return null;
+  return Object.values(MASQUERADE_ERROR_CODES).some((candidate) => candidate === code)
+    ? (code as MasqueradeErrorCode)
+    : null;
+}
+
 export async function apiFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
@@ -57,15 +75,9 @@ export async function apiFetch(
   // Defer until the direct action's own success notice has run; otherwise that notice immediately
   // overwrites the more important persistent audit warning in the single-notice store.
   noteAuditWarning(response, { defer: true });
-  // A few narrow adapters/tests provide a Response-compatible object without clone(). Skip the
-  // optional interceptor there; real Fetch responses always support clone and retain their body
-  // for the caller while this best-effort classification reads a copy.
-  if (response.status === 403 && typeof response.clone === "function") {
-    const body = (await response
-      .clone()
-      .json()
-      .catch(() => null)) as { code?: unknown } | null;
-    if (body?.code === "MASQUERADE_ENDED") masqueradeEndedHandler?.();
+  if (response.status === 403) {
+    const code = await masqueradeErrorCode(response);
+    if (code === MASQUERADE_ERROR_CODES.ended) masqueradeEndedHandler?.();
   }
   return response;
 }

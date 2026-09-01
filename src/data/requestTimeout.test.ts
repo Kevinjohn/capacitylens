@@ -3,11 +3,13 @@ import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
 import {
   apiFetch,
   isTransportFailure,
+  masqueradeErrorCode,
   requestSignal,
   API_REQUEST_TIMEOUT_MS,
   API_BULK_TIMEOUT_MS,
   setMasqueradeEndedHandler,
 } from "./requestTimeout";
+import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 
 afterEach(() => {
   setMasqueradeEndedHandler(null);
@@ -58,6 +60,24 @@ describe("requestSignal tiers", () => {
 });
 
 describe("apiFetch", () => {
+  it("recognizes only shared masquerade codes without consuming the response body", async () => {
+    const response = new Response(JSON.stringify({ code: MASQUERADE_ERROR_CODES.readOnly }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+
+    await expect(masqueradeErrorCode(response)).resolves.toBe(MASQUERADE_ERROR_CODES.readOnly);
+    await expect(response.json()).resolves.toEqual({ code: MASQUERADE_ERROR_CODES.readOnly });
+    await expect(
+      masqueradeErrorCode(
+        new Response(JSON.stringify({ code: "UNKNOWN" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    ).resolves.toBeNull();
+  });
+
   it("announces audit degradation from direct API response headers", async () => {
     vi.stubGlobal(
       "fetch",
