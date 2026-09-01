@@ -6,6 +6,7 @@ import type {
   StartMasqueradePayload,
 } from "@capacitylens/shared/domain/masquerade";
 import { isAccountRole } from "@capacitylens/shared/account/types";
+import { accountClient } from "../account/accountClient";
 import { API_BASE } from "../data/apiConfig";
 import { apiFetch } from "../data/requestTimeout";
 
@@ -49,14 +50,7 @@ export const masqueradeApi = {
 
   async start(accountId: string, targetUserId: string): Promise<MasqueradeState> {
     const body: StartMasqueradePayload = { targetUserId };
-    return requireState(
-      await apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(accountId)}/masquerade`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }),
-    );
+    return requireState(await accountClient.startMasquerade(accountId, body));
   },
 
   async end(token: string, reason: ClientMasqueradeEndReason): Promise<void> {
