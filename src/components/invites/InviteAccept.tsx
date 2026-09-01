@@ -9,6 +9,7 @@ import {
 } from "../../account/accountClient";
 import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
 import { readApiError } from "../../lib/readApiError";
+import { useStore } from "../../store/useStore";
 import { authClient } from "../../auth/authClient";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
@@ -27,7 +28,6 @@ import {
 import { replaceWithAccountPicker, replaceWithJoinedAccount } from "../../lib/joinedAccountHandoff";
 import { reloadPage } from "../../lib/reloadPage";
 import { InviteAcceptView, type InviteAcceptState, type InvitePreview } from "./InviteAcceptView";
-import { transitionAccount } from "../../auth/accountTransition";
 
 // Invite accept page for /invite/:token. On mount, in SERVER mode, it previews the invite.
 // A signed-in person must then explicitly accept before the single-use POST is sent. The server is
@@ -274,7 +274,9 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
         // global company selection once it has unmounted. A company chosen on the destination route
         // must not be replaced by this late invitation completion.
         if (routeActive.current && list !== null) {
-          if (list.some((account) => account.id === accountId)) void transitionAccount(accountId);
+          // This pre-session route deliberately has no persistence owner attached. Seed only the
+          // verified handoff id; the fresh authenticated boot owns its hydration.
+          if (list.some((account) => account.id === accountId)) useStore.getState().setActiveAccount(accountId);
         }
       } catch (error) {
         // The 2xx accept response already confirmed durable membership. Activation is a separate,
@@ -324,7 +326,9 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
           ? list[0]
           : undefined;
       if (target) {
-        await transitionAccount(target.id);
+        // This route precedes the authenticated persistence lifecycle. The destination boot
+        // re-verifies and hydrates the selected company from this already-authoritative directory.
+        useStore.getState().setActiveAccount(target.id);
         replaceWithJoinedAccount(target.id);
         return;
       }

@@ -57,7 +57,10 @@ export async function apiFetch(
   // Defer until the direct action's own success notice has run; otherwise that notice immediately
   // overwrites the more important persistent audit warning in the single-notice store.
   noteAuditWarning(response, { defer: true });
-  if (response.status === 403) {
+  // A few narrow adapters/tests provide a Response-compatible object without clone(). Skip the
+  // optional interceptor there; real Fetch responses always support clone and retain their body
+  // for the caller while this best-effort classification reads a copy.
+  if (response.status === 403 && typeof response.clone === "function") {
     const body = (await response
       .clone()
       .json()
