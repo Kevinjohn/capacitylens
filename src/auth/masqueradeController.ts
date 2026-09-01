@@ -10,7 +10,7 @@ import { masqueradeApi } from "./masqueradeApi";
 import { reprojectAccess } from "./reprojectAccess";
 
 type ResumeWrites = (opts?: { dropParkedEdits?: boolean }) => void;
-type EndProjectionResult = "inactive" | "superseded" | "failed";
+type EndProjectionResult = "inactive" | "superseded" | "noop" | "failed";
 type NoStatePolicy = "succeed" | "wait";
 
 function switchSucceeded(outcome: RefreshOutcome, accountId: string | null): boolean {
@@ -148,7 +148,7 @@ export class MasqueradeController {
     const runtime = useStore.getState().masquerade;
     const state = runtime.phase === "inactive" ? null : runtime.state;
     if (!state) {
-      if (options.onNoState === "succeed") return "inactive";
+      if (options.onNoState === "succeed") return "noop";
       this.fail("Wait for the current masquerade transition to finish.");
       return "failed";
     }

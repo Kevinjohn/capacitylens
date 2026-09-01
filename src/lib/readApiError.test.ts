@@ -49,7 +49,7 @@ describe("peekApiErrorCode", () => {
     await expect(peekApiErrorCode(consumed)).resolves.toBeNull();
 
     const json = vi.fn(async () => ({ code: "SESSION_NOT_FRESH" }));
-    await expect(peekApiErrorCode({ bodyUsed: false, json } as Response)).resolves.toBeNull();
+    await expect(peekApiErrorCode({ bodyUsed: false, json } as unknown as Response)).resolves.toBeNull();
     expect(json).not.toHaveBeenCalled();
   });
 });
