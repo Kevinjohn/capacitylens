@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AccountAuditAction, AccountAuditEvent } from "@capacitylens/shared/account/audit";
+import { MASQUERADE_END_REASONS } from "@capacitylens/shared/domain/masquerade";
 import type { AuditEntry, AuditRecord, AuditSink } from "./audit";
 import type { Db } from "./db";
 import { isIsoInstant } from "@capacitylens/shared/account/types";
@@ -120,6 +121,8 @@ const ACCOUNT_ACTION_VALUES = [
   "identity.email_corrected",
   "identity.federated_link_removed",
   "identity.sessions_revoked",
+  "identity.masquerade_started",
+  "identity.masquerade_ended",
   "identity.sso_cutover_activated",
   "identity.local_deprovisioned",
   "flow.compensated",
@@ -152,6 +155,7 @@ void accountOutcomesAreExhaustive;
 const PRODUCT_ACTIONS = new Set<string>(PRODUCT_ACTION_VALUES);
 const ACCOUNT_ACTIONS = new Set<string>(ACCOUNT_ACTION_VALUES);
 const ACCOUNT_OUTCOMES = new Set<string>(ACCOUNT_OUTCOME_VALUES);
+const MASQUERADE_END_REASON_SET = new Set<string>(MASQUERADE_END_REASONS);
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
@@ -185,7 +189,7 @@ export function isAuditEntry(value: unknown): value is AuditEntry {
       (row.action === "purge" ? isCascadeCounts(row.cascadeCounts) : row.cascadeCounts === undefined)
     );
   }
-  return (
+  const commonAccountFieldsValid =
     isNonEmptyString(row.id) &&
     isIsoInstant(row.occurredAt) &&
     isNonEmptyString(row.applicationId) &&
@@ -196,8 +200,15 @@ export function isAuditEntry(value: unknown): value is AuditEntry {
     isNonEmptyString(row.action) &&
     ACCOUNT_ACTIONS.has(row.action) &&
     isNonEmptyString(row.outcome) &&
-    ACCOUNT_OUTCOMES.has(row.outcome)
-  );
+    ACCOUNT_OUTCOMES.has(row.outcome);
+  if (!commonAccountFieldsValid) return false;
+  if (row.action === "identity.masquerade_started") {
+    return isIsoInstant(row.expiresAt) && row.reason === undefined;
+  }
+  if (row.action === "identity.masquerade_ended") {
+    return isNonEmptyString(row.reason) && MASQUERADE_END_REASON_SET.has(row.reason) && row.expiresAt === undefined;
+  }
+  return row.expiresAt === undefined && row.reason === undefined;
 }
 
 /** Enqueue inside the same SQLite transaction as the represented mutation. */

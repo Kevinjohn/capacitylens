@@ -186,6 +186,8 @@ export async function refreshAccountSummaries(init?: {
       activeAccountId !== null &&
       !list.some((account) => account.id === activeAccountId)
     ) {
+      // Internal membership repair: the authoritative directory proved this account is no longer
+      // accessible, so close it synchronously before publishing the explanatory notice.
       useStore.getState().setActiveAccount(null);
       useStore.getState().setNotice(m.notice_company_access_removed(), "warning");
     }

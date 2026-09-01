@@ -21,6 +21,13 @@ vi.mock("../../data/apiConfig", () => ({
   isServerConfigured: () => serverFlag.on,
 }));
 
+vi.mock("../../auth/accountTransition", () => ({
+  transitionAccount: vi.fn(async (id: string | null) => {
+    useStore.getState().setActiveAccount(id);
+    return true;
+  }),
+}));
+
 /** Render `ui` inside an AuthContext fixed to `canCreateAccount` (single-company-per-instance
  *  policy) — mirrors permissionGating.test.tsx's `withRole`. The other fields are fixed to the
  *  same defaults the real context uses when the fact IS available (authMode off, no user). */

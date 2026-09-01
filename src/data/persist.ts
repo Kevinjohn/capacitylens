@@ -20,6 +20,7 @@ interface PersistenceRegistration {
   refreshActive?: (id: string) => Promise<"reloaded" | "skipped" | "failed">;
   flushPending?: () => Promise<boolean>;
   suspendWrites?: () => (opts?: { dropParkedEdits?: boolean }) => void;
+  switchAndAwaitHydration?: (id: string | null) => Promise<RefreshOutcome>;
   hasUnsavedWrites: () => boolean;
 }
 
@@ -54,6 +55,10 @@ class PersistenceCoordinator {
 
   async refreshActive(id: string): Promise<RefreshOutcome> {
     return this.registration?.refreshActive?.(id) ?? "unattached";
+  }
+
+  async switchAndAwaitHydration(id: string | null): Promise<RefreshOutcome> {
+    return this.registration?.switchAndAwaitHydration?.(id) ?? "unattached";
   }
 }
 
@@ -136,6 +141,14 @@ export class ReloadDiscardedEditError extends Error {
  */
 export async function refreshActiveAccountSlice(id: string): Promise<RefreshOutcome> {
   return persistenceCoordinator.refreshActive(id);
+}
+
+/** Switch the active account through the persistence subscriber and await the exact hydration it
+ * owns. A null switch has no slice to load and resolves after the old account's pending write has
+ * drained. Authenticated account-transition code must use this seam instead of racing a second
+ * refresh against the subscriber. */
+export async function switchAndAwaitHydration(id: string | null): Promise<RefreshOutcome> {
+  return persistenceCoordinator.switchAndAwaitHydration(id);
 }
 
 /**
@@ -780,6 +793,19 @@ export function attachPersistence(
       });
   }
 
+  const switchWaiters: Array<{
+    id: string | null;
+    resolve: (outcome: RefreshOutcome) => void;
+  }> = [];
+  const settleSwitch = (id: string | null, outcome: RefreshOutcome) => {
+    for (let index = switchWaiters.length - 1; index >= 0; index -= 1) {
+      const waiter = switchWaiters[index]!;
+      if (waiter.id !== id) continue;
+      switchWaiters.splice(index, 1);
+      waiter.resolve(outcome);
+    }
+  };
+
   const unsubscribeSwitch = serverMode
     ? store.subscribe((state) => {
         const newId = state.activeAccountId;
@@ -803,6 +829,7 @@ export function attachPersistence(
               save(pending);
               if (inFlightSave) await inFlightSave;
             }
+            settleSwitch(null, "reloaded");
           })();
           return;
         }
@@ -810,8 +837,23 @@ export function attachPersistence(
           // A successful company switch just loaded this same slice. Count it as a refresh so a
           // focus event delivered by the picker transition cannot immediately load it again.
           if (outcome === "reloaded") lastRefreshAt = Date.now();
+          settleSwitch(newId, outcome);
         });
       })
+    : null;
+
+  const myRegisteredSwitch = serverMode
+    ? (id: string | null) =>
+        new Promise<RefreshOutcome>((resolve) => {
+          const previousId = store.getState().activeAccountId;
+          if (previousId === id) {
+            resolve("skipped");
+            return;
+          }
+          switchWaiters.push({ id, resolve });
+          store.getState().setActiveAccount(id);
+          if (store.getState().activeAccountId !== id) settleSwitch(id, "skipped");
+        })
     : null;
 
   // The debounce window can outlive the tab. `pagehide` is the reliable close/navigate signal
@@ -912,6 +954,7 @@ export function attachPersistence(
     ...(myRegisteredRefresh ? { refreshActive: myRegisteredRefresh } : {}),
     ...(myRegisteredFlush ? { flushPending: myRegisteredFlush } : {}),
     ...(myRegisteredSuspend ? { suspendWrites: myRegisteredSuspend } : {}),
+    ...(myRegisteredSwitch ? { switchAndAwaitHydration: myRegisteredSwitch } : {}),
     hasUnsavedWrites: myRegisteredHasUnsaved,
   });
   resetPersistenceDiagnostics();
@@ -966,6 +1009,7 @@ export function attachPersistence(
   return () => {
     if (disposed) return;
     disposed = true;
+    for (const waiter of switchWaiters.splice(0)) waiter.resolve("unattached");
     setPersistenceSuspended(false);
     unsubscribe();
     unsubscribeSwitch?.();

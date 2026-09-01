@@ -39,6 +39,10 @@ import { trustedLocalIdentityPort } from "./accounts/trustedLocalIdentityPort";
 import { registerAccountRoutes } from "./accounts/accountRoutes";
 import { memberSignInTrackingSnapshot, setMemberSignInTracking } from "./accounts/memberSignInTracking";
 import { registerLifecycleRoutes } from "./routes/lifecycleRoutes";
+import { applicationSessionHandle } from "./accounts/sessionHandle";
+import { enqueueMasqueradeEndAudit, registerMasqueradeRoutes } from "./routes/masqueradeRoutes";
+import { MasqueradeRegistry, type StoredMasqueradeRecord } from "./masqueradeRegistry";
+import { MASQUERADE_ERROR_CODES, type MasqueradeEndReason } from "@capacitylens/shared/domain/masquerade";
 // Every `accounts`-row write rule lives in ONE module (see its header). The generic /api/:entity
 // routes below refuse `accounts` outright; the batch loop shares these predicates so the sync path
 // and the dedicated routes cannot drift.
@@ -65,6 +69,7 @@ declare module "fastify" {
     accountActor: ActorContext | null;
     authenticationUserId: string | null;
     authenticationProviderId: string | null;
+    session: ApplicationSession | null;
   }
 }
 import { parseData, MAX_IMPORT_RECORDS } from "@capacitylens/shared/data/transfer";
@@ -982,6 +987,38 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       return true;
     },
   };
+  const masquerades = new MasqueradeRegistry({
+    expired: (record) => enqueueMasqueradeEndAudit(db, application.applicationId, record, "session_expired"),
+  });
+  const prepareMasqueradeUsers = (userIds: readonly string[], reason: "session_revoked"): readonly string[] => {
+    const handles = [...new Set(userIds.flatMap((userId) => masquerades.sessionHandlesForUser(userId)))];
+    for (const sessionHandle of handles) {
+      masquerades.prepareEnd(sessionHandle, null, (record) =>
+        enqueueMasqueradeEndAudit(db, application.applicationId, record, reason),
+      );
+    }
+    return handles;
+  };
+  const masqueradeSessionLifecycle = {
+    prepare: (sessionHandles: readonly string[], reason: "session_expired" | "session_revoked") => {
+      for (const sessionHandle of sessionHandles) {
+        masquerades.prepareEnd(sessionHandle, null, (record) =>
+          enqueueMasqueradeEndAudit(db, application.applicationId, record, reason),
+        );
+      }
+    },
+    prepareUsers: prepareMasqueradeUsers,
+    commit: (sessionHandles: readonly string[]) => masquerades.commitEnd(sessionHandles),
+  };
+  auth?.setSessionDeletionLifecycle?.({
+    prepareSession: (sessionToken, reason) => {
+      const handle = applicationSessionHandle(application.applicationId, sessionToken);
+      masqueradeSessionLifecycle.prepare([handle], reason);
+      return [handle];
+    },
+    prepareUser: (userId) => prepareMasqueradeUsers([userId], "session_revoked"),
+    commit: masqueradeSessionLifecycle.commit,
+  });
   const accountLock = new KeyedOperationLock();
   const identityPort =
     auth && authMode !== "off"
@@ -990,6 +1027,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           auth,
           authMode,
           db,
+          masqueradeSessions: masqueradeSessionLifecycle,
         })
       : trustedLocalIdentityPort({
           id: DEMO_USER.id,
@@ -1297,15 +1335,75 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   app.decorateRequest("accountActor", null);
   app.decorateRequest("authenticationUserId", null);
   app.decorateRequest("authenticationProviderId", null);
+  app.decorateRequest("session", null);
+  type SessionResolution =
+    | { kind: "absent_or_invalid" }
+    | { kind: "verified"; session: ApplicationSession }
+    | { kind: "backend_failure"; error: unknown };
+  const incomingSessionResolutions = new WeakMap<FastifyRequest, Promise<SessionResolution>>();
+  const resolveIncomingSession = (req: FastifyRequest, force = false): Promise<SessionResolution> => {
+    const existing = incomingSessionResolutions.get(req);
+    if (existing) return existing;
+    const credentialsPresent = req.headers.cookie !== undefined || req.headers.authorization !== undefined;
+    if (authMode === "off" || (!credentialsPresent && !force)) {
+      return Promise.resolve({ kind: "absent_or_invalid" });
+    }
+    const resolution = (async (): Promise<SessionResolution> => {
+      try {
+        const session = await identityPort!.verifyApplicationSession({ headers: toWebHeaders(req.headers) });
+        return session ? { kind: "verified", session } : { kind: "absent_or_invalid" };
+      } catch (error) {
+        return { kind: "backend_failure", error };
+      }
+    })();
+    incomingSessionResolutions.set(req, resolution);
+    return resolution;
+  };
+  const attachVerifiedSession = (req: FastifyRequest, session: ApplicationSession): void => {
+    const user = sessionUserFromApplicationSession(session);
+    req.session = session;
+    req.user = user;
+    req.accountActor = actorContextFromSession(session);
+    req.authenticationProviderId = session.assurance === "federated" ? session.providerId : null;
+  };
   app.addHook("preHandler", async (req: FastifyRequest, reply: FastifyReply) => {
     const path = req.url.split("?", 1)[0];
-    if (
-      !path.startsWith("/api/") ||
-      path === "/api/health" ||
-      path === "/api/security/csp-report" ||
-      path.startsWith("/api/auth/")
-    )
-      return;
+    if (!path.startsWith("/api/") || path === "/api/health" || path === "/api/security/csp-report") return;
+    let resolution = await resolveIncomingSession(req);
+    if (resolution.kind === "verified") attachVerifiedSession(req, resolution.session);
+    const activeMasquerade = resolution.kind === "verified" ? masquerades.lookup(resolution.session.id) : null;
+    const unsafe = req.method !== "GET" && req.method !== "HEAD" && req.method !== "OPTIONS";
+    const masqueradeExempt =
+      (req.method === "POST" && /^\/api\/accounts\/[^/]+\/masquerade$/.test(path)) ||
+      (req.method === "DELETE" && path === "/api/masquerade") ||
+      (req.method === "POST" && path === "/api/account/sign-out") ||
+      (req.method === "POST" && path === "/api/auth/sign-out");
+    if (activeMasquerade && unsafe && !masqueradeExempt) {
+      securityEvent({
+        event: "authorization",
+        outcome: "denied",
+        action: "masquerade_read_only",
+        userId: resolution.kind === "verified" ? resolution.session.principal.id : undefined,
+        method: req.method,
+        path,
+      });
+      return reply.code(403).send({
+        error: "Masquerade is read-only.",
+        code: MASQUERADE_ERROR_CODES.readOnly,
+      });
+    }
+    const signingOut =
+      activeMasquerade && req.method === "POST" && (path === "/api/account/sign-out" || path === "/api/auth/sign-out");
+    if (signingOut) {
+      masquerades.end(activeMasquerade.sessionHandle, null, (record) =>
+        enqueueMasqueradeEndAudit(db, application.applicationId, record, "sign_out"),
+      );
+    }
+    if (resolution.kind === "backend_failure" && unsafe) {
+      req.log.error(resolution.error);
+      return reply.code(503).send({ error: "Sign-in is temporarily unavailable." });
+    }
+    if (path.startsWith("/api/auth/")) return;
     // A genuinely new password user has no session yet. Signup is authorized by the unexpired
     // single-use invite bearer token. Preview is also bearer-authorized and returns only the company
     // display name, proposed role and expiry — never tenant rows, members or identity facts.
@@ -1323,44 +1421,38 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       };
       return;
     }
-    try {
-      const session = await identityPort!.verifyApplicationSession({
-        headers: toWebHeaders(req.headers),
-      });
-      if (!session) {
-        securityEvent({
-          event: "authentication_required",
-          outcome: "blocked",
-          method: req.method,
-          path,
-          remoteIp: requestClientIp(req, opts.trustProxyHeaders === true),
-        });
-        return reply.code(401).send({ error: "Sign in to continue." });
-      }
-      const user = sessionUserFromApplicationSession(session);
-      req.user = user;
-      req.accountActor = actorContextFromSession(session);
-      req.authenticationProviderId = session.assurance === "federated" ? session.providerId : null;
-      if (authMode === "password" && opts.requireMfa === true && !sessionSatisfiesRequiredMfa(session)) {
-        securityEvent({
-          event: "mfa_required",
-          outcome: "blocked",
-          method: req.method,
-          path,
-          userId: user.id,
-        });
-        return reply.code(403).send({
-          error: "Multi-factor authentication enrollment is required.",
-          code: "MFA_ENROLLMENT_REQUIRED",
-        });
-      }
-    } catch (e) {
-      // The auth backend (Better Auth / its DB) FAILED — this is NOT "no session". CRITICAL: do
-      // not fall through leaving req.user null while letting the handler run (that would serve an
-      // UNAUTHENTICATED request). Reject with a 503 (distinct from a credentials-style 401);
-      // returning a reply from a preHandler short-circuits the route, so the handler never executes.
-      req.log.error(e);
+    if (resolution.kind === "absent_or_invalid") {
+      resolution = await resolveIncomingSession(req, true);
+      if (resolution.kind === "verified") attachVerifiedSession(req, resolution.session);
+    }
+    if (resolution.kind === "backend_failure") {
+      req.log.error(resolution.error);
       return reply.code(503).send({ error: "Sign-in is temporarily unavailable." });
+    }
+    if (resolution.kind === "absent_or_invalid") {
+      securityEvent({
+        event: "authentication_required",
+        outcome: "blocked",
+        method: req.method,
+        path,
+        remoteIp: requestClientIp(req, opts.trustProxyHeaders === true),
+      });
+      return reply.code(401).send({ error: "Sign in to continue." });
+    }
+    const session = resolution.session;
+    const user = sessionUserFromApplicationSession(session);
+    if (authMode === "password" && opts.requireMfa === true && !sessionSatisfiesRequiredMfa(session)) {
+      securityEvent({
+        event: "mfa_required",
+        outcome: "blocked",
+        method: req.method,
+        path,
+        userId: user.id,
+      });
+      return reply.code(403).send({
+        error: "Multi-factor authentication enrollment is required.",
+        code: "MFA_ENROLLMENT_REQUIRED",
+      });
     }
   });
 
@@ -1401,6 +1493,59 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // here (factory state, like healthStmt) so the same instance backs every request.
   const store = sqliteTenantStore(db);
 
+  const endMasquerade = (record: Readonly<StoredMasqueradeRecord>, reason: MasqueradeEndReason): void => {
+    masquerades.end(record.sessionHandle, null, (ending) =>
+      enqueueMasqueradeEndAudit(db, application.applicationId, ending, reason),
+    );
+  };
+
+  /** Resolve the real membership first, then substitute only the active account's target read role. */
+  function resolveEffectiveRole(
+    req: FastifyRequest,
+    accountId: string,
+  ): { role: ReturnType<typeof accountAdminPort.roleForPrincipalInWorkspace>; ended: boolean } {
+    const realRole = accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId);
+    const record = req.session ? masquerades.lookup(req.session.id) : null;
+    if (!record || record.accountId !== accountId) return { role: realRole, ended: false };
+    if (realRole === null || !can(realRole, "masquerade")) {
+      endMasquerade(record, "caller_invalidated");
+      return { role: null, ended: true };
+    }
+    const targetRole = accountAdminPort.roleForPrincipalInWorkspace(record.targetUserId, accountId);
+    if (targetRole === null) {
+      endMasquerade(record, "target_invalidated");
+      return { role: null, ended: true };
+    }
+    return { role: targetRole, ended: false };
+  }
+
+  function memberReadProjection(
+    req: FastifyRequest,
+    accountId: string,
+    targetPrincipalIds: readonly string[],
+  ): {
+    principalId: string;
+    authorities: ReadonlyMap<string, Readonly<{ reset: boolean; revoke: boolean }>>;
+  } {
+    const record = req.session ? masquerades.peek(req.session.id) : null;
+    const principalId = record?.accountId === accountId ? record.targetUserId : req.accountActor!.principalId;
+    const decisions = accountAdminPort.projectIdentityAdminAuthoritiesForTargets({
+      principalId,
+      targetPrincipalIds,
+      actions: ["issue-password-reset", "revoke-sessions"],
+    });
+    const authorities = new Map(
+      [...decisions].map(([targetPrincipalId, authority]) => [
+        targetPrincipalId,
+        {
+          reset: authority.get("issue-password-reset")?.allowed === true,
+          revoke: authority.get("revoke-sessions")?.allowed === true,
+        },
+      ]),
+    );
+    return { principalId, authorities };
+  }
+
   /**
    * The authorization seam (P1.5 requirePermission): "may THIS request perform `action` on
    * `accountId`?". Returns `true` to proceed; otherwise it has already sent the route's denial and returns
@@ -1433,7 +1578,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     options: { concealNonMembership?: boolean } = {},
   ): boolean {
     if (authMode === "off") return true; // OFF = allow-all; the account port / can NEVER run.
-    const role = accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId);
+    const resolved = resolveEffectiveRole(req, accountId);
+    if (resolved.ended) {
+      reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
+      return false;
+    }
+    const role = resolved.role;
     if (role === null) {
       securityEvent({
         event: "authorization",
@@ -1500,8 +1650,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     if (!tableHasGatedFields(table) || authMode === "off") {
       return ALL_FIELDS_VISIBLE;
     }
-    const role =
-      typeof accountId === "string" ? accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId) : null; // a non-string account id fails closed (every gated field hidden)
+    const role = typeof accountId === "string" ? resolveEffectiveRole(req, accountId).role : null; // a non-string account id fails closed (every gated field hidden)
     return visibilityForRole(role);
   }
 
@@ -1663,25 +1812,29 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           canCreateAccount: capAllows,
         };
       }
-      try {
-        const session = await identityPort!.verifyApplicationSession({
-          headers: toWebHeaders(req.headers),
+      const resolution = await resolveIncomingSession(req, true);
+      if (resolution.kind === "absent_or_invalid") {
+        // First-run signal: password mode + an EMPTY user table means the setup-token-guarded
+        // bootstrap is available (the live gate in auth.ts), so the login screen offers
+        // "Create the owner account" instead of a dead-end sign-in. "The user count is zero" is
+        // NOT tenant data — the 401 shape still deliberately excludes account facts (the
+        // capability flags stay off this branch); it reveals no setup secret or account data.
+        const needsSetup = authMode === "password" && countUsers(db) === 0;
+        return reply.code(401).send({
+          authMode,
+          providers: auth?.providers ?? [],
+          error: "Sign in to continue.",
+          ...(needsSetup ? { needsSetup: true } : {}),
         });
-        if (!session) {
-          // First-run signal: password mode + an EMPTY user table means the setup-token-guarded
-          // bootstrap is available (the live gate in auth.ts), so the login screen offers
-          // "Create the owner account" instead of a dead-end sign-in. "The user count is zero" is
-          // NOT tenant data — the 401 shape still deliberately excludes account facts (the
-          // capability flags stay off this branch); it reveals no setup secret or account data.
-          const needsSetup = authMode === "password" && countUsers(db) === 0;
-          return reply.code(401).send({
-            authMode,
-            providers: auth?.providers ?? [],
-            error: "Sign in to continue.",
-            ...(needsSetup ? { needsSetup: true } : {}),
-          });
-        }
+      }
+      if (resolution.kind === "backend_failure") {
+        req.log.error(resolution.error);
+        return reply.code(503).send({ authMode, error: "Sign-in is temporarily unavailable." });
+      }
+      try {
+        const session = resolution.session;
         const user = sessionUserFromApplicationSession(session);
+        const masquerading = masquerades.lookup(session.id) !== null;
         return {
           authMode,
           user,
@@ -1691,6 +1844,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           providers: auth?.providers ?? [],
           multiAccount,
           canCreateAccount:
+            !masquerading &&
             capAllows &&
             (authMode !== "sso" ||
               (session.assurance === "federated" && session.providerId === auth?.strictProvider?.id)) &&
@@ -1733,9 +1887,21 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           if (!betterAuthProxyRouteAllowed(authMode, req.method, authPath)) {
             return reply.code(404).send({ error: "Not found." });
           }
+          if (
+            req.method === "POST" &&
+            authPath !== "/sign-out" &&
+            req.session !== null &&
+            masquerades.lookup(req.session.id)
+          ) {
+            return reply.code(403).send({
+              error: "Masquerade is read-only.",
+              code: MASQUERADE_ERROR_CODES.readOnly,
+            });
+          }
           const requestHeaders = toWebHeaders(req.headers);
           if (requestHeaders.has("cookie") || requestHeaders.has("authorization")) {
-            req.authenticationUserId = await resolveAuthenticationUserId(auth, requestHeaders, req, logOn);
+            const incoming = await resolveIncomingSession(req);
+            req.authenticationUserId = incoming.kind === "verified" ? incoming.session.principal.id : null;
           }
           const response = await auth.handler(
             new Request(url, {
@@ -1768,7 +1934,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // EVERY account is accessible, so return all summaries with NO membership gate — branch on
     // authMode === 'off' BEFORE touching membership (the OFF guarantee). Auth-on returns ONLY the
     // caller's memberships through AccountAdminPort. Returns AccountSummary[] = [{ id, name, role }].
-    app.get("/api/accounts", async (req) => {
+    app.get("/api/accounts", async (req, reply) => {
       if (authMode === "off") {
         // No membership in off mode: every account is visible. Map to the same AccountSummary shape
         // The account port maps to ({ id, name, role }) so the auth-on / auth-off shapes are identical on
@@ -1785,11 +1951,29 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       const memberships = await accountAdminPort.listWorkspacesForPrincipal({
         principalId: req.accountActor!.principalId,
       });
-      return memberships.map((membership) => ({
-        id: membership.workspaceId,
-        name: membership.workspaceName,
-        role: membership.role,
-      }));
+      // Revalidate the projected account even when the caller's membership was removed and the
+      // account therefore no longer appears in `memberships`. The triggering request must end with
+      // MASQUERADE_ENDED, never silently return another-account data under a stale client phase.
+      const activeRecord = req.session ? masquerades.peek(req.session.id) : null;
+      if (activeRecord) {
+        const activeResolution = resolveEffectiveRole(req, activeRecord.accountId);
+        if (activeResolution.ended) {
+          return reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
+        }
+      }
+      const projected = [];
+      for (const membership of memberships) {
+        const resolved = resolveEffectiveRole(req, membership.workspaceId);
+        if (resolved.ended) {
+          return reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
+        }
+        projected.push({
+          id: membership.workspaceId,
+          name: membership.workspaceName,
+          role: resolved.role ?? membership.role,
+        });
+      }
+      return projected;
     });
 
     // Whole-state read backs the client's PersistenceAdapter.loadAll(). Only WRITES are entity-level;
@@ -1813,7 +1997,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // OFF mode = trusted-local ⇒ include. Auth-on: owner/admin include, editor/viewer omit.
         // The port role is non-null here (authorize('read') already proved membership); the `role !==
         // null` guard is belt-and-braces / fail-closed (an unexpected null omits the note, never leaks).
-        const role = authMode === "off" ? null : accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId);
+        const role = authMode === "off" ? null : resolveEffectiveRole(req, accountId).role;
         // Derive the export/read include flags from the SAME GATED_FIELD_POLICIES predicates that
         // drive the write-pin and read-echo, so the three can never disagree. OFF is trusted-local ⇒
         // include everything; otherwise each gated field is included iff the role may see it.
@@ -1989,6 +2173,19 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       command: accountCommand,
       audit,
       fail: accountFail,
+      memberReadProjection,
+    });
+
+    registerMasqueradeRoutes(app, {
+      authMode,
+      applicationId: application.applicationId,
+      db,
+      registry: masquerades,
+      accountFlows,
+      authorize,
+      roleForPrincipal: (principalId, accountId) =>
+        accountAdminPort.roleForPrincipalInWorkspace(principalId, accountId),
+      effectiveRole: resolveEffectiveRole,
     });
 
     registerLifecycleRoutes(app, {

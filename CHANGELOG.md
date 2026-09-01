@@ -7,6 +7,13 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Owners and Admins can open a server-enforced, read-only view of another active member's account
+  access from Team & access, with a persistent status bar, audited lifecycle and automatic end on
+  account switch or session invalidation.
+  — 2026-09-01
+
 ## [0.57.0-alpha.18] — 2026-08-24
 
 ### Fixed

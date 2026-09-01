@@ -7,6 +7,7 @@ import {
   refreshActiveAccountSlice,
   ReloadDiscardedEditError,
   suspendServerWrites,
+  switchAndAwaitHydration,
 } from "./persist";
 import { InMemoryDemoAdapter } from "./InMemoryDemoAdapter";
 import {
@@ -582,6 +583,57 @@ describe("attachPersistence", () => {
 describe("account-switch orchestrator (P1.13, server mode)", () => {
   // The §5 correctness core at the persist layer: a tenant switch hydrates THAT account's slice and
   // re-seeds the adapter's diff snapshot atomically, with NO spurious save of the loaded slice.
+
+  it("lets the account-transition owner await the subscriber's exact hydration, including null", async () => {
+    let resolveLoad!: (data: AppData) => void;
+    const load = new Promise<AppData>((resolve) => {
+      resolveLoad = resolve;
+    });
+    const adapter: PersistenceAdapter = {
+      loadAll: vi.fn(async () => load),
+      saveAll: vi.fn(async () => {}),
+    };
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true);
+
+    const switching = switchAndAwaitHydration("a2");
+    let settled = false;
+    void switching.then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    resolveLoad({
+      ...emptyAppData(),
+      accounts: [{ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
+    });
+    await expect(switching).resolves.toBe("reloaded");
+    await expect(switchAndAwaitHydration(null)).resolves.toBe("reloaded");
+    expect(useStore.getState().activeAccountId).toBeNull();
+    detach();
+  });
+
+  it("settles an outstanding account transition when its persistence owner detaches", async () => {
+    const load = new Promise<AppData>(() => undefined);
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    const detach = attachPersistence(
+      useStore,
+      { loadAll: vi.fn(async () => load), saveAll: vi.fn(async () => {}) },
+      0,
+      undefined,
+      undefined,
+      true,
+    );
+
+    const switching = switchAndAwaitHydration("a2");
+    detach();
+
+    await expect(switching).resolves.toBe("unattached");
+  });
 
   it("loads the picked account slice into the store and does NOT push it back as a save", async () => {
     const a2Slice = {

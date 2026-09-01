@@ -7,6 +7,8 @@ import type { Role } from "@capacitylens/shared/domain/access";
 import { useOfflineState } from "../data/useOfflineState";
 import { offlineStateEpisode } from "../data/offlineCache";
 import { refreshAccountSummaries } from "./useAccountSummaries";
+import { masqueradeApi } from "./masqueradeApi";
+import { masqueradeController } from "./masqueradeController";
 
 // Client permission boundary (production plan P1.12). It resolves the caller's ROLE for the ACTIVE
 // account and provides it to the pure-`can`-driven affordance hooks (useRole / useCanEdit) so a
@@ -78,6 +80,11 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       // Viewer projection for the new account until the keyed fetch resolves.
       setActiveRole("viewer", "pending");
       try {
+        // Resolve session projection in this same generation and publish it before the effective
+        // role. A reload into an active masquerade must never render one writable frame.
+        const masquerade = await masqueradeApi.status();
+        if (cancelled) return;
+        masqueradeController.adoptStatus(masquerade);
         // The shell's directory hook deliberately yields active-account reads to this provider in
         // auth-on mode. One validated request therefore drives both the picker list and the
         // fail-closed permission projection without coupling their distinct failure postures.

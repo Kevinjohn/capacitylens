@@ -170,6 +170,15 @@ This is the short, present-tense record of decisions that constrain future work.
   and inviting a member never creates a schedulable person.
 - Team & access is a first-class destination visible to every role so members can understand their
   own access; only Owner/Admin receive directory, invitation and access-management controls.
+- Identity masquerade is explicitly an **identity masquerade, read projection**. It substitutes the
+  target member only for actor-dependent reads in the selected company; it never grants write
+  capability or claims to become that person's login. The registry is session-keyed and in memory,
+  rather than stored in a table or cookie: the supported topology is one process, and restart loss
+  fails closed. A method-based root guard plus a Better Auth proxy guard enforce read-only access.
+  Starting requires a fresh Owner/Admin session, cannot replace an existing projection, and ends
+  before an account switch. Start/end audits use explicit, account-switch, sign-out, expiry,
+  revocation and caller/target invalidation reasons; the start event carries the session expiry so
+  a restart-lost projection remains bounded in the ledger.
 - The account layer is an embedded repository-local boundary: neutral contracts, `IdentityPort`,
   `AccountAdminPort` and an orchestration-only `AccountFlows` coordinator. It permanently shares the
   product process, SQLite file and checksummed product migration ledger unless a separately approved

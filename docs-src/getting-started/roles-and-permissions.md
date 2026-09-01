@@ -68,6 +68,26 @@ for each company membership—never when someone signed in or what they did. Tur
 deletes the confirmations. See [Invite your team](/getting-started/invite-your-team#managing-someone-who-already-joined)
 for the member-management details.
 
+## Masquerade (view as a member)
+
+An Owner or Admin can check what another active member sees without changing that
+member's role. In **Team & access**, select the eye button on the member's row and confirm
+the prompt. A red **Masquerading as _name_** bar stays visible while the member's view is
+active.
+
+Masquerade is a read projection, not control of the other person's identity. CapacityLens
+uses that member's role, field redaction and member-directory capabilities for the current
+company, but blocks every change on the server and in the interface. The projection never
+applies to another company.
+
+Select **End now** to reload your real view and return to the schedule. Choosing another
+company also ends the projection first. Signing out, revoking the session, disabling either
+membership or letting the session expire ends it automatically. Starting and ending are
+recorded in the audit log.
+
+The projection belongs to the current browser session. A server restart ends it rather
+than attempting to restore it. This fail-closed behaviour is deliberate.
+
 ## Details
 
 **Export.** An export is redacted the same way the screen is:

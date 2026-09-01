@@ -236,14 +236,16 @@ export async function repairSsoCutover(input: CutoverRepairInput): Promise<Cutov
       action: "identity.local_deprovisioned",
       changedFields: ["localIdentity", "credential", "sessions"],
     });
+    let masqueradeHandles: readonly string[] = [];
     tx(
       db,
       () => {
-        identity.deprovisionLocalPrincipalInTx(principal.id);
+        masqueradeHandles = identity.deprovisionLocalPrincipalInTx(principal.id);
         enqueueAudit(db, audit, audit.id);
       },
       "immediate",
     );
+    identity.commitMasqueradeSessionEnds(masqueradeHandles);
     return {
       operation: input.operation.kind,
       principalId: principal.id,

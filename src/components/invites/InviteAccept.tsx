@@ -92,7 +92,6 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
   const { authMode, user, providers: configuredProviders, refreshAuth, signOut } = useAuth();
   const providers = configuredProviders ?? [];
   const [returnedWithExternalError] = useState(() => hasExternalSignInError(window.location.href));
-  const setActiveAccount = useStore((s) => s.setActiveAccount);
   // The initial render already encodes the no-fetch outcomes (the demo build; a missing token — which the
   // `/invite/:token` route shouldn't even match, but is handled defensively), so the effect never has
   // to setState synchronously: it only ever sets state from an async fetch callback.
@@ -275,7 +274,9 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
         // global company selection once it has unmounted. A company chosen on the destination route
         // must not be replaced by this late invitation completion.
         if (routeActive.current && list !== null) {
-          if (list.some((account) => account.id === accountId)) setActiveAccount(accountId);
+          // This pre-session route deliberately has no persistence owner attached. Seed only the
+          // verified handoff id; the fresh authenticated boot owns its hydration.
+          if (list.some((account) => account.id === accountId)) useStore.getState().setActiveAccount(accountId);
         }
       } catch (error) {
         // The 2xx accept response already confirmed durable membership. Activation is a separate,
@@ -325,7 +326,9 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
           ? list[0]
           : undefined;
       if (target) {
-        setActiveAccount(target.id);
+        // This route precedes the authenticated persistence lifecycle. The destination boot
+        // re-verifies and hydrates the selected company from this already-authoritative directory.
+        useStore.getState().setActiveAccount(target.id);
         replaceWithJoinedAccount(target.id);
         return;
       }

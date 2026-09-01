@@ -23,6 +23,12 @@ vi.mock("../../data/apiConfig", () => ({
 
 vi.mock("../../data/persist", () => ({
   refreshActiveAccountSlice: vi.fn(async () => "reloaded"),
+  flushPendingWrites: vi.fn(async () => true),
+  suspendServerWrites: vi.fn(() => vi.fn()),
+  switchAndAwaitHydration: vi.fn(async (id: string | null) => {
+    useStore.getState().setActiveAccount(id);
+    return "reloaded";
+  }),
 }));
 
 interface RawMember {
@@ -440,6 +446,25 @@ describe("MembersSection — admin affordances", () => {
     expect(within(editorRow).getByTestId("member-edit")).toBeInTheDocument();
     await chooseMemberAction(userEvent.setup(), editorRow, "member-remove");
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+  });
+
+  it("offers masquerade for every other active member, including an owner, and confirms by name", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", mockApi(members));
+    renderSection();
+    const rows = await screen.findAllByTestId("member-row");
+    const selfRow = rows.find((row) => within(row).queryByText(/me@x\.io/))!;
+    const ownerRow = rows.find((row) => within(row).queryByText(/theowner@x\.io/))!;
+    const editorRow = rows.find((row) => within(row).queryByText(/theeditor@x\.io/))!;
+
+    expect(within(selfRow).queryByTestId("member-masquerade")).not.toBeInTheDocument();
+    expect(within(ownerRow).getByTestId("member-masquerade")).toBeInTheDocument();
+    expect(within(editorRow).getByTestId("member-masquerade")).toBeInTheDocument();
+
+    await user.click(within(ownerRow).getByTestId("member-masquerade"));
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog).toHaveTextContent("Confirm you would like to masquerade as theowner@x.io");
+    expect(within(dialog).getByRole("button", { name: "Start masquerade" })).toBeInTheDocument();
   });
 
   it("names the member and waits for confirmation before sending removal", async () => {

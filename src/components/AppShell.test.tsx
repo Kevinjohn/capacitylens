@@ -39,6 +39,7 @@ beforeEach(() => {
   // Clear any leftover transient notice so a prior test's Sonner toast can't bleed in (the
   // toast layer is module-global; the store notice is the source of truth the bridge reads).
   useStore.getState().setNotice(null);
+  useStore.getState().setMasquerade({ phase: "inactive" });
   // Most shell tests exercise the post-hydration UI; the dedicated handoff test overrides this.
   useStore.getState().setHydrated(true);
   setOfflineReadState("cleanup", false);
@@ -70,6 +71,45 @@ function LocationProbe() {
     </button>
   );
 }
+
+it("shows the session-scoped masquerade banner above ordinary app alerts", () => {
+  useStore.getState().setMasquerade({
+    phase: "active",
+    generation: 1,
+    state: {
+      accountId: DEFAULT_ACCOUNT_ID,
+      targetUserId: "u-viewer",
+      targetName: "Selina Kyle",
+      effectiveRole: "viewer",
+      startedAt: "2026-09-01T10:00:00.000Z",
+      token: "token-1",
+    },
+  });
+  setOfflineReadState("tenant", true, Date.parse("2026-09-01T10:00:00.000Z"));
+  renderAppShell();
+
+  const banner = screen.getByTestId("masquerade-banner");
+  expect(banner).toHaveAttribute("role", "status");
+  expect(banner).toHaveTextContent("Masquerading as Selina Kyle");
+  expect(within(banner).getByRole("button", { name: "End now" })).toBeInTheDocument();
+  expect(
+    banner.compareDocumentPosition(screen.getByTestId("offline-read-only")) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+});
+
+it("shows a fail-closed banner while a member view is starting", () => {
+  useStore.getState().setMasquerade({
+    phase: "starting",
+    generation: 1,
+    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
+  });
+
+  renderAppShell();
+
+  const banner = screen.getByTestId("masquerade-banner");
+  expect(banner).toHaveTextContent("Starting member view…");
+  expect(within(banner).queryByRole("button")).not.toBeInTheDocument();
+});
 
 it("consumes a joined-account query only once and preserves later route queries", async () => {
   renderAppShell([`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`], true);

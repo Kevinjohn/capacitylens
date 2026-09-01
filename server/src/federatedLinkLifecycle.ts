@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
+import type { AccountAuditEvent, StandardAccountAuditAction } from "@capacitylens/shared/account/audit";
 import type { Db } from "./db";
 import { enqueueAudit } from "./auditOutbox";
 import { tx } from "./txn";
@@ -20,7 +20,7 @@ export function cutoverAuditEvent(
     workspaceId: string | null;
     actorPrincipalId: string | null;
     targetPrincipalId: string | null;
-    action: AccountAuditEvent["action"];
+    action: StandardAccountAuditAction;
     changedFields: AccountAuditEvent["changedFields"];
   },
 ): AccountAuditEvent {

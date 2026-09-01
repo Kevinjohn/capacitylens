@@ -323,6 +323,15 @@ export const accountClient = {
     });
   },
 
+  startMasquerade(workspaceId: string, body: unknown): Promise<Response> {
+    return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/masquerade`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  },
+
   changeMemberRole(
     workspaceId: string,
     principalId: string,

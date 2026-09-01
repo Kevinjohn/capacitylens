@@ -26,6 +26,7 @@ export type { Role } from "../account/types";
  *                              Admin tier (owner | admin).
  * - `'manageMembers'`    — add / remove members and change their roles. Admin tier (owner | admin).
  * - `'manageInvites'`    — create / revoke invites (link + email-preauth). Admin tier (owner | admin).
+ * - `'masquerade'`       — view the account through another active member's read projection. Admin tier.
  * - `'manageMemberSignInTracking'` — opt into coarse sign-in confirmation. Owner ONLY.
  * - `'purge'`            — hard-delete (purge) tombstoned data. Admin tier (owner | admin).
  * - `'deleteAccount'`    — erase an entire account and its members' orphaned identities. Owner ONLY.
@@ -40,6 +41,7 @@ export type Action =
   | "manageInternalClient"
   | "manageMembers"
   | "manageInvites"
+  | "masquerade"
   | "manageMemberSignInTracking"
   | "purge"
   | "deleteAccount"
@@ -67,6 +69,7 @@ const MIN_TIER = {
 const ACCOUNT_ADMIN_ACTION = {
   manageMembers: "manage-members",
   manageInvites: "manage-invitations",
+  masquerade: "masquerade-member",
   manageMemberSignInTracking: "manage-member-sign-in-tracking",
   deleteAccount: "erase-workspace",
   transferOwnership: "transfer-ownership",

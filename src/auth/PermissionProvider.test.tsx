@@ -8,6 +8,10 @@ import { useStore } from "../store/useStore";
 import { setOfflineReadState } from "../data/offlineCache";
 import { useAccountSummaries } from "./useAccountSummaries";
 
+vi.mock("./masqueradeApi", () => ({
+  masqueradeApi: { status: vi.fn(async () => ({ active: false })) },
+}));
+
 const auth: AuthContextValue = {
   authMode: "password",
   user: { id: "u1" },
@@ -126,7 +130,7 @@ describe("PermissionProvider authenticated lookup posture", () => {
     act(() => setOfflineReadState("cleanup", false));
     expect(screen.getByText("pending:viewer:read")).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBe("viewer");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
 
     resolveRefresh(
       new Response(

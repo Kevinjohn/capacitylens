@@ -142,6 +142,7 @@ describe("browser account client", () => {
   it("owns member, invitation preview, acceptance, and signup routes", async () => {
     await accountClient.listMembers("workspace / one");
     await accountClient.listInvitations("workspace / one");
+    await accountClient.startMasquerade("workspace / one", { targetUserId: "person / one" });
     await accountClient.previewInvitation("token / one");
     await accountClient.acceptInvitation("token / one", command);
     await accountClient.signupWithInvitation("token / one", { name: "New user" }, command);
@@ -153,12 +154,18 @@ describe("browser account client", () => {
     ]);
     const urls = mocks.apiFetch.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual([
+      "https://app.example/api/accounts/workspace%20%2F%20one/masquerade",
       "https://app.example/api/invites/token%20%2F%20one/preview",
       "https://app.example/api/invites/token%20%2F%20one/accept",
       "https://app.example/api/invites/token%20%2F%20one/signup",
     ]);
-    expectCommand(mocks.apiFetch.mock.calls[1]![1]!, "POST");
+    expect(mocks.apiFetch.mock.calls[0]![1]).toMatchObject({
+      method: "POST",
+      credentials: "include",
+      body: JSON.stringify({ targetUserId: "person / one" }),
+    });
     expectCommand(mocks.apiFetch.mock.calls[2]![1]!, "POST");
+    expectCommand(mocks.apiFetch.mock.calls[3]![1]!, "POST");
   });
 
   it("keeps reconciliation bearers out of the URL", async () => {

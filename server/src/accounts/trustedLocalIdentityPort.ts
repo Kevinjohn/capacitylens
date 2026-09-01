@@ -15,8 +15,9 @@ function unsupported(commandId?: string): never {
 /** Zero-provider identity implementation for the open-source trusted-local profile. */
 export function trustedLocalIdentityPort(principal: LocalPrincipal): LocalIdentityPort {
   return {
-    deprovisionLocalPrincipalInTx: () => {},
-    deprovisionLocalPrincipalsInTx: () => {},
+    deprovisionLocalPrincipalInTx: () => [],
+    deprovisionLocalPrincipalsInTx: () => [],
+    commitMasqueradeSessionEnds: () => {},
     async verifyApplicationSession() {
       return {
         id: "trusted-local",

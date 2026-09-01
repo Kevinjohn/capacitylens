@@ -6,6 +6,7 @@ import {
   BatchConflictError,
   BatchTooLargeError,
   BatchValidationError,
+  BatchMasqueradeReadOnlyError,
   LifecycleRestoreError,
   KeepaliveNotDispatchedError,
   MAX_OPS_PER_BATCH,
@@ -1014,6 +1015,21 @@ describe("ServerSyncAdapter.saveAll", () => {
     expect(err).toBeInstanceOf(BatchValidationError);
     expect((err as BatchValidationError).message).toBe("Allocation must reference an active resource in this company.");
     expect((err as BatchValidationError).code).toBe("allocation_resource_inactive");
+  });
+
+  it("maps MASQUERADE_READ_ONLY to terminal reconciliation instead of retrying", async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ code: "MASQUERADE_READ_ONLY" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        }),
+    ) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    const error: unknown = await adapter
+      .saveAll(withData({ clients: [client("c1")] }))
+      .catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(BatchMasqueradeReadOnlyError);
   });
 
   it("rejects an HTTP 2xx that does not prove the complete batch committed", async () => {
