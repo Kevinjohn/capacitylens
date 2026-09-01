@@ -7,13 +7,34 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.58.0-alpha.1] — 2026-09-02
+
+Consolidation release for member masquerade: the feature shipped in 0.57.0-alpha.19 has been
+reviewed and simplified end to end, and the two transition bugs that surfaced in review are fixed.
+
 ### Fixed
 
 - Switching company while a masquerade start is still in flight now reports "Wait for the current
   masquerade transition to finish." instead of silently doing nothing.
   — 2026-09-01
-- Ending a masquerade that another tab has already replaced no longer navigates away from the
-  current page.
+- Ending a masquerade that another tab has already replaced re-adopts the newer masquerade and no
+  longer navigates away from the current page.
+  — 2026-09-01
+
+### Changed
+
+- Masquerade start and end failures now surface the server's own error sentence in the notice
+  rather than a bare HTTP status.
+  — 2026-09-01
+- The account list, whole-state read and masquerade status endpoints resolve the masquerade
+  projection once per request instead of once per membership, and masquerade status no longer
+  loads the full member directory to name the target member.
+  — 2026-09-01
+- Masquerade audit events flow through the same durable outbox path as every other account event,
+  so their outbox ids equal their event ids.
+  — 2026-09-01
+- Account activation in the app goes through a single entry point that ends any active masquerade
+  before switching, so a future account-switch surface cannot bypass that guarantee.
   — 2026-09-01
 
 ## [0.57.0-alpha.19] — 2026-09-01
@@ -4031,7 +4052,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.19...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.58.0-alpha.1...HEAD
+[0.58.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.19...v0.58.0-alpha.1
 [0.57.0-alpha.19]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.18...v0.57.0-alpha.19
 [0.57.0-alpha.18]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.17...v0.57.0-alpha.18
 [0.57.0-alpha.17]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.16...v0.57.0-alpha.17
