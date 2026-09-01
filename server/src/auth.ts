@@ -281,11 +281,10 @@ function parseSessionTimestamp(value: string | number | null | undefined): numbe
 type SessionActivityStatements = {
   read: ReturnType<Db["prepare"]>;
   destroy: ReturnType<Db["prepare"]>;
-  casDelete: ReturnType<Db["prepare"]>;
   casTouch: ReturnType<Db["prepare"]>;
 };
 
-// This runs on every authenticated request (via enforceSessionActivity below) — cache the four
+// This runs on every authenticated request (via enforceSessionActivity below) — cache the three
 // prepared statements per Db handle instead of re-preparing them on each call. WeakMap keyed by
 // the Db handle: an entry is collected with its handle, so tests that spin up many short-lived
 // in-memory handles don't leak.
@@ -297,7 +296,6 @@ function sessionActivityStatements(db: Db): SessionActivityStatements {
   const statements: SessionActivityStatements = {
     read: db.prepare(`SELECT updatedAt FROM session WHERE token = ?`),
     destroy: db.prepare(`DELETE FROM session WHERE token = ?`),
-    casDelete: db.prepare(`DELETE FROM session WHERE token = ? AND updatedAt = ?`),
     casTouch: db.prepare(`UPDATE session SET updatedAt = ? WHERE token = ? AND updatedAt = ?`),
   };
   sessionActivityStatementCache.set(db, statements);
@@ -343,17 +341,6 @@ export async function enforceSessionActivity<
     const rowMs = parseSessionTimestamp(row.updatedAt);
     if (!Number.isFinite(rowMs)) return destroy();
     if (rowMs === lastActivity) {
-      if (!lifecycle) {
-        const removed = stmts.casDelete.run(token, row.updatedAt as string | number);
-        if (removed.changes >= 1) return null;
-        // Lost a race to a concurrent touch between the read and the delete — re-read it.
-        const current = readRaw();
-        if (!current) return null;
-        const currentMs = parseSessionTimestamp(current.updatedAt);
-        if (!Number.isFinite(currentMs)) return destroy();
-        session.session.updatedAt = new Date(currentMs);
-        return session;
-      }
       let sessionHandles: readonly string[] = [];
       const result = tx(
         db,
