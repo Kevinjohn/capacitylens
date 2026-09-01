@@ -1,5 +1,5 @@
 import { Suspense, type CSSProperties } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { useStore } from "../store/useStore";
 import { disciplinesEnabledFor } from "../store/selectors";
@@ -16,6 +16,10 @@ import { AppEntryGate } from "./AppEntryGate";
 import { useAppShellController } from "./useAppShellController";
 import { AppSidebar } from "./AppSidebar";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "./ui/sidebar";
+import { transitionAccount } from "../auth/accountTransition";
+import { isServerConfigured } from "../data/apiConfig";
+import { masqueradeController } from "../auth/masqueradeController";
+import { Button } from "./ui/button";
 
 function MobileSidebarTrigger() {
   const { openMobile } = useSidebar();
@@ -25,11 +29,13 @@ function MobileSidebarTrigger() {
 }
 
 export function AppShell() {
+  const navigate = useNavigate();
   const { paletteOpen, closePalette } = useAppShellController();
   const hydrated = useStore((s) => s.hydrated);
   const persistError = useStore((s) => s.persistError);
   const loadError = useStore((s) => s.loadError);
   const connectionError = useStore((s) => s.connectionError);
+  const masquerade = useStore((s) => s.masquerade);
   const offline = useOfflineState();
   // Drives Sonner's theme (see the <Toaster> below). An explicit light|dark pref is passed
   // through as the concrete scheme; a 'system' pref is delegated to Sonner ('system'), which
@@ -130,13 +136,39 @@ export function AppShell() {
             demoAuthActive={demoAuthActive}
             navLinks={navLinks}
             onSignOut={signOutDemo}
-            onSwitchAccount={() => setActiveAccount(null)}
+            onSwitchAccount={() => {
+              if (isServerConfigured()) void transitionAccount(null);
+              else setActiveAccount(null); // Demo mode has no authenticated session or server hydration.
+            }}
             open={sidebarOpen}
           />
           <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto">
             <div className="border-b border-line p-2 md:hidden">
               <MobileSidebarTrigger />
             </div>
+            {(masquerade.phase === "active" || masquerade.phase === "ending") && (
+              <Alert
+                role="status"
+                data-testid="masquerade-banner"
+                className="rounded-none border-x-0 border-t-0 border-danger bg-danger text-white *:data-[slot=alert-description]:text-white"
+              >
+                <AlertDescription className="flex w-full grid-cols-none flex-row items-center justify-between gap-3">
+                  <span>
+                    {masquerade.phase === "active"
+                      ? m.app_masquerading_as({ name: masquerade.state.targetName })
+                      : m.app_masquerade_ending()}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white"
+                    onClick={() => void masqueradeController.end("explicit", (to) => void navigate(to))}
+                  >
+                    {masquerade.phase === "active" ? m.app_masquerade_end_now() : m.app_masquerade_retry()}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
             {offline.readOnly && (
               <Alert role="status" data-testid="offline-read-only" className="rounded-none border-x-0 border-t-0">
                 <AlertDescription>

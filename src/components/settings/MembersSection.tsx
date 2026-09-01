@@ -38,7 +38,7 @@ import { Field, FieldContent, FieldDescription, FieldError, FieldLabel, FieldSet
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { Badge } from "../ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { ChevronDown, ChevronRight, Pencil, Settings } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, Pencil, Settings } from "lucide-react";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { Switch } from "../ui/switch";
 import { SsoReadinessPanel } from "./SsoReadinessPanel";
@@ -61,7 +61,8 @@ import {
 // shown exactly ONCE, straight from the create response — it is write-once and never read back.
 
 type Member = TeamMember;
-type MemberConfirmationAction = "remove" | "resetPassword" | "revokeSessions" | "disable" | "archive" | "restore";
+type MemberConfirmationAction =
+  "masquerade" | "remove" | "resetPassword" | "revokeSessions" | "disable" | "archive" | "restore";
 type MemberConfirmation = { action: MemberConfirmationAction; member: Member };
 
 // The roles a member can be given here, in the shared vocabulary's own order. Owner is deliberately
@@ -82,6 +83,12 @@ function confirmationCopy({ action, member }: MemberConfirmation): {
   message: string;
 } {
   switch (action) {
+    case "masquerade":
+      return {
+        title: m.settings_masquerade_title(),
+        confirmLabel: m.settings_masquerade_confirm(),
+        message: m.settings_masquerade_message({ member: labelFor(member) }),
+      };
     case "remove":
       return {
         title: m.settings_remove_member_title(),
@@ -143,7 +150,14 @@ const STATUS_FOR_ACTION: Readonly<Record<"disable" | "archive" | "restore", Memb
 function memberAffordances(
   myRole: Role | undefined,
   mem: Member,
-): { mayTouch: boolean; mayRemove: boolean; mayChangeStatus: boolean; mayReset: boolean; hasMenu: boolean } {
+): {
+  mayMasquerade: boolean;
+  mayTouch: boolean;
+  mayRemove: boolean;
+  mayChangeStatus: boolean;
+  mayReset: boolean;
+  hasMenu: boolean;
+} {
   // The role editor is ACTIVE-only, matching the server: changeMemberRole resolves its target
   // through getActiveMemberRole, so offering the pencil on a non-active row could only ever
   // produce a 404. Restore the member first, then change the role — a role change must not be a
@@ -161,6 +175,7 @@ function memberAffordances(
   // pure guard cannot see AND returns `false` in SSO mode.
   const mayReset = mem.mayResetPassword;
   return {
+    mayMasquerade: mem.status === "active" && !mem.isSelf && !!myRole && can(myRole, "masquerade"),
     mayTouch,
     mayRemove,
     mayChangeStatus,
@@ -271,8 +286,8 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   // provider list is resolved.
   const strictProviderId = strictOidcProvider(providers)?.id ?? null;
   const offline = useOfflineState();
-  const setActiveAccount = useStore((s) => s.setActiveAccount);
   const setNotice = useStore((s) => s.setNotice);
+  const setActiveAccount = useStore((s) => s.setActiveAccount);
   const invalidateMemberships = useStore((s) => s.invalidateMemberships);
   const { error, errorField, errorId, fail, clear } = useFieldError();
 
@@ -406,6 +421,8 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   const isActiveAccount = (accountId: string): boolean => useStore.getState().activeAccountId === accountId;
   const closeActiveAccount = (): void => {
     if (useStore.getState().activeAccountId !== activeAccountId) return;
+    // Internal access-loss repair: no authenticated account transition remains possible after the
+    // caller's own membership was removed. Close synchronously so the repair notice is not cleared.
     setActiveAccount(null);
     // Membership loss is not an ordinary trip to the picker: do not offer a Back shortcut to a
     // company the caller can no longer open.
@@ -869,6 +886,13 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     const pending = memberConfirmation;
     setMemberConfirmation(null);
     switch (pending.action) {
+      case "masquerade":
+        if (activeAccountId) {
+          void import("../../auth/masqueradeController").then(({ masqueradeController }) =>
+            masqueradeController.start(activeAccountId, pending.member.userId),
+          );
+        }
+        return;
       case "remove":
         void removeMember(pending.member);
         return;
@@ -958,7 +982,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   const memberRow = (mem: Member) => {
     // NB: the row var is `mem`, NOT `m` — `m` is the imported i18n message catalogue
     // (P1.5.2); shadowing it would make `m.settings_*()` resolve against the Member.
-    const { mayTouch, mayRemove, mayChangeStatus, mayReset, hasMenu } = memberAffordances(myRole, mem);
+    const { mayMasquerade, mayTouch, mayRemove, mayChangeStatus, mayReset, hasMenu } = memberAffordances(myRole, mem);
     const memberLabel = labelFor(mem);
     const name = mem.name?.trim() || mem.userId;
     return (
@@ -992,6 +1016,19 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           </td>
         )}
         <td className="w-10 py-2 pl-8 text-right">
+          {mayMasquerade && (
+            <Button
+              size="sm"
+              variant="ghost"
+              title={m.settings_masquerade_aria({ member: memberLabel })}
+              aria-label={m.settings_masquerade_aria({ member: memberLabel })}
+              data-testid="member-masquerade"
+              disabled={busyAction !== null}
+              onClick={() => chooseMemberAction("masquerade", mem)}
+            >
+              <Eye />
+            </Button>
+          )}
           {mayTouch && (
             <Button
               size="sm"

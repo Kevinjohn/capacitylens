@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import { can, type Action, type Role } from "@capacitylens/shared/domain/access";
+import { useStore } from "../store/useStore";
 
 // Client permission context (production plan P1.12), kept separate from PermissionProvider so this
 // file exports only the context + hooks (react-refresh clean) and consumers (affordance hubs:
@@ -70,6 +71,8 @@ export function usePermissionStatus(): NonNullable<PermissionContextValue["statu
  * @returns `true` when the affordance should be shown.
  */
 export function useCan(action: Action): boolean {
+  const masqueradePhase = useStore((state) => state.masquerade.phase);
+  if (action !== "read" && masqueradePhase !== "inactive") return false;
   const role = useRole();
   return role === null ? true : can(role, action);
 }

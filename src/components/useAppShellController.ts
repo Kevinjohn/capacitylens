@@ -13,6 +13,8 @@ import { useStore } from "../store/useStore";
 import { useAuth } from "../auth/authContext";
 import { useDemoAuthActive } from "../lib/fakeAuth";
 import { consumeCompanyPickerForReload } from "../lib/companyPickerEntry";
+import { transitionAccount } from "../auth/accountTransition";
+import { isServerConfigured } from "../data/apiConfig";
 
 function isReloadNavigation(): boolean {
   try {
@@ -88,7 +90,8 @@ export function useAppShellController() {
       // bootstrap destination before switching so a later refresh cannot pull the user back after
       // they deliberately move to another company.
       joinedAccountHandoffConsumed.current = true;
-      setActiveAccount(joinedAccountHandoff);
+      if (isServerConfigured()) void transitionAccount(joinedAccountHandoff);
+      else setActiveAccount(joinedAccountHandoff); // Demo mode has no server-owned transition.
     }
   }, [accountSummaries, activeAccountId, hydrated, joinedAccountHandoff, setActiveAccount]);
 
@@ -116,7 +119,8 @@ export function useAppShellController() {
 
     // activeAccountId remains session-only. A browser reload with one unambiguous membership may
     // safely reopen it without remembering a tenant choice or changing the requested route.
-    setActiveAccount(accountSummaries[0].id);
+    if (isServerConfigured()) void transitionAccount(accountSummaries[0].id);
+    else setActiveAccount(accountSummaries[0].id); // Demo mode has no server-owned transition.
   }, [
     accountSummaries,
     accountSummariesComplete,

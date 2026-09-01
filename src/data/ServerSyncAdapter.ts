@@ -246,6 +246,15 @@ export class BatchValidationError extends BatchReconciliationError {
   }
 }
 
+/** A stale or in-flight client mutation reached the server after masquerade made the session
+ * read-only. Retrying cannot succeed until an authoritative projection reload completes. */
+export class BatchMasqueradeReadOnlyError extends BatchReconciliationError {
+  constructor(message: string) {
+    super(message);
+    this.name = "BatchMasqueradeReadOnlyError";
+  }
+}
+
 /** A 2xx response that does not prove which rows committed. The server may already have written
  * the batch, so retrying against the prior snapshot is unsafe; persistence must reload first. */
 export class BatchCommitUncertainError extends BatchReconciliationError {
@@ -1231,6 +1240,15 @@ export class ServerSyncAdapter implements PersistenceAdapter {
           apiErrorFromBody(body) ?? "Batch sync failed (400): validation rejected",
           isDomainErrorCode(body?.code) ? body.code : undefined,
         );
+      }
+      if (res.status === 403) {
+        const body = (await res
+          .clone()
+          .json()
+          .catch(() => null)) as { code?: unknown } | null;
+        if (body?.code === "MASQUERADE_READ_ONLY") {
+          throw new BatchMasqueradeReadOnlyError("Batch sync was refused while masquerading.");
+        }
       }
       // A 401 (session expired on an auth-enabled server) surfaces like any other write
       // failure — persist.ts raises the banner, and the AuthProvider's re-check sees the

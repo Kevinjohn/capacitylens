@@ -46,6 +46,7 @@ type RuntimeSliceKeys =
   | "activeRole"
   | "activeRoleStatus"
   | "membershipRevision"
+  | "masquerade"
   | "setHydrated"
   | "setPersistError"
   | "setLoadError"
@@ -67,6 +68,8 @@ type RuntimeSliceKeys =
   | "setGettingStartedDismissed"
   | "setActiveRole"
   | "invalidateMemberships"
+  | "setMasquerade"
+  | "clearUndoHistory"
   | "signOutDemo";
 
 type RuntimeSlice = Pick<StoreState, RuntimeSliceKeys>;
@@ -124,6 +127,7 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     activeRole: null,
     activeRoleStatus: "not-applicable",
     membershipRevision: 0,
+    masquerade: { phase: "inactive" },
 
     setHydrated: (value) => set({ hydrated: value }),
     setPersistError: (value) => set({ persistError: value }),
@@ -168,6 +172,8 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     setActiveRole: (role, status = role === null ? "not-applicable" : "resolved") =>
       set({ activeRole: role, activeRoleStatus: status }),
     invalidateMemberships: () => set((state) => ({ membershipRevision: state.membershipRevision + 1 })),
+    setMasquerade: (masquerade) => set({ masquerade }),
+    clearUndoHistory: () => set({ past: [], future: [] }),
     signOutDemo: () => {
       get().setActiveAccount(null);
       writeStoredFakeSignedIn(false);

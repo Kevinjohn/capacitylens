@@ -1,9 +1,10 @@
-import { renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { ReactNode } from "react";
 import { PermissionContext, useCan, useCanEdit } from "./permissionContext";
 import { can } from "@capacitylens/shared/domain/access";
 import type { Action, Role } from "@capacitylens/shared/domain/access";
+import { useStore } from "../store/useStore";
 
 // The generalised affordance gate. Two things must hold and neither is visible from a component
 // test: a RESOLVED role delegates to the pure `can` matrix untouched (so client affordances and the
@@ -23,9 +24,12 @@ const ACTIONS = [
   "purge",
   "deleteAccount",
   "transferOwnership",
+  "masquerade",
 ] as const satisfies readonly Action[];
 
 const ROLES: readonly Role[] = ["owner", "admin", "editor", "viewer"];
+
+beforeEach(() => useStore.getState().setMasquerade({ phase: "inactive" }));
 
 const withRole =
   (role: Role | null) =>
@@ -61,6 +65,20 @@ describe("useCan", () => {
   it("still denies a resolved viewer the write tier", () => {
     const { result } = renderHook(() => useCan("write"), { wrapper: withRole("viewer") });
     expect(result.current).toBe(false);
+  });
+
+  it("permits reads but denies every other action throughout a masquerade transition", () => {
+    act(() =>
+      useStore.getState().setMasquerade({
+        phase: "starting",
+        pending: { accountId: "a-studio", targetUserId: "u-viewer" },
+        generation: 1,
+      }),
+    );
+    for (const action of ACTIONS) {
+      const { result } = renderHook(() => useCan(action), { wrapper: withRole("owner") });
+      expect(result.current, action).toBe(action === "read");
+    }
   });
 });
 

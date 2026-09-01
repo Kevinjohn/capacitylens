@@ -4,6 +4,7 @@ import { accountClient, accountCommandOutcomeWasUnknown } from "../../account/ac
 import { useStore } from "../../store/useStore";
 import { useAuth } from "../../auth/authContext";
 import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
+import { transitionAccount } from "../../auth/accountTransition";
 import { readApiError } from "../../lib/readApiError";
 import { can } from "@capacitylens/shared/domain/access";
 import { Badge } from "../ui/badge";
@@ -87,6 +88,10 @@ export function AccountPicker() {
   const { authMode, canCreateAccount, refreshAuth } = useAuth();
   const accessExperience = accessExperienceFor(authMode);
   const offline = useOfflineState();
+  const activateAccount = (id: string) => {
+    if (isServerConfigured()) void transitionAccount(id);
+    else setActiveAccount(id); // Demo mode has no authenticated session or server hydration.
+  };
 
   const [creating, setCreating] = useState(false);
   // True while the server-mode create POST is in flight — guards the double-submit a slow /api/orgs
@@ -191,7 +196,7 @@ export function AccountPicker() {
         setAccountSummaries([...summaries, { id: created.id, name: created.name, role: "owner" as const }]);
       }
       resetForm();
-      setActiveAccount(created.id); // the persist switch orchestrator hydrates the new slice
+      await transitionAccount(created.id);
       // Same re-ask as the unusable-body branch above: the create moved the server-side facts
       // behind canCreateAccount. Total, so fire-and-forget is safe.
       void refreshAuth();
@@ -336,7 +341,7 @@ export function AccountPicker() {
         {previous && (
           <Button
             variant="link"
-            onClick={() => setActiveAccount(previous.id)}
+            onClick={() => activateAccount(previous.id)}
             className="mb-4 h-auto p-0 text-sm text-muted-foreground"
           >
             {m.picker_back({ name: previous.name })}
@@ -399,7 +404,7 @@ export function AccountPicker() {
                     variant="outline"
                     aria-label={a.name}
                     aria-describedby={roleDescriptionId}
-                    onClick={() => setActiveAccount(a.id)}
+                    onClick={() => activateAccount(a.id)}
                     className="h-auto flex-1 justify-start gap-3 px-3 py-2.5 text-left"
                   >
                     {/* AccountSummary carries no colour (it's the minimal server-sourced shape — P1.13), so

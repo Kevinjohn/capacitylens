@@ -6,9 +6,13 @@ import {
   requestSignal,
   API_REQUEST_TIMEOUT_MS,
   API_BULK_TIMEOUT_MS,
+  setMasqueradeEndedHandler,
 } from "./requestTimeout";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  setMasqueradeEndedHandler(null);
+  vi.unstubAllGlobals();
+});
 
 describe("isTransportFailure", () => {
   it.each([
@@ -70,5 +74,22 @@ describe("apiFetch", () => {
     } finally {
       globalThis.removeEventListener(AUDIT_WARNING_EVENT, listener);
     }
+  });
+
+  it("notifies the masquerade recovery owner when a projected read reports MASQUERADE_ENDED", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ code: "MASQUERADE_ENDED" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const ended = vi.fn();
+    setMasqueradeEndedHandler(ended);
+    const response = await apiFetch("/api/state");
+    expect(response.status).toBe(403);
+    expect(ended).toHaveBeenCalledOnce();
   });
 });

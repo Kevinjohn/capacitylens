@@ -1,5 +1,12 @@
 import { noteAuditWarning } from "../lib/auditWarning";
 
+let masqueradeEndedHandler: (() => void) | null = null;
+
+/** Register the session-projection recovery hook without coupling the common fetch layer to React. */
+export function setMasqueradeEndedHandler(handler: (() => void) | null): void {
+  masqueradeEndedHandler = handler;
+}
+
 // Two deadline tiers, because one bound can't fit every call. Interactive calls (a single
 // entity write, an auth check, a `hasData` probe) must fail FAST — a wedged socket should
 // surface within seconds. But the three BULK operations — the whole-slice `GET /api/state`
@@ -50,5 +57,12 @@ export async function apiFetch(
   // Defer until the direct action's own success notice has run; otherwise that notice immediately
   // overwrites the more important persistent audit warning in the single-notice store.
   noteAuditWarning(response, { defer: true });
+  if (response.status === 403) {
+    const body = (await response
+      .clone()
+      .json()
+      .catch(() => null)) as { code?: unknown } | null;
+    if (body?.code === "MASQUERADE_ENDED") masqueradeEndedHandler?.();
+  }
   return response;
 }

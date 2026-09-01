@@ -35,6 +35,7 @@ import { m } from "@/i18n";
 import { type BarLabelPrefs, type UtilizationPrefs } from "../lib/displayPrefs";
 import type { ThemePref } from "../lib/theme";
 import type { Role } from "@capacitylens/shared/domain/access";
+import type { MasqueradeState } from "@capacitylens/shared/domain/masquerade";
 import { buildInternalClient, isBuiltinClient } from "@capacitylens/shared/data/internalClient";
 import { hasUsablePrivateCodeName } from "@capacitylens/shared/domain/privateNames";
 import type { AppDataKey } from "@capacitylens/shared/types/entities";
@@ -70,6 +71,11 @@ import { createRuntimeSlice } from "./slices/runtimeSlice";
 import { createSchedulerSlice, weekAnchor } from "./slices/schedulerSlice";
 import { isWeekdaySet, normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { domainError } from "@capacitylens/shared/domain/errors";
+
+export type MasqueradeRuntimeState =
+  | { phase: "inactive" }
+  | { phase: "starting"; pending: { accountId: string; targetUserId: string }; generation: number }
+  | { phase: "active" | "ending"; state: MasqueradeState; generation: number };
 
 // A Draft drops the server-owned fields (id/timestamps) AND `accountId` — the
 // store stamps the active account, so callers never supply it.
@@ -343,6 +349,9 @@ export interface StoreState {
    *  the current directory-request owner re-reads the caller's effective role/list without an
    *  account switch or page reload. Transient: never persisted or included in undo history. */
   membershipRevision: number;
+  /** Session-backed read projection. Every non-inactive phase blocks local writes while the
+   * controller establishes or removes the authoritative server projection. */
+  masquerade: MasqueradeRuntimeState;
 
   addAccount: (input: Draft<Account>) => Account | null;
   updateAccount: (id: ID, patch: Patch<Account>) => void;
@@ -398,6 +407,8 @@ export interface StoreState {
   setActiveRole: (role: Role | null, status?: "not-applicable" | "pending" | "resolved" | "unavailable") => void;
   /** Invalidate all client projections derived from account membership. */
   invalidateMemberships: () => void;
+  setMasquerade: (state: MasqueradeRuntimeState) => void;
+  clearUndoHistory: () => void;
   /** Sign out of the cosmetic demo: drop the active company AND the "back" breadcrumb, then
    *  clear the device-global flag so the demo sign-in shows again. Cosmetic only — never
    *  touches the real auth seam (`src/auth/`); both call sites are guarded by `authMode === 'off'`. */
@@ -685,6 +696,10 @@ export const useStore = create<StoreState>()((set, get, store) => {
   // throw would read as corruption and could crash a drag handler), we just refuse + inform.
   const blockedByViewer = (): boolean => {
     const state = get();
+    if (state.masquerade.phase !== "inactive") {
+      state.setNotice("Masquerade is read-only.", "error");
+      return true;
+    }
     if (state.activeRole !== "viewer") return false;
     const message =
       state.activeRoleStatus === "pending"

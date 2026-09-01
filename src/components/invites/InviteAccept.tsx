@@ -28,6 +28,7 @@ import {
 import { replaceWithAccountPicker, replaceWithJoinedAccount } from "../../lib/joinedAccountHandoff";
 import { reloadPage } from "../../lib/reloadPage";
 import { InviteAcceptView, type InviteAcceptState, type InvitePreview } from "./InviteAcceptView";
+import { transitionAccount } from "../../auth/accountTransition";
 
 // Invite accept page for /invite/:token. On mount, in SERVER mode, it previews the invite.
 // A signed-in person must then explicitly accept before the single-use POST is sent. The server is
@@ -92,7 +93,6 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
   const { authMode, user, providers: configuredProviders, refreshAuth, signOut } = useAuth();
   const providers = configuredProviders ?? [];
   const [returnedWithExternalError] = useState(() => hasExternalSignInError(window.location.href));
-  const setActiveAccount = useStore((s) => s.setActiveAccount);
   // The initial render already encodes the no-fetch outcomes (the demo build; a missing token — which the
   // `/invite/:token` route shouldn't even match, but is handled defensively), so the effect never has
   // to setState synchronously: it only ever sets state from an async fetch callback.
@@ -275,7 +275,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
         // global company selection once it has unmounted. A company chosen on the destination route
         // must not be replaced by this late invitation completion.
         if (routeActive.current && list !== null) {
-          if (list.some((account) => account.id === accountId)) setActiveAccount(accountId);
+          if (list.some((account) => account.id === accountId)) void transitionAccount(accountId);
         }
       } catch (error) {
         // The 2xx accept response already confirmed durable membership. Activation is a separate,
@@ -325,7 +325,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
           ? list[0]
           : undefined;
       if (target) {
-        setActiveAccount(target.id);
+        await transitionAccount(target.id);
         replaceWithJoinedAccount(target.id);
         return;
       }
