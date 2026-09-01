@@ -1503,40 +1503,24 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     );
   };
 
-  type ResolvedRole = {
-    role: ReturnType<typeof accountAdminPort.roleForPrincipalInWorkspace>;
-    ended: boolean;
-  };
-  const effectiveRoleCache = new WeakMap<FastifyRequest, Map<string, ResolvedRole>>();
-
   /** Resolve the real membership first, then substitute only the active account's target read role. */
-  function resolveEffectiveRole(req: FastifyRequest, accountId: string): ResolvedRole {
-    let requestCache = effectiveRoleCache.get(req);
-    if (!requestCache) {
-      requestCache = new Map();
-      effectiveRoleCache.set(req, requestCache);
-    }
-    const cached = requestCache.get(accountId);
-    if (cached) return cached;
+  function resolveEffectiveRole(
+    req: FastifyRequest,
+    accountId: string,
+  ): { role: ReturnType<typeof accountAdminPort.roleForPrincipalInWorkspace>; ended: boolean } {
     const realRole = accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId);
     const record = req.session ? masquerades.lookup(req.session.id) : null;
-    let resolved: ResolvedRole;
-    if (!record || record.accountId !== accountId) {
-      resolved = { role: realRole, ended: false };
-    } else if (realRole === null || !can(realRole, "masquerade")) {
+    if (!record || record.accountId !== accountId) return { role: realRole, ended: false };
+    if (realRole === null || !can(realRole, "masquerade")) {
       endMasquerade(record, "caller_invalidated");
-      resolved = { role: null, ended: true };
-    } else {
-      const targetRole = accountAdminPort.roleForPrincipalInWorkspace(record.targetUserId, accountId);
-      if (targetRole === null) {
-        endMasquerade(record, "target_invalidated");
-        resolved = { role: null, ended: true };
-      } else {
-        resolved = { role: targetRole, ended: false };
-      }
+      return { role: null, ended: true };
     }
-    requestCache.set(accountId, resolved);
-    return resolved;
+    const targetRole = accountAdminPort.roleForPrincipalInWorkspace(record.targetUserId, accountId);
+    if (targetRole === null) {
+      endMasquerade(record, "target_invalidated");
+      return { role: null, ended: true };
+    }
+    return { role: targetRole, ended: false };
   }
 
   function memberReadProjection(
