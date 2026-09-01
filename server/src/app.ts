@@ -1543,7 +1543,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
 
   /**
    * The authorization seam (P1.5 requirePermission): "may THIS request perform `action` on
-   * `accountId`?". Returns `true` to proceed; otherwise it has already sent the route's denial and returns
+   * `accountId`?". Returns the resolved role to proceed; otherwise it has already sent the route's denial and returns
    * `false`, so a caller guards with `if (!authorize(...)) return`.
    *
    * OFF mode (the default, trusted-local) is a NO-OP allow-all: it returns `true` on the FIRST line,
@@ -1563,7 +1563,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
    * @param accountId  The account the action targets (each route derives this as it does today).
    * @param action     The coarse capability being attempted (see {@link Action}).
    * @param options    Row-addressed routes may conceal non-membership as the same 404 as an absent id.
-   * @returns `true` if allowed; `false` after sending the route's denial response.
+   * @returns The resolved role if allowed; `false` after sending the route's denial response.
    */
   function authorize(
     req: FastifyRequest,
@@ -1571,8 +1571,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     accountId: string,
     action: Action,
     options: { concealNonMembership?: boolean } = {},
-  ): boolean {
-    if (authMode === "off") return true; // OFF = allow-all; the account port / can NEVER run.
+  ): { role: ReturnType<typeof accountAdminPort.roleForPrincipalInWorkspace> } | false {
+    if (authMode === "off") return { role: null }; // OFF = allow-all; the account port / can NEVER run.
     const resolved = resolveEffectiveRole(req, accountId);
     if (resolved.ended) {
       reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
@@ -1635,8 +1635,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         return false;
       }
     }
-    return true;
+    return { role };
   }
+
+  const authorizeAllowed = (
+    req: FastifyRequest,
+    reply: FastifyReply,
+    accountId: string,
+    action: Action,
+    options: { concealNonMembership?: boolean } = {},
+  ): boolean => authorize(req, reply, accountId, action, options) !== false;
 
   /** Writer visibility for the two field-level confidentiality policies. Only time off and
    * client/project writes pay the membership lookup; a non-string account id fails closed. */
@@ -1868,7 +1876,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         administration: accountAdminPort,
         applicationId: application.applicationId,
         openSignup: opts.allowOpenSignup === true,
-        authorize,
+        authorize: authorizeAllowed,
         fail: accountFail,
         toWebHeaders,
       });
@@ -1980,17 +1988,17 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // Refuse a cross-tenant read before any data leaves the DB. The authorize seam is the
         // single source of truth: OFF mode short-circuits to allow-all (trusted-local), auth-on
         // requires membership (read = any member, via can()) and 403s a non-member.
-        if (!authorize(req, reply, accountId, "read")) return;
+        const authorization = authorize(req, reply, accountId, "read");
+        if (!authorization) return;
         // P1.6 field-level redaction: the time-off `note` is owner/admin-only. Decide visibility from
         // the caller's role and redact it SERVER-SIDE so it never serializes for an Editor/Viewer.
         // OFF mode = trusted-local ⇒ include. Auth-on: owner/admin include, editor/viewer omit.
         // The port role is non-null here (authorize('read') already proved membership); the `role !==
         // null` guard is belt-and-braces / fail-closed (an unexpected null omits the note, never leaks).
-        const role = authMode === "off" ? null : resolveEffectiveRole(req, accountId).role;
         // Derive the export/read include flags from the SAME GATED_FIELD_POLICIES predicates that
         // drive the write-pin and read-echo, so the three can never disagree. OFF is trusted-local ⇒
         // include everything; otherwise each gated field is included iff the role may see it.
-        const vis = authMode === "off" ? ALL_FIELDS_VISIBLE : visibilityForRole(role);
+        const vis = authMode === "off" ? ALL_FIELDS_VISIBLE : visibilityForRole(authorization.role);
         // P2.5a admin "Archived & deleted" read. `?includeInactive=1` asks for the FULL slice
         // (archived + soft-deleted rows retained), which is privileged: it is gated at the SAME tier as
         // purge (admin+ with a fresh session) — the lifecycle-management tier — so an editor/viewer or
@@ -2158,7 +2166,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         set: (workspaceId, actorPrincipalId, enabled) =>
           setMemberSignInTracking(db, workspaceId, actorPrincipalId, enabled),
       },
-      authorize,
+      authorize: authorizeAllowed,
       command: accountCommand,
       audit,
       fail: accountFail,
@@ -2171,7 +2179,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       accountAudit,
       registry: masquerades,
       identity: identityPort,
-      authorize,
+      authorize: authorizeAllowed,
       roleForPrincipal: (principalId, accountId) =>
         accountAdminPort.roleForPrincipalInWorkspace(principalId, accountId),
       effectiveRole: resolveEffectiveRole,
@@ -2179,7 +2187,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
 
     registerLifecycleRoutes(app, {
       store,
-      authorize,
+      authorize: authorizeAllowed,
       commit: (reply, record, mutation) => {
         commitProductAudit(reply, record, mutation);
       },
@@ -2199,7 +2207,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       multiAccount: opts.multiAccount === true,
       optimisticConcurrency: opts.optimisticConcurrency !== false,
       flows: accountFlows,
-      authorize,
+      authorize: authorizeAllowed,
       command: accountCommand,
       replayCommand: replayAccountCommand,
       fieldVisibility: fieldVisibilityFor,
