@@ -201,11 +201,11 @@ function revokePrincipalSessionsInTx(
   applicationId: string,
   principalId: string,
   lifecycle?: MasqueradeSessionLifecycle,
-): { count: number; masqueradeHandles: readonly string[] } {
+): readonly string[] {
   const masqueradeHandles = lifecycle?.prepareUsers([principalId], "session_revoked") ?? [];
   if (!sessionTableExists(db)) {
     removePrincipalSessionAssurance(db, principalId);
-    return { count: 0, masqueradeHandles };
+    return masqueradeHandles;
   }
   const sessions = db.prepare(`SELECT token FROM session WHERE userId = ?`).all(principalId) as Array<{
     token: string;
@@ -215,7 +215,7 @@ function revokePrincipalSessionsInTx(
     removeSessionAssurance(db, applicationSessionHandle(applicationId, token));
   }
   removePrincipalSessionAssurance(db, principalId);
-  return { count: sessions.length, masqueradeHandles };
+  return masqueradeHandles;
 }
 
 const MALFORMED_STRUCTURED_VERIFICATION = "Identity erasure cannot classify malformed structured verification state.";
@@ -481,12 +481,7 @@ export function betterAuthIdentityPort(input: {
               });
             }
           }
-          masqueradeHandles = revokePrincipalSessionsInTx(
-            db,
-            applicationId,
-            principalId,
-            input.masqueradeSessions,
-          ).masqueradeHandles;
+          masqueradeHandles = revokePrincipalSessionsInTx(db, applicationId, principalId, input.masqueradeSessions);
           if (federatedLinkObservationsTableExists(db)) {
             db.prepare(`DELETE FROM capacitylens_federated_link_observations WHERE accountRowId = ?`).run(rowId);
           }
@@ -702,8 +697,7 @@ export function betterAuthIdentityPort(input: {
           if (!requiresCutover) return { sessions: 0, ceremonies: 0 };
           for (const principalId of principals) {
             masqueradeHandles.push(
-              ...revokePrincipalSessionsInTx(db, applicationId, principalId, input.masqueradeSessions)
-                .masqueradeHandles,
+              ...revokePrincipalSessionsInTx(db, applicationId, principalId, input.masqueradeSessions),
             );
           }
           if (verificationTableExists(db)) db.prepare(`DELETE FROM verification`).run();
@@ -796,12 +790,7 @@ export function betterAuthIdentityPort(input: {
             revokeResetTokensForUser(db, principalId);
             revokeFederatedLinkStateInTx(db, principalId);
             db.prepare(`DELETE FROM capacitylens_federated_link_ceremonies WHERE principalId = ?`).run(principalId);
-            masqueradeHandles = revokePrincipalSessionsInTx(
-              db,
-              applicationId,
-              principalId,
-              input.masqueradeSessions,
-            ).masqueradeHandles;
+            masqueradeHandles = revokePrincipalSessionsInTx(db, applicationId, principalId, input.masqueradeSessions);
             enqueueAudit(db, audit, audit.id);
           },
           "immediate",
@@ -1189,7 +1178,7 @@ export function betterAuthIdentityPort(input: {
 
     async revokePrincipalSessions({ targetPrincipalId, command }): Promise<OperationReceipt> {
       try {
-        const { masqueradeHandles } = tx(
+        const masqueradeHandles = tx(
           db,
           () => revokePrincipalSessionsInTx(db, applicationId, targetPrincipalId, input.masqueradeSessions),
           "immediate",

@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { AccountMode, ApplicationSession, Role } from "@capacitylens/shared/account/types";
-import type { AccountFlows } from "@capacitylens/shared/account/ports";
+import type { AccountMode, Role } from "@capacitylens/shared/account/types";
+import type { AccountAuditPort, IdentityPort } from "@capacitylens/shared/account/ports";
 import {
   MASQUERADE_ERROR_CODES,
   type ClientMasqueradeEndReason,
@@ -10,8 +10,6 @@ import {
 } from "@capacitylens/shared/domain/masquerade";
 import type { Action } from "@capacitylens/shared/domain/access";
 import { cleanText } from "@capacitylens/shared/lib/strings";
-import type { Db } from "../db";
-import { enqueueAudit } from "../auditOutbox";
 import {
   MasqueradeAlreadyActiveError,
   MasqueradeRegistry,
@@ -23,9 +21,9 @@ import {
 export interface MasqueradeRouteDependencies {
   authMode: AccountMode;
   applicationId: string;
-  db: Db;
+  accountAudit: AccountAuditPort;
   registry: MasqueradeRegistry;
-  accountFlows: AccountFlows;
+  identity: IdentityPort;
   authorize(request: FastifyRequest, reply: FastifyReply, accountId: string, action: Action): boolean;
   roleForPrincipal(principalId: string, accountId: string): Role | null;
   effectiveRole(request: FastifyRequest, accountId: string): { role: Role | null; ended: boolean };
@@ -33,13 +31,13 @@ export interface MasqueradeRouteDependencies {
 
 /** Construct the durable lifecycle event written before any registry state change. */
 export function enqueueMasqueradeEndAudit(
-  db: Db,
+  accountAudit: AccountAuditPort,
   applicationId: string,
   record: Readonly<StoredMasqueradeRecord>,
   reason: MasqueradeEndReason,
 ): void {
   const occurredAt = new Date().toISOString();
-  enqueueAudit(db, {
+  accountAudit.append({
     id: randomUUID(),
     occurredAt,
     applicationId,
@@ -55,23 +53,14 @@ export function enqueueMasqueradeEndAudit(
 }
 
 async function stateForRecord(
-  record: Readonly<StoredMasqueradeRecord>,
-  accountFlows: AccountFlows,
+  record: Readonly<MasqueradeRecord>,
+  identity: IdentityPort,
   effectiveRole: Role,
-  session: ApplicationSession,
 ): Promise<MasqueradeState> {
-  const directory = await accountFlows.listMemberDirectory({
-    actor: {
-      principalId: session.principal.id,
-      sessionId: session.id,
-      assurance: session.assurance,
-      fresh: true,
-      mfaSatisfied: session.assurance !== "password",
-    },
-    workspaceId: record.accountId,
+  const [target] = await identity.getPrincipalSummaries({
+    principalIds: [record.targetUserId],
   });
-  const target = directory.find(({ membership }) => membership.principalId === record.targetUserId);
-  const targetName = cleanText(target?.principal?.displayName ?? target?.principal?.email ?? "Member");
+  const targetName = cleanText(target?.displayName ?? target?.email ?? "Member");
   return {
     accountId: record.accountId,
     targetUserId: record.targetUserId,
@@ -84,10 +73,10 @@ async function stateForRecord(
 
 /** Register the start, status, and idempotent end endpoints. */
 export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: MasqueradeRouteDependencies): void {
-  const { authMode, applicationId, db, registry, accountFlows, authorize, roleForPrincipal, effectiveRole } =
+  const { authMode, applicationId, accountAudit, registry, identity, authorize, roleForPrincipal, effectiveRole } =
     dependencies;
   const auditEnd = (record: Readonly<StoredMasqueradeRecord>, reason: MasqueradeEndReason): void =>
-    enqueueMasqueradeEndAudit(db, applicationId, record, reason);
+    enqueueMasqueradeEndAudit(accountAudit, applicationId, record, reason);
 
   app.post("/api/accounts/:accountId/masquerade", async (request, reply) => {
     const session = request.session;
@@ -122,7 +111,7 @@ export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: Mas
     };
     try {
       registry.start(record, (pending) => {
-        enqueueAudit(db, {
+        accountAudit.append({
           id: randomUUID(),
           occurredAt: pending.startedAt,
           applicationId,
@@ -142,9 +131,7 @@ export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: Mas
       }
       throw error;
     }
-    return reply
-      .code(200)
-      .send(await stateForRecord({ ...record, phase: "active" }, accountFlows, effectiveRole, session));
+    return reply.code(200).send(await stateForRecord(record, identity, effectiveRole));
   });
 
   app.get("/api/masquerade", async (request, reply) => {
@@ -158,7 +145,7 @@ export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: Mas
       return reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
     }
     if (resolved.role === null) return reply.code(403).send({ error: "Forbidden." });
-    return { active: true, ...(await stateForRecord(record, accountFlows, resolved.role, session)) };
+    return { active: true, ...(await stateForRecord(record, identity, resolved.role)) };
   });
 
   app.delete("/api/masquerade", async (request, reply) => {

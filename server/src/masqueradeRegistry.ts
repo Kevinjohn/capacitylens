@@ -14,7 +14,7 @@ export interface MasqueradeRecord {
 }
 
 /** Registry view that preserves an end whose audit enqueue has not committed yet. */
-export type StoredMasqueradeRecord = MasqueradeRecord & { phase: "active" | "ending" };
+export type StoredMasqueradeRecord = MasqueradeRecord & { expiresAtMs: number; phase: "active" | "ending" };
 
 /** Raised when a caller attempts to replace an active session projection. */
 export class MasqueradeAlreadyActiveError extends Error {
@@ -51,7 +51,7 @@ export class MasqueradeRegistry {
     return [...(this.#byUser.get(userId) ?? [])];
   }
 
-  /** Read one session after a bounded expiry prune. An audit failure throws and retains the record. */
+  /** Read one session after a bounded expiry prune. An audit failure retains the record. */
   lookup(sessionHandle: string): Readonly<StoredMasqueradeRecord> | null {
     this.pruneExpired();
     return this.peek(sessionHandle);
@@ -62,7 +62,7 @@ export class MasqueradeRegistry {
     this.pruneExpired();
     if (this.#bySession.has(record.sessionHandle)) throw new MasqueradeAlreadyActiveError();
     beforeInsert(record);
-    const stored: StoredMasqueradeRecord = { ...record, phase: "active" };
+    const stored: StoredMasqueradeRecord = { ...record, expiresAtMs: Date.parse(record.expiresAt), phase: "active" };
     this.#bySession.set(record.sessionHandle, stored);
     let sessions = this.#byUser.get(record.userId);
     if (!sessions) {
@@ -104,23 +104,13 @@ export class MasqueradeRegistry {
     }
   }
 
-  /** End every active handle owned by a principal. Used only by session-cleanup paths. */
-  endUser(userId: string, beforeDelete: (record: Readonly<StoredMasqueradeRecord>) => void): number {
-    const handles = [...(this.#byUser.get(userId) ?? [])];
-    let ended = 0;
-    for (const handle of handles) {
-      if (this.end(handle, null, beforeDelete)) ended += 1;
-    }
-    return ended;
-  }
-
   /** Audit and remove at most one bounded page of expired records. */
   pruneExpired(): number {
     const now = this.#now();
     let pruned = 0;
     for (const record of this.#bySession.values()) {
       if (pruned >= MAX_PRUNE_PER_PASS) break;
-      if (Date.parse(record.expiresAt) > now) continue;
+      if (record.expiresAtMs > now) continue;
       record.phase = "ending";
       this.#expired(record);
       this.#delete(record);

@@ -19,6 +19,8 @@ import {
   type ApplicationSession,
   type BoundApplication,
   type CommandIdentity,
+  type IdentityAdminAction,
+  type IdentityAdminAuthorityDecision,
 } from "@capacitylens/shared/account/types";
 import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
 import { AccountContractError, statusForAccountFailure } from "@capacitylens/shared/account/errors";
@@ -988,13 +990,13 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     },
   };
   const masquerades = new MasqueradeRegistry({
-    expired: (record) => enqueueMasqueradeEndAudit(db, application.applicationId, record, "session_expired"),
+    expired: (record) => enqueueMasqueradeEndAudit(accountAudit, application.applicationId, record, "session_expired"),
   });
   const prepareMasqueradeUsers = (userIds: readonly string[], reason: "session_revoked"): readonly string[] => {
     const handles = [...new Set(userIds.flatMap((userId) => masquerades.sessionHandlesForUser(userId)))];
     for (const sessionHandle of handles) {
       masquerades.prepareEnd(sessionHandle, null, (record) =>
-        enqueueMasqueradeEndAudit(db, application.applicationId, record, reason),
+        enqueueMasqueradeEndAudit(accountAudit, application.applicationId, record, reason),
       );
     }
     return handles;
@@ -1003,7 +1005,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     prepare: (sessionHandles: readonly string[], reason: "session_expired" | "session_revoked") => {
       for (const sessionHandle of sessionHandles) {
         masquerades.prepareEnd(sessionHandle, null, (record) =>
-          enqueueMasqueradeEndAudit(db, application.applicationId, record, reason),
+          enqueueMasqueradeEndAudit(accountAudit, application.applicationId, record, reason),
         );
       }
     },
@@ -1374,10 +1376,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     const activeMasquerade = resolution.kind === "verified" ? masquerades.lookup(resolution.session.id) : null;
     const unsafe = req.method !== "GET" && req.method !== "HEAD" && req.method !== "OPTIONS";
     const masqueradeExempt =
-      (req.method === "POST" && /^\/api\/accounts\/[^/]+\/masquerade$/.test(path)) ||
-      (req.method === "DELETE" && path === "/api/masquerade") ||
-      (req.method === "POST" && path === "/api/account/sign-out") ||
-      (req.method === "POST" && path === "/api/auth/sign-out");
+      activeMasquerade && unsafe
+        ? (req.method === "POST" && /^\/api\/accounts\/[^/]+\/masquerade$/.test(path)) ||
+          (req.method === "DELETE" && path === "/api/masquerade") ||
+          (req.method === "POST" && path === "/api/account/sign-out") ||
+          (req.method === "POST" && path === "/api/auth/sign-out")
+        : false;
     if (activeMasquerade && unsafe && !masqueradeExempt) {
       securityEvent({
         event: "authorization",
@@ -1396,7 +1400,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       activeMasquerade && req.method === "POST" && (path === "/api/account/sign-out" || path === "/api/auth/sign-out");
     if (signingOut) {
       masquerades.end(activeMasquerade.sessionHandle, null, (record) =>
-        enqueueMasqueradeEndAudit(db, application.applicationId, record, "sign_out"),
+        enqueueMasqueradeEndAudit(accountAudit, application.applicationId, record, "sign_out"),
       );
     }
     if (resolution.kind === "backend_failure" && unsafe) {
@@ -1495,7 +1499,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
 
   const endMasquerade = (record: Readonly<StoredMasqueradeRecord>, reason: MasqueradeEndReason): void => {
     masquerades.end(record.sessionHandle, null, (ending) =>
-      enqueueMasqueradeEndAudit(db, application.applicationId, ending, reason),
+      enqueueMasqueradeEndAudit(accountAudit, application.applicationId, ending, reason),
     );
   };
 
@@ -1525,7 +1529,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     targetPrincipalIds: readonly string[],
   ): {
     principalId: string;
-    authorities: ReadonlyMap<string, Readonly<{ reset: boolean; revoke: boolean }>>;
+    decisions: ReadonlyMap<string, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>>;
   } {
     const record = req.session ? masquerades.peek(req.session.id) : null;
     const principalId = record?.accountId === accountId ? record.targetUserId : req.accountActor!.principalId;
@@ -1534,16 +1538,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       targetPrincipalIds,
       actions: ["issue-password-reset", "revoke-sessions"],
     });
-    const authorities = new Map(
-      [...decisions].map(([targetPrincipalId, authority]) => [
-        targetPrincipalId,
-        {
-          reset: authority.get("issue-password-reset")?.allowed === true,
-          revoke: authority.get("revoke-sessions")?.allowed === true,
-        },
-      ]),
-    );
-    return { principalId, authorities };
+    return { principalId, decisions };
   }
 
   /**
@@ -1955,25 +1950,19 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // account therefore no longer appears in `memberships`. The triggering request must end with
       // MASQUERADE_ENDED, never silently return another-account data under a stale client phase.
       const activeRecord = req.session ? masquerades.peek(req.session.id) : null;
+      let projectedRole: ReturnType<typeof accountAdminPort.roleForPrincipalInWorkspace> = null;
       if (activeRecord) {
         const activeResolution = resolveEffectiveRole(req, activeRecord.accountId);
         if (activeResolution.ended) {
           return reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
         }
+        projectedRole = activeResolution.role;
       }
-      const projected = [];
-      for (const membership of memberships) {
-        const resolved = resolveEffectiveRole(req, membership.workspaceId);
-        if (resolved.ended) {
-          return reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
-        }
-        projected.push({
-          id: membership.workspaceId,
-          name: membership.workspaceName,
-          role: resolved.role ?? membership.role,
-        });
-      }
-      return projected;
+      return memberships.map((membership) => ({
+        id: membership.workspaceId,
+        name: membership.workspaceName,
+        role: membership.workspaceId === activeRecord?.accountId ? (projectedRole ?? membership.role) : membership.role,
+      }));
     });
 
     // Whole-state read backs the client's PersistenceAdapter.loadAll(). Only WRITES are entity-level;
@@ -2179,9 +2168,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     registerMasqueradeRoutes(app, {
       authMode,
       applicationId: application.applicationId,
-      db,
+      accountAudit,
       registry: masquerades,
-      accountFlows,
+      identity: identityPort,
       authorize,
       roleForPrincipal: (principalId, accountId) =>
         accountAdminPort.roleForPrincipalInWorkspace(principalId, accountId),
