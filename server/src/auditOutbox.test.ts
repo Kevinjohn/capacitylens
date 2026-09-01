@@ -3,7 +3,7 @@ import { existsSync, fsyncSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileAuditSink, streamAuditSink, type AuditEntry, type AuditRecord, type AuditSink } from "./audit";
-import { AUDIT_DRAIN_PAGE_SIZE, drainAuditOutbox, enqueueAudit, pendingAuditCount } from "./auditOutbox";
+import { AUDIT_DRAIN_PAGE_SIZE, drainAuditOutbox, enqueueAudit, isAuditEntry, pendingAuditCount } from "./auditOutbox";
 import { openDb } from "./db";
 import { tx } from "./txn";
 import { buildApp } from "./app";
@@ -245,6 +245,44 @@ describe("durable audit outbox", () => {
     expect(sink.append).not.toHaveBeenCalled();
     expect(pendingAuditCount(db)).toBe(1);
     db.close();
+  });
+
+  it("accepts action-specific masquerade audit fields and rejects mismatched fields", () => {
+    const common = {
+      id: "account-event-1",
+      occurredAt: "2026-07-26T12:00:00.000Z",
+      applicationId: "capacitylens",
+      workspaceId: "account-1",
+      actorPrincipalId: "user-1",
+      targetPrincipalId: "user-2",
+      commandId: null,
+      outcome: "success",
+      changedFields: ["masquerade"],
+    };
+
+    expect(
+      isAuditEntry({
+        ...common,
+        action: "identity.masquerade_started",
+        expiresAt: "2026-07-26T18:00:00.000Z",
+      }),
+    ).toBe(true);
+    expect(
+      isAuditEntry({
+        ...common,
+        action: "identity.masquerade_ended",
+        reason: "explicit",
+      }),
+    ).toBe(true);
+    expect(isAuditEntry({ ...common, action: "identity.masquerade_started" })).toBe(false);
+    expect(
+      isAuditEntry({
+        ...common,
+        action: "identity.masquerade_ended",
+        reason: "client_invented",
+      }),
+    ).toBe(false);
+    expect(isAuditEntry({ ...common, action: "identity.sessions_revoked", reason: "sign_out" })).toBe(false);
   });
 
   it("retains the failed record and every later record while removing delivered predecessors", () => {

@@ -22,6 +22,10 @@ describe("account administration policy", () => {
     expect(canAdministerAccount("owner", "transfer-ownership")).toBe(true);
     expect(canAdministerAccount("admin", "erase-workspace")).toBe(false);
     expect(canAdministerAccount("owner", "erase-workspace")).toBe(true);
+    expect(canAdministerAccount("viewer", "masquerade-member")).toBe(false);
+    expect(canAdministerAccount("editor", "masquerade-member")).toBe(false);
+    expect(canAdministerAccount("admin", "masquerade-member")).toBe(true);
+    expect(canAdministerAccount("owner", "masquerade-member")).toBe(true);
   });
 
   it("keeps Owner outside ordinary role and removal operations", () => {

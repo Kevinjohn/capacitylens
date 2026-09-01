@@ -9,7 +9,7 @@ import {
 } from "@capacitylens/shared/account/policy";
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
 import type { AccountAuditPort } from "@capacitylens/shared/account/ports";
-import type { AccountAuditAction } from "@capacitylens/shared/account/audit";
+import type { StandardAccountAuditAction } from "@capacitylens/shared/account/audit";
 import type {
   ActorContext,
   CommandIdentity,
@@ -435,7 +435,7 @@ export function sqliteAccountAdminPort(input: {
     /** Release any in-memory reservation after the database transaction rolls back. */
     afterRollback?: () => void;
     audit?: {
-      action: AccountAuditAction;
+      action: StandardAccountAuditAction;
       changedFields: readonly string[];
     };
   }): Promise<ReturnType<Execute>> {

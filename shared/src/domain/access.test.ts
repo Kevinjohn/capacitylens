@@ -29,6 +29,7 @@ const ACTIONS = [
   "manageInternalClient",
   "manageMembers",
   "manageInvites",
+  "masquerade",
   "manageMemberSignInTracking",
   "purge",
   "deleteAccount",
@@ -52,6 +53,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     manageMembers: true,
     manageInvites: true,
     manageMemberSignInTracking: true,
+    masquerade: true,
     purge: true,
     deleteAccount: true,
     transferOwnership: true,
@@ -63,6 +65,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     manageMembers: true,
     manageInvites: true,
     manageMemberSignInTracking: false,
+    masquerade: true,
     purge: true,
     deleteAccount: false,
     transferOwnership: false,
@@ -74,6 +77,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     manageMembers: false,
     manageInvites: false,
     manageMemberSignInTracking: false,
+    masquerade: false,
     purge: false,
     deleteAccount: false,
     transferOwnership: false,
@@ -85,6 +89,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     manageMembers: false,
     manageInvites: false,
     manageMemberSignInTracking: false,
+    masquerade: false,
     purge: false,
     deleteAccount: false,
     transferOwnership: false,
@@ -95,8 +100,8 @@ describe("can(role, action) — the pure access matrix", () => {
   // Completeness guard: the action list the sweep iterates must equal the `Action` union, so a new
   // Action can't slip past the exhaustive check. (The `satisfies` on ACTIONS catches an EXTRA/typo
   // member at compile time; this asserts none was DROPPED — keep this count in step with `Action`.)
-  it("iterates exactly the Action union (9 actions, no more, no fewer)", () => {
-    expect(ACTIONS.length).toBe(9);
+  it("iterates exactly the Action union (10 actions, no more, no fewer)", () => {
+    expect(ACTIONS.length).toBe(10);
     expect(new Set(ACTIONS).size).toBe(ACTIONS.length); // no duplicates
   });
 
@@ -120,6 +125,7 @@ describe("CapacityLens/account-policy ownership seam", () => {
   const mapped = {
     manageMembers: "manage-members",
     manageInvites: "manage-invitations",
+    masquerade: "masquerade-member",
     deleteAccount: "erase-workspace",
     transferOwnership: "transfer-ownership",
   } as const;
@@ -369,6 +375,13 @@ describe("can / isAtLeast — fail-closed on an unknown role/action (never falls
     for (const role of ROLES) {
       expect(can(role, "reboot" as Action)).toBe(false);
     }
+  });
+
+  it("keeps masquerade at the admin tier", () => {
+    expect(can("owner", "masquerade")).toBe(true);
+    expect(can("admin", "masquerade")).toBe(true);
+    expect(can("editor", "masquerade")).toBe(false);
+    expect(can("viewer", "masquerade")).toBe(false);
   });
 
   it("an unknown target or next role is denied by every member-management guard", () => {

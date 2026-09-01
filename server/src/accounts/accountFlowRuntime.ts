@@ -1,9 +1,9 @@
-import type { AccountAuditAction, AccountAuditEvent } from "@capacitylens/shared/account/audit";
+import type { AccountAuditEvent, StandardAccountAuditAction } from "@capacitylens/shared/account/audit";
 import type { AccountAuditPort } from "@capacitylens/shared/account/ports";
 import type { CommandIdentity, OperationReceipt } from "@capacitylens/shared/account/types";
 
 export interface AccountAuditInput {
-  action: AccountAuditAction;
+  action: StandardAccountAuditAction;
   outcome: AccountAuditEvent["outcome"];
   workspaceId?: string | null;
   actorPrincipalId?: string | null;

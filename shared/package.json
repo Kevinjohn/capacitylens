@@ -26,6 +26,7 @@
     "./domain/access": "./src/domain/access.ts",
     "./domain/errors": "./src/domain/errors.ts",
     "./domain/lifecycle": "./src/domain/lifecycle.ts",
+    "./domain/masquerade": "./src/domain/masquerade.ts",
     "./domain/mutations": "./src/domain/mutations.ts",
     "./domain/password": "./src/domain/password.ts",
     "./domain/privateNames": "./src/domain/privateNames.ts",

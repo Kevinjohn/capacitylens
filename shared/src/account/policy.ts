@@ -10,6 +10,7 @@ export type AccountAdminAction =
   | "list-members"
   | "manage-members"
   | "manage-invitations"
+  | "masquerade-member"
   | "manage-member-sign-in-tracking"
   | "transfer-ownership"
   | "erase-workspace";
@@ -25,6 +26,7 @@ const MIN_ADMIN_TIER = {
   "list-members": "admin",
   "manage-members": "admin",
   "manage-invitations": "admin",
+  "masquerade-member": "admin",
   "manage-member-sign-in-tracking": "owner",
   "transfer-ownership": "owner",
   "erase-workspace": "owner",
