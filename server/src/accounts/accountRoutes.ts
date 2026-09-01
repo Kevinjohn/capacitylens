@@ -1,7 +1,12 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AccountAdminPort, AccountFlows, IdentityPort } from "@capacitylens/shared/account/ports";
 import { isAccountFlowOperation } from "@capacitylens/shared/account/ports";
-import type { AccountMode, CommandIdentity } from "@capacitylens/shared/account/types";
+import type {
+  AccountMode,
+  CommandIdentity,
+  IdentityAdminAction,
+  IdentityAdminAuthorityDecision,
+} from "@capacitylens/shared/account/types";
 import { isAccountRole, isMembershipStatus } from "@capacitylens/shared/account/types";
 import {
   isAccountCommandId,
@@ -74,7 +79,7 @@ export interface AccountRouteDependencies {
     targetPrincipalIds: readonly string[],
   ): {
     principalId: string;
-    authorities: ReadonlyMap<string, Readonly<{ reset: boolean; revoke: boolean }>>;
+    decisions: ReadonlyMap<string, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>>;
   };
 }
 
@@ -482,7 +487,6 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
         directory.map(({ membership }) => membership.principalId),
       );
       const members = directory.map(({ membership: member, principal }) => {
-        const authority = projection.authorities.get(member.principalId)!;
         return {
           userId: member.principalId,
           role: member.role,
@@ -492,8 +496,10 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
           email: principal?.email ?? null,
           signInConfirmed: tracking.enabled ? (tracking.confirmations.get(member.principalId) ?? false) : null,
           isSelf: member.principalId === projection.principalId,
-          mayResetPassword: authMode === "password" && authority.reset,
-          mayRevokeSessions: authority.revoke,
+          mayResetPassword:
+            authMode === "password" &&
+            projection.decisions.get(member.principalId)?.get("issue-password-reset")?.allowed === true,
+          mayRevokeSessions: projection.decisions.get(member.principalId)?.get("revoke-sessions")?.allowed === true,
         };
       });
       return { members, signInTrackingEnabled: tracking.enabled };
