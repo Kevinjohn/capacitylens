@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readApiError } from "./readApiError";
+import { peekApiErrorCode, readApiError } from "./readApiError";
 
 const responseWith = (value: unknown): Response => Response.json(value);
 
@@ -29,5 +29,26 @@ describe("readApiError", () => {
     const response = responseWith({ error: "Denied." });
     await response.json();
     await expect(readApiError(response)).resolves.toBeUndefined();
+  });
+});
+
+describe("peekApiErrorCode", () => {
+  it("reads a string code without consuming the response body", async () => {
+    const response = responseWith({ code: "SESSION_NOT_FRESH" });
+
+    await expect(peekApiErrorCode(response)).resolves.toBe("SESSION_NOT_FRESH");
+    await expect(response.json()).resolves.toEqual({ code: "SESSION_NOT_FRESH" });
+  });
+
+  it("returns null for an unreadable, consumed, or clone-less response", async () => {
+    await expect(peekApiErrorCode(responseWith({ error: "Denied." }))).resolves.toBeNull();
+    await expect(peekApiErrorCode(new Response("invalid JSON"))).resolves.toBeNull();
+
+    const consumed = responseWith({ code: "SESSION_NOT_FRESH" });
+    await consumed.json();
+    await expect(peekApiErrorCode(consumed)).resolves.toBeNull();
+
+    const json = async () => ({ code: "SESSION_NOT_FRESH" });
+    await expect(peekApiErrorCode({ bodyUsed: false, json } as Response)).resolves.toBeNull();
   });
 });

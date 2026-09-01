@@ -26,6 +26,21 @@ export async function readApiError(res: Response): Promise<string | undefined> {
   return apiErrorFromBody(body);
 }
 
+/** Best-effort read of a string API error code without consuming the response body. */
+export async function peekApiErrorCode(res: Response): Promise<string | null> {
+  if (res.bodyUsed || typeof res.clone !== "function") return null;
+  let readable: Response;
+  try {
+    readable = res.clone();
+  } catch {
+    return null;
+  }
+  const body: unknown = await readable.json().catch(() => null);
+  if (typeof body !== "object" || body === null) return null;
+  const code = (body as { code?: unknown }).code;
+  return typeof code === "string" ? code : null;
+}
+
 /** Validate an already-decoded API error body without reading a response. */
 export function apiErrorFromBody(body: unknown): string | undefined {
   if (typeof body !== "object" || body === null) return undefined;

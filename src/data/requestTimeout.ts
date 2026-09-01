@@ -1,5 +1,6 @@
 import { MASQUERADE_ERROR_CODES, type MasqueradeErrorCode } from "@capacitylens/shared/domain/masquerade";
 import { noteAuditWarning } from "../lib/auditWarning";
+import { peekApiErrorCode } from "../lib/readApiError";
 
 let masqueradeEndedHandler: (() => void) | null = null;
 
@@ -51,16 +52,7 @@ export function requestSignal(
 
 /** Read a recognized masquerade failure code without consuming the caller's response body. */
 export async function masqueradeErrorCode(response: Response): Promise<MasqueradeErrorCode | null> {
-  let body: unknown;
-  try {
-    body = await response.clone().json();
-  } catch {
-    // Error classification is best-effort; the caller still handles the original HTTP failure.
-    return null;
-  }
-  if (typeof body !== "object" || body === null) return null;
-  const code = (body as { code?: unknown }).code;
-  if (typeof code !== "string") return null;
+  const code = await peekApiErrorCode(response);
   return Object.values(MASQUERADE_ERROR_CODES).some((candidate) => candidate === code)
     ? (code as MasqueradeErrorCode)
     : null;

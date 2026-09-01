@@ -7,7 +7,7 @@ import type {
 } from "@capacitylens/shared/domain/masquerade";
 import { isAccountRole } from "@capacitylens/shared/account/types";
 import { accountClient } from "../account/accountClient";
-import { apiErrorFromBody, readApiError } from "../lib/readApiError";
+import { apiErrorFromBody } from "../lib/readApiError";
 
 function stateFrom(value: unknown): MasqueradeState | null {
   if (typeof value !== "object" || value === null) return null;
@@ -25,11 +25,16 @@ function stateFrom(value: unknown): MasqueradeState | null {
   return state as MasqueradeState;
 }
 
-async function requireState(response: Response): Promise<MasqueradeState> {
+async function decodeBody(response: Response, fallback: string): Promise<unknown> {
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(apiErrorFromBody(body) ?? `Masquerade request failed (${response.status}).`);
+    throw new Error(apiErrorFromBody(body) ?? fallback);
   }
+  return body;
+}
+
+async function requireState(response: Response): Promise<MasqueradeState> {
+  const body = await decodeBody(response, `Masquerade request failed (${response.status}).`);
   const state = stateFrom(body);
   if (!state) {
     throw new Error(apiErrorFromBody(body) ?? "The server returned an invalid masquerade state.");
@@ -40,10 +45,7 @@ async function requireState(response: Response): Promise<MasqueradeState> {
 export const masqueradeApi = {
   async status(): Promise<MasqueradeStatus> {
     const response = await accountClient.masqueradeStatus();
-    const body: unknown = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new Error(apiErrorFromBody(body) ?? `Masquerade status could not be read (${response.status}).`);
-    }
+    const body = await decodeBody(response, `Masquerade status could not be read (${response.status}).`);
     if (typeof body === "object" && body !== null && (body as { active?: unknown }).active === false) {
       return { active: false };
     }
@@ -62,8 +64,6 @@ export const masqueradeApi = {
   async end(token: string, reason: ClientMasqueradeEndReason): Promise<void> {
     const body: EndMasqueradePayload = { token, reason };
     const response = await accountClient.endMasquerade(body);
-    if (!response.ok) {
-      throw new Error((await readApiError(response)) ?? `Masquerade could not be ended (${response.status}).`);
-    }
+    await decodeBody(response, `Masquerade could not be ended (${response.status}).`);
   },
 };
