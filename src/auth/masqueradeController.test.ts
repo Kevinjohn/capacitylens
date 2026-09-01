@@ -19,7 +19,7 @@ function harness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
     flush: vi.fn(async () => true),
     suspend: vi.fn(() => resume),
     reproject: vi.fn(async () => true),
-    switchAccount: vi.fn(async () => "reloaded"),
+    switchAccount: vi.fn(async (): Promise<"reloaded"> => "reloaded"),
     api: {
       status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: false })),
       start: vi.fn(async () => state),
@@ -61,7 +61,7 @@ describe("MasqueradeController", () => {
   it("releases without dropping edits when the start request fails", async () => {
     const { controller, resume } = harness({
       api: {
-        status: vi.fn(async () => ({ active: false })),
+        status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: false })),
         start: vi.fn(async () => {
           throw new Error("denied");
         }),

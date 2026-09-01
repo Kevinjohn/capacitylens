@@ -9,7 +9,6 @@ import {
 } from "../../account/accountClient";
 import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
 import { readApiError } from "../../lib/readApiError";
-import { useStore } from "../../store/useStore";
 import { authClient } from "../../auth/authClient";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";

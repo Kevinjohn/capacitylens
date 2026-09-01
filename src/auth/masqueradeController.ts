@@ -21,11 +21,14 @@ export interface MasqueradeControllerDependencies {
 
 /** Sole owner of the persistence suspension used by identity masquerade transitions. */
 export class MasqueradeController {
+  private readonly dependencies: MasqueradeControllerDependencies;
   private resumeWrites: ResumeWrites | null = null;
   private generation = 0;
   private pendingState: MasqueradeState | null = null;
 
-  constructor(private readonly dependencies: MasqueradeControllerDependencies) {}
+  constructor(dependencies: MasqueradeControllerDependencies) {
+    this.dependencies = dependencies;
+  }
 
   private acquireSuspension(): void {
     this.resumeWrites ??= this.dependencies.suspend();
@@ -79,8 +82,8 @@ export class MasqueradeController {
 
   async retryProjection(): Promise<boolean> {
     const runtime = useStore.getState().masquerade;
-    const state =
-      runtime.phase === "starting" ? this.pendingState : runtime.phase !== "inactive" ? runtime.state : null;
+    if (runtime.phase === "inactive") return false;
+    const state = runtime.phase === "starting" ? this.pendingState : runtime.state;
     if (!state) return false;
     if (!(await this.dependencies.reproject(state.accountId))) return this.fail("The member view could not be loaded.");
     useStore.getState().clearUndoHistory();

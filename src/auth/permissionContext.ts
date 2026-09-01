@@ -72,8 +72,8 @@ export function usePermissionStatus(): NonNullable<PermissionContextValue["statu
  */
 export function useCan(action: Action): boolean {
   const masqueradePhase = useStore((state) => state.masquerade.phase);
-  if (action !== "read" && masqueradePhase !== "inactive") return false;
   const role = useRole();
+  if (action !== "read" && masqueradePhase !== "inactive") return false;
   return role === null ? true : can(role, action);
 }
 
