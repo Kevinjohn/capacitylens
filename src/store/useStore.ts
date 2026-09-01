@@ -702,7 +702,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
   const blockedByViewer = (): boolean => {
     const state = get();
     if (state.masquerade.phase !== "inactive") {
-      state.setNotice("Masquerade is read-only.", "error");
+      state.setNotice(m.notice_masquerade_read_only(), "error");
       return true;
     }
     if (state.activeRole !== "viewer") return false;

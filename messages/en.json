@@ -1064,6 +1064,7 @@
   "tour_done": "Done",
   "tour_progress": "{step} of {total}",
   "notice_viewer_read_only": "Read-only — you don't have edit access.",
+  "notice_masquerade_read_only": "Masquerade is read-only.",
   "notice_company_not_found": "That company no longer exists.",
   "notice_company_access_removed": "You no longer have access to that company.",
   "notice_purge_grace_window": "Can only be permanently deleted {days} days after deletion.",
