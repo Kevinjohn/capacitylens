@@ -7,6 +7,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.57.0-alpha.19] — 2026-09-01
+
 ### Added
 
 - Owners and Admins can open a server-enforced, read-only view of another active member's account
@@ -4020,7 +4022,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.18...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.19...HEAD
+[0.57.0-alpha.19]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.18...v0.57.0-alpha.19
 [0.57.0-alpha.18]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.17...v0.57.0-alpha.18
 [0.57.0-alpha.17]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.16...v0.57.0-alpha.17
 [0.57.0-alpha.16]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.15...v0.57.0-alpha.16
