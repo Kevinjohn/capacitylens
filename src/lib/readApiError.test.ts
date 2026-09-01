@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { peekApiErrorCode, readApiError } from "./readApiError";
 
 const responseWith = (value: unknown): Response => Response.json(value);
@@ -48,7 +48,8 @@ describe("peekApiErrorCode", () => {
     await consumed.json();
     await expect(peekApiErrorCode(consumed)).resolves.toBeNull();
 
-    const json = async () => ({ code: "SESSION_NOT_FRESH" });
+    const json = vi.fn(async () => ({ code: "SESSION_NOT_FRESH" }));
     await expect(peekApiErrorCode({ bodyUsed: false, json } as Response)).resolves.toBeNull();
+    expect(json).not.toHaveBeenCalled();
   });
 });

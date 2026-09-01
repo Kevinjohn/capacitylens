@@ -33,6 +33,7 @@ export async function peekApiErrorCode(res: Response): Promise<string | null> {
   try {
     readable = res.clone();
   } catch {
+    // Classification is optional; the caller still handles the original response and its failure.
     return null;
   }
   const body: unknown = await readable.json().catch(() => null);

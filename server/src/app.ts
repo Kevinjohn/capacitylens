@@ -1546,10 +1546,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
    * `accountId`?". Returns the resolved role to proceed; otherwise it has already sent the route's denial and returns
    * `false`, so a caller guards with `if (!authorize(...)) return`.
    *
-   * OFF mode (the default, trusted-local) is a NO-OP allow-all: it returns `true` on the FIRST line,
-   * BEFORE any membership read — `req.user` is the synthetic DEMO_USER and the account port / `can`
-   * never run. This pins the #1 invariant (OFF = exactly today's behaviour). Auth-on asks the account
-   * administration port for the caller's active role and runs the pure `can(role, action)` matrix:
+   * OFF mode (the default, trusted-local) is a NO-OP allow-all: it returns a successful null-role result
+   * on the FIRST line, BEFORE any membership read — `req.user` is the synthetic DEMO_USER and the account
+   * port / `can` never run. This pins the #1 invariant (OFF = exactly today's behaviour). Auth-on asks the
+   * account administration port for the caller's active role and runs the pure `can(role, action)` matrix:
    *   - non-member (`role === null`) → 403,
    *   - member but insufficient tier (`can === false`) → 403,
    *   - otherwise allowed.

@@ -112,7 +112,7 @@ export class MasqueradeController {
         return true;
       },
       "Masquerade could not be ended.",
-      "succeed",
+      { onNoState: "succeed" },
     );
     if (ended === "inactive") navigate?.("/");
     return ended !== "failed";
@@ -131,7 +131,7 @@ export class MasqueradeController {
         return switchSucceeded(outcome, accountId) || this.fail("The selected company could not be loaded.");
       },
       "The company switch could not be completed.",
-      "wait",
+      { onNoState: "wait" },
     );
     if (ended === "superseded") {
       return this.fail("A newer masquerade is active. End it before switching companies.");
@@ -143,12 +143,12 @@ export class MasqueradeController {
     reason: ClientMasqueradeEndReason,
     finish: (state: MasqueradeState) => Promise<boolean>,
     failureMessage: string,
-    onNoState: NoStatePolicy,
+    options: { onNoState: NoStatePolicy },
   ): Promise<EndProjectionResult> {
     const runtime = useStore.getState().masquerade;
     const state = runtime.phase === "inactive" ? null : runtime.state;
     if (!state) {
-      if (onNoState === "succeed") return "inactive";
+      if (options.onNoState === "succeed") return "inactive";
       this.fail("Wait for the current masquerade transition to finish.");
       return "failed";
     }
