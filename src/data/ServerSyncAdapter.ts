@@ -7,8 +7,15 @@ import { isDomainErrorCode, type DomainErrorCode } from "@capacitylens/shared/do
 import { diffOps, diffOpsFromPossibleBases, type Op } from "./syncOps";
 import { announceAuditWarning, noteAuditWarning } from "../lib/auditWarning";
 import { apiErrorFromBody } from "../lib/readApiError";
+import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 import { cacheAccountSlice, readCachedAccountSlice, readCachedAuthSnapshot, setOfflineReadState } from "./offlineCache";
-import { isTransportFailure, requestSignal, API_REQUEST_TIMEOUT_MS, API_BULK_TIMEOUT_MS } from "./requestTimeout";
+import {
+  isTransportFailure,
+  masqueradeErrorCode,
+  requestSignal,
+  API_REQUEST_TIMEOUT_MS,
+  API_BULK_TIMEOUT_MS,
+} from "./requestTimeout";
 import { isRecord, validateAccountSliceWithRepairBase } from "./validateAccountSlice";
 import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
 
@@ -1242,11 +1249,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         );
       }
       if (res.status === 403) {
-        const body = (await res
-          .clone()
-          .json()
-          .catch(() => null)) as { code?: unknown } | null;
-        if (body?.code === "MASQUERADE_READ_ONLY") {
+        if ((await masqueradeErrorCode(res)) === MASQUERADE_ERROR_CODES.readOnly) {
           throw new BatchMasqueradeReadOnlyError("Batch sync was refused while masquerading.");
         }
       }

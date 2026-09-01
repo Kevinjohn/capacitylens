@@ -74,7 +74,12 @@ import { domainError } from "@capacitylens/shared/domain/errors";
 
 export type MasqueradeRuntimeState =
   | { phase: "inactive" }
-  | { phase: "starting"; pending: { accountId: string; targetUserId: string }; generation: number }
+  | {
+      phase: "starting";
+      pending: { accountId: string; targetUserId: string };
+      state?: MasqueradeState;
+      generation: number;
+    }
   | { phase: "active" | "ending"; state: MasqueradeState; generation: number };
 
 // A Draft drops the server-owned fields (id/timestamps) AND `accountId` — the
@@ -697,7 +702,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
   const blockedByViewer = (): boolean => {
     const state = get();
     if (state.masquerade.phase !== "inactive") {
-      state.setNotice("Masquerade is read-only.", "error");
+      state.setNotice(m.notice_masquerade_read_only(), "error");
       return true;
     }
     if (state.activeRole !== "viewer") return false;

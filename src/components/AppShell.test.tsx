@@ -111,6 +111,28 @@ it("shows a fail-closed banner while a member view is starting", () => {
   expect(within(banner).queryByRole("button")).not.toBeInTheDocument();
 });
 
+it("offers projection recovery after the server has prepared a starting member view", () => {
+  useStore.getState().setMasquerade({
+    phase: "starting",
+    generation: 1,
+    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
+    state: {
+      accountId: DEFAULT_ACCOUNT_ID,
+      targetUserId: "u-viewer",
+      targetName: "Selina Kyle",
+      effectiveRole: "viewer",
+      startedAt: "2026-09-01T10:00:00.000Z",
+      token: "token-1",
+    },
+  });
+
+  renderAppShell();
+
+  const banner = screen.getByTestId("masquerade-banner");
+  expect(within(banner).getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  expect(within(banner).getByRole("button", { name: "End now" })).toBeInTheDocument();
+});
+
 it("consumes a joined-account query only once and preserves later route queries", async () => {
   renderAppShell([`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`], true);
 

@@ -14,7 +14,6 @@ import { useAuth } from "../auth/authContext";
 import { useDemoAuthActive } from "../lib/fakeAuth";
 import { consumeCompanyPickerForReload } from "../lib/companyPickerEntry";
 import { transitionAccount } from "../auth/accountTransition";
-import { isServerConfigured } from "../data/apiConfig";
 
 function isReloadNavigation(): boolean {
   try {
@@ -47,7 +46,6 @@ export function useAppShellController() {
   const activeAccountId = useStore((state) => state.activeAccountId);
   const previousAccountId = useStore((state) => state.previousAccountId);
   const fakeSignedIn = useStore((state) => state.fakeSignedIn);
-  const setActiveAccount = useStore((state) => state.setActiveAccount);
   const { pathname, search, hash } = useLocation();
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -90,10 +88,9 @@ export function useAppShellController() {
       // bootstrap destination before switching so a later refresh cannot pull the user back after
       // they deliberately move to another company.
       joinedAccountHandoffConsumed.current = true;
-      if (isServerConfigured()) void transitionAccount(joinedAccountHandoff);
-      else setActiveAccount(joinedAccountHandoff); // Demo mode has no server-owned transition.
+      void transitionAccount(joinedAccountHandoff);
     }
-  }, [accountSummaries, activeAccountId, hydrated, joinedAccountHandoff, setActiveAccount]);
+  }, [accountSummaries, activeAccountId, hydrated, joinedAccountHandoff]);
 
   useEffect(() => {
     if (!reloadNavigation || !hydrated || singleAccountReloadHandled.current) return;
@@ -119,8 +116,7 @@ export function useAppShellController() {
 
     // activeAccountId remains session-only. A browser reload with one unambiguous membership may
     // safely reopen it without remembering a tenant choice or changing the requested route.
-    if (isServerConfigured()) void transitionAccount(accountSummaries[0].id);
-    else setActiveAccount(accountSummaries[0].id); // Demo mode has no server-owned transition.
+    void transitionAccount(accountSummaries[0].id);
   }, [
     accountSummaries,
     accountSummariesComplete,
@@ -131,7 +127,6 @@ export function useAppShellController() {
     joinedAccountHandoff,
     previousAccountId,
     reloadNavigation,
-    setActiveAccount,
     showPickerForReload,
   ]);
 

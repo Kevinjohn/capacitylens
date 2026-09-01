@@ -332,6 +332,19 @@ export const accountClient = {
     });
   },
 
+  masqueradeStatus(): Promise<Response> {
+    return apiFetch(`${API_BASE}/api/masquerade`, { credentials: "include" });
+  },
+
+  endMasquerade(body: unknown): Promise<Response> {
+    return apiFetch(`${API_BASE}/api/masquerade`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  },
+
   changeMemberRole(
     workspaceId: string,
     principalId: string,

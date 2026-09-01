@@ -9,6 +9,14 @@ import { refreshActiveAccountSlice } from "../../data/persist";
 import { setOfflineReadState } from "../../data/offlineCache";
 import { m } from "@/i18n";
 
+const accountTransitionMocks = vi.hoisted(() => ({
+  startMasquerade: vi.fn(async () => true),
+}));
+
+vi.mock("../../auth/accountTransition", () => ({
+  startMasquerade: accountTransitionMocks.startMasquerade,
+}));
+
 // MembersSection is the Team & access management UI. It renders ONLY in auth-on + server mode and
 // self-gates via a 403 on the members read. These tests mock apiConfig (so isServerConfigured() is
 // true) and fetch, and assert the OWNER-ONLY affordances are hidden for an admin (no owner option, no
@@ -182,6 +190,7 @@ async function expectNotice(message: RegExp): Promise<void> {
 }
 
 beforeEach(() => {
+  accountTransitionMocks.startMasquerade.mockClear();
   resetStoreWithAccount(); // sets activeAccountId = DEFAULT_ACCOUNT_ID
   setOfflineReadState("cleanup", false);
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue("reloaded");
@@ -464,7 +473,8 @@ describe("MembersSection — admin affordances", () => {
     await user.click(within(ownerRow).getByTestId("member-masquerade"));
     const dialog = screen.getByRole("alertdialog");
     expect(dialog).toHaveTextContent("Confirm you would like to masquerade as theowner@x.io");
-    expect(within(dialog).getByRole("button", { name: "Start masquerade" })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Start masquerade" }));
+    expect(accountTransitionMocks.startMasquerade).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID, "theowner");
   });
 
   it("names the member and waits for confirmation before sending removal", async () => {
