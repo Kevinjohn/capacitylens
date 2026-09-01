@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Masquerade start and end failure notices now show the server's error message instead of a numeric
+  status fallback.
+  — 2026-09-01
+
 ## [0.57.0-alpha.19] — 2026-09-01
 
 ### Added
