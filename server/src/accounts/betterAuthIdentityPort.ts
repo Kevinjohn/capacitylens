@@ -37,6 +37,11 @@ import {
 import { applicationSessionHandle } from "./sessionHandle";
 import { receipt } from "./accountFlowRuntime";
 
+interface MasqueradeSessionLifecycle {
+  prepare(sessionHandles: readonly string[], reason: "session_expired" | "session_revoked"): void;
+  commit(sessionHandles: readonly string[]): void;
+}
+
 export interface LocalIdentityPort extends IdentityPort {
   /** Embedded shared-SQLite capability: commit the credential identity and its coordinator-owned
    * principal correlation as one transaction. The callback must perform synchronous writes only. */
@@ -313,6 +318,7 @@ export function betterAuthIdentityPort(input: {
   authMode: Exclude<AuthMode, "off">;
   db: Db;
   publicBaseUrl?: string;
+  masqueradeSessions?: MasqueradeSessionLifecycle;
 }): SsoCutoverIdentityPort {
   const { applicationId, auth, authMode, db } = input;
   const compensationKey = randomBytes(32);
@@ -984,6 +990,7 @@ export function betterAuthIdentityPort(input: {
         }>;
         const now = Date.now();
         const active: SessionSummary[] = [];
+        const expiredHandles: string[] = [];
         tx(db, () => {
           for (const row of rows) {
             const createdAt = timestampMs(row.createdAt);
@@ -998,8 +1005,10 @@ export function betterAuthIdentityPort(input: {
               (providerExpiry !== null && now >= providerExpiry);
             const handle = applicationSessionHandle(applicationId, row.token);
             if (stale) {
+              input.masqueradeSessions?.prepare([handle], "session_expired");
               db.prepare(`DELETE FROM session WHERE id = ? AND userId = ?`).run(row.id, actor.principalId);
               removeSessionAssurance(db, handle);
+              expiredHandles.push(handle);
               continue;
             }
             active.push({
@@ -1010,6 +1019,7 @@ export function betterAuthIdentityPort(input: {
             });
           }
         });
+        input.masqueradeSessions?.commit(expiredHandles);
         return active;
       } catch (error) {
         throw providerFailure("Session listing is temporarily unavailable.", error);
@@ -1024,10 +1034,13 @@ export function betterAuthIdentityPort(input: {
         }>;
         const row = rows.find((candidate) => applicationSessionHandle(applicationId, candidate.token) === sessionId);
         if (row) {
+          const handle = applicationSessionHandle(applicationId, row.token);
           tx(db, () => {
+            input.masqueradeSessions?.prepare([handle], "session_revoked");
             db.prepare(`DELETE FROM session WHERE id = ? AND userId = ?`).run(row.id, actor.principalId);
             removeSessionAssurance(db, sessionId);
           });
+          input.masqueradeSessions?.commit([handle]);
         }
         return receipt(command.commandId, row !== undefined);
       } catch (error) {
@@ -1133,13 +1146,22 @@ export function betterAuthIdentityPort(input: {
 
     async revokePrincipalSessions({ targetPrincipalId, command }): Promise<OperationReceipt> {
       try {
-        await auth.revokeUserSessions(targetPrincipalId);
-        // Revocation is principal-wide in Better Auth, so the assurance sweep must be too. Cleaning
-        // only the sessions snapshotted BEFORE the await would orphan the assurance of a session
-        // created inside the revocation window (revoked by the provider, invisible to our
-        // snapshot). removePrincipalSessionAssurance covers every session of the principal,
-        // whenever it was created.
-        removePrincipalSessionAssurance(db, targetPrincipalId);
+        const rows = sessionTableExists(db)
+          ? (db.prepare(`SELECT token FROM session WHERE userId = ?`).all(targetPrincipalId) as Array<{
+              token: string;
+            }>)
+          : [];
+        const handles = rows.map(({ token }) => applicationSessionHandle(applicationId, token));
+        tx(
+          db,
+          () => {
+            input.masqueradeSessions?.prepare(handles, "session_revoked");
+            if (sessionTableExists(db)) db.prepare(`DELETE FROM session WHERE userId = ?`).run(targetPrincipalId);
+            removePrincipalSessionAssurance(db, targetPrincipalId);
+          },
+          "immediate",
+        );
+        input.masqueradeSessions?.commit(handles);
         return receipt(command.commandId);
       } catch (error) {
         throw providerFailure("Session revocation is temporarily unavailable.", error);

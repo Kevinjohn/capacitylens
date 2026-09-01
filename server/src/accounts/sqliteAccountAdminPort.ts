@@ -110,6 +110,14 @@ export function assertAccountControlPlaneSchemaCurrent(db: Db): void {
 export interface LocalAccountAdminPort extends AccountAdminPort {
   roleForPrincipalInWorkspace(principalId: string, workspaceId: string): Role | null;
   workspacePrincipalIds(workspaceId: string): readonly string[];
+  /** Read-only projection for a principal whose effective permissions have already been
+   * authenticated and scoped by the HTTP adapter. This deliberately accepts a principal id,
+   * rather than a fabricated ActorContext, and does not grant command authority. */
+  projectIdentityAdminAuthoritiesForTargets(input: {
+    principalId: string;
+    targetPrincipalIds: readonly string[];
+    actions: readonly IdentityAdminAction[];
+  }): ReadonlyMap<string, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>>;
   evaluateWorkspaceProvisioningAuthorityInTx(input: {
     actor: ActorContext;
     multiWorkspace: boolean;
@@ -329,7 +337,7 @@ function authorityRevision(actorRevision: number, targetRevision: number): strin
 
 function authorityDecisions(
   db: Db,
-  actor: ActorContext,
+  actorPrincipalId: string,
   targetPrincipalId: string,
   actions: readonly IdentityAdminAction[],
   actorRoles: ReadonlyMap<string, Role>,
@@ -351,7 +359,7 @@ function authorityDecisions(
       action,
       actorRoles,
       targetRoles,
-      actor.principalId === targetPrincipalId,
+      actorPrincipalId === targetPrincipalId,
     );
     decisions.set(
       action,
@@ -365,20 +373,20 @@ function authorityDecisions(
 
 function evaluateAuthoritiesForTargets(
   db: Db,
-  actor: ActorContext,
+  actorPrincipalId: string,
   targetPrincipalIds: readonly string[],
   actions: readonly IdentityAdminAction[],
 ): ReadonlyMap<string, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>> {
   if (targetPrincipalIds.length === 0) return new Map();
   const workspaceIds = existingWorkspaceIds(db);
-  const actorRoles = roleMap(db, actor.principalId, workspaceIds);
-  const actorRevision = getSecurityRevision(db, actor.principalId);
+  const actorRoles = roleMap(db, actorPrincipalId, workspaceIds);
+  const actorRevision = getSecurityRevision(db, actorPrincipalId);
   const results = new Map<string, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>>();
   for (const targetPrincipalId of new Set(targetPrincipalIds)) {
     const targetRoles = targetRoleMap(db, targetPrincipalId, workspaceIds);
     results.set(
       targetPrincipalId,
-      authorityDecisions(db, actor, targetPrincipalId, actions, actorRoles, targetRoles, actorRevision),
+      authorityDecisions(db, actorPrincipalId, targetPrincipalId, actions, actorRoles, targetRoles, actorRevision),
     );
   }
   return results;
@@ -390,7 +398,7 @@ function evaluateAuthorities(
   targetPrincipalId: string,
   actions: readonly IdentityAdminAction[],
 ): ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision> {
-  return evaluateAuthoritiesForTargets(db, actor, [targetPrincipalId], actions).get(targetPrincipalId)!;
+  return evaluateAuthoritiesForTargets(db, actor.principalId, [targetPrincipalId], actions).get(targetPrincipalId)!;
 }
 
 function evaluateAuthority(
@@ -1173,7 +1181,11 @@ export function sqliteAccountAdminPort(input: {
       actions,
     }): Promise<ReadonlyMap<string, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>>> {
       assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
-      return evaluateAuthoritiesForTargets(db, actor, targetPrincipalIds, actions);
+      return evaluateAuthoritiesForTargets(db, actor.principalId, targetPrincipalIds, actions);
+    },
+
+    projectIdentityAdminAuthoritiesForTargets({ principalId, targetPrincipalIds, actions }) {
+      return evaluateAuthoritiesForTargets(db, principalId, targetPrincipalIds, actions);
     },
 
     async confirmIdentityAdminAuthority({ actor, targetPrincipalId, action, expectedRevision }) {

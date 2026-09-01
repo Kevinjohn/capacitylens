@@ -135,6 +135,7 @@ function administrationPort(overrides: Partial<LocalAccountAdminPort> = {}): Loc
   const base: LocalAccountAdminPort = {
     roleForPrincipalInWorkspace: vi.fn(() => null),
     workspacePrincipalIds: vi.fn(() => []),
+    projectIdentityAdminAuthoritiesForTargets: vi.fn(() => new Map()),
     evaluateWorkspaceProvisioningAuthorityInTx: vi.fn(() => ({
       allowed: true as const,
     })),

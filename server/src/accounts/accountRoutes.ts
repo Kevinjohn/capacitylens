@@ -68,6 +68,14 @@ export interface AccountRouteDependencies {
   command(request: FastifyRequest): CommandIdentity;
   audit(reply: FastifyReply, record: AuditRecord): void;
   fail(reply: FastifyReply, error: unknown): unknown;
+  memberReadProjection(
+    request: FastifyRequest,
+    workspaceId: string,
+    targetPrincipalIds: readonly string[],
+  ): {
+    principalId: string;
+    authorities: ReadonlyMap<string, Readonly<{ reset: boolean; revoke: boolean }>>;
+  };
 }
 
 /**
@@ -89,6 +97,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     command: accountCommand,
     audit,
     fail: accountFail,
+    memberReadProjection,
   } = dependencies;
   const isKnownRole = isAccountRole;
   const validationFailed = (message: string) =>
@@ -467,15 +476,13 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
         actor: req.accountActor!,
         workspaceId: accountId,
       });
-      const identityAdministration = await accountAdminPort.evaluateIdentityAdminAuthoritiesForTargets({
-        actor: req.accountActor!,
-        targetPrincipalIds: directory.map(({ membership }) => membership.principalId),
-        actions: ["issue-password-reset", "revoke-sessions"],
-      });
+      const projection = memberReadProjection(
+        req,
+        accountId,
+        directory.map(({ membership }) => membership.principalId),
+      );
       const members = directory.map(({ membership: member, principal }) => {
-        const targetAdministration = identityAdministration.get(member.principalId)!;
-        const reset = targetAdministration.get("issue-password-reset")!;
-        const revoke = targetAdministration.get("revoke-sessions")!;
+        const authority = projection.authorities.get(member.principalId)!;
         return {
           userId: member.principalId,
           role: member.role,
@@ -484,9 +491,9 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
           name: principal?.displayName ?? null,
           email: principal?.email ?? null,
           signInConfirmed: tracking.enabled ? (tracking.confirmations.get(member.principalId) ?? false) : null,
-          isSelf: member.principalId === req.accountActor!.principalId,
-          mayResetPassword: authMode === "password" && reset.allowed,
-          mayRevokeSessions: revoke.allowed,
+          isSelf: member.principalId === projection.principalId,
+          mayResetPassword: authMode === "password" && authority.reset,
+          mayRevokeSessions: authority.revoke,
         };
       });
       return { members, signInTrackingEnabled: tracking.enabled };
