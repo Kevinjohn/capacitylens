@@ -105,19 +105,19 @@ describe("MasqueradeRegistry", () => {
     expect(expired).toHaveBeenCalledWith(expect.objectContaining({ sessionHandle: "session-1" }));
   });
 
-  it("expires only the requested handle on lookup", () => {
+  it("sweeps a different expired handle before returning a lookup", () => {
     let now = Date.parse("2026-09-01T11:00:00.000Z");
     const expired = vi.fn();
     const registry = new MasqueradeRegistry({ now: () => now, expired });
-    registry.start(record({ expiresAt: "2026-09-01T22:00:00.000Z" }), () => undefined);
+    registry.start(record({ expiresAt: "2026-09-03T00:00:00.000Z" }), () => undefined);
     registry.start(
       record({ sessionHandle: "session-2", token: "token-2", expiresAt: "2026-09-01T22:00:00.000Z" }),
       () => undefined,
     );
     now = Date.parse("2026-09-02T00:00:00.000Z");
 
-    expect(registry.lookup("session-2")).toBeNull();
-    expect(registry.peek("session-1")).not.toBeNull();
+    expect(registry.lookup("session-1")).not.toBeNull();
+    expect(registry.peek("session-2")).toBeNull();
     expect(expired).toHaveBeenCalledOnce();
     expect(expired).toHaveBeenCalledWith(expect.objectContaining({ sessionHandle: "session-2" }));
   });

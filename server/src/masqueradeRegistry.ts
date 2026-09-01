@@ -51,14 +51,10 @@ export class MasqueradeRegistry {
     return [...(this.#byUser.get(userId) ?? [])];
   }
 
-  /** Read one session after expiring that handle when necessary. An audit failure retains the record. */
+  /** Read one session after a bounded expiry prune. An audit failure retains the record. */
   lookup(sessionHandle: string): Readonly<StoredMasqueradeRecord> | null {
-    const record = this.#bySession.get(sessionHandle);
-    if (!record || record.expiresAtMs > this.#now()) return record ?? null;
-    record.phase = "ending";
-    this.#expired(record);
-    this.#delete(record);
-    return null;
+    this.pruneExpired();
+    return this.peek(sessionHandle);
   }
 
   /** Insert only after `beforeInsert` durably accepts the matching start event. */

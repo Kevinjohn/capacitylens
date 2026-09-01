@@ -1961,7 +1961,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       return memberships.map((membership) => ({
         id: membership.workspaceId,
         name: membership.workspaceName,
-        role: membership.workspaceId === activeRecord?.accountId ? projectedRole : membership.role,
+        role: membership.workspaceId === activeRecord?.accountId ? (projectedRole ?? membership.role) : membership.role,
       }));
     });
 
