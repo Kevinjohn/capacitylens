@@ -589,13 +589,14 @@ export function localAccountFlows(input: {
             return markAccountCommandReplay(begun.result);
           }
           try {
+            let masqueradeHandles: readonly string[] = [];
             const erased = tx(
               db,
               () => {
                 administration.assertWorkspaceErasureAuthorityInTx(actor, workspaceId);
                 eraseProductWorkspaceInTx(workspaceId);
                 const orphaned = administration.eraseWorkspaceAdministrationInTx(workspaceId);
-                identity.deprovisionLocalPrincipalsInTx(orphaned, command.commandId);
+                masqueradeHandles = identity.deprovisionLocalPrincipalsInTx(orphaned, command.commandId);
                 auditProductMutationInTx?.();
                 const receipt = {
                   commandId: command.commandId,
@@ -626,6 +627,7 @@ export function localAccountFlows(input: {
               },
               "immediate",
             );
+            identity.commitMasqueradeSessionEnds(masqueradeHandles);
             return erased.receipt;
           } catch (error) {
             recordTerminalOutcome(error, () =>

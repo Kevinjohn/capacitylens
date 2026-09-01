@@ -39,6 +39,7 @@ import { trustedLocalIdentityPort } from "./accounts/trustedLocalIdentityPort";
 import { registerAccountRoutes } from "./accounts/accountRoutes";
 import { memberSignInTrackingSnapshot, setMemberSignInTracking } from "./accounts/memberSignInTracking";
 import { registerLifecycleRoutes } from "./routes/lifecycleRoutes";
+import { applicationSessionHandle } from "./accounts/sessionHandle";
 import { enqueueMasqueradeEndAudit, registerMasqueradeRoutes } from "./routes/masqueradeRoutes";
 import { MasqueradeRegistry, type StoredMasqueradeRecord } from "./masqueradeRegistry";
 import { MASQUERADE_ERROR_CODES, type MasqueradeEndReason } from "@capacitylens/shared/domain/masquerade";
@@ -989,6 +990,35 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   const masquerades = new MasqueradeRegistry({
     expired: (record) => enqueueMasqueradeEndAudit(db, application.applicationId, record, "session_expired"),
   });
+  const prepareMasqueradeUsers = (userIds: readonly string[], reason: "session_revoked"): readonly string[] => {
+    const handles = [...new Set(userIds.flatMap((userId) => masquerades.sessionHandlesForUser(userId)))];
+    for (const sessionHandle of handles) {
+      masquerades.prepareEnd(sessionHandle, null, (record) =>
+        enqueueMasqueradeEndAudit(db, application.applicationId, record, reason),
+      );
+    }
+    return handles;
+  };
+  const masqueradeSessionLifecycle = {
+    prepare: (sessionHandles: readonly string[], reason: "session_expired" | "session_revoked") => {
+      for (const sessionHandle of sessionHandles) {
+        masquerades.prepareEnd(sessionHandle, null, (record) =>
+          enqueueMasqueradeEndAudit(db, application.applicationId, record, reason),
+        );
+      }
+    },
+    prepareUsers: prepareMasqueradeUsers,
+    commit: (sessionHandles: readonly string[]) => masquerades.commitEnd(sessionHandles),
+  };
+  auth?.setSessionDeletionLifecycle?.({
+    prepareSession: (sessionToken, reason) => {
+      const handle = applicationSessionHandle(application.applicationId, sessionToken);
+      masqueradeSessionLifecycle.prepare([handle], reason);
+      return [handle];
+    },
+    prepareUser: (userId) => prepareMasqueradeUsers([userId], "session_revoked"),
+    commit: masqueradeSessionLifecycle.commit,
+  });
   const accountLock = new KeyedOperationLock();
   const identityPort =
     auth && authMode !== "off"
@@ -997,16 +1027,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           auth,
           authMode,
           db,
-          masqueradeSessions: {
-            prepare: (sessionHandles, reason) => {
-              for (const sessionHandle of sessionHandles) {
-                masquerades.prepareEnd(sessionHandle, null, (record) =>
-                  enqueueMasqueradeEndAudit(db, application.applicationId, record, reason),
-                );
-              }
-            },
-            commit: (sessionHandles) => masquerades.commitEnd(sessionHandles),
-          },
+          masqueradeSessions: masqueradeSessionLifecycle,
         })
       : trustedLocalIdentityPort({
           id: DEMO_USER.id,

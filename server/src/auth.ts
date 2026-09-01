@@ -173,6 +173,14 @@ export interface Auth {
   deleteCredentialUser: (userId: string) => Promise<void>;
   /** Revoke every active session for a user (administrator offboarding/compromise response). */
   revokeUserSessions: (userId: string) => Promise<void>;
+  /** Late-bound application observer for session deletions owned by Better Auth. */
+  setSessionDeletionLifecycle?(
+    lifecycle: {
+      prepareSession(sessionToken: string, reason: "session_expired"): readonly string[];
+      prepareUser(userId: string, reason: "session_revoked"): readonly string[];
+      commit(sessionHandles: readonly string[]): void;
+    } | null,
+  ): void;
   /** Start the only supported explicit identity-link ceremony. The raw provider route remains
    * shadowed at the HTTP adapter, so freshness and provider policy cannot be bypassed. */
   beginFederatedLink?: (input: {
@@ -300,13 +308,29 @@ export async function enforceSessionActivity<
   Session extends {
     session: { token: string; updatedAt: Date | string };
   },
->(session: Session, db: Db): Promise<Session | null> {
+>(
+  session: Session,
+  db: Db,
+  lifecycle?: {
+    prepare(sessionToken: string, reason: "session_expired"): readonly string[];
+    commit(sessionHandles: readonly string[]): void;
+  },
+): Promise<Session | null> {
   const token = session.session.token;
   const stmts = sessionActivityStatements(db);
   const readRaw = (): { updatedAt: string | number | null } | undefined =>
     stmts.read.get(token) as { updatedAt: string | number | null } | undefined;
   const destroy = (): null => {
-    stmts.destroy.run(token);
+    let sessionHandles: readonly string[] = [];
+    tx(
+      db,
+      () => {
+        sessionHandles = lifecycle?.prepare(token, "session_expired") ?? [];
+        stmts.destroy.run(token);
+      },
+      "immediate",
+    );
+    lifecycle?.commit(sessionHandles);
     return null;
   };
   const lastActivity = new Date(session.session.updatedAt).getTime();
@@ -319,14 +343,40 @@ export async function enforceSessionActivity<
     const rowMs = parseSessionTimestamp(row.updatedAt);
     if (!Number.isFinite(rowMs)) return destroy();
     if (rowMs === lastActivity) {
-      const removed = stmts.casDelete.run(token, row.updatedAt as string | number);
-      if (removed.changes >= 1) return null;
-      // Lost a race to a concurrent touch between the read and the delete — re-read it.
-      const current = readRaw();
-      if (!current) return null;
-      const currentMs = parseSessionTimestamp(current.updatedAt);
-      if (!Number.isFinite(currentMs)) return destroy();
-      session.session.updatedAt = new Date(currentMs);
+      if (!lifecycle) {
+        const removed = stmts.casDelete.run(token, row.updatedAt as string | number);
+        if (removed.changes >= 1) return null;
+        // Lost a race to a concurrent touch between the read and the delete — re-read it.
+        const current = readRaw();
+        if (!current) return null;
+        const currentMs = parseSessionTimestamp(current.updatedAt);
+        if (!Number.isFinite(currentMs)) return destroy();
+        session.session.updatedAt = new Date(currentMs);
+        return session;
+      }
+      let sessionHandles: readonly string[] = [];
+      const result = tx(
+        db,
+        () => {
+          // Re-read after taking the writer reservation. Another process may have touched the row
+          // between the optimistic read above and this transaction.
+          const current = readRaw();
+          if (!current) return { deleted: true as const, currentMs: null };
+          const currentMs = parseSessionTimestamp(current.updatedAt);
+          if (Number.isFinite(currentMs) && currentMs !== lastActivity) {
+            return { deleted: false as const, currentMs };
+          }
+          sessionHandles = lifecycle?.prepare(token, "session_expired") ?? [];
+          stmts.destroy.run(token);
+          return { deleted: true as const, currentMs: null };
+        },
+        "immediate",
+      );
+      if (result.deleted) {
+        lifecycle?.commit(sessionHandles);
+        return null;
+      }
+      session.session.updatedAt = new Date(result.currentMs);
       return session;
     }
     // A concurrent request touched the row after this request resolved its session.
@@ -694,6 +744,7 @@ function verifiedUnauditedFederatedLinks(db: Db): readonly ObservedFederatedLink
  *  sendResetPassword is configured — finds NO store and the token goes nowhere (that public route
  *  is inert-by-design here: no email is ever sent, and its anti-enumeration response is unchanged). */
 const resetTokenCapture = new AsyncLocalStorage<{ token: string | null }>();
+const passwordResetSessionCapture = new AsyncLocalStorage<{ sessionHandles: readonly string[] }>();
 
 /** Better Auth converts adapter exceptions into a generic 500 Response before its public handler
  * resolves. Capture the exact request-local exception so the callback seam can distinguish the
@@ -1423,6 +1474,11 @@ export function authFromEnv(
     publicUrl.protocol === "https:" ? `__Host-${application.applicationId}` : application.applicationId;
   const browserAuthErrorUrl = new URL("/", publicUrl);
   browserAuthErrorUrl.searchParams.set("externalSignInError", "1");
+  let sessionDeletionLifecycle: {
+    prepareSession(sessionToken: string, reason: "session_expired"): readonly string[];
+    prepareUser(userId: string, reason: "session_revoked"): readonly string[];
+    commit(sessionHandles: readonly string[]): void;
+  } | null = null;
 
   const instance = betterAuth({
     database: db, // node:sqlite DatabaseSync — same file as the app data (see header)
@@ -1587,6 +1643,15 @@ export function authFromEnv(
       ...(mode === "password"
         ? {
             sendResetPassword: captureResetToken,
+            // Better Auth owns the reset's session deletion. Prepare the application registry and
+            // durable end audit immediately before that deletion; the handler wrapper commits the
+            // in-memory removal only after the library returns a successful response.
+            onPasswordReset: async ({ user }: { user: { id: string } }) => {
+              const capture = passwordResetSessionCapture.getStore();
+              if (capture) {
+                capture.sessionHandles = sessionDeletionLifecycle?.prepareUser(user.id, "session_revoked") ?? [];
+              }
+            },
             resetPasswordTokenExpiresIn: RESET_LINK_TTL_SECONDS,
             // A reset is "I lost control of my credential" (or an admin offboarding a laptop):
             // every existing session for that user dies with the old password.
@@ -1617,7 +1682,18 @@ export function authFromEnv(
             disableCookieCache: true,
             disableRefresh: true,
           });
-          activeHookSession = resolved ? await enforceSessionActivity(resolved, db) : null;
+          activeHookSession = resolved
+            ? await enforceSessionActivity(
+                resolved,
+                db,
+                sessionDeletionLifecycle
+                  ? {
+                      prepare: (sessionToken, reason) => sessionDeletionLifecycle!.prepareSession(sessionToken, reason),
+                      commit: (sessionHandles) => sessionDeletionLifecycle!.commit(sessionHandles),
+                    }
+                  : undefined,
+              )
+            : null;
           ctx.context.session = activeHookSession;
           if (ctx.path === "/get-session" && activeHookSession) return activeHookSession;
         }
@@ -1846,7 +1922,13 @@ export function authFromEnv(
       }
       try {
         const capture = { error: null as unknown };
-        const response = await authHandlerErrorCapture.run(capture, () => raw.handler(request));
+        const resetCapture = { sessionHandles: [] as readonly string[] };
+        const response = await authHandlerErrorCapture.run(capture, () =>
+          passwordResetSessionCapture.run(resetCapture, () => raw.handler(request)),
+        );
+        if (response.ok && resetCapture.sessionHandles.length > 0) {
+          sessionDeletionLifecycle?.commit(resetCapture.sessionHandles);
+        }
         if (callbackProviderId && isStrictOidcVerificationFailure(capture.error)) {
           const target = failureTarget ?? new URL(browserAuthErrorUrl);
           target.searchParams.set("error", "OIDC_IDENTITY_VERIFICATION_FAILED");
@@ -1929,6 +2011,9 @@ export function authFromEnv(
       ),
     deleteCredentialUser: (userId) => raw.$context.then((ctx) => ctx.internalAdapter.deleteUser(userId)),
     revokeUserSessions: (userId) => raw.$context.then((ctx) => ctx.internalAdapter.deleteUserSessions(userId)),
+    setSessionDeletionLifecycle(lifecycle) {
+      sessionDeletionLifecycle = lifecycle;
+    },
     async beginFederatedLink({ headers, principalId, callbackURL, errorCallbackURL }) {
       if (!strictProvider) {
         throw APIError.from("BAD_REQUEST", {

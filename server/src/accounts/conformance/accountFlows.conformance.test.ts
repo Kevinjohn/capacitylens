@@ -79,6 +79,7 @@ function identityPort(overrides: Partial<LocalIdentityPort> = {}): LocalIdentity
   const base: LocalIdentityPort = {
     deprovisionLocalPrincipalInTx: vi.fn(),
     deprovisionLocalPrincipalsInTx: vi.fn(),
+    commitMasqueradeSessionEnds: vi.fn(),
     verifyApplicationSession: vi.fn(async () => session),
     getPrincipalSummaries: vi.fn(async () => []),
     findPrincipalByFederatedSubject: vi.fn(async () => null),
@@ -628,14 +629,17 @@ describe("AccountFlows conformance", () => {
   });
 
   it("deprovisions an erased workspace principal set through one bulk identity call", async () => {
-    const deprovisionMany = vi.fn<LocalIdentityPort["deprovisionLocalPrincipalsInTx"]>();
+    const deprovisionMany = vi
+      .fn<LocalIdentityPort["deprovisionLocalPrincipalsInTx"]>()
+      .mockReturnValue(["masquerade-session-1"]);
     const deprovisionOne = vi.fn<LocalIdentityPort["deprovisionLocalPrincipalInTx"]>();
     const principalIds = ["principal-1", "principal-2", "principal-3"];
+    const identity = identityPort({
+      deprovisionLocalPrincipalInTx: deprovisionOne,
+      deprovisionLocalPrincipalsInTx: deprovisionMany,
+    });
     const { flows, events } = harness({
-      identity: identityPort({
-        deprovisionLocalPrincipalInTx: deprovisionOne,
-        deprovisionLocalPrincipalsInTx: deprovisionMany,
-      }),
+      identity,
       administration: administrationPort({
         workspacePrincipalIds: vi.fn(() => principalIds),
         eraseWorkspaceAdministrationInTx: vi.fn(() => principalIds),
@@ -657,6 +661,7 @@ describe("AccountFlows conformance", () => {
     expect(deprovisionMany).toHaveBeenCalledOnce();
     expect(deprovisionMany).toHaveBeenCalledWith(principalIds, erasureCommand.commandId);
     expect(deprovisionOne).not.toHaveBeenCalled();
+    expect(identity.commitMasqueradeSessionEnds).toHaveBeenCalledWith(["masquerade-session-1"]);
     expect(events.filter((event) => event.action === "identity.local_deprovisioned")).toEqual(
       principalIds.map((principalId) =>
         expect.objectContaining({

@@ -39,6 +39,7 @@ import { receipt } from "./accountFlowRuntime";
 
 interface MasqueradeSessionLifecycle {
   prepare(sessionHandles: readonly string[], reason: "session_expired" | "session_revoked"): void;
+  prepareUsers(userIds: readonly string[], reason: "session_revoked"): readonly string[];
   commit(sessionHandles: readonly string[]): void;
 }
 
@@ -51,10 +52,12 @@ export interface LocalIdentityPort extends IdentityPort {
     },
   ): Promise<ProvisionalPrincipal>;
   /** Embedded-only capability used while the coordinator already owns the SQLite transaction. */
-  deprovisionLocalPrincipalInTx(principalId: string, exceptCommandId?: string): void;
+  deprovisionLocalPrincipalInTx(principalId: string, exceptCommandId?: string): readonly string[];
   /** Embedded bulk capability for workspace erasure. Verification state is classified once for
    * the whole principal set while the coordinator owns the SQLite transaction. */
-  deprovisionLocalPrincipalsInTx(principalIds: readonly string[], exceptCommandId?: string): void;
+  deprovisionLocalPrincipalsInTx(principalIds: readonly string[], exceptCommandId?: string): readonly string[];
+  /** Publish prepared in-memory session cleanup only after the caller-owned transaction commits. */
+  commitMasqueradeSessionEnds(sessionHandles: readonly string[]): void;
 }
 
 /** Embedded identity capabilities used by cutover inspection, activation, and exact repair. */
@@ -193,10 +196,16 @@ const accountSessionAssuranceTableExists = cachedTableExists("account_session_as
 /** Delete a principal's provider sessions and app-owned assurance inside the caller's SQLite
  * transaction. This is used by identity corrections/repairs so no sign-in can land between a
  * pre-mutation revocation and the mutation itself. */
-function revokePrincipalSessionsInTx(db: Db, applicationId: string, principalId: string): number {
+function revokePrincipalSessionsInTx(
+  db: Db,
+  applicationId: string,
+  principalId: string,
+  lifecycle?: MasqueradeSessionLifecycle,
+): { count: number; masqueradeHandles: readonly string[] } {
+  const masqueradeHandles = lifecycle?.prepareUsers([principalId], "session_revoked") ?? [];
   if (!sessionTableExists(db)) {
     removePrincipalSessionAssurance(db, principalId);
-    return 0;
+    return { count: 0, masqueradeHandles };
   }
   const sessions = db.prepare(`SELECT token FROM session WHERE userId = ?`).all(principalId) as Array<{
     token: string;
@@ -206,7 +215,7 @@ function revokePrincipalSessionsInTx(db: Db, applicationId: string, principalId:
     removeSessionAssurance(db, applicationSessionHandle(applicationId, token));
   }
   removePrincipalSessionAssurance(db, principalId);
-  return sessions.length;
+  return { count: sessions.length, masqueradeHandles };
 }
 
 const MALFORMED_STRUCTURED_VERIFICATION = "Identity erasure cannot classify malformed structured verification state.";
@@ -256,9 +265,14 @@ function accountLinkUserId(value: string): string | null {
 }
 
 /** Delete only these installation-local Better Auth identities inside the caller's transaction. */
-function eraseLocalPrincipalsInTx(db: Db, principalIds: readonly string[]): void {
+function eraseLocalPrincipalsInTx(
+  db: Db,
+  principalIds: readonly string[],
+  lifecycle?: MasqueradeSessionLifecycle,
+): readonly string[] {
   const principals = new Set(principalIds);
-  if (principals.size === 0 || !userTableExists(db)) return;
+  if (principals.size === 0 || !userTableExists(db)) return [];
+  const masqueradeHandles = lifecycle?.prepareUsers([...principals], "session_revoked") ?? [];
 
   if (verificationTableExists(db)) {
     // Scalar reset/email ceremonies can be removed entirely inside SQLite. Structured account-link
@@ -309,6 +323,7 @@ function eraseLocalPrincipalsInTx(db: Db, principalIds: readonly string[]): void
     removeUser.run(principalId);
     removeSecurityRevision(db, principalId);
   }
+  return masqueradeHandles;
 }
 
 /** Better Auth and SQLite mechanics narrowed behind the provider-neutral IdentityPort. */
@@ -426,8 +441,9 @@ export function betterAuthIdentityPort(input: {
         retryable: false,
       });
     }
+    let masqueradeHandles: readonly string[] = [];
     try {
-      return tx(
+      const removed = tx(
         db,
         () => {
           authorizeInTransaction?.();
@@ -465,7 +481,12 @@ export function betterAuthIdentityPort(input: {
               });
             }
           }
-          revokePrincipalSessionsInTx(db, applicationId, principalId);
+          masqueradeHandles = revokePrincipalSessionsInTx(
+            db,
+            applicationId,
+            principalId,
+            input.masqueradeSessions,
+          ).masqueradeHandles;
           if (federatedLinkObservationsTableExists(db)) {
             db.prepare(`DELETE FROM capacitylens_federated_link_observations WHERE accountRowId = ?`).run(rowId);
           }
@@ -490,6 +511,8 @@ export function betterAuthIdentityPort(input: {
         },
         "immediate",
       );
+      input.masqueradeSessions?.commit(masqueradeHandles);
+      return removed;
     } catch (error) {
       if (error instanceof AccountContractError) throw error;
       throw providerFailure("Federated identity repair failed.", error);
@@ -497,15 +520,18 @@ export function betterAuthIdentityPort(input: {
   };
 
   return {
-    deprovisionLocalPrincipalInTx(principalId, exceptCommandId): void {
+    deprovisionLocalPrincipalInTx(principalId, exceptCommandId) {
       erasePrincipalCommandHistoryInTx(db, principalId, exceptCommandId);
-      eraseLocalPrincipalsInTx(db, [principalId]);
+      return eraseLocalPrincipalsInTx(db, [principalId], input.masqueradeSessions);
     },
-    deprovisionLocalPrincipalsInTx(principalIds, exceptCommandId): void {
+    deprovisionLocalPrincipalsInTx(principalIds, exceptCommandId) {
       for (const principalId of new Set(principalIds)) {
         erasePrincipalCommandHistoryInTx(db, principalId, exceptCommandId);
       }
-      eraseLocalPrincipalsInTx(db, principalIds);
+      return eraseLocalPrincipalsInTx(db, principalIds, input.masqueradeSessions);
+    },
+    commitMasqueradeSessionEnds(sessionHandles) {
+      input.masqueradeSessions?.commit(sessionHandles);
     },
     readSsoCutoverSnapshot<Result>(read: () => Result): Result {
       return tx(db, read as SynchronousCallback<typeof read>);
@@ -625,7 +651,8 @@ export function betterAuthIdentityPort(input: {
       };
     },
     async revokeAllForSsoCutover(assertReady) {
-      return tx(
+      const masqueradeHandles: string[] = [];
+      const result = tx(
         db,
         () => {
           // Take the writer reservation before the final readiness read. Otherwise another process
@@ -673,7 +700,12 @@ export function betterAuthIdentityPort(input: {
               ({ token }) => assuranceBySession.get(applicationSessionHandle(applicationId, token)) !== "federated",
             );
           if (!requiresCutover) return { sessions: 0, ceremonies: 0 };
-          for (const principalId of principals) revokePrincipalSessionsInTx(db, applicationId, principalId);
+          for (const principalId of principals) {
+            masqueradeHandles.push(
+              ...revokePrincipalSessionsInTx(db, applicationId, principalId, input.masqueradeSessions)
+                .masqueradeHandles,
+            );
+          }
           if (verificationTableExists(db)) db.prepare(`DELETE FROM verification`).run();
           db.prepare(`DELETE FROM account_session_assurance`).run();
           db.prepare(`DELETE FROM capacitylens_federated_link_ceremonies`).run();
@@ -724,8 +756,11 @@ export function betterAuthIdentityPort(input: {
         },
         "immediate",
       );
+      input.masqueradeSessions?.commit(masqueradeHandles);
+      return result;
     },
     async correctPrincipalEmail({ principalId, email, audit, authorizeInTransaction }) {
+      let masqueradeHandles: readonly string[] = [];
       try {
         tx(
           db,
@@ -761,11 +796,17 @@ export function betterAuthIdentityPort(input: {
             revokeResetTokensForUser(db, principalId);
             revokeFederatedLinkStateInTx(db, principalId);
             db.prepare(`DELETE FROM capacitylens_federated_link_ceremonies WHERE principalId = ?`).run(principalId);
-            revokePrincipalSessionsInTx(db, applicationId, principalId);
+            masqueradeHandles = revokePrincipalSessionsInTx(
+              db,
+              applicationId,
+              principalId,
+              input.masqueradeSessions,
+            ).masqueradeHandles;
             enqueueAudit(db, audit, audit.id);
           },
           "immediate",
         );
+        input.masqueradeSessions?.commit(masqueradeHandles);
       } catch (error) {
         if (error instanceof AccountContractError) throw error;
         if (isDuplicateCredentialEmailError(error)) {
@@ -1062,10 +1103,11 @@ export function betterAuthIdentityPort(input: {
     async compensateProvisionalPrincipal({ provisional, command }): Promise<void> {
       assertCompensationHandle(provisional, command.commandId);
       try {
-        tx(db, () => {
+        const masqueradeHandles = tx(db, () => {
           erasePrincipalCommandHistoryInTx(db, provisional.principalId, command.commandId);
-          eraseLocalPrincipalsInTx(db, [provisional.principalId]);
+          return eraseLocalPrincipalsInTx(db, [provisional.principalId], input.masqueradeSessions);
         });
+        input.masqueradeSessions?.commit(masqueradeHandles);
       } catch (error) {
         if (error instanceof MalformedVerificationStateError) {
           throw invalidVerificationState(command.commandId, error);
@@ -1078,10 +1120,11 @@ export function betterAuthIdentityPort(input: {
       try {
         // This deletes only the installation-local user and local provider-link rows. It never calls
         // an upstream IdP deletion or management API.
-        tx(db, () => {
+        const masqueradeHandles = tx(db, () => {
           erasePrincipalCommandHistoryInTx(db, principalId, command.commandId);
-          eraseLocalPrincipalsInTx(db, [principalId]);
+          return eraseLocalPrincipalsInTx(db, [principalId], input.masqueradeSessions);
         });
+        input.masqueradeSessions?.commit(masqueradeHandles);
         return receipt(command.commandId);
       } catch (error) {
         if (error instanceof MalformedVerificationStateError) {
@@ -1146,22 +1189,12 @@ export function betterAuthIdentityPort(input: {
 
     async revokePrincipalSessions({ targetPrincipalId, command }): Promise<OperationReceipt> {
       try {
-        const rows = sessionTableExists(db)
-          ? (db.prepare(`SELECT token FROM session WHERE userId = ?`).all(targetPrincipalId) as Array<{
-              token: string;
-            }>)
-          : [];
-        const handles = rows.map(({ token }) => applicationSessionHandle(applicationId, token));
-        tx(
+        const { masqueradeHandles } = tx(
           db,
-          () => {
-            input.masqueradeSessions?.prepare(handles, "session_revoked");
-            if (sessionTableExists(db)) db.prepare(`DELETE FROM session WHERE userId = ?`).run(targetPrincipalId);
-            removePrincipalSessionAssurance(db, targetPrincipalId);
-          },
+          () => revokePrincipalSessionsInTx(db, applicationId, targetPrincipalId, input.masqueradeSessions),
           "immediate",
         );
-        input.masqueradeSessions?.commit(handles);
+        input.masqueradeSessions?.commit(masqueradeHandles);
         return receipt(command.commandId);
       } catch (error) {
         throw providerFailure("Session revocation is temporarily unavailable.", error);

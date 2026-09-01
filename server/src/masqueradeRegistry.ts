@@ -46,6 +46,11 @@ export class MasqueradeRegistry {
     return this.#bySession.get(sessionHandle) ?? null;
   }
 
+  /** Snapshot the handles owned by a principal for a surrounding session-deletion transaction. */
+  sessionHandlesForUser(userId: string): readonly string[] {
+    return [...(this.#byUser.get(userId) ?? [])];
+  }
+
   /** Read one session after a bounded expiry prune. An audit failure throws and retains the record. */
   lookup(sessionHandle: string): Readonly<StoredMasqueradeRecord> | null {
     this.pruneExpired();

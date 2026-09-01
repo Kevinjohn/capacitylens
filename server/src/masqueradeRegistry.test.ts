@@ -70,6 +70,18 @@ describe("MasqueradeRegistry", () => {
     expect(registry.peek("session-2")?.token).toBe("token-2");
   });
 
+  it("returns a detached snapshot of one principal's handles for lifecycle cleanup", () => {
+    const registry = new MasqueradeRegistry();
+    registry.start(record(), () => undefined);
+    registry.start(record({ sessionHandle: "session-2", token: "token-2" }), () => undefined);
+
+    const handles = registry.sessionHandlesForUser("user-1");
+    registry.end("session-1", null, () => undefined);
+
+    expect(handles).toEqual(["session-1", "session-2"]);
+    expect(registry.sessionHandlesForUser("user-1")).toEqual(["session-2"]);
+  });
+
   it("retains a prepared end until the surrounding session transaction commits", () => {
     const registry = new MasqueradeRegistry();
     registry.start(record(), () => undefined);

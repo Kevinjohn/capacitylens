@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import type { AuditEntry, AuditSink } from "./audit";
-import { authFromEnv, runAuthMigrations } from "./auth";
+import { authFromEnv, runAuthMigrations, SESSION_INACTIVITY_TTL_SECONDS } from "./auth";
 import { buildApp } from "./app";
 import { upsertMember } from "./controlTables";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
@@ -22,6 +22,12 @@ function seedAccount(db: Db): void {
       updatedAt: TS,
     },
   ];
+  insertAll(db, data as unknown as AppData);
+}
+
+function seedAdditionalAccount(db: Db, id: string, name: string): void {
+  const data = emptyAppData() as unknown as Record<string, unknown[]>;
+  data.accounts = [{ id, name, color: "#8b5cf6", createdAt: TS, updatedAt: TS }];
   insertAll(db, data as unknown as AppData);
 }
 
@@ -322,6 +328,78 @@ describe("identity masquerade", () => {
     });
   });
 
+  it("confines the target role to the started account and keeps the caller's real role elsewhere", async () => {
+    const { app, db, actor, target } = await memberFixture("owner", { multiAccount: true });
+    seedAdditionalAccount(db, "a2", "Stark Industries");
+    upsertMember(db, { accountId: "a2", userId: actor.userId, role: "admin", status: "active", createdAt: TS });
+    expect(
+      (
+        await call(app, {
+          method: "POST",
+          url: "/api/accounts/a1/masquerade",
+          headers: { cookie: actor.cookie },
+          payload: { targetUserId: target.userId },
+        })
+      ).statusCode,
+    ).toBe(200);
+
+    const accounts = (
+      await call(app, { method: "GET", url: "/api/accounts", headers: { cookie: actor.cookie } })
+    ).json() as Array<{ id: string; role: string }>;
+    expect(accounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "a1", role: "viewer" }),
+        expect.objectContaining({ id: "a2", role: "admin" }),
+      ]),
+    );
+    expect(
+      (await call(app, { method: "GET", url: "/api/state?accountId=a2", headers: { cookie: actor.cookie } }))
+        .statusCode,
+    ).toBe(200);
+  });
+
+  it("uses the target role for private-name redaction and restores the owner projection after end", async () => {
+    const { app, db, actor, target } = await memberFixture();
+    const data = emptyAppData() as unknown as Record<string, unknown[]>;
+    data.clients = [
+      {
+        id: "private-client",
+        accountId: "a1",
+        name: "SENTINEL_REAL_CLIENT_NAME",
+        color: "#3b82f6",
+        isPrivate: true,
+        codeName: "Nightwing",
+        createdAt: TS,
+        updatedAt: TS,
+      },
+    ];
+    insertAll(db, data as unknown as AppData);
+    const started = await call(app, {
+      method: "POST",
+      url: "/api/accounts/a1/masquerade",
+      headers: { cookie: actor.cookie },
+      payload: { targetUserId: target.userId },
+    });
+
+    const projected = await call(app, {
+      method: "GET",
+      url: "/api/state?accountId=a1",
+      headers: { cookie: actor.cookie },
+    });
+    expect(projected.body).not.toContain("SENTINEL_REAL_CLIENT_NAME");
+    expect(projected.json().clients[0]).toMatchObject({ name: '"Nightwing"' });
+    await call(app, {
+      method: "DELETE",
+      url: "/api/masquerade",
+      headers: { cookie: actor.cookie },
+      payload: { token: started.json().token, reason: "explicit" },
+    });
+    expect(
+      (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: actor.cookie } })).json()
+        .clients[0],
+    ).toMatchObject({ name: "SENTINEL_REAL_CLIENT_NAME", codeName: "Nightwing" });
+  });
+
   it("reports canCreateAccount false while active", async () => {
     const { app, actor, target } = await memberFixture("owner", { multiAccount: true });
     const before = await call(app, { method: "GET", url: "/api/auth/me", headers: { cookie: actor.cookie } });
@@ -364,6 +442,92 @@ describe("identity masquerade", () => {
     expect(
       (await call(app, { method: "GET", url: "/api/accounts", headers: { cookie: actor.cookie } })).statusCode,
     ).toBe(401);
+  });
+
+  it("ends and audits a masquerade when another owner revokes the caller's sessions", async () => {
+    const { app, db, actor, target, auditEvents } = await memberFixture("admin");
+    const owner = await signUp(app, "owner-revoker@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+    expect(
+      (
+        await call(app, {
+          method: "POST",
+          url: "/api/accounts/a1/masquerade",
+          headers: { cookie: actor.cookie },
+          payload: { targetUserId: target.userId },
+        })
+      ).statusCode,
+    ).toBe(200);
+
+    const revoked = await call(app, {
+      method: "POST",
+      url: `/api/accounts/a1/members/${actor.userId}/revoke-sessions`,
+      headers: { cookie: owner.cookie },
+    });
+
+    expect(revoked.statusCode).toBe(204);
+    expect(auditEvents).toContainEqual(
+      expect.objectContaining({ action: "identity.masquerade_ended", reason: "session_revoked" }),
+    );
+    expect(
+      (await call(app, { method: "GET", url: "/api/accounts", headers: { cookie: actor.cookie } })).statusCode,
+    ).toBe(401);
+  });
+
+  it("audits Better Auth password-reset session revocation and removes the registry entry", async () => {
+    const { app, db, actor, target, auditEvents } = await memberFixture("admin");
+    const owner = await signUp(app, "owner-resetter@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+    expect(
+      (
+        await call(app, {
+          method: "POST",
+          url: "/api/accounts/a1/masquerade",
+          headers: { cookie: actor.cookie },
+          payload: { targetUserId: target.userId },
+        })
+      ).statusCode,
+    ).toBe(200);
+    const minted = await call(app, {
+      method: "POST",
+      url: `/api/accounts/a1/members/${actor.userId}/reset-password`,
+      headers: { cookie: owner.cookie },
+    });
+    expect(minted.statusCode).toBe(201);
+
+    const reset = await call(app, {
+      method: "POST",
+      url: "/api/auth/reset-password",
+      payload: { token: minted.json().token, newPassword: "brand-new-password-456" },
+    });
+
+    expect(reset.statusCode).toBe(200);
+    expect(auditEvents).toContainEqual(
+      expect.objectContaining({ action: "identity.masquerade_ended", reason: "session_revoked" }),
+    );
+  });
+
+  it("audits an inactivity-expired masquerade before the session is removed", async () => {
+    const { app, db, actor, target, auditEvents } = await memberFixture();
+    expect(
+      (
+        await call(app, {
+          method: "POST",
+          url: "/api/accounts/a1/masquerade",
+          headers: { cookie: actor.cookie },
+          payload: { targetUserId: target.userId },
+        })
+      ).statusCode,
+    ).toBe(200);
+    const expiredActivity = new Date(Date.now() - (SESSION_INACTIVITY_TTL_SECONDS + 1) * 1000).toISOString();
+    db.prepare(`UPDATE session SET updatedAt = ? WHERE userId = ?`).run(expiredActivity, actor.userId);
+
+    expect(
+      (await call(app, { method: "GET", url: "/api/accounts", headers: { cookie: actor.cookie } })).statusCode,
+    ).toBe(401);
+    expect(auditEvents).toContainEqual(
+      expect.objectContaining({ action: "identity.masquerade_ended", reason: "session_expired" }),
+    );
   });
 
   it("applies the independent Better Auth mutation guard", async () => {
