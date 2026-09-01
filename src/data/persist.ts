@@ -1009,6 +1009,7 @@ export function attachPersistence(
   return () => {
     if (disposed) return;
     disposed = true;
+    for (const waiter of switchWaiters.splice(0)) waiter.resolve("unattached");
     setPersistenceSuspended(false);
     unsubscribe();
     unsubscribeSwitch?.();

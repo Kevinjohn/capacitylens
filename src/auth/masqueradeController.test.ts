@@ -77,6 +77,18 @@ describe("MasqueradeController", () => {
     const { controller, resume } = harness({ reproject: vi.fn(async () => false) });
     await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(false);
     expect(useStore.getState().masquerade.phase).toBe("starting");
+    expect(controller.hasPendingProjection()).toBe(true);
+    expect(resume).not.toHaveBeenCalled();
+  });
+
+  it("keeps a failed projection retry contained and suspended", async () => {
+    const { controller, resume } = harness({
+      reproject: vi.fn().mockResolvedValueOnce(false).mockRejectedValueOnce(new Error("offline")),
+    });
+    await controller.start(state.accountId, state.targetUserId);
+
+    await expect(controller.retryProjection()).resolves.toBe(false);
+    expect(useStore.getState().masquerade.phase).toBe("starting");
     expect(resume).not.toHaveBeenCalled();
   });
 
@@ -110,5 +122,16 @@ describe("MasqueradeController", () => {
     expect(dependencies.switchAccount).not.toHaveBeenCalled();
     expect(useStore.getState().masquerade.phase).toBe("ending");
     expect(resume).not.toHaveBeenCalled();
+  });
+
+  it("restores the real projection when another tab has ended the shared session masquerade", async () => {
+    const { controller, dependencies, resume } = harness();
+    controller.adoptStatus({ active: true, ...state });
+
+    controller.adoptStatus({ active: false });
+    await vi.waitFor(() => expect(useStore.getState().masquerade.phase).toBe("inactive"));
+
+    expect(dependencies.reproject).toHaveBeenCalledWith(state.accountId);
+    expect(resume).toHaveBeenCalledWith({ dropParkedEdits: true });
   });
 });

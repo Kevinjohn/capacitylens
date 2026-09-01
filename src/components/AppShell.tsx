@@ -146,7 +146,7 @@ export function AppShell() {
             <div className="border-b border-line p-2 md:hidden">
               <MobileSidebarTrigger />
             </div>
-            {(masquerade.phase === "active" || masquerade.phase === "ending") && (
+            {masquerade.phase !== "inactive" && (
               <Alert
                 role="status"
                 data-testid="masquerade-banner"
@@ -156,16 +156,32 @@ export function AppShell() {
                   <span>
                     {masquerade.phase === "active"
                       ? m.app_masquerading_as({ name: masquerade.state.targetName })
-                      : m.app_masquerade_ending()}
+                      : masquerade.phase === "starting"
+                        ? m.app_masquerade_starting()
+                        : m.app_masquerade_ending()}
                   </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white"
-                    onClick={() => void masqueradeController.end("explicit", (to) => void navigate(to))}
-                  >
-                    {masquerade.phase === "active" ? m.app_masquerade_end_now() : m.app_masquerade_retry()}
-                  </Button>
+                  {(masquerade.phase !== "starting" || masqueradeController.hasPendingProjection()) && (
+                    <span className="flex gap-2">
+                      {masquerade.phase === "starting" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white"
+                          onClick={() => void masqueradeController.retryProjection()}
+                        >
+                          {m.app_masquerade_retry()}
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white"
+                        onClick={() => void masqueradeController.end("explicit", (to) => void navigate(to))}
+                      >
+                        {masquerade.phase === "ending" ? m.app_masquerade_retry() : m.app_masquerade_end_now()}
+                      </Button>
+                    </span>
+                  )}
                 </AlertDescription>
               </Alert>
             )}

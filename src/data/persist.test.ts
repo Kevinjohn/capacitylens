@@ -615,6 +615,26 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     detach();
   });
 
+  it("settles an outstanding account transition when its persistence owner detaches", async () => {
+    const load = new Promise<AppData>(() => undefined);
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    const detach = attachPersistence(
+      useStore,
+      { loadAll: vi.fn(async () => load), saveAll: vi.fn(async () => {}) },
+      0,
+      undefined,
+      undefined,
+      true,
+    );
+
+    const switching = switchAndAwaitHydration("a2");
+    detach();
+
+    await expect(switching).resolves.toBe("unattached");
+  });
+
   it("loads the picked account slice into the store and does NOT push it back as a save", async () => {
     const a2Slice = {
       ...emptyAppData(),

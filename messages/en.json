@@ -796,6 +796,7 @@
   "app_offline_read_only": "Offline — viewing data last updated {updated}. Changes are disabled.",
   "app_masquerading_as": "Masquerading as {name}",
   "app_masquerade_ending": "Ending masquerade…",
+  "app_masquerade_starting": "Starting member view…",
   "app_masquerade_end_now": "End now",
   "app_masquerade_retry": "Retry",
   "app_offline_unknown_time": "at an unknown time",

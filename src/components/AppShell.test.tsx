@@ -97,6 +97,20 @@ it("shows the session-scoped masquerade banner above ordinary app alerts", () =>
   ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
 });
 
+it("shows a fail-closed banner while a member view is starting", () => {
+  useStore.getState().setMasquerade({
+    phase: "starting",
+    generation: 1,
+    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
+  });
+
+  renderAppShell();
+
+  const banner = screen.getByTestId("masquerade-banner");
+  expect(banner).toHaveTextContent("Starting member view…");
+  expect(within(banner).queryByRole("button")).not.toBeInTheDocument();
+});
+
 it("consumes a joined-account query only once and preserves later route queries", async () => {
   renderAppShell([`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`], true);
 

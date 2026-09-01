@@ -262,6 +262,28 @@ describe("identity masquerade", () => {
     );
   });
 
+  it("ends on caller membership removal before returning the remaining account list", async () => {
+    const { app, db, actor, target, auditEvents } = await memberFixture();
+    expect(
+      (
+        await call(app, {
+          method: "POST",
+          url: "/api/accounts/a1/masquerade",
+          headers: { cookie: actor.cookie },
+          payload: { targetUserId: target.userId },
+        })
+      ).statusCode,
+    ).toBe(200);
+    db.prepare(`DELETE FROM account_members WHERE accountId = ? AND userId = ?`).run("a1", actor.userId);
+
+    const invalidated = await call(app, { method: "GET", url: "/api/accounts", headers: { cookie: actor.cookie } });
+    expect(invalidated.statusCode).toBe(403);
+    expect(invalidated.json().code).toBe("MASQUERADE_ENDED");
+    expect(auditEvents).toContainEqual(
+      expect.objectContaining({ action: "identity.masquerade_ended", reason: "caller_invalidated" }),
+    );
+  });
+
   it("projects member-directory identity and capabilities to the target principal", async () => {
     const { app, db, actor, target } = await memberFixture();
     db.prepare(`UPDATE account_members SET role = 'admin' WHERE accountId = ? AND userId = ?`).run("a1", target.userId);

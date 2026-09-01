@@ -45,6 +45,11 @@ export class MasqueradeController {
     return false;
   }
 
+  /** True only after POST succeeded and the target projection is waiting for a retry or end. */
+  hasPendingProjection(): boolean {
+    return useStore.getState().masquerade.phase === "starting" && this.pendingState !== null;
+  }
+
   async start(accountId: string, targetUserId: string): Promise<boolean> {
     if (useStore.getState().masquerade.phase !== "inactive") {
       return this.fail("End the current masquerade before starting another.");
@@ -67,6 +72,9 @@ export class MasqueradeController {
     }
     if (generation !== this.generation) return false;
     this.pendingState = state;
+    // Publish a fresh starting value so the shell can reveal Retry / End now now that the POST has
+    // succeeded. The exact runtime union deliberately keeps the server state private until active.
+    useStore.getState().setMasquerade({ phase: "starting", pending: { accountId, targetUserId }, generation });
     try {
       if (!(await this.dependencies.reproject(accountId))) {
         return this.fail("The member view started, but its data could not be loaded. Retry or end the masquerade.");
@@ -85,7 +93,14 @@ export class MasqueradeController {
     if (runtime.phase === "inactive") return false;
     const state = runtime.phase === "starting" ? this.pendingState : runtime.state;
     if (!state) return false;
-    if (!(await this.dependencies.reproject(state.accountId))) return this.fail("The member view could not be loaded.");
+    try {
+      if (!(await this.dependencies.reproject(state.accountId))) {
+        return this.fail("The member view could not be loaded.");
+      }
+    } catch (error) {
+      console.error("Masquerade projection retry failed", error);
+      return this.fail("The member view could not be loaded.");
+    }
     useStore.getState().clearUndoHistory();
     useStore.getState().setMasquerade({ phase: "active", state, generation: runtime.generation });
     return true;
@@ -156,8 +171,11 @@ export class MasqueradeController {
 
   /** Adopt status before PermissionProvider publishes an effective role, preventing a writable frame. */
   adoptStatus(status: MasqueradeStatus): void {
-    if (!status.active) return;
     const current = useStore.getState().masquerade;
+    if (!status.active) {
+      if (current.phase === "active" || current.phase === "starting") this.handleServerEnded();
+      return;
+    }
     // The controller already owns these transitions. A membership invalidation triggered by its
     // own reproject must not publish `active` before that authoritative reload has completed.
     if (current.phase === "starting" || current.phase === "ending") return;
@@ -178,7 +196,13 @@ export class MasqueradeController {
   }
 
   private async restoreAfterServerEnd(state: MasqueradeState): Promise<void> {
-    if (!(await this.dependencies.reproject(state.accountId))) {
+    try {
+      if (!(await this.dependencies.reproject(state.accountId))) {
+        this.fail("The masquerade ended, but the real account view could not be restored. Retry.");
+        return;
+      }
+    } catch (error) {
+      console.error("The real account projection could not be restored", error);
       this.fail("The masquerade ended, but the real account view could not be restored. Retry.");
       return;
     }

@@ -1930,6 +1930,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       const memberships = await accountAdminPort.listWorkspacesForPrincipal({
         principalId: req.accountActor!.principalId,
       });
+      // Revalidate the projected account even when the caller's membership was removed and the
+      // account therefore no longer appears in `memberships`. The triggering request must end with
+      // MASQUERADE_ENDED, never silently return another-account data under a stale client phase.
+      const activeRecord = req.session ? masquerades.peek(req.session.id) : null;
+      if (activeRecord) {
+        const activeResolution = resolveEffectiveRole(req, activeRecord.accountId);
+        if (activeResolution.ended) {
+          return reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
+        }
+      }
       const projected = [];
       for (const membership of memberships) {
         const resolved = resolveEffectiveRole(req, membership.workspaceId);
