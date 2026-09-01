@@ -101,19 +101,18 @@ export class MasqueradeController {
   }
 
   async end(reason: ClientMasqueradeEndReason = "explicit", navigate?: (to: string) => void): Promise<boolean> {
-    return this.endProjection(
+    const ended = await this.endProjection(
       reason,
-      async () => {
-        const runtime = useStore.getState().masquerade;
-        if (runtime.phase !== "ending") return false;
-        if (!(await this.dependencies.reproject(runtime.state.accountId))) {
+      async (state) => {
+        if (!(await this.dependencies.reproject(state.accountId))) {
           return this.fail("The real account view could not be restored. Retry ending the masquerade.");
         }
-        navigate?.("/");
         return true;
       },
       "Masquerade could not be ended.",
     );
+    if (ended) navigate?.("/");
+    return ended;
   }
 
   async transitionAccount(accountId: string | null): Promise<boolean> {
@@ -134,13 +133,13 @@ export class MasqueradeController {
 
   private async endProjection(
     reason: ClientMasqueradeEndReason,
-    finish: () => Promise<boolean>,
+    finish: (state: MasqueradeState) => Promise<boolean>,
     failureMessage: string,
   ): Promise<boolean> {
     const runtime = useStore.getState().masquerade;
     const state = runtime.phase === "inactive" ? null : runtime.state;
     if (!state) {
-      return reason === "explicit" ? true : this.fail("Wait for the current masquerade transition to finish.");
+      return true;
     }
     const generation = ++this.generation;
     this.acquireSuspension();
@@ -154,7 +153,7 @@ export class MasqueradeController {
           ? this.fail("A newer masquerade is active. End it before switching companies.")
           : true;
       }
-      if (!(await finish())) return false;
+      if (!(await finish(state))) return false;
       this.releaseSuspension(true);
       useStore.getState().clearUndoHistory();
       useStore.getState().setMasquerade({ phase: "inactive" });

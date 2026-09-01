@@ -39,16 +39,20 @@ beforeEach(() => {
 describe("MasqueradeController", () => {
   it("acquires one suspension across start and end, then releases it once after the real reload", async () => {
     const { controller, dependencies, resume } = harness();
+    const navigate = vi.fn(() => {
+      expect(useStore.getState().masquerade).toEqual({ phase: "inactive" });
+    });
 
     await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(true);
     expect(useStore.getState().masquerade.phase).toBe("active");
     expect(dependencies.suspend).toHaveBeenCalledTimes(1);
 
-    await expect(controller.end()).resolves.toBe(true);
+    await expect(controller.end("explicit", navigate)).resolves.toBe(true);
     expect(dependencies.suspend).toHaveBeenCalledTimes(1);
     expect(resume).toHaveBeenCalledOnce();
     expect(resume).toHaveBeenCalledWith({ dropParkedEdits: true });
     expect(useStore.getState().masquerade).toEqual({ phase: "inactive" });
+    expect(navigate).toHaveBeenCalledWith("/");
   });
 
   it("aborts before suspension when pending writes cannot be flushed", async () => {

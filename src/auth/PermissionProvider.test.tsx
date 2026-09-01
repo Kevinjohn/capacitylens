@@ -172,7 +172,7 @@ describe("PermissionProvider authenticated lookup posture", () => {
     expect(useStore.getState().activeRole).toBe("editor");
   });
 
-  it("starts status and directory reads together but adopts status before publishing the role", async () => {
+  it("starts the directory read only after status resolves and adopts status before publishing the role", async () => {
     let resolveStatus!: (status: { active: false }) => void;
     permissionMocks.masqueradeStatus.mockImplementationOnce(
       () =>
@@ -194,9 +194,10 @@ describe("PermissionProvider authenticated lookup posture", () => {
 
     renderProvider();
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(useStore.getState().activeRoleStatus).toBe("pending");
     resolveStatus({ active: false });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     expect(await screen.findByText("resolved:owner:edit")).toBeInTheDocument();
 
     const resolvedRoleCall = setActiveRole.mock.calls.findIndex(

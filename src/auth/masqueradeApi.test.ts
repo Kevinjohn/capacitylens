@@ -61,4 +61,12 @@ describe("masqueradeApi", () => {
 
     await expect(masqueradeApi.status()).rejects.toThrow("Masquerade status could not be read (503).");
   });
+
+  it("surfaces a decoded error when a successful response has no valid masquerade state", async () => {
+    mocks.start.mockResolvedValue(json({ error: "Start state unavailable." }));
+    mocks.status.mockResolvedValue(json({ error: "Status state unavailable." }));
+
+    await expect(masqueradeApi.start("a-studio", "u-viewer")).rejects.toThrow("Start state unavailable.");
+    await expect(masqueradeApi.status()).rejects.toThrow("Status state unavailable.");
+  });
 });

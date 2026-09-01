@@ -7,7 +7,7 @@ import type {
 } from "@capacitylens/shared/domain/masquerade";
 import { isAccountRole } from "@capacitylens/shared/account/types";
 import { accountClient } from "../account/accountClient";
-import { readApiError } from "../lib/readApiError";
+import { apiErrorFromBody, readApiError } from "../lib/readApiError";
 
 function stateFrom(value: unknown): MasqueradeState | null {
   if (typeof value !== "object" || value === null) return null;
@@ -26,12 +26,13 @@ function stateFrom(value: unknown): MasqueradeState | null {
 }
 
 async function requireState(response: Response): Promise<MasqueradeState> {
+  const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error((await readApiError(response)) ?? `Masquerade request failed (${response.status}).`);
+    throw new Error(apiErrorFromBody(body) ?? `Masquerade request failed (${response.status}).`);
   }
-  const state = stateFrom(await response.json().catch(() => null));
+  const state = stateFrom(body);
   if (!state) {
-    throw new Error((await readApiError(response)) ?? "The server returned an invalid masquerade state.");
+    throw new Error(apiErrorFromBody(body) ?? "The server returned an invalid masquerade state.");
   }
   return state;
 }
@@ -39,16 +40,16 @@ async function requireState(response: Response): Promise<MasqueradeState> {
 export const masqueradeApi = {
   async status(): Promise<MasqueradeStatus> {
     const response = await accountClient.masqueradeStatus();
-    if (!response.ok) {
-      throw new Error((await readApiError(response)) ?? `Masquerade status could not be read (${response.status}).`);
-    }
     const body: unknown = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(apiErrorFromBody(body) ?? `Masquerade status could not be read (${response.status}).`);
+    }
     if (typeof body === "object" && body !== null && (body as { active?: unknown }).active === false) {
       return { active: false };
     }
     const state = stateFrom(body);
     if (!state || (body as { active?: unknown }).active !== true) {
-      throw new Error((await readApiError(response)) ?? "The server returned an invalid masquerade status.");
+      throw new Error(apiErrorFromBody(body) ?? "The server returned an invalid masquerade status.");
     }
     return { active: true, ...state };
   },
