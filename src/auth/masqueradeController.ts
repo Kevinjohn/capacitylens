@@ -10,6 +10,8 @@ import { masqueradeApi } from "./masqueradeApi";
 import { reprojectAccess } from "./reprojectAccess";
 
 type ResumeWrites = (opts?: { dropParkedEdits?: boolean }) => void;
+type EndProjectionResult = "inactive" | "superseded" | "failed";
+type NoStatePolicy = "succeed" | "wait";
 
 function switchSucceeded(outcome: RefreshOutcome, accountId: string | null): boolean {
   return outcome === "reloaded" || (accountId === null && outcome !== "failed");
@@ -110,9 +112,10 @@ export class MasqueradeController {
         return true;
       },
       "Masquerade could not be ended.",
+      "succeed",
     );
-    if (ended) navigate?.("/");
-    return ended;
+    if (ended === "inactive") navigate?.("/");
+    return ended !== "failed";
   }
 
   async transitionAccount(accountId: string | null): Promise<boolean> {
@@ -121,25 +124,33 @@ export class MasqueradeController {
       const outcome = await this.dependencies.switchAccount(accountId);
       return switchSucceeded(outcome, accountId);
     }
-    return this.endProjection(
+    const ended = await this.endProjection(
       "account_switch",
       async () => {
         const outcome = await this.dependencies.switchAccount(accountId);
         return switchSucceeded(outcome, accountId) || this.fail("The selected company could not be loaded.");
       },
       "The company switch could not be completed.",
+      "wait",
     );
+    if (ended === "superseded") {
+      return this.fail("A newer masquerade is active. End it before switching companies.");
+    }
+    return ended === "inactive";
   }
 
   private async endProjection(
     reason: ClientMasqueradeEndReason,
     finish: (state: MasqueradeState) => Promise<boolean>,
     failureMessage: string,
-  ): Promise<boolean> {
+    onNoState: NoStatePolicy,
+  ): Promise<EndProjectionResult> {
     const runtime = useStore.getState().masquerade;
     const state = runtime.phase === "inactive" ? null : runtime.state;
     if (!state) {
-      return true;
+      if (onNoState === "succeed") return "inactive";
+      this.fail("Wait for the current masquerade transition to finish.");
+      return "failed";
     }
     const generation = ++this.generation;
     this.acquireSuspension();
@@ -149,17 +160,16 @@ export class MasqueradeController {
       const status = await this.dependencies.api.status();
       if (status.active) {
         useStore.getState().setMasquerade({ phase: "active", state: status, generation });
-        return reason === "account_switch"
-          ? this.fail("A newer masquerade is active. End it before switching companies.")
-          : true;
+        return "superseded";
       }
-      if (!(await finish(state))) return false;
+      if (!(await finish(state))) return "failed";
       this.releaseSuspension(true);
       useStore.getState().clearUndoHistory();
       useStore.getState().setMasquerade({ phase: "inactive" });
-      return true;
+      return "inactive";
     } catch (error) {
-      return this.fail(error instanceof Error ? error.message : failureMessage);
+      this.fail(error instanceof Error ? error.message : failureMessage);
+      return "failed";
     }
   }
 
