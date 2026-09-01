@@ -7,9 +7,13 @@ import { resetStoreWithAccount } from "../test/fixtures";
 import { useStore } from "../store/useStore";
 import { setOfflineReadState } from "../data/offlineCache";
 import { useAccountSummaries } from "./useAccountSummaries";
+import { masqueradeController } from "./masqueradeController";
 
+const permissionMocks = vi.hoisted(() => ({
+  masqueradeStatus: vi.fn(async () => ({ active: false as const })),
+}));
 vi.mock("./masqueradeApi", () => ({
-  masqueradeApi: { status: vi.fn(async () => ({ active: false })) },
+  masqueradeApi: { status: permissionMocks.masqueradeStatus },
 }));
 
 const auth: AuthContextValue = {
@@ -56,6 +60,7 @@ function renderSharedDirectoryProvider() {
 }
 
 beforeEach(() => {
+  permissionMocks.masqueradeStatus.mockReset().mockResolvedValue({ active: false });
   resetStoreWithAccount();
   setOfflineReadState("cleanup", false);
   vi.stubEnv("VITE_CAPACITYLENS_DEMO", "");
@@ -165,6 +170,42 @@ describe("PermissionProvider authenticated lookup posture", () => {
     expect(screen.getByText("pending:viewer:read")).toBeInTheDocument();
     expect(await screen.findByText("resolved:editor:edit")).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBe("editor");
+  });
+
+  it("starts status and directory reads together but adopts status before publishing the role", async () => {
+    let resolveStatus!: (status: { active: false }) => void;
+    permissionMocks.masqueradeStatus.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveStatus = resolve;
+        }),
+    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify([{ id: useStore.getState().activeAccountId, name: "Wayne Enterprises", role: "owner" }]),
+          { status: 200 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const adoptStatus = vi.spyOn(masqueradeController, "adoptStatus");
+    const setActiveRole = vi.spyOn(useStore.getState(), "setActiveRole");
+
+    renderProvider();
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    expect(useStore.getState().activeRoleStatus).toBe("pending");
+    resolveStatus({ active: false });
+    expect(await screen.findByText("resolved:owner:edit")).toBeInTheDocument();
+
+    const resolvedRoleCall = setActiveRole.mock.calls.findIndex(
+      ([role, status]) => role === "owner" && status === "resolved",
+    );
+    expect(resolvedRoleCall).toBeGreaterThanOrEqual(0);
+    expect(adoptStatus.mock.invocationCallOrder[0]).toBeLessThan(
+      setActiveRole.mock.invocationCallOrder[resolvedRoleCall]!,
+    );
   });
 
   it("re-resolves the active role when a membership mutation invalidates its projections", async () => {

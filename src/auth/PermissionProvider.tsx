@@ -82,16 +82,18 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       try {
         // Resolve session projection in this same generation and publish it before the effective
         // role. A reload into an active masquerade must never render one writable frame.
-        const masquerade = await masqueradeApi.status();
+        const [masquerade, summaries] = await Promise.all([
+          masqueradeApi.status(),
+          // The shell's directory hook deliberately yields active-account reads to this provider in
+          // auth-on mode. One validated request therefore drives both the picker list and the
+          // fail-closed permission projection without coupling their distinct failure postures.
+          refreshAccountSummaries({
+            acceptEffects: () => !cancelled,
+            allowCachedFallback: false,
+          }),
+        ]);
         if (cancelled) return;
         masqueradeController.adoptStatus(masquerade);
-        // The shell's directory hook deliberately yields active-account reads to this provider in
-        // auth-on mode. One validated request therefore drives both the picker list and the
-        // fail-closed permission projection without coupling their distinct failure postures.
-        const summaries = await refreshAccountSummaries({
-          acceptEffects: () => !cancelled,
-          allowCachedFallback: false,
-        });
         if (summaries === null) {
           if (!cancelled) {
             setActiveRole("viewer", "unavailable");
