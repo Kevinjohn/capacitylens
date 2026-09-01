@@ -395,6 +395,35 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     },
   );
 
+  it("resolves the membership role once for a scoped state read", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie, userId } = await signUp(app, "state-role-resolution@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
+
+    let membershipRoleReads = 0;
+    const originalPrepare = db.prepare.bind(db);
+    db.prepare = ((sql: string) => {
+      const stmt = originalPrepare(sql);
+      if (/FROM account_members/i.test(sql) && /status = 'active'/i.test(sql)) {
+        const originalGet = stmt.get.bind(stmt);
+        stmt.get = ((...args: Parameters<typeof stmt.get>) => {
+          membershipRoleReads += 1;
+          return originalGet(...args);
+        }) as typeof stmt.get;
+      }
+      return stmt;
+    }) as typeof db.prepare;
+
+    try {
+      expect((await getState(app, "a1", cookie)).statusCode).toBe(200);
+    } finally {
+      db.prepare = originalPrepare;
+    }
+
+    expect(membershipRoleReads).toBe(1);
+  });
+
   it("resolves one membership role per account/action in each batch authorization pass", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);

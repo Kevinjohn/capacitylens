@@ -84,6 +84,34 @@ describe("MasqueradeController", () => {
     expect(resume).not.toHaveBeenCalled();
   });
 
+  it("reports an account switch requested while the start request is still in flight", async () => {
+    let resolveStart!: (value: MasqueradeState) => void;
+    const startResponse = new Promise<MasqueradeState>((resolve) => {
+      resolveStart = resolve;
+    });
+    const { controller, dependencies } = harness({
+      api: {
+        status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: false })),
+        start: vi.fn(() => startResponse),
+        end: vi.fn(async () => {}),
+      },
+    });
+
+    const starting = controller.start(state.accountId, state.targetUserId);
+    await vi.waitFor(() => expect(useStore.getState().masquerade.phase).toBe("starting"));
+
+    await expect(controller.transitionAccount("a-loft")).resolves.toBe(false);
+    expect(useStore.getState().notice).toMatchObject({
+      message: "Wait for the current masquerade transition to finish.",
+      tone: "error",
+    });
+    expect(dependencies.api.end).not.toHaveBeenCalled();
+    expect(dependencies.switchAccount).not.toHaveBeenCalled();
+
+    resolveStart(state);
+    await expect(starting).resolves.toBe(true);
+  });
+
   it("keeps a failed projection retry contained and suspended", async () => {
     const { controller, resume } = harness({
       reproject: vi.fn().mockResolvedValueOnce(false).mockRejectedValueOnce(new Error("offline")),
@@ -104,9 +132,11 @@ describe("MasqueradeController", () => {
         end: vi.fn(async () => {}),
       },
     });
+    const navigate = vi.fn();
     controller.adoptStatus({ active: true, ...state });
-    await expect(controller.end()).resolves.toBe(true);
+    await expect(controller.end("explicit", navigate)).resolves.toBe(true);
     expect(useStore.getState().masquerade).toMatchObject({ phase: "active", state: newer });
+    expect(navigate).not.toHaveBeenCalled();
     expect(resume).not.toHaveBeenCalled();
   });
 

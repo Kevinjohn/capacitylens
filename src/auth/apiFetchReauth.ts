@@ -1,4 +1,5 @@
 import { apiFetch, API_REQUEST_TIMEOUT_MS } from "../data/requestTimeout";
+import { peekApiErrorCode } from "../lib/readApiError";
 import { reauthResolution, requestReauth } from "./reauthCoordinator";
 import { m } from "@/i18n";
 
@@ -21,18 +22,9 @@ import { m } from "@/i18n";
  *  response so the caller can still read the body when we hand the original back on cancel. */
 async function isSessionNotFresh(res: Response): Promise<boolean> {
   if (res.status !== 403) return false;
-  // We must peek at the body WITHOUT consuming it — the caller still reads it (readApiError) on the
-  // pass-through/cancel paths — so we read a clone. If this Response can't be cloned (only ever true
-  // for a non-standard Response-like; real fetch Responses always can), there is no safe way to peek,
-  // so treat it as an ordinary Forbidden and let the caller handle it — never risk eating its body.
-  if (typeof res.clone !== "function") return false;
   // Best-effort per DEFENSIVE-CODING.md §5: an unreadable/non-JSON 403 body simply isn't a step-up
   // (it's an ordinary Forbidden) — fall through to the caller's existing handling, never swallow it.
-  const body: unknown = await res
-    .clone()
-    .json()
-    .catch(() => null);
-  return !!body && typeof body === "object" && (body as { code?: unknown }).code === "SESSION_NOT_FRESH";
+  return (await peekApiErrorCode(res)) === "SESSION_NOT_FRESH";
 }
 
 async function distinguishFailedStepUp(res: Response): Promise<Response> {

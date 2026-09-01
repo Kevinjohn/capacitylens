@@ -7,6 +7,15 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Switching company while a masquerade start is still in flight now reports "Wait for the current
+  masquerade transition to finish." instead of silently doing nothing.
+  — 2026-09-01
+- Ending a masquerade that another tab has already replaced no longer navigates away from the
+  current page.
+  — 2026-09-01
+
 ## [0.57.0-alpha.19] — 2026-09-01
 
 ### Added
