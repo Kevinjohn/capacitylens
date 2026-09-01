@@ -78,6 +78,10 @@
       "purpose": "Domain-separated unkeyed SHA-256 ceremony digest of an operator-issued reset token for auditing without retaining the credential, plus CSPRNG audit event identifiers"
     },
     {
+      "path": "server/src/routes/masqueradeRoutes.ts",
+      "purpose": "256-bit CSPRNG opaque end tokens held only in the process-local session masquerade registry, plus CSPRNG non-secret audit identifiers"
+    },
+    {
       "path": "server/src/productionGuard.ts",
       "purpose": "Production warning when internal TLS is absent and posture handling for configured identities"
     },
