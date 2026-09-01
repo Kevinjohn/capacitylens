@@ -74,7 +74,12 @@ import { domainError } from "@capacitylens/shared/domain/errors";
 
 export type MasqueradeRuntimeState =
   | { phase: "inactive" }
-  | { phase: "starting"; pending: { accountId: string; targetUserId: string }; generation: number }
+  | {
+      phase: "starting";
+      pending: { accountId: string; targetUserId: string };
+      state?: MasqueradeState;
+      generation: number;
+    }
   | { phase: "active" | "ending"; state: MasqueradeState; generation: number };
 
 // A Draft drops the server-owned fields (id/timestamps) AND `accountId` — the

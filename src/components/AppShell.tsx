@@ -17,9 +17,38 @@ import { useAppShellController } from "./useAppShellController";
 import { AppSidebar } from "./AppSidebar";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "./ui/sidebar";
 import { transitionAccount } from "../auth/accountTransition";
-import { isServerConfigured } from "../data/apiConfig";
 import { masqueradeController } from "../auth/masqueradeController";
 import { Button } from "./ui/button";
+
+const masqueradeButtonClassName = "border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white";
+
+function masqueradeBannerContent(masquerade: ReturnType<typeof useStore.getState>["masquerade"]) {
+  switch (masquerade.phase) {
+    case "inactive":
+      return null;
+    case "starting":
+      return {
+        label: m.app_masquerade_starting(),
+        showControls: masquerade.state !== undefined,
+        showRetryProjection: true,
+        endLabel: m.app_masquerade_end_now(),
+      };
+    case "active":
+      return {
+        label: m.app_masquerading_as({ name: masquerade.state.targetName }),
+        showControls: true,
+        showRetryProjection: false,
+        endLabel: m.app_masquerade_end_now(),
+      };
+    case "ending":
+      return {
+        label: m.app_masquerade_ending(),
+        showControls: true,
+        showRetryProjection: false,
+        endLabel: m.app_masquerade_retry(),
+      };
+  }
+}
 
 function MobileSidebarTrigger() {
   const { openMobile } = useSidebar();
@@ -36,6 +65,7 @@ export function AppShell() {
   const loadError = useStore((s) => s.loadError);
   const connectionError = useStore((s) => s.connectionError);
   const masquerade = useStore((s) => s.masquerade);
+  const masqueradeBanner = masqueradeBannerContent(masquerade);
   const offline = useOfflineState();
   // Drives Sonner's theme (see the <Toaster> below). An explicit light|dark pref is passed
   // through as the concrete scheme; a 'system' pref is delegated to Sonner ('system'), which
@@ -45,7 +75,6 @@ export function AppShell() {
   const accounts = useStore((s) => s.data.accounts);
   const accountSummaries = useStore((s) => s.accountSummaries);
   const activeAccountId = useStore((s) => s.activeAccountId);
-  const setActiveAccount = useStore((s) => s.setActiveAccount);
   // EXISTENCE of the active account from `data.accounts` (after the slice loads, it holds exactly the
   // active account) OR `accountSummaries` (P1.13 — covers the pick→slice-load gap in server mode,
   // where `data` is empty for one frame until the switch orchestrator hydrates the slice). The summary
@@ -136,37 +165,28 @@ export function AppShell() {
             demoAuthActive={demoAuthActive}
             navLinks={navLinks}
             onSignOut={signOutDemo}
-            onSwitchAccount={() => {
-              if (isServerConfigured()) void transitionAccount(null);
-              else setActiveAccount(null); // Demo mode has no authenticated session or server hydration.
-            }}
+            onSwitchAccount={() => void transitionAccount(null)}
             open={sidebarOpen}
           />
           <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto">
             <div className="border-b border-line p-2 md:hidden">
               <MobileSidebarTrigger />
             </div>
-            {masquerade.phase !== "inactive" && (
+            {masqueradeBanner && (
               <Alert
                 role="status"
                 data-testid="masquerade-banner"
                 className="rounded-none border-x-0 border-t-0 border-danger bg-danger text-white *:data-[slot=alert-description]:text-white"
               >
                 <AlertDescription className="flex w-full grid-cols-none flex-row items-center justify-between gap-3">
-                  <span>
-                    {masquerade.phase === "active"
-                      ? m.app_masquerading_as({ name: masquerade.state.targetName })
-                      : masquerade.phase === "starting"
-                        ? m.app_masquerade_starting()
-                        : m.app_masquerade_ending()}
-                  </span>
-                  {(masquerade.phase !== "starting" || masqueradeController.hasPendingProjection()) && (
+                  <span>{masqueradeBanner.label}</span>
+                  {masqueradeBanner.showControls && (
                     <span className="flex gap-2">
-                      {masquerade.phase === "starting" && (
+                      {masqueradeBanner.showRetryProjection && (
                         <Button
                           size="sm"
                           variant="outline"
-                          className="border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white"
+                          className={masqueradeButtonClassName}
                           onClick={() => void masqueradeController.retryProjection()}
                         >
                           {m.app_masquerade_retry()}
@@ -175,10 +195,10 @@ export function AppShell() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white"
+                        className={masqueradeButtonClassName}
                         onClick={() => void masqueradeController.end("explicit", (to) => void navigate(to))}
                       >
-                        {masquerade.phase === "ending" ? m.app_masquerade_retry() : m.app_masquerade_end_now()}
+                        {masqueradeBanner.endLabel}
                       </Button>
                     </span>
                   )}

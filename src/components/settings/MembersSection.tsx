@@ -24,6 +24,7 @@ import {
   type TeamMember,
 } from "../../account/teamAccessClient";
 import { accountClient } from "../../account/accountClient";
+import { startMasquerade } from "../../auth/accountTransition";
 import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
 import { isAccountEmail } from "@capacitylens/shared/account/validation";
 import { roleLabel, roleSummary } from "../../lib/accessCopy";
@@ -888,9 +889,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     switch (pending.action) {
       case "masquerade":
         if (activeAccountId) {
-          void import("../../auth/masqueradeController").then(({ masqueradeController }) =>
-            masqueradeController.start(activeAccountId, pending.member.userId),
-          );
+          void startMasquerade(activeAccountId, pending.member.userId);
         }
         return;
       case "remove":

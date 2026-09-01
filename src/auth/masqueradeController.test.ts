@@ -76,8 +76,7 @@ describe("MasqueradeController", () => {
   it("stays suspended and starting when projection fails after a successful start", async () => {
     const { controller, resume } = harness({ reproject: vi.fn(async () => false) });
     await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(false);
-    expect(useStore.getState().masquerade.phase).toBe("starting");
-    expect(controller.hasPendingProjection()).toBe(true);
+    expect(useStore.getState().masquerade).toMatchObject({ phase: "starting", state });
     expect(resume).not.toHaveBeenCalled();
   });
 

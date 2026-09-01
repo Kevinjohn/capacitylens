@@ -89,8 +89,7 @@ export function AccountPicker() {
   const accessExperience = accessExperienceFor(authMode);
   const offline = useOfflineState();
   const activateAccount = (id: string) => {
-    if (isServerConfigured()) void transitionAccount(id);
-    else setActiveAccount(id); // Demo mode has no authenticated session or server hydration.
+    void transitionAccount(id);
   };
 
   const [creating, setCreating] = useState(false);
