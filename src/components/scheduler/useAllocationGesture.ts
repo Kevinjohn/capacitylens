@@ -3,38 +3,20 @@ import { m } from "@/i18n";
 import { undoShortcut } from "../../lib/keyboardShortcuts";
 import { errorMessage } from "../../lib/errorMessage";
 import { applyGesture, type DateRange, type DragMode } from "../../lib/gestureMath";
-import {
-  capacityAdvisory,
-  capacityAllocationsForMode,
-  capacityForWindow,
-  timeOffApplyingTo,
-  formatCapacityAdvisory,
-} from "../../lib/capacity";
 import { rangesOverlap } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { blockHoursPerDay } from "@capacitylens/shared/lib/schedulingDays";
-import {
-  carriesHourlyLoad,
-  FULL_DAY_HOURS,
-  isCapacityTracked,
-  MAX_HOURS_PER_DAY,
-} from "@capacitylens/shared/types/entities";
-import type { AppData, ID, Weekday } from "@capacitylens/shared/types/entities";
+import { carriesHourlyLoad, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
+import type { ID, Weekday } from "@capacitylens/shared/types/entities";
 import { useDragResize } from "../../hooks/useDragResize";
-import { resourceDisplayName } from "../../lib/metadata";
 import { accountWorkingDaysFor, schedulingModeFor, visibleRange } from "../../store/selectors";
-import { sharedActiveData, sharedScopedData } from "../../store/useScopedData";
 import { useStore } from "../../store/useStore";
 import { computeGesture, reconcileReassignedHours, volumePreservingHoursClamped } from "./allocationDrag";
 import type { ColumnGeometry } from "./columnGeometry";
 import { effectiveWorkingDays, isAllocationMoveStartBlocked } from "./creationAvailability";
 import type { BarLayout } from "./schedulerModel";
-
-interface LaneSnapshot {
-  id: string;
-  el: HTMLElement;
-  rect: DOMRect;
-}
+import { laneAt, snapshotLanes, type LaneSnapshot } from "./gestureLanes";
+import { capacityAnnouncement, capacityGestureAdvisory } from "./gestureAnnouncements";
+import { gesturePreviewDates, gesturePreviewGeometry } from "./gestureGeometry";
 
 interface GesturePreview {
   mode: DragMode;
@@ -46,70 +28,6 @@ interface GesturePreview {
   // the store and re-run the gesture math on every frame just to place the bar. `null` when the
   // gesture moves nothing (a resize with no column change), where the bar keeps bar.x / bar.width.
   dates: DateRange | null;
-}
-
-function snapshotLanes(): LaneSnapshot[] {
-  return Array.from(document.querySelectorAll<HTMLElement>("[data-resource-id]")).map((el) => ({
-    id: el.getAttribute("data-resource-id") ?? "",
-    el,
-    rect: el.getBoundingClientRect(),
-  }));
-}
-
-function laneAt(lanes: LaneSnapshot[], clientX: number, clientY: number): LaneSnapshot | null {
-  for (const lane of lanes) {
-    const { rect } = lane;
-    // Vertical lane intervals are half-open so adjacent rows cannot both own their shared edge.
-    // The following row includes that coordinate through its `top` comparison.
-    if (clientY >= rect.top && clientY < rect.bottom && clientX >= rect.left && clientX <= rect.right) {
-      return lane;
-    }
-  }
-  return null;
-}
-
-// Reuses the hooks' memoised scoping/active-only caches (useScopedData) rather than re-deriving the
-// slice: a gesture reads this on every pointer event, and the rendering hooks have already paid for
-// the identical projection of the same `data` object.
-function activeGestureData(data: AppData, activeAccountId: ID | null): AppData {
-  return sharedActiveData(sharedScopedData(data, activeAccountId));
-}
-
-/** Builds the screen-reader status from the same visible-range capacity signal as the grid. */
-function capacityAnnouncement(resourceId: ID): string {
-  const { data: storedData, ui, activeAccountId } = useStore.getState();
-  const data = activeGestureData(storedData, activeAccountId);
-  const resource = data.resources.find((candidate) => candidate.id === resourceId);
-  if (!resource || !isCapacityTracked(resource)) return "";
-
-  const name = resourceDisplayName(resource);
-  const blocksMode = !carriesHourlyLoad(schedulingModeFor(storedData, activeAccountId));
-  const allocations = capacityAllocationsForMode(
-    data.allocations.filter((allocation) => allocation.resourceId === resourceId),
-    blocksMode,
-  );
-  if (allocations.length === 0) return m.scheduler_sr_announce_clear({ name });
-
-  let start = allocations[0]!.startDate;
-  let end = allocations[0]!.endDate;
-  for (const allocation of allocations) {
-    if (allocation.startDate < start) start = allocation.startDate;
-    if (allocation.endDate > end) end = allocation.endDate;
-  }
-  const visible = visibleRange(ui);
-  if (start < visible.start) start = visible.start;
-  if (end > visible.end) end = visible.end;
-  if (start > end) return m.scheduler_sr_announce_clear({ name });
-
-  const timeOff = timeOffApplyingTo(resourceId, data.timeOff);
-  const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDaysFor(storedData, activeAccountId));
-  const overDays = capacityForWindow(resource, allocations, timeOff, start, end, effectiveWeek, data.closures).filter(
-    (day) => day.over,
-  ).length;
-  if (overDays === 0) return m.scheduler_sr_announce_clear({ name });
-  return overDays === 1
-    ? m.scheduler_sr_announce_over_one({ name, count: overDays })
-    : m.scheduler_sr_announce_over_other({ name, count: overDays });
 }
 
 interface AllocationGestureOptions {
@@ -233,20 +151,8 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
       if (!preview) setDraggingAllocation(bar.allocation.id);
       const target = mode === "move" ? laneAt(lanesRef.current, pointer.clientX, pointer.clientY) : null;
       const destination = target && target.id !== resourceId ? target : null;
-      // Snap ONCE per frame, against the lane the pointer is actually over — the drop-target gate
-      // below and the bar's own preview pixels then read the same range instead of each deriving it.
-      // A zero-column resize moves nothing, so it keeps the view-model's placement (dates: null).
-      // An empty memoized week ([]) is the collapsed "none" state: the commit below refuses the
-      // gesture, so the preview shows no movement rather than calendar-day math the save rejects.
       const previewDays = previewWorkingDaysFor(destination?.id ?? resourceId);
-      const previewImpossible = previewDays?.length === 0 && !bar.allocation.ignoreWeekends;
-      const dates =
-        !previewImpossible && (deltaDays !== 0 || mode === "move")
-          ? applyGesture(mode, { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }, deltaDays, {
-              workingDays: previewDays,
-              ignoreWeekends: bar.allocation.ignoreWeekends,
-            })
-          : null;
+      const { previewImpossible, dates } = gesturePreviewDates(bar, mode, deltaDays, previewDays);
       setPreview({
         mode,
         deltaDays,
@@ -371,37 +277,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
 
       // The mutation is committed above. Keep pure advisory/feedback work outside its catch so a
       // programmer error cannot be mislabeled as a rejected move or trigger mutation recovery.
-      const { data: storedData, activeAccountId } = useStore.getState();
-      const data = activeGestureData(storedData, activeAccountId);
-      const resource = data.resources.find((candidate) => candidate.id === effectiveResourceId);
-      let advisory = "";
-      if (resource && isCapacityTracked(resource)) {
-        const others = capacityAllocationsForMode(
-          data.allocations.filter(
-            (allocation) => allocation.resourceId === effectiveResourceId && allocation.id !== bar.allocation.id,
-          ),
-          isBlocks,
-        );
-        const timeOff = timeOffApplyingTo(effectiveResourceId, data.timeOff);
-        const result = capacityAdvisory(
-          resource,
-          {
-            resourceId: effectiveResourceId,
-            startDate: dates.startDate,
-            endDate: dates.endDate,
-            // Blocks carry placement but no hourly load — read that load from the ONE knob
-            // (`blockHoursPerDay`) rather than hardcoding its current 0, exactly as the grid's
-            // own `capacityAllocationsForMode` projection does.
-            hoursPerDay: isBlocks ? blockHoursPerDay(FULL_DAY_HOURS) : reconciledHours,
-            ignoreWeekends: bar.allocation.ignoreWeekends,
-          },
-          others,
-          timeOff,
-          effectiveWorkingWeek(resource, accountWorkingDaysFor(storedData, activeAccountId)),
-          data.closures,
-        );
-        advisory = formatCapacityAdvisory(result, "toast");
-      }
+      const advisory = capacityGestureAdvisory(bar, effectiveResourceId, isBlocks, dates, reconciledHours);
       const cap = clamped ? m.scheduler_cap_fragment({ max: MAX_HOURS_PER_DAY }) : "";
       setNotice(
         `${reassignTo ? m.scheduler_toast_reassigned() : m.scheduler_toast_moved()}${advisory}.${cap}${m.scheduler_toast_undo_hint({ shortcut: undoShortcut() })}`,
@@ -488,19 +364,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
     }
   };
 
-  let left = bar.x;
-  let width = bar.width;
-  let translateY = 0;
-  if (preview) {
-    if (preview.mode === "move") translateY = preview.deltaY;
-    // The snapped range is already on the preview (see onPreview) — all that is left per frame is
-    // running it through the SAME ColumnGeometry the view-model placed bar.x / bar.width with, so
-    // the preview stays pixel-identical to the committed bar even across a narrowed weekend.
-    if (preview.deltaDays !== 0 && preview.dates) {
-      left = geom.xForDateInGeom(preview.dates.startDate);
-      width = geom.widthForDates(preview.dates.startDate, preview.dates.endDate);
-    }
-  }
+  const { left, width, translateY } = gesturePreviewGeometry(bar, geom, preview);
 
   return {
     isBlocks,
