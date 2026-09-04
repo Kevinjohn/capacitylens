@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { act, render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AllocationModal } from "./AllocationModal";
 import { AllocationBar } from "./AllocationBar";
@@ -2595,5 +2595,49 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     expect(useStore.getState().data.allocations).toHaveLength(2);
     oneSpy.mockRestore();
     bulkSpy.mockRestore();
+  });
+});
+
+describe("AllocationModal lifecycle", () => {
+  it("closes when the allocation being edited disappears from the store", () => {
+    const resource = useStore.getState().addResource(person("Barbara"));
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const onClose = vi.fn();
+    render(<AllocationModal allocationId={allocation.id} onClose={onClose} />);
+
+    act(() => useStore.getState().deleteAllocation(allocation.id));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves a partially edited draft across equivalent parent props", () => {
+    const resource = useStore.getState().addResource(person("Barbara"));
+    const onClose = vi.fn();
+    const view = render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={onClose}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("End"), { target: { value: "2026-06-05" } });
+    fireEvent.click(screen.getByRole("combobox", { name: "Hours / day" }));
+    fireEvent.click(screen.getByRole("option", { name: "4 h - half day" }));
+
+    view.rerender(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={onClose}
+      />,
+    );
+
+    expect(screen.getByLabelText("End")).toHaveValue("2026-06-05");
+    expect(screen.getByRole("combobox", { name: "Hours / day" })).toHaveTextContent("4 h - half day");
   });
 });
