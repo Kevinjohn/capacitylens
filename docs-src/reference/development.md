@@ -271,6 +271,8 @@ requests or replace the persistence adapter in these tests.
 rollback and recovery behavior. See [Database migrations](#database-migrations) below for
 how to run it against a real installation copy.
 
+Both gates enforce a 400-line source-file ceiling with shrinking temporary exceptions in `scripts/file-size-exceptions.json`.
+
 Both gates also run the cryptographic implementation-path discovery check: a new
 primitive, certificate/key path or TLS configuration must be reviewed into
 `docs-src/security/crypto-inventory.json`. The hard gate inventories tracked working-tree
