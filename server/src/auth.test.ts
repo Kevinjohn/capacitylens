@@ -565,6 +565,50 @@ describe("first-owner database-hook races", () => {
   });
 });
 
+describe("resolved auth options", () => {
+  const strictProviderEnv = {
+    CAPACITYLENS_SSO_CLIENT_ID: "strict-client",
+    CAPACITYLENS_SSO_CLIENT_SECRET: "strict-secret",
+    CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+    CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+  };
+
+  it.each([
+    {
+      name: "password",
+      env: PASSWORD_ENV,
+      trustedOrigins: undefined,
+      pluginIds: ["two-factor"],
+    },
+    {
+      name: "password with providers",
+      env: {
+        ...PASSWORD_ENV,
+        ...strictProviderEnv,
+        CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+        CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+      },
+      trustedOrigins: ["https://admin.example", "https://capacity.example"],
+      pluginIds: ["generic-oauth", "two-factor"],
+    },
+    {
+      name: "sso",
+      env: { ...PASSWORD_ENV, ...strictProviderEnv, CAPACITYLENS_AUTH: "sso" },
+      trustedOrigins: ["https://capacity.example"],
+      pluginIds: ["generic-oauth"],
+    },
+  ])("pins security-sensitive option fields in $name mode", ({ env, trustedOrigins, pluginIds }) => {
+    const db = new DatabaseSync(":memory:", { enableForeignKeyConstraints: false });
+    const { auth } = authFromEnv(db, env, { deferDatabaseSetup: true, trustedOrigins });
+
+    expect(auth!.options.telemetry?.enabled).toBe(false);
+    expect(auth!.options.verification?.storeIdentifier).toBe("hashed");
+    expect(auth!.options.plugins?.map((plugin) => plugin.id)).toEqual(pluginIds);
+    expect(auth!.options.trustedOrigins).toEqual(trustedOrigins);
+    db.close();
+  });
+});
+
 describe("cookie/session hardening (P1.16)", () => {
   it("pins sameSite:lax + httpOnly on the session cookie", () => {
     const { auth } = authFromEnv(openDb(":memory:"), PASSWORD_ENV);
