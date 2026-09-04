@@ -122,8 +122,12 @@
       "purpose": "CSPRNG non-secret browser sync-session identifiers for server-side request ordering"
     },
     {
-      "path": "src/account/accountClient.ts",
-      "purpose": "Secure-context UUID generation plus SHA-256 semantic payload fingerprints for non-secret account-command correlation and safe unknown-outcome reconciliation"
+      "path": "src/account/accountCommands.ts",
+      "purpose": "Secure-context UUID generation for non-secret account-command correlation and safe unknown-outcome reconciliation"
+    },
+    {
+      "path": "src/account/commandOutcome.ts",
+      "purpose": "SHA-256 semantic payload fingerprints for non-secret account-command correlation and safe unknown-outcome reconciliation"
     },
     {
       "path": ".github/workflows/security.yml",
