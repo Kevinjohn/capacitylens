@@ -53,11 +53,6 @@
       "reason": "milestone 4 decomposition backlog"
     },
     {
-      "path": "server/src/db.ts",
-      "baseline": 1684,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "server/src/index.ts",
       "baseline": 539,
       "reason": "milestone 4 decomposition backlog"
