@@ -108,11 +108,6 @@
       "reason": "milestone 4 decomposition backlog"
     },
     {
-      "path": "shared/src/domain/lifecycle.ts",
-      "baseline": 613,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "shared/src/domain/mutations.ts",
       "baseline": 874,
       "reason": "milestone 4 decomposition backlog"
