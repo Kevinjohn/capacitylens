@@ -133,11 +133,6 @@
       "reason": "milestone 4 decomposition backlog"
     },
     {
-      "path": "src/auth/AuthProvider.tsx",
-      "baseline": 685,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "src/auth/LoginScreen.tsx",
       "baseline": 444,
       "reason": "milestone 4 decomposition backlog"
