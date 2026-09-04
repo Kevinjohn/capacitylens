@@ -1,37 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { flushSync } from "react-dom";
-import { format } from "date-fns";
-import { useStore } from "../../store/useStore";
-import { useActiveScopedData } from "../../store/useScopedData";
-import { daysInclusive, eachDayISO, MAX_ISO_DATE, parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
-import {
-  allocationAttributionAllowed,
-  effectiveProjectId,
-  isValidISODate,
-  validateAllocationAssignment,
-} from "@capacitylens/shared/lib/integrity";
-import {
-  effectiveWorkingWeek,
-  lacksEffectiveWorkingDays,
-  type EffectiveWorkingWeek,
-} from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { creationBlockedForEffectiveWeek } from "./creationAvailability";
+import { m } from "@/i18n";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
-import {
-  generateRepeatingStartDates,
-  defaultRepeatUntilDate,
-  maximumRepeatUntilDate,
-} from "@capacitylens/shared/lib/repeatingDates";
-import { newId } from "@capacitylens/shared/lib/id";
-import {
-  blockHoursPerDay,
-  daysOfWorkFor,
-  endDateForSpan,
-  hoursPerDayFor,
-  MAX_SPAN_DAYS,
-  maxSpanDaysForStart,
-  spanDays,
-} from "@capacitylens/shared/lib/schedulingDays";
+import { parseDate } from "@capacitylens/shared/lib/dateMath";
+import { carriesHourlyLoad } from "@capacitylens/shared/types/entities";
+import { format } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
+import { useCanEdit } from "../../auth/permissionContext";
+import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
+import { resourceDisplayName } from "../../lib/metadata";
 import {
   externalEnabledFor,
   inlineActivityCreateEnabledFor,
@@ -39,173 +14,15 @@ import {
   schedulingModeFor,
   timeZoneFor,
 } from "../../store/selectors";
-import { validateText } from "../../lib/validation";
-import { domainErrorMessage, errorMessage } from "../../lib/errorMessage";
-import { m } from "@/i18n";
-import { MAX_NOTE_LENGTH } from "@capacitylens/shared/lib/strings";
-import type { Option } from "../common/ui";
-import {
-  capacityAdvisory,
-  capacityAllocationsForMode,
-  formatCapacityAdvisory,
-  scheduledHoursOnDay,
-  timeOffApplyingTo,
-} from "../../lib/capacity";
-import { resourceDisplayName } from "../../lib/metadata";
-import {
-  carriesHourlyLoad,
-  FULL_DAY_HOURS,
-  isExternalResource,
-  MAX_HOURS_PER_DAY,
-} from "@capacitylens/shared/types/entities";
-import type {
-  Activity,
-  AllocationStatus,
-  ISODate,
-  Resource,
-  SchedulingMode,
-} from "@capacitylens/shared/types/entities";
-import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
-import { useCanEdit } from "../../auth/permissionContext";
-import { buildActivityOptions, groupKeyForKind, groupLabelForKind, sortGroupedOptions } from "./activityOptions";
-import {
-  projectAllocationDates,
-  repeatingAllocationAdvisory,
-  repeatPatternForSelection,
-  type RepeatSelection,
-} from "../../lib/repeatingAllocations";
-import { deriveEndDate, validateAllocationDraft } from "./allocationDraft";
-
-/** Snap a seeded days-of-work value to 6 decimals: enough to erase float round-trip
- *  noise (e.g. 8 × 3/7 × 7/8 = 2.9999…) WITHOUT distorting a legitimate fraction
- *  (½ → 0.5, ⅛-day → 1.875). Keeping the seed exact means re-deriving hours on a
- *  no-op save returns the original value rather than drifting it. */
-const roundDays = (n: number) => Math.round(n * 1e6) / 1e6;
-const INTERNAL_PROJECT_SELECTION = "__allocation_internal__";
-const ANY_PROJECT_SELECTION = "__allocation_any_project__";
-function projectSelectionForActivity(activity: Activity | undefined): string {
-  if (allocationAttributionAllowed(activity?.kind)) return ANY_PROJECT_SELECTION;
-  if (activity?.kind === "project" && activity.projectId) return activity.projectId;
-  return INTERNAL_PROJECT_SELECTION;
-}
-
-function attributedProjectForSelection(activity: Activity | undefined, selection: string): string | undefined {
-  if (
-    !allocationAttributionAllowed(activity?.kind) ||
-    selection === INTERNAL_PROJECT_SELECTION ||
-    selection === ANY_PROJECT_SELECTION
-  ) {
-    return undefined;
-  }
-  return selection;
-}
-
-function activityBelongsToProjectSelection(activity: Pick<Activity, "kind" | "projectId">, selection: string): boolean {
-  if (selection === INTERNAL_PROJECT_SELECTION) return activity.kind === "internal";
-  if (selection === ANY_PROJECT_SELECTION) return activity.kind === "repeatable";
-  return activity.kind === "repeatable" || (activity.kind === "project" && activity.projectId === selection);
-}
-
-function activityScopeForProjectSelection(selection: string): { kind: Activity["kind"]; projectId?: string } {
-  if (selection === INTERNAL_PROJECT_SELECTION) return { kind: "internal" };
-  if (selection === ANY_PROJECT_SELECTION) return { kind: "repeatable" };
-  return { kind: "project", projectId: selection };
-}
-
-type AllocationModalProps =
-  | { allocationId: string; onClose: () => void }
-  | {
-      create: { resourceId: string; startDate: ISODate; endDate: ISODate };
-      onClose: () => void;
-    };
-
-interface EffectiveAllocationInput {
-  resource: Resource | undefined;
-  effectiveWeek: EffectiveWorkingWeek | null;
-  mode: SchedulingMode;
-  startDate: ISODate;
-  endDate: ISODate;
-  hoursPerDay: number;
-  daysOver: number;
-  daysOfWork: number;
-  ignoreWeekends: boolean;
-}
-
-/** Days/Blocks derive their span from the working week; hourly and external spans stay literal. */
-function usesWorkingSpanFor(resource: Resource | undefined, mode: SchedulingMode): boolean {
-  return !!resource && !isExternalResource(resource) && (mode === "blocks" || mode === "days");
-}
-
-function effectiveAllocationValues({
-  resource,
-  effectiveWeek,
-  mode,
-  startDate,
-  endDate,
-  hoursPerDay,
-  daysOver,
-  daysOfWork,
-  ignoreWeekends,
-}: EffectiveAllocationInput) {
-  const external = !!resource && isExternalResource(resource);
-  const validDaysOver = Number.isSafeInteger(daysOver) && daysOver >= 1 && daysOver <= MAX_SPAN_DAYS;
-  const usesWorkingSpan = usesWorkingSpanFor(resource, mode);
-  const spanLimitedByDateDomain = !!startDate && daysInclusive(startDate, MAX_ISO_DATE) < MAX_SPAN_DAYS;
-  if (!usesWorkingSpan) {
-    return {
-      external,
-      validDaysOver,
-      spanFitsDateDomain: true,
-      maximumDaysOver: MAX_SPAN_DAYS,
-      spanLimitedByDateDomain,
-      endDate,
-      hoursPerDay: external ? 0 : hoursPerDay,
-    };
-  }
-
-  if (lacksEffectiveWorkingDays(effectiveWeek, ignoreWeekends)) {
-    // Working-span math is impossible with no effective days, so the typed range is literal and
-    // "Days over" is frozen at its seed (its field is disabled below). Every seed derives
-    // daysOfWork and daysOver from the same span, so this recomputation is the identity on the
-    // stored volume — the field freeze is what stops a manual change from silently diluting it.
-    return {
-      external,
-      validDaysOver,
-      spanFitsDateDomain: validDaysOver,
-      maximumDaysOver: MAX_SPAN_DAYS,
-      spanLimitedByDateDomain: false,
-      endDate,
-      hoursPerDay:
-        mode === "blocks" ? blockHoursPerDay(FULL_DAY_HOURS) : hoursPerDayFor(daysOfWork, daysOver, FULL_DAY_HOURS),
-    };
-  }
-
-  const spanOpts = {
-    workingDays: effectiveWeek?.kind === "days" ? effectiveWeek.days : undefined,
-    ignoreWeekends,
-  };
-  const maximumDaysOver = startDate ? maxSpanDaysForStart(startDate, spanOpts) : MAX_SPAN_DAYS;
-  const spanFitsDateDomain = !!startDate && validDaysOver && daysOver <= maximumDaysOver;
-  const spanEnd = startDate
-    ? endDateForSpan(startDate, validDaysOver && spanFitsDateDomain ? daysOver : 1, spanOpts)
-    : endDate;
-  const effective =
-    mode === "blocks"
-      ? { endDate: spanEnd, hoursPerDay: blockHoursPerDay(FULL_DAY_HOURS) }
-      : {
-          endDate: spanEnd,
-          hoursPerDay: hoursPerDayFor(daysOfWork, daysOver, FULL_DAY_HOURS),
-        };
-  return {
-    external,
-    validDaysOver,
-    spanFitsDateDomain,
-    maximumDaysOver,
-    spanLimitedByDateDomain,
-    ...effective,
-  };
-}
-
+import { useActiveScopedData } from "../../store/useScopedData";
+import { useStore } from "../../store/useStore";
+import { advisoryFor } from "./allocationAdvisory";
+import { allocationModalSeed } from "./allocationModalSeed";
+import type { AllocationModalProps } from "./allocationModalTypes";
+import { projectRepeat } from "./allocationRepeatProjection";
+import { createAllocationCommands } from "./allocationSubmit";
+import { useAllocationScheduleState } from "./useAllocationScheduleState";
+import { useAllocationTargetState } from "./useAllocationTargetState";
 export function useAllocationModalState(props: AllocationModalProps) {
   const { onClose } = props;
   const canEdit = useCanEdit();
@@ -227,14 +44,8 @@ export function useAllocationModalState(props: AllocationModalProps) {
     () => normalizeAccountWorkingDays(activeAccount?.workingDays, activeAccount?.weekStartsOn ?? 1),
     [activeAccount],
   );
-  // Per-account view pref (default OFF): when off, placeholders are dropped from the assignee
-  // picker (except an already-assigned one — see resourceOptions below for risk A).
   const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId));
-  // Per-account view pref (default OFF): when off, external / 3rd parties are dropped from the
-  // assignee picker (except an already-assigned one — same risk-A escape hatch as placeholders).
   const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId));
-  // Per-account pref (default ON): when off, the inline "Add activity" input + button is not rendered.
-  // The Activity SelectField still works normally — you pick from the existing activity list.
   const inlineActivityCreateEnabled = useStore((s) => inlineActivityCreateEnabledFor(s.data, s.activeAccountId));
   const calendarTimeZone = useStore((s) => timeZoneFor(s.data, s.activeAccountId));
   const isDays = mode === "days";
@@ -244,97 +55,11 @@ export function useAllocationModalState(props: AllocationModalProps) {
   const create = "create" in props ? props.create : undefined;
   const editing = editId ? data.allocations.find((a) => a.id === editId) : undefined;
 
-  // The assignee is looked up on every render (the initial seed, the live effective values, and the
-  // picker's change handler all ask for one by id), so index the roster once instead.
   const resourceById = useMemo(() => new Map(data.resources.map((r) => [r.id, r])), [data.resources]);
-
-  const initialActivity = editing ? data.activities.find((act) => act.id === editing.activityId) : undefined;
-  const initialResourceId = editing?.resourceId ?? create?.resourceId ?? "";
-  const initialResource = resourceById.get(initialResourceId);
-  const initialEffectiveWeek = initialResource ? effectiveWorkingWeek(initialResource, accountWorkingDays) : null;
-  const initialPlaceholderProjectId = initialResource?.kind === "placeholder" ? initialResource.projectId : undefined;
-  const initialLocked = editing
-    ? (editing.projectId ??
-      (initialActivity
-        ? projectSelectionForActivity(initialActivity)
-        : // A dangling activity cannot identify the scope; a placeholder's binding remains authoritative.
-          initialPlaceholderProjectId))
-    : initialPlaceholderProjectId;
-  const initialStart = editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone);
-  const initialScheduledHours =
-    initialResource && initialEffectiveWeek
-      ? scheduledHoursOnDay(initialResource, initialStart, initialEffectiveWeek)
-      : FULL_DAY_HOURS;
-
-  const [resourceId, setResourceId] = useState(initialResourceId);
-  // `initialLocked` preserves the exact activity scope while editing and a placeholder's bound
-  // project while creating, so legacy unattributed rows reopen in their original scope.
-  const [projectSelection, setProjectSelection] = useState(initialLocked ?? INTERNAL_PROJECT_SELECTION);
-  const [activityId, setActivityId] = useState(editing?.activityId ?? "");
-  const [startDate, setStartDate] = useState<ISODate>(initialStart);
-  const [endDate, setEndDate] = useState<ISODate>(editing?.endDate ?? create?.endDate ?? todayISO(calendarTimeZone));
-  const [hoursPerDay, setHoursPerDay] = useState(editing?.hoursPerDay ?? (initialScheduledHours || FULL_DAY_HOURS));
-  const [status, setStatus] = useState<AllocationStatus>(editing?.status ?? "confirmed");
-  const [note, setNote] = useState(editing?.note ?? "");
-  const [noteEdited, setNoteEdited] = useState(false);
-  const [ignoreWeekends, setIgnoreWeekends] = useState(editing?.ignoreWeekends ?? false);
-  const [repeat, setRepeat] = useState<RepeatSelection>("none");
-  const [repeatUntil, setRepeatUntil] = useState("");
-  const repeatUntilIsSuggested = useRef(false);
-  // Days-mode inputs (used only when isDays). For an EXISTING allocation we invert
-  // hours/dates against the assignee/company effective week; for a NEW one we honour the span
-  // the user drew on the lane (start..end) at full-time load, mirroring how hourly
-  // create defaults hours to a full working day across the same range.
-  const seedEnd = editing?.endDate ?? create?.endDate;
-  const initialIgnoreWeekends = editing?.ignoreWeekends ?? false;
-  const initialUsesWorkingSpan = usesWorkingSpanFor(initialResource, mode);
-  const initialHasNoEffectiveDays =
-    initialUsesWorkingSpan && lacksEffectiveWorkingDays(initialEffectiveWeek, initialIgnoreWeekends);
-  const initialDaysOver = !seedEnd
-    ? 1
-    : initialHasNoEffectiveDays
-      ? // Neutral seed: keeps `none` out of spanDays without pretending the typed range is a
-        // working-day span. New placement is rejected by rejectNewPlacementCalendarConflicts.
-        1
-      : initialUsesWorkingSpan
-        ? Math.max(
-            1,
-            spanDays(initialStart, seedEnd, {
-              workingDays: initialEffectiveWeek?.kind === "days" ? initialEffectiveWeek.days : undefined,
-              ignoreWeekends: initialIgnoreWeekends,
-            }),
-          )
-        : Math.max(1, daysInclusive(initialStart, seedEnd));
-  // NumberField can expose a transient 0 while the user clears the number input. Submission below
-  // validates daysOver explicitly; the defensive 1 used for the live preview is never persisted.
-  const [daysOver, setDaysOver] = useState(initialDaysOver);
-  const initialCapacityHours =
-    initialResource && initialEffectiveWeek
-      ? eachDayISO(initialStart, seedEnd ?? initialStart).reduce(
-          (sum, day) => sum + scheduledHoursOnDay(initialResource, day, initialEffectiveWeek),
-          0,
-        )
-      : initialDaysOver * FULL_DAY_HOURS;
-  const [daysOfWork, setDaysOfWork] = useState(
-    editing
-      ? roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, FULL_DAY_HOURS))
-      : roundDays(initialCapacityHours > 0 ? initialCapacityHours / FULL_DAY_HOURS : initialDaysOver),
-  );
-  const [newActivityName, setNewActivityName] = useState("");
-  const [inlineActivityOption, setInlineActivityOption] = useState<
-    (Option & { kind: Activity["kind"]; projectId?: string }) | null
-  >(null);
-  const selectedActivity = useMemo(
-    () => data.activities.find((activity) => activity.id === activityId),
-    [activityId, data.activities],
-  );
-  const attributedProjectId = attributedProjectForSelection(selectedActivity, projectSelection);
-  const selectedEffectiveProjectId = useMemo(
-    () => (selectedActivity ? effectiveProjectId({ projectId: attributedProjectId }, selectedActivity) : undefined),
-    [attributedProjectId, selectedActivity],
-  );
+  const seed = allocationModalSeed({ editing, create, data, mode, resourceById, accountWorkingDays, calendarTimeZone });
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;
+  // Register focus before the schedule hook registers its repeat-adjustment effect.
   useFieldErrorFocus(fieldError);
 
   // If the edited allocation is removed out from under us (e.g. undo), close
@@ -343,639 +68,182 @@ export function useAllocationModalState(props: AllocationModalProps) {
     if (editId && !editing) onClose();
   }, [editId, editing, onClose]);
 
-  const selectedResource = resourceById.get(resourceId);
-  const selectedEffectiveWeek = useMemo(
-    () => (selectedResource ? effectiveWorkingWeek(selectedResource, accountWorkingDays) : null),
-    [accountWorkingDays, selectedResource],
-  );
-  const effectiveValues = useMemo(
-    () =>
-      effectiveAllocationValues({
-        resource: selectedResource,
-        effectiveWeek: selectedEffectiveWeek,
-        mode,
-        startDate,
-        endDate,
-        hoursPerDay,
-        daysOver,
-        daysOfWork,
-        ignoreWeekends,
-      }),
-    [
-      daysOfWork,
-      daysOver,
-      endDate,
-      hoursPerDay,
-      ignoreWeekends,
-      mode,
-      selectedEffectiveWeek,
-      selectedResource,
-      startDate,
-    ],
-  );
+  const target = useAllocationTargetState({
+    data,
+    seed,
+    resourceById,
+    canEdit,
+    placeholdersEnabled,
+    externalEnabled,
+    inlineActivityCreateEnabled,
+    ...fieldError,
+    addActivity,
+  });
+  const { selectedResource, selectedActivity, attributedProjectId, selectedEffectiveProjectId } = target;
+  const { resourceId, activityId } = target.fields;
+  const schedule = useAllocationScheduleState({ selectedResource, mode, accountWorkingDays, calendarTimeZone, seed });
+  const { selectedEffectiveWeek, effEndDate, validDaysOver, spanFitsDateDomain } = schedule;
   const {
-    external: isExternal,
-    validDaysOver,
-    spanFitsDateDomain,
-    maximumDaysOver,
-    spanLimitedByDateDomain,
-    endDate: effEndDate,
-    hoursPerDay: effHoursPerDay,
-  } = effectiveValues;
-  // External and hourly allocations both collect a raw Start/End pair; blocks and days derive their
-  // end from a (start, days-over) span instead. ONE predicate drives both the fields that render and
-  // the range validation on save, so the form can never validate a pair it did not show.
-  const usesTypedDateRange = isExternal || (!isBlocks && !isDays);
-  const isPlaceholder = selectedResource?.kind === "placeholder";
-  // External / 3rd-party assignees carry no hours: the modal collects just a date span and
-  // persists hoursPerDay 0 (like a 'blocks' booking), with no capacity advisory.
-  const lockedProjectId = isPlaceholder ? selectedResource?.projectId : undefined;
-
-  // Effective range/hours fed to the capacity check and the store. In days mode the
-  // end date and hours/day are DERIVED from (start, days of work, days over) against
-  // the assignee/company effective week; in hourly mode the typed fields are used as-is.
-  // Effective end date + hours from the assignee kind + the account's scheduling mode:
-  //   external → a plain typed start/end span, no load (hoursPerDay 0);
-  //   blocks   → a (start, days-over) span, no load (0);
-  //   days     → a (start, days-over) span, hours rescaled to fit the work volume;
-  //   hourly   → the typed end + hours as-is.
-  // Raw End-date modes need the same finite span boundary as Days/Blocks. Use the O(1) calendar
-  // difference here: deriving the range with eachDayISO just to validate it would itself recreate
-  // the multi-million-day render freeze this guard prevents.
-  const typedDateSpanDays = startDate && endDate ? daysInclusive(startDate, endDate) : 0;
-  const typedDateSpanTooLong = typedDateSpanDays > MAX_SPAN_DAYS;
-  const repeatToday = todayISO(calendarTimeZone);
-  const repeatUntilMinimum = isValidISODate(startDate) && startDate > repeatToday ? startDate : repeatToday;
-  const repeatUntilMaximum = isValidISODate(startDate) ? maximumRepeatUntilDate(startDate) : undefined;
-
-  useEffect(() => {
-    if (repeat !== "none" && repeatUntilIsSuggested.current && isValidISODate(startDate)) {
-      setRepeatUntil(defaultRepeatUntilDate(startDate));
-    }
-  }, [repeat, startDate]);
-
-  const onRepeatChange = (value: string) => {
-    const next = value as RepeatSelection;
-    if (repeat === "none" && next !== "none" && isValidISODate(startDate)) {
-      repeatUntilIsSuggested.current = true;
-      setRepeatUntil(defaultRepeatUntilDate(startDate));
-    } else if (next === "none") {
-      repeatUntilIsSuggested.current = false;
-      setRepeatUntil("");
-    }
-    setRepeat(next);
-  };
-
-  const onRepeatUntilChange = (value: string) => {
-    repeatUntilIsSuggested.current = false;
-    setRepeatUntil(value);
-  };
-
-  // Repeating preview/advisory inputs mirror the effective persisted fields without invoking the
-  // submit validator (which owns focus/error side effects). Invalid partial form state gets no
-  // preview; a supported-domain failure is surfaced when Save is attempted.
-  const repeatProjection = useMemo(() => {
-    if (!create || repeat === "none" || !selectedResource || !selectedEffectiveWeek || !resourceId || !activityId) {
-      return null;
-    }
-    if (!isValidISODate(startDate) || !isValidISODate(effEndDate) || effEndDate < startDate) return null;
-    if (
-      !isValidISODate(repeatUntil) ||
-      repeatUntil < repeatUntilMinimum ||
-      !repeatUntilMaximum ||
-      repeatUntil > repeatUntilMaximum
-    )
-      return null;
-    if (daysInclusive(startDate, effEndDate) > MAX_SPAN_DAYS) return null;
-    if ((isDays || isBlocks) && (!validDaysOver || !spanFitsDateDomain)) return null;
-    if (isDays && !(daysOfWork > 0)) return null;
-    if (
-      !isExternal &&
-      !isBlocks &&
-      !(Number.isFinite(effHoursPerDay) && effHoursPerDay > 0 && effHoursPerDay <= MAX_HOURS_PER_DAY)
-    )
-      return null;
-    if (!selectedActivity || !validateAllocationAssignment(selectedResource, selectedEffectiveProjectId).ok)
-      return null;
-    try {
-      const { startDates } = generateRepeatingStartDates(startDate, repeatUntil, repeatPatternForSelection(repeat));
-      const drafts = projectAllocationDates(
-        {
-          resourceId,
-          activityId,
-          startDate,
-          endDate: effEndDate,
-          hoursPerDay: effHoursPerDay,
-          status,
-          note: note || undefined,
-          ignoreWeekends: isExternal ? true : ignoreWeekends,
-          ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
-        },
-        startDates,
-        { schedulingMode: mode, daysOver, resource: selectedResource, effectiveWeek: selectedEffectiveWeek },
-      );
-      return { drafts, startDates };
-    } catch (error) {
-      // A near-boundary date can be valid input while a projected occurrence cannot fit. Save owns
-      // the localized error surface; invariant/programming errors remain loud instead of disappearing.
-      if (error instanceof RangeError) return null;
-      throw error;
-    }
-  }, [
-    activityId,
-    create,
-    attributedProjectId,
     daysOfWork,
     daysOver,
-    effEndDate,
     effHoursPerDay,
     ignoreWeekends,
-    isBlocks,
-    isDays,
     isExternal,
-    mode,
     note,
     repeat,
     repeatUntil,
     repeatUntilMaximum,
     repeatUntilMinimum,
-    resourceId,
-    selectedActivity,
-    selectedEffectiveProjectId,
-    selectedResource,
-    selectedEffectiveWeek,
-    spanFitsDateDomain,
     startDate,
     status,
-    validDaysOver,
-  ]);
-
-  // Non-blocking capacity advisory (DECISIONS.md: "advisory at allocation time"). The drag-move
-  // path shows this as a post-commit toast; surface it HERE too — on the create/edit surface that
-  // every keyboard user and every "+"-create reaches. Saving stays allowed (advisory, never a block).
-  const advisory = useMemo(() => {
-    // External parties have no capacity — never show an over-capacity / time-off advisory.
-    if (isExternal) return null;
-    // A malformed/reversed span and a range beyond the form's finite work bound get no advisory.
-    // This check is O(1) and runs before capacityAdvisory can materialise one ISO string per day.
-    const span = startDate && effEndDate ? daysInclusive(startDate, effEndDate) : 0;
-    if (!selectedResource || !selectedEffectiveWeek || !startDate || !effEndDate || span < 1 || span > MAX_SPAN_DAYS) {
-      return null;
-    }
-    // Project the existing load through the account's scheduling mode BEFORE counting it: in blocks
-    // mode a bar carries placement but no hourly load, so an account that switched to blocks with
-    // legacy hourly allocations must not be advised "over capacity" here while the grid's markers
-    // (schedulerModel) and the drag-commit toast (useAllocationGesture) — both of which project the
-    // same way — show nothing. Every capacity surface reads the same projected load.
-    const others = capacityAllocationsForMode(
-      data.allocations.filter((a) => a.resourceId === resourceId && a.id !== editId),
-      isBlocks,
-    );
-    const resourceTimeOff = timeOffApplyingTo(resourceId, data.timeOff);
-    if (create && repeat !== "none") {
-      if (!repeatProjection) return null;
-      // The repeat variant counts whole OCCURRENCES rather than days; the two tallies otherwise read
-      // and render identically, so they share the one advisory sentence builder.
-      const { overCapacityAllocations, timeOffAllocations, nonEffectiveStartAllocations } = repeatingAllocationAdvisory(
+  } = schedule.fields;
+  const repeatProjection = useMemo(
+    () =>
+      projectRepeat({
+        activityId,
+        create,
+        attributedProjectId,
+        daysOfWork,
+        daysOver,
+        effEndDate,
+        effHoursPerDay,
+        ignoreWeekends,
+        isBlocks,
+        isDays,
+        isExternal,
+        mode,
+        note,
+        repeat,
+        repeatUntil,
+        repeatUntilMaximum,
+        repeatUntilMinimum,
+        resourceId,
+        selectedActivity,
+        selectedEffectiveProjectId,
         selectedResource,
-        others,
-        resourceTimeOff,
-        repeatProjection.drafts,
         selectedEffectiveWeek,
-        data.closures,
-      );
-      return (
-        formatCapacityAdvisory(
-          {
-            overDays: overCapacityAllocations,
-            timeOffDays: timeOffAllocations,
-            nonEffectiveStartAllocations,
-          },
-          "repeat",
-        ) || null
-      );
-    }
-    return (
-      formatCapacityAdvisory(
-        capacityAdvisory(
-          selectedResource,
-          {
-            resourceId,
-            startDate,
-            endDate: effEndDate,
-            hoursPerDay: effHoursPerDay,
-            ignoreWeekends,
-            ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
-          },
-          others,
-          resourceTimeOff,
-          selectedEffectiveWeek,
-          data.closures,
-        ),
-        "form",
-      ) || null
-    );
-  }, [
-    attributedProjectId,
-    create,
-    data.allocations,
-    data.closures,
-    data.timeOff,
-    editId,
-    effEndDate,
-    effHoursPerDay,
-    ignoreWeekends,
-    isBlocks,
-    isExternal,
-    repeat,
-    repeatProjection,
-    resourceId,
-    selectedResource,
-    selectedEffectiveWeek,
-    startDate,
-  ]);
-
-  // Guard the formatted end-date hint: effEndDate is derived from a user-typed span, and a
-  // value past the date range parses to an Invalid Date, which format() would throw on
-  // mid-render (crashing the modal). endDateForSpan already caps the span, so this is
-  // belt-and-suspenders — render the hint only when the date is real.
+        spanFitsDateDomain,
+        startDate,
+        status,
+        validDaysOver,
+      }),
+    [
+      activityId,
+      create,
+      attributedProjectId,
+      daysOfWork,
+      daysOver,
+      effEndDate,
+      effHoursPerDay,
+      ignoreWeekends,
+      isBlocks,
+      isDays,
+      isExternal,
+      mode,
+      note,
+      repeat,
+      repeatUntil,
+      repeatUntilMaximum,
+      repeatUntilMinimum,
+      resourceId,
+      selectedActivity,
+      selectedEffectiveProjectId,
+      selectedResource,
+      selectedEffectiveWeek,
+      spanFitsDateDomain,
+      startDate,
+      status,
+      validDaysOver,
+    ],
+  );
+  const advisory = useMemo(
+    () =>
+      advisoryFor({
+        attributedProjectId,
+        create,
+        editId,
+        effEndDate,
+        effHoursPerDay,
+        ignoreWeekends,
+        isBlocks,
+        isExternal,
+        repeat,
+        repeatProjection,
+        resourceId,
+        selectedResource,
+        selectedEffectiveWeek,
+        startDate,
+        data: { allocations: data.allocations, closures: data.closures, timeOff: data.timeOff },
+      }),
+    [
+      attributedProjectId,
+      create,
+      data.allocations,
+      data.closures,
+      data.timeOff,
+      editId,
+      effEndDate,
+      effHoursPerDay,
+      ignoreWeekends,
+      isBlocks,
+      isExternal,
+      repeat,
+      repeatProjection,
+      resourceId,
+      selectedResource,
+      selectedEffectiveWeek,
+      startDate,
+    ],
+  );
+  // A typed span can produce an invalid date; guard format() to avoid crashing the modal.
   const parsedEndDate = parseDate(effEndDate);
   const endDateHint = Number.isNaN(parsedEndDate.getTime()) ? null : format(parsedEndDate, "EEE d MMM yyyy");
 
-  // Placeholders and externals are each gated behind a per-account pref (both default OFF). When
-  // off, drop them from the assignee picker — EXCEPT the allocation's currently-selected resource
-  // (risk A): keep a hidden placeholder/external in the options when it's the one already assigned,
-  // so editing shows the correct value in the chooser instead of silently reassigning the work to
-  // someone else on save.
-  const resourceOptions: Option[] = data.resources
-    .filter((r) => placeholdersEnabled || r.kind !== "placeholder" || r.id === resourceId)
-    .filter((r) => externalEnabled || !isExternalResource(r) || r.id === resourceId)
-    .map((r) => ({
-      value: r.id,
-      label: `${resourceDisplayName(r)}${
-        r.kind === "placeholder"
-          ? m.form_allocation_resource_slot_suffix()
-          : r.kind === "external"
-            ? m.form_allocation_resource_external_suffix()
-            : ""
-      }`,
-    }));
-  const clientNameById = new Map(data.clients.map((client) => [client.id, client.name]));
-  const sortedProjects = data.projects
-    .filter((project) => (lockedProjectId ? project.id === lockedProjectId : true))
-    .toSorted((left, right) => {
-      const clientOrder = (clientNameById.get(left.clientId) ?? "").localeCompare(
-        clientNameById.get(right.clientId) ?? "",
-        undefined,
-        { sensitivity: "base" },
-      );
-      return (
-        clientOrder ||
-        left.name.localeCompare(right.name, undefined, { sensitivity: "base" }) ||
-        left.id.localeCompare(right.id)
-      );
-    });
-  const projectOptions: Option[] = [
-    {
-      value: INTERNAL_PROJECT_SELECTION,
-      label: m.form_allocation_project_internal(),
-      disabled: lockedProjectId !== undefined,
-    },
-    {
-      value: ANY_PROJECT_SELECTION,
-      label: m.form_allocation_project_any(),
-      disabled: lockedProjectId !== undefined,
-    },
-    ...sortedProjects.map((project, index) => {
-      const clientName = clientNameById.get(project.clientId);
-      return {
-        value: project.id,
-        label: clientName ? `${clientName} / ${project.name}` : project.name,
-        separatorBefore: index === 0,
-      };
-    }),
-  ];
-  const activityScope = activityScopeForProjectSelection(projectSelection);
-  const baseActivityOptions = useMemo(
-    () =>
-      buildActivityOptions(data.activities, data.phases, data.projects, activityScope.kind, activityScope.projectId),
-    [activityScope.kind, activityScope.projectId, data.activities, data.phases, data.projects],
-  );
-  const activityOptions = useMemo(() => {
-    if (
-      inlineActivityOption &&
-      activityBelongsToProjectSelection(inlineActivityOption, projectSelection) &&
-      !baseActivityOptions.some((option) => option.value === inlineActivityOption.value)
-    ) {
-      const option =
-        projectSelection !== INTERNAL_PROJECT_SELECTION && projectSelection !== ANY_PROJECT_SELECTION
-          ? {
-              ...inlineActivityOption,
-              groupKey: groupKeyForKind(inlineActivityOption.kind),
-              groupLabel: groupLabelForKind(inlineActivityOption.kind),
-            }
-          : inlineActivityOption;
-      return sortGroupedOptions([...baseActivityOptions, option]);
-    }
-    return baseActivityOptions;
-  }, [baseActivityOptions, inlineActivityOption, projectSelection]);
-  const onAssigneeChange = (v: string) => {
-    clear();
-    setResourceId(v);
-    const r = resourceById.get(v);
-    if (r?.kind === "placeholder" && r.projectId) {
-      // A placeholder forces its bound project; reset downstream selections.
-      setProjectSelection(r.projectId);
-      setActivityId("");
-    }
-  };
-  const onProjectChange = (v: string) => {
-    clear();
-    setProjectSelection(v);
-    setActivityId("");
-  };
-  const onAddActivity = () => {
-    if (!canEdit) return;
-    const cleanActivityName = validateText(newActivityName, fail, {
-      field: "newactivity",
-      requiredMessage: m.form_allocation_err_new_activity_name(),
-    });
-    if (cleanActivityName === null) return;
-    try {
-      const activity = addActivity({ name: cleanActivityName, ...activityScope });
-      // Radix must register a newly inserted item before its controlled value can select it.
-      flushSync(() => {
-        setInlineActivityOption({
-          value: activity.id,
-          label: activity.name,
-          kind: activity.kind,
-          projectId: activity.projectId,
-        });
-      });
-      setActivityId(activity.id);
-      setNewActivityName("");
-    } catch (error) {
-      fail(null, error instanceof Error ? error.message : m.form_allocation_err_save_failed());
-    }
-  };
-
-  // Save and Duplicate operate on the same visible draft. Keeping validation and effective-value
-  // derivation here prevents Duplicate from silently discarding edits or persisting a shape that
-  // Save would reject (for example, a historical zero-hour block viewed in Hours mode). The rules
-  // themselves live in allocationDraft.ts; this routes the first problem to the offending field and
-  // adds the two checks that need the modal's own machinery (the note sanitiser owns `fail`, and the
-  // assignment check needs the activity list).
-  const validatedDraft = () => {
-    const problem = validateAllocationDraft({
-      resourceId,
-      activityId,
-      startDate,
-      endDate,
-      usesTypedDateRange,
-      typedDateSpanTooLong,
-      isBlocks,
-      isDays,
-      isExternal,
-      validDaysOver,
-      spanFitsDateDomain,
-      spanLimitedByDateDomain,
-      maximumDaysOver,
-      daysOfWork,
-      hoursPerDay,
-      effHoursPerDay,
-      repeat:
-        create && repeat !== "none"
-          ? { selection: repeat, until: repeatUntil, today: repeatToday, maximum: repeatUntilMaximum }
-          : null,
-    });
-    if (problem) {
-      fail(problem.field, problem.message);
-      return null;
-    }
-    const cleanNote = validateText(note, fail, {
-      field: "note",
-      required: false,
-      multiline: !noteEdited,
-      maxLength: MAX_NOTE_LENGTH,
-    });
-    if (cleanNote === null) return null;
-    if (selectedResource && selectedActivity) {
-      const check = validateAllocationAssignment(selectedResource, selectedEffectiveProjectId);
-      if (!check.ok) {
-        fail("activity", domainErrorMessage(check.codes[0]));
-        return null;
-      }
-    }
-    return {
-      resourceId,
-      activityId,
-      startDate,
-      endDate: deriveEndDate({
-        editing,
-        isBlocks,
-        isDays,
-        resourceId,
-        startDate,
-        ignoreWeekends,
-        daysOver,
-        initialDaysOver,
-        effectiveEndDate: effEndDate,
-      }),
-      hoursPerDay: effHoursPerDay,
-      status,
-      note: cleanNote || undefined,
-      ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
-      // Externals have no working week — weekends are plain calendar days for them, so a span is
-      // literal (ignoreWeekends: true) and the toggle is hidden below.
-      ignoreWeekends: isExternal ? true : ignoreWeekends,
-    };
-  };
-
-  /** The calendar gates for NEW placement only: create, duplicate, or an assignee-changing edit.
-   *  A normal edit on the original assignee remains valid after calendar settings change (its
-   *  stale start stays editable). Routed through the grid's own start gate so a typed date obeys
-   *  exactly the rules a click or draw does: no effective week means no new work at all, a start
-   *  must land on a company and personal working day, and never on time off — with NO exemption
-   *  for Ignore working days (there is no ignored-creation escape hatch; the override affects
-   *  spans and moves of saved allocations only). Repeat OCCURRENCES are the deliberate exception
-   *  (advisory-counted instead, decision 9). */
-  const rejectNewPlacementCalendarConflicts = (draft: ReturnType<typeof validatedDraft>, newPlacement: boolean) => {
-    if (!draft || !newPlacement || !selectedResource || !selectedEffectiveWeek) return false;
-    if (selectedEffectiveWeek.kind !== "days") {
-      fail("resource", m.form_allocation_err_no_effective_working_days());
-      return true;
-    }
-    const blocked = creationBlockedForEffectiveWeek(
-      selectedResource,
-      draft.startDate,
-      data.timeOff,
-      selectedEffectiveWeek,
-      data.closures,
-    );
-    if (blocked === "non-working") {
-      fail("startDate", m.form_allocation_err_start_non_working());
-      return true;
-    }
-    if (blocked === "time-off") {
-      fail("startDate", m.form_allocation_err_start_time_off());
-      return true;
-    }
-    return false;
-  };
-
-  const submit = () => {
-    if (!canEdit) return;
-    const draft = validatedDraft();
-    if (!draft) return;
-    if (rejectNewPlacementCalendarConflicts(draft, !editing || editing.resourceId !== draft.resourceId)) return;
-    try {
-      if (editing) {
-        // Blocks-mode edits deliberately omit hoursPerDay so the store preserves the allocation's
-        // historical hourly load; zero load is persisted for a new or duplicated block. Reassigning
-        // to an external still writes 0 because that invariant takes precedence over preservation.
-        const { hoursPerDay: draftHoursPerDay, ...fields } = draft;
-        updateAllocation(editing.id, {
-          ...fields,
-          // The store treats an own `undefined` value as a request to delete the persisted key.
-          projectId: draft.projectId,
-          ...(!isBlocks || isExternal ? { hoursPerDay: draftHoursPerDay } : {}),
-        });
-      } else if (repeat === "none") {
-        addAllocation(draft);
-      } else {
-        if (!selectedResource || !selectedEffectiveWeek) {
-          throw new Error("The selected resource could not be resolved for repeat projection.");
-        }
-        const { startDates } = generateRepeatingStartDates(
-          draft.startDate,
-          repeatUntil as ISODate,
-          repeatPatternForSelection(repeat),
-        );
-        const drafts = projectAllocationDates(draft, startDates, {
-          schedulingMode: mode,
-          daysOver,
-          resource: selectedResource,
-          effectiveWeek: selectedEffectiveWeek,
-        });
-        const seriesId = newId();
-        addAllocations(drafts.map((occurrence) => ({ ...occurrence, seriesId })));
-      }
-      onClose();
-    } catch (e) {
-      if (repeat !== "none" && e instanceof RangeError) {
-        fail("repeatUntil", m.form_allocation_err_repeat_date_domain());
-      } else {
-        fail(null, e instanceof Error ? errorMessage(e) : m.form_allocation_err_save_failed());
-      }
-    }
-  };
-
-  const onDuplicate = () => {
-    if (!editing) return;
-    const draft = validatedDraft();
-    if (!draft) return;
-    if (rejectNewPlacementCalendarConflicts(draft, true)) return;
-    try {
-      addAllocation(draft);
-      onClose();
-    } catch (e) {
-      fail(null, e instanceof Error ? errorMessage(e) : m.form_allocation_err_save_failed());
-    }
-  };
-
-  const onDelete = (scope: "one" | "future" = "one") => {
-    if (!editing || !canEdit) return;
-    setConfirmDelete(false);
-    try {
-      if (scope === "future") deleteAllocationSeriesFrom(editing.id);
-      else deleteAllocation(editing.id);
-    } catch (e) {
-      fail(null, e instanceof Error ? errorMessage(e) : m.form_allocation_err_delete_failed());
-    }
-  };
-
+  const { submit, onDuplicate, onDelete } = createAllocationCommands({
+    ...target.fields,
+    ...target,
+    ...schedule.fields,
+    ...schedule,
+    data,
+    create,
+    editing,
+    mode,
+    isDays,
+    isBlocks,
+    initialDaysOver: seed.initialDaysOver,
+    fail,
+    canEdit,
+    onClose,
+    setConfirmDelete,
+    addAllocation,
+    addAllocations,
+    updateAllocation,
+    deleteAllocation,
+    deleteAllocationSeriesFrom,
+  });
   // In create mode the assignee is already chosen (the user clicked the + next to
   // their row), so we drop the Assignee select and name them in the title instead.
   const createName = create
-    ? initialResource
-      ? resourceDisplayName(initialResource)
+    ? seed.initialResource
+      ? resourceDisplayName(seed.initialResource)
       : m.form_allocation_advisory_resource_name()
     : undefined;
   const repeatLastStart = repeatProjection?.startDates.at(-1);
-  const daysOverDisabled =
-    usesWorkingSpanFor(selectedResource, mode) && lacksEffectiveWorkingDays(selectedEffectiveWeek, ignoreWeekends);
-
   return {
     shell: { editing, createName, onClose, submit, clear },
-    targetFields: {
-      create,
-      resourceId,
-      onAssigneeChange,
-      resourceOptions,
-      isPlaceholder,
-      projectSelection,
-      onProjectChange,
-      projectOptions,
-      activityId,
-      setActivityId,
-      activityOptions,
-      inlineActivityCreateEnabled,
-      canEdit,
-      newActivityName,
-      setNewActivityName,
-      activityScope,
-      onAddActivity,
-      errorField,
-      errorId,
-    },
+    targetFields: target.fields,
     scheduleFields: {
-      usesTypedDateRange,
-      isExternal,
-      isDays,
-      startDate,
-      setStartDate,
-      endDate,
-      setEndDate,
-      hoursPerDay,
-      setHoursPerDay,
+      ...schedule.fields,
       endDateHint,
-      effHoursPerDay,
-      daysOfWork,
-      setDaysOfWork,
-      daysOver,
-      setDaysOver,
-      maximumDaysOver,
-      daysOverDisabled,
-      ignoreWeekends,
-      setIgnoreWeekends,
       create,
-      repeat,
-      onRepeatChange,
-      repeatUntil,
-      onRepeatUntilChange,
-      repeatUntilMinimum,
-      repeatUntilMaximum,
       repeatProjection,
       repeatLastStart,
-      status,
-      setStatus,
-      note,
-      setNote,
-      setNoteEdited,
       advisory,
       error,
       errorField,
       errorId,
     },
-    footer: {
-      editing,
-      canEdit,
-      confirmDelete,
-      setConfirmDelete,
-      onDelete,
-      onDuplicate,
-      onClose,
-    },
+    footer: { editing, canEdit, confirmDelete, setConfirmDelete, onDelete, onDuplicate, onClose },
   };
 }
 
