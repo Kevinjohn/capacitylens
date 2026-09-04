@@ -104,6 +104,29 @@ function displayPath(path: readonly string[]): string {
 
 const read = (rel: string): string => readFileSync(resolve(serverRoot, rel), "utf8");
 const localAccountFlowsPath = "accounts/localAccountFlows.ts";
+const coordinatorPaths = new Set([
+  localAccountFlowsPath,
+  "accounts/flows/actorContext.ts",
+  "accounts/flows/context.ts",
+  "accounts/flows/failures.ts",
+  "accounts/flows/inviteSignup.ts",
+  "accounts/flows/passwordReset.ts",
+  "accounts/flows/reads.ts",
+  "accounts/flows/reconciliationRepair.ts",
+  "accounts/flows/sessionRevocation.ts",
+  "accounts/flows/workspaceLifecycle.ts",
+]);
+const accountRoutePaths = new Set([
+  "accounts/accountRoutes.ts",
+  "accounts/routes/accountRouteDependencies.ts",
+  "accounts/routes/handlers/credentialAdmin.ts",
+  "accounts/routes/handlers/invitation.ts",
+  "accounts/routes/handlers/memberAdmin.ts",
+  "accounts/routes/handlers/reconcile.ts",
+  "accounts/routes/handlers/session.ts",
+  "accounts/routes/isoInstant.ts",
+  "accounts/routes/replyHelpers.ts",
+]);
 
 describe("account-boundary architecture", () => {
   it("keeps the shared contract free of UI, transport, persistence, and auth-vendor imports", () => {
@@ -118,12 +141,14 @@ describe("account-boundary architecture", () => {
 
   it("keeps coordinator persistence behind transaction and command-ledger seams", () => {
     const coordinator = resolve(serverRoot, localAccountFlowsPath);
-    const source = read(localAccountFlowsPath);
-    expect(source).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE)\b/);
-    expect(source).not.toMatch(/from ['"].*(?:controlTables|better-auth)/);
-    expect(source).not.toMatch(/from ['"].*\/state['"]/);
-    expect(source).not.toMatch(/ROLE_RANK|MIN_(?:ADMIN_)?TIER/);
-    expect(source).not.toMatch(/(?:===|!==)\s*['"](?:owner|admin|editor|viewer)['"]/);
+    for (const file of coordinatorPaths) {
+      const source = read(file);
+      expect(source, file).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE)\b/);
+      expect(source, file).not.toMatch(/from ['"].*(?:controlTables|better-auth)/);
+      expect(source, file).not.toMatch(/from ['"].*\/state['"]/);
+      expect(source, file).not.toMatch(/ROLE_RANK|MIN_(?:ADMIN_)?TIER/);
+      expect(source, file).not.toMatch(/(?:===|!==)\s*['"](?:owner|admin|editor|viewer)['"]/);
+    }
 
     const forbidden = new Set([
       resolve(serverRoot, "auth.ts"),
@@ -166,6 +191,13 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/identityPort/sessions.ts"),
       resolve(serverRoot, "accounts/identityPort/vendorErrors.ts"),
       resolve(serverRoot, "accounts/identityPort/verificationState.ts"),
+      resolve(serverRoot, "authConfig/databaseHooks.ts"),
+      resolve(serverRoot, "authConfig/errorRedirect.ts"),
+      resolve(serverRoot, "authConfig/passwordPolicy.ts"),
+      resolve(serverRoot, "authConfig/plugins.ts"),
+      resolve(serverRoot, "authConfig/providers.ts"),
+      resolve(serverRoot, "authConfig/requestHooks.ts"),
+      resolve(serverRoot, "authConfig/sessionPolicy.ts"),
     ]);
     const path = dependencyPath(coordinator, forbidden);
     expect(path ? displayPath(path) : null).toBeNull();
@@ -301,8 +333,11 @@ describe("account-boundary architecture", () => {
       expect(accountRoutes, path).toMatch(quoted);
       for (const file of appBoundaryFiles) expect(read(file), `${file}: ${path}`).not.toMatch(quoted);
     }
-    expect(accountRoutes).not.toMatch(/from ['"].*(?:betterAuthIdentityPort|better-auth|controlTables)/);
-    expect(accountRoutes).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE FROM)\b/);
+    for (const file of accountRoutePaths) {
+      const source = read(file);
+      expect(source, file).not.toMatch(/from ['"].*(?:betterAuthIdentityPort|better-auth|controlTables)/);
+      expect(source, file).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE FROM)\b/);
+    }
   });
 
   it("keeps invitation SQL out of the auth-vendor adapter", () => {
