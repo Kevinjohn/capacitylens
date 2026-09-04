@@ -110,8 +110,12 @@
       "purpose": "Secure-context UUID generation"
     },
     {
-      "path": "src/data/offlineCache.ts",
+      "path": "src/data/offline/crypto.ts",
       "purpose": "Non-extractable AES-256-GCM offline snapshot encryption with random IV and AAD"
+    },
+    {
+      "path": "src/data/offline/records.ts",
+      "purpose": "AES-256-GCM offline snapshot decryption and authentication with record-key and timestamp AAD"
     },
     {
       "path": "public/offline-worker.js",
