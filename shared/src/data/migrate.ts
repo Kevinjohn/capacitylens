@@ -1,7 +1,30 @@
-import { APP_DATA_KEYS, emptyAppData, EXPORT_SCHEMA_VERSION } from "../types/entities";
-import { availableInternalClientId, buildInternalClient, ensureInternalClients } from "./internalClient";
-import { normalizeAccountWorkingDays } from "../lib/accountWorkingDays";
+import { emptyAppData, EXPORT_SCHEMA_VERSION } from "../types/entities";
+import { ensureInternalClients } from "./internalClient";
 import type { AppData } from "../types/entities";
+import { importCandidate, normalize, schemaVersion, UnsupportedSchemaVersionError } from "./migrate/detect";
+import { migrateV1toV2, migrateV3toV4, migrateV4toV5, migrateV5toV6 } from "./migrate/steps/v1-v6";
+import {
+  migrateV6toV7,
+  migrateV7toV8,
+  migrateV8toV9,
+  migrateV9toV10,
+  migrateV10toV11,
+  migrateV11toV12,
+  migrateV12toV13,
+  migrateV13toV14,
+  migrateV14toV15,
+  migrateV15toV16,
+} from "./migrate/steps/v6-v18";
+
+export {
+  KNOWN_KEYS,
+  RECOGNISED_KEYS,
+  UnsupportedSchemaVersionError,
+  InvalidSchemaVersionError,
+  importCandidate,
+  looksLikeCapacityLens,
+  hasNonArrayKnownTable,
+} from "./migrate/detect";
 
 // Turns whatever was persisted (any version, or garbage) into a complete,
 // current-shape AppData, plus the IMPORT-path shape guards that decide whether a
@@ -11,330 +34,6 @@ import type { AppData } from "../types/entities";
 // v2 → v3 added `accountId` and needs no separate step here.
 // (main.tsx), so older keys are orphaned rather than read, and the import path stamps
 // `accountId` on every incoming row (see useStore.importData).
-
-// The known portable data tables. APP_DATA_KEYS is the shared structural source of truth.
-export const KNOWN_KEYS: readonly string[] = APP_DATA_KEYS;
-
-// Legacy table keys that a pre-rename export/blob may carry. `activities` was once `tasks`
-// (the Task→Activity rename, schema v5). The IMPORT shape-guards recognise these so a
-// legacy file — even one that ONLY carries the renamed table — is accepted (then migrated),
-// not mistaken for non-CapacityLens JSON and rejected. The migrate path renames them (migrateV4toV5).
-const LEGACY_KEYS: string[] = ["tasks"];
-/** Every table key an incoming blob may legitimately carry — current plus legacy. Exported so the
- * transfer parser counts/validates exactly the same set the shape guards below recognise. */
-export const RECOGNISED_KEYS: string[] = [...KNOWN_KEYS, ...LEGACY_KEYS];
-
-/** Refuse data written by a newer app instead of normalizing away fields this build cannot know. */
-export class UnsupportedSchemaVersionError extends Error {
-  readonly version: number;
-  constructor(version: number) {
-    super(`Schema version ${version} is newer than this app supports (${EXPORT_SCHEMA_VERSION}).`);
-    this.name = "UnsupportedSchemaVersionError";
-    this.version = version;
-  }
-}
-
-/** A present version marker is an integrity boundary, not a hint that can fall back to legacy. */
-export class InvalidSchemaVersionError extends Error {
-  constructor() {
-    super("Schema version must be a non-negative safe integer.");
-    this.name = "InvalidSchemaVersionError";
-  }
-}
-
-function schemaVersion(obj: Record<string, unknown>): number {
-  if (!Object.hasOwn(obj, "schemaVersion")) return 0;
-  const value = obj.schemaVersion;
-  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
-    throw new InvalidSchemaVersionError();
-  }
-  return value;
-}
-
-// Unwrap the object the import shape-guards inspect: either the bare AppData map, or
-// the `data` field of a { schemaVersion, data } export. Returns null if not a plain object.
-export function importCandidate(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const obj = value as Record<string, unknown>;
-  if (!("data" in obj)) return obj;
-  return obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)
-    ? (obj.data as Record<string, unknown>)
-    : null;
-}
-
-// Recognisable-CapacityLens guard for the IMPORT path: any JSON that parses but isn't
-// shaped like CapacityLens data would otherwise be migrated to an EMPTY dataset and
-// silently wipe the user's data. (The load path stays lenient on purpose.) Lives in
-// migrate.ts so the shape guard and the migrate it gates can't drift — mirrors how
-// schedule/diary keep their `looksLike…` guard next to migrate().
-export function looksLikeCapacityLens(value: unknown): boolean {
-  const candidate = importCandidate(value);
-  // Accept legacy keys too (e.g. pre-rename `tasks`) so a valid older export — even one
-  // whose only array is a renamed table — passes the guard and reaches migrate().
-  return !!candidate && RECOGNISED_KEYS.some((k) => Array.isArray(candidate[k]));
-}
-
-// A KNOWN table PRESENT but not an array (e.g. `resources: {…}` from a truncated or
-// hand-edited export) is structural damage. migrate()'s asArray() would silently coerce
-// it to [], and the "imported N" count — computed post-migrate — would report the lost
-// table as success. So REJECT it, matching every other load path,
-// which routes the same blob to recovery. Principle: repair within a record, reject a
-// structurally broken file. (An ABSENT table is fine — migrate fills it empty.)
-export function hasNonArrayKnownTable(value: unknown): boolean {
-  const candidate = importCandidate(value);
-  // Legacy keys count too: a pre-rename `tasks: {…}` (object, not array) is the same
-  // structural damage as a current key — reject it rather than coerce it to [] and lose it.
-  return !!candidate && RECOGNISED_KEYS.some((k) => k in candidate && !Array.isArray(candidate[k]));
-}
-
-function asArray<T>(v: unknown): T[] {
-  return Array.isArray(v) ? (v as T[]) : [];
-}
-
-function normalize(data: Partial<AppData> | undefined): AppData {
-  if (!data || typeof data !== "object") return emptyAppData();
-  return {
-    accounts: asArray(data.accounts),
-    disciplines: asArray(data.disciplines),
-    resources: asArray(data.resources),
-    clients: asArray(data.clients),
-    projects: asArray(data.projects),
-    phases: asArray(data.phases),
-    activities: asArray(data.activities),
-    allocations: asArray(data.allocations),
-    timeOff: asArray(data.timeOff),
-    closures: asArray(data.closures),
-  };
-}
-
-// v1 → v2: early resources carried a boolean `isFreelancer`; convert it to the
-// richer `employmentType` enum.
-function migrateV1toV2(data: Record<string, unknown>): Record<string, unknown> {
-  if (!Array.isArray(data.resources)) return data;
-  const resources = data.resources.map((r) => {
-    if (!r || typeof r !== "object") return r;
-    const rec = r as Record<string, unknown>;
-    if ("isFreelancer" in rec && rec.employmentType === undefined) {
-      const next: Record<string, unknown> = { ...rec, employmentType: rec.isFreelancer ? "freelancer" : "permanent" };
-      delete next.isFreelancer;
-      return next;
-    }
-    return rec;
-  });
-  return { ...data, resources };
-}
-
-// v3 → v4: activities gained a required `kind` discriminant (project | internal | repeatable).
-// Backfill it from the only signal a pre-v4 row carried: a project-bound one is 'project';
-// a project-less ("general") one becomes 'repeatable' — the rename of "general". 'internal'
-// is a genuinely new bucket, set explicitly via the UI afterwards, never inferred here.
-// Versionless/partially migrated blobs may already use `activities`, or even carry both keys, so
-// backfill every present table before the v4→v5 merge.
-function migrateV3toV4(data: Record<string, unknown>): Record<string, unknown> {
-  const backfill = (rows: unknown[]): unknown[] =>
-    rows.map((t) => {
-      if (!t || typeof t !== "object") return t;
-      const rec = t as Record<string, unknown>;
-      if (rec.kind !== undefined) return rec; // already v4 (or hand-set) — leave it
-      return { ...rec, kind: rec.projectId !== undefined && rec.projectId !== null ? "project" : "repeatable" };
-    });
-  const tasks = Array.isArray(data.tasks) ? backfill(data.tasks) : undefined;
-  const activities = Array.isArray(data.activities) ? backfill(data.activities) : undefined;
-  if (!tasks && !activities) return data;
-  return {
-    ...data,
-    ...(tasks ? { tasks } : {}),
-    ...(activities ? { activities } : {}),
-  };
-}
-
-// v4 → v5: the domain concept "Task" was renamed "Activity". Rename the `tasks` table to
-// `activities`, and every allocation's `taskId` foreign key to `activityId`. Pure key
-// renames — no field values change (the `kind` strings 'project'|'internal'|'repeatable'
-// are unaffected). Idempotent: a blob already on the new shape (no `tasks` key) passes
-// through untouched. An in-progress blob carrying BOTH keys keeps every distinct row while
-// preferring the modern activity when the same valid id appears in both tables.
-function migrateV4toV5(data: Record<string, unknown>): Record<string, unknown> {
-  const next: Record<string, unknown> = { ...data };
-  // Rename/merge the table: `tasks` → `activities`. Modern rows come first and own id
-  // conflicts; malformed/missing ids are retained for the import sanitiser to repair later.
-  if (Array.isArray(next.tasks)) {
-    if (!Array.isArray(next.activities)) {
-      next.activities = next.tasks;
-    } else {
-      const modernIds = new Set(
-        next.activities.flatMap((activity) => {
-          if (!activity || typeof activity !== "object") return [];
-          const id = (activity as Record<string, unknown>).id;
-          return typeof id === "string" && id.length > 0 ? [id] : [];
-        }),
-      );
-      const legacyOnly = next.tasks.filter((task) => {
-        if (!task || typeof task !== "object") return true;
-        const id = (task as Record<string, unknown>).id;
-        return typeof id !== "string" || id.length === 0 || !modernIds.has(id);
-      });
-      next.activities = [...next.activities, ...legacyOnly];
-    }
-  }
-  delete next.tasks;
-  // Rename the FK on every allocation: `taskId` → `activityId`.
-  if (Array.isArray(next.allocations)) {
-    next.allocations = next.allocations.map((a) => {
-      if (!a || typeof a !== "object") return a;
-      const rec = a as Record<string, unknown>;
-      if (!("taskId" in rec)) return rec;
-      const renamed: Record<string, unknown> = { ...rec };
-      if (!("activityId" in renamed)) renamed.activityId = renamed.taskId;
-      delete renamed.taskId;
-      return renamed;
-    });
-  }
-  return next;
-}
-
-// v5 → v6: ensure EVERY account carries exactly one built-in "Internal" client (`builtin: true`).
-// A real, persisted Client (not a sentinel) so it can own projects and bucket project-less
-// activities. IDEMPOTENT: an account that already has a `builtin` client is left alone, so this is
-// safe to run repeatedly and on already-migrated / seeded data — a duplicate is never created, and a
-// blob that already satisfies the invariant round-trips deep-equal (no client added → no change).
-// Detection is by the FLAG, not an id (so it survives import-remap). Runs AFTER the v4→v5 rename, so
-// the tables are at their current names; `accounts`/`clients` may be absent on a partial blob — we
-// no-op then (an account-less import slice has nothing to attach an Internal client to).
-//
-// This is the typed `ensureInternalClients` algorithm (see internalClient.ts) re-expressed for the
-// RAW, untyped migration blob: a versioned migration runs on a pre-typed `Record<string, unknown>`
-// and must stay deterministic (no live clock — a fixed timestamp), so it can't call the typed helper
-// directly. The row SHAPE + the "match builtin by flag + accountId" predicate are kept in lockstep by
-// using the shared `buildInternalClient` factory for the row literal.
-function migrateV5toV6(data: Record<string, unknown>): Record<string, unknown> {
-  if (!Array.isArray(data.accounts) || data.accounts.length === 0) return data;
-  const clients = Array.isArray(data.clients) ? [...data.clients] : [];
-  const accountsWithBuiltin = new Set(
-    clients.flatMap((client) => {
-      if (!client || typeof client !== "object") return [];
-      const rec = client as Record<string, unknown>;
-      return rec.builtin === true && typeof rec.accountId === "string" ? [rec.accountId] : [];
-    }),
-  );
-  // Migrated rows are newly created here; a fixed timestamp keeps the migration deterministic.
-  const now = "2026-01-01T00:00:00.000Z";
-  const usedIds = new Set(
-    clients.flatMap((client) =>
-      client && typeof client === "object" && typeof (client as Record<string, unknown>).id === "string"
-        ? [(client as Record<string, unknown>).id as string]
-        : [],
-    ),
-  );
-  let added = false;
-  for (const account of data.accounts) {
-    if (!account || typeof account !== "object") continue;
-    const accountId = (account as Record<string, unknown>).id;
-    if (typeof accountId !== "string" || accountsWithBuiltin.has(accountId)) continue;
-    const id = availableInternalClientId(accountId, usedIds);
-    clients.push(buildInternalClient(accountId, now, id));
-    usedIds.add(id);
-    accountsWithBuiltin.add(accountId);
-    added = true;
-  }
-  return added ? { ...data, clients } : data;
-}
-
-// v6 → v7 added optional `isPrivate` / `codeName` fields to clients and projects. No transform is
-// needed: absence is deliberately the public default, and the import sanitiser repairs malformed
-// present values after migration. Keeping the version step explicit documents why v7 is structural
-// metadata only rather than an omitted migration.
-function migrateV6toV7(data: Record<string, unknown>): Record<string, unknown> {
-  return data;
-}
-
-// v7 → v8 added Account.internalColourMode. No transform is needed: absence deliberately means
-// grey, and sanitizeAccount drops malformed present values at the server boundary.
-function migrateV7toV8(data: Record<string, unknown>): Record<string, unknown> {
-  return data;
-}
-
-// v8 → v9 added the optional per-account schedule view prefs showInternalProjects /
-// showInternalActivities / inlineActivityCreateEnabled. No transform is needed: absence deliberately
-// reads as true (shown/enabled) at the `?? true` read sites, and sanitizeAccount drops malformed
-// present values at the server boundary — exactly the v7→v8 precedent.
-function migrateV8toV9(data: Record<string, unknown>): Record<string, unknown> {
-  return data;
-}
-
-// v9 → v10 added optional Resource.isFavourite. No transform is needed: legacy resources with no
-// value deliberately read as not favourite, while import sanitisation rejects malformed values.
-function migrateV9toV10(data: Record<string, unknown>): Record<string, unknown> {
-  return data;
-}
-
-// v10 → v11 adds required Resource.halfDays. Every previously selected working day was a full day,
-// so legacy resources receive an empty subset and every unselected weekday remains non-working.
-// Bare server slices do not carry an export schemaVersion and therefore pass through every portable
-// migration on hydration. Preserve an already-present value so current server data is not mistaken
-// for a legacy export and reset on every fresh session.
-function migrateV10toV11(data: Record<string, unknown>): Record<string, unknown> {
-  const resources = Array.isArray(data.resources)
-    ? data.resources.map((resource) => {
-        if (!resource || typeof resource !== "object") return resource;
-        const record = resource as Record<string, unknown>;
-        return Array.isArray(record.halfDays) ? record : { ...record, halfDays: [] };
-      })
-    : data.resources;
-  return { ...data, resources };
-}
-
-// v11 → v12 adds required Resource.engagement. Existing people, placeholders and external rows all
-// start as Studio; later edits can explicitly classify people as Supplementary. As above, a bare
-// current server slice is versionless, so valid current classifications must survive this step.
-function migrateV11toV12(data: Record<string, unknown>): Record<string, unknown> {
-  const resources = Array.isArray(data.resources)
-    ? data.resources.map((resource) => {
-        if (!resource || typeof resource !== "object") return resource;
-        const record = resource as Record<string, unknown>;
-        return record.engagement === "studio" || record.engagement === "supplementary"
-          ? record
-          : { ...record, engagement: "studio" };
-      })
-    : data.resources;
-  return { ...data, resources };
-}
-
-// v12 → v13 adds optional Account.groupResourcesByEngagement. No transform is needed: absence
-// deliberately reads as true, and sanitizeAccount drops malformed present values.
-function migrateV12toV13(data: Record<string, unknown>): Record<string, unknown> {
-  return data;
-}
-
-// v13 → v14 adds account-wide working weekdays. Backfill the first five days of each account's
-// configured week; malformed present values take the same repair path as a direct server write.
-function migrateV13toV14(data: Record<string, unknown>): Record<string, unknown> {
-  const accounts = Array.isArray(data.accounts)
-    ? data.accounts.map((account) => {
-        if (!account || typeof account !== "object") return account;
-        const record = account as Record<string, unknown>;
-        const weekStartsOn = record.weekStartsOn === 0 ? 0 : 1;
-        return {
-          ...record,
-          workingDays: normalizeAccountWorkingDays(record.workingDays, weekStartsOn),
-        };
-      })
-    : data.accounts;
-  return { ...data, accounts };
-}
-
-// v14 → v15 introduces optional repeat-series identity. Existing repeated allocations were
-// independent rows with no durable evidence of which creation batch produced them, so forward-only
-// migration deliberately leaves every legacy allocation unlinked.
-function migrateV14toV15(data: Record<string, unknown>): Record<string, unknown> {
-  return data;
-}
-
-// v15 → v16 widens TimeOff.resourceId to nullable so one row can represent company-wide time
-// off. Existing personal rows already have the current shape and remain byte-for-byte unchanged.
-function migrateV15toV16(data: Record<string, unknown>): Record<string, unknown> {
-  return data;
-}
 
 /** One versioned step: run `apply` when the blob predates `version`. */
 interface MigrationStep {
