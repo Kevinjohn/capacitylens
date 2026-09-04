@@ -112,6 +112,13 @@ describe("account-boundary architecture", () => {
     const forbidden = new Set([
       resolve(serverRoot, "auth.ts"),
       resolve(serverRoot, "controlTables.ts"),
+      resolve(serverRoot, "controlTables/assert.ts"),
+      resolve(serverRoot, "controlTables/inviteRetention.ts"),
+      resolve(serverRoot, "controlTables/invites.ts"),
+      resolve(serverRoot, "controlTables/members.ts"),
+      resolve(serverRoot, "controlTables/members.model.ts"),
+      resolve(serverRoot, "controlTables/ownershipMigrations.ts"),
+      resolve(serverRoot, "controlTables/retentionV24.ts"),
       resolve(serverRoot, "erasure.ts"),
       resolve(serverRoot, "accounts/betterAuthIdentityPort.ts"),
       resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
@@ -160,15 +167,26 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/betterAuthIdentityPort.ts"),
     ]);
     const accountSqlOwners = new Set([
-      resolve(serverRoot, "controlTables.ts"),
       resolve(serverRoot, "db/lifecycle.ts"),
       resolve(serverRoot, "db/migrations/index.ts"),
+      resolve(serverRoot, "controlTables/assert.ts"),
+      resolve(serverRoot, "controlTables/inviteRetention.ts"),
+      resolve(serverRoot, "controlTables/invites.ts"),
+      resolve(serverRoot, "controlTables/members.ts"),
+      resolve(serverRoot, "controlTables/ownershipMigrations.ts"),
+      resolve(serverRoot, "controlTables/retentionV24.ts"),
       resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
       resolve(serverRoot, "accounts/memberSignInTracking.ts"),
     ]);
     const controlTableImporters = new Set([
       resolve(serverRoot, "db/open.ts"),
       resolve(serverRoot, "db/migrations/index.ts"),
+      resolve(serverRoot, "controlTables.ts"),
+      resolve(serverRoot, "controlTables/inviteRetention.ts"),
+      resolve(serverRoot, "controlTables/invites.ts"),
+      resolve(serverRoot, "controlTables/members.ts"),
+      resolve(serverRoot, "controlTables/ownershipMigrations.ts"),
+      resolve(serverRoot, "controlTables/retentionV24.ts"),
       resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
     ]);
 
