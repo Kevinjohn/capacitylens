@@ -216,16 +216,6 @@
       "path": "src/lib/capacity.ts",
       "baseline": 482,
       "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "src/store/storeInternal.ts",
-      "baseline": 435,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "src/store/types.ts",
-      "baseline": 471,
-      "reason": "milestone 4 decomposition backlog"
     }
   ]
 }
