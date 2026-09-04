@@ -13,11 +13,6 @@
       "reason": "milestone 4 decomposition backlog"
     },
     {
-      "path": "src/components/invites/InviteAccept.tsx",
-      "baseline": 519,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "src/components/scheduler/SchedulerGrid.tsx",
       "baseline": 872,
       "reason": "milestone 4 decomposition backlog"
