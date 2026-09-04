@@ -68,16 +68,6 @@
       "reason": "milestone 4 decomposition backlog"
     },
     {
-      "path": "server/src/routes/accountEntityRoutes.ts",
-      "baseline": 552,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "server/src/routes/batchRoutes.ts",
-      "baseline": 828,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "server/src/schema.ts",
       "baseline": 609,
       "reason": "milestone 4 decomposition backlog"
