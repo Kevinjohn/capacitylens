@@ -28,11 +28,6 @@
       "reason": "milestone 4 decomposition backlog"
     },
     {
-      "path": "server/src/accounts/state.ts",
-      "baseline": 743,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "server/src/app.ts",
       "baseline": 1567,
       "reason": "milestone 4 decomposition backlog"
@@ -73,11 +68,6 @@
       "reason": "milestone 4 decomposition backlog"
     },
     {
-      "path": "server/src/strictOidc.ts",
-      "baseline": 552,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "server/src/tables.ts",
       "baseline": 422,
       "reason": "milestone 4 decomposition backlog"
@@ -85,46 +75,6 @@
     {
       "path": "server/src/validate.ts",
       "baseline": 414,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "shared/src/data/migrate.ts",
-      "baseline": 422,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "shared/src/data/seed.ts",
-      "baseline": 509,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "shared/src/domain/lifecycle.ts",
-      "baseline": 613,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "shared/src/domain/mutations.ts",
-      "baseline": 874,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "shared/src/lib/sanitizeImport.ts",
-      "baseline": 413,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "shared/src/types/entities.ts",
-      "baseline": 495,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "src/account/accountClient.ts",
-      "baseline": 468,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "src/auth/AuthProvider.tsx",
-      "baseline": 685,
       "reason": "milestone 4 decomposition backlog"
     },
     {
@@ -138,16 +88,6 @@
       "reason": "milestone 4 decomposition backlog"
     },
     {
-      "path": "src/components/CommandPalette.tsx",
-      "baseline": 430,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "src/components/common/fields.tsx",
-      "baseline": 765,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "src/components/invites/InviteAccept.tsx",
       "baseline": 519,
       "reason": "milestone 4 decomposition backlog"
@@ -155,21 +95,6 @@
     {
       "path": "src/components/scheduler/SchedulerGrid.tsx",
       "baseline": 872,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "src/components/scheduler/schedulerModel.ts",
-      "baseline": 771,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "src/components/scheduler/SchedulerToolbar.tsx",
-      "baseline": 468,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "src/components/scheduler/useAllocationGesture.ts",
-      "baseline": 514,
       "reason": "milestone 4 decomposition backlog"
     },
     {
@@ -200,21 +125,6 @@
     {
       "path": "src/data/ServerSyncAdapter.ts",
       "baseline": 1388,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "src/lib/capacity.ts",
-      "baseline": 482,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "src/store/storeInternal.ts",
-      "baseline": 435,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "src/store/types.ts",
-      "baseline": 471,
       "reason": "milestone 4 decomposition backlog"
     }
   ]
