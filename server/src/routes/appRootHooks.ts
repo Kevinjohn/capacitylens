@@ -8,7 +8,7 @@ import { redactSecretUrl } from "./appLogging";
 import { requestClientIp, fail } from "./appErrors";
 import type { resolveAppConfig } from "./appConfig";
 import type { createAppRuntime } from "./appRuntime";
-import { DEFAULT_CORS } from "../app";
+import { DEFAULT_CORS } from "./appConfig";
 import type { AppOptions } from "../app";
 import { installSecurityPlugins } from "./appSecurityPlugins";
 

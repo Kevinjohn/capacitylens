@@ -63,13 +63,21 @@ test("ignores permanent exceptions for size", () => {
   );
 });
 
-function fixture(t, entries, exceptions = config) {
+function fixture(t, entries, exceptions = config, untracked = {}) {
   const root = mkdtempSync(join(tmpdir(), "file-sizes-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, "scripts"));
   copyFileSync(new URL("./check-file-sizes.mjs", import.meta.url), join(root, "scripts/check-file-sizes.mjs"));
   writeFileSync(join(root, "scripts/file-size-exceptions.json"), JSON.stringify(exceptions));
   for (const [path, content] of Object.entries(entries)) {
+    mkdirSync(dirname(join(root, path)), { recursive: true });
+    writeFileSync(join(root, path), content);
+  }
+  const initialized = spawnSync("git", ["init", "--quiet"], { cwd: root, encoding: "utf8" });
+  assert.equal(initialized.status, 0, initialized.stderr);
+  const staged = spawnSync("git", ["add", "."], { cwd: root, encoding: "utf8" });
+  assert.equal(staged.status, 0, staged.stderr);
+  for (const [path, content] of Object.entries(untracked)) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
     writeFileSync(join(root, path), content);
   }
@@ -114,4 +122,13 @@ test("long-function diagnostics follow the verdict without enforcing a cap", (t)
   assert.match(result.stdout, /passed.*\n.*diagnostic, not enforced/s);
   assert.match(result.stdout, /longFunction.*153 lines/);
   assert.match(result.stdout, /arrow.*153 lines/);
+});
+
+test("CLI ignores untracked and ignored oversized source files", (t) => {
+  const result = fixture(t, { "src/ok.ts": "x\n", ".gitignore": "src/ignored.ts\n" }, config, {
+    "src/untracked.ts": "x\n".repeat(401),
+    "src/ignored.ts": "x\n".repeat(401),
+  })();
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /1 source files/);
 });

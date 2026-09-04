@@ -33,12 +33,7 @@ declare module "fastify" {
   }
 }
 
-// Fail-CLOSED CORS default: only the local Vite dev/e2e origins may make cross-origin
-// browser calls. The factory itself uses this (not a wildcard) so a caller that forgets
-// to pass corsOrigin is still locked down; opening the API to every site requires an
-// EXPLICIT '*'. The entrypoint (index.ts) imports this same default and lets
-// CAPACITYLENS_CORS_ORIGIN override it for a deliberate deploy.
-export const DEFAULT_CORS = "http://localhost:5173,http://localhost:5273,http://127.0.0.1:5173,http://127.0.0.1:5273";
+export { DEFAULT_CORS } from "./routes/appConfig";
 
 export interface AppOptions {
   /** Stable identity and display branding for this product installation's account boundary. */

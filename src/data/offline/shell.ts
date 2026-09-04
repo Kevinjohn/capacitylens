@@ -9,8 +9,7 @@ import {
 import { offlineReadEnabled, publishPreference, setOfflineCacheWriteFailed } from "./state";
 import { webCrypto, deviceKey, initialiseWriteBoundary } from "./crypto";
 import { openOfflineDb } from "./idb";
-// Teardown stays on the public facade; this binding is called only after module initialisation.
-import { clearAllOfflineData } from "../offlineCache";
+import { clearAllOfflineData } from "./cleanup";
 
 export function offlineShellAvailable(environment: { PROD: boolean; MODE: string }): boolean {
   return environment.PROD || environment.MODE === "test";

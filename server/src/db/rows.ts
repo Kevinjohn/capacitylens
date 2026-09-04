@@ -1,9 +1,9 @@
-import { type Db } from "../db";
+import type { Db } from "../db";
 import { type Row, toRow, fromRow } from "../rowCodec";
 import { resolveTable, assertKnownTable } from "./introspection";
 import { cachedTableStatement, statementCache, placeholders } from "./statementCache";
 import { tx } from "../txn";
-import { markInitialized } from "./lifecycle";
+import { markInitialized } from "./initialization";
 import { nextServerRevision } from "../revision";
 // Insert one row WITHOUT touching the init marker — the primitive the bulk paths
 // (insertAll / replaceAccountSlice) loop over so they can mark ONCE at the end instead of

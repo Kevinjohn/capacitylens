@@ -1,7 +1,7 @@
 import type { Role } from "@capacitylens/shared/account/types";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type { Db } from "../db";
-import { inviteTokenHash } from "../controlTables";
+import { inviteTokenHash } from "./inviteTokens";
 import { isKnownRole } from "./members.model";
 
 /**

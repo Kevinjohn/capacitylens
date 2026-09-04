@@ -1,4 +1,4 @@
-import { type Db } from "../db";
+import type { Db } from "../db";
 import { tx } from "../txn";
 import {
   availableInternalClientId,

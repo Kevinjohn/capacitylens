@@ -1,8 +1,10 @@
-import { type Db } from "../db";
+import type { Db } from "../db";
 import { DatabaseSync } from "node:sqlite";
 import { chmodSync, existsSync } from "node:fs";
 import { type DatabaseMigrationHooks, type DatabaseMigrationPlan, MIGRATION_HISTORY_SQL } from "./migrationLedger";
-import { planDatabaseMigrations, DATABASE_MIGRATIONS } from "./migrations/index";
+import { DATABASE_MIGRATIONS } from "./migrations/index";
+import { planDatabaseMigrations } from "./migrationPlan";
+import { databasePaths } from "./filePermissions";
 import { tx } from "../txn";
 import { pragmaNumber } from "./introspection";
 import { DB_SCHEMA_VERSION, DATABASE_MIGRATION_TABLE, CAPACITYLENS_APPLICATION_ID } from "./constants";
@@ -43,23 +45,6 @@ export function openDbConnection(path: string): Db {
   // pins the behavior if the driver construction path changes later.
   db.exec("PRAGMA busy_timeout = 5000;");
   return db;
-}
-
-// DatabaseSync does not expose its filename. Retain it only for handles opened through this module
-// so successful identity planning can harden the file without touching a database we then refuse.
-const databasePaths = new WeakMap<Db, string>();
-
-export function restrictIdentifiedDatabasePermissions(db: Db): void {
-  const path = databasePaths.get(db);
-  if (!path || path === ":memory:") return;
-  try {
-    chmodSync(path, 0o600);
-    // WAL/SHM may not exist until the first write; the process umask protects later files.
-  } catch (cause) {
-    throw new Error(`Could not restrict database permissions at "${path}".`, {
-      cause,
-    });
-  }
 }
 
 /** Apply every pending migration and finish configuring an already-open handle. Each version step

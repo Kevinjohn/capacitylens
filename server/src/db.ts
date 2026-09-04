@@ -7,7 +7,7 @@ export { isEmpty } from "@capacitylens/shared/types/entities";
 export { DB_SCHEMA_VERSION, CAPACITYLENS_APPLICATION_ID, DATABASE_MIGRATION_TABLE } from "./db/constants";
 export { type DatabaseMigrationPlan, type DatabaseMigrationHooks } from "./db/migrationLedger";
 export { V13_FROZEN_PRESET_COLORS, V13_DEFINITION } from "./db/migrations/definitions";
-export { planDatabaseMigrations } from "./db/migrations/index";
+export { planDatabaseMigrations } from "./db/migrationPlan";
 export { openDbConnection, initializeOpenDb, openDb } from "./db/open";
 export {
   insertRow,
