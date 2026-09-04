@@ -111,6 +111,15 @@ describe("account-boundary architecture", () => {
 
     const forbidden = new Set([
       resolve(serverRoot, "auth.ts"),
+      resolve(serverRoot, "authConfig/authTypes.ts"),
+      resolve(serverRoot, "authConfig/authConstants.ts"),
+      resolve(serverRoot, "authConfig/passwordBackpressure.ts"),
+      resolve(serverRoot, "authConfig/captureContexts.ts"),
+      resolve(serverRoot, "authConfig/authAdapter.ts"),
+      resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
+      resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
+      resolve(serverRoot, "authConfig/sessionActivity.ts"),
+      resolve(serverRoot, "authConfig/authFromEnv.ts"),
       resolve(serverRoot, "controlTables.ts"),
       resolve(serverRoot, "erasure.ts"),
       resolve(serverRoot, "accounts/betterAuthIdentityPort.ts"),
@@ -157,6 +166,10 @@ describe("account-boundary architecture", () => {
     const production = sourceFiles(serverRoot);
     const identitySqlOwners = new Set([
       resolve(serverRoot, "auth.ts"),
+      resolve(serverRoot, "authConfig/authAdapter.ts"),
+      resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
+      resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
+      resolve(serverRoot, "authConfig/sessionActivity.ts"),
       resolve(serverRoot, "accounts/betterAuthIdentityPort.ts"),
     ]);
     const accountSqlOwners = new Set([
@@ -227,9 +240,25 @@ describe("account-boundary architecture", () => {
   });
 
   it("keeps invitation SQL out of the auth-vendor adapter", () => {
-    const source = read("auth.ts");
-    expect(source).not.toMatch(/\b(?:FROM|INTO|UPDATE|DELETE FROM)\s+invites\b/i);
-    expect(source).not.toMatch(/from ['"].*controlTables/);
+    for (const path of [
+      "auth.ts",
+      "authConfig/authTypes.ts",
+      "authConfig/authConstants.ts",
+      "authConfig/passwordBackpressure.ts",
+      "authConfig/captureContexts.ts",
+      "authConfig/authAdapter.ts",
+      "authConfig/bootstrapAdmin.ts",
+      "authConfig/federatedIdentitySchema.ts",
+      "authConfig/sessionActivity.ts",
+      "authConfig/authFromEnv.ts",
+    ]) {
+      const source = read(path);
+      expect(source).not.toMatch(/\b(?:FROM|INTO|UPDATE|DELETE FROM)\s+invites\b/i);
+      expect(source).not.toMatch(/from ['"].*controlTables/);
+      if (path !== "auth.ts") {
+        expect(runtimeImports(resolve(serverRoot, path)), path).not.toContain(resolve(serverRoot, "auth.ts"));
+      }
+    }
   });
 
   it("centralizes executable browser account URLs in the account client", () => {

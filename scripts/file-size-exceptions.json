@@ -38,11 +38,6 @@
       "reason": "milestone 4 decomposition backlog"
     },
     {
-      "path": "server/src/auth.ts",
-      "baseline": 1763,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "server/src/backup.ts",
       "baseline": 660,
       "reason": "milestone 4 decomposition backlog"

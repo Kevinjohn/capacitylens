@@ -51,7 +51,19 @@
     },
     {
       "path": "server/src/auth.ts",
-      "purpose": "CSPRNG identity tokens, constant-time setup token comparison and Better Auth MFA/session configuration"
+      "purpose": "Constant-time setup token comparison"
+    },
+    {
+      "path": "server/src/authConfig/authAdapter.ts",
+      "purpose": "192-bit CSPRNG identifiers for explicit federated-link ceremonies"
+    },
+    {
+      "path": "server/src/authConfig/authFromEnv.ts",
+      "purpose": "192-bit CSPRNG claim tokens for first-owner signup and Better Auth MFA/session configuration"
+    },
+    {
+      "path": "server/src/authConfig/bootstrapAdmin.ts",
+      "purpose": "Independent 192-bit CSPRNG credential user and account identifiers and first-owner bootstrap claim tokens"
     },
     {
       "path": "server/src/authConfig/errorRedirect.ts",
