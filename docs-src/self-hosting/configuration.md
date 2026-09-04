@@ -15,6 +15,20 @@ rebuild. Two prefixes are deliberate: sign-in and accounts are built as a separa
 platform component, so their settings carry the `SMALLSASS_ACCOUNT_` prefix, while
 everything specific to the app itself uses `CAPACITYLENS_`.
 
+## Listener and development settings
+
+For a bare-metal run, use Node 24 or newer and run `pnpm --filter capacitylens-server start`.
+The server binds to localhost by default. Set the host explicitly to expose it on a network.
+
+| Variable | What it does |
+| --- | --- |
+| `PORT` | Listen port. Default `8787`; invalid values outside the integer range 1–65,535 refuse startup. |
+| `CAPACITYLENS_HOST` | Listen host. Default `127.0.0.1`; set `0.0.0.0` to expose the listener on the LAN or in a container. |
+| `CAPACITYLENS_ALLOW_RESET` | Set `1` to expose `POST /api/test/reset` for development and tests with sign-in off. Production refuses this setting. |
+| `CAPACITYLENS_OPTIMISTIC_CONCURRENCY` | Enabled by default. Set `0` only to allow stale writes to overwrite newer changes. |
+| `CAPACITYLENS_CREATE_ADMIN_ADMIN` | Development-only first-owner helper, also available as `--create-owner-admin-admin`. Creates `admin@admin.admin` only when the password user table is empty. Production refuses this setting. |
+| `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD` | Required password for that development-only owner helper. For production, use the account setup token instead. |
+
 ## Sign-in mode
 
 | Variable                                | What it does                                                                                                                                                                                    |
@@ -78,13 +92,36 @@ protect against and how to use them. Back up the rotated `<file>.1` audit file a
 the current one — a restore that only picks up the live file can miss recent audit
 history still sitting in the rotated generation.
 
+For a bare-metal run, the database defaults to `./capacitylens.db`; `:memory:` is also
+accepted. Scheduled backups stay off unless `CAPACITYLENS_BACKUP_DIR` is set. Positive
+fractional retention counts are rounded down.
+
+Audit logging is on by default. Set `CAPACITYLENS_AUDIT=off` only for development;
+production refuses disabled audit. Each mutation record contains `ts`, `userId`,
+`accountId`, `action`, `entity`, `id` and `changedFields`. Changed fields are names,
+never their values. A memory-only database uses a working-directory-relative audit file.
+
+`CAPACITYLENS_AUDIT_MAX_MB` accepts integers from 1 to 1,048,576; missing or invalid
+values use 64 MiB. Rotation happens before a record would cross the cap. A single
+record larger than the cap is rejected and remains queued in the audit outbox.
+The size setting is only read when audit logging is enabled.
+
 ## Origin, CORS and proxy trust
 
 | Variable                           | What it does                                                                                                                                                                                                                                                                                   |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CAPACITYLENS_CORS_ORIGIN`         | Comma-separated browser origins to allow, only needed if the web app and API are on different origins. Unset means fail-closed: no cross-origin API calls, which is correct for the packaged same-origin nginx setup.                                                                          |
+| `CAPACITYLENS_CORS_ORIGIN`         | Comma-separated browser origins to allow, only needed if the web app and API are on different origins. Defaults to local development origins. Wildcards are rejected because browser requests use cookie credentials.                                                                          |
 | `CAPACITYLENS_HTTPS`               | Set `1` when the public origin is genuinely HTTPS, to enable a two-year HSTS header. Leave unset if your proxy already emits HSTS.                                                                                                                                                             |
 | `CAPACITYLENS_TRUST_PROXY_HEADERS` | Trusts `X-Forwarded-For`/`X-Forwarded-Proto` from a non-loopback listener. Docker Compose sets this to `1` because its API only accepts connections from the packaged nginx. Loopback listeners (`127.0.0.1`, `localhost`, `::1`) trust their same-host proxy automatically without this flag. |
+
+The HTTPS setting enables HSTS including subdomains. Leave it off for plain HTTP.
+The other baseline security headers are always enabled.
+
+| Variable | What it does |
+| --- | --- |
+| `CAPACITYLENS_INTERNAL_TLS_CERT` | PEM certificate path for the internal reverse-proxy/API connection. |
+| `CAPACITYLENS_INTERNAL_TLS_KEY` | Matching PEM private-key path. Omit both paths for HTTP on a trusted same-host loopback connection. A partial or unreadable identity refuses startup. Compose creates an identity per installation. |
+| `CAPACITYLENS_INTERNAL_TLS_GENERATION` | Optional SHA-256 marker for the exact loaded certificate. |
 
 See [TLS and networking](/self-hosting/tls-and-networking) for the full picture.
 
@@ -96,15 +133,27 @@ See [TLS and networking](/self-hosting/tls-and-networking) for the full picture.
 | `CAPACITYLENS_BOOTSTRAP_TOKEN` | A shared secret for creating an additional company through the API when the caller isn't already an owner or admin of one. Only matters when `CAPACITYLENS_MULTI_ACCOUNT=1`.              |
 | `CAPACITYLENS_SEED_DEMO`       | Seeds a two-company sample dataset on a never-initialised database. Only makes sense paired with `CAPACITYLENS_MULTI_ACCOUNT=1`; use it for a throwaway or demo instance, not a real one. |
 
+A fresh database starts empty unless demo seeding is explicitly enabled. The company
+limit applies in every sign-in mode, including `off`. The bootstrap token is sent in
+`x-capacitylens-bootstrap-token` to `POST /api/orgs`; an empty or unset token disables
+that path. Without it, company creation requires first-run setup or an existing owner
+or admin.
+
 ## Health, logging and rate limiting
 
 | Variable                               | What it does                                                                                                                       |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `CAPACITYLENS_LOG`                     | Set `1` for structured per-request JSON logs. Recommended for a real deployment.                                                   |
 | `CAPACITYLENS_HEALTH_DEEP`             | Set `1` to make `/api/health` run a readiness query and report audit, backup and certificate status. Compose sets this by default. |
-| `CAPACITYLENS_RATE_LIMIT`              | Requests per minute per IP across rate-limited routes. Production refuses to start with it unset or zero.                          |
+| `CAPACITYLENS_RATE_LIMIT`              | Requests per minute per IP across rate-limited routes. Accepts integers 1–1,000,000. Production refuses missing, zero or invalid values. `/api/health` is exempt.                          |
 | `CAPACITYLENS_AUDIT_STDOUT`            | Set `1` to also write each audit record to stdout as JSON, for a container log collector. Compose defaults this on.                |
 | `CAPACITYLENS_SECURITY_LOG_FORWARDING` | An attestation that you're forwarding audit and security events to a separate collector. Doesn't create the collector itself.      |
+
+Without structured logging, the server prints its startup line and reports server errors
+to stderr. Deep health checks are off by default: `/api/health` returns `{ ok: true }`.
+With deep checks enabled, the endpoint runs `SELECT 1`, reports audit state and pending
+records, and includes internal certificate expiry when configured. Failed readiness
+returns HTTP 503 with `{ ok: false }`.
 
 See [Monitoring and health checks](/self-hosting/monitoring) for what to do with these.
 
