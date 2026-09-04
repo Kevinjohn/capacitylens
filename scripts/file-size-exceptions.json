@@ -13,18 +13,8 @@
       "reason": "milestone 4 decomposition backlog"
     },
     {
-      "path": "server/src/accounts/betterAuthIdentityPort.ts",
-      "baseline": 1193,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "server/src/accounts/localAccountFlows.ts",
       "baseline": 1319,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "server/src/accounts/sqliteAccountAdminPort.ts",
-      "baseline": 1224,
       "reason": "milestone 4 decomposition backlog"
     },
     {

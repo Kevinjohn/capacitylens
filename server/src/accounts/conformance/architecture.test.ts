@@ -115,6 +115,25 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "erasure.ts"),
       resolve(serverRoot, "accounts/betterAuthIdentityPort.ts"),
       resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
+      resolve(serverRoot, "accounts/adminPort/authority.ts"),
+      resolve(serverRoot, "accounts/adminPort/contracts.ts"),
+      resolve(serverRoot, "accounts/adminPort/cutover.ts"),
+      resolve(serverRoot, "accounts/adminPort/failures.ts"),
+      resolve(serverRoot, "accounts/adminPort/invitationClaims.ts"),
+      resolve(serverRoot, "accounts/adminPort/invitations.ts"),
+      resolve(serverRoot, "accounts/adminPort/mappers.ts"),
+      resolve(serverRoot, "accounts/adminPort/membership.ts"),
+      resolve(serverRoot, "accounts/identityPort/contracts.ts"),
+      resolve(serverRoot, "accounts/identityPort/credentials.ts"),
+      resolve(serverRoot, "accounts/identityPort/cutover.ts"),
+      resolve(serverRoot, "accounts/identityPort/erasure.ts"),
+      resolve(serverRoot, "accounts/identityPort/federatedLinks.ts"),
+      resolve(serverRoot, "accounts/identityPort/inspection.ts"),
+      resolve(serverRoot, "accounts/identityPort/instants.ts"),
+      resolve(serverRoot, "accounts/identityPort/sessionRevocation.ts"),
+      resolve(serverRoot, "accounts/identityPort/sessions.ts"),
+      resolve(serverRoot, "accounts/identityPort/vendorErrors.ts"),
+      resolve(serverRoot, "accounts/identityPort/verificationState.ts"),
     ]);
     const path = dependencyPath(coordinator, forbidden);
     expect(path ? displayPath(path) : null).toBeNull();
@@ -123,9 +142,9 @@ describe("account-boundary architecture", () => {
   it.each([
     [
       "calibrates the transitive dependency scanner against a known adapter edge",
-      resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
+      resolve(serverRoot, "accounts/adminPort/invitations.ts"),
       resolve(serverRoot, "controlTables.ts"),
-      ["accounts/sqliteAccountAdminPort.ts", "controlTables.ts"],
+      ["accounts/adminPort/invitations.ts", "controlTables.ts"],
     ],
     [
       "follows workspace aliases as well as relative imports",
@@ -157,17 +176,27 @@ describe("account-boundary architecture", () => {
     const production = sourceFiles(serverRoot);
     const identitySqlOwners = new Set([
       resolve(serverRoot, "auth.ts"),
-      resolve(serverRoot, "accounts/betterAuthIdentityPort.ts"),
+      resolve(serverRoot, "accounts/identityPort/credentials.ts"),
+      resolve(serverRoot, "accounts/identityPort/cutover.ts"),
+      resolve(serverRoot, "accounts/identityPort/erasure.ts"),
+      resolve(serverRoot, "accounts/identityPort/federatedLinks.ts"),
+      resolve(serverRoot, "accounts/identityPort/inspection.ts"),
+      resolve(serverRoot, "accounts/identityPort/sessionRevocation.ts"),
+      resolve(serverRoot, "accounts/identityPort/sessions.ts"),
     ]);
     const accountSqlOwners = new Set([
       resolve(serverRoot, "controlTables.ts"),
       resolve(serverRoot, "db.ts"),
-      resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
       resolve(serverRoot, "accounts/memberSignInTracking.ts"),
+      resolve(serverRoot, "accounts/adminPort/invitations.ts"),
     ]);
     const controlTableImporters = new Set([
       resolve(serverRoot, "db.ts"),
-      resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
+      resolve(serverRoot, "accounts/adminPort/authority.ts"),
+      resolve(serverRoot, "accounts/adminPort/cutover.ts"),
+      resolve(serverRoot, "accounts/adminPort/invitationClaims.ts"),
+      resolve(serverRoot, "accounts/adminPort/invitations.ts"),
+      resolve(serverRoot, "accounts/adminPort/membership.ts"),
     ]);
 
     for (const file of production) {
