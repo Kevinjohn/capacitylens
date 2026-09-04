@@ -3,7 +3,7 @@ import { addDaysISO, startOfWeekISO, todayISO } from "@capacitylens/shared/lib/d
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import { DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, PAST_BUFFER_DAYS } from "../../lib/schedulerConfig";
 import type { AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
-import type { Filters, SchedulerUI, StoreState } from "../useStore";
+import type { Filters, SchedulerUI, StoreState } from "../types";
 import { timeZoneFor, weekStartsOnFor } from "../selectors";
 
 type SchedulerSliceKeys =

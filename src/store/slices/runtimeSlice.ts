@@ -21,7 +21,7 @@ import {
   writeStoredUtilizationPrefs,
 } from "../../lib/displayPrefs";
 import { applyThemeToDom, readStoredTheme, writeStoredTheme } from "../../lib/theme";
-import type { StoreState } from "../useStore";
+import type { StoreState } from "../types";
 
 type RuntimeSliceKeys =
   | "hydrated"
