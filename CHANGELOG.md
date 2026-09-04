@@ -21,8 +21,13 @@ module paths, HTTP contracts, database schema and released migrations are unchan
   the shadcn-generated sidebar remains as a permanent exception.
   — 2026-09-04
 - The account-boundary conformance test resolves imports to files before directories, follows
-  runtime re-exports, and checks `controlTables` importers by resolved dependency rather than by
-  file name, with calibration cases for each rule.
+  runtime re-exports, checks `controlTables` importers by resolved dependency rather than by file
+  name, denies the identity, admin-port, control-table and auth-config directories to the account
+  coordinator as whole directories, and bans direct imports of any account-state sub-module, with
+  calibration cases for each rule.
+  — 2026-09-04
+- An import-cycle gate in both `pnpm run gate` and `pnpm run gate:server` fails on any runtime
+  import cycle between source modules; type-only imports are ignored. The tree has zero such cycles.
   — 2026-09-04
 - Focused tests for every newly extracted module that had none, including seed-factory isolation,
   per-port compensation-key isolation, persistence overlap, scheduler grid row identity, and the
@@ -45,6 +50,12 @@ module paths, HTTP contracts, database schema and released migrations are unchan
   — 2026-09-04
 - Ownership allowlists in the conformance test name the exact implementation files that now carry
   identity and membership SQL, and the crypto inventory follows every moved primitive.
+  — 2026-09-04
+- Facades no longer value-import from their own sub-modules: shared constants and helpers moved
+  into leaf modules so every split is free of the ESM initialisation-order hazard.
+  — 2026-09-04
+- The file-size gate enumerates tracked files through Git, so an untracked scratch file can no
+  longer fail it.
   — 2026-09-04
 
 ## [0.58.0-alpha.1] — 2026-09-02
