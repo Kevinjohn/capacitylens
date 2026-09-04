@@ -1,11 +1,27 @@
-import { describe, expect, it } from "vitest";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { afterAll, describe, expect, it } from "vitest";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, relative, resolve, sep } from "node:path";
 
 const serverRoot = resolve(import.meta.dirname, "../..");
 const sharedRoot = resolve(serverRoot, "../../shared/src");
 const sharedAccountRoot = resolve(sharedRoot, "account");
 const browserRoot = resolve(serverRoot, "../../src");
+
+// `account` is Better Auth's singular provider-link table; CapacityLens product workspaces use
+// the plural `accounts`, so it can be enforced here without confusing the two ownership zones.
+const sqlTableOperation = String.raw`\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|(?:CREATE\s+)?TABLE(?:\s+IF\s+NOT\s+EXISTS)?|ALTER\s+TABLE|DROP\s+TABLE)\s+(?:["'\x60]|\[)?(?:\w+\.)?(?:["'\x60]|\[)?`;
+const identitySql = new RegExp(`${sqlTableOperation}(?:user|session|account|verification|twoFactor)\\b`, "i");
+const accountSql = new RegExp(`${sqlTableOperation}(?:account_members|invites)\\b`, "i");
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -15,6 +31,19 @@ function sourceFiles(directory: string): string[] {
     const test = /\.(?:test|spec)\.(?:[cm]?[jt]sx?)$/.test(entry.name);
     return source && !test ? [path] : [];
   });
+}
+
+function resolveModule(base: string): string | undefined {
+  const candidates = [
+    `${base}.ts`,
+    `${base}.tsx`,
+    `${base}.mts`,
+    `${base}.mjs`,
+    base,
+    resolve(base, "index.ts"),
+    resolve(base, "index.tsx"),
+  ];
+  return candidates.find((candidate) => existsSync(candidate) && statSync(candidate).isFile());
 }
 
 function runtimeImports(file: string): string[] {
@@ -34,8 +63,7 @@ function runtimeImports(file: string): string[] {
           ? resolve(browserRoot, specifier.slice(2))
           : null;
     if (base === null) return [];
-    const candidates = [base, `${base}.ts`, `${base}.tsx`, `${base}.mts`, `${base}.mjs`, resolve(base, "index.ts")];
-    const resolved = candidates.find((candidate) => existsSync(candidate));
+    const resolved = resolveModule(base);
     return resolved ? [resolved] : [];
   });
 }
@@ -141,18 +169,18 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "db.ts"),
       resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
     ]);
-    // `account` is Better Auth's singular provider-link table; CapacityLens product workspaces use
-    // the plural `accounts`, so it can be enforced here without confusing the two ownership zones.
-    const sqlTableOperation = String.raw`\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|(?:CREATE\s+)?TABLE(?:\s+IF\s+NOT\s+EXISTS)?|ALTER\s+TABLE|DROP\s+TABLE)\s+(?:["'\x60]|\[)?(?:\w+\.)?(?:["'\x60]|\[)?`;
-    const identitySql = new RegExp(`${sqlTableOperation}(?:user|session|account|verification|twoFactor)\\b`, "i");
-    const accountSql = new RegExp(`${sqlTableOperation}(?:account_members|invites)\\b`, "i");
 
     for (const file of production) {
       const source = readFileSync(file, "utf8");
       if (!identitySqlOwners.has(file)) expect(source, relative(serverRoot, file)).not.toMatch(identitySql);
       if (!accountSqlOwners.has(file)) expect(source, relative(serverRoot, file)).not.toMatch(accountSql);
       if (!controlTableImporters.has(file)) {
-        expect(source, relative(serverRoot, file)).not.toMatch(/from ['"].*controlTables['"]/);
+        const dependencies = runtimeImports(file);
+        expect(dependencies, relative(serverRoot, file)).not.toContain(resolve(serverRoot, "controlTables.ts"));
+        expect(
+          dependencies.filter((dependency) => dependency.startsWith(resolve(serverRoot, "controlTables") + sep)),
+          relative(serverRoot, file),
+        ).toEqual([]);
       }
       // `authConfig/` holds the named builders that assemble authFromEnv's Better Auth options; it
       // is the same ownership zone as auth.ts, split into files, not a new consumer of the library.
@@ -212,5 +240,46 @@ describe("account-boundary architecture", () => {
       expect(source, file).not.toMatch(/fetch\s*\([^\n]*(?:\/api\/(?:auth\/me|accounts|invites|orgs))/);
       expect(source, file).not.toMatch(/apiFetch(?:Reauth)?\s*\([^\n]*(?:\/api\/(?:accounts|invites|orgs))/);
     }
+  });
+});
+
+describe("scanner calibration", () => {
+  const fixtureRoot = mkdtempSync(resolve(tmpdir(), "architecture-scanner-"));
+  afterAll(() => rmSync(fixtureRoot, { recursive: true, force: true }));
+
+  function fixture(name: string, source: string): string {
+    const file = resolve(fixtureRoot, name);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, source);
+    return file;
+  }
+
+  it("prefers a sibling file over a directory and follows explicit index imports", () => {
+    const state = fixture("state.ts", "export const state = {};");
+    const index = fixture("state/index.ts", "export const state = {};");
+    const consumer = fixture("consumer.ts", 'import { state } from "./state";');
+    const indexConsumer = fixture("index-consumer.ts", 'import { state } from "./state/index";');
+    expect(runtimeImports(consumer)).toEqual([state]);
+    expect(runtimeImports(indexConsumer)).toEqual([index]);
+  });
+
+  it("detects protected SQL in an unlisted sibling source file", () => {
+    const sibling = fixture("unlisted.ts", 'db.prepare("INSERT INTO account_members VALUES (?)");');
+    expect(sourceFiles(fixtureRoot)).toContain(sibling);
+    expect(readFileSync(sibling, "utf8")).toMatch(accountSql);
+  });
+
+  it.each([
+    ['import { value } from "./c";', true],
+    ['export { value } from "./c";', true],
+    ['export * from "./c";', true],
+    ['import "./c";', true],
+    ['export type { T } from "./c";', false],
+    ['import type { T } from "./c";', false],
+  ])("traces runtime dependencies through %s", (source, runtime) => {
+    const a = fixture("chain/a.ts", 'import { value } from "./b";');
+    const b = fixture("chain/b.ts", source);
+    const c = fixture("chain/c.ts", "export const value = 1; export type T = string;");
+    expect(dependencyPath(a, new Set([c]))).toEqual(runtime ? [a, b, c] : null);
   });
 });
