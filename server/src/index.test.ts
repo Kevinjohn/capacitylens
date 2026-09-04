@@ -50,7 +50,11 @@ function boot(overrides: NodeJS.ProcessEnv) {
   }
 }
 
-describe("server entrypoint startup refusals", () => {
+// Each `boot` is a full entrypoint spawn through tsx with a 10 s budget of its own, and the SSO
+// refusal case boots twice. The per-test budget must cover the spawn budgets, not vitest's 5 s
+// default: on the shared CI runner the two-boot case already sat near that default before the
+// server module graph grew.
+describe("server entrypoint startup refusals", { timeout: 30_000 }, () => {
   it("refuses a direct SSO-only flip and names an Owner without a verified provider link", async () => {
     const directory = mkdtempSync(join(tmpdir(), "capacitylens-sso-cutover-test-"));
     const database = join(directory, "capacitylens.db");
