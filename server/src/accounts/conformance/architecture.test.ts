@@ -161,12 +161,14 @@ describe("account-boundary architecture", () => {
     ]);
     const accountSqlOwners = new Set([
       resolve(serverRoot, "controlTables.ts"),
-      resolve(serverRoot, "db.ts"),
+      resolve(serverRoot, "db/lifecycle.ts"),
+      resolve(serverRoot, "db/migrations/index.ts"),
       resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
       resolve(serverRoot, "accounts/memberSignInTracking.ts"),
     ]);
     const controlTableImporters = new Set([
-      resolve(serverRoot, "db.ts"),
+      resolve(serverRoot, "db/open.ts"),
+      resolve(serverRoot, "db/migrations/index.ts"),
       resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
     ]);
 

@@ -70,7 +70,7 @@
       "purpose": "SHA-256 invite-token indexing and CSPRNG non-secret identifiers"
     },
     {
-      "path": "server/src/db.ts",
+      "path": "server/src/db/migrationLedger.ts",
       "purpose": "Unkeyed SHA-256 identity checksums for immutable non-secret database migration definitions"
     },
     {
