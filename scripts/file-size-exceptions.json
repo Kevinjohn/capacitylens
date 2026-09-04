@@ -93,11 +93,6 @@
       "reason": "milestone 4 decomposition backlog"
     },
     {
-      "path": "shared/src/data/migrate.ts",
-      "baseline": 422,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "shared/src/types/entities.ts",
       "baseline": 495,
       "reason": "milestone 4 decomposition backlog"
