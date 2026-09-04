@@ -8,46 +8,6 @@
   ],
   "temporary": [
     {
-      "path": "server/src/accounts/accountRoutes.ts",
-      "baseline": 848,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "server/src/accounts/betterAuthIdentityPort.ts",
-      "baseline": 1193,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "server/src/accounts/localAccountFlows.ts",
-      "baseline": 1319,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "server/src/accounts/sqliteAccountAdminPort.ts",
-      "baseline": 1224,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "server/src/app.ts",
-      "baseline": 1567,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "server/src/auth.ts",
-      "baseline": 1763,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "server/src/controlTables.ts",
-      "baseline": 1419,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "server/src/db.ts",
-      "baseline": 1684,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "server/src/index.ts",
       "baseline": 539,
       "reason": "milestone 4 decomposition backlog"
@@ -60,11 +20,6 @@
     {
       "path": "src/components/scheduler/SchedulerGrid.tsx",
       "baseline": 872,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "src/components/scheduler/useAllocationModalState.ts",
-      "baseline": 982,
       "reason": "milestone 4 decomposition backlog"
     },
     {
