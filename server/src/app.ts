@@ -485,7 +485,7 @@ function fail(reply: FastifyReply, err: unknown, logError: (e: unknown) => void 
   });
 }
 
-function resolveAppConfig(_db: Db, opts: AppOptions) {
+function resolveAppConfig(opts: AppOptions) {
   const authMode = opts.authMode ?? "off";
   const auth = opts.auth ?? null;
   const configuredRateLimit = opts.rateLimit ?? 0;
@@ -674,7 +674,7 @@ function installRootHooks(
   const { auditDrainer, repliesWithAuditDrain } = runtime;
   const { logOn, rateLimitMax } = config;
   app.addHook("onClose", () => auditDrainer.stop());
-  app.addHook("onRequest", (request, reply, done) => {
+  app.addHook("onRequest", function abortOnClientDisconnect(request, reply, done) {
     const controller = new AbortController();
     request.raw.once("aborted", () => controller.abort(new Error("The request was aborted.")));
     reply.raw.once("close", () => {
@@ -1077,7 +1077,7 @@ function installSessionResolution(
     }
   });
 
-  return { resolveIncomingSession, attachVerifiedSession };
+  return { resolveIncomingSession };
 }
 
 function createAuthorization(
@@ -1263,7 +1263,7 @@ function createAuthorization(
   // below: there are no OPTIONS routes, so a preflight takes the not-found path, and
   // only root-level hooks run there — a child-scoped hook would leave preflights as
   // bare 404s without CORS headers, silently blocking every cross-origin write.
-  app.addHook("onRequest", async (req: FastifyRequest, reply: FastifyReply) => {
+  app.addHook("onRequest", async function enforceOriginPolicy(req: FastifyRequest, reply: FastifyReply) {
     const listedOrigin = resolveCorsOrigin(req.headers.origin, corsOrigins);
     const fetchSite = req.headers["sec-fetch-site"];
     // Sec-Fetch-Site is a forbidden browser-controlled header and therefore the most direct signal
@@ -1405,9 +1405,9 @@ function registerApiRoutes(
       drainProductAudit,
     };
 
-    registerSystemRoutes(app, { section: "public", ...systemRouteDependencies });
+    registerSystemRoutes(app, { ...systemRouteDependencies, section: "public" });
 
-    registerAuthProxyRoutes(app, { section: "identity", ...authProxyRouteDependencies });
+    registerAuthProxyRoutes(app, { ...authProxyRouteDependencies, section: "identity" });
 
     // Better Auth's own endpoints (sign-up/sign-in/sign-out/session/OAuth callbacks),
     // mounted ONLY when auth is on — in 'off' mode this route does not exist (the OFF
@@ -1427,14 +1427,14 @@ function registerApiRoutes(
         fail: accountFail,
         toWebHeaders,
       });
-      registerAuthProxyRoutes(app, { section: "proxy", ...authProxyRouteDependencies });
+      registerAuthProxyRoutes(app, { ...authProxyRouteDependencies, section: "proxy" });
     }
 
-    registerStateRoutes(app, { section: "read", ...stateRouteDependencies });
+    registerStateRoutes(app, { ...stateRouteDependencies, section: "read" });
 
-    registerSystemRoutes(app, { section: "meta", ...systemRouteDependencies });
+    registerSystemRoutes(app, { ...systemRouteDependencies, section: "meta" });
 
-    registerStateRoutes(app, { section: "org", ...stateRouteDependencies });
+    registerStateRoutes(app, { ...stateRouteDependencies, section: "org" });
 
     registerAccountRoutes(app, {
       authMode,
@@ -1545,7 +1545,7 @@ function registerApiRoutes(
 }
 
 export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
-  const config = resolveAppConfig(db, opts);
+  const config = resolveAppConfig(opts);
   const runtime = createAppRuntime(db, config, opts);
   const app = Fastify({
     ...(opts.internalTls ? { https: opts.internalTls } : {}),

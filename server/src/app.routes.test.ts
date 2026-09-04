@@ -150,7 +150,7 @@ const EXPECTED_AUTH_ROUTES = [
 ];
 
 const EXPECTED_ROOT_HOOKS = {
-  onRequest: ["", "helmetConfigureReply", "helmetApplyHeaders", ""],
+  onRequest: ["abortOnClientDisconnect", "helmetConfigureReply", "helmetApplyHeaders", "enforceOriginPolicy"],
   preHandler: [""],
   onSend: [""],
   onResponse: [""],
@@ -233,8 +233,11 @@ describe("buildApp route registration", () => {
     await app.close();
   });
 
-  it("keeps root hooks in lifecycle order", async () => {
-    const { app } = buildTrackedApp();
+  it.each<[string, Auth | null]>([
+    ["auth off", null],
+    ["auth on", stubAuth()],
+  ])("keeps root hooks in lifecycle order (%s)", async (_label, auth) => {
+    const { app } = buildTrackedApp(auth);
 
     await app.ready();
 
