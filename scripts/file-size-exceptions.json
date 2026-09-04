@@ -123,11 +123,6 @@
       "reason": "milestone 4 decomposition backlog"
     },
     {
-      "path": "src/components/scheduler/useAllocationGesture.ts",
-      "baseline": 514,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "src/components/scheduler/useAllocationModalState.ts",
       "baseline": 982,
       "reason": "milestone 4 decomposition backlog"
