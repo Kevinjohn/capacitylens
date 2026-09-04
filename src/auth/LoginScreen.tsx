@@ -1,40 +1,25 @@
-import { useEffect, useId, useState, type ComponentProps } from "react";
-import type { FormEvent } from "react";
+import { m } from "@/i18n";
+import { APP_NAME } from "@capacitylens/shared/brand";
+import { MAX_PASSWORD_INPUT_CODE_UNITS, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
+import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
+import { useEffect, useId, useState } from "react";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Field, FieldError, FieldGroup, FieldLabel } from "../components/ui/field";
 import { Card, CardContent } from "../components/ui/card";
+import { FieldError, FieldGroup } from "../components/ui/field";
 import { Separator } from "../components/ui/separator";
-import { authClient } from "./authClient";
-import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
-import { APP_NAME } from "@capacitylens/shared/brand";
-import { m } from "@/i18n";
 import type { AuthProviderInfo } from "./authContext";
-import { validateText } from "../lib/validation";
-import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
-import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
-import {
-  MIN_PASSWORD_LENGTH,
-  MAX_PASSWORD_LENGTH,
-  MAX_PASSWORD_INPUT_CODE_UNITS,
-  passwordLengthFailure,
-} from "@capacitylens/shared/domain/password";
+import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
 import {
   clearExternalSignInError,
   externalSignInErrorCode,
   externalSignInErrorMessage,
   hasExternalSignInError,
 } from "./externalSignInError";
-
-function LoginField({ id, label, ...props }: ComponentProps<typeof Input> & { id: string; label: string }) {
-  return (
-    <Field>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Input id={id} {...props} />
-    </Field>
-  );
-}
+import { LoginField } from "./LoginField";
+import { useOwnerSetup } from "./useOwnerSetup";
+import { usePasswordSignIn } from "./usePasswordSignIn";
+import { useSecondFactor } from "./useSecondFactor";
 
 // The flag-gated login wall (production plan P3.3; US-NAV-10). Only ever rendered when
 // the server reports authMode 'password' or 'sso' AND there is no session — the default
@@ -65,24 +50,33 @@ export function LoginScreen({
   hadUnsavedChanges?: boolean;
   onSignedIn: () => void;
 }) {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [setupToken, setSetupToken] = useState("");
   const [returnedWithExternalError] = useState(() => hasExternalSignInError(window.location.href));
   const [error, setError] = useState<string | null>(() =>
     returnedWithExternalError ? externalSignInErrorMessage(externalSignInErrorCode(window.location.href)) : null,
   );
   const [busy, setBusy] = useState(false);
-  const [twoFactorPending, setTwoFactorPending] = useState(false);
-  const [twoFactorCode, setTwoFactorCode] = useState("");
-  const [useRecoveryCode, setUseRecoveryCode] = useState(false);
-  // Flips true the moment OUR owner-setup submit is refused because someone else's setup
-  // already won the race (server's live per-request gate — see server/src/auth.ts). needsSetup
-  // is a one-time snapshot from page load, so a second tab/operator can still see the create-owner
-  // form after the workspace is bootstrapped; this local override forces the ordinary sign-in
-  // form instead of leaving the loser stuck on a dead-end create-owner form. Never flips back.
-  const [setupClosed, setSetupClosed] = useState(false);
+  const {
+    twoFactorPending,
+    setTwoFactorPending,
+    twoFactorCode,
+    setTwoFactorCode,
+    useRecoveryCode,
+    setUseRecoveryCode,
+    verifySecondFactor,
+  } = useSecondFactor({ setError, setBusy, onSignedIn });
+  const { email, setEmail, password, setPassword, signInWithPassword } = usePasswordSignIn({
+    setError,
+    setBusy,
+    onSignedIn,
+    setTwoFactorPending,
+  });
+  const { name, setName, setupToken, setSetupToken, setupClosed, createOwner } = useOwnerSetup({
+    email,
+    password,
+    setError,
+    setBusy,
+    onSignedIn,
+  });
   // Stable ids so each input can point at the shared error message (WCAG 3.3.1). A sign-in
   // failure is form-level (not field-specific), so we describe BOTH inputs by the one error and
   // skip aria-invalid — describedby is what re-announces the reason as the user navigates back.
@@ -103,124 +97,6 @@ export function LoginScreen({
     if (!returnedWithExternalError) return;
     window.history.replaceState(window.history.state, "", clearExternalSignInError(window.location.href));
   }, [returnedWithExternalError]);
-
-  const signInWithPassword = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const { data, error: failure } = await authClient.signIn.email({
-        email: email.trim().toLowerCase(),
-        password,
-      });
-      if (failure) {
-        setError(failure.message ?? m.login_failed());
-        setBusy(false);
-        return;
-      }
-      if ((data as { twoFactorRedirect?: unknown } | null)?.twoFactorRedirect === true) {
-        setTwoFactorPending(true);
-        setBusy(false);
-        return;
-      }
-      onSignedIn();
-    } catch (err) {
-      // Better Auth returns an auth FAILURE as { error } (handled above). A THROW here is a
-      // pre-response network/transport error — without this catch `busy` stayed true forever (button
-      // stuck disabled, no message). Surface a generic message + reset busy; log the real cause.
-      console.error("LoginScreen: password sign-in request failed", err);
-      setError(m.login_network_error());
-      setBusy(false);
-    }
-  };
-
-  const verifySecondFactor = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const result = useRecoveryCode
-        ? await authClient.twoFactor.verifyBackupCode({
-            code: twoFactorCode,
-            trustDevice: false,
-          })
-        : await authClient.twoFactor.verifyTotp({
-            code: twoFactorCode,
-            trustDevice: false,
-          });
-      if (result.error) {
-        setError(result.error.message ?? m.login_failed());
-        setBusy(false);
-        return;
-      }
-      onSignedIn();
-    } catch (err) {
-      console.error("LoginScreen: second-factor verification failed", err);
-      setError(m.login_network_error());
-      setBusy(false);
-    }
-  };
-
-  const createOwner = async (e: FormEvent) => {
-    e.preventDefault();
-    const cleanName = validateText(name, (_field, message) => setError(message), {
-      field: "name",
-      requiredMessage: m.identity_err_name(),
-    });
-    if (cleanName === null) return;
-    const cleanEmail = normalizeAccountEmail(email);
-    if (!isAccountEmail(cleanEmail)) {
-      setError(m.identity_err_email());
-      return;
-    }
-    if (passwordLengthFailure(password)) {
-      setError(
-        m.identity_err_password({
-          min: MIN_PASSWORD_LENGTH,
-          max: MAX_PASSWORD_LENGTH,
-        }),
-      );
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      // Better Auth auto-signs-in on sign-up, so success proceeds exactly like a sign-in:
-      // onSignedIn() reloads and the boot re-check finds the fresh session cookie.
-      const { error: failure } = await authClient.signUp.email({
-        email: cleanEmail,
-        password,
-        name: cleanName,
-        fetchOptions: { headers: { "x-capacitylens-setup-token": setupToken } },
-      });
-      if (failure) {
-        // The live per-request gate (server/src/auth.ts) closes the instant a user exists, so a
-        // second tab/operator racing our own first-run setup gets refused with this EXACT typed
-        // code — Better Auth's disableSignUp shape, reused verbatim by our hook. That's the ONE
-        // failure that isn't really "your input was wrong": someone else already finished setup,
-        // so drop out of setup mode into ordinary sign-in rather than leave the loser stuck on a
-        // dead-end create-owner form with no recovery but a manual reload.
-        if (failure.code === "EMAIL_PASSWORD_SIGN_UP_DISABLED") {
-          setError(m.login_setup_taken());
-          setSetupClosed(true);
-          setBusy(false);
-          return;
-        }
-        // Any other reason (e.g. password too short) — surface Better Auth's own message; a
-        // generic message would hide the fix.
-        setError(failure.message ?? m.login_setup_failed());
-        setBusy(false);
-        return;
-      }
-      onSignedIn();
-    } catch (err) {
-      // Same contract as the sign-in path: a THROW is a pre-response network/transport error —
-      // surface a generic message + reset busy so the button never sticks disabled; log the cause.
-      console.error("LoginScreen: owner-setup sign-up request failed", err);
-      setError(m.login_network_error());
-      setBusy(false);
-    }
-  };
 
   const signInWithProvider = async (provider: AuthProviderInfo) => {
     setBusy(true);
