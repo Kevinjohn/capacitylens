@@ -35,15 +35,11 @@
     },
     {
       "path": "server/src/accounts/betterAuthIdentityPort.ts",
-      "purpose": "SHA-256 reset/fallback handles, a per-process 256-bit compensation key and constant-time compensation-handle verification"
+      "purpose": "A per-port-instance 256-bit compensation key, key-bound SHA-256 compensation handles and constant-time compensation-handle verification"
     },
     {
       "path": "server/src/accounts/commands.ts",
       "purpose": "Domain-separated unkeyed SHA-256 digests for canonical idempotency payload comparison without retaining bearer/password inputs"
-    },
-    {
-      "path": "server/src/accounts/sqliteAccountAdminPort.ts",
-      "purpose": "256-bit CSPRNG invitation bearers and domain-separated SHA-256 bearer indexing for account commands"
     },
     {
       "path": "server/src/accounts/sessionHandle.ts",
@@ -51,7 +47,19 @@
     },
     {
       "path": "server/src/auth.ts",
-      "purpose": "CSPRNG identity tokens, constant-time setup token comparison and Better Auth MFA/session configuration"
+      "purpose": "Constant-time setup token comparison"
+    },
+    {
+      "path": "server/src/authConfig/authAdapter.ts",
+      "purpose": "192-bit CSPRNG identifiers for explicit federated-link ceremonies"
+    },
+    {
+      "path": "server/src/authConfig/authFromEnv.ts",
+      "purpose": "192-bit CSPRNG claim tokens for first-owner signup and Better Auth MFA/session configuration"
+    },
+    {
+      "path": "server/src/authConfig/bootstrapAdmin.ts",
+      "purpose": "Independent 192-bit CSPRNG credential user and account identifiers and first-owner bootstrap claim tokens"
     },
     {
       "path": "server/src/authConfig/errorRedirect.ts",
@@ -70,7 +78,7 @@
       "purpose": "SHA-256 invite-token indexing and CSPRNG non-secret identifiers"
     },
     {
-      "path": "server/src/db.ts",
+      "path": "server/src/db/migrationLedger.ts",
       "purpose": "Unkeyed SHA-256 identity checksums for immutable non-secret database migration definitions"
     },
     {
@@ -136,6 +144,22 @@
     {
       "path": "docker-compose.yml",
       "purpose": "Internal TLS certificate, key and CA path wiring between the API and reverse proxy containers"
+    },
+    {
+      "path": "server/src/accounts/identityPort/instants.ts",
+      "purpose": "Domain-separated SHA-256 fallback session handles"
+    },
+    {
+      "path": "server/src/accounts/identityPort/credentials.ts",
+      "purpose": "Domain-separated SHA-256 reset ceremony handles"
+    },
+    {
+      "path": "server/src/accounts/adminPort/invitations.ts",
+      "purpose": "256-bit CSPRNG invitation bearers"
+    },
+    {
+      "path": "server/src/accounts/adminPort/invitationClaims.ts",
+      "purpose": "Domain-separated SHA-256 bearer indexing for account commands"
     }
   ]
 }
