@@ -22,8 +22,12 @@
       "purpose": "Unkeyed SHA-256 database-state digests for temporary anonymised migration rollback rehearsals"
     },
     {
-      "path": "server/src/app.ts",
-      "purpose": "CSPRNG bearer values, constant-time bootstrap comparison, deterministic SHA-256 workspace identifiers and HTTPS server options"
+      "path": "server/src/routes/importRoutes.ts",
+      "purpose": "Deterministic SHA-256 fingerprint of the account's scoped import snapshot so equivalent reads compare equal and any accepted tenant mutation changes the token"
+    },
+    {
+      "path": "server/src/routes/stateRoutes.ts",
+      "purpose": "Deterministic SHA-256 workspace identifiers derived from the command id so a retried create addresses the same workspace"
     },
     {
       "path": "server/src/auditOutboxRecovery.ts",

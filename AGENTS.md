@@ -178,6 +178,10 @@ validation failures.
   Markdown, which no test rejects. After any such merge, read the head of `CHANGELOG.md` and
   confirm the branch's own entry is still under `Unreleased`. Releasing once per batch rather than
   once per change avoids most of these boundaries entirely.
+- `docs-src/security/crypto-inventory.json` pins every file that imports `node:crypto`, by path.
+  Moving or splitting such a file (for example extracting a route module) fails
+  `pnpm run gate:server` at the crypto-inventory step until the entry follows the code. After
+  editing the ledger, run `pnpm run docs:build`: the standalone docs embed a copy under `docs/`.
 - A version bump must update both the new `[x.y.z]:` comparison link and the `[Unreleased]:` link.
   Only `pnpm run gate:server` asserts this; the app-side suite passes with a stale link.
 - The full validation suites compete for the same machine. Run them concurrently only in
