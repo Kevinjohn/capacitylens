@@ -272,6 +272,7 @@ rollback and recovery behavior. See [Database migrations](#database-migrations) 
 how to run it against a real installation copy.
 
 Both gates enforce a 400-line source-file ceiling with shrinking temporary exceptions in `scripts/file-size-exceptions.json`.
+Both gates also run `pnpm run policy:import-cycles` to reject runtime import cycles; type-only imports and exports are excluded.
 
 Both gates also run the cryptographic implementation-path discovery check: a new
 primitive, certificate/key path or TLS configuration must be reviewed into

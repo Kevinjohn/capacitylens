@@ -1,4 +1,4 @@
-import { type Db } from "../db";
+import type { Db } from "../db";
 /**
  * Per-Db statement caches for the CRUD/read primitives below. Mirrors the WeakMap<Db,...> idiom
  * already used for per-handle state (auth.ts's verificationTablePresence/userTablePresence,

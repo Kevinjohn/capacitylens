@@ -1,6 +1,6 @@
 import type { Db } from "../db";
 import { migrateMemberSignInTrackingV26 } from "../accounts/memberSignInTracking";
-import { inviteTokenHash, newInviteId } from "../controlTables";
+import { inviteTokenHash, newInviteId } from "./inviteTokens";
 import { hasColumn } from "../schema";
 import { tx } from "../txn";
 import type { Invite } from "./invites";

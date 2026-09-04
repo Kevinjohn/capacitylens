@@ -1,4 +1,4 @@
-import { type Db } from "../db";
+import type { Db } from "../db";
 import { DATABASE_MIGRATION_TABLE } from "./constants";
 import { DATABASE_MIGRATIONS } from "./migrations/index";
 import { isSupersededMigrationChecksum } from "./migrationLedger";

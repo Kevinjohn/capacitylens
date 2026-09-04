@@ -1,4 +1,4 @@
-import { type Db } from "../db";
+import type { Db } from "../db";
 import { type AppData, emptyAppData } from "@capacitylens/shared/types/entities";
 import { type Row, fromRow } from "../rowCodec";
 import { statementCache, cachedTableStatement } from "./statementCache";

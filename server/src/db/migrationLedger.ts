@@ -1,4 +1,4 @@
-import { type Db } from "../db";
+import type { Db } from "../db";
 import { DATABASE_MIGRATION_TABLE } from "./constants";
 import { createHash } from "node:crypto";
 export interface DatabaseMigration {
