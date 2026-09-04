@@ -33,18 +33,8 @@
       "reason": "milestone 4 decomposition backlog"
     },
     {
-      "path": "server/src/audit.ts",
-      "baseline": 495,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "server/src/auth.ts",
       "baseline": 1763,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "server/src/backup.ts",
-      "baseline": 660,
       "reason": "milestone 4 decomposition backlog"
     },
     {
@@ -60,21 +50,6 @@
     {
       "path": "server/src/index.ts",
       "baseline": 539,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "server/src/schema.ts",
-      "baseline": 609,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "server/src/tables.ts",
-      "baseline": 422,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
-      "path": "server/src/validate.ts",
-      "baseline": 414,
       "reason": "milestone 4 decomposition backlog"
     },
     {
