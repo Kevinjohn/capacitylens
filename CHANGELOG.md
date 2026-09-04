@@ -7,6 +7,57 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.59.0-alpha.1] — 2026-09-04
+
+Maintainability release: every non-test source file in the app, server and shared packages is now
+at most 400 lines, enforced by a ratcheting gate. No user-visible behaviour changes; the public
+module paths, HTTP contracts, database schema and released migrations are unchanged.
+
+### Added
+
+- A file-size gate in both `pnpm run gate` and `pnpm run gate:server` fails any non-test source
+  file over 400 lines. Temporary exceptions live in `scripts/file-size-exceptions.json` with a
+  frozen baseline per file; the list ratcheted from 45 entries to zero during this release and only
+  the shadcn-generated sidebar remains as a permanent exception.
+  — 2026-09-04
+- The account-boundary conformance test resolves imports to files before directories, follows
+  runtime re-exports, checks `controlTables` importers by resolved dependency rather than by file
+  name, denies the identity, admin-port, control-table and auth-config directories to the account
+  coordinator as whole directories, and bans direct imports of any account-state sub-module, with
+  calibration cases for each rule.
+  — 2026-09-04
+- An import-cycle gate in both `pnpm run gate` and `pnpm run gate:server` fails on any runtime
+  import cycle between source modules; type-only imports are ignored. The tree has zero such cycles.
+  — 2026-09-04
+- Focused tests for every newly extracted module that had none, including seed-factory isolation,
+  per-port compensation-key isolation, persistence overlap, scheduler grid row identity, and the
+  boot refusal helpers.
+  — 2026-09-04
+
+### Changed
+
+- Forty-five oversized modules were decomposed into focused files behind their original paths, so
+  every existing import keeps working: shared domain (`lifecycle`, `mutations`, `sanitizeImport`,
+  `seed`, `migrate`, entity helpers), scheduler model, toolbar, grid, allocation modal and gesture
+  hooks, common form fields, command palette, store internals and types, auth provider and login
+  screen, settings and account picker, invite acceptance, account client, offline cache, server
+  sync adapter, persistence, and on the server `db`, `controlTables`, `app`, `auth`,
+  `strictOidc`, the identity and account-admin ports, account flows and routes, batch and
+  account-entity routes, `audit`, `validate`, `backup`, `schema`, `tables`, and account state.
+  — 2026-09-04
+- The server's environment-variable reference moved from a comment block in `server/src/index.ts`
+  to the self-hosting configuration guide.
+  — 2026-09-04
+- Ownership allowlists in the conformance test name the exact implementation files that now carry
+  identity and membership SQL, and the crypto inventory follows every moved primitive.
+  — 2026-09-04
+- Facades no longer value-import from their own sub-modules: shared constants and helpers moved
+  into leaf modules so every split is free of the ESM initialisation-order hazard.
+  — 2026-09-04
+- The file-size gate enumerates tracked files through Git, so an untracked scratch file can no
+  longer fail it.
+  — 2026-09-04
+
 ## [0.58.0-alpha.1] — 2026-09-02
 
 Consolidation release for member masquerade: the feature shipped in 0.57.0-alpha.19 has been
@@ -4052,7 +4103,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.58.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.59.0-alpha.1...HEAD
+[0.59.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.58.0-alpha.1...v0.59.0-alpha.1
 [0.58.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.19...v0.58.0-alpha.1
 [0.57.0-alpha.19]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.18...v0.57.0-alpha.19
 [0.57.0-alpha.18]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.17...v0.57.0-alpha.18
