@@ -50,6 +50,14 @@
       "purpose": "CSPRNG identity tokens, constant-time setup token comparison and Better Auth MFA/session configuration"
     },
     {
+      "path": "server/src/authConfig/errorRedirect.ts",
+      "purpose": "SHA-256 of the OAuth state parameter to look up the stored verification row when redirecting a failed federated sign-in"
+    },
+    {
+      "path": "server/src/authConfig/passwordPolicy.ts",
+      "purpose": "Better Auth email-and-password policy: length and breached-password screening ahead of the configured password hasher, invoked through the shared hash-with-backpressure boundary"
+    },
+    {
       "path": "server/src/federatedLinkLifecycle.ts",
       "purpose": "192-bit CSPRNG non-secret identifiers for bounded federated-link callback ceremonies"
     },
