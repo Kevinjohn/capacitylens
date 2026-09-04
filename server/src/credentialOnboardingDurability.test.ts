@@ -32,7 +32,10 @@ function runCrash(boundary: "after-user" | "after-correlation-commit"): string {
   return dbPath;
 }
 
-describe("credential onboarding crash durability", () => {
+// Two of these cases spawn a full tsx child process with a 30 s budget of its own; the per-test
+// budget must cover that spawn, not vitest's 5 s default, which the shared CI runner already
+// brushes against on a slow run.
+describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
   it("rolls back both credential rows when command correlation fails", async () => {
     const db = openDb(":memory:");
     const configured = authFromEnv(db, {
