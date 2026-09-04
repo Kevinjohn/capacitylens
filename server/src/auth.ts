@@ -1340,11 +1340,19 @@ function createAuthAdapter({
     return url;
   };
 
+  // The verification lookup stays here so identity SQL keeps a single owner (see the account
+  // boundary conformance test); the builder only decides what to do with the rows.
+  const readVerificationValues = (storedIdentifier: string): readonly string[] | null => {
+    if (!sqliteTableExists(db, "verification")) return null;
+    const rows = db
+      .prepare(`SELECT value FROM verification WHERE identifier = ? LIMIT 2`)
+      .all(storedIdentifier) as Array<{ value: string }>;
+    return rows.map((row) => row.value);
+  };
   const callbackErrorUrl = buildErrorRedirect({
-    db,
     browserAuthErrorUrl,
     trustedLinkOrigins,
-    sqliteTableExists,
+    readVerificationValues,
   });
 
   const isStrictOidcVerificationFailure = (error: unknown): boolean =>

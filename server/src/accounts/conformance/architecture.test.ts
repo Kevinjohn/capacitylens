@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, relative, resolve } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 
 const serverRoot = resolve(import.meta.dirname, "../..");
 const sharedRoot = resolve(serverRoot, "../../shared/src");
@@ -154,7 +154,12 @@ describe("account-boundary architecture", () => {
       if (!controlTableImporters.has(file)) {
         expect(source, relative(serverRoot, file)).not.toMatch(/from ['"].*controlTables['"]/);
       }
-      if (![resolve(serverRoot, "auth.ts"), resolve(serverRoot, "strictOidc.ts")].includes(file)) {
+      // `authConfig/` holds the named builders that assemble authFromEnv's Better Auth options; it
+      // is the same ownership zone as auth.ts, split into files, not a new consumer of the library.
+      const betterAuthOwner =
+        [resolve(serverRoot, "auth.ts"), resolve(serverRoot, "strictOidc.ts")].includes(file) ||
+        file.startsWith(resolve(serverRoot, "authConfig") + sep);
+      if (!betterAuthOwner) {
         expect(source, relative(serverRoot, file)).not.toMatch(/from ['"]better-auth(?:\/[^'"]*)?['"]/);
       }
     }

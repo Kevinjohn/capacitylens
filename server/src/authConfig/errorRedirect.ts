@@ -1,31 +1,26 @@
 import { createHash } from "node:crypto";
-import type { Db } from "../db";
 
 export function buildErrorRedirect({
-  db,
   browserAuthErrorUrl,
   trustedLinkOrigins,
-  sqliteTableExists,
+  readVerificationValues,
 }: {
-  db: Db;
   browserAuthErrorUrl: URL;
   trustedLinkOrigins: ReadonlySet<string>;
-  sqliteTableExists: (db: Db, table: string) => boolean;
+  /** Identity storage stays owned by auth.ts: returns the stored verification values for one
+   *  identifier, or null while the verification table does not exist yet. */
+  readVerificationValues: (storedIdentifier: string) => readonly string[] | null;
 }): (request: Request) => URL {
   const callbackErrorUrl = (request: Request): URL => {
     const fallback = new URL(browserAuthErrorUrl);
-    if (!sqliteTableExists(db, "verification")) return fallback;
     const state = new URL(request.url).searchParams.get("state");
     if (!state) return fallback;
     // Better Auth stores the returned OAuth state as the verification identifier. Use that indexed
     // coordinate instead of parsing every reset, MFA, and abandoned OAuth row on each callback.
     const storedIdentifier = createHash("sha256").update(state).digest("base64url");
-    const rows = db
-      .prepare(`SELECT value FROM verification WHERE identifier = ? LIMIT 2`)
-      .all(storedIdentifier) as Array<{
-      value: string;
-    }>;
-    for (const { value } of rows) {
+    const values = readVerificationValues(storedIdentifier);
+    if (values === null) return fallback;
+    for (const value of values) {
       try {
         const stored = JSON.parse(value) as { oauthState?: unknown; errorURL?: unknown };
         if (stored.oauthState !== state || typeof stored.errorURL !== "string") continue;
