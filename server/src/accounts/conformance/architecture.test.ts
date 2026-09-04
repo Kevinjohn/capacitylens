@@ -17,6 +17,22 @@ const sharedRoot = resolve(serverRoot, "../../shared/src");
 const sharedAccountRoot = resolve(sharedRoot, "account");
 const browserRoot = resolve(serverRoot, "../../src");
 
+const appBoundaryFiles = [
+  "app.ts",
+  "routes/appLimits.ts",
+  "routes/appLogging.ts",
+  "routes/appRequestAdapters.ts",
+  "routes/appOriginPolicy.ts",
+  "routes/appErrors.ts",
+  "routes/appConfig.ts",
+  "routes/appRuntime.ts",
+  "routes/appRootHooks.ts",
+  "routes/appSecurityPlugins.ts",
+  "routes/appSessionResolution.ts",
+  "routes/appAuthorization.ts",
+  "routes/appRouteTree.ts",
+];
+
 // `account` is Better Auth's singular provider-link table; CapacityLens product workspaces use
 // the plural `accounts`, so it can be enforced here without confusing the two ownership zones.
 const sqlTableOperation = String.raw`\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|(?:CREATE\s+)?TABLE(?:\s+IF\s+NOT\s+EXISTS)?|ALTER\s+TABLE|DROP\s+TABLE)\s+(?:["'\x60]|\[)?(?:\w+\.)?(?:["'\x60]|\[)?`;
@@ -194,14 +210,15 @@ describe("account-boundary architecture", () => {
   });
 
   it("prevents product routes from reaching identity or membership storage directly", () => {
-    const source = read("app.ts");
-    expect(source).not.toMatch(/from ['"].*controlTables/);
-    expect(source).not.toMatch(/\b(?:user|session|account_members|invites)\b[^\n]*\.prepare\s*\(/);
-    expect(source).not.toContain("better-auth");
+    for (const file of appBoundaryFiles) {
+      const source = read(file);
+      expect(source).not.toMatch(/from ['"].*controlTables/);
+      expect(source).not.toMatch(/\b(?:user|session|account_members|invites)\b[^\n]*\.prepare\s*\(/);
+      expect(source).not.toContain("better-auth");
+    }
   });
 
   it("keeps invitation and member administration in the account HTTP adapter", () => {
-    const productRoutes = read("app.ts");
     const accountRoutes = read("accounts/accountRoutes.ts");
     const extractedPaths = [
       "/api/invites",
@@ -220,7 +237,7 @@ describe("account-boundary architecture", () => {
       // Match either quote style: the route string is the invariant, not how the formatter quotes it.
       const quoted = new RegExp(`['"]${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}['"]`);
       expect(accountRoutes, path).toMatch(quoted);
-      expect(productRoutes, path).not.toMatch(quoted);
+      for (const file of appBoundaryFiles) expect(read(file), `${file}: ${path}`).not.toMatch(quoted);
     }
     expect(accountRoutes).not.toMatch(/from ['"].*(?:betterAuthIdentityPort|better-auth|controlTables)/);
     expect(accountRoutes).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE FROM)\b/);
