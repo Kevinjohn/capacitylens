@@ -1,5 +1,5 @@
 import { TABLES, type TableSpec } from "../tables";
-import { type Db } from "../db";
+import type { Db } from "../db";
 // `table` is interpolated DIRECTLY into the SQL strings below (SQL can't parameterise an
 // identifier), so it MUST be a vetted key of TABLES — this is the SQL-injection safety boundary.
 // Every route already gates the table name through isKnownTable before reaching these primitives;

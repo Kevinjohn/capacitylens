@@ -1,4 +1,4 @@
-import { type Db } from "../../db";
+import type { Db } from "../../db";
 import { TENANT_ENTITY_INDEXES_V34_SQL } from "../../tenantIndexes";
 import { CLOSURE_TENANT_INTEGRITY_V34_SQL } from "../../tenantIntegrity";
 /**
