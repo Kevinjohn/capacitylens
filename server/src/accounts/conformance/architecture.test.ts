@@ -17,6 +17,22 @@ const sharedRoot = resolve(serverRoot, "../../shared/src");
 const sharedAccountRoot = resolve(sharedRoot, "account");
 const browserRoot = resolve(serverRoot, "../../src");
 
+const appBoundaryFiles = [
+  "app.ts",
+  "routes/appLimits.ts",
+  "routes/appLogging.ts",
+  "routes/appRequestAdapters.ts",
+  "routes/appOriginPolicy.ts",
+  "routes/appErrors.ts",
+  "routes/appConfig.ts",
+  "routes/appRuntime.ts",
+  "routes/appRootHooks.ts",
+  "routes/appSecurityPlugins.ts",
+  "routes/appSessionResolution.ts",
+  "routes/appAuthorization.ts",
+  "routes/appRouteTree.ts",
+];
+
 // `account` is Better Auth's singular provider-link table; CapacityLens product workspaces use
 // the plural `accounts`, so it can be enforced here without confusing the two ownership zones.
 const sqlTableOperation = String.raw`\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|(?:CREATE\s+)?TABLE(?:\s+IF\s+NOT\s+EXISTS)?|ALTER\s+TABLE|DROP\s+TABLE)\s+(?:["'\x60]|\[)?(?:\w+\.)?(?:["'\x60]|\[)?`;
@@ -88,6 +104,29 @@ function displayPath(path: readonly string[]): string {
 
 const read = (rel: string): string => readFileSync(resolve(serverRoot, rel), "utf8");
 const localAccountFlowsPath = "accounts/localAccountFlows.ts";
+const coordinatorPaths = new Set([
+  localAccountFlowsPath,
+  "accounts/flows/actorContext.ts",
+  "accounts/flows/context.ts",
+  "accounts/flows/failures.ts",
+  "accounts/flows/inviteSignup.ts",
+  "accounts/flows/passwordReset.ts",
+  "accounts/flows/reads.ts",
+  "accounts/flows/reconciliationRepair.ts",
+  "accounts/flows/sessionRevocation.ts",
+  "accounts/flows/workspaceLifecycle.ts",
+]);
+const accountRoutePaths = new Set([
+  "accounts/accountRoutes.ts",
+  "accounts/routes/accountRouteDependencies.ts",
+  "accounts/routes/handlers/credentialAdmin.ts",
+  "accounts/routes/handlers/invitation.ts",
+  "accounts/routes/handlers/memberAdmin.ts",
+  "accounts/routes/handlers/reconcile.ts",
+  "accounts/routes/handlers/session.ts",
+  "accounts/routes/isoInstant.ts",
+  "accounts/routes/replyHelpers.ts",
+]);
 
 describe("account-boundary architecture", () => {
   it("keeps the shared contract free of UI, transport, persistence, and auth-vendor imports", () => {
@@ -102,19 +141,63 @@ describe("account-boundary architecture", () => {
 
   it("keeps coordinator persistence behind transaction and command-ledger seams", () => {
     const coordinator = resolve(serverRoot, localAccountFlowsPath);
-    const source = read(localAccountFlowsPath);
-    expect(source).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE)\b/);
-    expect(source).not.toMatch(/from ['"].*(?:controlTables|better-auth)/);
-    expect(source).not.toMatch(/from ['"].*\/state['"]/);
-    expect(source).not.toMatch(/ROLE_RANK|MIN_(?:ADMIN_)?TIER/);
-    expect(source).not.toMatch(/(?:===|!==)\s*['"](?:owner|admin|editor|viewer)['"]/);
+    for (const file of coordinatorPaths) {
+      const source = read(file);
+      expect(source, file).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE)\b/);
+      expect(source, file).not.toMatch(/from ['"].*(?:controlTables|better-auth)/);
+      expect(source, file).not.toMatch(/from ['"].*\/state['"]/);
+      expect(source, file).not.toMatch(/ROLE_RANK|MIN_(?:ADMIN_)?TIER/);
+      expect(source, file).not.toMatch(/(?:===|!==)\s*['"](?:owner|admin|editor|viewer)['"]/);
+    }
 
     const forbidden = new Set([
       resolve(serverRoot, "auth.ts"),
+      resolve(serverRoot, "authConfig/authTypes.ts"),
+      resolve(serverRoot, "authConfig/authConstants.ts"),
+      resolve(serverRoot, "authConfig/passwordBackpressure.ts"),
+      resolve(serverRoot, "authConfig/captureContexts.ts"),
+      resolve(serverRoot, "authConfig/authAdapter.ts"),
+      resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
+      resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
+      resolve(serverRoot, "authConfig/sessionActivity.ts"),
+      resolve(serverRoot, "authConfig/authFromEnv.ts"),
       resolve(serverRoot, "controlTables.ts"),
+      resolve(serverRoot, "controlTables/assert.ts"),
+      resolve(serverRoot, "controlTables/inviteRetention.ts"),
+      resolve(serverRoot, "controlTables/invites.ts"),
+      resolve(serverRoot, "controlTables/members.ts"),
+      resolve(serverRoot, "controlTables/members.model.ts"),
+      resolve(serverRoot, "controlTables/ownershipMigrations.ts"),
+      resolve(serverRoot, "controlTables/retentionV24.ts"),
       resolve(serverRoot, "erasure.ts"),
       resolve(serverRoot, "accounts/betterAuthIdentityPort.ts"),
       resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
+      resolve(serverRoot, "accounts/adminPort/authority.ts"),
+      resolve(serverRoot, "accounts/adminPort/contracts.ts"),
+      resolve(serverRoot, "accounts/adminPort/cutover.ts"),
+      resolve(serverRoot, "accounts/adminPort/failures.ts"),
+      resolve(serverRoot, "accounts/adminPort/invitationClaims.ts"),
+      resolve(serverRoot, "accounts/adminPort/invitations.ts"),
+      resolve(serverRoot, "accounts/adminPort/mappers.ts"),
+      resolve(serverRoot, "accounts/adminPort/membership.ts"),
+      resolve(serverRoot, "accounts/identityPort/contracts.ts"),
+      resolve(serverRoot, "accounts/identityPort/credentials.ts"),
+      resolve(serverRoot, "accounts/identityPort/cutover.ts"),
+      resolve(serverRoot, "accounts/identityPort/erasure.ts"),
+      resolve(serverRoot, "accounts/identityPort/federatedLinks.ts"),
+      resolve(serverRoot, "accounts/identityPort/inspection.ts"),
+      resolve(serverRoot, "accounts/identityPort/instants.ts"),
+      resolve(serverRoot, "accounts/identityPort/sessionRevocation.ts"),
+      resolve(serverRoot, "accounts/identityPort/sessions.ts"),
+      resolve(serverRoot, "accounts/identityPort/vendorErrors.ts"),
+      resolve(serverRoot, "accounts/identityPort/verificationState.ts"),
+      resolve(serverRoot, "authConfig/databaseHooks.ts"),
+      resolve(serverRoot, "authConfig/errorRedirect.ts"),
+      resolve(serverRoot, "authConfig/passwordPolicy.ts"),
+      resolve(serverRoot, "authConfig/plugins.ts"),
+      resolve(serverRoot, "authConfig/providers.ts"),
+      resolve(serverRoot, "authConfig/requestHooks.ts"),
+      resolve(serverRoot, "authConfig/sessionPolicy.ts"),
     ]);
     const path = dependencyPath(coordinator, forbidden);
     expect(path ? displayPath(path) : null).toBeNull();
@@ -123,9 +206,9 @@ describe("account-boundary architecture", () => {
   it.each([
     [
       "calibrates the transitive dependency scanner against a known adapter edge",
-      resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
+      resolve(serverRoot, "accounts/adminPort/invitations.ts"),
       resolve(serverRoot, "controlTables.ts"),
-      ["accounts/sqliteAccountAdminPort.ts", "controlTables.ts"],
+      ["accounts/adminPort/invitations.ts", "controlTables.ts"],
     ],
     [
       "follows workspace aliases as well as relative imports",
@@ -157,17 +240,44 @@ describe("account-boundary architecture", () => {
     const production = sourceFiles(serverRoot);
     const identitySqlOwners = new Set([
       resolve(serverRoot, "auth.ts"),
-      resolve(serverRoot, "accounts/betterAuthIdentityPort.ts"),
+      resolve(serverRoot, "authConfig/authAdapter.ts"),
+      resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
+      resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
+      resolve(serverRoot, "authConfig/sessionActivity.ts"),
+      resolve(serverRoot, "accounts/identityPort/credentials.ts"),
+      resolve(serverRoot, "accounts/identityPort/cutover.ts"),
+      resolve(serverRoot, "accounts/identityPort/erasure.ts"),
+      resolve(serverRoot, "accounts/identityPort/federatedLinks.ts"),
+      resolve(serverRoot, "accounts/identityPort/inspection.ts"),
+      resolve(serverRoot, "accounts/identityPort/sessionRevocation.ts"),
+      resolve(serverRoot, "accounts/identityPort/sessions.ts"),
     ]);
     const accountSqlOwners = new Set([
-      resolve(serverRoot, "controlTables.ts"),
-      resolve(serverRoot, "db.ts"),
-      resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
+      resolve(serverRoot, "db/lifecycle.ts"),
+      resolve(serverRoot, "db/migrations/index.ts"),
+      resolve(serverRoot, "controlTables/assert.ts"),
+      resolve(serverRoot, "controlTables/inviteRetention.ts"),
+      resolve(serverRoot, "controlTables/invites.ts"),
+      resolve(serverRoot, "controlTables/members.ts"),
+      resolve(serverRoot, "controlTables/ownershipMigrations.ts"),
+      resolve(serverRoot, "controlTables/retentionV24.ts"),
       resolve(serverRoot, "accounts/memberSignInTracking.ts"),
+      resolve(serverRoot, "accounts/adminPort/invitations.ts"),
     ]);
     const controlTableImporters = new Set([
-      resolve(serverRoot, "db.ts"),
-      resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
+      resolve(serverRoot, "db/open.ts"),
+      resolve(serverRoot, "db/migrations/index.ts"),
+      resolve(serverRoot, "controlTables.ts"),
+      resolve(serverRoot, "controlTables/inviteRetention.ts"),
+      resolve(serverRoot, "controlTables/invites.ts"),
+      resolve(serverRoot, "controlTables/members.ts"),
+      resolve(serverRoot, "controlTables/ownershipMigrations.ts"),
+      resolve(serverRoot, "controlTables/retentionV24.ts"),
+      resolve(serverRoot, "accounts/adminPort/authority.ts"),
+      resolve(serverRoot, "accounts/adminPort/cutover.ts"),
+      resolve(serverRoot, "accounts/adminPort/invitationClaims.ts"),
+      resolve(serverRoot, "accounts/adminPort/invitations.ts"),
+      resolve(serverRoot, "accounts/adminPort/membership.ts"),
     ]);
 
     for (const file of production) {
@@ -194,14 +304,15 @@ describe("account-boundary architecture", () => {
   });
 
   it("prevents product routes from reaching identity or membership storage directly", () => {
-    const source = read("app.ts");
-    expect(source).not.toMatch(/from ['"].*controlTables/);
-    expect(source).not.toMatch(/\b(?:user|session|account_members|invites)\b[^\n]*\.prepare\s*\(/);
-    expect(source).not.toContain("better-auth");
+    for (const file of appBoundaryFiles) {
+      const source = read(file);
+      expect(source).not.toMatch(/from ['"].*controlTables/);
+      expect(source).not.toMatch(/\b(?:user|session|account_members|invites)\b[^\n]*\.prepare\s*\(/);
+      expect(source).not.toContain("better-auth");
+    }
   });
 
   it("keeps invitation and member administration in the account HTTP adapter", () => {
-    const productRoutes = read("app.ts");
     const accountRoutes = read("accounts/accountRoutes.ts");
     const extractedPaths = [
       "/api/invites",
@@ -220,16 +331,35 @@ describe("account-boundary architecture", () => {
       // Match either quote style: the route string is the invariant, not how the formatter quotes it.
       const quoted = new RegExp(`['"]${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}['"]`);
       expect(accountRoutes, path).toMatch(quoted);
-      expect(productRoutes, path).not.toMatch(quoted);
+      for (const file of appBoundaryFiles) expect(read(file), `${file}: ${path}`).not.toMatch(quoted);
     }
-    expect(accountRoutes).not.toMatch(/from ['"].*(?:betterAuthIdentityPort|better-auth|controlTables)/);
-    expect(accountRoutes).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE FROM)\b/);
+    for (const file of accountRoutePaths) {
+      const source = read(file);
+      expect(source, file).not.toMatch(/from ['"].*(?:betterAuthIdentityPort|better-auth|controlTables)/);
+      expect(source, file).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE FROM)\b/);
+    }
   });
 
   it("keeps invitation SQL out of the auth-vendor adapter", () => {
-    const source = read("auth.ts");
-    expect(source).not.toMatch(/\b(?:FROM|INTO|UPDATE|DELETE FROM)\s+invites\b/i);
-    expect(source).not.toMatch(/from ['"].*controlTables/);
+    for (const path of [
+      "auth.ts",
+      "authConfig/authTypes.ts",
+      "authConfig/authConstants.ts",
+      "authConfig/passwordBackpressure.ts",
+      "authConfig/captureContexts.ts",
+      "authConfig/authAdapter.ts",
+      "authConfig/bootstrapAdmin.ts",
+      "authConfig/federatedIdentitySchema.ts",
+      "authConfig/sessionActivity.ts",
+      "authConfig/authFromEnv.ts",
+    ]) {
+      const source = read(path);
+      expect(source).not.toMatch(/\b(?:FROM|INTO|UPDATE|DELETE FROM)\s+invites\b/i);
+      expect(source).not.toMatch(/from ['"].*controlTables/);
+      if (path !== "auth.ts") {
+        expect(runtimeImports(resolve(serverRoot, path)), path).not.toContain(resolve(serverRoot, "auth.ts"));
+      }
+    }
   });
 
   it("centralizes executable browser account URLs in the account client", () => {
