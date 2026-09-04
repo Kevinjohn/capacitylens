@@ -18,12 +18,16 @@ import type { TeamMember } from "../../account/teamAccessClient";
 // row's pencil, reach the rarer lifecycle actions through the row's gear, and invite people from a
 // SEPARATE card below (#175). Ownership transfer is deliberately absent: it is not a per-row action
 // and returns as its own owner-only section under a follow-up ticket. The CLIENT
-// gate is courtesy only — the SAME pure guards hide controls the user can't use, but the SERVER is
-// the backstop. The invite TOKEN is shown exactly ONCE, straight from the create response.
+// gate is courtesy only — the SAME pure guards (canEditAnyMemberRole / canRemoveMember) hide controls
+// the user can't use, but the SERVER is the backstop (every route is gated server-side; a 403 on the
+// initial members fetch is what hides the whole section for a viewer/editor). The invite TOKEN is
+// shown exactly ONCE, straight from the create response — it is write-once and never read back.
 
 /**
  * The Team & access member-management section. Renders ONLY in server + auth-on mode; a 403 on the initial
- * members read self-gates it away for a viewer/editor (renders nothing).
+ * members read self-gates it away for a viewer/editor (renders nothing). Owner/Admin affordances are
+ * gated client-side via the shared pure guards (Owner actions hidden for an Admin; Owner membership
+ * stays outside ordinary role/removal controls). The server enforces all of it regardless.
  */
 export function MembersSection() {
   const activeAccountId = useStore((s) => s.activeAccountId);
@@ -58,6 +62,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     );
   }
 
+  // Wrapped in an overflow container so a narrow viewport scrolls the TABLE, never the page.
   const membersTable = (rows: TeamMember[], testId: string) => (
     <div className="overflow-x-auto">
       <table className="w-full text-sm" data-testid={testId}>
@@ -156,11 +161,18 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
               />
             </Field>
           )}
+          {/* The role stays visible beneath the member's name without consuming a column. The
+              optional coarse sign-in confirmation contains no date; edit and settings remain two
+              separate columns pushed to the right, in that order. */}
           {orchestration.members && orchestration.members.length === 0 ? (
             <p className="py-2 text-sm text-muted-foreground">{m.settings_members_empty()}</p>
           ) : orchestration.activeMembers ? (
             membersTable(orchestration.activeMembers, "members-table")
           ) : null}
+          {/* Disabled and archived memberships, collapsed behind a disclosure (#175). They are still
+              real rows an administrator has to be able to reach — to restore one, or to remove it —
+              but they are not the team, so they do not compete with it for the reader's attention.
+              The group is absent entirely when there is nothing in it. */}
           {orchestration.inactiveMembers.length > 0 && (
             <section className="flex flex-col gap-2">
               <button
@@ -183,6 +195,9 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
               )}
             </section>
           )}
+          {/* Freshly-minted password-reset link (P1.18) — write-once, same posture as the invite link
+          below: shown straight from the create response and never read back. Named + dated so the
+          admin hands the right link to the right person before it disappears. */}
           {orchestration.resetLink && (
             <CopyableLinkBlock
               link={orchestration.resetLink.link}
@@ -194,6 +209,9 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
                 <p className="text-xs text-muted-foreground">
                   {m.settings_members_reset_intro({
                     member: orchestration.resetLink.member,
+                    // Date + TIME on the viewer's wall clock: the link lives only 24h, so a
+                    // date-only string (and a UTC one at that) misleads by up to a day in non-UTC
+                    // zones and hides the hour it dies.
                     when: formatInstant(orchestration.resetLink.expiresAt),
                   })}
                 </p>
@@ -202,6 +220,8 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           )}
         </CardContent>
       </Card>
+      {/* Inviting someone is its own job, not a footnote to the member table (#175): it lives in a
+          separate card together with the invites that are still outstanding. */}
       {orchestration.mayManageInvites && (
         <InviteMemberPanel
           authMode={orchestration.authMode}

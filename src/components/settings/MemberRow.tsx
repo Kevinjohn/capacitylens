@@ -15,6 +15,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Eye, Pencil, Settings } from "lucide-react";
 import { labelFor, type MemberConfirmationAction, type MemberRoleEdit } from "./MemberConfirmations";
 
+/**
+ * Which of a row's controls the viewer may see. Pure and shared by both member tables, so the
+ * collapsed inactive group can never end up offering a different set of actions from the main one.
+ * The CLIENT gate is courtesy only — the server refuses each of these regardless.
+ */
 function memberAffordances(
   myRole: Role | undefined,
   mem: TeamMember,
@@ -52,6 +57,9 @@ function memberAffordances(
   };
 }
 
+/** One row of the gear popover. A plain button, not a Radix menu item: the popover holds four
+ *  actions at most and each one opens a confirmation, so the extra roving-focus machinery of a
+ *  full menu would buy nothing. */
 function MemberMenuItem({
   label,
   ariaLabel,
@@ -97,6 +105,10 @@ export function MemberRow({
   setRoleEdit: Dispatch<SetStateAction<MemberRoleEdit | null>>;
   chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
 }) {
+  // One row renderer for both tables: the gear's actions, the pencil's gate and the status badge are
+  // identical wherever the row is drawn — only the grouping differs.
+  // NB: the row var is `mem`, NOT `m` — `m` is the imported i18n message catalogue
+  // (P1.5.2); shadowing it would make `m.settings_*()` resolve against the Member.
   const { mayMasquerade, mayTouch, mayRemove, mayChangeStatus, mayReset, hasMenu } = memberAffordances(myRole, mem);
   const memberLabel = labelFor(mem);
   const name = mem.name?.trim() || mem.userId;

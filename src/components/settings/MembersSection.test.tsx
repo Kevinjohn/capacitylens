@@ -2101,19 +2101,24 @@ describe("MembersSection — SSO cutover repair", () => {
     return mockApi(directory, { "GET /sso-readiness": () => jsonResponse(ssoReadiness(linked, reason)) });
   }
 
-  it("preserves invite and member role drafts when the readiness panel appears", async () => {
+  it("preserves invite and member role drafts when the render children unmount and remount", async () => {
     const user = userEvent.setup();
-    let resolveReadiness!: (response: Response) => void;
-    const pendingReadiness = new Promise<Response>((resolve) => {
-      resolveReadiness = resolve;
-    });
+    const directoryWithTracking = directory.map((member) => ({ ...member, signInConfirmed: true }));
+    let membersReads = 0;
     vi.stubGlobal(
       "fetch",
-      mockApi(directory, {
-        "GET /sso-readiness": () => pendingReadiness,
+      mockApi(directoryWithTracking, {
+        "GET /members": () => {
+          membersReads += 1;
+          if (membersReads === 2) return jsonResponse({}, 403);
+          return jsonResponse({
+            signInTrackingEnabled: true,
+            members: directoryWithTracking.map((member) => rawMember(member)),
+          });
+        },
       }),
     );
-    renderSection({ providers });
+    renderSection();
 
     const inviteEmail = await screen.findByTestId("invite-preauth");
     await user.type(inviteEmail, "draft@example.com");
@@ -2127,14 +2132,17 @@ describe("MembersSection — SSO cutover repair", () => {
     fireEvent.keyDown(memberRole, { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: "Editor" }));
 
-    await act(async () => {
-      resolveReadiness(jsonResponse(ssoReadiness(false, "member_not_linked")));
-    });
+    fireEvent.click(screen.getByTestId("member-sign-in-tracking"));
 
-    expect(await screen.findByTestId("sso-readiness")).toBeInTheDocument();
-    expect(inviteEmail).toHaveValue("draft@example.com");
+    expect(await screen.findByText(m.settings_members_err_access_changed())).toBeInTheDocument();
+    expect(screen.queryByTestId("invite-preauth")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: m.settings_members_retry() }));
+
+    expect(await screen.findByTestId("invite-preauth")).toHaveValue("draft@example.com");
     expect(screen.getByTestId("invite-role")).toHaveTextContent("Viewer");
-    expect(memberRole).toHaveTextContent("Editor");
+    expect(within(await screen.findByRole("dialog")).getByRole("combobox")).toHaveTextContent("Editor");
   });
 
   it("refreshes readiness after a successful membership mutation", async () => {

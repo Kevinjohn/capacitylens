@@ -12,6 +12,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { FieldError, FieldSet } from "../ui/field";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 
+/**
+ * A write-once "here is a freshly-minted link, copy it now" block (shared by the invite link and the
+ * password-reset link). Renders the `break-all` <code> + ghost copy Button once; the token behind the
+ * link is never read back. Pass `intro` (a <p>) to prepend an explanatory line — the reset block uses
+ * it to name WHO/when; the invite block omits it. Structure is intentionally two shapes (the intro
+ * variant needs an outer vertical stack) so both call sites keep their exact prior markup.
+ */
 export function CopyableLinkBlock({
   link,
   testId,
@@ -153,6 +160,7 @@ export function InviteMemberPanel({
             />
           )}
         </FieldSet>
+        {/* Outstanding invites */}
         {invites.length > 0 && (
           <div className="flex flex-col gap-1">
             <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_invites_outstanding_heading()}</h3>
@@ -173,7 +181,9 @@ export function InviteMemberPanel({
                           ? m.settings_invite_suffix_used()
                           : expired
                             ? m.settings_invite_suffix_expired()
-                            : m.settings_invite_suffix_expires({ date: formatInstantDate(inv.expiresAt) })}
+                            : // Invite validity spans several days, so keep this compact row date-only while
+                              // rendering the date on the viewer's local calendar rather than slicing UTC.
+                              m.settings_invite_suffix_expires({ date: formatInstantDate(inv.expiresAt) })}
                       </ItemContent>
                       {actionable && (
                         <ItemActions>

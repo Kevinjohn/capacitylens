@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
+import type { MembershipStatus } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import type { TeamMember } from "../../account/teamAccessClient";
@@ -74,6 +75,14 @@ function confirmationCopy({ action, member }: MemberConfirmation): {
       };
   }
 }
+
+/** The status a confirmed lifecycle action writes. Kept beside confirmationCopy so a new action
+ *  cannot be added to the union without deciding both its wording and its effect. */
+export const STATUS_FOR_ACTION: Readonly<Record<"disable" | "archive" | "restore", MembershipStatus>> = Object.freeze({
+  disable: "disabled",
+  archive: "archived",
+  restore: "active",
+});
 
 export function MemberConfirmations({
   memberConfirmation,
