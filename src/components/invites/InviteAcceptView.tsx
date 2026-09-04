@@ -1,4 +1,4 @@
-import type { FormEvent, RefObject } from "react";
+import type { FormEvent, RefCallback } from "react";
 import { Link } from "react-router-dom";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import type { Role } from "@capacitylens/shared/domain/access";
@@ -47,8 +47,8 @@ interface InviteAcceptViewProps {
   name: string;
   email: string;
   password: string;
-  flowStatusRef: RefObject<HTMLParagraphElement | null>;
-  continueRef: RefObject<HTMLAnchorElement | null>;
+  flowStatusRef: RefCallback<HTMLParagraphElement>;
+  continueRef: RefCallback<HTMLAnchorElement>;
   onNameChange: (value: string) => void;
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
@@ -60,7 +60,7 @@ interface InviteAcceptViewProps {
   onRetryPreview: () => void;
 }
 
-/** Pure state-specific presentation for the invite route; async orchestration stays in InviteAccept. */
+/** Pure state-specific presentation for the invite route; async orchestration stays in useInviteAcceptController. */
 export function InviteAcceptView({
   state,
   preview,
