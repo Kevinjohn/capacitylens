@@ -485,7 +485,7 @@ function fail(reply: FastifyReply, err: unknown, logError: (e: unknown) => void 
   });
 }
 
-export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
+function resolveAppConfig(_db: Db, opts: AppOptions) {
   const authMode = opts.authMode ?? "off";
   const auth = opts.auth ?? null;
   const configuredRateLimit = opts.rateLimit ?? 0;
@@ -510,6 +510,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // events. Construct it before the account boundary so the coordinator—not its HTTP caller—owns
   // audit correlation for cross-port commands.
   const auditSink = opts.audit ?? noopAuditSink();
+  const logOn = opts.log === true;
+  return { authMode, auth, rateLimitMax, application, executeImportWorker, auditSink, logOn };
+}
+
+function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppConfig>, opts: AppOptions) {
+  const { authMode, auth, application, auditSink } = config;
   // Recover records committed before a prior process stopped between SQLite COMMIT and delivery.
   // A sink failure remains a soft health signal and leaves the oldest row queued for the next
   // request/restart; malformed durable rows throw because silently skipping one would break the
@@ -594,19 +600,79 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     eraseProductWorkspaceInTx: (workspaceId) => eraseWorkspaceProductDataInTx(db, workspaceId),
     audit: accountAudit,
   });
-  const logOn = opts.log === true;
-  const app = Fastify({
-    ...(opts.internalTls ? { https: opts.internalTls } : {}),
-    bodyLimit: BODY_LIMIT,
-    requestTimeout: REQUEST_TIMEOUT_MS,
-    connectionTimeout: CONNECTION_TIMEOUT_MS,
-    // CAPACITYLENS_LOG=1 turns on Fastify's bundled pino (JSON to stdout; no new dependency).
-    // ON always attaches the redact config (both branches) so a secret can never reach the
-    // logs — see LOG_REDACT_PATHS. Off ⇒ logger disabled entirely — today's behaviour, byte for byte.
-    // requestLoggerOptions also owns invite/query URL masking and reconstructs Fastify's request
-    // serializer so method/hostname/remote address remain available without emitting headers.
-    logger: logOn ? requestLoggerOptions(opts.logStream) : false,
-  });
+
+  // Deep mode prepares the trivial read ONCE, here in the synchronous factory body while
+  // the DB is known-open; a later closed/corrupt/locked DB makes get() throw at request
+  // time, which is exactly the signal the uptime monitor needs (a bare { ok: true } from
+  // a server whose DB is broken is a lie).
+  const healthStmt = opts.healthDeep === true ? db.prepare("SELECT 1") : null;
+
+  // Forward coordinator-owned account/control events that do not represent AppData mutations.
+  // Product mutations use commitProductAudit below so their audit row shares the data transaction.
+  // append() never throws (see audit.ts); a degraded direct sink remains a soft health signal.
+  const audit = (reply: FastifyReply, record: AuditRecord): void => {
+    if (!auditSink.append(record)) reply.header("x-capacitylens-audit-warning", "true");
+  };
+
+  const drainProductAudit = (reply: FastifyReply): boolean => {
+    repliesWithAuditDrain.add(reply);
+    const ok = auditDrainer.drainOnce();
+    if (!ok) reply.header("x-capacitylens-audit-warning", "true");
+    return ok;
+  };
+
+  const commitProductAudit = (reply: FastifyReply, record: AuditRecord, mutation: () => void): boolean => {
+    tx(
+      db,
+      () => {
+        mutation();
+        enqueueAudit(db, record);
+      },
+      "immediate",
+    );
+    return drainProductAudit(reply);
+  };
+
+  // The tenant-scoping storage seam: account-keyed reads, validation projections and lifecycle
+  // operations enforce the no-cross-tenant contract in one shared-SQLite implementation. Built once
+  // here (factory state, like healthStmt) so the same instance backs every request.
+  const store = sqliteTenantStore(db);
+
+  const endMasquerade = (record: Readonly<StoredMasqueradeRecord>, reason: MasqueradeEndReason): void => {
+    masquerades.end(record.sessionHandle, null, (ending) =>
+      enqueueMasqueradeEndAudit(accountAudit, application.applicationId, ending, reason),
+    );
+  };
+
+  return {
+    auditDrainer,
+    repliesWithAuditDrain,
+    accountAudit,
+    masquerades,
+    prepareMasqueradeUsers,
+    masqueradeSessionLifecycle,
+    accountLock,
+    identityPort,
+    accountAdminPort,
+    accountFlows,
+    healthStmt,
+    audit,
+    drainProductAudit,
+    commitProductAudit,
+    store,
+    endMasquerade,
+  };
+}
+
+function installRootHooks(
+  app: FastifyInstance,
+  db: Db,
+  runtime: ReturnType<typeof createAppRuntime>,
+  config: ReturnType<typeof resolveAppConfig>,
+  opts: AppOptions,
+) {
+  const { auditDrainer, repliesWithAuditDrain } = runtime;
+  const { logOn, rateLimitMax } = config;
   app.addHook("onClose", () => auditDrainer.stop());
   app.addHook("onRequest", (request, reply, done) => {
     const controller = new AbortController();
@@ -866,6 +932,18 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     }
   });
 
+  return { sendFail, accountFail, securityEvent, corsOrigins };
+}
+
+function installSessionResolution(
+  app: FastifyInstance,
+  runtime: ReturnType<typeof createAppRuntime>,
+  config: ReturnType<typeof resolveAppConfig>,
+  opts: AppOptions,
+  securityEvent: (event: Record<string, unknown>) => void,
+) {
+  const { accountAudit, identityPort, masquerades } = runtime;
+  const { application, authMode } = config;
   // requireUser — ONE gate for everything under /api/ except /api/health (the
   // uptime monitor has no session) and /api/auth/* (the login machinery itself; our
   // /api/auth/me handles its own 401). Root-level so child routes inherit it; preHandler
@@ -999,49 +1077,19 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     }
   });
 
-  // Deep mode prepares the trivial read ONCE, here in the synchronous factory body while
-  // the DB is known-open; a later closed/corrupt/locked DB makes get() throw at request
-  // time, which is exactly the signal the uptime monitor needs (a bare { ok: true } from
-  // a server whose DB is broken is a lie).
-  const healthStmt = opts.healthDeep === true ? db.prepare("SELECT 1") : null;
+  return { resolveIncomingSession, attachVerifiedSession };
+}
 
-  // Forward coordinator-owned account/control events that do not represent AppData mutations.
-  // Product mutations use commitProductAudit below so their audit row shares the data transaction.
-  // append() never throws (see audit.ts); a degraded direct sink remains a soft health signal.
-  const audit = (reply: FastifyReply, record: AuditRecord): void => {
-    if (!auditSink.append(record)) reply.header("x-capacitylens-audit-warning", "true");
-  };
-
-  const drainProductAudit = (reply: FastifyReply): boolean => {
-    repliesWithAuditDrain.add(reply);
-    const ok = auditDrainer.drainOnce();
-    if (!ok) reply.header("x-capacitylens-audit-warning", "true");
-    return ok;
-  };
-
-  const commitProductAudit = (reply: FastifyReply, record: AuditRecord, mutation: () => void): boolean => {
-    tx(
-      db,
-      () => {
-        mutation();
-        enqueueAudit(db, record);
-      },
-      "immediate",
-    );
-    return drainProductAudit(reply);
-  };
-
-  // The tenant-scoping storage seam: account-keyed reads, validation projections and lifecycle
-  // operations enforce the no-cross-tenant contract in one shared-SQLite implementation. Built once
-  // here (factory state, like healthStmt) so the same instance backs every request.
-  const store = sqliteTenantStore(db);
-
-  const endMasquerade = (record: Readonly<StoredMasqueradeRecord>, reason: MasqueradeEndReason): void => {
-    masquerades.end(record.sessionHandle, null, (ending) =>
-      enqueueMasqueradeEndAudit(accountAudit, application.applicationId, ending, reason),
-    );
-  };
-
+function createAuthorization(
+  app: FastifyInstance,
+  runtime: ReturnType<typeof createAppRuntime>,
+  config: ReturnType<typeof resolveAppConfig>,
+  opts: AppOptions,
+  rootHelpers: ReturnType<typeof installRootHooks>,
+) {
+  const { accountAdminPort, endMasquerade, masquerades } = runtime;
+  const { authMode } = config;
+  const { corsOrigins, securityEvent } = rootHelpers;
   /** Resolve the real membership first, then substitute only the active account's target read role. */
   function resolveEffectiveRole(
     req: FastifyRequest,
@@ -1264,6 +1312,50 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     if (req.method === "OPTIONS") reply.code(204).send();
   });
 
+  return {
+    resolveEffectiveRole,
+    memberReadProjection,
+    authorize,
+    authorizeAllowed,
+    fieldVisibilityFor,
+    redactWriteEcho,
+  };
+}
+
+function registerApiRoutes(
+  app: FastifyInstance,
+  db: Db,
+  runtime: ReturnType<typeof createAppRuntime>,
+  config: ReturnType<typeof resolveAppConfig>,
+  opts: AppOptions,
+  rootHelpers: ReturnType<typeof installRootHooks>,
+  sessionResolution: ReturnType<typeof installSessionResolution>,
+  authorization: ReturnType<typeof createAuthorization>,
+): void {
+  const {
+    accountAdminPort,
+    accountAudit,
+    accountFlows,
+    audit,
+    auditDrainer,
+    commitProductAudit,
+    drainProductAudit,
+    healthStmt,
+    identityPort,
+    masquerades,
+    store,
+  } = runtime;
+  const { application, auditSink, auth, authMode, executeImportWorker, logOn } = config;
+  const { accountFail, securityEvent, sendFail } = rootHelpers;
+  const { resolveIncomingSession } = sessionResolution;
+  const {
+    authorize,
+    authorizeAllowed,
+    fieldVisibilityFor,
+    memberReadProjection,
+    redactWriteEcho,
+    resolveEffectiveRole,
+  } = authorization;
   // Every route below registers through a child plugin, NOT directly on the root:
   // @fastify/rate-limit attaches to routes via an onRoute hook that only exists once the
   // plugin LOADS (at ready(), in registration order) — a route declared straight on the
@@ -1271,8 +1363,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // so its routes are seen, and it inherits the root CORS hook + error handler. The
   // callback shadows `app` deliberately: the route code is identical without the wrapper.
   void app.register(async (app) => {
-    registerSystemRoutes(app, {
-      section: "public",
+    const systemRouteDependencies = {
       securityEvent,
       healthStatement: healthStmt,
       auditDrainer,
@@ -1281,10 +1372,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       internalTlsExpiresAt: opts.internalTlsExpiresAt,
       internalTlsFingerprintSha256: opts.internalTlsFingerprintSha256,
       isInitialized: () => isInitialized(db),
-    });
-
-    registerAuthProxyRoutes(app, {
-      section: "identity",
+    };
+    const authProxyRouteDependencies = {
       authMode,
       auth,
       db,
@@ -1297,7 +1386,28 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       sessionSatisfiesRequiredMfa,
       toWebHeaders,
       logOn,
-    });
+    };
+    const stateRouteDependencies = {
+      db,
+      store,
+      authMode,
+      auth,
+      multiAccount: opts.multiAccount === true,
+      bootstrapToken: opts.bootstrapToken,
+      accountAdminPort,
+      accountFlows,
+      masquerades,
+      authorize,
+      resolveEffectiveRole,
+      accountCommand,
+      accountFail,
+      sendFail,
+      drainProductAudit,
+    };
+
+    registerSystemRoutes(app, { section: "public", ...systemRouteDependencies });
+
+    registerAuthProxyRoutes(app, { section: "identity", ...authProxyRouteDependencies });
 
     // Better Auth's own endpoints (sign-up/sign-in/sign-out/session/OAuth callbacks),
     // mounted ONLY when auth is on — in 'off' mode this route does not exist (the OFF
@@ -1317,72 +1427,14 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         fail: accountFail,
         toWebHeaders,
       });
-      registerAuthProxyRoutes(app, {
-        section: "proxy",
-        authMode,
-        auth,
-        db,
-        multiAccount: opts.multiAccount === true,
-        requireMfa: opts.requireMfa === true,
-        accountAdminPort,
-        masquerades,
-        resolveIncomingSession,
-        sessionUserFromApplicationSession,
-        sessionSatisfiesRequiredMfa,
-        toWebHeaders,
-        logOn,
-      });
+      registerAuthProxyRoutes(app, { section: "proxy", ...authProxyRouteDependencies });
     }
 
-    registerStateRoutes(app, {
-      section: "read",
-      db,
-      store,
-      authMode,
-      auth,
-      multiAccount: opts.multiAccount === true,
-      bootstrapToken: opts.bootstrapToken,
-      accountAdminPort,
-      accountFlows,
-      masquerades,
-      authorize,
-      resolveEffectiveRole,
-      accountCommand,
-      accountFail,
-      sendFail,
-      drainProductAudit,
-    });
+    registerStateRoutes(app, { section: "read", ...stateRouteDependencies });
 
-    registerSystemRoutes(app, {
-      section: "meta",
-      securityEvent,
-      healthStatement: healthStmt,
-      auditDrainer,
-      auditSink,
-      backupHealth: opts.backupHealth,
-      internalTlsExpiresAt: opts.internalTlsExpiresAt,
-      internalTlsFingerprintSha256: opts.internalTlsFingerprintSha256,
-      isInitialized: () => isInitialized(db),
-    });
+    registerSystemRoutes(app, { section: "meta", ...systemRouteDependencies });
 
-    registerStateRoutes(app, {
-      section: "org",
-      db,
-      store,
-      authMode,
-      auth,
-      multiAccount: opts.multiAccount === true,
-      bootstrapToken: opts.bootstrapToken,
-      accountAdminPort,
-      accountFlows,
-      masquerades,
-      authorize,
-      resolveEffectiveRole,
-      accountCommand,
-      accountFail,
-      sendFail,
-      drainProductAudit,
-    });
+    registerStateRoutes(app, { section: "org", ...stateRouteDependencies });
 
     registerAccountRoutes(app, {
       authMode,
@@ -1490,6 +1542,26 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       fail: sendFail,
     });
   });
+}
 
+export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
+  const config = resolveAppConfig(db, opts);
+  const runtime = createAppRuntime(db, config, opts);
+  const app = Fastify({
+    ...(opts.internalTls ? { https: opts.internalTls } : {}),
+    bodyLimit: BODY_LIMIT,
+    requestTimeout: REQUEST_TIMEOUT_MS,
+    connectionTimeout: CONNECTION_TIMEOUT_MS,
+    // CAPACITYLENS_LOG=1 turns on Fastify's bundled pino (JSON to stdout; no new dependency).
+    // ON always attaches the redact config (both branches) so a secret can never reach the
+    // logs — see LOG_REDACT_PATHS. Off ⇒ logger disabled entirely — today's behaviour, byte for byte.
+    // requestLoggerOptions also owns invite/query URL masking and reconstructs Fastify's request
+    // serializer so method/hostname/remote address remain available without emitting headers.
+    logger: config.logOn ? requestLoggerOptions(opts.logStream) : false,
+  });
+  const rootHelpers = installRootHooks(app, db, runtime, config, opts);
+  const sessionResolution = installSessionResolution(app, runtime, config, opts, rootHelpers.securityEvent);
+  const authorization = createAuthorization(app, runtime, config, opts, rootHelpers);
+  registerApiRoutes(app, db, runtime, config, opts, rootHelpers, sessionResolution, authorization);
   return app;
 }
