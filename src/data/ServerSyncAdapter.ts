@@ -1,206 +1,46 @@
-import { LoadError, type AllocationRewriteRevision, type PersistenceAdapter } from "./PersistenceAdapter";
-import { emptyAppData, SCOPED_KEYS } from "@capacitylens/shared/types/entities";
-import type { AppData, AppDataKey, Entity, ScopedEntityKey } from "@capacitylens/shared/types/entities";
-import { KNOWN_KEYS, migrateWithRepairBase } from "@capacitylens/shared/data/migrate";
-import { isLifecycleEntityKey, LIFECYCLE_ENTITY_KEYS } from "@capacitylens/shared/domain/lifecycle";
-import { isDomainErrorCode, type DomainErrorCode } from "@capacitylens/shared/domain/errors";
-import { diffOps, diffOpsFromPossibleBases, type Op } from "./syncOps";
-import { announceAuditWarning, noteAuditWarning } from "../lib/auditWarning";
-import { apiErrorFromBody } from "../lib/readApiError";
-import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
-import { cacheAccountSlice, readCachedAccountSlice, readCachedAuthSnapshot, setOfflineReadState } from "./offlineCache";
+import type { AppData, Entity } from "@capacitylens/shared/types/entities";
+import { SCOPED_KEYS } from "@capacitylens/shared/types/entities";
+import { type AllocationRewriteRevision, type PersistenceAdapter } from "./PersistenceAdapter";
 import {
-  isTransportFailure,
-  masqueradeErrorCode,
-  requestSignal,
-  API_REQUEST_TIMEOUT_MS,
-  API_BULK_TIMEOUT_MS,
-} from "./requestTimeout";
-import { isRecord, validateAccountSliceWithRepairBase } from "./validateAccountSlice";
-import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
+  KEEPALIVE_BODY_BUDGET,
+  KEEPALIVE_REQUEST_OVERHEAD_BUDGET,
+  KeepaliveNotDispatchedError,
+} from "./sync/batchErrors";
+import { applyBatch, dispatchPreparedBatch, prepareBatchBody } from "./sync/batchWire";
+import {
+  archiveLifecycleRow,
+  rememberedLifecycleRestoreOps,
+  rememberLifecycleArchives,
+  restoreRememberedLifecycleRows,
+  splitLifecycleDeletes,
+} from "./sync/lifecycleOps";
+import { hasExisting, loadAll } from "./sync/loadSlice";
+import { applyCommittedRevisions, writeRows, type BatchCommitReceipt } from "./sync/revisions";
+import {
+  canonicalizeAcknowledged,
+  pruneAcknowledgedRevisions,
+  publishAllocationRewrites,
+  rememberRevisions,
+} from "./sync/snapshot";
+import { SyncState } from "./sync/state";
+import { diffOps, diffOpsFromPossibleBases, type Op } from "./syncOps";
 
 // diffOps/applyOps now live in ./syncOps (the pure diff/apply core). Re-exported here
 // so existing import sites (e.g. ServerSyncAdapter.test.ts) keep resolving them from
 // this module unchanged.
-export { diffOps, applyOps } from "./syncOps";
+export { applyOps, diffOps } from "./syncOps";
 
-interface CommittedRevision {
-  table: Op["table"];
-  id: string;
-  createdAt: string;
-  updatedAt: string;
-  /** The server changed allocation content as well as its revision stamp. */
-  rewrite?: true;
-}
-
-/** One durable client-stamp → server-revision translation; see canonicalizeAcknowledged. */
-interface AcknowledgedRevision {
-  client: string;
-  server: CommittedRevision;
-}
-
-interface BatchCommitReceipt {
-  revisions: CommittedRevision[];
-  archivedLifecycleKeys: Set<string>;
-  superseded: boolean;
-}
-
-const MAX_DIAGNOSTIC_BODY_LENGTH = 1_000;
-const compatibilityWarnings = new Set<string>();
-
-// The one composite key every row-identity Map/Set in this module is keyed by. NUL is the separator
-// because neither a table name nor an entity id can contain it, so the two halves always round-trip.
-const rowKey = (table: string, id: string): string => `${table}\0${id}`;
-
-/** Split a {@link rowKey} back into its `[table, id]` halves. */
-function rowKeyParts(key: string): [table: string, id: string] {
-  const separator = key.indexOf("\0");
-  return [key.slice(0, separator), key.slice(separator + 1)];
-}
-
-function warnCompatibilityOnce(key: string, message: string): void {
-  if (compatibilityWarnings.has(key)) return;
-  compatibilityWarnings.add(key);
-  console.warn(message);
-}
-
-const rowsReference = (record: Record<string, unknown>, table: string, field: string): boolean =>
-  Array.isArray(record[table]) &&
-  record[table].some(
-    (row) =>
-      typeof row === "object" &&
-      row !== null &&
-      typeof (row as Record<string, unknown>)[field] === "string" &&
-      (row as Record<string, unknown>)[field] !== "",
-  );
-
-/** One foreign key a returned `child` row can use to point at a row in `parent`. */
-type FkEdge = {
-  [K in AppDataKey]: {
-    child: K;
-    parent: AppDataKey;
-    field: Extract<keyof AppData[K][number], string>;
-  };
-}[AppDataKey];
-
-// The payload's foreign-key graph, as data. A parent table may only be treated as "absent because
-// this server version predates it" when NOTHING in the returned payload still points into it, so
-// this list must stay exhaustive; `satisfies` proves each child/field pair is a real column, and the
-// account-scope witness below proves every scoped table's `accountId` edge is present.
-const FK_EDGES = [
-  { child: "disciplines", parent: "accounts", field: "accountId" },
-  { child: "resources", parent: "accounts", field: "accountId" },
-  { child: "clients", parent: "accounts", field: "accountId" },
-  { child: "projects", parent: "accounts", field: "accountId" },
-  { child: "phases", parent: "accounts", field: "accountId" },
-  { child: "activities", parent: "accounts", field: "accountId" },
-  { child: "allocations", parent: "accounts", field: "accountId" },
-  { child: "timeOff", parent: "accounts", field: "accountId" },
-  { child: "closures", parent: "accounts", field: "accountId" },
-  { child: "resources", parent: "disciplines", field: "disciplineId" },
-  { child: "allocations", parent: "resources", field: "resourceId" },
-  { child: "timeOff", parent: "resources", field: "resourceId" },
-  { child: "projects", parent: "clients", field: "clientId" },
-  { child: "phases", parent: "projects", field: "projectId" },
-  { child: "activities", parent: "projects", field: "projectId" },
-  { child: "resources", parent: "projects", field: "projectId" },
-  { child: "allocations", parent: "projects", field: "projectId" },
-  { child: "activities", parent: "phases", field: "phaseId" },
-  { child: "allocations", parent: "activities", field: "activityId" },
-] as const satisfies readonly FkEdge[];
-
-// Compile-completeness guard in the same idiom as SCOPED_KEYS/IMPORTED_FIELDS: the accounts parent
-// used to be derived by iterating SCOPED_KEYS, so a NEW scoped table would automatically have been
-// covered. Enumerating the edges gives up that automatism, and this witness buys it back — adding a
-// scoped table without its `accountId` edge above fails the build instead of silently letting a
-// version-skewed server drop `accounts` while that table's rows still reference it.
-type MissingAccountScopeEdge = Exclude<
-  ScopedEntityKey,
-  Extract<(typeof FK_EDGES)[number], { parent: "accounts" }>["child"]
->;
-const accountScopeEdgesAreComplete: MissingAccountScopeEdge extends never ? true : never = true;
-void accountScopeEdgesAreComplete;
-
-/** Missing-table compatibility is safe only when no returned child points into that table. */
-function referencedMissingTables(record: Record<string, unknown>, missingKeys: readonly string[]): string[] {
-  return missingKeys.filter((key) =>
-    FK_EDGES.some((edge) => edge.parent === key && rowsReference(record, edge.child, edge.field)),
-  );
-}
-
-function safeResponseError(action: string, status: number, rawBody: string): Error {
-  const message = `${action} failed (${status}).`;
-  if (!rawBody) return new Error(message);
-  const diagnostic = rawBody.slice(0, MAX_DIAGNOSTIC_BODY_LENGTH);
-  return new Error(message, { cause: new Error(diagnostic) });
-}
-
-/**
- * Write rows into a copy of `data`. An ABSENT id is always appended; `replaceExisting` decides what
- * a PRESENT id means, and the difference is load-bearing:
- *   - `true` (replace-or-append) makes an authoritative receipt win over whatever the snapshot held
- *     — the unarchive path, where a normal archive already advanced `lastSynced` past the row but a
- *     teardown archive deliberately did not, so both shapes must land on the receipt's copy;
- *   - `false` (APPEND-IF-ABSENT, NEVER OVERWRITE) re-inserts a row the snapshot is missing without
- *     ever clobbering a copy that is already there — the absence check is a defensive no-dup guard,
- *     not an update.
- */
-function writeRows(
-  data: AppData,
-  rows: Array<{ table: Op["table"]; row: Entity }>,
-  opts: { replaceExisting: boolean },
-): AppData {
-  if (rows.length === 0) return data;
-  const next = { ...data };
-  for (const { table, row } of rows) {
-    const list = next[table] as Entity[];
-    const exists = list.some((existing) => existing.id === row.id);
-    if (!exists) next[table] = [...list, row] as never;
-    else if (opts.replaceExisting)
-      next[table] = list.map((existing) => (existing.id === row.id ? row : existing)) as never;
-  }
-  return next;
-}
-
-function applyCommittedRevision(row: Entity, revision: CommittedRevision): Entity {
-  const revised = {
-    ...row,
-    createdAt: revision.createdAt,
-    updatedAt: revision.updatedAt,
-  };
-  return revision.table === "allocations" && revision.rewrite === true
-    ? withoutAllocationAttribution(revised)
-    : revised;
-}
-
-function applyCommittedRevisions(data: AppData, revisions: CommittedRevision[]): AppData {
-  if (revisions.length === 0) return data;
-  const byTable = new Map<keyof AppData, Map<string, CommittedRevision>>();
-  for (const revision of revisions) {
-    const rows = byTable.get(revision.table) ?? new Map<string, CommittedRevision>();
-    rows.set(revision.id, revision);
-    byTable.set(revision.table, rows);
-  }
-  const next = { ...data };
-  for (const [table, revisionsById] of byTable) {
-    next[table] = data[table].map((row) => {
-      const revision = revisionsById.get(row.id);
-      return revision ? applyCommittedRevision(row, revision) : row;
-    }) as never;
-  }
-  return next;
-}
-
-/** Compare the persisted content of two rows while ignoring server-owned revision stamps. */
-function sameEntityContent(left: Entity, right: Entity): boolean {
-  const content = (row: Entity) =>
-    Object.fromEntries(
-      Object.entries(row)
-        .filter(([key]) => key !== "createdAt" && key !== "updatedAt")
-        .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey)),
-    );
-  return JSON.stringify(content(left)) === JSON.stringify(content(right));
-}
+export {
+  BatchCommitUncertainError,
+  BatchConflictError,
+  BatchMasqueradeReadOnlyError,
+  BatchReconciliationError,
+  BatchTooLargeError,
+  BatchValidationError,
+  KeepaliveNotDispatchedError,
+  LifecycleRestoreError,
+  MAX_OPS_PER_BATCH,
+} from "./sync/batchErrors";
 
 // A PersistenceAdapter that keeps the SAME whole-tree contract the store already
 // speaks (loadAll / saveAll) but talks to the entity-level REST API:
@@ -220,502 +60,28 @@ function sameEntityContent(left: Entity, right: Entity): boolean {
 // atomic on failure. Batch receipts carry server-owned revisions; the adapter reconciles them
 // with client-local change markers before advancing lastSynced or flushing a queued edit.
 
-/**
- * Thrown when POST /api/batch answers **409** — the server's optimistic-concurrency conflict
- * signal (a stale `updatedAt`; ordered browser batches enforce this even when generic optimistic
- * concurrency is explicitly disabled; body `{ error, current }`, see the server's StaleWriteError
- * arm). A TYPED error, not the generic batch failure, because the
- * persist layer must treat it differently: retrying the same stale diff is deterministic futility
- * (the server will 409 it forever), so persist.ts resolves a conflict by RELOADING the active
- * slice (server wins — the documented interim policy until a conflict UI exists).
- */
-export abstract class BatchReconciliationError extends Error {}
-
-export class BatchConflictError extends BatchReconciliationError {
-  /** The server's copy of the conflicted row, when the 409 body carried one (best-effort parse). */
-  readonly current?: unknown;
-  constructor(message: string, current?: unknown) {
-    super(message);
-    this.name = "BatchConflictError";
-    this.current = current;
-  }
-}
-
-/** A deterministic HTTP 400 rejection of a syntactically valid batch. Retrying the same local
- * tree cannot succeed; persistence must reload server truth just as it does for a stale conflict. */
-export class BatchValidationError extends BatchReconciliationError {
-  readonly code?: DomainErrorCode;
-
-  constructor(message: string, code?: DomainErrorCode) {
-    super(message);
-    this.name = "BatchValidationError";
-    this.code = code;
-  }
-}
-
-/** A stale or in-flight client mutation reached the server after masquerade made the session
- * read-only. Retrying cannot succeed until an authoritative projection reload completes. */
-export class BatchMasqueradeReadOnlyError extends BatchReconciliationError {
-  constructor(message: string) {
-    super(message);
-    this.name = "BatchMasqueradeReadOnlyError";
-  }
-}
-
-/** A 2xx response that does not prove which rows committed. The server may already have written
- * the batch, so retrying against the prior snapshot is unsafe; persistence must reload first. */
-export class BatchCommitUncertainError extends BatchReconciliationError {
-  constructor(message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = "BatchCommitUncertainError";
-  }
-}
-
-/** A remembered sync archive could not be reversed authoritatively. Reload instead of replaying a
- * generic PUT that the server's lifecycle boundary cannot use to clear a tombstone. */
-export class LifecycleRestoreError extends BatchReconciliationError {
-  constructor(message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = "LifecycleRestoreError";
-  }
-}
-
-/**
- * Thrown when a single logical diff exceeds {@link MAX_OPS_PER_BATCH}. The atomic design refuses to
- * split it into separately-committed prefixes (that would reintroduce the reparent-before-delete
- * FK-order race the single transaction exists to prevent), so this is a TERMINAL, non-retryable
- * condition — re-sending the identical over-limit diff throws forever, unlike a transient network
- * failure. A TYPED error (not the generic batch failure) so persist.ts can special-case it: surface
- * the banner plus a clear sticky notice and STOP the exponential-backoff retry loop. The desired
- * state stays in memory until a later, smaller diff lands or the page is closed.
- */
-export class BatchTooLargeError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "BatchTooLargeError";
-  }
-}
-
-export class KeepaliveNotDispatchedError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "KeepaliveNotDispatchedError";
-  }
-}
-
-// One logical diff is always one server transaction. The client never slices this limit into
-// separately committed prefixes; an over-limit diff fails atomically. Server-mode imports use
-// their dedicated atomic endpoint.
-export const MAX_OPS_PER_BATCH = 5000;
-const KEEPALIVE_BODY_BUDGET = 60 * 1024;
-// Fetch keepalive quotas are shared by every in-flight request in the page. Reserve a conservative
-// allowance for each request's method, URL and headers instead of spending the entire quota on
-// bodies and assuming sibling lifecycle archives are free.
-const KEEPALIVE_REQUEST_OVERHEAD_BUDGET = 1024;
-
 export class ServerSyncAdapter implements PersistenceAdapter {
-  private readonly baseUrl: string;
-  private readonly fetchImpl: typeof fetch;
-  // The last state confirmed fully synced to the server; every diff is computed
-  // against it and it only advances on a fully successful flush.
-  private lastSynced: AppData = emptyAppData();
-  // Coalesce-to-latest: while a flush is in flight, newer saves just park here and
-  // the running flush picks them up. One write path, no overlapping requests.
-  private queued: AppData | null = null;
-  private inFlight: Promise<void> | null = null;
-  /** Target already on the wire but not yet fully acknowledged. During an overlapping teardown,
-   * either this target or lastSynced may be the server's current state. */
-  private dispatchedTarget: AppData | null = null;
-  // Load generation counter: bumped at the START of every loadAll. A loadAll that is no longer
-  // the newest by the time its fetch resolves must NOT seed `lastSynced` — persist.ts's token
-  // guard discards that stale slice from the STORE, but without this guard the adapter snapshot
-  // would still be mutated, leaving snapshot=stale-account while data=newer-account, and the next
-  // save would diff across tenants (DELETEs for the stale account + PUTs for the newer one —
-  // cross-account data loss).
-  private loadGen = 0;
-  // Seed generation counter: bumped every time loadAll actually SEEDS `lastSynced`. This — not
-  // loadGen — is what drain() must check: loadGen bumps at fetch START, so a save that begins
-  // while a load is already in flight captures the same generation the load will seed under, and
-  // a start-generation check would pass even though the seed landed mid-batch. Two uses:
-  //   - a queued save whose seedGen is stale by the time drain picks it up is DROPPED — its diff
-  //     basis (the snapshot it was queued against) is gone, and diffing it against the fresh seed
-  //     could cross tenants (DELETEs of the new account's rows + PUTs of the old one's);
-  //   - after a batch lands, `lastSynced` advances only if no seed happened since the diff was
-  //     taken — otherwise the reload's fresh seed wins (skipping is safe: the server already
-  //     holds the batch's idempotent ops, so the next diff re-derives anything still relevant).
-  // persist.ts's reload paths surface/re-push any edit a dropped save carried (see refreshActive's
-  // mid-load-edit handling), so a drop here is never a silent loss.
-  private seedGen = 0;
-  /** Tenant paired with the current scoped snapshot. Null means the snapshot came from the
-   * unscoped OFF/demo bootstrap path. A scoped save must match this tenant before diffing. */
-  private seededAccountId: string | null = null;
-  // The seedGen at the moment `queued` was last written — pairs a parked save with the snapshot
-  // generation it was diffed-to-be against.
-  private queuedSeedGen = 0;
-  private acknowledgedRevisions = new Map<string, AcknowledgedRevision>();
-  private allocationRewriteHandler: ((revisions: readonly AllocationRewriteRevision[]) => void) | null = null;
-  /** Lifecycle rows this adapter successfully archived after a local disappearance. If the same id
-   * returns through undo/redo, it must be unarchived before ordinary descendant writes can land. */
-  private archivedBySync = new Set<string>();
-  // Every adapter instance is one browser sync session. Monotonic request sequences let the server
-  // order a newer pagehide batch against an older ordinary batch even when the network reverses
-  // their arrival. The id contains no user/device data and is never persisted client-side.
-  private readonly syncSessionId = crypto.randomUUID();
-  private nextSyncSequence = 1;
+  private readonly state: SyncState;
 
   constructor(baseUrl: string, fetchImpl: typeof fetch = fetch.bind(globalThis)) {
-    this.baseUrl = baseUrl.replace(/\/$/, "");
-    this.fetchImpl = fetchImpl;
+    this.state = new SyncState(baseUrl, fetchImpl);
+  }
+
+  loadAll(accountId?: string): Promise<AppData> {
+    return loadAll(this.state, (next) => this.saveAll(next), accountId);
+  }
+
+  hasExisting(): Promise<boolean> {
+    return hasExisting(this.state);
   }
 
   setAllocationRewriteHandler(handler: ((revisions: readonly AllocationRewriteRevision[]) => void) | null): void {
-    this.allocationRewriteHandler = handler;
-  }
-
-  private request(
-    input: RequestInfo | URL,
-    init: RequestInit = {},
-    timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
-  ): Promise<Response> {
-    // Share the one request-timeout/abort seam (requestSignal) with the rest of the API surface —
-    // same AbortSignal.any fallback for engines that lack it — instead of a second hand-rolled copy
-    // that could drift. `timeoutMs` picks the tier: interactive 15s by default, the longer bulk
-    // bound for whole-slice load/batch, or `null` (no deadline) for the keepalive unload flush.
-    return this.fetchImpl(input, {
-      ...init,
-      signal: requestSignal(init.signal, timeoutMs),
-    });
-  }
-
-  /** Regroup the flat key→translation map into table→(id→translation) ONCE per pass, so a whole-table
-   *  scan can look rows up by plain id instead of composing a key string per row. */
-  private acknowledgedByTable(): Map<keyof AppData, Map<string, AcknowledgedRevision>> {
-    const byTable = new Map<keyof AppData, Map<string, AcknowledgedRevision>>();
-    for (const [key, acknowledged] of this.acknowledgedRevisions) {
-      const [table, id] = rowKeyParts(key);
-      let rows = byTable.get(table as keyof AppData);
-      if (!rows) {
-        rows = new Map<string, AcknowledgedRevision>();
-        byTable.set(table as keyof AppData, rows);
-      }
-      rows.set(id, acknowledged);
-    }
-    return byTable;
-  }
-
-  private canonicalizeAcknowledged(data: AppData): AppData {
-    if (this.acknowledgedRevisions.size === 0) return data;
-    const next = { ...data };
-    let changed = false;
-    for (const [table, acknowledgedById] of this.acknowledgedByTable()) {
-      next[table] = data[table].map((row) => {
-        const acknowledged = acknowledgedById.get(row.id);
-        if (!acknowledged || row.updatedAt !== acknowledged.client) return row;
-        changed = true;
-        // DURABLE translation, NOT consume-once — the entry MUST survive this diff. Nothing ever
-        // writes the server's revision back into the Zustand store, so the store's copy of this row
-        // keeps its client-side updatedAt for the tab's whole life. lastSynced holds the SERVER stamp;
-        // every future diff therefore re-sees store(clientStamp) ≠ lastSynced(serverStamp) and would
-        // re-emit a phantom PUT for a row the user never touched — which would re-stamp the row on the
-        // server and 409-discard another user's real edit. Keeping the entry lets each future diff
-        // translate the client stamp to the acknowledged server stamp, yielding ZERO ops. The entry is
-        // invalidated only when it stops applying: a genuine re-edit bumps row.updatedAt to a NEW value
-        // (this `=== acknowledged.client` guard then fails, so exactly one real PUT is emitted and
-        // rememberRevisions overwrites the entry with the new client→server pair), and a full rehydrate
-        // clears the whole Map (seedSnapshot). So the Map holds at most one entry per row edited since
-        // the last rehydrate — bounded, not consume-once.
-        return applyCommittedRevision(row, acknowledged.server);
-      }) as never;
-    }
-    return changed ? next : data;
-  }
-
-  // Seed the diff snapshot to a freshly loaded slice and announce the seed to drain() (seedGen).
-  // Clearing the acknowledged-revision translations is PART of seeding: those entries map the prior
-  // session's client stamps onto server revisions, but a rehydrate replaces both lastSynced and the
-  // store with server-stamped rows, so the translations are now stale (and a fresh row reusing an old
-  // client stamp could be mistranslated). This is also the Map's cleanup boundary — see
-  // canonicalizeAcknowledged: without a rehydrate the Map only ever shrinks or overwrites, so seeding
-  // is where it is emptied.
-  private seedSnapshot(data: AppData, accountId?: string): void {
-    this.lastSynced = data;
-    this.seededAccountId = accountId ?? null;
-    this.seedGen += 1;
-    this.acknowledgedRevisions.clear();
-    this.archivedBySync.clear();
-  }
-
-  private rememberRevisions(ops: Op[], revisions: CommittedRevision[], committedSnapshot: AppData): void {
-    const byRow = new Map(
-      revisions
-        .filter((revision) => revision.rewrite !== true)
-        .map((revision) => [rowKey(revision.table, revision.id), revision]),
-    );
-    for (const op of ops) {
-      if (op.method !== "PUT" || !op.row) continue;
-      const key = rowKey(op.table, op.id);
-      const server = byRow.get(key);
-      if (server) {
-        this.acknowledgedRevisions.set(key, {
-          client: op.row.updatedAt,
-          server,
-        });
-      }
-    }
-    const rowsByTable = new Map<Op["table"], Map<string, Entity>>();
-    for (const revision of revisions) {
-      const key = rowKey(revision.table, revision.id);
-      if (revision.rewrite !== true) continue;
-      let rows = rowsByTable.get(revision.table);
-      if (!rows) {
-        rows = new Map((committedSnapshot[revision.table] as Entity[]).map((row) => [row.id, row]));
-        rowsByTable.set(revision.table, rows);
-      }
-      const row = rows.get(revision.id);
-      if (row) {
-        this.acknowledgedRevisions.set(key, {
-          client: row.updatedAt,
-          server: revision,
-        });
-      }
-    }
-  }
-
-  private publishAllocationRewrites(revisions: readonly CommittedRevision[], committedSnapshot: AppData): void {
-    const rewrites = revisions.flatMap((revision): AllocationRewriteRevision[] => {
-      if (revision.table !== "allocations" || revision.rewrite !== true) return [];
-      const flushed = committedSnapshot.allocations.find((allocation) => allocation.id === revision.id);
-      return flushed ? [{ ...revision, flushedUpdatedAt: flushed.updatedAt }] : [];
-    });
-    if (rewrites.length > 0) this.allocationRewriteHandler?.(rewrites);
-  }
-
-  /** Drop translations for rows absent from the fully committed target. Defer this until lifecycle
-   * convergence has restored any failed archives, so retryable disappearances keep their mapping. */
-  private pruneAcknowledgedRevisions(data: AppData): void {
-    // Nothing to prune, and — since only the tables the surviving translations MENTION can decide a
-    // key's fate — never a reason to index every row of every table just to answer a handful of ids.
-    if (this.acknowledgedRevisions.size === 0) return;
-    for (const [table, acknowledgedById] of this.acknowledgedByTable()) {
-      const live = new Set<string>((data[table] as Entity[] | undefined)?.map((row) => row.id));
-      for (const id of acknowledgedById.keys()) {
-        if (!live.has(id)) this.acknowledgedRevisions.delete(rowKey(table, id));
-      }
-    }
-  }
-
-  // P3.4: every request carries credentials so an auth-enabled server (CAPACITYLENS_AUTH ≠ off)
-  // sees the Better Auth session cookie. With auth off (the default) and same-origin
-  // requests there are no cookies to send — a verified no-op (the db-backed e2e project
-  // runs unchanged); the server pairs reflected CORS origins with Allow-Credentials.
-  //
-  // @param accountId  When PRESENT (P1.13), load ONLY that account's scoped slice via
-  //   `GET /api/state?accountId=…`. This is the per-account hydration path: the picker chose a tenant
-  //   and we load just its data. When ABSENT, fall back to the no-arg whole read — used in OFF/demo
-  //   (still a whole tree) and the pre-pick bootstrap before any account is active (in auth-on the
-  //   server now 400s a no-arg read, which surfaces as a LoadError → connection screen, which is
-  //   correct: there's nothing to show until a tenant is picked and re-loaded with an id).
-  //
-  // EITHER WAY `lastSynced` is set to EXACTLY the returned body — this is the diff SNAPSHOT every save
-  // is computed against, so it MUST equal the slice we just loaded. The persist switch orchestrator
-  // (persist.ts) relies on this: re-seeding the snapshot to the new account in the SAME call as the
-  // load is what keeps snapshot and `data` on the same tenant. If they ever desync (snapshot=A,
-  // data=B) the next save would emit DELETEs for A + PUTs for B → cross-account data loss.
-  async loadAll(accountId?: string): Promise<AppData> {
-    const myGen = ++this.loadGen;
-    try {
-      const url =
-        accountId !== undefined
-          ? `${this.baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`
-          : `${this.baseUrl}/api/state`;
-      // Whole-slice hydration: the BULK tier, not the interactive 15s — a large tenant's full read
-      // can legitimately outrun the interactive bound against a healthy-but-slow server.
-      const res = await this.request(url, { credentials: "include" }, API_BULK_TIMEOUT_MS);
-      // The no-arg whole read is CLOSED in auth-on (P1.13): the server 400s it (tenant isolation —
-      // a logged-in user must hydrate PER ACCOUNT via ?accountId=). Treat that 400 on the NO-ARG read
-      // as "nothing to hydrate yet" — return EMPTY (snapshot empty) so bootstrap shows the picker
-      // rather than a connection-error dead end. The picker lists the login's accounts from
-      // GET /api/accounts (useAccountSummaries); picking one hydrates its slice via loadAll(accountId).
-      // OFF keeps the no-arg whole read (200), so this branch never fires there. A 400 on a SCOPED
-      // read (accountId present) is a real error and still throws below.
-      if (accountId === undefined && res.status === 400) {
-        const empty = emptyAppData();
-        if (myGen === this.loadGen) {
-          this.seedSnapshot(empty);
-          setOfflineReadState("tenant", false);
-        }
-        return empty;
-      }
-      if (!res.ok) throw new Error(`Failed to load state (${res.status})`);
-      // An HTML body — the SPA-fallback index.html or a proxy error page, a REACHABLE case now an
-      // empty-env server-default build can hit a backend-less same-origin host — starts with '<', so
-      // native res.json() runs JSON.parse and REJECTS with a SyntaxError. That rejection is caught
-      // below and mapped to LoadError('unavailable') → the connection-error screen; it does NOT reach
-      // migrate(). So migrate() only ever sees a body that already parsed as JSON.
-      const json: unknown = await res.json();
-      // DEPLOYMENT CONTRACT (rolling deploy — new client, older server): a version-skewed OLDER
-      // server may OMIT a table key this newer client already knows about. A MISSING key is
-      // TOLERATED on BOTH read paths — the unscoped migrate()/normalize hydrates it empty, and the
-      // scoped path pre-fills it empty below so validateAccountSlice hydrates it empty too — so a
-      // new-client/old-server skew is not a total outage on every deploy, and an account switch or
-      // scoped load during a version-skew window no longer throws "incomplete state payload". But a
-      // key that is PRESENT and NOT an array is a corrupt/incomplete payload masquerading as empty
-      // data, so it stays a HARD failure on both paths. (Same principle as the import path's
-      // hasNonArrayKnownTable: repair within a record, reject a structurally broken one — never coerce
-      // a broken table to [] and report it as success.) The cross-tenant (wrong accountId) checks
-      // inside validateAccountSlice keep their FULL strictness regardless.
-      if (!isRecord(json)) {
-        throw new Error("The server returned an invalid state payload.");
-      }
-      const record = json;
-      if (KNOWN_KEYS.some((key) => key in record && !Array.isArray(record[key]))) {
-        throw new Error("The server returned an invalid state payload.");
-      }
-      // A missing known key is tolerated (hydrated empty) but DIAGNOSABLE: warn ONCE per load, naming
-      // every omitted table. A rolling-deploy skew (new client, older server) is the expected benign
-      // cause; the SAME warning against a same-version server is the signal that a proxy or server bug
-      // silently dropped a table — without this it would load as "empty" invisibly and be undiagnosable.
-      const missingKeys = KNOWN_KEYS.filter((key) => !(key in record));
-      const referencedMissing = referencedMissingTables(record, missingKeys);
-      if (referencedMissing.length > 0) {
-        throw new Error(
-          `The server returned an incomplete state payload: omitted referenced table(s) [${referencedMissing.join(
-            ", ",
-          )}].`,
-        );
-      }
-      if (missingKeys.length > 0) {
-        console.warn(
-          `ServerSyncAdapter: the server state payload omitted known table(s) [${missingKeys.join(", ")}]; ` +
-            "hydrating them empty. Expected during a rolling deploy (new client, older server); if the " +
-            "server is the SAME version, a proxy or server bug dropped the table(s).",
-        );
-      }
-      // Scoped path: pre-fill any missing known table as an empty array so validateAccountSlice
-      // hydrates it empty instead of hard-failing "incomplete" (its per-key Array.isArray check treats
-      // an ABSENT key as a reject). We do this in the scoped BRANCH rather than in validateAccountSlice
-      // itself because other callers of that validator (fetchInactiveSlice's backup/export path) rely
-      // on its full-completeness contract. Present-but-non-array was already rejected above; the
-      // accountId cross-tenant checks still run at full strictness on the real rows.
-      const scopedInput =
-        missingKeys.length > 0
-          ? {
-              ...record,
-              ...Object.fromEntries(missingKeys.map((key) => [key, [] as unknown[]])),
-            }
-          : record;
-      const migrated =
-        accountId === undefined
-          ? migrateWithRepairBase(json)
-          : validateAccountSliceWithRepairBase(scopedInput, accountId);
-      if (!migrated) throw new Error("The server returned a cross-tenant or incomplete state payload.");
-      const { data, repairBase } = migrated;
-      // Re-seed the diff snapshot to the SLICE we just loaded (atomic with the load — see the
-      // method doc). A switch orchestrator calling loadAll(newId) gets lastSynced === the new
-      // account's slice, so the immediately-following saveAll diffs new-vs-new = ZERO ops, never
-      // cross-account deletes. Generation-guarded: a SUPERSEDED load (a newer loadAll started
-      // while this fetch was in flight) must not seed — its slice is discarded by persist.ts's
-      // token guard, and seeding here anyway would desync snapshot from data (see loadGen).
-      if (myGen === this.loadGen) {
-        // Seed the state the server ACTUALLY returned, then attempt to durably converge any
-        // Internal-client synthesis/restamp/duplicate fold before acknowledging and exposing the
-        // repaired slice. The current server owns its protected Internal row and may reject a
-        // legacy/corrupt repair it cannot safely apply; that rejects hydration rather than masking
-        // the incompatible durable state.
-        // Bootstrap attaches its save subscription only after loadAll returns, so deferring this
-        // write would leave the repair permanently memory-only. saveAll preserves the adapter's
-        // ordinary parent-before-child/upserts-before-deletes ordering and advances lastSynced only
-        // after a confirmed receipt. A failed repair rejects hydration rather than presenting data
-        // whose required parent rows do not exist durably.
-        this.seedSnapshot(repairBase, accountId);
-        // Avoid joining an unrelated in-flight save when migration was identity-preserving. Besides
-        // being unnecessary, awaiting that request here would make a concurrent reload wait on a
-        // batch whose own race coordinator may be waiting for the reload to finish.
-        if (diffOps(repairBase, data).length > 0) await this.saveAll(data);
-        setOfflineReadState("tenant", false);
-        if (accountId !== undefined && missingKeys.length === 0) {
-          void cacheAccountSlice(accountId, data).catch((error) =>
-            console.warn("ServerSyncAdapter: the offline account snapshot could not be updated", error),
-          );
-        }
-      }
-      return data;
-    } catch (e) {
-      // Only an actual fetch/network rejection proves the service is unreachable enough to use a
-      // stale read-only snapshot. A reachable 5xx and our own Abort/Timeout deadline are server
-      // failures: route them to the retry screen instead of presenting old data as ordinary offline
-      // mode. Browser fetch reports network/DNS/TLS failures as TypeError.
-      const offlineEligible = e instanceof TypeError;
-      if (offlineEligible) {
-        const cached = await this.hydrateFromOfflineCache(accountId, myGen);
-        if (cached !== null) return cached;
-      }
-      // A rejected fetch (server down / network error), a non-OK status, or an
-      // unreadable server payload are ALL remote conditions: the user recovers by
-      // RETRYING, never by clearing local storage (the corrupt-data reset path,
-      // which can't recover a server-backed app). Flag as 'unavailable' so bootstrap
-      // routes to the connection-error screen, not StorageRecovery.
-      throw new LoadError("unavailable", e instanceof Error ? e.message : "Failed to load state from server.", {
-        cause: e,
-      });
-    }
-  }
-
-  /**
-   * loadAll's offline tail, reached ONLY after the request proved the service unreachable (a fetch
-   * TypeError). Returns the snapshot to hydrate from, or `null` when nothing usable is cached and
-   * the caller must surface the LoadError.
-   *
-   * Both arms are generation-guarded on `myGen`: a superseded load may still READ the cache, but
-   * must not seed the adapter snapshot or flip the app into offline-read mode behind a newer load.
-   * A cache read that throws is a degraded local store, never a reason to hide the real remote
-   * failure — it is warned about and falls through to the caller's LoadError.
-   */
-  private async hydrateFromOfflineCache(accountId: string | undefined, myGen: number): Promise<AppData | null> {
-    if (accountId === undefined) {
-      try {
-        const cachedIdentity = await readCachedAuthSnapshot({
-          acceptEffects: () => myGen === this.loadGen,
-        });
-        if (cachedIdentity) {
-          const empty = emptyAppData();
-          if (myGen === this.loadGen) this.seedSnapshot(empty);
-          if (myGen === this.loadGen) setOfflineReadState("tenant", true, cachedIdentity.savedAt);
-          return empty;
-        }
-      } catch (cacheError) {
-        console.warn("ServerSyncAdapter: the offline identity snapshot could not be read", cacheError);
-      }
-      return null;
-    }
-    try {
-      const cached = await readCachedAccountSlice(accountId);
-      if (cached) {
-        if (myGen === this.loadGen) this.seedSnapshot(cached.value, accountId);
-        if (myGen === this.loadGen) setOfflineReadState("tenant", true, cached.savedAt);
-        return cached.value;
-      }
-    } catch (cacheError) {
-      console.warn("ServerSyncAdapter: the offline account snapshot could not be read", cacheError);
-    }
-    return null;
-  }
-
-  async hasExisting(): Promise<boolean> {
-    const res = await this.request(`${this.baseUrl}/api/meta`, {
-      credentials: "include",
-    });
-    if (!res.ok) throw new Error(`Failed to read meta (${res.status})`);
-    const json: unknown = await res.json();
-    if (!isRecord(json) || typeof json.hasData !== "boolean") {
-      throw new Error("The server returned an invalid meta payload.");
-    }
-    return json.hasData;
+    this.state.allocationRewriteHandler = handler;
   }
 
   async saveAll(next: AppData, opts?: { unload?: boolean }): Promise<void> {
-    if (this.seededAccountId !== null) {
-      const expected = this.seededAccountId;
+    if (this.state.seededAccountId !== null) {
+      const expected = this.state.seededAccountId;
       const mismatchedAccount = next.accounts.some((account) => account.id !== expected);
       const mismatchedScopedRow = SCOPED_KEYS.some((table) => next[table].some((row) => row.accountId !== expected));
       if (mismatchedAccount || mismatchedScopedRow) {
@@ -725,28 +91,28 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     // Page-teardown flush: send the whole diff as ONE keepalive batch request so it
     // survives the unload (a plain fetch would be cancelled mid-flight). See applyBatch.
     if (opts?.unload) {
-      if (this.inFlight) {
+      if (this.state.inFlight) {
         // drain() has already dispatched its current target. Do not merely park this newer
         // snapshot behind that ordinary request: page teardown can terminate the tab before the
         // drain gets another turn. Clear any older parked target and synchronously dispatch the
         // latest complete delta as a keepalive request. The complete lastSynced→next diff is
         // intentional: it remains self-contained if the earlier request is lost in transit.
-        this.queued = null;
-        const ordinaryFlush = this.inFlight;
+        this.state.queued = null;
+        const ordinaryFlush = this.state.inFlight;
         const teardownFlush = this.flushUnload(next);
         await Promise.all([ordinaryFlush, teardownFlush]);
         return;
       }
       return this.flushUnload(next);
     }
-    this.queued = next;
-    this.queuedSeedGen = this.seedGen; // pair the parked save with the snapshot it was made against
-    if (this.inFlight) return this.inFlight;
-    this.inFlight = this.drain();
+    this.state.queued = next;
+    this.state.queuedSeedGen = this.state.seedGen; // pair the parked save with the snapshot it was made against
+    if (this.state.inFlight) return this.state.inFlight;
+    this.state.inFlight = this.drain();
     try {
-      await this.inFlight;
+      await this.state.inFlight;
     } finally {
-      this.inFlight = null;
+      this.state.inFlight = null;
     }
   }
 
@@ -756,10 +122,12 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   // NOT advance lastSynced. One atomic final-state request closes both the FK-order race and the
   // cross-request lifecycle resurrection race.
   private async flushUnload(next: AppData): Promise<void> {
-    const canonicalTarget = this.canonicalizeAcknowledged(next);
-    const possibleBases = this.dispatchedTarget ? [this.lastSynced, this.dispatchedTarget] : [this.lastSynced];
+    const canonicalTarget = canonicalizeAcknowledged(this.state, next);
+    const possibleBases = this.state.dispatchedTarget
+      ? [this.state.lastSynced, this.state.dispatchedTarget]
+      : [this.state.lastSynced];
     const ops = diffOpsFromPossibleBases(possibleBases, canonicalTarget);
-    if (this.rememberedLifecycleRestoreOps(canonicalTarget).length > 0) {
+    if (rememberedLifecycleRestoreOps(this.state, canonicalTarget).length > 0) {
       // Restoring an archive requires an ordered request/receipt before any dependent batch can be
       // constructed. A page-teardown keepalive cannot safely promise that second dispatch after the
       // page dies, so refuse explicitly; a surviving page retains the dirty state and retries through
@@ -768,14 +136,14 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         "A pending lifecycle restore requires the normal ordered sync path before page teardown.",
       );
     }
-    const { batchOps, lifecycleDeletes } = this.splitLifecycleDeletes(ops);
+    const { batchOps, lifecycleDeletes } = splitLifecycleDeletes(ops);
     // Teardown must carry one complete successor state. Lifecycle disappearances become ARCHIVE
     // operations inside the same ordered transaction as ordinary writes, so the successor can
     // safely fence an older in-flight creation even if the network delivers it first.
     const orderedOps = [...batchOps, ...lifecycleDeletes];
     const batchBody =
       orderedOps.length > 0
-        ? this.prepareBatchBody(orderedOps, { keepalive: true, archiveLifecycleDeletes: true })
+        ? prepareBatchBody(this.state, orderedOps, { keepalive: true, archiveLifecycleDeletes: true })
         : null;
     const keepaliveBytes =
       batchBody === null ? 0 : new TextEncoder().encode(batchBody).byteLength + KEEPALIVE_REQUEST_OVERHEAD_BUDGET;
@@ -785,14 +153,14 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       );
     }
     if (batchBody === null) return;
-    const receipt = await this.dispatchPreparedBatch(batchBody, orderedOps, {
+    const receipt = await dispatchPreparedBatch(this.state, batchBody, orderedOps, {
       keepalive: true,
       archiveLifecycleDeletes: true,
     });
     if (!receipt.superseded) {
-      this.rememberRevisions(batchOps, receipt.revisions, canonicalTarget);
-      this.publishAllocationRewrites(receipt.revisions, canonicalTarget);
-      this.rememberLifecycleArchives(lifecycleDeletes, receipt.archivedLifecycleKeys);
+      rememberRevisions(this.state, batchOps, receipt.revisions, canonicalTarget);
+      publishAllocationRewrites(this.state, receipt.revisions, canonicalTarget);
+      rememberLifecycleArchives(this.state, lifecycleDeletes, receipt.archivedLifecycleKeys);
     }
   }
 
@@ -804,20 +172,20 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   // arrived mid-flush (coalesce-to-latest). Atomicity replaces the old per-op poison-row
   // isolation: a bad row now fails the whole batch rather than leaving a partial write.
   private async drain(): Promise<void> {
-    while (this.queued) {
-      const target = this.queued;
-      const targetSeedGen = this.queuedSeedGen;
-      this.queued = null;
+    while (this.state.queued) {
+      const target = this.state.queued;
+      const targetSeedGen = this.state.queuedSeedGen;
+      this.state.queued = null;
       // A reload SEEDED the snapshot after this save was queued: the state it was diffed-to-be
       // against no longer exists, and diffing it against the fresh seed could cross tenants
       // (see the seedGen doc). Reject rather than resolving the public save contract: persist can
       // surface/rebase the edit instead of treating an undispatched target as acknowledged.
-      if (targetSeedGen !== this.seedGen) {
+      if (targetSeedGen !== this.state.seedGen) {
         throw new Error("The pending changes were superseded by a refreshed company snapshot.");
       }
-      let canonicalTarget = this.canonicalizeAcknowledged(target);
-      this.dispatchedTarget = canonicalTarget;
-      let ops = diffOps(this.lastSynced, canonicalTarget);
+      let canonicalTarget = canonicalizeAcknowledged(this.state, target);
+      this.state.dispatchedTarget = canonicalTarget;
+      let ops = diffOps(this.state.lastSynced, canonicalTarget);
       // A lifecycle row removed by a prior sync was archived, not deleted. Redo therefore cannot
       // recreate it with a generic PUT: the server deliberately pins archivedAt. Reverse those
       // remembered transitions parent-first, fold their authoritative revisions into the baseline,
@@ -826,20 +194,20 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         // Keep the ordinary save path synchronous through its first network dispatch. That timing
         // lets an overlapping pagehide observe the in-flight request and immediately put its own
         // compensating keepalive on the wire. Only a real remembered restore needs this await.
-        const restoreOps = this.rememberedLifecycleRestoreOps(canonicalTarget);
+        const restoreOps = rememberedLifecycleRestoreOps(this.state, canonicalTarget);
         const restored =
-          restoreOps.length > 0 ? await this.restoreRememberedLifecycleRows(restoreOps, targetSeedGen) : false;
-        if (targetSeedGen !== this.seedGen) {
-          this.dispatchedTarget = null;
+          restoreOps.length > 0 ? await restoreRememberedLifecycleRows(this.state, restoreOps, targetSeedGen) : false;
+        if (targetSeedGen !== this.state.seedGen) {
+          this.state.dispatchedTarget = null;
           continue;
         }
         if (restored) {
-          canonicalTarget = this.canonicalizeAcknowledged(target);
-          this.dispatchedTarget = canonicalTarget;
-          ops = diffOps(this.lastSynced, canonicalTarget);
+          canonicalTarget = canonicalizeAcknowledged(this.state, target);
+          this.state.dispatchedTarget = canonicalTarget;
+          ops = diffOps(this.state.lastSynced, canonicalTarget);
         }
       } catch (error) {
-        this.dispatchedTarget = null;
+        this.state.dispatchedTarget = null;
         throw error;
       }
       // Lifecycle-entity deletes (clients/projects/resources) CANNOT ride the atomic batch — the
@@ -848,7 +216,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // the dedicated archive route AFTER the batch (see archiveLifecycleRow for the archive-only
       // policy), so any reparent/upsert the same diff carries (e.g. a child moved off the row being
       // deleted) lands first — mirroring the batch's own upserts-before-deletes invariant across the split.
-      const { batchOps, lifecycleDeletes } = this.splitLifecycleDeletes(ops);
+      const { batchOps, lifecycleDeletes } = splitLifecycleDeletes(ops);
       // An applyBatch throw MUST propagate before the snapshot advances so saveAll rejects and
       // persist.ts either retries a transport failure or reloads after an uncertain receipt. The
       // narrow catch below clears only the no-longer-in-flight possible base and rethrows; swallowing
@@ -857,21 +225,21 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       if (batchOps.length > 0) {
         let receipt: BatchCommitReceipt;
         try {
-          receipt = await this.applyBatch(batchOps);
+          receipt = await applyBatch(this.state, batchOps);
         } catch (error) {
           // The request has settled without an accepted receipt, so it is no longer an in-flight
           // possible base for a later teardown diff. An uncertain commit is resolved by the
           // persistence layer's authoritative reload before another write is accepted.
-          this.dispatchedTarget = null;
+          this.state.dispatchedTarget = null;
           throw error;
         }
         if (receipt.superseded) {
-          this.dispatchedTarget = null;
+          this.state.dispatchedTarget = null;
           continue;
         }
-        if (targetSeedGen === this.seedGen) {
-          this.rememberRevisions(batchOps, receipt.revisions, canonicalTarget);
-          this.publishAllocationRewrites(receipt.revisions, canonicalTarget);
+        if (targetSeedGen === this.state.seedGen) {
+          rememberRevisions(this.state, batchOps, receipt.revisions, canonicalTarget);
+          publishAllocationRewrites(this.state, receipt.revisions, canonicalTarget);
           committedTarget = applyCommittedRevisions(canonicalTarget, receipt.revisions);
         }
       }
@@ -885,10 +253,10 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       const unconverged: Array<{ table: Op["table"]; row: Entity }> = [];
       for (const op of lifecycleDeletes) {
         try {
-          await this.archiveLifecycleRow(op);
+          await archiveLifecycleRow(this.state, op);
         } catch (e) {
           if (lifecycleError === null) lifecycleError = e;
-          const row = (this.lastSynced[op.table] as Entity[]).find((r) => r.id === op.id);
+          const row = (this.state.lastSynced[op.table] as Entity[]).find((r) => r.id === op.id);
           if (row) unconverged.push({ table: op.table, row });
         }
       }
@@ -903,486 +271,15 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // diff was taken would pass a start-generation check and still seed mid-batch. Skipping is
       // safe: the server already holds these idempotent ops, so the next diff re-derives anything
       // still relevant against the fresh seed.
-      if (targetSeedGen === this.seedGen) {
-        this.lastSynced = committedTarget;
-        this.pruneAcknowledgedRevisions(committedTarget);
+      if (targetSeedGen === this.state.seedGen) {
+        this.state.lastSynced = committedTarget;
+        pruneAcknowledgedRevisions(this.state, committedTarget);
       }
-      this.dispatchedTarget = null;
+      this.state.dispatchedTarget = null;
       // Surface a lifecycle-archive failure LAST — after the snapshot advanced — so unrelated ops are
       // never blocked (they committed above and won't replay) and only the un-converged row's delete
       // re-fires on the next diff.
       if (lifecycleError !== null) throw lifecycleError;
     }
-  }
-
-  // The server 400-REJECTS a batch DELETE of a lifecycle entity (clients/projects/resources) — those
-  // deletions must converge through the dedicated archive route instead (see archiveLifecycleRow).
-  // Partition an op set into the atomic-batch ops and the lifecycle deletes the caller drives
-  // out-of-band by archiving (see drain/flushUnload).
-  private splitLifecycleDeletes(ops: Op[]): {
-    batchOps: Op[];
-    lifecycleDeletes: Op[];
-  } {
-    const batchOps: Op[] = [];
-    const lifecycleDeletes: Op[] = [];
-    for (const op of ops) {
-      if (op.method === "DELETE" && isLifecycleEntityKey(op.table)) lifecycleDeletes.push(op);
-      else batchOps.push(op);
-    }
-    return { batchOps, lifecycleDeletes };
-  }
-
-  private lifecycleKey(op: Pick<Op, "table" | "id">): string {
-    return rowKey(op.table, op.id);
-  }
-
-  private isRememberedLifecycleReappearance(op: Op): boolean {
-    return op.method === "PUT" && isLifecycleEntityKey(op.table) && this.archivedBySync.has(this.lifecycleKey(op));
-  }
-
-  private rememberedLifecycleRestoreOps(target: AppData): Op[] {
-    // Nothing was ever archived by this session, so no reappearance can need reversing — skip the
-    // whole-lifecycle-table scan (the common case on every save).
-    if (this.archivedBySync.size === 0) return [];
-    const ops: Op[] = [];
-    for (const table of LIFECYCLE_ENTITY_KEYS) {
-      for (const row of target[table]) {
-        if (this.archivedBySync.has(this.lifecycleKey({ table, id: row.id }))) {
-          ops.push({ method: "PUT", table, id: row.id, row, accountId: row.accountId });
-        }
-      }
-    }
-    return ops;
-  }
-
-  private rememberLifecycleArchives(ops: Op[], confirmed: ReadonlySet<string>): void {
-    for (const op of ops) {
-      const key = this.lifecycleKey(op);
-      if (confirmed.has(key)) this.archivedBySync.add(key);
-      else this.archivedBySync.delete(key);
-    }
-  }
-
-  /** Restore sync-archived rows before reapplying a redone snapshot. `ops` already follows the
-   * parent-before-child write order, so a client becomes active before one of its projects. */
-  private async restoreRememberedLifecycleRows(ops: Op[], expectedSeedGen: number): Promise<boolean> {
-    let restored = false;
-    for (const op of ops) {
-      if (!this.isRememberedLifecycleReappearance(op) || !op.row) continue;
-
-      const row = await this.unarchiveLifecycleRow(op);
-      // A tenant reload may have replaced the adapter snapshot while the transition was in flight.
-      // The server-side restore is safe, but its row must never be inserted into that newer slice.
-      if (expectedSeedGen !== this.seedGen) return restored;
-      const revision: CommittedRevision = {
-        table: op.table,
-        id: op.id,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-      };
-      // A normal archive advanced lastSynced past the row, while a teardown archive deliberately
-      // did not. Replace-or-append handles both and makes the unarchive receipt authoritative.
-      this.lastSynced = writeRows(this.lastSynced, [{ table: op.table, row }], { replaceExisting: true });
-      const key = this.lifecycleKey(op);
-      this.acknowledgedRevisions.delete(key);
-      if (sameEntityContent(op.row, row)) this.rememberRevisions([op], [revision], this.lastSynced);
-      this.archivedBySync.delete(this.lifecycleKey(op));
-      restored = true;
-    }
-    return restored;
-  }
-
-  private async unarchiveLifecycleRow(op: Op): Promise<Entity> {
-    const res = await this.request(`${this.baseUrl}/api/${op.table}/${encodeURIComponent(op.id)}/unarchive`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        accountId: op.accountId ?? (op.row as { accountId?: unknown })?.accountId,
-      }),
-      credentials: "include",
-    });
-    // Unarchive is a destructive-write reversal and goes through `this.request` (raw fetchImpl), not
-    // apiFetch, so it must check the audit-degradation header itself — mirroring the batch path below.
-    // Announced SYNCHRONOUSLY (no `defer`): background sync raises no competing success notice, and
-    // the caller may throw on the very next line.
-    noteAuditWarning(res);
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new LifecycleRestoreError(`Lifecycle restore of ${op.table}/${op.id} failed (${res.status}).`, {
-        cause: detail ? new Error(detail.slice(0, MAX_DIAGNOSTIC_BODY_LENGTH)) : undefined,
-      });
-    }
-    const body: unknown = await res.json().catch(() => null);
-    if (
-      !isRecord(body) ||
-      body.id !== op.id ||
-      typeof body.createdAt !== "string" ||
-      typeof body.updatedAt !== "string" ||
-      body.archivedAt !== undefined ||
-      body.deletedAt !== undefined
-    ) {
-      // The transition may already have committed. Force an authoritative reload rather than
-      // guessing its revision and issuing a stale generic write.
-      throw new LifecycleRestoreError(`Lifecycle restore of ${op.table}/${op.id} returned an invalid receipt.`);
-    }
-    // The checks above prove the three Entity members; the rest of the row is server-shaped payload
-    // this adapter deliberately passes through untouched, so widen through `unknown`.
-    return body as unknown as Entity;
-  }
-
-  // Converge a sync-originated lifecycle-entity disappearance (clients/projects/resources) by ARCHIVING
-  // the row through the dedicated POST /api/{table}/{id}/archive route. It cannot ride the atomic batch
-  // (POST /api/batch 400-rejects a lifecycle DELETE op, to keep the retained-tombstone data-lifecycle
-  // from being bypassed).
-  //
-  // POLICY — ARCHIVE-ONLY from the sync layer (deliberately NOT soft-delete): a lifecycle DELETE that
-  // originates from ordinary syncing (e.g. undo of a just-synced create) parks the row as ARCHIVED on
-  // the server. Archive is action 'write' — allowed to every role that can create the row (editor+) and
-  // NEVER freshness-gated — so background sync, which has no re-auth/step-up UI, can always complete it.
-  // It is also REVERSIBLE (unarchive restores the row). Soft-delete and purge are deliberately NOT
-  // emitted by sync: soft-delete is IRREVERSIBLE (for resources it destroys PII via obfuscateResource,
-  // and there is no tombstone→active restore path in shared/src/domain/lifecycle.ts), admin-gated AND
-  // freshness/step-up gated — it stays a deliberate UI action only. A successful archive is remembered
-  // for this in-memory history session so redo can route the id through unarchive before any generic
-  // writes. The row otherwise lingers in the account's ARCHIVED list; the local view already hides it.
-  //
-  // Idempotent/convergent status handling: only a 409 explicitly coded `already_inactive` (a retry
-  // after a partial success or a concurrent archive) and a 404 (row already gone from this account)
-  // are the intended out-of-active end state. Other 409 conflicts, including protected rows, remain
-  // surfaced failures. A THROWN fetch (network/abort) also propagates so the save retries when healthy.
-  private async archiveLifecycleRow(op: Op, opts: { keepalive?: boolean } = {}): Promise<void> {
-    const init: RequestInit = {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accountId: op.accountId }),
-      credentials: "include",
-      ...(opts.keepalive ? { keepalive: true } : {}),
-    };
-    const res = await this.request(
-      `${this.baseUrl}/api/${op.table}/${encodeURIComponent(op.id)}/archive`,
-      init,
-      opts.keepalive ? null : API_REQUEST_TIMEOUT_MS,
-    );
-    // Same gap as unarchiveLifecycleRow above: this dedicated route bypasses apiFetch, so the
-    // audit-degradation header on this destructive write would otherwise be silently dropped.
-    // Announced SYNCHRONOUSLY (no `defer`) for the same reason as unarchive.
-    noteAuditWarning(res);
-    // A response body can only be read ONCE, and every failure arm below wants the same two views of
-    // it: the raw text (safeResponseError attaches it as the diagnostic cause) and its best-effort
-    // JSON envelope. Read and parse each exactly once, here, before branching on status.
-    //
-    // The parse is deliberately allowed to fail without surfacing: an unreadable CONFLICT body cannot
-    // prove convergence and is surfaced by the throw below; and since a proxy or missing route can
-    // also return 404, only the API's exact row-absence envelope proves the lifecycle intent has
-    // converged — anything else likewise falls through to a throw.
-    const detail = res.ok ? "" : await res.text().catch(() => "");
-    let envelope: { code?: unknown; error?: unknown } | null;
-    try {
-      envelope = detail ? (JSON.parse(detail) as { code?: unknown; error?: unknown }) : null;
-    } catch {
-      // Unparseable body — left null, which every arm below treats as "unproven" and surfaces.
-      envelope = null;
-    }
-    if (res.status === 409) {
-      if (envelope?.code === "already_inactive") {
-        this.archivedBySync.add(this.lifecycleKey(op));
-        return;
-      }
-      if (typeof envelope?.error === "string") {
-        throw new Error(`Lifecycle archive of ${op.table}/${op.id} failed (${res.status}): ${envelope.error}`);
-      }
-      throw safeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
-    }
-    if (res.status === 404) {
-      if (envelope?.error === "Not found") {
-        this.archivedBySync.delete(this.lifecycleKey(op));
-        return;
-      }
-      throw safeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
-    }
-    if (!res.ok) {
-      throw safeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
-    }
-    this.archivedBySync.add(this.lifecycleKey(op));
-  }
-
-  // Apply the complete ordered diff as ONE request and therefore ONE SQLite transaction. An
-  // over-limit diff is never split into separately committed prefixes.
-  private applyBatch(
-    ops: Op[],
-    opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
-  ): Promise<BatchCommitReceipt> {
-    return this.dispatchPreparedBatch(this.prepareBatchBody(ops, opts), ops, opts);
-  }
-
-  /** Validate and serialize before a teardown dispatches any ordering-dependent sibling request. */
-  private prepareBatchBody(ops: Op[], opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean }): string {
-    if (ops.length > MAX_OPS_PER_BATCH) {
-      throw new BatchTooLargeError(`Atomic sync exceeds the ${MAX_OPS_PER_BATCH}-operation server limit.`);
-    }
-    // Rebase PUT preconditions, then serialize ONCE — the same body feeds both the keepalive
-    // byte-budget check and the request, so a large batch isn't JSON.stringified twice per save.
-    const wireOps = this.rebaseForWire(ops).map((op) =>
-      opts?.archiveLifecycleDeletes && op.method === "DELETE" && isLifecycleEntityKey(op.table)
-        ? { ...op, method: "ARCHIVE" }
-        : op,
-    );
-    const body = JSON.stringify({ ops: wireOps });
-    if (opts?.keepalive && new TextEncoder().encode(body).byteLength > KEEPALIVE_BODY_BUDGET) {
-      throw new KeepaliveNotDispatchedError("The pending change was too large for a page-teardown keepalive request.");
-    }
-    return body;
-  }
-
-  private dispatchPreparedBatch(
-    body: string,
-    ops: Op[],
-    opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
-  ): Promise<BatchCommitReceipt> {
-    const sequence = this.nextSyncSequence;
-    this.nextSyncSequence += 1;
-    return this.postBatch(body, ops, sequence, opts);
-  }
-
-  // updatedAt on the wire is a concurrency precondition: rebase each PUT onto the last authoritative
-  // server revision while retaining every locally edited field. A Map per touched table keeps this
-  // O(ops + rows) — a linear .find per op degraded a whole-table re-timestamp (undo/redo touching
-  // every allocation) to O(ops × rows) on the hot save path. Maps are built lazily, so a batch that
-  // touches one table never indexes the rest.
-  private rebaseForWire(ops: Op[]): Op[] {
-    const indexByTable = new Map<Op["table"], Map<string, { updatedAt: string }>>();
-    const indexFor = (table: Op["table"]): Map<string, { updatedAt: string }> => {
-      let index = indexByTable.get(table);
-      if (!index) {
-        index = new Map(this.lastSynced[table].map((row) => [row.id, row] as const));
-        indexByTable.set(table, index);
-      }
-      return index;
-    };
-    return ops.map((op) => {
-      if (op.method !== "PUT" || !op.row) return op;
-      const existing = indexFor(op.table).get(op.id);
-      return existing ? { ...op, row: { ...op.row, updatedAt: existing.updatedAt } } : op;
-    });
-  }
-
-  // POST the complete ≤MAX_OPS_PER_BATCH diff to /api/batch; the server applies it in one
-  // transaction (upserts parent-first, then deletes child-first — see syncOps.diffOps), so a
-  // mid-batch failure rolls the whole transaction back. keepalive (unload) lets the request outlive
-  // the page. `body` is the already-serialized, PUT-rebased wire payload; `ops` supplies the exact
-  // PUT identities that a non-superseded server receipt must cover.
-  private async postBatch(
-    body: string,
-    ops: Op[],
-    sequence: number,
-    opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
-  ): Promise<BatchCommitReceipt> {
-    const res = await this.sendBatch(body, sequence, opts);
-    await this.throwForBatchStatus(res);
-    return this.readBatchReceipt(res, ops, opts);
-  }
-
-  /** Dispatch stage: build and send the request, mapping a transport-level failure to the typed
-   *  uncertain-commit error (the request may have been applied before the connection died). */
-  private async sendBatch(
-    body: string,
-    sequence: number,
-    opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
-  ): Promise<Response> {
-    let res: Response;
-    try {
-      res = await this.request(
-        `${this.baseUrl}/api/batch`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CapacityLens-Sync-Session": this.syncSessionId,
-            "X-CapacityLens-Sync-Sequence": String(sequence),
-          },
-          body,
-          keepalive: opts?.keepalive,
-          credentials: "include",
-        },
-        // The atomic write is a BULK op: give it the long bound so a big-but-healthy batch isn't
-        // aborted into the retry-the-same-diff wedge (drain never advances lastSynced on abort).
-        // The keepalive unload flush gets NO deadline — a timeout on a request meant to outlive the
-        // page is self-contradictory; when the page survives, its receipt or failure still flows back
-        // through flushUnload to the persistence coordinator.
-        opts?.keepalive ? null : API_BULK_TIMEOUT_MS,
-      );
-    } catch (error) {
-      if (isTransportFailure(error)) {
-        throw new BatchCommitUncertainError("Batch sync ended before its commit receipt was received.", {
-          cause: error,
-        });
-      }
-      throw error;
-    }
-    return res;
-  }
-
-  /** Classification stage: turn a non-OK batch status into the typed error persist.ts branches on.
-   *  Returns without effect for a 2xx — the receipt is validated by readBatchReceipt. */
-  private async throwForBatchStatus(res: Response): Promise<void> {
-    if (!res.ok) {
-      // 409 is the optimistic-concurrency conflict signal (stale updatedAt; body
-      // `{ error, current }`). Throw the TYPED BatchConflictError so persist.ts can resolve it
-      // by reloading (server wins) — retrying the same stale diff is deterministic futility.
-      // Body parse is best-effort: an unreadable body still yields a conflict error.
-      if (res.status === 409) {
-        const body = (await res.json().catch(() => null)) as { current?: unknown } | null;
-        throw new BatchConflictError(
-          apiErrorFromBody(body) ?? "Batch sync failed (409): stale write conflict",
-          body?.current,
-        );
-      }
-      // A referential or other domain validation failure is equally deterministic. It commonly
-      // means another editor archived a parent that this tab's stale slice still showed as active.
-      // Give persist.ts a typed signal so it can discard the rejected diff through an authoritative
-      // reload instead of re-posting it on every backoff, focus and online event forever.
-      if (res.status === 400) {
-        const body = (await res.json().catch(() => null)) as { code?: unknown } | null;
-        throw new BatchValidationError(
-          apiErrorFromBody(body) ?? "Batch sync failed (400): validation rejected",
-          isDomainErrorCode(body?.code) ? body.code : undefined,
-        );
-      }
-      if (res.status === 403) {
-        if ((await masqueradeErrorCode(res)) === MASQUERADE_ERROR_CODES.readOnly) {
-          throw new BatchMasqueradeReadOnlyError("Batch sync was refused while masquerading.");
-        }
-      }
-      // A 401 (session expired on an auth-enabled server) surfaces like any other write
-      // failure — persist.ts raises the banner, and the AuthProvider's re-check sees the
-      // 401 and swaps to the login screen. Never a silent drop.
-      const detail = await res.text().catch(() => "");
-      throw safeResponseError("Batch sync", res.status, detail);
-    }
-  }
-
-  /** Reconciliation stage: validate the commit receipt, then fold its server revisions and lifecycle
-   *  archive confirmations into the {@link BatchCommitReceipt} the caller advances the snapshot with. */
-  private async readBatchReceipt(
-    res: Response,
-    ops: Op[],
-    opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
-  ): Promise<BatchCommitReceipt> {
-    const receipt = (await res.json().catch(() => null)) as {
-      ok?: unknown;
-      applied?: unknown;
-      revisions?: unknown;
-      archives?: unknown;
-      superseded?: unknown;
-      auditWarning?: unknown;
-    } | null;
-    if (receipt?.ok !== true || (receipt.applied !== undefined && receipt.applied !== ops.length)) {
-      throw new BatchCommitUncertainError("Batch sync returned an invalid commit receipt.");
-    }
-    if (receipt.applied === undefined) {
-      warnCompatibilityOnce(
-        "batch-applied",
-        "ServerSyncAdapter: the batch receipt omitted 'applied'; accepting the proven commit for rolling-version compatibility.",
-      );
-    }
-    if (receipt.superseded !== undefined && typeof receipt.superseded !== "boolean") {
-      throw new BatchCommitUncertainError("Batch sync returned an invalid ordering receipt.");
-    }
-    // The batch receipt can flag audit degradation in its BODY as well as the shared header; the
-    // header half goes through the same synchronous helper as the lifecycle routes above.
-    if (receipt.auditWarning === true) announceAuditWarning();
-    else noteAuditWarning(res);
-    const rawRevisions = Array.isArray(receipt.revisions) ? receipt.revisions : [];
-    if (!Array.isArray(receipt.revisions))
-      warnCompatibilityOnce(
-        "batch-revisions",
-        "ServerSyncAdapter: the batch receipt omitted server revisions; continuing without revision translation.",
-      );
-    const knownTables = emptyAppData(); // hoisted: one shape probe for the whole receipt, not one per revision
-    const revisions = rawRevisions.filter((revision): revision is CommittedRevision => {
-      if (!revision || typeof revision !== "object") return false;
-      const value = revision as Partial<CommittedRevision>;
-      return (
-        typeof value.table === "string" &&
-        Object.hasOwn(knownTables, value.table) &&
-        typeof value.id === "string" &&
-        typeof value.createdAt === "string" &&
-        typeof value.updatedAt === "string"
-      );
-    });
-    if (revisions.length !== rawRevisions.length)
-      warnCompatibilityOnce(
-        "batch-invalid-revisions",
-        "ServerSyncAdapter: dropping malformed server revisions from an otherwise successful batch receipt.",
-      );
-
-    const expected = new Set(
-      receipt.superseded === true ? [] : ops.filter((op) => op.method === "PUT").map((op) => rowKey(op.table, op.id)),
-    );
-    const received = new Set<string>();
-    const serverRewrites = new Set<string>();
-    const compatibleRevisions: CommittedRevision[] = [];
-    for (const revision of revisions) {
-      const key = rowKey(revision.table, revision.id);
-      if (revision.rewrite !== true && expected.has(key) && !received.has(key)) {
-        received.add(key);
-        compatibleRevisions.push(revision);
-        continue;
-      }
-      if (revision.rewrite === true && revision.table === "allocations" && !serverRewrites.has(key)) {
-        serverRewrites.add(key);
-        compatibleRevisions.push(revision);
-        continue;
-      }
-      warnCompatibilityOnce(
-        "batch-mismatched-revisions",
-        "ServerSyncAdapter: dropping unexpected or duplicate server revisions from a successful batch receipt.",
-      );
-    }
-    if (received.size !== expected.size) {
-      throw new BatchCommitUncertainError(
-        "Batch sync committed without complete server revisions; authoritative reload is required.",
-      );
-    }
-    const expectedArchives = new Set(
-      receipt.superseded === true || !opts?.archiveLifecycleDeletes
-        ? []
-        : ops
-            .filter((op) => op.method === "DELETE" && isLifecycleEntityKey(op.table))
-            .map((op) => rowKey(op.table, op.id)),
-    );
-    const rawArchives = Array.isArray(receipt.archives) ? receipt.archives : [];
-    if (expectedArchives.size > 0 && !Array.isArray(receipt.archives)) {
-      throw new BatchCommitUncertainError("Batch sync committed without lifecycle archive receipts.");
-    }
-    const receivedArchives = new Set<string>();
-    const archivedLifecycleKeys = new Set<string>();
-    for (const archiveReceipt of rawArchives) {
-      if (!archiveReceipt || typeof archiveReceipt !== "object") {
-        throw new BatchCommitUncertainError("Batch sync returned an invalid lifecycle archive receipt.");
-      }
-      const value = archiveReceipt as { table?: unknown; id?: unknown; archived?: unknown };
-      const key = rowKey(String(value.table), String(value.id));
-      if (
-        typeof value.table !== "string" ||
-        !isLifecycleEntityKey(value.table) ||
-        typeof value.id !== "string" ||
-        typeof value.archived !== "boolean" ||
-        !expectedArchives.has(key) ||
-        receivedArchives.has(key)
-      ) {
-        throw new BatchCommitUncertainError("Batch sync returned an invalid lifecycle archive receipt.");
-      }
-      receivedArchives.add(key);
-      if (value.archived) archivedLifecycleKeys.add(key);
-    }
-    if (receivedArchives.size !== expectedArchives.size) {
-      throw new BatchCommitUncertainError("Batch sync committed without complete lifecycle archive receipts.");
-    }
-    return {
-      revisions: compatibleRevisions,
-      archivedLifecycleKeys,
-      superseded: receipt.superseded === true,
-    };
   }
 }
