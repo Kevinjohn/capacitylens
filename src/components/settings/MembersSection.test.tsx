@@ -2101,6 +2101,50 @@ describe("MembersSection — SSO cutover repair", () => {
     return mockApi(directory, { "GET /sso-readiness": () => jsonResponse(ssoReadiness(linked, reason)) });
   }
 
+  it("preserves invite and member role drafts when the render children unmount and remount", async () => {
+    const user = userEvent.setup();
+    const directoryWithTracking = directory.map((member) => ({ ...member, signInConfirmed: true }));
+    let membersReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi(directoryWithTracking, {
+        "GET /members": () => {
+          membersReads += 1;
+          if (membersReads === 2) return jsonResponse({}, 403);
+          return jsonResponse({
+            signInTrackingEnabled: true,
+            members: directoryWithTracking.map((member) => rawMember(member)),
+          });
+        },
+      }),
+    );
+    renderSection();
+
+    const inviteEmail = await screen.findByTestId("invite-preauth");
+    await user.type(inviteEmail, "draft@example.com");
+    fireEvent.keyDown(screen.getByTestId("invite-role"), { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
+
+    const targetRow = await findMemberRow(/target@x\.io/);
+    await user.click(within(targetRow).getByTestId("member-edit"));
+    const roleDialog = await screen.findByRole("dialog");
+    const memberRole = within(roleDialog).getByRole("combobox");
+    fireEvent.keyDown(memberRole, { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("option", { name: "Editor" }));
+
+    fireEvent.click(screen.getByTestId("member-sign-in-tracking"));
+
+    expect(await screen.findByText(m.settings_members_err_access_changed())).toBeInTheDocument();
+    expect(screen.queryByTestId("invite-preauth")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: m.settings_members_retry() }));
+
+    expect(await screen.findByTestId("invite-preauth")).toHaveValue("draft@example.com");
+    expect(screen.getByTestId("invite-role")).toHaveTextContent("Viewer");
+    expect(within(await screen.findByRole("dialog")).getByRole("combobox")).toHaveTextContent("Editor");
+  });
+
   it("refreshes readiness after a successful membership mutation", async () => {
     const user = userEvent.setup();
     let readinessReads = 0;
