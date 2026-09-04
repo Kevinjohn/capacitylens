@@ -74,7 +74,7 @@
       "purpose": "192-bit CSPRNG non-secret identifiers for bounded federated-link callback ceremonies"
     },
     {
-      "path": "server/src/controlTables.ts",
+      "path": "server/src/controlTables/inviteTokens.ts",
       "purpose": "SHA-256 invite-token indexing and CSPRNG non-secret identifiers"
     },
     {

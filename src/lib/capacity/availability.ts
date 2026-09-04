@@ -7,7 +7,7 @@ import {
   isExternalResource,
 } from "@capacitylens/shared/types/entities";
 import type { Allocation, Closure, ID, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
-import { allocationLoadsOnDay, devAssertFinite } from "../capacity";
+import { allocationLoadsOnDay, devAssertFinite } from "./primitives";
 
 export function isWorkingDay(effectiveWeek: EffectiveWorkingWeek, date: ISODate): boolean {
   return effectiveWeekIncludes(effectiveWeek, weekdayOf(date));

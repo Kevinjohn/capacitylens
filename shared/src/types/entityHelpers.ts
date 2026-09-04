@@ -1,5 +1,5 @@
 import type { AppData, Resource, ResourceKind, SchedulingMode, ScopedEntity, ScopedEntityKey } from "./entities";
-import { APP_DATA_KEYS, FULL_DAY_HOURS, MAX_HOURS_PER_DAY, SCOPED_KEYS } from "./entities";
+import { APP_DATA_KEYS, FULL_DAY_HOURS, MAX_HOURS_PER_DAY, SCOPED_KEYS } from "./entityKeys";
 
 /** Does an allocation entered in this mode carry an HOURLY load? Only 'blocks' does not — a block
  *  records placement and its load is projected as `blockHoursPerDay` instead of the typed hours.

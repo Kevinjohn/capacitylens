@@ -6,6 +6,13 @@ import { runImportWorker } from "../runImportWorker";
 import { MIN_BOOTSTRAP_TOKEN_BYTES } from "./appLimits";
 import type { AppOptions } from "../app";
 
+// Fail-CLOSED CORS default: only the local Vite dev/e2e origins may make cross-origin
+// browser calls. The factory itself uses this (not a wildcard) so a caller that forgets
+// to pass corsOrigin is still locked down; opening the API to every site requires an
+// EXPLICIT '*'. The entrypoint (index.ts) imports this same default and lets
+// CAPACITYLENS_CORS_ORIGIN override it for a deliberate deploy.
+export const DEFAULT_CORS = "http://localhost:5173,http://localhost:5273,http://127.0.0.1:5173,http://127.0.0.1:5273";
+
 export function resolveAppConfig(opts: AppOptions) {
   const authMode = opts.authMode ?? "off";
   const auth = opts.auth ?? null;

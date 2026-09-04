@@ -4,7 +4,7 @@ import type { StoreState } from "../../store/useStore";
 import type { PersistenceAdapter } from "../PersistenceAdapter";
 import { emptyAppData, isEmpty } from "@capacitylens/shared/types/entities";
 import { LoadError } from "../PersistenceAdapter";
-import { attachPersistence } from "../persist";
+import { attachPersistence } from "./attachPersistence";
 
 interface BootstrapOptions {
   debounceMs?: number;
