@@ -18,11 +18,6 @@
       "reason": "milestone 4 decomposition backlog"
     },
     {
-      "path": "src/data/offlineCache.ts",
-      "baseline": 912,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "src/data/persist.ts",
       "baseline": 1106,
       "reason": "milestone 4 decomposition backlog"
