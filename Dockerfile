@@ -67,11 +67,12 @@ RUN apk add --no-cache openssl
 COPY scripts/internal-tls.sh /usr/local/bin/capacitylens-internal-tls
 ENTRYPOINT ["/usr/local/bin/capacitylens-internal-tls"]
 
-FROM nginxinc/nginx-unprivileged:1.31.3-alpine@sha256:334d92979f15aaecd5dd50af5105e1230e2bb70765d45b1e2f964e7c5eda81c3 AS web-runtime
+FROM nginxinc/nginx-unprivileged:1.31.3-alpine@sha256:f972e5322b9797dc2a6b830030094426437b1ae7032e4644496395336ac6fdac AS web-runtime
 USER root
 # The base installs curl for its generic entrypoint, which this image deliberately does not use.
 # Remove curl/libcurl rather than retaining an unnecessary network client and its CVE surface.
-RUN apk del --no-cache curl libcurl
+# Apply Alpine security patches (openssl, expat) not yet in the pinned base before the read-only root is sealed.
+RUN apk upgrade --no-cache && apk del --no-cache curl libcurl
 USER 101
 COPY nginx-security-headers.conf /etc/nginx/capacitylens-security-headers.conf
 COPY --from=web-build /app/dist /usr/share/nginx/html
