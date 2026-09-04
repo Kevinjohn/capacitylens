@@ -545,6 +545,29 @@ describe("local IdentityPort conformance", () => {
     });
   });
 
+  it("accepts compensation handles only in the port instance that issued them", async () => {
+    const configuredAuth = auth(async () => null);
+    const issuingPort = identityPort({ auth: configuredAuth });
+    const otherPort = identityPort({ auth: configuredAuth });
+    const command = { commandId: "isolated-compensation", idempotencyKey: "isolated-compensation-key" };
+    const provisional = await issuingPort.createProvisionalCredentialPrincipal({
+      email: "bruce@example.com",
+      displayName: "Bruce Wayne",
+      password: "a-valid-length-password",
+      emailVerified: true,
+      command,
+    });
+    insertIdentityUser(db, provisional.principalId, "Bruce Wayne", "bruce@example.com");
+    const compensation = { provisional, reason: "invitation-claim-failed" as const, command };
+
+    await expect(otherPort.compensateProvisionalPrincipal(compensation)).rejects.toMatchObject({
+      failure: { code: "FORBIDDEN", commandId: command.commandId },
+    });
+    expect(db.prepare(`SELECT id FROM user WHERE id = ?`).get(provisional.principalId)).toBeDefined();
+    await expect(issuingPort.compensateProvisionalPrincipal(compensation)).resolves.toBeUndefined();
+    expect(db.prepare(`SELECT id FROM user WHERE id = ?`).get(provisional.principalId)).toBeUndefined();
+  });
+
   it("erases command-ledger correlation when compensating a provisional principal", async () => {
     const configuredAuth = auth(async () => null);
     const port = identityPort({
