@@ -37,7 +37,7 @@ export function MembersSection() {
 /** Account-keyed implementation. Changing companies remounts this boundary, which discards
  * account-local drafts, confirmations, action locks and write-once bearer links together. */
 function AccountMembersSection({ activeAccountId }: { activeAccountId: string | null }) {
-  const orchestration = useMembersOrchestration(activeAccountId);
+  const { setActionStatusElement, ...orchestration } = useMembersOrchestration(activeAccountId);
 
   if (!orchestration.enabled) return null; // OFF / demo build: the section does not exist.
   // Privileged controls stay fail-closed until the current account's members read authorizes this
@@ -116,7 +116,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           <CardDescription>{m.settings_members_intro()}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <p ref={orchestration.actionStatusRef} role="status" aria-live="polite" tabIndex={-1} className="sr-only">
+          <p ref={setActionStatusElement} role="status" aria-live="polite" tabIndex={-1} className="sr-only">
             {orchestration.busyAction ? m.settings_members_updating() : ""}
           </p>
           <FieldError id={orchestration.errorId}>

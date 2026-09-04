@@ -137,6 +137,9 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   // be asking the server questions it cannot answer.
   const readinessApplies = gate === "shown" && !offline.readOnly && strictProviderId !== null;
   const actionStatusRef = useRef<HTMLParagraphElement>(null);
+  const setActionStatusElement = useCallback((element: HTMLParagraphElement | null) => {
+    actionStatusRef.current = element;
+  }, []);
   useEffect(() => {
     if (busyAction !== null) actionStatusRef.current?.focus();
   }, [busyAction]);
@@ -739,7 +742,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     mayManageSignInTracking,
     signInTrackingEnabled,
     changeSignInTracking,
-    actionStatusRef,
+    setActionStatusElement,
     busyAction,
     inactiveOpen,
     setInactiveOpen,
