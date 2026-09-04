@@ -1,18 +1,10 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { betterAuth } from "better-auth";
-import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
-import type { BetterAuthOptions, BetterAuthPlugin } from "better-auth";
-import type { SocialProviders } from "better-auth/social-providers";
-import { genericOAuth } from "better-auth/plugins/generic-oauth";
-import { twoFactor } from "better-auth/plugins";
+import { APIError } from "better-auth/api";
+import type { BetterAuthOptions } from "better-auth";
 import { getMigrations } from "better-auth/db/migration";
-import {
-  MIN_PASSWORD_LENGTH,
-  MAX_PASSWORD_LENGTH,
-  MAX_PASSWORD_INPUT_CODE_UNITS,
-  passwordLengthFailure,
-} from "@capacitylens/shared/domain/password";
+import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
 import { cleanText } from "@capacitylens/shared/lib/strings";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import type { AccountMode, BoundApplication } from "@capacitylens/shared/account/types";
@@ -24,25 +16,11 @@ import {
 import type { Db } from "./db";
 import { assertBootstrapClaimCurrent } from "./bootstrapClaim";
 import { accountConfigKey, resolveAccountEnvironment } from "./accountConfig";
-import {
-  createStrictOidcClient,
-  isLoopbackHostname,
-  StrictOidcVerificationError,
-  type StrictOidcClient,
-} from "./strictOidc";
-import {
-  PASSWORD_CONTEXT_WORDS,
-  PasswordPolicyDependencyError,
-  PasswordPolicyError,
-  assertNoContextSpecificPassword,
-  assertPasswordNotBreached,
-  scryptPasswordHasher,
-  type PasswordHasher,
-} from "./passwordSecurity";
+import { isLoopbackHostname, StrictOidcVerificationError } from "./strictOidc";
+import { PASSWORD_CONTEXT_WORDS, type PasswordHasher } from "./passwordSecurity";
 import { WorkQueueFullError } from "./workQueue";
-import { bindFederatedProvider, recordSessionAssurance, removeSessionAssurance } from "./accounts/state";
+import { bindFederatedProvider } from "./accounts/state";
 import { applicationSessionHandle } from "./accounts/sessionHandle";
-import { confirmTrackedMemberSignIn } from "./accounts/memberSignInTracking";
 import { tx } from "./txn";
 import {
   createFederatedLinkCeremony,
@@ -50,6 +28,13 @@ import {
   reconcileObservedFederatedLinks,
   type ObservedFederatedLink,
 } from "./federatedLinkLifecycle";
+import { buildProviders, prepareProviders } from "./authConfig/providers";
+import { buildPasswordPolicy } from "./authConfig/passwordPolicy";
+import { buildDatabaseHooks } from "./authConfig/databaseHooks";
+import { buildRequestHooks } from "./authConfig/requestHooks";
+import { buildSessionPolicy } from "./authConfig/sessionPolicy";
+import { buildPlugins } from "./authConfig/plugins";
+import { buildErrorRedirect } from "./authConfig/errorRedirect";
 
 /** Translate password-work backpressure before Better Auth can mistake it for a credential verdict
  * or an undifferentiated internal error — shared by verify and hash, since queue pressure is
@@ -915,132 +900,6 @@ function required(env: Env, key: string, context: string): string {
   return value;
 }
 
-function optionalPair(env: Env, idKey: string, secretKey: string, label: string): [string, string] | null {
-  const id = env[idKey];
-  const secret = env[secretKey];
-  if (!id && !secret) return null;
-  if (!id || !secret) {
-    throw new AuthConfigError(
-      `${accountConfigKey(idKey)} and ${accountConfigKey(secretKey)} must both be set to enable ${label}.`,
-    );
-  }
-  return [id, secret];
-}
-
-function secureProviderUrl(env: Env, key: string): string | undefined {
-  const raw = env[key]?.trim();
-  if (!raw) return undefined;
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch (cause) {
-    throw new AuthConfigError(`${accountConfigKey(key)} must be an absolute URL.`, { cause });
-  }
-  const loopback = isLoopbackHostname(url.hostname);
-  if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) {
-    throw new AuthConfigError(
-      `${accountConfigKey(key)} must use https:// (loopback http:// is allowed for development).`,
-    );
-  }
-  if (url.username || url.password) {
-    throw new AuthConfigError(`${accountConfigKey(key)} must not contain URL credentials.`);
-  }
-  // Issuer identifiers are exact strings in OIDC. URL#toString() adds a trailing slash to a bare
-  // origin, which would turn a correct configured `https://idp.example` issuer into a different
-  // identity namespace and reject otherwise matching discovery metadata. Validate through URL,
-  // but preserve the operator's trimmed value verbatim for protocol comparison.
-  return raw;
-}
-
-/** Native social providers assembled from env. Unset pairs are absent; a partial pair refuses
- * startup. New external identities are separately verified and invite-gated in the database hook. */
-function socialProvidersFromEnv(env: Env): SocialProviders {
-  const providers: SocialProviders = {};
-  const google = optionalPair(
-    env,
-    "CAPACITYLENS_GOOGLE_CLIENT_ID",
-    "CAPACITYLENS_GOOGLE_CLIENT_SECRET",
-    "Google sign-in",
-  );
-  if (google) providers.google = { clientId: google[0], clientSecret: google[1] };
-  const microsoft = optionalPair(
-    env,
-    "CAPACITYLENS_MICROSOFT_CLIENT_ID",
-    "CAPACITYLENS_MICROSOFT_CLIENT_SECRET",
-    "Microsoft sign-in",
-  );
-  if (microsoft) {
-    // tenantId defaults to 'common' (multi-tenant) when not pinned to a single Entra tenant.
-    providers.microsoft = {
-      clientId: microsoft[0],
-      clientSecret: microsoft[1],
-      tenantId: env.CAPACITYLENS_MICROSOFT_TENANT_ID || "common",
-    };
-  }
-  const github = optionalPair(
-    env,
-    "CAPACITYLENS_GITHUB_CLIENT_ID",
-    "CAPACITYLENS_GITHUB_CLIENT_SECRET",
-    "GitHub sign-in",
-  );
-  if (github) providers.github = { clientId: github[0], clientSecret: github[1] };
-  return providers;
-}
-
-// Provider ids are persisted as part of an external identity's namespace. Generic OIDC must not
-// claim an id owned by a built-in sign-in method or one of CapacityLens' installed auth plugins:
-// enabling that method later would otherwise reinterpret existing accounts or overwrite issuer
-// routing. Keep this list aligned with socialProvidersFromEnv() and the plugins assembled below.
-const RESERVED_GENERIC_PROVIDER_IDS = new Set([
-  "credential",
-  "generic-oauth",
-  "two-factor",
-  "google",
-  "microsoft",
-  "github",
-]);
-
-function externalProviderInfo(
-  env: Env,
-  genericProviderId: string | null,
-  defaultProviderLabel: string,
-): AuthProviderInfo[] {
-  const providers: AuthProviderInfo[] = [];
-  if (env.CAPACITYLENS_GOOGLE_CLIENT_ID && env.CAPACITYLENS_GOOGLE_CLIENT_SECRET) {
-    providers.push({
-      id: "google",
-      label: "Google",
-      kind: "social",
-      experimental: true,
-    });
-  }
-  if (env.CAPACITYLENS_MICROSOFT_CLIENT_ID && env.CAPACITYLENS_MICROSOFT_CLIENT_SECRET) {
-    providers.push({
-      id: "microsoft",
-      label: "Microsoft",
-      kind: "social",
-      experimental: true,
-    });
-  }
-  if (env.CAPACITYLENS_GITHUB_CLIENT_ID && env.CAPACITYLENS_GITHUB_CLIENT_SECRET) {
-    providers.push({
-      id: "github",
-      label: "GitHub",
-      kind: "social",
-      experimental: true,
-    });
-  }
-  if (genericProviderId) {
-    providers.push({
-      id: genericProviderId,
-      label: env.CAPACITYLENS_SSO_LABEL?.trim() || defaultProviderLabel,
-      kind: "oidc",
-      experimental: false,
-    });
-  }
-  return providers;
-}
-
 function externalIdentityPath(path: string | undefined): boolean {
   return path?.startsWith("/callback/") === true || path?.startsWith("/oauth2/callback/") === true;
 }
@@ -1210,142 +1069,29 @@ export function authFromEnv(
     );
   }
 
-  // Generic OAuth/OIDC is additive in password mode and exclusive in sso mode. This lets an
-  // installation keep a password fallback while trialling SSO, then switch to SSO-only without
-  // changing provider configuration.
-  const genericSsoConfigured = Boolean(env.CAPACITYLENS_SSO_CLIENT_ID || env.CAPACITYLENS_SSO_CLIENT_SECRET);
-  if (genericSsoConfigured) {
-    optionalPair(env, "CAPACITYLENS_SSO_CLIENT_ID", "CAPACITYLENS_SSO_CLIENT_SECRET", "generic SSO");
-  }
-  if (mode === "sso" && !genericSsoConfigured) {
-    throw new AuthConfigError(
-      "SMALLSASS_ACCOUNT_MODE=sso requires SMALLSASS_ACCOUNT_OIDC_CLIENT_ID and SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET.",
-    );
-  }
-  const genericProviderId = genericSsoConfigured ? env.CAPACITYLENS_SSO_PROVIDER_ID || "sso" : null;
-  if (genericProviderId && !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(genericProviderId)) {
-    throw new AuthConfigError("SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID must match ^[a-z0-9][a-z0-9_-]{0,63}$.");
-  }
-  if (genericProviderId && RESERVED_GENERIC_PROVIDER_IDS.has(genericProviderId)) {
-    throw new AuthConfigError(
-      `SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID must not use reserved provider id "${genericProviderId}".`,
-    );
-  }
-  const discoveryUrl = secureProviderUrl(env, "CAPACITYLENS_SSO_DISCOVERY_URL");
-  const genericIssuer = secureProviderUrl(env, "CAPACITYLENS_SSO_ISSUER");
-  if (genericIssuer) {
-    const issuerUrl = new URL(genericIssuer);
-    if (issuerUrl.search || issuerUrl.hash) {
-      throw new AuthConfigError("SMALLSASS_ACCOUNT_OIDC_ISSUER must not contain a query string or fragment.");
-    }
-  }
-  const authorizationUrl = secureProviderUrl(env, "CAPACITYLENS_SSO_AUTHORIZATION_URL");
-  const tokenUrl = secureProviderUrl(env, "CAPACITYLENS_SSO_TOKEN_URL");
-  const plugins: BetterAuthPlugin[] = [];
-  let strictOidcClient: StrictOidcClient | null = null;
-  let strictOidcAuthorizationProxyPath: string | null = null;
-  if (genericProviderId) {
-    if (!genericIssuer) {
-      throw new AuthConfigError(
-        "Strict OIDC requires SMALLSASS_ACCOUNT_OIDC_ISSUER for stable issuer-and-subject identity correlation.",
-      );
-    }
-    const scopes = (env.CAPACITYLENS_SSO_SCOPES ?? "openid profile email").split(/\s+/).filter(Boolean);
-    const missingScopes = ["openid", "profile", "email"].filter((scope) => !scopes.includes(scope));
-    if (missingScopes.length > 0) {
-      throw new AuthConfigError(
-        `Generic OIDC requires the ${missingScopes.join(", ")} scope${missingScopes.length === 1 ? "" : "s"}.`,
-      );
-    }
-    if (!discoveryUrl) {
-      throw new AuthConfigError(
-        "Strict OIDC requires SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL; endpoint-only generic OAuth is not accepted.",
-      );
-    }
-    if (authorizationUrl || tokenUrl) {
-      throw new AuthConfigError(
-        "Strict OIDC endpoints must come from discovery; explicit authorization and token endpoint overrides are not accepted.",
-      );
-    }
-    const genericClientId = required(env, "CAPACITYLENS_SSO_CLIENT_ID", "generic SSO");
-    const genericClientSecret = required(env, "CAPACITYLENS_SSO_CLIENT_SECRET", "generic SSO");
-    strictOidcClient = createStrictOidcClient({
-      issuer: genericIssuer,
-      clientId: genericClientId,
-      clientSecret: genericClientSecret,
-      discoveryUrl,
-    });
-    strictOidcAuthorizationProxyPath = `/api/auth/oidc/authorize/${genericProviderId}`;
-    const oidcClient = strictOidcClient;
-    plugins.push(
-      genericOAuth({
-        config: [
-          {
-            providerId: genericProviderId,
-            clientId: genericClientId,
-            clientSecret: genericClientSecret,
-            // Do not give the generic plugin the discovery URL: it consumes discovery endpoints before
-            // validating their issuer or transport. Its generated authorization request instead visits
-            // our same-origin proxy below, and its code exchange delegates to the same issuer-pinned
-            // metadata object. No browser redirect or client secret crosses an unvalidated endpoint.
-            authorizationUrl: new URL(strictOidcAuthorizationProxyPath, publicUrl).toString(),
-            // genericOAuth shape-validates a token URL while creating the authorization response even
-            // when a custom getToken owns exchange. Keep that required placeholder same-origin; it is
-            // never requested because getToken below always resolves the validated discovery endpoint.
-            tokenUrl: new URL(`/api/auth/oidc/token/${genericProviderId}`, publicUrl).toString(),
-            issuer: genericIssuer,
-            // RFC 9207's authorization-response `iss` parameter is optional and is not emitted by
-            // otherwise-conformant providers such as Dex. Do not make that extension a portability
-            // requirement. The trust decision remains strict: discovery is issuer-pinned and
-            // strictOidcUserInfo verifies the signed ID token's issuer and client audience before
-            // accepting any identity claims.
-            requireIssuerValidation: false,
-            pkce: true,
-            getToken: oidcClient.exchangeCode,
-            getUserInfo: async (tokens) => {
-              try {
-                const profile = await oidcClient.getUserInfo(tokens);
-                assertStrictOidcEmailAdmission(db, genericProviderId, profile);
-                return profile;
-              } catch (error) {
-                if (!(error instanceof StrictOidcVerificationError)) throw error;
-                console.error("Strict OIDC identity verification failed.", error);
-                // generic-oauth performs its browser redirect only when getUserInfo returns no
-                // profile. Preserve our stable reason in request-local state so the outer callback
-                // seam can replace generic-oauth's `user_info_is_missing` redirect without
-                // throwing an APIError that escapes to the browser as raw JSON.
-                const capture = authHandlerErrorCapture.getStore();
-                if (capture) {
-                  capture.error = APIError.from("UNAUTHORIZED", {
-                    message: "The identity provider response could not be verified.",
-                    code: "OIDC_IDENTITY_VERIFICATION_FAILED",
-                  });
-                }
-                return null;
-              }
-            },
-            scopes,
-          },
-        ],
-      }),
-    );
-  }
-  if (mode === "password") {
-    plugins.push(
-      twoFactor({
-        issuer: application.branding.totpIssuer,
-        allowPasswordless: true,
-        twoFactorCookieMaxAge: 5 * 60,
-        trustDeviceMaxAge: 7 * 24 * 60 * 60,
-        totpOptions: { digits: 6, period: 30, allowPasswordless: true },
-        accountLockout: {
-          enabled: true,
-          maxFailedAttempts: 5,
-          durationSeconds: 15 * 60,
-        },
-      }),
-    );
-  }
+  const sessionDeletionLifecycleRef: {
+    current: {
+      prepareSession(sessionToken: string, reason: "session_expired"): readonly string[];
+      prepareUser(userId: string, reason: "session_revoked"): readonly string[];
+      commit(sessionHandles: readonly string[]): void;
+    } | null;
+  } = { current: null };
+
+  const preparedProviderConfig = prepareProviders({
+    db,
+    env,
+    mode,
+    publicUrl,
+    authHandlerErrorCapture,
+    AuthConfigError,
+    required,
+    assertStrictOidcEmailAdmission,
+  });
+  const pluginOptions = buildPlugins({
+    mode,
+    genericOidcPlugin: preparedProviderConfig.genericOidcPlugin,
+    totpIssuer: application.branding.totpIssuer,
+  });
   // SECURE DEFAULT (P1.7) + FIRST-RUN SETUP: self-service signup is closed / invite-only by
   // design (Decisions — social SSO is the primary path; email+password a secondary fallback),
   // with EXACTLY ONE bootstrap exception: an EMPTY user table plus the operator-configured setup
@@ -1362,28 +1108,21 @@ export function authFromEnv(
   if (mode === "password" && setupToken && Buffer.byteLength(setupToken, "utf8") < 32) {
     throw new AuthConfigError("SMALLSASS_ACCOUNT_SETUP_TOKEN must be at least 32 bytes.");
   }
-  // Resolve every remaining provider configuration before the first explicit database DDL below.
-  // An invalid provider/URL must not leave a bootstrap-control table behind on an otherwise
-  // untouched database merely because validation happened in an unfortunate order.
-  const configuredSocialProviders = socialProvidersFromEnv(env);
-  const configuredProviderInfo = externalProviderInfo(
+  const providerConfig = buildProviders({
     env,
+    defaultProviderLabel: application.branding.defaultProviderLabel,
+    trustedOrigins: opts.trustedOrigins,
+    prepared: preparedProviderConfig,
+    AuthConfigError,
+  });
+  const {
     genericProviderId,
-    application.branding.defaultProviderLabel,
-  );
-  // Experimental social providers still receive a stable issuer namespace so identity
-  // correlation is always (issuer, subject), never email or a mutable display label. Generic
-  // OIDC uses its actual issuer URL and remains the first-class path.
-  const configuredFederatedIssuers = new Map<string, string>();
-  if (configuredSocialProviders.google) configuredFederatedIssuers.set("google", "https://accounts.google.com");
-  if (configuredSocialProviders.microsoft) {
-    configuredFederatedIssuers.set(
-      "microsoft",
-      `urn:better-auth:microsoft:${env.CAPACITYLENS_MICROSOFT_TENANT_ID || "common"}`,
-    );
-  }
-  if (configuredSocialProviders.github) configuredFederatedIssuers.set("github", "urn:better-auth:github");
-  if (genericProviderId && genericIssuer) configuredFederatedIssuers.set(genericProviderId, genericIssuer);
+    strictOidcClient,
+    strictOidcAuthorizationProxyPath,
+    configuredSocialProviders,
+    configuredProviderInfo,
+    configuredFederatedIssuers,
+  } = providerConfig;
   const acquireBootstrapClaim = (): string => {
     const claimToken = randomBytes(24).toString("base64url");
     try {
@@ -1409,384 +1148,132 @@ export function authFromEnv(
     }
   };
 
-  // The password floor remains unconditional, including when the optional bootstrap-owner flag
-  // is active. createBootstrapAdmin generates a high-entropy password that comfortably exceeds it.
-
-  const testRuntime = runtimeEnvironment === "test";
-  if (testRuntime && !process.env.VITEST) {
-    console.warn(
-      "capacitylens-server: TEST credential profile active — scrypt cost is reduced and breached-password screening is disabled; never retain these credentials or expose this process.",
-    );
-  }
-  const breachCheckEnabled = env.CAPACITYLENS_PASSWORD_BREACH_CHECK !== "off" && !testRuntime;
-  const baseHasher = scryptPasswordHasher(testRuntime ? 2 ** 10 : undefined);
-  const assertCredentialPasswordLength = (password: unknown): void => {
-    if (typeof password !== "string") return;
-    const failure = passwordLengthFailure(password);
-    if (!failure) return;
-    throw APIError.from(
-      "BAD_REQUEST",
-      failure === "too-short"
-        ? {
-            message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
-            code: "PASSWORD_TOO_SHORT",
-          }
-        : {
-            message: `Password must be at most ${MAX_PASSWORD_LENGTH} characters`,
-            code: "PASSWORD_TOO_LONG",
-          },
-    );
-  };
-  const assertAuthRequestPasswordLength = (path: string, body: unknown): void => {
-    if (typeof body !== "object" || body === null) return;
-    const candidate = body as { password?: unknown; newPassword?: unknown };
-    if (path === "/sign-up/email") assertCredentialPasswordLength(candidate.password);
-    if (path === "/reset-password" || path === "/change-password") {
-      assertCredentialPasswordLength(candidate.newPassword);
-    }
-  };
-  const passwordHash = async (password: string): Promise<string> => {
-    // Direct identity-port creation bypasses Better Auth's HTTP route guards. Keep the shared
-    // Unicode code-point policy at the last common boundary before every new hash is produced.
-    assertCredentialPasswordLength(password);
-    try {
-      assertNoContextSpecificPassword(password, application.branding.passwordContextWords);
-      if (breachCheckEnabled) await assertPasswordNotBreached(password);
-    } catch (error) {
-      if (error instanceof PasswordPolicyError) {
-        throw APIError.from("BAD_REQUEST", {
-          message: error.message,
-          code: error.code,
-        });
-      }
-      if (error instanceof PasswordPolicyDependencyError) {
-        throw APIError.from("SERVICE_UNAVAILABLE", {
-          message: error.message,
-          code: error.code,
-        });
-      }
-      throw error;
-    }
-    return hashPasswordWithBackpressure(baseHasher, password);
-  };
-
+  const passwordPolicy = buildPasswordPolicy({
+    env,
+    mode,
+    runtimeEnvironment,
+    passwordContextWords: application.branding.passwordContextWords,
+    passwordResetSessionCapture,
+    sessionDeletionLifecycleRef,
+    captureResetToken,
+    hashPasswordWithBackpressure,
+    verifyPasswordWithBackpressure,
+    resetLinkTtlSeconds: RESET_LINK_TTL_SECONDS,
+  });
   const cookiePrefix =
     publicUrl.protocol === "https:" ? `__Host-${application.applicationId}` : application.applicationId;
   const browserAuthErrorUrl = new URL("/", publicUrl);
   browserAuthErrorUrl.searchParams.set("externalSignInError", "1");
-  let sessionDeletionLifecycle: {
-    prepareSession(sessionToken: string, reason: "session_expired"): readonly string[];
-    prepareUser(userId: string, reason: "session_revoked"): readonly string[];
-    commit(sessionHandles: readonly string[]): void;
-  } | null = null;
 
-  const instance = betterAuth({
-    database: db, // node:sqlite DatabaseSync — same file as the app data (see header)
+  const sessionPolicy = buildSessionPolicy({
+    db,
     secret,
     baseURL,
-    basePath: "/api/auth",
-    // OAuth/OIDC callback failures are browser navigations, not JSON API calls. Route them back to
-    // the product's sign-in wall, which renders one stable non-sensitive message and removes the
-    // provider-controlled query values. Per-flow errorCallbackURL values preserve invite routes.
-    onAPIError: {
-      errorURL: browserAuthErrorUrl.toString(),
-      onError(error) {
-        const capture = authHandlerErrorCapture.getStore();
-        if (capture) capture.error = error;
-        // Supplying onError replaces Better Auth's default logger, so retain a breadcrumb for the
-        // dependency failures that it has already normalized to a generic response.
-        if (!(error instanceof APIError)) console.error("Better Auth request failed.", error);
-      },
-    },
-    // Better Auth defaults verification identifiers to plaintext. Reset identifiers contain the
-    // live bearer token (`reset-password:<token>`), so a DB/backup reader could otherwise take over
-    // the account. The library hashes on both create and consume, preserving the normal API while
-    // ensuring no live reset/email-verification token is recoverable from storage.
-    verification: { storeIdentifier: "hashed" },
-    databaseHooks: {
-      user: {
-        create: {
-          before: async (user, context) => {
-            const cleanedName = cleanText(typeof user.name === "string" ? user.name : "");
-            const sanitizedUser = { ...user, name: cleanedName || "User" };
-            // Internal credential creation is reachable only through CapacityLens's own
-            // invite/bootstrap services and deliberately has no web request context.
-            if (!context?.path) return { data: sanitizedUser };
-            const emailSignup = context.path === "/sign-up/email";
-            const externalSignup = externalIdentityPath(context.path);
-            if (!emailSignup && !externalSignup) return { data: sanitizedUser };
+    cookiePrefix,
+    secureCookies: publicUrl.protocol === "https:",
+    sessionAbsoluteTtlSeconds: SESSION_ABSOLUTE_TTL_SECONDS,
+    sessionFreshAgeSeconds: SESSION_FRESH_AGE_SECONDS,
+  });
+  const databaseHookOptions = buildDatabaseHooks({
+    db,
+    mode,
+    application,
+    genericProviderId,
+    configuredFederatedIssuers,
+    allowOpenSignup,
+    requirePasswordMfa,
+    externalIdentityAdmission: opts.externalIdentityAdmission,
+    providerIdFromExternalContext,
+    countUsers,
+    twoFactorEnabledLookupStatement,
+    externalIdentityPath,
+  });
+  const requestHookOptions = buildRequestHooks({
+    db,
+    browserAuthErrorUrl,
+    authHandlerErrorCapture,
+    allowOpenSignup,
+    setupToken,
+    sessionDeletionLifecycleRef,
+    acquireBootstrapClaim,
+    assertAuthRequestPasswordLength: passwordPolicy.assertAuthRequestPasswordLength,
+    countUsers,
+    enforceSessionActivity,
+    secretTokenMatches,
+    externalIdentityPath,
+  });
 
-            // Open EMAIL registration never opens external identity creation as a side effect.
-            // Social/OIDC remains verified-email + invitation/allow-list gated in every posture.
-            const externalProviderId = externalSignup ? providerIdFromExternalContext(context) : null;
-            if (externalSignup && mode === "sso" && externalProviderId !== genericProviderId) {
-              // Named social providers remain compatibility sign-in doors for principals that
-              // already exist. Letting one create a new principal after cutover would immediately
-              // introduce a strict-provider readiness blocker on the next restart.
-              throw APIError.from("FORBIDDEN", {
-                message: "New SSO-only identities must sign in through the required OIDC provider.",
-                code: "STRICT_PROVIDER_REQUIRED",
-              });
-            }
-            if (externalSignup && !(await opts.externalIdentityAdmission?.(sanitizedUser))) {
-              throw APIError.from("FORBIDDEN", {
-                message: `This identity is not invited to this ${application.displayName} instance.`,
-                code: "EXTERNAL_IDENTITY_NOT_INVITED",
-              });
-            }
-            // Open signup applies only to email credentials. External identities remain subject to
-            // the first-principal bootstrap claim and later invitation admission in every posture.
-            if (allowOpenSignup && emailSignup) return { data: sanitizedUser };
-
-            // The route-level check may have observed zero users concurrently with another
-            // request. Re-check at the actual user insertion boundary and fail closed once the
-            // winner exists; otherwise a delayed loser could still create an orphan identity.
-            if (emailSignup && countUsers(db) !== 0) {
-              throw APIError.from("CONFLICT", {
-                message: "The first owner account has already been created.",
-                code: "BOOTSTRAP_ALREADY_CLAIMED",
-              });
-            }
-            // Only the first identity needs the cross-request bootstrap claim. Later external
-            // identities are independently authorised by their live pre-authorised invite.
-            if (countUsers(db) === 0) {
-              if (!(context as { bootstrapClaimToken?: unknown }).bootstrapClaimToken) {
-                throw APIError.from("CONFLICT", {
-                  message: "First-owner setup did not hold its bootstrap claim.",
-                  code: "BOOTSTRAP_ALREADY_IN_PROGRESS",
-                });
-              }
-            }
-            return { data: sanitizedUser };
-          },
-        },
-      },
-      session: {
-        create: {
-          after: async (session, context) => {
-            const assurance = externalIdentityPath(context?.path)
-              ? "federated"
-              : context?.path?.startsWith("/two-factor/")
-                ? "mfa"
-                : "password";
-            const providerId = assurance === "federated" ? providerIdFromExternalContext(context) : null;
-            if (assurance === "federated" && (!providerId || !configuredFederatedIssuers.has(providerId))) {
-              throw new Error("External session creation did not resolve a configured provider id.");
-            }
-            recordSessionAssurance(
-              db,
-              applicationSessionHandle(application.applicationId, String(session.token)),
-              String(session.userId),
-              assurance,
-              providerId,
-            );
-            // Strict-SSO schemas deliberately omit Better Auth's password/MFA columns. Only the
-            // password deployment needs to inspect enrolment before deciding whether this newly
-            // created session still owes an MFA challenge.
-            const enrolledMfa =
-              mode === "password"
-                ? (
-                    twoFactorEnabledLookupStatement(db).get(String(session.userId)) as
-                      { twoFactorEnabled?: unknown } | undefined
-                  )?.twoFactorEnabled
-                : false;
-            const passwordSessionAwaitsMfa =
-              assurance === "password" &&
-              (requirePasswordMfa || enrolledMfa === true || enrolledMfa === 1 || enrolledMfa === "1");
-            // Privacy-preserving account opt-in: record only the boolean fact that this identity
-            // completed authentication. A password session that still owes an MFA challenge does
-            // not count; the replacement MFA session confirms the sign-in after verification.
-            if (!passwordSessionAwaitsMfa) confirmTrackedMemberSignIn(db, String(session.userId));
-          },
-        },
-        delete: {
-          after: async (session) => {
-            removeSessionAssurance(db, applicationSessionHandle(application.applicationId, String(session.token)));
-          },
-        },
-      },
-    },
-    // Email is an attribute, never an account-link key. Linking requires a separate authenticated
-    // ceremony outside an OIDC callback, so a newly observed issuer/subject cannot attach itself to
-    // an existing local principal merely by presenting the same verified email address.
-    //
-    // Provider access/refresh/id tokens are encrypted with the application secret before they reach
-    // SQLite, so a stolen database or backup copy alone does not surrender live provider credentials
-    // — defence in depth between database-copy theft and application-secret theft.
-    account: { accountLinking: { disableImplicitLinking: true }, encryptOAuthTokens: true },
-    emailAndPassword: {
-      enabled: mode === "password",
-      // The static library flag stays OFF so the sign-up gate has ONE owner: the live hooks.before
-      // below (see the SECURE DEFAULT comment above). Better Auth 1.6.23 enforces disableSignUp
-      // even for server-side auth.api.signUpEmail calls (sign-up.mjs:143), so leaving it on would
-      // also break the BROWSER first-run bootstrap (the login screen's "Create the owner account"
-      // form, which really does POST /api/auth/sign-up/email) — the headless
-      // --create-owner-admin-admin path is unaffected either way, since it now bypasses this route
-      // entirely (see createBootstrapAdmin).
-      disableSignUp: false,
-      // PIN the minimum length to the shared constant rather than inheriting Better Auth's default,
-      // so the server bound and the client reset-page pre-check (both read MIN_PASSWORD_LENGTH) can't
-      // drift — and a library-default change can't silently move the server's floor. UNCONDITIONAL:
-      // no boot, flagged or not, ever lowers this — see the bootstrap comment above for how the
-      // required operator-supplied bootstrap password must satisfy the same policy.
-      minPasswordLength: MIN_PASSWORD_LENGTH,
-      // Better Auth counts UTF-16 code units. Give its transport guard enough room for 128 astral
-      // code points; the hook and hash boundary enforce CapacityLens's shared code-point ceiling.
-      maxPasswordLength: MAX_PASSWORD_INPUT_CODE_UNITS,
-      password: {
-        hash: passwordHash,
-        verify: (input) => verifyPasswordWithBackpressure(baseHasher, input),
-      },
-      // Admin-issued reset links (P1.18) — password mode ONLY: 'sso' delegates credentials to the
-      // IdP, and configuring sendResetPassword would needlessly enable Better Auth's public
-      // request-password-reset endpoint there. See captureResetToken/mintPasswordResetToken above.
-      ...(mode === "password"
-        ? {
-            sendResetPassword: captureResetToken,
-            // Better Auth owns the reset's session deletion. Prepare the application registry and
-            // durable end audit immediately before that deletion; the handler wrapper commits the
-            // in-memory removal only after the library returns a successful response.
-            onPasswordReset: async ({ user }: { user: { id: string } }) => {
-              const capture = passwordResetSessionCapture.getStore();
-              if (capture) {
-                capture.sessionHandles = sessionDeletionLifecycle?.prepareUser(user.id, "session_revoked") ?? [];
-              }
-            },
-            resetPasswordTokenExpiresIn: RESET_LINK_TTL_SECONDS,
-            // A reset is "I lost control of my credential" (or an admin offboarding a laptop):
-            // every existing session for that user dies with the old password.
-            revokeSessionsOnPasswordReset: true,
-          }
-        : {}),
-    },
+  const instance = betterAuth({
+    database: sessionPolicy.database,
+    secret: sessionPolicy.secret,
+    baseURL: sessionPolicy.baseURL,
+    basePath: sessionPolicy.basePath,
+    onAPIError: requestHookOptions.onAPIError,
+    verification: sessionPolicy.verification,
+    databaseHooks: databaseHookOptions.databaseHooks,
+    account: sessionPolicy.account,
+    emailAndPassword: passwordPolicy.emailAndPassword,
     // Native Google/Microsoft/GitHub sign-in, each only when its env is set (see helper).
     // Independent of the 'sso' genericOAuth plugin above; an empty object = none configured.
     socialProviders: configuredSocialProviders,
-    // The LIVE sign-up gate (see the SECURE DEFAULT comment above): allowed when the operator
-    // opted in, or for the empty-table owner bootstrap when the request proves knowledge of the
-    // configured setup secret. countUsers(db) is consulted per request so the bootstrap route
-    // closes immediately after the first identity is created.
-    hooks: {
-      before: createAuthMiddleware(async (ctx) => {
-        // Resolve a presented session once at the Better Auth pipeline boundary. Endpoint session
-        // middleware reuses ctx.context.session, and /get-session can return it directly, so idle
-        // enforcement no longer causes a wrapper lookup followed by the endpoint's second lookup.
-        const cookie = ctx.headers?.get("cookie") ?? "";
-        // Do not couple inactivity enforcement to Better Auth's internal session-cookie suffix.
-        // Any presented cookie may be a session under a newer provider version; resolving it is the
-        // fail-closed compatibility posture, while a truly cookieless public request still skips work.
-        const sessionPresented = cookie.length > 0 || ctx.headers?.has("authorization") === true;
-        let activeHookSession: Awaited<ReturnType<typeof getSessionFromCtx>> | undefined;
-        if (sessionPresented) {
-          const resolved = await getSessionFromCtx(ctx, {
-            disableCookieCache: true,
-            disableRefresh: true,
-          });
-          activeHookSession = resolved
-            ? await enforceSessionActivity(
-                resolved,
-                db,
-                sessionDeletionLifecycle
-                  ? {
-                      prepare: (sessionToken, reason) => sessionDeletionLifecycle!.prepareSession(sessionToken, reason),
-                      commit: (sessionHandles) => sessionDeletionLifecycle!.commit(sessionHandles),
-                    }
-                  : undefined,
-              )
-            : null;
-          ctx.context.session = activeHookSession;
-          if (ctx.path === "/get-session" && activeHookSession) return activeHookSession;
-        }
-        const continuingContext = () =>
-          activeHookSession === undefined ? undefined : { context: { session: activeHookSession } };
-
-        if (externalIdentityPath(ctx.path)) {
-          if (countUsers(db) === 0) {
-            return {
-              context: {
-                ...continuingContext()?.context,
-                bootstrapClaimToken: acquireBootstrapClaim(),
-              },
-            };
-          }
-          return continuingContext();
-        }
-        if (allowOpenSignup) {
-          assertAuthRequestPasswordLength(ctx.path, ctx.body);
-          return continuingContext();
-        }
-        if (ctx.path !== "/sign-up/email") {
-          assertAuthRequestPasswordLength(ctx.path, ctx.body);
-          return continuingContext();
-        }
-        // A fresh password instance is never claimable merely because it is reachable. The
-        // operator configures CAPACITYLENS_SETUP_TOKEN and the owner-setup form presents it in
-        // this header. index.ts also refuses a fresh password boot when the secret is absent.
-        if (
-          countUsers(db) === 0 &&
-          secretTokenMatches(setupToken, ctx.headers?.get("x-capacitylens-setup-token") ?? null)
-        ) {
-          // Validate before acquiring the one-at-a-time bootstrap claim: a malformed password must
-          // not strand setup waiting for an after-hook that this before-hook failure never reaches.
-          assertAuthRequestPasswordLength(ctx.path, ctx.body);
-          return {
-            context: {
-              ...continuingContext()?.context,
-              bootstrapClaimToken: acquireBootstrapClaim(),
-            },
-          };
-        }
-        // The EXACT refusal Better Auth's own disableSignUp emits (sign-up.mjs, 1.6.23), so the
-        // client and tests see one unchanged error shape regardless of which gate closed the door.
-        throw APIError.from("BAD_REQUEST", {
-          message: "Email and password sign up is not enabled",
-          code: "EMAIL_PASSWORD_SIGN_UP_DISABLED",
-        });
-      }),
-      after: createAuthMiddleware(async (ctx) => {
-        // Email open signup does not acquire a claim. External first-owner and closed email setup
-        // release any claim on both success and failure so a failed attempt cannot strand setup.
-        if (externalIdentityPath(ctx.path) || (!allowOpenSignup && ctx.path === "/sign-up/email")) {
-          const claimToken = (ctx as { bootstrapClaimToken?: unknown }).bootstrapClaimToken;
-          if (typeof claimToken === "string") {
-            db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE id = 1 AND claimToken = ?`).run(claimToken);
-          }
-        }
-      }),
-    },
-    plugins,
-    trustedOrigins: opts.trustedOrigins,
-    // Session-cookie hardening follows the PUBLIC Better Auth URL, not the Node listener: an HTTPS
-    // browser origin still needs Secure cookies when nginx proxies to Node over HTTP. Better Auth's
-    // built-in secure-cookie switch emits the weaker `__Secure-` name prefix. Disable that naming
-    // helper and express Secure directly so every HTTPS cookie can use the stricter `__Host-`
-    // prefix (Secure + Path=/ + no Domain). Loopback HTTP keeps an unprefixed development name.
-    // `sameSite:'lax'` (NOT 'strict') is required for SSO: 'strict' would
-    // drop the session cookie on the top-level OAuth redirect back from the IdP → broken sign-in;
-    // 'lax' still sends the cookie on that GET callback and is safe. `httpOnly:true` keeps the token
-    // out of document.cookie (no JS read).
-    advanced: {
-      useSecureCookies: false,
-      cookiePrefix,
-      defaultCookieAttributes: {
-        sameSite: "lax",
-        httpOnly: true,
-        ...(publicUrl.protocol === "https:" ? { secure: true } : {}),
-      },
-    },
-    // Fixed 12-hour absolute lifetime: refresh is disabled, so activity can never extend a stolen
-    // session indefinitely. The wrapper below separately enforces a 30-minute inactivity timeout
-    // without moving expiresAt. `freshAge` supplies a 15-minute step-up window for sensitive actions.
-    session: {
-      expiresIn: SESSION_ABSOLUTE_TTL_SECONDS,
-      disableSessionRefresh: true,
-      freshAge: SESSION_FRESH_AGE_SECONDS,
-    },
-    telemetry: { enabled: false },
+    hooks: requestHookOptions.hooks,
+    plugins: pluginOptions.plugins,
+    trustedOrigins: providerConfig.trustedOrigins,
+    advanced: sessionPolicy.advanced,
+    session: sessionPolicy.session,
+    telemetry: sessionPolicy.telemetry,
   });
   // betterAuth construction validates its resolved options but does not own this app-specific
   // table. Verify and expire its leases only after configuration and app migrations have succeeded.
   if (!opts.deferDatabaseSetup) ensureAuthControlTables(db, env);
+  const auth = createAuthAdapter({
+    db,
+    application,
+    instance,
+    configuredProviderInfo,
+    configuredFederatedIssuers,
+    publicUrl,
+    browserAuthErrorUrl,
+    trustedOrigins: providerConfig.trustedOrigins,
+    strictOidcClient,
+    strictOidcAuthorizationProxyPath,
+    sessionDeletionLifecycleRef,
+  });
+  if (!opts.deferDatabaseSetup) auth.ensureProviderBindings();
+  return { mode, auth };
+}
+
+function createAuthAdapter({
+  db,
+  application,
+  instance,
+  configuredProviderInfo,
+  configuredFederatedIssuers,
+  publicUrl,
+  browserAuthErrorUrl,
+  trustedOrigins,
+  strictOidcClient,
+  strictOidcAuthorizationProxyPath,
+  sessionDeletionLifecycleRef,
+}: {
+  db: Db;
+  application: BoundApplication;
+  instance: unknown;
+  configuredProviderInfo: AuthProviderInfo[];
+  configuredFederatedIssuers: Map<string, string>;
+  publicUrl: URL;
+  browserAuthErrorUrl: URL;
+  trustedOrigins: string[] | undefined;
+  strictOidcClient: ReturnType<typeof buildProviders>["strictOidcClient"];
+  strictOidcAuthorizationProxyPath: string | null;
+  sessionDeletionLifecycleRef: {
+    current: {
+      prepareSession(sessionToken: string, reason: "session_expired"): readonly string[];
+      prepareUser(userId: string, reason: "session_revoked"): readonly string[];
+      commit(sessionHandles: readonly string[]): void;
+    } | null;
+  };
+}): Auth {
   // Collapse the invariant generic to the structural Auth surface (see Auth), AND normalize at
   // this single narrowing boundary (P1.7a): Better Auth's full user carries the richer fields we
   // drop here, so this is exactly where `emailVerified` is read and defaulted before everything
@@ -1824,7 +1311,7 @@ export function authFromEnv(
   const strictProvider = configuredProviderInfo.find((provider) => provider.kind === "oidc") ?? null;
   const trustedLinkOrigins = new Set([
     publicUrl.origin,
-    ...(opts.trustedOrigins ?? []).map((value) => {
+    ...(trustedOrigins ?? []).map((value) => {
       try {
         return new URL(value).origin;
       } catch (cause) {
@@ -1853,32 +1340,20 @@ export function authFromEnv(
     return url;
   };
 
-  const callbackErrorUrl = (request: Request): URL => {
-    const fallback = new URL(browserAuthErrorUrl);
-    if (!sqliteTableExists(db, "verification")) return fallback;
-    const state = new URL(request.url).searchParams.get("state");
-    if (!state) return fallback;
-    // Better Auth stores the returned OAuth state as the verification identifier. Use that indexed
-    // coordinate instead of parsing every reset, MFA, and abandoned OAuth row on each callback.
-    const storedIdentifier = createHash("sha256").update(state).digest("base64url");
+  // The verification lookup stays here so identity SQL keeps a single owner (see the account
+  // boundary conformance test); the builder only decides what to do with the rows.
+  const readVerificationValues = (storedIdentifier: string): readonly string[] | null => {
+    if (!sqliteTableExists(db, "verification")) return null;
     const rows = db
       .prepare(`SELECT value FROM verification WHERE identifier = ? LIMIT 2`)
-      .all(storedIdentifier) as Array<{
-      value: string;
-    }>;
-    for (const { value } of rows) {
-      try {
-        const stored = JSON.parse(value) as { oauthState?: unknown; errorURL?: unknown };
-        if (stored.oauthState !== state || typeof stored.errorURL !== "string") continue;
-        const target = new URL(stored.errorURL);
-        if (trustedLinkOrigins.has(target.origin) && !target.username && !target.password) return target;
-      } catch {
-        // Verification values are shared with non-OAuth ceremonies. Non-JSON rows cannot carry a
-        // validated callback URL and deliberately fall through to the stable application target.
-      }
-    }
-    return fallback;
+      .all(storedIdentifier) as Array<{ value: string }>;
+    return rows.map((row) => row.value);
   };
+  const callbackErrorUrl = buildErrorRedirect({
+    browserAuthErrorUrl,
+    trustedLinkOrigins,
+    readVerificationValues,
+  });
 
   const isStrictOidcVerificationFailure = (error: unknown): boolean =>
     error instanceof APIError && error.body?.code === "OIDC_IDENTITY_VERIFICATION_FAILED";
@@ -1927,7 +1402,7 @@ export function authFromEnv(
           passwordResetSessionCapture.run(resetCapture, () => raw.handler(request)),
         );
         if (response.ok && resetCapture.sessionHandles.length > 0) {
-          sessionDeletionLifecycle?.commit(resetCapture.sessionHandles);
+          sessionDeletionLifecycleRef.current?.commit(resetCapture.sessionHandles);
         }
         if (callbackProviderId && isStrictOidcVerificationFailure(capture.error)) {
           const target = failureTarget ?? new URL(browserAuthErrorUrl);
@@ -2012,7 +1487,7 @@ export function authFromEnv(
     deleteCredentialUser: (userId) => raw.$context.then((ctx) => ctx.internalAdapter.deleteUser(userId)),
     revokeUserSessions: (userId) => raw.$context.then((ctx) => ctx.internalAdapter.deleteUserSessions(userId)),
     setSessionDeletionLifecycle(lifecycle) {
-      sessionDeletionLifecycle = lifecycle;
+      sessionDeletionLifecycleRef.current = lifecycle;
     },
     async beginFederatedLink({ headers, principalId, callbackURL, errorCallbackURL }) {
       if (!strictProvider) {
@@ -2078,8 +1553,7 @@ export function authFromEnv(
       reconcileObservedFederatedLinks(db, application.applicationId, () => verifiedUnauditedFederatedLinks(db));
     },
   };
-  if (!opts.deferDatabaseSetup) auth.ensureProviderBindings();
-  return { mode, auth };
+  return auth;
 }
 
 /** The subset of Better Auth's `$context` {@link createCredentialUserWith} needs. Better Auth still
