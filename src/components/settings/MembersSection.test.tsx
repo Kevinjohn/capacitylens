@@ -2101,6 +2101,42 @@ describe("MembersSection — SSO cutover repair", () => {
     return mockApi(directory, { "GET /sso-readiness": () => jsonResponse(ssoReadiness(linked, reason)) });
   }
 
+  it("preserves invite and member role drafts when the readiness panel appears", async () => {
+    const user = userEvent.setup();
+    let resolveReadiness!: (response: Response) => void;
+    const pendingReadiness = new Promise<Response>((resolve) => {
+      resolveReadiness = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      mockApi(directory, {
+        "GET /sso-readiness": () => pendingReadiness,
+      }),
+    );
+    renderSection({ providers });
+
+    const inviteEmail = await screen.findByTestId("invite-preauth");
+    await user.type(inviteEmail, "draft@example.com");
+    fireEvent.keyDown(screen.getByTestId("invite-role"), { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
+
+    const targetRow = await findMemberRow(/target@x\.io/);
+    await user.click(within(targetRow).getByTestId("member-edit"));
+    const roleDialog = await screen.findByRole("dialog");
+    const memberRole = within(roleDialog).getByRole("combobox");
+    fireEvent.keyDown(memberRole, { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("option", { name: "Editor" }));
+
+    await act(async () => {
+      resolveReadiness(jsonResponse(ssoReadiness(false, "member_not_linked")));
+    });
+
+    expect(await screen.findByTestId("sso-readiness")).toBeInTheDocument();
+    expect(inviteEmail).toHaveValue("draft@example.com");
+    expect(screen.getByTestId("invite-role")).toHaveTextContent("Viewer");
+    expect(memberRole).toHaveTextContent("Editor");
+  });
+
   it("refreshes readiness after a successful membership mutation", async () => {
     const user = userEvent.setup();
     let readinessReads = 0;
