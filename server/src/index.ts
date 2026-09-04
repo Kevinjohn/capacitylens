@@ -28,164 +28,17 @@ import { sqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
 import { KeyedOperationLock } from "./accounts/operationLock";
 import { formatSsoCutoverRefusal, ssoCutoverReadiness } from "./accounts/ssoCutover";
 
+import { refuseToStart, tryOrRefuse, closeDbSafely, parsePort, parseAuditMaxMb } from "./boot/refusals";
+
+export { parseAuditMaxMb } from "./boot/refusals";
+
 const ACCOUNT_APPLICATION: BoundApplication = DEFAULT_ACCOUNT_APPLICATION;
 
 // Secrets, SQLite/WAL files, audit logs, and backups created by this process must never inherit a
 // permissive shell/container umask. Individual writers also pin 0600 for defence in depth.
 process.umask(0o077);
 
-// Entry point. Run with: tsx src/index.ts (Node 24+ — node:sqlite needs no flag)
-//   CAPACITYLENS_DB                       SQLite file (default ./capacitylens.db; ':memory:' ok)
-//   PORT                            listen port (default 8787)
-//   CAPACITYLENS_HOST                     listen host (default 127.0.0.1, localhost-only).
-//                                   Set to 0.0.0.0 to deliberately expose on the LAN.
-//   CAPACITYLENS_ALLOW_RESET              '1' to expose POST /api/test/reset (auth-off dev/E2E only)
-//   CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION off by default; set to '1' ONLY to deliberately run
-//                                   the open/demo (auth-off) posture under NODE_ENV=production.
-//                                   Otherwise auth-off in production refuses to boot — the
-//                                   demo dataset would be world-readable/writable (see
-//                                   productionGuard.ts).
-//   CAPACITYLENS_CORS_ORIGIN              Explicit CORS allow-list, comma-separated. Wildcards
-//                                   are rejected because browser requests use cookie credentials.
-//                                   Defaults to the local development origins.
-//   CAPACITYLENS_OPTIMISTIC_CONCURRENCY   enabled by default; set '0' only to deliberately allow
-//                                   stale last-writer-wins overwrites.
-//   CAPACITYLENS_MULTI_ACCOUNT             '1' to allow more than one company on this instance.
-//                                   Default off: CapacityLens is single-company-per-instance —
-//                                   once the accounts table holds one row, every create-a-company
-//                                   vector 403s (naming this flag) until you set it, in EVERY auth
-//                                   mode including off (see AppOptions.multiAccount in app.ts).
-//   CAPACITYLENS_SEED_DEMO                 '1' to seed the two-company demo dataset on a
-//                                   never-initialised DB. Default off: a fresh real server starts
-//                                   EMPTY (create-your-company first run) — the seed ships TWO
-//                                   companies, which is exactly why it can't stay default under
-//                                   the single-company cap above.
-//   CAPACITYLENS_HTTPS                    '1' when the public origin is real HTTPS — enables
-//                                   two-year HSTS including subdomains. Default off: HSTS is invalid/harmful
-//                                   over plain HTTP, and this server usually runs HTTP behind
-//                                   a TLS-terminating proxy. The other baseline security
-//                                   headers (nosniff, CSP, Referrer-Policy, X-Frame-Options)
-//                                   are always on, independent of this flag.
-//   CAPACITYLENS_INTERNAL_TLS_CERT        PEM certificate for the internal reverse-proxy/API hop.
-//   CAPACITYLENS_INTERNAL_TLS_KEY         Matching PEM private key. Omit both for HTTP on a trusted
-//                                   same-host loopback hop; a partial/unreadable identity refuses
-//                                   startup. Compose creates a per-install identity automatically.
-//   CAPACITYLENS_INTERNAL_TLS_GENERATION  Optional SHA-256 marker for the exact loaded certificate.
-//   CAPACITYLENS_LOG                      '1' for structured per-request JSON logs (pino) and
-//                                   500-errors through the request logger. Default off =
-//                                   today's logging (startup line + console.error on 500s).
-//   CAPACITYLENS_HEALTH_DEEP              '1' to make /api/health do a constant SELECT 1 plus
-//                                   surface the audit-sink state: { ok: true, db: true,
-//                                   audit: 'ok' | 'recovering' | 'degraded', auditPending: n } (200), internal-certificate
-//                                   expiry when configured, or 503 { ok: false }.
-//                                   Default off = unconditional { ok: true }.
-//   CAPACITYLENS_RATE_LIMIT               requests/minute per IP across rate-limited /api/* routes
-//                                   (safe integer 1–1,000,000). /api/health is exempt so ordinary
-//                                   API traffic cannot starve the uptime probe. Production refuses
-//                                   a missing, zero or invalid value.
-//   CAPACITYLENS_TRUST_PROXY_HEADERS      '1' only when an unreachable-directly reverse proxy
-//                                   overwrites X-Forwarded-For (rate-limit client identity) and
-//                                   X-Forwarded-Proto (CSRF same-origin scheme reconstruction).
-//   CAPACITYLENS_BOOTSTRAP_TOKEN          shared secret enabling constrained org-creation via
-//                                   POST /api/orgs (header x-capacitylens-bootstrap-token)
-//                                   for a caller who is not yet an Owner/Admin. Default off
-//                                   (unset/empty = the token path never allows; org-create is
-//                                   then first-run-only or an existing Owner/Admin).
-//   CAPACITYLENS_BACKUP_DIR               set to a directory to enable periodic online DB
-//                                   snapshots there (default off — no timer, no writes).
-//   CAPACITYLENS_BACKUP_INTERVAL_MIN      snapshot cadence in whole minutes (default 60,
-//                                   maximum 35,000; only read when backups are on).
-//   CAPACITYLENS_BACKUP_KEEP              rolling retention count (default 48, maximum 10,000;
-//                                   positive fractional values are floored).
-//   CAPACITYLENS_AUDIT                    append-only JSONL audit log of every AppData mutation
-//                                   (one line {ts,userId,accountId,action,entity,id,changedFields};
-//                                   changedFields are field NAMES only — never values, so no PII
-//                                   reaches the log). ON BY DEFAULT; 'off' is development-only
-//                                   because production posture refuses disabled audit. Server-mode only.
-//   CAPACITYLENS_AUDIT_FILE               the audit JSONL path (default: capacitylens-audit.jsonl
-//                                   beside the DB; a ':memory:' DB falls back to a CWD-relative file).
-//   CAPACITYLENS_AUDIT_MAX_MB             size-based rotation cap for the audit JSONL, in
-//                                   megabytes (safe integer 1–1,048,576; default 64; invalid values
-//                                   fall back to the default). Before a line would cross the cap,
-//                                   the current file is renamed to <file>.1 (replacing any existing
-//                                   .1), bounding on-disk usage to 2x the cap. A single over-cap
-//                                   line is rejected and remains queued in the audit outbox. Only
-//                                   read when audit is on.
-//   SMALLSASS_ACCOUNT_MODE                off|password|sso (default off = no Better Auth at
-//                                   all; only the thin /api/auth/me exists). Any other
-//                                   value refuses to boot. When ≠ off:
-//   SMALLSASS_ACCOUNT_SECRET              required — local session signing secret (32+ chars).
-//   SMALLSASS_ACCOUNT_PUBLIC_URL          required — the public origin the browser uses.
-//   SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP   '1' to keep email self-registration open unconditionally
-//                                   (trusted-instance/dev escape). Default off: sign-up is closed
-//                                   except for an EMPTY user table plus the account setup token.
-//   SMALLSASS_ACCOUNT_SETUP_TOKEN         required secret for that first owner sign-up, presented
-//                                   by the setup form. A fresh password instance refuses to boot
-//                                   without it unless open signup/bootstrap-admin was explicit.
-//   CAPACITYLENS_CREATE_ADMIN_ADMIN       development-only first-owner helper (also available as
-//                                   --create-owner-admin-admin). It creates admin@admin.admin with
-//                                   the required CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD only when the
-//                                   password user table is empty.
-//                                   Production refuses this path; use the account setup token.
-//   SMALLSASS_ACCOUNT_OIDC_*              strict OIDC: CLIENT_ID + CLIENT_SECRET + exact ISSUER +
-//                                   DISCOVERY_URL (optional PROVIDER_ID, LABEL and SCOPES).
-
-// CORS is locked down by default to the local Vite dev/e2e origins (DEFAULT_CORS, the
-// same fail-closed default buildApp uses). Set CAPACITYLENS_CORS_ORIGIN explicitly (e.g. your
-// deployed app origin, or '*') to change it.
-
-// Print one clear "refusing to start" line and exit non-zero. Boot SHOULD crash on a bad
-// precondition (we never limp along half-configured) — this just makes the failure legible to an
-// operator instead of a raw stack, matching the framed AuthConfigError / resetForbidden paths.
-function refuseToStart(reason: string): never {
-  console.error(`capacitylens-server: refusing to start — ${reason}`);
-  process.exit(1);
-}
-
-// The small "resolve this boot option or refuse" guard repeated across several independent
-// options below (each just parses/validates one env-derived value with no extra cleanup on
-// failure). Larger boot phases that must also close the database or dispose signal handlers on
-// failure keep their own explicit try/catch instead of this helper.
-function tryOrRefuse<T>(fn: () => T): T {
-  try {
-    return fn();
-  } catch (error) {
-    refuseToStart(error instanceof Error ? error.message : String(error));
-  }
-}
-
-// Best-effort close on a startup-refusal path: the original failure is what's reported to the
-// operator (via refuseToStart), so a close failure here is a SECOND, surfaced-not-swallowed
-// problem, never the one that wins the message. `candidate` may be unassigned (a failure before
-// openDbConnection ran), hence the optional call.
-function closeDbSafely(candidate: Db | undefined): void {
-  try {
-    candidate?.close();
-  } catch (closeError) {
-    console.error("capacitylens-server: database close also failed during startup refusal", closeError);
-  }
-}
-
-// Fail-closed PORT parse (mirrors parseRateLimit): a typo like PORT=abc or an out-of-range value
-// must not silently fall through to a confusing app.listen error — reject it up front with a clear
-// message. Unset → the 8787 default.
-function parsePort(raw: string | undefined): number {
-  if (raw === undefined) return 8787;
-  const n = Number(raw);
-  if (!Number.isInteger(n) || n < 1 || n > 65535) {
-    refuseToStart(`PORT must be an integer 1..65535, got ${JSON.stringify(raw)}.`);
-  }
-  return n;
-}
-
-// Fail-SOFT numeric parse (mirrors parseBackupConfig's `positive`, not parsePort's refuseToStart):
-// this only bounds the audit log's on-disk size, not a security-relevant gate, so a missing/junk
-// value falls back to the documented 64 MiB default rather than refusing to boot.
-export function parseAuditMaxMb(raw: string | undefined): number {
-  const n = Number(raw);
-  const maxMb = 1024 * 1024;
-  return Number.isSafeInteger(n) && n >= 1 && n <= maxMb ? n : 64;
-}
+// Environment variables: docs-src/self-hosting/configuration.md.
 
 // Safety interlock before anything opens: the test-only reset route must be impossible
 // in production (see bootGuard.ts).
