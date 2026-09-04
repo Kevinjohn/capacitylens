@@ -84,7 +84,11 @@ function runtimeImports(file: string): string[] {
   });
 }
 
-function dependencyPath(start: string, forbidden: ReadonlySet<string>): string[] | null {
+function dependencyPath(
+  start: string,
+  forbidden: ReadonlySet<string>,
+  forbiddenPrefixes: readonly string[] = [],
+): string[] | null {
   const queue: string[][] = [[start]];
   const visited = new Set<string>();
   while (queue.length > 0) {
@@ -92,7 +96,8 @@ function dependencyPath(start: string, forbidden: ReadonlySet<string>): string[]
     const current = path.at(-1)!;
     if (visited.has(current)) continue;
     visited.add(current);
-    if (current !== start && forbidden.has(current)) return path;
+    if (current !== start && (forbidden.has(current) || forbiddenPrefixes.some((prefix) => current.startsWith(prefix))))
+      return path;
     for (const dependency of runtimeImports(current)) queue.push([...path, dependency]);
   }
   return null;
@@ -145,7 +150,7 @@ describe("account-boundary architecture", () => {
       const source = read(file);
       expect(source, file).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE)\b/);
       expect(source, file).not.toMatch(/from ['"].*(?:controlTables|better-auth)/);
-      expect(source, file).not.toMatch(/from ['"].*\/state['"]/);
+      expect(source, file).not.toMatch(/from ['"][^'"]*\/state(?:\/[^'"]*)?['"]/);
       expect(source, file).not.toMatch(/ROLE_RANK|MIN_(?:ADMIN_)?TIER/);
       expect(source, file).not.toMatch(/(?:===|!==)\s*['"](?:owner|admin|editor|viewer)['"]/);
     }
@@ -199,7 +204,10 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "authConfig/requestHooks.ts"),
       resolve(serverRoot, "authConfig/sessionPolicy.ts"),
     ]);
-    const path = dependencyPath(coordinator, forbidden);
+    const forbiddenPrefixes = ["accounts/identityPort", "accounts/adminPort", "controlTables", "authConfig"].map(
+      (p) => resolve(serverRoot, p) + sep,
+    );
+    const path = dependencyPath(coordinator, forbidden, forbiddenPrefixes);
     expect(path ? displayPath(path) : null).toBeNull();
   });
 
@@ -383,6 +391,19 @@ describe("scanner calibration", () => {
     writeFileSync(file, source);
     return file;
   }
+
+  it("reports dependencies inside a forbidden directory prefix", () => {
+    const a = fixture("a.ts", 'import { value } from "./zone/b.ts";');
+    const b = fixture("zone/b.ts", "export const value = 1;");
+    expect(dependencyPath(a, new Set(), [resolve(fixtureRoot, "zone") + sep])).toEqual([a, b]);
+  });
+
+  it("matches state facades and submodules without matching stateless", () => {
+    const pattern = /from ['"][^'"]*\/state(?:\/[^'"]*)?['"]/;
+    expect('from "../state/commandLedgerWrites"').toMatch(pattern);
+    expect('from "./state"').toMatch(pattern);
+    expect('from "./stateless"').not.toMatch(pattern);
+  });
 
   it("prefers a sibling file over a directory and follows explicit index imports", () => {
     const state = fixture("state.ts", "export const state = {};");
