@@ -7,9 +7,10 @@ import type { Db } from "../db";
 import { accountConfigKey } from "../accountConfig";
 import { createStrictOidcClient, isLoopbackHostname, StrictOidcVerificationError } from "../strictOidc";
 import type { AuthProviderInfo } from "../auth";
+import type { AuthConfigError } from "../auth";
 
 type Env = Record<string, string | undefined>;
-type AuthConfigErrorConstructor = new (message?: string, options?: ErrorOptions) => Error;
+type AuthConfigErrorConstructor = typeof AuthConfigError;
 function optionalPair(env: Env, idKey: string, secretKey: string, label: string, E: AuthConfigErrorConstructor) {
   const id = env[idKey];
   const secret = env[secretKey];
