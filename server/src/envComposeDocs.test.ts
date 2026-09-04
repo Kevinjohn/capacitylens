@@ -7,7 +7,7 @@ const compose = readFileSync(fileURLToPath(new URL("../../docker-compose.yml", i
 const dockerfile = readFileSync(fileURLToPath(new URL("../../Dockerfile", import.meta.url)), "utf8");
 const nginxConf = readFileSync(fileURLToPath(new URL("../../nginx.conf", import.meta.url)), "utf8");
 const dockerIgnore = readFileSync(fileURLToPath(new URL("../../.dockerignore", import.meta.url)), "utf8");
-const appSource = readFileSync(fileURLToPath(new URL("./app.ts", import.meta.url)), "utf8");
+const appSource = readFileSync(fileURLToPath(new URL("./routes/appLogging.ts", import.meta.url)), "utf8");
 
 /** The invite sub-actions whose bearer rides in the URL path, as enumerated at a `.../(a|b|c)` site. */
 const inviteActionsAt = (source: string, anchor: RegExp): string[] => {
