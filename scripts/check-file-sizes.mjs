@@ -1,5 +1,6 @@
-import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, realpathSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { basename, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export function countLines(content) {
@@ -36,26 +37,24 @@ export function evaluateFileSizes(files, config) {
 }
 
 export function collectSourceFiles(root) {
-  const files = [];
-  function walk(directory) {
-    for (const entry of readdirSync(join(root, directory), { withFileTypes: true })) {
-      const path = `${directory}/${entry.name}`;
-      if (entry.isDirectory()) {
-        if (entry.name !== "node_modules" && entry.name !== "e2e" && path !== "src/paraglide") walk(path);
-      } else if (
-        entry.isFile() &&
+  const result = spawnSync("git", ["ls-files", "-z", "--", "src", "server/src", "shared/src"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`git ls-files failed: ${result.stderr.trim()}`);
+  return result.stdout
+    .split("\0")
+    .filter(
+      (path) =>
         /\.tsx?$/.test(path) &&
-        !/\.(test|spec)\./.test(entry.name) &&
-        !path.endsWith(".d.ts")
-      ) {
-        files.push({ path, content: readFileSync(join(root, path), "utf8") });
-      }
-    }
-  }
-  for (const directory of ["src", "server/src", "shared/src"]) {
-    if (existsSync(join(root, directory))) walk(directory);
-  }
-  return files.sort((a, b) => a.path.localeCompare(b.path));
+        !/\.(test|spec)\./.test(basename(path)) &&
+        !path.endsWith(".d.ts") &&
+        !path.startsWith("src/paraglide/") &&
+        !/(?:^|\/)(?:node_modules|e2e)\//.test(path),
+    )
+    .map((path) => ({ path, content: readFileSync(join(root, path), "utf8") }))
+    .sort((a, b) => a.path.localeCompare(b.path));
 }
 
 function printFunctionDiagnostics(files) {
