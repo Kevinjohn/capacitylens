@@ -13,7 +13,8 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Eye, Pencil, Settings } from "lucide-react";
-import { labelFor, type MemberConfirmationAction, type MemberRoleEdit } from "./MemberConfirmations";
+import type { MemberRoleEdit } from "./MemberConfirmations";
+import { labelFor, type MemberConfirmationAction } from "./memberConfirmationCopy";
 
 /**
  * Which of a row's controls the viewer may see. Pure and shared by both member tables, so the

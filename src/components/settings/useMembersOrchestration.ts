@@ -28,7 +28,7 @@ import {
   STATUS_FOR_ACTION,
   type MemberConfirmation,
   type MemberConfirmationAction,
-} from "./MemberConfirmations";
+} from "./memberConfirmationCopy";
 import {
   parseWorkspaceReadiness,
   type ReadinessMember,
