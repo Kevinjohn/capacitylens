@@ -148,11 +148,6 @@
       "reason": "milestone 4 decomposition backlog"
     },
     {
-      "path": "src/components/common/fields.tsx",
-      "baseline": 765,
-      "reason": "milestone 4 decomposition backlog"
-    },
-    {
       "path": "src/components/invites/InviteAccept.tsx",
       "baseline": 519,
       "reason": "milestone 4 decomposition backlog"
