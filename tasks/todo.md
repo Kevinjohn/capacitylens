@@ -391,7 +391,27 @@ coordinates and metrics across 1,044 files. Independent review found no function
 Unicode formatting nit was corrected, leaving the original 520 exception entries byte-identical.
 Docs build and rendered-policy inspection pass. Node 24.19.0 application gate (3,650 tests),
 server gate (1,788 tests), focused lint and formatter checks pass. All 257 browser tests pass
-in an unchanged worktree. Final review found no findings or nits.
+in an unchanged worktree. Final review found no findings or nits. Merged in
+[PR #604](https://github.com/Kevinjohn/capacitylens/pull/604), merge `2f86f5dc`.
+Main gate `33955641118` and browser run `33955641114` passed, including all three browsers
+and pinned OIDC. Docker, docs, security, CodeQL and Scorecard also passed.
+
+Progress (feature/docs-lightbox-source): the docs Escape handler is authored in a six-line source
+file, scripts/docs-lightbox.js, read by VitePress at build time. The published script remains inline,
+so standalone file:// pages gain no external script dependency. The source is covered by formatting,
+recommended JavaScript lint with browser globals, and the structural gate; no new exception is needed.
+The authored handler matches the original config string exactly apart from its final file newline.
+Docs build leaves all 38 committed HTML pages and other generated artifacts byte-identical.
+Eight keyboard characterization cases passed on the original string. The updated suite passes all
+23 tests: eight cases each against authored and published code, plus seven built-site checks.
+VitePress minifies the published script, so tests pin a consistent published handler across pages
+and exercise both authored and published behavior.
+Type-check and focused lint pass. Actual browser verification confirms open → Enter retains open →
+Escape closes, then successful reopen and Escape again. The generated page has correct breadcrumbs,
+intact screenshots, and exactly one inline script with no src. Open and closed renders were inspected.
+Independent review found no findings or nits. Node 24.19.0 application gate (3,666 tests),
+server gate (1,788 tests), focused type/lint/formatter checks and docs build pass.
+All 257 browser tests pass in an unchanged worktree.
 
 ### T06 — Document the naming and ownership vocabulary (F8)
 

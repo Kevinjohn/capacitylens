@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vitepress";
 import { imageLightbox } from "./lightbox.mts";
 import { BASE } from "./base.mjs";
@@ -15,12 +16,8 @@ import { BASE } from "./base.mjs";
 // pages that lost the script somewhere, still gets the click-to-close lightbox
 // exactly as before. Inline rather than a bundle, because a separate .js file
 // would be a network request the file:// build cannot rely on.
-const escapeClosesLightbox = `document.addEventListener("keydown", function (event) {
-  if (event.key !== "Escape") return;
-  document.querySelectorAll(".cl-toggle:checked").forEach(function (toggle) {
-    toggle.checked = false;
-  });
-});`;
+// Read measured source at build time; the generated page still contains this one inline script.
+const escapeClosesLightbox = readFileSync(new URL("../../scripts/docs-lightbox.js", import.meta.url), "utf8").trimEnd();
 
 export default defineConfig({
   head: [["script", { "data-cl-keep": "" }, escapeClosesLightbox]],

@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import { runInNewContext } from "node:vm";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 // This test reads the built site off disk, so it is type-checked under
@@ -125,13 +126,74 @@ describe("docs image lightbox", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("keeps the Escape handler on every page, since the lightbox is on every page", () => {
-    const missing = withScreenshots.filter((page) => !page.html.includes(".cl-toggle:checked"));
-    expect(missing.map((page) => page.name)).toEqual([]);
+  it("embeds the same Escape handler on every page", () => {
+    const mismatched = pages.filter((page) => {
+      const script = page.html.match(/<script\b[^>]*data-cl-keep[^>]*>([\s\S]*?)<\/script>/)?.[1];
+      return script !== publishedRuntime;
+    });
+    expect(mismatched.map((page) => page.name)).toEqual([]);
   });
 
   it("keeps generated HTML free of trailing whitespace", () => {
     const offenders = pages.filter((page) => /[^\S\r\n]+$/m.test(page.html));
     expect(offenders.map((page) => page.name)).toEqual([]);
+  });
+});
+
+// Characterize the retained script independently of the build-time markup plugin.
+const runtime = readFileSync(join(ROOT, "scripts/docs-lightbox.js"), "utf8");
+const publishedRuntime = readFileSync(join(SITE, "index.html"), "utf8").match(
+  /<script\b[^>]*data-cl-keep[^>]*>([\s\S]*?)<\/script>/,
+)![1];
+
+function keyboardFixture(source: string, open: boolean[]) {
+  const toggles = open.map((checked) => ({ checked }));
+  let keydown: ((event: { key: string }) => void) | undefined;
+  const querySelectorAll = vi.fn((selector: string) => {
+    expect(selector).toBe(".cl-toggle:checked");
+    return toggles.filter((toggle) => toggle.checked);
+  });
+  runInNewContext(source, {
+    document: {
+      addEventListener(type: string, listener: typeof keydown) {
+        expect(type).toBe("keydown");
+        expect(keydown).toBeUndefined();
+        keydown = listener;
+      },
+      querySelectorAll,
+    },
+  });
+  expect(keydown).toBeTypeOf("function");
+  return { toggles, querySelectorAll, press: (key: string) => keydown!({ key }) };
+}
+
+describe.each([
+  { name: "authored", source: runtime },
+  { name: "published", source: publishedRuntime },
+])("$name docs lightbox keyboard behavior", ({ source }) => {
+  it("Escape closes every open lightbox and can be used again after reopening", () => {
+    const fixture = keyboardFixture(source, [true, false, true]);
+    fixture.press("Escape");
+    expect(fixture.toggles.map(({ checked }) => checked)).toEqual([false, false, false]);
+    fixture.toggles[1].checked = true;
+    fixture.press("Escape");
+    expect(fixture.toggles.map(({ checked }) => checked)).toEqual([false, false, false]);
+    expect(fixture.querySelectorAll).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["Enter", " ", "Tab", "Esc", "escape"])("leaves open lightboxes alone for %j", (key) => {
+    const fixture = keyboardFixture(source, [true, false]);
+    fixture.press(key);
+    expect(fixture.toggles.map(({ checked }) => checked)).toEqual([true, false]);
+    expect(fixture.querySelectorAll).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: "no toggles", open: [] },
+    { name: "only closed toggles", open: [false, false] },
+  ])("Escape is safe with $name", ({ open }) => {
+    const fixture = keyboardFixture(source, open);
+    expect(() => fixture.press("Escape")).not.toThrow();
+    expect(fixture.toggles.some(({ checked }) => checked)).toBe(false);
   });
 });
