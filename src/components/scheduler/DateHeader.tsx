@@ -48,9 +48,6 @@ export const DateHeader = memo(function DateHeader({
   today,
 }: {
   days: string[];
-  // Declared but not read: the two zoom thresholds it used to compute now live on `geom`
-  // (`perDayColumns` / `showWeekdayLabels`). Still in the type because the grid passes it.
-  dayWidth: number;
   // Per-column geometry: cell/month/week widths come from here so they track the
   // (possibly narrowed) weekend columns instead of a single scalar.
   geom: ColumnGeometry;

@@ -29,7 +29,6 @@ export interface SchedulerGridRowProps {
   setModal: Dispatch<SetStateAction<ModalState | null>>;
   days: LaneProps["days"];
   todayX: LaneProps["todayX"];
-  dayWidth: LaneProps["dayWidth"];
   geom: LaneProps["geom"];
   calendarWeekStartsOn: LaneProps["weekStartsOn"];
   handleEdit: LaneProps["onEdit"];
@@ -49,7 +48,6 @@ export function SchedulerGridRow({
   setModal,
   days,
   todayX,
-  dayWidth,
   geom,
   calendarWeekStartsOn,
   handleEdit,
@@ -179,7 +177,6 @@ export function SchedulerGridRow({
         dayStates={dayStates}
         timeOff={timeOff}
         todayX={todayX}
-        dayWidth={dayWidth}
         geom={geom}
         rowHeight={rowHeight}
         barTop={density.rowPadding}

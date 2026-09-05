@@ -74,7 +74,6 @@ function renderLane(overrides: Partial<Parameters<typeof ResourceLane>[0]> = {})
       dayStates={DAY_STATES}
       timeOff={TIME_OFF_BLOCKS}
       todayX={48}
-      dayWidth={DAY_WIDTH}
       geom={GEOM}
       rowHeight={52}
       barTop={10}
@@ -108,7 +107,7 @@ describe("ResourceLane rendering", () => {
     expect(screen.queryByTestId("half-day")).not.toBeInTheDocument();
 
     cleanup();
-    renderLane({ dayWidth: 17, geom: COARSE_GEOM });
+    renderLane({ geom: COARSE_GEOM });
     expect(screen.queryByTestId("half-day")).not.toBeInTheDocument();
   });
 

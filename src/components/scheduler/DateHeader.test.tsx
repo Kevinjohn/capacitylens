@@ -13,7 +13,6 @@ const renderHeader = (dayWidth: number, visibleWeeks: WeeksZoom = 2) =>
   render(
     <DateHeader
       days={DAYS}
-      dayWidth={dayWidth}
       geom={buildColumnGeometry(DAYS, dayWidth, {
         minimiseWeekends: false,
         weekendWidth: 22,
@@ -99,7 +98,6 @@ describe("DateHeader", () => {
     const { container } = render(
       <DateHeader
         days={days}
-        dayWidth={20}
         geom={buildColumnGeometry(days, 20, {
           minimiseWeekends: false,
           weekendWidth: 10,
@@ -168,7 +166,6 @@ describe("DateHeader", () => {
       render(
         <DateHeader
           days={WEEKEND_DAYS}
-          dayWidth={dayWidth}
           geom={buildColumnGeometry(WEEKEND_DAYS, dayWidth, {
             minimiseWeekends: true,
             weekendWidth: 22,

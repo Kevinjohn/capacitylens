@@ -86,10 +86,6 @@ export const ResourceLane = memo(function ResourceLane({
   dayStates: DayState[];
   timeOff: TimeOffBlock[];
   todayX: number | null;
-  // Declared but not read: the density thresholds it used to gate now come from `geom`
-  // (`perDayColumns`), and the pixel positions always did. Still in the type because the grid
-  // passes it; drop both together.
-  dayWidth: number;
   geom: ColumnGeometry;
   rowHeight: number;
   /** Top offset of lane 0 — the current density's `rowPadding` (see layout.ts). Passed in rather

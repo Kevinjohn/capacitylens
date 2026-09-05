@@ -5,7 +5,7 @@ import { DateHeader } from "./DateHeader";
 import type { useSchedulerViewport } from "./useSchedulerViewport";
 import type { useSchedulerGridModel, useSchedulerGridPreferences } from "./useSchedulerGridModel";
 
-type Props = Pick<ReturnType<typeof useSchedulerViewport>, "days" | "dayWidth" | "geom"> &
+type Props = Pick<ReturnType<typeof useSchedulerViewport>, "days" | "geom"> &
   Pick<ReturnType<typeof useSchedulerGridModel>, "today" | "visibleWeeksLabel" | "visibleSpanCompact" | "overallUtil"> &
   Pick<ReturnType<typeof useSchedulerGridPreferences>, "ui" | "utilizationPrefs"> & {
     headerRef: Ref<HTMLDivElement>;
@@ -18,7 +18,6 @@ export function SchedulerGridHeader({
   visibleSpanCompact,
   overallUtil,
   days,
-  dayWidth,
   geom,
   ui,
   calendarWeekStartsOn,
@@ -64,14 +63,7 @@ export function SchedulerGridHeader({
             </>
           )}
         </div>
-        <DateHeader
-          days={days}
-          dayWidth={dayWidth}
-          geom={geom}
-          visibleWeeks={ui.zoom}
-          weekStartsOn={calendarWeekStartsOn}
-          today={today}
-        />
+        <DateHeader days={days} geom={geom} visibleWeeks={ui.zoom} weekStartsOn={calendarWeekStartsOn} today={today} />
       </div>
     </>
   );
