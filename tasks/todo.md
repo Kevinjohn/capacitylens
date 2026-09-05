@@ -111,17 +111,34 @@ All probes were removed. Focused server type-check and architecture lint pass.
 Node 24.19.0 `gate` (3,650 tests), `gate:server` (1,737 tests), `docs:build`,
 rendered-page inspection and workflow YAML parsing pass. Both gate logs include all 13 scanner
 regressions. Independent review found no findings. All 257 browser tests pass.
-Merge/CI evidence is pending.
+Merged in [PR #591](https://github.com/Kevinjohn/capacitylens/pull/591), merge `e481883a`.
+Main gate `33941445053` and browser run `33941445063` passed, including the complete browser matrix.
 
 ### T04 — Enforce ownership by directory (F2, F9)
 
-- [ ] Replace manually enumerated coordinator/boundary membership with directory ownership where possible.
-- [ ] Keep intentional composition roots and SQL/vendor owners as exact, explained exceptions.
-- [ ] Add fixtures proving a newly added sibling receives the same restrictions as existing files.
+- [x] Replace manually enumerated coordinator/boundary membership with directory ownership where possible.
+- [x] Keep intentional composition roots and SQL/vendor owners as exact, explained exceptions.
+- [x] Add fixtures proving a newly added sibling receives the same restrictions as existing files.
 
 Dependencies: T03. Scope: medium, architecture policy, tests and scanner fixtures.
 Verification: architecture suite with direct, transitive, runtime and type-only forbidden edges. Preserve
 the existing global SQL ownership scan; this task strengthens coverage rather than replacing it wholesale.
+
+Evidence (feature/account-directory-ownership): directory discovery replaces coordinator, product-route,
+account-route and auth-builder member lists. Every coordinator is traversed, including unused siblings;
+private forbidden modules are covered by directory prefixes. SQL owner lists remain exact and their
+responsibilities are documented. Vendor restrictions use parsed specifiers, including dynamic imports.
+Ownership traverses runtime and type-only edges. The scanner records original erased type names so
+terminal contracts/exceptions cannot authorize other facade symbols: Db is a pinned public alias,
+AccountMember is the storage mapper's exact row type, and three named concrete adapter type edges
+are non-growing T15 debt. Regression checks reject changed consumers, symbols, kinds and duplicates.
+Eight temporary probes passed the old policy and failed the new policy: coordinator runtime, type-only
+and transitive imports; product/account route siblings; an auth-builder sibling; and server/shared
+vendor template imports. All probes were removed. Two transitive type fixtures and the symbol-metadata
+fixture failed before implementation. All 42 architecture and 14 scanner tests pass, as do focused
+server type-check and lint. Node 24.19.0 `gate` (3,650 tests), `gate:server` (1,752 tests),
+`docs:build`, rendered-page inspection and scanner complexity lint pass. Independent review found
+no findings. All 257 browser tests pass. Merge/CI evidence is pending.
 
 ### T05 — Enforce structural budgets across source categories (F3, F7, F9, M3)
 
@@ -268,6 +285,7 @@ Do not merely create a `Pick` alias while continuing to hand every consumer the 
 ### T15 — Narrow account flows and auth adapters (F3, F5)
 
 - [ ] Start with explicit read-flow dependencies; migrate each child away from parent factory-derived contracts.
+- [ ] Remove the three named T04 adapter type-debt entries as those contracts become independent.
 - [ ] Separate workspace provisioning/replay from erasure/replay, preserving the existing public flow interface.
 - [ ] Extract auth adapter capabilities and auth option groups separately; keep vendor normalization at one boundary.
 

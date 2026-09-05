@@ -377,7 +377,16 @@ still initialize its module. The check reads the effective compiler configuratio
 including inherited settings, and rejects missing or invalid configurations.
 Both gates run `pnpm run policy:dependencies:test` to verify the scanner and cycle checker
 against regression fixtures. The account architecture suite uses the same parser and
-resolver for its runtime ownership checks; unresolved and nonliteral imports fail visibly.
+resolver for its ownership checks; unresolved and nonliteral imports fail visibly.
+
+Account ownership checks discover every source file in the coordinator, product-route,
+account-route and auth-builder directories, including new nested siblings. Ownership
+traversal includes type-only dependencies. The named `Db` type is a terminal public
+contract; importing other facade exports or importing it at runtime still follows the graph.
+Three concrete adapter type imports remain exact, non-growing migration entries for T15
+in `tasks/todo.md`. The storage mapper may import its named `AccountMember` row type.
+Tests pin the permitted consumers and symbols and reject stale, duplicate or widened entries.
+SQL ownership retains exact file lists; membership in a neighboring directory grants no SQL access.
 
 Both gates also run the cryptographic implementation-path discovery check: a new
 primitive, certificate/key path or TLS configuration must be reviewed into

@@ -137,3 +137,25 @@ test("uses each package's compiler configuration, including inherited options, a
   rmSync(join(root, "server/tsconfig.json"));
   assert.throws(() => createDependencyParser(root), /Cannot read file/);
 });
+
+test("identifies exact erased type names without treating namespace or runtime imports as narrow contracts", () => {
+  const source = `
+    import type { Db as Database } from "./db";
+    import { type Db } from "./db";
+    export type { Db as Database } from "./db";
+    import type * as Database from "./db";
+    import type Database from "./db";
+    export type * from "./db";
+    type Database = import("./db");
+    import { Db } from "./db";
+    import type { Db, Other } from "./db";
+  `;
+  assert.deepEqual(
+    parseDependencies(source, "types.ts").map((edge) => edge.typeNames),
+    [["Db"], ["Db"], ["Db"], undefined, undefined, undefined, undefined, undefined, ["Db", "Other"]],
+  );
+  assert.equal(
+    parseDependencies('import { type Db } from "./db";', "types.ts", { verbatimModuleSyntax: true })[0].typeNames,
+    undefined,
+  );
+});

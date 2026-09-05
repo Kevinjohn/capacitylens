@@ -16,6 +16,19 @@ function exportKind(declaration, verbatimModuleSyntax) {
   return clause.elements.length > 0 && clause.elements.every((item) => item.isTypeOnly) ? "type" : "runtime";
 }
 
+function erasedTypeNames(node, kind) {
+  if (kind !== "type") return;
+  const importing = ts.isImportDeclaration(node);
+  if (importing && node.importClause?.name) return;
+  const bindings = importing
+    ? node.importClause?.namedBindings
+    : ts.isExportDeclaration(node)
+      ? node.exportClause
+      : undefined;
+  if (!bindings || !(ts.isNamedImports(bindings) || ts.isNamedExports(bindings))) return;
+  return bindings.elements.map((binding) => (binding.propertyName ?? binding.name).text);
+}
+
 /** Parse source dependencies without treating comments or string contents as code.
  * Explicit type-only clauses are erased. Inline type bindings can still initialize
  * their module when verbatimModuleSyntax is enabled; retain those runtime edges.
@@ -27,9 +40,10 @@ export function parseDependencies(source, filename, { verbatimModuleSyntax = fal
   function add(node, argument, kind) {
     const literal = argument && (ts.isStringLiteral(argument) || ts.isNoSubstitutionTemplateLiteral(argument));
     const line = file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1;
+    const names = erasedTypeNames(node, kind);
     edges.push(
       literal
-        ? { specifier: argument.text, kind, line }
+        ? { specifier: argument.text, kind, line, ...(names ? { typeNames: names } : {}) }
         : { specifier: null, kind, line, expression: argument?.getText(file) ?? "" },
     );
   }

@@ -1,7 +1,10 @@
 /** A source dependency with its initialization behavior and one-based source line. */
-export type DependencyEdge = { kind: "runtime" | "type"; line: number } & (
-  { specifier: string } | { specifier: null; expression: string }
-);
+export type DependencyEdge = {
+  kind: "runtime" | "type";
+  line: number;
+  /** Original names of erased named bindings. Absent for namespace/default/module references and runtime edges. */
+  typeNames?: string[];
+} & ({ specifier: string } | { specifier: null; expression: string });
 
 /** Resolved internal paths are absolute; unresolved and nonliteral edges need explicit handling. */
 export type DependencyResolution =
