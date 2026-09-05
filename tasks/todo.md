@@ -514,6 +514,16 @@ Scorecard all pass. PR #606's browser run was superseded by this newer main run:
 and pinned OIDC passed on #606; WebKit was cancelled by workflow concurrency. The complete succeeding
 run passes with the Dependabot validator unchanged. PR #606's dependency-update run also passed.
 
+T08 progress (feature/browser-script-lint-environments): browser and service-worker JavaScript no
+longer inherit Node globals from the common JavaScript baseline. Browser defaults apply to public
+scripts and the authored docs lightbox handler; the offline worker retains service-worker globals.
+Node tooling retains Node globals. Four regression groups exercise actual lint results for existing
+and future browser paths, the worker, and root/server tools, and are wired into both gates. Before
+the fix, process, Buffer, require and __dirname were all accepted in browser code. Focused checks
+pass after the change. Review found no findings or nits. Node 24.19.0 application gate passes with
+3,666 tests. Server/E2E validation and incorporation of the shared lint CI repair remain pending;
+broader T08 coverage remains open.
+
 ### Foundation checkpoint
 
 - [ ] T01–T08 complete; negative fixtures prove the advertised guarantees.
