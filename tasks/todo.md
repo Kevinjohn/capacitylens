@@ -187,6 +187,23 @@ Node 24.19.0 `gate` (3,650 tests), `gate:server` (1,752 tests) and `e2e` (257 te
 A subsequent syntax probe found BigInt keys could throw during symbol formatting; a failing/passing
 regression and one-line fix resolved it. Focused tests, lint, formatter checks and the complete JS/TS
 measurement were rerun after that fix. Independent review found no remaining findings.
+Merged in [PR #594](https://github.com/Kevinjohn/capacitylens/pull/594), merge `ed482d13`.
+Main gate `33945375414` and browser run `33945375419` passed, including the full browser matrix and OIDC.
+
+Progress (feature/shell-function-metrics): shell declarations are measured with the published
+Tree-sitter Bash WASM grammar. The unused native install script is explicitly disabled; no native
+compiler or new production dependency is required. Length counting is shared with JS/TS. Conditionals,
+loops, non-default case arms, logical operators, parameter defaults and arithmetic ternaries contribute
+to complexity; nested functions have independent complexity/depth. Quoted strings and heredoc data
+cannot invent functions, and parser recovery is rejected. Both repository scripts parse: their four
+functions are within all proposed budgets. The grammar parses syntax only and never executes commands.
+Both local gates run shell regressions. Vue and remaining embedded-source measurement, the complete
+published inventory and budget enforcement remain queued. All 10 shell and 13 JS/TS metric tests pass,
+as do complexity-12 lint and formatter checks. Independent review found no findings.
+Node 24.19.0 `gate` (3,650 tests), `gate:server` (1,752 tests) and `e2e` (257 tests) pass.
+The first server check lacked server dependencies after the root-only package addition; a frozen install
+of all three workspace projects resolved it without code changes. The lockfile remained current, and
+existing documentation-tooling peer warnings were also present in the primary checkout.
 Merge/CI evidence is pending.
 
 ### T06 — Document the naming and ownership vocabulary (F8)

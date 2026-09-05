@@ -1,6 +1,7 @@
 import { Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { createFunctionSymbols } from "./function-symbols.mjs";
+import { createCodeLineCounter } from "./metric-lines.mjs";
 
 const branches = new Set([
   "CatchClause",
@@ -38,20 +39,6 @@ function nestsBlock(node) {
   return !(node.type === "IfStatement" && node.parent.type === "IfStatement" && node.parent.alternate === node);
 }
 
-function codeLines(sourceCode) {
-  // Blank comment characters rather than stripping lines: literal strings and JSX remain intact.
-  const characters = sourceCode.text.split("");
-  for (const comment of sourceCode.getAllComments()) {
-    for (let index = comment.range[0]; index < comment.range[1]; index++) {
-      if (!/[\r\n\u2028\u2029]/.test(characters[index])) characters[index] = " ";
-    }
-  }
-  const lines = characters.join("").split(/\r\n|[\n\r\u2028\u2029]/);
-  const prefix = [0];
-  for (const line of lines) prefix.push(prefix.at(-1) + Number(Boolean(line.trim())));
-  return (start, end) => prefix[end] - prefix[start - 1];
-}
-
 function measuredNode(node) {
   const parent = node.parent;
   if (parent?.type === "MethodDefinition") return parent;
@@ -65,7 +52,10 @@ function collector(entries) {
     create(context) {
       const stack = [];
       const symbolFor = createFunctionSymbols();
-      const lineCount = codeLines(context.sourceCode);
+      const lineCount = createCodeLineCounter(
+        context.sourceCode.text,
+        context.sourceCode.getAllComments().map(({ range }) => range),
+      );
       return {
         onCodePathStart(path, node) {
           const owner = stack.at(-1)?.symbol;
