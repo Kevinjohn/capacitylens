@@ -11,6 +11,7 @@ import { useSchedulerDensity } from "./layout";
 import { FilterSelect } from "./FilterSelect";
 import { buildFilterOptions } from "./toolbarFilterOptions";
 import { useToolbarSearch } from "./useToolbarSearch";
+import { ToolbarActivityFilter } from "./ToolbarActivityFilter";
 import { ToolbarDateNavigation } from "./ToolbarDateNavigation";
 import { SegmentedControl } from "../common/ui";
 import { Button } from "../ui/button";
@@ -18,7 +19,6 @@ import { Checkbox } from "../ui/checkbox";
 import { Field, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
 import { Separator } from "../ui/separator";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "../ui/select";
 
 export function SchedulerToolbar() {
   // Viewer read-only (P1.12): a viewer has nothing to draw / mutate / undo, so the draw-mode toggle
@@ -175,59 +175,13 @@ export function SchedulerToolbar() {
             options={projectOptions}
           />
           {(internalActivities.length > 0 || repeatableActivities.length > 0) && (
-            <Select
-              // Encoded value: 'all' = all, 'kind:internal'/'kind:repeatable' = a whole group,
-              // otherwise a specific activity id. An activityKind selection wins over a stale activityId.
-              value={filters.activityKind ? `kind:${filters.activityKind}` : (filters.activityId ?? "all")}
-              onValueChange={(value) => {
-                if (value === "kind:internal")
-                  setToolbarFilters({
-                    activityKind: "internal",
-                    activityId: null,
-                  });
-                else if (value === "kind:repeatable")
-                  setToolbarFilters({
-                    activityKind: "repeatable",
-                    activityId: null,
-                  });
-                else
-                  setToolbarFilters({
-                    activityId: value === "all" ? null : value,
-                    activityKind: null,
-                  });
-              }}
-            >
-              <SelectTrigger size="sm" aria-label={m.scheduler_filter_activity_aria()} className="w-auto">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="all">{m.scheduler_filter_all_activities()}</SelectItem>
-                </SelectGroup>
-                {internalActivities.length > 0 && (
-                  <SelectGroup>
-                    <SelectLabel>{m.scheduler_filter_internal_group()}</SelectLabel>
-                    <SelectItem value="kind:internal">{m.scheduler_filter_internal_all()}</SelectItem>
-                    {internalActivities.map((activity) => (
-                      <SelectItem key={activity.id} value={activity.id}>
-                        {activity.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                )}
-                {repeatableActivities.length > 0 && (
-                  <SelectGroup>
-                    <SelectLabel>{m.scheduler_filter_repeatable_group()}</SelectLabel>
-                    <SelectItem value="kind:repeatable">{m.scheduler_filter_repeatable_all()}</SelectItem>
-                    {repeatableActivities.map((activity) => (
-                      <SelectItem key={activity.id} value={activity.id}>
-                        {activity.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                )}
-              </SelectContent>
-            </Select>
+            <ToolbarActivityFilter
+              activityId={filters.activityId ?? null}
+              activityKind={filters.activityKind ?? null}
+              internalActivities={internalActivities}
+              repeatableActivities={repeatableActivities}
+              onChange={setToolbarFilters}
+            />
           )}
           <SegmentedControl
             ariaLabel={m.scheduler_tentative_visibility_aria()}
