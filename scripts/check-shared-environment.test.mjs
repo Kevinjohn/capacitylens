@@ -69,21 +69,27 @@ test("explicit Node imports reveal forbidden Node declarations even with automat
   }
 });
 
-test("the test project retains Node-backed filesystem checks and typed linting", async () => {
+test("the test project retains Node-backed filesystem checks and typed linting", async (t) => {
   const program = programFor("tsconfig.test.json");
   assert.ok(program.getRootFileNames().some((path) => path.endsWith("/packageExports.test.ts")));
   assert.deepEqual(diagnostics(program), []);
+  const directory = mkdtempSync(`${root}shared/src/environment-lint-`);
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const invalidPath = `${directory}/floating.test.ts`;
+  const validPath = `${directory}/handled.test.ts`;
+  const filesystemCheck = 'import { existsSync } from "node:fs";\nvoid existsSync(".");\n';
+  // The typed parser may read the project from disk in CI single-run mode. Give it real files
+  // so the syntax being linted and the TypeScript program always describe the same code.
+  writeFileSync(invalidPath, `${filesystemCheck}Promise.resolve();\n`);
+  writeFileSync(validPath, `${filesystemCheck}await Promise.resolve();\n`);
   const eslint = new ESLint({ cwd: root });
-  const [result] = await eslint.lintText(
-    'import { existsSync } from "node:fs";\nvoid existsSync(".");\nPromise.resolve();',
-    {
-      filePath: "shared/src/packageExports.test.ts",
-    },
-  );
+  const [result] = await eslint.lintFiles([invalidPath]);
   assert.deepEqual(
     result.messages.map(({ ruleId }) => ruleId),
     ["@typescript-eslint/no-floating-promises"],
   );
+  const [valid] = await eslint.lintFiles([validPath]);
+  assert.deepEqual(valid.messages, []);
 });
 
 test("production lint rejects platform globals while retaining existing portable capabilities and types", async () => {
