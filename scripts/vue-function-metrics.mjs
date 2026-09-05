@@ -67,7 +67,8 @@ function parseVue(source, filename) {
 }
 
 /**
- * Measure authored SFC script functions, template JavaScript and CSS v-bind expressions.
+ * Measure authored SFC script control flow/functions, template JavaScript and CSS v-bind expressions.
+ * Both script blocks share a module scope; empty script programs add no artificial region.
  * Embedded regions have their own length/complexity/depth; nested real functions retain
  * independent metrics. Template markup remains subject to the physical file budget.
  * Vue-generated render branches/callbacks are not authored JavaScript and are not invented
@@ -82,14 +83,16 @@ export function measureVueFunctions(source, filename) {
       { ast: cloneMetricAst(parsed.ast, parsed.visitorKeys), symbol: null },
       ...createVueMetricRegions(containers, document, parsed.visitorKeys),
     ];
-    return programs.flatMap(({ ast, symbol }) => {
-      const parser = {
-        parseForESLint() {
-          return { ast, visitorKeys: parsed.visitorKeys, scopeManager: analyze(ast, { sourceType: "module" }) };
-        },
-      };
-      return measureWithParser(source, filename, { parser, sourceType: "module" }, symbol);
-    });
+    return programs
+      .filter(({ ast }) => ast.body.length > 0)
+      .flatMap(({ ast, symbol }) => {
+        const parser = {
+          parseForESLint() {
+            return { ast, visitorKeys: parsed.visitorKeys, scopeManager: analyze(ast, { sourceType: "module" }) };
+          },
+        };
+        return measureWithParser(source, filename, { parser, sourceType: "module" }, symbol);
+      });
   } catch (error) {
     throw new Error(`Cannot measure ${filename}: ${error.message}`, { cause: error });
   }

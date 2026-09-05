@@ -4158,5 +4158,61 @@
     "baseline": 172,
     "reason": "Split behavior groups and callbacks while preserving assertions, fixtures and integration coverage.",
     "task": "T09"
+  },
+  {
+    "path": "scripts/check-gitleaks-config.mjs",
+    "symbol": "module",
+    "metric": "complexity",
+    "baseline": 19,
+    "reason": "Separate allowlist structure checks, pattern compilation and corpus checks while retaining visible failures.",
+    "task": "T20"
+  },
+  {
+    "path": "scripts/docs-standalone.mjs",
+    "symbol": "module",
+    "metric": "complexity",
+    "baseline": 13,
+    "reason": "Separate page rewriting and asset cleanup while retaining standalone documentation output.",
+    "task": "T20"
+  },
+  {
+    "path": "scripts/internal-tls.sh",
+    "symbol": "module",
+    "metric": "complexity",
+    "baseline": 16,
+    "reason": "Separate certificate preparation and publication stages while preserving renewal order and permissions.",
+    "task": "T20"
+  },
+  {
+    "path": "server/scripts/cutover-repair.ts",
+    "symbol": "module",
+    "metric": "complexity",
+    "baseline": 21,
+    "reason": "Separate repair command parsing from confirmed execution while preserving supported operations and status codes.",
+    "task": "T20"
+  },
+  {
+    "path": "server/scripts/generate-database-fixtures.ts",
+    "symbol": "module",
+    "metric": "complexity",
+    "baseline": 15,
+    "reason": "Separate fixture generation stages while preserving every released fixture byte.",
+    "task": "T20"
+  },
+  {
+    "path": "server/scripts/reconcile-account-command.ts",
+    "symbol": "module",
+    "metric": "complexity",
+    "baseline": 16,
+    "reason": "Separate reconciliation inspection and closure while preserving current-schema checks and authority.",
+    "task": "T20"
+  },
+  {
+    "path": "server/src/index.ts",
+    "symbol": "module",
+    "metric": "complexity",
+    "baseline": 34,
+    "reason": "Separate startup configuration and resource lifecycle stages while preserving startup and shutdown order.",
+    "task": "T20"
   }
 ]

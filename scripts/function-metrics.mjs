@@ -67,7 +67,7 @@ function collector(entries, programSymbol) {
             startLine: measured.loc.start.line,
             endLine: measured.loc.end.line,
             lines:
-              path.origin === "class-field-initializer"
+              path.origin === "class-field-initializer" || (path.origin === "program" && !programSymbol)
                 ? null
                 : lineCount(measured.loc.start.line, measured.loc.end.line),
             complexity: 1,
@@ -75,7 +75,7 @@ function collector(entries, programSymbol) {
             currentDepth: 0,
           };
           stack.push(entry);
-          if (symbol) entries.push(entry);
+          entries.push(entry);
         },
         "*"(node) {
           const current = stack.at(-1);
@@ -101,7 +101,8 @@ function collector(entries, programSymbol) {
  * Length includes nested bodies but excludes blank/comment-only lines. Complexity uses classic
  * branching counts (including defaults, logical assignments and optional chains); nested scopes
  * are independent. Depth counts nested control statements, with else-if at its parent's depth.
- * Field initializers expose complexity, while their function values receive separate length metrics.
+ * Module scopes and field initializers expose control metrics; module length uses the physical file
+ * budget, while function values receive separate length metrics. Module scope does not prefix child symbols.
  * Reject parse/configuration failures and disable inline directives so collection cannot be hidden.
  */
 export function measureFunctions(source, filename) {
@@ -115,7 +116,8 @@ export function measureFunctions(source, filename) {
 
 /**
  * Collect metrics through a public ESLint parser, retaining original source coordinates.
- * A named program measures an authored embedded region as well as its nested functions;
+ * An unnamed program measures module control flow. A named program measures the length and control
+ * flow of an authored embedded region as well as its nested functions;
  * it does not represent a generated framework callback. Parser failures remain fatal.
  */
 export function measureWithParser(source, filename, languageOptions, programSymbol = null) {
@@ -136,6 +138,6 @@ export function measureWithParser(source, filename, languageOptions, programSymb
     throw new Error(`Cannot measure ${filename}: ${messages.map(({ message }) => message).join("; ")}`);
   return entries.map(({ currentDepth, ...entry }) => {
     if (currentDepth !== 0) throw new Error(`Unbalanced statement depth in ${filename}: ${entry.symbol}`);
-    return entry;
+    return { ...entry, symbol: entry.symbol ?? "module" };
   });
 }
