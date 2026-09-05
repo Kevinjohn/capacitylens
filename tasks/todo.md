@@ -514,6 +514,16 @@ Scorecard all pass. PR #606's browser run was superseded by this newer main run:
 and pinned OIDC passed on #606; WebKit was cancelled by workflow concurrency. The complete succeeding
 run passes with the Dependabot validator unchanged. PR #606's dependency-update run also passed.
 
+T08 progress (feature/browser-script-lint-environments): browser and service-worker JavaScript no
+longer inherit Node globals from the common JavaScript baseline. Browser defaults apply to public
+scripts and the authored docs lightbox handler; the offline worker retains service-worker globals.
+Node tooling retains Node globals. Four regression groups exercise actual lint results for existing
+and future browser paths, the worker, and root/server tools, and are wired into both gates. Before
+the fix, process, Buffer, require and __dirname were all accepted in browser code. Focused checks
+pass after the change. Review found no findings or nits. Node 24.19.0 application gate passes with
+3,666 tests. With the shared lint CI repair incorporated, both CI-mode gates pass: application
+3,666 tests and server 1,788 tests. E2E passes all 257 tests; broader T08 coverage remains open.
+
 T08 CI repair (feature/shared-lint-ci-fixture): main gate `33959389758` on PR #608 failed the
 shared test-project promise probe. The failure reproduces locally with CI=true: the typed parser's
 single-run mode reads the project from disk, so lintText over an existing path did not diagnose the
@@ -522,6 +532,10 @@ promise and one with an awaited promise; both retain a filesystem import. Fixtur
 the test. All seven checks pass in normal and CI modes. Node 24.19.0 CI-mode application gate
 (3,666 tests) and server gate (1,788 tests) pass. Review found no findings or nits. E2E passes all
 257 tests. Branch CI verification remains pending.
+
+Repair merged in [PR #609](https://github.com/Kevinjohn/capacitylens/pull/609), merge `f620c114`.
+Branch gate `33960023633` passed on `45bae4fa`. PR #608's main E2E `33959389740` also passed;
+the CI-only fixture failure did not affect the runtime or browser suites.
 
 ### Foundation checkpoint
 

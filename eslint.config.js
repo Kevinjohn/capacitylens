@@ -47,15 +47,19 @@ export default defineConfig([
     "docs-src",
   ]),
 
-  // Gate and public runtime scripts are production code too. Keep them on the recommended JS
-  // rules with Node globals; previously the .mjs files matched no config at all.
+  // Authored JavaScript shares a baseline, but runtime globals belong to its execution environment.
   {
     files: ["**/*.{js,mjs,cjs}"],
     extends: [js.configs.recommended],
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    ignores: ["public/**", "scripts/docs-lightbox.js"],
     languageOptions: { globals: globals.node },
   },
   {
-    files: ["public/auth-error-init.js", "public/theme-init.js", "scripts/docs-lightbox.js"],
+    files: ["public/**/*.{js,mjs,cjs}", "scripts/docs-lightbox.js"],
+    ignores: ["public/offline-worker.js"],
     languageOptions: { globals: globals.browser },
   },
   {

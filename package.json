@@ -84,7 +84,8 @@
     "policy:dependabot": "node scripts/check-dependabot.mjs",
     "policy:dependabot:test": "node --test scripts/check-dependabot.test.mjs",
     "policy:server-script-lint:test": "node --test scripts/check-server-script-lint.test.mjs",
-    "policy:shared-environment:test": "node --test scripts/check-shared-environment.test.mjs"
+    "policy:shared-environment:test": "node --test scripts/check-shared-environment.test.mjs",
+    "policy:script-environments:test": "node --test scripts/check-script-environments.test.mjs"
   },
   "dependencies": {
     "@capacitylens/shared": "workspace:*",
