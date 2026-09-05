@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { ChevronLeft, ChevronRight, ListFilter, Redo2, Trash2, Undo2 } from "lucide-react";
+import { ListFilter, Redo2, Trash2, Undo2 } from "lucide-react";
 import { m } from "@/i18n";
 import { redoShortcut, undoShortcut } from "../../lib/keyboardShortcuts";
 import { hasActiveFilters, hasLensFilter, useStore } from "../../store/useStore";
@@ -7,12 +7,11 @@ import { useCanEdit } from "../../auth/permissionContext";
 import { disciplinesEnabledFor } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { errorMessage } from "../../lib/errorMessage";
-import { ZOOM_LEVELS, type WeeksZoom } from "../../lib/schedulerConfig";
 import { useSchedulerDensity } from "./layout";
 import { FilterSelect } from "./FilterSelect";
-import { buildFilterOptions, SHOW_JUMP_TO_DATE, zoomLabel } from "./toolbarFilterOptions";
+import { buildFilterOptions } from "./toolbarFilterOptions";
 import { useToolbarSearch } from "./useToolbarSearch";
-import { JumpToDateInput } from "./JumpToDateInput";
+import { ToolbarDateNavigation } from "./ToolbarDateNavigation";
 import { SegmentedControl } from "../common/ui";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
@@ -89,52 +88,7 @@ export function SchedulerToolbar() {
         style={{ paddingBlock: density.toolbarPadY, rowGap: density.toolbarGapY }}
       >
         <h1 className="mr-auto text-xl font-semibold">{m.scheduler_title()}</h1>
-        {/* Prev/Next are icon-only: the chevrons carry the meaning. There is no visible text to
-            contradict it, so aria-label alone names them "Prev"/"Next". */}
-        <Button
-          size="icon-sm"
-          variant="outline"
-          onClick={() => panDays(-7)}
-          aria-label={m.scheduler_nav_prev()}
-          title={m.scheduler_nav_prev_title()}
-        >
-          <ChevronLeft />
-        </Button>
-        <Button size="sm" variant="outline" onClick={goToToday}>
-          {m.scheduler_nav_today()}
-        </Button>
-        <Button
-          size="icon-sm"
-          variant="outline"
-          onClick={() => panDays(7)}
-          aria-label={m.scheduler_nav_next()}
-          title={m.scheduler_nav_next_title()}
-        >
-          <ChevronRight />
-        </Button>
-        {SHOW_JUMP_TO_DATE && <JumpToDateInput />}
-        {/* Weeks visible. The trigger shows only the span ("4 weeks"), so the accessible name adds
-            the purpose AND repeats that visible text — "Weeks visible, 4 weeks". A bare
-            "Weeks visible" label would hide the words the user can see from speech input
-            (WCAG 2.5.3 Label in Name). */}
-        <Select value={String(zoom)} onValueChange={(value) => setZoom(Number(value) as WeeksZoom)}>
-          <SelectTrigger
-            size="sm"
-            aria-label={m.scheduler_weeks_visible_aria({ span: zoomLabel(zoom) })}
-            className="ml-2 w-auto"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent position="popper">
-            <SelectGroup>
-              {ZOOM_LEVELS.map((w) => (
-                <SelectItem key={w} value={String(w)}>
-                  {zoomLabel(w)}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        <ToolbarDateNavigation zoom={zoom} onZoomChange={setZoom} onPanDays={panDays} onToday={goToToday} />
         <div data-testid="scheduler-toolbar-actions" className="ml-2 flex items-center gap-2">
           <Separator orientation="vertical" className="data-[orientation=vertical]:h-6" />
           {/* Undo/Redo: editor-only (P1.12). A viewer can't mutate, so the history affordances are
