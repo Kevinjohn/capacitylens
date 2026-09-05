@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, relative, resolve, sep } from "node:path";
 
 import { createDependencyParser, resolveDependency } from "../../../../scripts/dependency-scanner.mjs";
+import type { DependencyEdge } from "../../../../scripts/dependency-scanner.mjs";
 
 const serverRoot = resolve(import.meta.dirname, "../..");
 const sharedRoot = resolve(serverRoot, "../../shared/src");
@@ -12,21 +13,18 @@ const browserRoot = resolve(serverRoot, "../../src");
 const repositoryRoot = resolve(serverRoot, "../..");
 const parseDependencies = createDependencyParser(repositoryRoot);
 
-const appBoundaryFiles = [
-  "app.ts",
-  "routes/appLimits.ts",
-  "routes/appLogging.ts",
-  "routes/appRequestAdapters.ts",
-  "routes/appOriginPolicy.ts",
-  "routes/appErrors.ts",
-  "routes/appConfig.ts",
-  "routes/appRuntime.ts",
-  "routes/appRootHooks.ts",
-  "routes/appSecurityPlugins.ts",
-  "routes/appSessionResolution.ts",
-  "routes/appAuthorization.ts",
-  "routes/appRouteTree.ts",
-];
+const boundaryLocations = {
+  productRoutes: ["app.ts", "routes"],
+  coordinators: ["accounts/localAccountFlows.ts", "accounts/flows"],
+  accountRoutes: ["accounts/accountRoutes.ts", "accounts/routes"],
+  authBuilders: ["auth.ts", "authConfig"],
+} as const;
+
+function boundaryPaths(root: string, boundary: keyof typeof boundaryLocations): string[] {
+  const [facade, directory] = boundaryLocations[boundary];
+  return [facade, ...sourceFiles(resolve(root, directory)).map((file) => relative(root, file))];
+}
+const appBoundaryFiles = boundaryPaths(serverRoot, "productRoutes");
 
 // `account` is Better Auth's singular provider-link table; CapacityLens product workspaces use
 // the plural `accounts`, so it can be enforced here without confusing the two ownership zones.
@@ -44,7 +42,7 @@ function sourceFiles(directory: string): string[] {
   });
 }
 
-function runtimeImports(file: string): string[] {
+function internalImports(file: string, include: (edge: DependencyEdge, target: string) => boolean): string[] {
   const dependencies = new Set<string>();
   for (const edge of parseDependencies(readFileSync(file, "utf8"), file)) {
     const resolved = resolveDependency(edge.specifier, file, repositoryRoot);
@@ -52,15 +50,75 @@ function runtimeImports(file: string): string[] {
       const target = edge.specifier === null ? edge.expression : edge.specifier;
       throw new Error(`${relative(repositoryRoot, file)}:${edge.line}: ${resolved.classification} import ${target}`);
     }
-    if (resolved.classification === "internal" && edge.kind === "runtime") dependencies.add(resolved.path);
+    if (resolved.classification === "internal" && include(edge, resolved.path)) dependencies.add(resolved.path);
   }
   return [...dependencies];
+}
+
+const runtimeImports = (file: string): string[] => internalImports(file, (edge) => edge.kind === "runtime");
+
+// These three concrete adapter contracts remain migration debt for T15. Only the named type
+// edges are tolerated; another consumer, a runtime import or a duplicate declaration fails.
+const adapterTypeDebt = [
+  ["accounts/localAccountFlows.ts", "accounts/betterAuthIdentityPort.ts", "LocalIdentityPort"],
+  ["accounts/localAccountFlows.ts", "accounts/sqliteAccountAdminPort.ts", "LocalAccountAdminPort"],
+  ["accounts/flows/actorContext.ts", "accounts/sqliteAccountAdminPort.ts", "LocalAccountAdminPort"],
+] as const;
+function isOwnershipTypeBoundary(
+  file: string,
+  kind: DependencyEdge["kind"],
+  target: string,
+  names: readonly string[] = [],
+): boolean {
+  if (kind !== "type" || names.length !== 1) return false;
+  // Db is the public DatabaseSync alias, not permission to import database initialization.
+  // Its type-only facade is a terminal contract; runtime edges still traverse every export.
+  if (target === resolve(serverRoot, "db.ts")) return names[0] === "Db";
+  return adapterTypeDebt.some(
+    ([from, to, name]) => file === resolve(serverRoot, from) && target === resolve(serverRoot, to) && names[0] === name,
+  );
+}
+const ownershipImports = (file: string): string[] =>
+  internalImports(file, (edge, target) => !isOwnershipTypeBoundary(file, edge.kind, target, edge.typeNames));
+
+function importSpecifiers(file: string): string[] {
+  return parseDependencies(readFileSync(file, "utf8"), file).flatMap((edge) => edge.specifier ?? []);
+}
+function isAuthVendor(specifier: string): boolean {
+  return specifier === "better-auth" || specifier.startsWith("better-auth/");
+}
+function isAccountState(file: string): boolean {
+  return (
+    file === resolve(serverRoot, "accounts/state.ts") || file.startsWith(resolve(serverRoot, "accounts/state") + sep)
+  );
+}
+function isControlTable(file: string): boolean {
+  return (
+    file === resolve(serverRoot, "controlTables.ts") || file.startsWith(resolve(serverRoot, "controlTables") + sep)
+  );
+}
+function isRowMapperType(
+  file: string,
+  kind: DependencyEdge["kind"],
+  target: string,
+  names: readonly string[] = [],
+): boolean {
+  // The storage adapter maps an AccountMember row into the shared Membership contract.
+  // It may name that one row facade but may not acquire executable control-table access.
+  return (
+    kind === "type" &&
+    names.length === 1 &&
+    names[0] === "AccountMember" &&
+    file === resolve(serverRoot, "accounts/adminPort/mappers.ts") &&
+    target === resolve(serverRoot, "controlTables.ts")
+  );
 }
 
 function dependencyPath(
   start: string,
   forbidden: ReadonlySet<string>,
   forbiddenPrefixes: readonly string[] = [],
+  dependencies: (file: string) => readonly string[] = runtimeImports,
 ): string[] | null {
   const queue: string[][] = [[start]];
   const visited = new Set<string>();
@@ -71,7 +129,7 @@ function dependencyPath(
     visited.add(current);
     if (current !== start && (forbidden.has(current) || forbiddenPrefixes.some((prefix) => current.startsWith(prefix))))
       return path;
-    for (const dependency of runtimeImports(current)) queue.push([...path, dependency]);
+    for (const dependency of dependencies(current)) queue.push([...path, dependency]);
   }
   return null;
 }
@@ -82,35 +140,21 @@ function displayPath(path: readonly string[]): string {
 
 const read = (rel: string): string => readFileSync(resolve(serverRoot, rel), "utf8");
 const localAccountFlowsPath = "accounts/localAccountFlows.ts";
-const coordinatorPaths = new Set([
-  localAccountFlowsPath,
-  "accounts/flows/actorContext.ts",
-  "accounts/flows/context.ts",
-  "accounts/flows/failures.ts",
-  "accounts/flows/inviteSignup.ts",
-  "accounts/flows/passwordReset.ts",
-  "accounts/flows/reads.ts",
-  "accounts/flows/reconciliationRepair.ts",
-  "accounts/flows/sessionRevocation.ts",
-  "accounts/flows/workspaceLifecycle.ts",
-]);
-const accountRoutePaths = new Set([
-  "accounts/accountRoutes.ts",
-  "accounts/routes/accountRouteDependencies.ts",
-  "accounts/routes/handlers/credentialAdmin.ts",
-  "accounts/routes/handlers/invitation.ts",
-  "accounts/routes/handlers/memberAdmin.ts",
-  "accounts/routes/handlers/reconcile.ts",
-  "accounts/routes/handlers/session.ts",
-  "accounts/routes/isoInstant.ts",
-  "accounts/routes/replyHelpers.ts",
-]);
+const coordinatorPaths = boundaryPaths(serverRoot, "coordinators");
+const accountRoutePaths = boundaryPaths(serverRoot, "accountRoutes");
 
 describe("account-boundary architecture", () => {
   it("keeps the shared contract free of UI, transport, persistence, and auth-vendor imports", () => {
     for (const file of sourceFiles(sharedAccountRoot)) {
       const source = readFileSync(file, "utf8");
-      expect(source, file).not.toMatch(/from ['"](?:react|fastify|better-auth|node:sqlite|sqlite3|@fastify\/)['"]/);
+      expect(
+        importSpecifiers(file).filter((specifier) =>
+          ["react", "fastify", "better-auth", "node:sqlite", "sqlite3", "@fastify"].some(
+            (owner) => specifier === owner || specifier.startsWith(owner + "/"),
+          ),
+        ),
+        file,
+      ).toEqual([]);
       expect(source, file).not.toContain("/server/");
       expect(source, file).not.toContain("scheduler");
       expect(source, file).not.toContain("timeOff");
@@ -118,70 +162,32 @@ describe("account-boundary architecture", () => {
   });
 
   it("keeps coordinator persistence behind transaction and command-ledger seams", () => {
-    const coordinator = resolve(serverRoot, localAccountFlowsPath);
     for (const file of coordinatorPaths) {
       const source = read(file);
       expect(source, file).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE)\b/);
-      expect(source, file).not.toMatch(/from ['"].*(?:controlTables|better-auth)/);
-      expect(source, file).not.toMatch(/from ['"][^'"]*\/state(?:\/[^'"]*)?['"]/);
+      expect(internalImports(resolve(serverRoot, file), () => true).filter(isAccountState), file).toEqual([]);
       expect(source, file).not.toMatch(/ROLE_RANK|MIN_(?:ADMIN_)?TIER/);
       expect(source, file).not.toMatch(/(?:===|!==)\s*['"](?:owner|admin|editor|viewer)['"]/);
     }
 
-    const forbidden = new Set([
-      resolve(serverRoot, "auth.ts"),
-      resolve(serverRoot, "authConfig/authTypes.ts"),
-      resolve(serverRoot, "authConfig/authConstants.ts"),
-      resolve(serverRoot, "authConfig/passwordBackpressure.ts"),
-      resolve(serverRoot, "authConfig/captureContexts.ts"),
-      resolve(serverRoot, "authConfig/authAdapter.ts"),
-      resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
-      resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
-      resolve(serverRoot, "authConfig/sessionActivity.ts"),
-      resolve(serverRoot, "authConfig/authFromEnv.ts"),
-      resolve(serverRoot, "controlTables.ts"),
-      resolve(serverRoot, "controlTables/assert.ts"),
-      resolve(serverRoot, "controlTables/inviteRetention.ts"),
-      resolve(serverRoot, "controlTables/invites.ts"),
-      resolve(serverRoot, "controlTables/members.ts"),
-      resolve(serverRoot, "controlTables/members.model.ts"),
-      resolve(serverRoot, "controlTables/ownershipMigrations.ts"),
-      resolve(serverRoot, "controlTables/retentionV24.ts"),
-      resolve(serverRoot, "erasure.ts"),
-      resolve(serverRoot, "accounts/betterAuthIdentityPort.ts"),
-      resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
-      resolve(serverRoot, "accounts/adminPort/authority.ts"),
-      resolve(serverRoot, "accounts/adminPort/contracts.ts"),
-      resolve(serverRoot, "accounts/adminPort/cutover.ts"),
-      resolve(serverRoot, "accounts/adminPort/failures.ts"),
-      resolve(serverRoot, "accounts/adminPort/invitationClaims.ts"),
-      resolve(serverRoot, "accounts/adminPort/invitations.ts"),
-      resolve(serverRoot, "accounts/adminPort/mappers.ts"),
-      resolve(serverRoot, "accounts/adminPort/membership.ts"),
-      resolve(serverRoot, "accounts/identityPort/contracts.ts"),
-      resolve(serverRoot, "accounts/identityPort/credentials.ts"),
-      resolve(serverRoot, "accounts/identityPort/cutover.ts"),
-      resolve(serverRoot, "accounts/identityPort/erasure.ts"),
-      resolve(serverRoot, "accounts/identityPort/federatedLinks.ts"),
-      resolve(serverRoot, "accounts/identityPort/inspection.ts"),
-      resolve(serverRoot, "accounts/identityPort/instants.ts"),
-      resolve(serverRoot, "accounts/identityPort/sessionRevocation.ts"),
-      resolve(serverRoot, "accounts/identityPort/sessions.ts"),
-      resolve(serverRoot, "accounts/identityPort/vendorErrors.ts"),
-      resolve(serverRoot, "accounts/identityPort/verificationState.ts"),
-      resolve(serverRoot, "authConfig/databaseHooks.ts"),
-      resolve(serverRoot, "authConfig/errorRedirect.ts"),
-      resolve(serverRoot, "authConfig/passwordPolicy.ts"),
-      resolve(serverRoot, "authConfig/plugins.ts"),
-      resolve(serverRoot, "authConfig/providers.ts"),
-      resolve(serverRoot, "authConfig/requestHooks.ts"),
-      resolve(serverRoot, "authConfig/sessionPolicy.ts"),
-    ]);
+    // Concrete adapters and the auth/erasure facades stay outside coordinator ownership.
+    // Their private submodules are covered by directory prefixes rather than an expanding list.
+    const forbidden = new Set(
+      [
+        "auth.ts",
+        "controlTables.ts",
+        "erasure.ts",
+        "accounts/betterAuthIdentityPort.ts",
+        "accounts/sqliteAccountAdminPort.ts",
+      ].map((path) => resolve(serverRoot, path)),
+    );
     const forbiddenPrefixes = ["accounts/identityPort", "accounts/adminPort", "controlTables", "authConfig"].map(
       (p) => resolve(serverRoot, p) + sep,
     );
-    const path = dependencyPath(coordinator, forbidden, forbiddenPrefixes);
-    expect(path ? displayPath(path) : null).toBeNull();
+    for (const file of coordinatorPaths) {
+      const path = dependencyPath(resolve(serverRoot, file), forbidden, forbiddenPrefixes, ownershipImports);
+      expect(path ? displayPath(path) : null, file).toBeNull();
+    }
   });
 
   it.each([
@@ -219,6 +225,8 @@ describe("account-boundary architecture", () => {
 
   it("makes account and identity storage ownership deny-by-default across production source", () => {
     const production = sourceFiles(serverRoot);
+    // Raw identity SQL belongs to the vendor lifecycle and concrete identity-port implementations.
+    // A newly added sibling is denied until its specific storage responsibility is reviewed here.
     const identitySqlOwners = new Set([
       resolve(serverRoot, "auth.ts"),
       resolve(serverRoot, "authConfig/authAdapter.ts"),
@@ -233,6 +241,8 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/identityPort/sessionRevocation.ts"),
       resolve(serverRoot, "accounts/identityPort/sessions.ts"),
     ]);
+    // Product membership/invitation SQL is confined to schema/lifecycle owners, the control-table
+    // implementation and the two named operations that update tracking or settle invitations.
     const accountSqlOwners = new Set([
       resolve(serverRoot, "db/lifecycle.ts"),
       resolve(serverRoot, "db/migrations/index.ts"),
@@ -245,6 +255,8 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/memberSignInTracking.ts"),
       resolve(serverRoot, "accounts/adminPort/invitations.ts"),
     ]);
+    // Database bootstrap and the concrete account-admin adapter compose control-table operations.
+    // Routes and coordinators consume their ports instead; this list never grants directory access.
     const controlTableImporters = new Set([
       resolve(serverRoot, "db/open.ts"),
       resolve(serverRoot, "db/migrations/index.ts"),
@@ -266,12 +278,11 @@ describe("account-boundary architecture", () => {
       if (!identitySqlOwners.has(file)) expect(source, relative(serverRoot, file)).not.toMatch(identitySql);
       if (!accountSqlOwners.has(file)) expect(source, relative(serverRoot, file)).not.toMatch(accountSql);
       if (!controlTableImporters.has(file)) {
-        const dependencies = runtimeImports(file);
-        expect(dependencies, relative(serverRoot, file)).not.toContain(resolve(serverRoot, "controlTables.ts"));
-        expect(
-          dependencies.filter((dependency) => dependency.startsWith(resolve(serverRoot, "controlTables") + sep)),
-          relative(serverRoot, file),
-        ).toEqual([]);
+        const dependencies = internalImports(
+          file,
+          (edge, target) => !isRowMapperType(file, edge.kind, target, edge.typeNames),
+        );
+        expect(dependencies.filter(isControlTable), relative(serverRoot, file)).toEqual([]);
       }
       // `authConfig/` holds the named builders that assemble authFromEnv's Better Auth options; it
       // is the same ownership zone as auth.ts, split into files, not a new consumer of the library.
@@ -279,7 +290,7 @@ describe("account-boundary architecture", () => {
         [resolve(serverRoot, "auth.ts"), resolve(serverRoot, "strictOidc.ts")].includes(file) ||
         file.startsWith(resolve(serverRoot, "authConfig") + sep);
       if (!betterAuthOwner) {
-        expect(source, relative(serverRoot, file)).not.toMatch(/from ['"]better-auth(?:\/[^'"]*)?['"]/);
+        expect(importSpecifiers(file).filter(isAuthVendor), relative(serverRoot, file)).toEqual([]);
       }
     }
   });
@@ -287,9 +298,9 @@ describe("account-boundary architecture", () => {
   it("prevents product routes from reaching identity or membership storage directly", () => {
     for (const file of appBoundaryFiles) {
       const source = read(file);
-      expect(source).not.toMatch(/from ['"].*controlTables/);
+      expect(internalImports(resolve(serverRoot, file), () => true).filter(isControlTable), file).toEqual([]);
       expect(source).not.toMatch(/\b(?:user|session|account_members|invites)\b[^\n]*\.prepare\s*\(/);
-      expect(source).not.toContain("better-auth");
+      expect(importSpecifiers(resolve(serverRoot, file)).filter(isAuthVendor), file).toEqual([]);
     }
   });
 
@@ -316,27 +327,21 @@ describe("account-boundary architecture", () => {
     }
     for (const file of accountRoutePaths) {
       const source = read(file);
-      expect(source, file).not.toMatch(/from ['"].*(?:betterAuthIdentityPort|better-auth|controlTables)/);
+      expect(
+        internalImports(resolve(serverRoot, file), () => true).filter(
+          (target) => isControlTable(target) || target === resolve(serverRoot, "accounts/betterAuthIdentityPort.ts"),
+        ),
+        file,
+      ).toEqual([]);
       expect(source, file).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE FROM)\b/);
     }
   });
 
   it("keeps invitation SQL out of the auth-vendor adapter", () => {
-    for (const path of [
-      "auth.ts",
-      "authConfig/authTypes.ts",
-      "authConfig/authConstants.ts",
-      "authConfig/passwordBackpressure.ts",
-      "authConfig/captureContexts.ts",
-      "authConfig/authAdapter.ts",
-      "authConfig/bootstrapAdmin.ts",
-      "authConfig/federatedIdentitySchema.ts",
-      "authConfig/sessionActivity.ts",
-      "authConfig/authFromEnv.ts",
-    ]) {
+    for (const path of boundaryPaths(serverRoot, "authBuilders")) {
       const source = read(path);
       expect(source).not.toMatch(/\b(?:FROM|INTO|UPDATE|DELETE FROM)\s+invites\b/i);
-      expect(source).not.toMatch(/from ['"].*controlTables/);
+      expect(internalImports(resolve(serverRoot, path), () => true).filter(isControlTable), path).toEqual([]);
       if (path !== "auth.ts") {
         expect(runtimeImports(resolve(serverRoot, path)), path).not.toContain(resolve(serverRoot, "auth.ts"));
       }
@@ -365,6 +370,74 @@ describe("scanner calibration", () => {
     return file;
   }
 
+  it.each(["productRoutes", "coordinators", "accountRoutes", "authBuilders"] as const)(
+    "includes a newly added nested sibling in the %s boundary",
+    (boundary) => {
+      const root = resolve(fixtureRoot, boundary);
+      const [facade, directory] = boundaryLocations[boundary];
+      fixture(`${boundary}/${facade}`, "export {};");
+      const sibling = fixture(`${boundary}/${directory}/new/nested.ts`, "export {};");
+      const test = fixture(`${boundary}/${directory}/new/nested.test.ts`, "export {};");
+      const paths = boundaryPaths(root, boundary);
+      expect(paths).toEqual([facade, relative(root, sibling)]);
+      expect(paths).not.toContain(relative(root, test));
+    },
+  );
+
+  it.each(["void import(`better-auth/plugins`);", 'import type { Auth } from "better-auth";'])(
+    "identifies vendor ownership regardless of import syntax: %s",
+    (source) => {
+      expect(importSpecifiers(fixture("vendor.ts", source)).filter(isAuthVendor)).toHaveLength(1);
+      expect(isAuthVendor("better-authentication")).toBe(false);
+    },
+  );
+
+  it("pins the public Db alias and never exempts its runtime imports", () => {
+    const db = resolve(serverRoot, "db.ts");
+    expect(read("db.ts")).toMatch(/^export type Db = DatabaseSync;$/m);
+    expect(
+      parseDependencies(read("db.ts"), db)
+        .filter((edge) => edge.specifier === "node:sqlite")
+        .map((edge) => edge.kind),
+    ).toEqual(["type"]);
+    expect(isOwnershipTypeBoundary("consumer.ts", "type", db, ["Db"])).toBe(true);
+    expect(isOwnershipTypeBoundary("consumer.ts", "runtime", db, ["Db"])).toBe(false);
+    expect(isOwnershipTypeBoundary("consumer.ts", "type", db, ["Db", "DatabaseMigrationPlan"])).toBe(false);
+    expect(isOwnershipTypeBoundary("consumer.ts", "type", db)).toBe(false);
+  });
+
+  it.each(adapterTypeDebt)("keeps the T15 type-debt edge %s -> %s (%s) exact and non-growing", (from, to, name) => {
+    const file = resolve(serverRoot, from),
+      target = resolve(serverRoot, to);
+    const edges = parseDependencies(read(from), file).filter((edge) => {
+      const resolved = resolveDependency(edge.specifier, file, repositoryRoot);
+      return resolved.classification === "internal" && resolved.path === target;
+    });
+    expect(edges).toHaveLength(1);
+    expect(edges[0]?.kind).toBe("type");
+    expect(edges[0]?.typeNames).toEqual([name]);
+    expect(isOwnershipTypeBoundary(file, "type", target, [name])).toBe(true);
+    expect(isOwnershipTypeBoundary(file, "type", target, [name, "Other"])).toBe(false);
+    expect(isOwnershipTypeBoundary(file, "runtime", target, [name])).toBe(false);
+    expect(isOwnershipTypeBoundary(resolve(fixtureRoot, "new-consumer.ts"), "type", target, [name])).toBe(false);
+  });
+
+  it("permits only the storage mapper's named row-type dependency", () => {
+    const file = resolve(serverRoot, "accounts/adminPort/mappers.ts"),
+      target = resolve(serverRoot, "controlTables.ts");
+    const edges = parseDependencies(readFileSync(file, "utf8"), file).filter((edge) => {
+      const resolved = resolveDependency(edge.specifier, file, repositoryRoot);
+      return resolved.classification === "internal" && resolved.path === target;
+    });
+    expect(edges).toHaveLength(1);
+    expect(edges[0]?.kind).toBe("type");
+    expect(edges[0]?.typeNames).toEqual(["AccountMember"]);
+    expect(isRowMapperType(file, "type", target, ["AccountMember"])).toBe(true);
+    expect(isRowMapperType(file, "type", target, ["AccountMember", "Other"])).toBe(false);
+    expect(isRowMapperType(file, "runtime", target, ["AccountMember"])).toBe(false);
+    expect(isRowMapperType(resolve(fixtureRoot, "new-mapper.ts"), "type", target, ["AccountMember"])).toBe(false);
+  });
+
   it("reports dependencies inside a forbidden directory prefix", () => {
     const a = fixture("a.ts", 'import { value } from "./zone/b.ts";');
     const b = fixture("zone/b.ts", "export const value = 1;");
@@ -372,10 +445,9 @@ describe("scanner calibration", () => {
   });
 
   it("matches state facades and submodules without matching stateless", () => {
-    const pattern = /from ['"][^'"]*\/state(?:\/[^'"]*)?['"]/;
-    expect('from "../state/commandLedgerWrites"').toMatch(pattern);
-    expect('from "./state"').toMatch(pattern);
-    expect('from "./stateless"').not.toMatch(pattern);
+    expect(isAccountState(resolve(serverRoot, "accounts/state.ts"))).toBe(true);
+    expect(isAccountState(resolve(serverRoot, "accounts/state/commandLedgerWrites.ts"))).toBe(true);
+    expect(isAccountState(resolve(serverRoot, "accounts/stateless.ts"))).toBe(false);
   });
 
   it("prefers a sibling file over a directory and follows explicit index imports", () => {
@@ -391,6 +463,21 @@ describe("scanner calibration", () => {
     const sibling = fixture("unlisted.ts", 'db.prepare("INSERT INTO account_members VALUES (?)");');
     expect(sourceFiles(fixtureRoot)).toContain(sibling);
     expect(readFileSync(sibling, "utf8")).toMatch(accountSql);
+  });
+
+  it.each([
+    'import type { T } from "./helper";',
+    'export type { T } from "./helper";',
+    'void import("./helper");',
+    'export * from "./helper";',
+  ])("follows ownership dependencies through %s", (source) => {
+    const a = fixture("ownership/entry.ts", source);
+    const b = fixture("ownership/helper.ts", 'export type { T } from "./forbidden/leaf";');
+    const c = fixture("ownership/forbidden/leaf.ts", "export type T = string;");
+    expect(dependencyPath(a, new Set(), [resolve(fixtureRoot, "ownership/forbidden") + sep], ownershipImports)).toEqual(
+      [a, b, c],
+    );
+    expect(dependencyPath(b, new Set([c]), [], ownershipImports)).toEqual([b, c]);
   });
 
   it("rejects unresolved internal edges instead of silently losing ownership checks", () => {
