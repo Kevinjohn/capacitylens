@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.60.0-alpha.1] - 2026-09-05
+
+### Changed
+
+- Removed the structural-measurement tooling added in September 2026 (function budgets, exception ledger, shell and Vue metrics, source inventory) and kept the checks that protect the code; see DECISIONS.md.
+
 ### Fixed
 
 - Update toast notifications to Sonner 2.0.8 while retaining the CSP-compatible stylesheet patch,
@@ -4120,7 +4126,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.59.1-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.0-alpha.1...HEAD
+[0.60.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.59.1-alpha.1...v0.60.0-alpha.1
 [0.59.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.59.0-alpha.1...v0.59.1-alpha.1
 [0.59.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.58.0-alpha.1...v0.59.0-alpha.1
 [0.58.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.57.0-alpha.19...v0.58.0-alpha.1
