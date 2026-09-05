@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-const listSessions = vi.fn();
+import type { SessionListResult } from "../../account/sessionClient";
+
+const listSessions = vi.fn<() => Promise<SessionListResult>>();
 const changePassword = vi.fn();
 const revokeOwnSession = vi.fn();
 const getIdentityProvider = vi.fn();
@@ -17,13 +19,16 @@ vi.mock("../../account/accountClient", async (importOriginal) => {
     ...original,
     accountClient: {
       ...original.accountClient,
-      listSessions: (...args: unknown[]) => listSessions(...args),
       revokeOwnSession: (...args: unknown[]) => revokeOwnSession(...args),
       getIdentityProvider: (...args: unknown[]) => getIdentityProvider(...args),
       linkIdentityProvider: (...args: unknown[]) => linkIdentityProvider(...args),
     },
   };
 });
+
+vi.mock("../../account/sessionClient", () => ({
+  listSessions: () => listSessions(),
+}));
 
 import { SecuritySection } from "./SecuritySection";
 import { m } from "@/i18n";
@@ -47,8 +52,7 @@ function deferred<T>() {
 }
 
 beforeEach(() => {
-  // Each invocation needs a fresh Response because response bodies are single-use.
-  listSessions.mockReset().mockImplementation(() => Promise.resolve(jsonResponse({ sessions: [SESSION] })));
+  listSessions.mockReset().mockResolvedValue({ kind: "loaded", sessions: [SESSION] });
   changePassword.mockReset();
   revokeOwnSession.mockReset();
   getIdentityProvider.mockReset();
@@ -193,8 +197,8 @@ describe("SecuritySection", () => {
   });
 
   it("does not let an older session request replace the post-password-change directory", async () => {
-    const initial = deferred<Response>();
-    const refreshed = deferred<Response>();
+    const initial = deferred<SessionListResult>();
+    const refreshed = deferred<SessionListResult>();
     listSessions
       .mockReset()
       .mockImplementationOnce(() => initial.promise)
@@ -215,12 +219,12 @@ describe("SecuritySection", () => {
     await waitFor(() => expect(listSessions).toHaveBeenCalledTimes(2));
 
     await act(async () => {
-      refreshed.resolve(jsonResponse({ sessions: [{ ...SESSION, id: "new-current-session", current: true }] }));
+      refreshed.resolve({ kind: "loaded", sessions: [{ ...SESSION, id: "new-current-session", current: true }] });
     });
     expect(await screen.findByText(m.settings_security_current_session())).toBeInTheDocument();
 
     await act(async () => {
-      initial.resolve(jsonResponse({ sessions: [SESSION] }));
+      initial.resolve({ kind: "loaded", sessions: [SESSION] });
     });
     expect(screen.getByText(m.settings_security_current_session())).toBeInTheDocument();
     expect(screen.queryByText(m.settings_security_signed_in_session())).not.toBeInTheDocument();
@@ -234,7 +238,7 @@ describe("SecuritySection", () => {
       configurable: true,
       value: { ...realLocation, reload },
     });
-    listSessions.mockResolvedValue(jsonResponse({ sessions: [{ ...SESSION, current: true }] }));
+    listSessions.mockResolvedValue({ kind: "loaded", sessions: [{ ...SESSION, current: true }] });
     revokeOwnSession.mockResolvedValue(new Response(null, { status: 204 }));
     try {
       render(<SecuritySection />);
@@ -256,7 +260,7 @@ describe("SecuritySection", () => {
       configurable: true,
       value: { ...realLocation, reload },
     });
-    listSessions.mockResolvedValue(jsonResponse({ sessions: [{ ...SESSION, current: true }] }));
+    listSessions.mockResolvedValue({ kind: "loaded", sessions: [{ ...SESSION, current: true }] });
     revokeOwnSession.mockRejectedValueOnce(new TypeError("network failed"));
     try {
       render(<SecuritySection />);
@@ -325,14 +329,14 @@ describe("SecuritySection", () => {
   });
 
   it("surfaces session-list failures instead of silently presenting an empty device list", async () => {
-    listSessions.mockResolvedValue(jsonResponse({ error: "Sessions are temporarily unavailable." }, 503));
+    listSessions.mockResolvedValue({ kind: "failed" });
     render(<SecuritySection />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_security_err_sessions_load());
   });
 
   it("rejects an invalid session list without rendering its valid subset", async () => {
-    listSessions.mockResolvedValue(jsonResponse({ sessions: [SESSION, { ...SESSION, id: "short" }] }));
+    listSessions.mockResolvedValue({ kind: "invalid" });
     render(<SecuritySection />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_security_err_sessions_invalid());

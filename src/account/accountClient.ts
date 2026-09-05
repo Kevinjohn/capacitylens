@@ -31,12 +31,6 @@ export const accountClient = {
     });
   },
 
-  listSessions(): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/account/sessions`, {
-      credentials: "include",
-    });
-  },
-
   getIdentityProvider(): Promise<Response> {
     return apiFetch(`${API_BASE}/api/identity/provider`, { credentials: "include" });
   },
