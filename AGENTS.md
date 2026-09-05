@@ -86,6 +86,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   shipped migration and released database fixture. Never alter a released migration definition:
   the database ledger validates its name and SHA-256 checksum. Schema-affecting Better Auth upgrades
   also bump `DB_SCHEMA_VERSION`, even when the library owns the DDL.
+  A migration adding a table or column also needs an anonymisation decision in the rehearsal
+  script ledger; index-only migrations are exempt.
 
 ## Authentication
 

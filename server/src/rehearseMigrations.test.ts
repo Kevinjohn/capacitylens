@@ -46,6 +46,24 @@ afterEach(() => {
 });
 
 describe("migration rehearsal", () => {
+  it("rehearses the newest released v34 password database", () => {
+    const directory = mkdtempSync(join(tmpdir(), "capacitylens-rehearsal-v34-test-"));
+    temporaryDirectories.push(directory);
+    const source = fileURLToPath(new URL("./fixtures/databases/v34-password.db", import.meta.url));
+    const result = spawnSync(
+      process.execPath,
+      ["--import", "tsx", "scripts/rehearse-migrations.ts", "--source", source],
+      {
+        cwd: serverDirectory,
+        encoding: "utf8",
+        timeout: 30_000,
+        env: { ...process.env, INIT_CWD: serverDirectory, TMPDIR: directory },
+      },
+    );
+    expect(result.status, result.stderr || result.stdout).toBe(0);
+    expect(result.stdout).toContain("Migration rehearsal passed: v34-password.db v34 →");
+  });
+
   it("fails closed when a known table gains an unclassified column", () => {
     const directory = mkdtempSync(join(tmpdir(), "capacitylens-rehearsal-columns-test-"));
     temporaryDirectories.push(directory);
