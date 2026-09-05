@@ -12,32 +12,37 @@ import type {
   TimeOff,
 } from "@capacitylens/shared/types/entities";
 import type { ColumnSpec, TableSpec } from "../tables";
-// Type-level exhaustiveness guard for a table's column list: every key of the
-// entity type must appear exactly once, and every listed name must be a valid key.
-// Usage: `_checkColumns<Account>(COLS_accounts)` — fails to compile the moment a
-// field is added to the entity type but omitted from the column spec (or vice versa).
-type CheckColumns<E, Cols extends readonly ColumnSpec[]> =
-  // Forward: every listed name must be a key of E
-  Cols[number]["name"] extends keyof E
-    ? // Reverse: every key of E must be covered by the listed names
-      Exclude<keyof E, Cols[number]["name"]> extends never
-      ? true
-      : never
-    : never;
+// Coverage and uniqueness are separate proofs: a union of names loses duplicates.
+// Return false on drift; never would satisfy Assert<T extends true> and hide it.
+type UniqueColumns<Cols extends readonly ColumnSpec[]> = Cols extends readonly [
+  infer First extends ColumnSpec,
+  ...infer Rest extends readonly ColumnSpec[],
+]
+  ? First["name"] extends Rest[number]["name"]
+    ? false
+    : UniqueColumns<Rest>
+  : true;
 
-// One check-variable per table. Type is `true` when the columns match the entity
-// perfectly; `never` (compile error) when they drift.
+type CheckColumns<E, Cols extends readonly ColumnSpec[]> = Cols[number]["name"] extends keyof E
+  ? Exclude<keyof E, Cols[number]["name"]> extends never
+    ? UniqueColumns<Cols>
+    : false
+  : false;
+type Assert<T extends true> = T;
+
+// Each real table instantiates the constraint, so missing, extra or duplicate
+// names fail type-checking without adding runtime schema checks.
 /* eslint-disable @typescript-eslint/no-unused-vars */
-declare const _checkAccounts: CheckColumns<Account, typeof COLS_accounts>;
-declare const _checkClients: CheckColumns<Client, typeof COLS_clients>;
-declare const _checkDisciplines: CheckColumns<Discipline, typeof COLS_disciplines>;
-declare const _checkProjects: CheckColumns<Project, typeof COLS_projects>;
-declare const _checkPhases: CheckColumns<Phase, typeof COLS_phases>;
-declare const _checkResources: CheckColumns<Resource, typeof COLS_resources>;
-declare const _checkActivities: CheckColumns<Activity, typeof COLS_activities>;
-declare const _checkAllocations: CheckColumns<Allocation, typeof COLS_allocations>;
-declare const _checkTimeOff: CheckColumns<TimeOff, typeof COLS_timeOff>;
-declare const _checkClosures: CheckColumns<Closure, typeof COLS_closures>;
+declare const _checkAccounts: Assert<CheckColumns<Account, typeof COLS_accounts>>;
+declare const _checkClients: Assert<CheckColumns<Client, typeof COLS_clients>>;
+declare const _checkDisciplines: Assert<CheckColumns<Discipline, typeof COLS_disciplines>>;
+declare const _checkProjects: Assert<CheckColumns<Project, typeof COLS_projects>>;
+declare const _checkPhases: Assert<CheckColumns<Phase, typeof COLS_phases>>;
+declare const _checkResources: Assert<CheckColumns<Resource, typeof COLS_resources>>;
+declare const _checkActivities: Assert<CheckColumns<Activity, typeof COLS_activities>>;
+declare const _checkAllocations: Assert<CheckColumns<Allocation, typeof COLS_allocations>>;
+declare const _checkTimeOff: Assert<CheckColumns<TimeOff, typeof COLS_timeOff>>;
+declare const _checkClosures: Assert<CheckColumns<Closure, typeof COLS_closures>>;
 /* eslint-enable @typescript-eslint/no-unused-vars */
 
 const META = [{ name: "createdAt" }, { name: "updatedAt" }] as const;

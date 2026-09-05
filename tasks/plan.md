@@ -1,9 +1,9 @@
 # Make CapacityLens easier to understand and maintain
 
-Status: planned; implementation has not started. Baseline: `34a1702a9d8e08d900136ceca6d6d63eaccb6a57`
+Status: implementation in progress. Baseline: `34a1702a9d8e08d900136ceca6d6d63eaccb6a57`
 (2026-09-05, version 0.59.1-alpha.1). Tasks and completion evidence live in [todo.md](todo.md).
 This document proposes the engineering policy; existing repository rules remain authoritative until
-the corresponding policy tasks land. This change documents the programme only.
+the corresponding policy tasks land. Completion evidence is recorded as each task is validated and merged.
 
 ## Outcome
 

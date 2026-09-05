@@ -1,8 +1,8 @@
 # Maintainability implementation tasks
 
-All tasks are planned. See [the plan](plan.md) for the baseline, finding IDs, budgets and invariants.
+Implementation is in progress. See [the plan](plan.md) for the baseline, finding IDs, budgets and invariants.
 This checklist is the task source of truth; add commit/PR and verification evidence as tasks land.
-The present documentation change does not execute these tasks.
+Unchecked tasks remain queued; validation and merge evidence accompanies completed work.
 
 ## How to execute a task
 
@@ -22,15 +22,24 @@ Record before/after measurements for refactors and failing-then-passing evidence
 
 ### T01 — Make column assertions fail on drift (F1)
 
-- [ ] Replace inert declarations with an assertion that rejects missing/extra names; separately enforce uniqueness.
-- [ ] Prove negative cases fail with the real TypeScript compiler, while the current schema passes.
-- [ ] Correct the guarantee's comment; verify no table specification or released schema changes.
+- [x] Replace inert declarations with an assertion that rejects missing/extra names; separately enforce uniqueness.
+- [x] Prove negative cases fail with the real TypeScript compiler, while the current schema passes.
+- [x] Correct the guarantee's comment; verify no table specification or released schema changes.
 
 Dependencies: none. Scope: small, `server/src/tables/columns.ts` and focused assertion fixtures/tests.
 Verification: server type-check and negative compilation fixtures. Run the fixtures from a test discovered
 by the server gate so this guarantee is continuously checked. Duplicate detection may be a focused
 runtime test if a simple type-level solution would be harder to maintain. Do not use a generic
 `Assert<T extends true>` with a `never` failure branch: `never` satisfies that constraint too.
+
+Evidence (feature/column-guards): `columns.test.ts` compiles the actual column owner with the
+installed TypeScript compiler and server options. Before the fix, all three negative cases failed:
+missing, extra and duplicate names each produced zero diagnostics across ten tables. After the fix,
+each produces ten constraint failures; the unmodified schema compiles. Four focused tests, server
+type-check and table-directory lint pass. Runtime definitions and released schemas are unchanged.
+Full validation: Node 24.19.0; `gate` (3,650 tests), `gate:server` (1,730 tests),
+`e2e` (257 tests) and `docs:build` pass. Independent review found no findings.
+Merge/CI evidence will be recorded after landing.
 
 ### T02 — Parse dependency syntax once (F2)
 
