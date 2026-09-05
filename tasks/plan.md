@@ -26,8 +26,8 @@ It preserves visible behaviour. It adds no tooling.
   Preserve every existing behavioural assertion; the only permitted test edits are the typed-prop
   and mock changes each brief names.
 - **Validation during implementation.** `pnpm exec tsc -b`, `pnpm run lint`, `pnpm exec prettier
-  --check` on touched files, and the brief's focused tests via `pnpm run paraglide:compile && pnpm
-  exec vitest run <paths>`. Nothing is rerun for reassurance.
+--check` on touched files, and the brief's focused tests via `pnpm run paraglide:compile && pnpm
+exec vitest run <paths>`. Nothing is rerun for reassurance.
 - **Validation before submission.** AGENTS.md requires the complete validation commands before a
   pull request is submitted. This batch satisfies that once for the four disjoint tasks: merge the
   four finished branches into a throwaway integration worktree, run `pnpm run gate`,
