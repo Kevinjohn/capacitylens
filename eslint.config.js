@@ -5,6 +5,21 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 import { readFileSync } from "node:fs";
+import { builtinModules } from "node:module";
+
+// Standard web types preserve the existing Headers contract and UTF-8/UUID capabilities.
+// Their ambient declarations must not grant shared production access to a browser or Node runtime.
+const sharedRuntimeGlobals = new Set([...Object.keys(globals.es2023), "console", "crypto", "TextEncoder"]);
+const forbiddenSharedGlobals = [
+  ...Object.keys({ ...globals.browser, ...globals.node }).filter((name) => !sharedRuntimeGlobals.has(name)),
+  // Passing or destructuring the entire global object would bypass named capability restrictions.
+  "globalThis",
+];
+
+const sharedTestFiles = [
+  "shared/src/**/*.{test,spec}.{ts,tsx,mts,cts}",
+  "shared/src/**/__tests__/**/*.{ts,tsx,mts,cts}",
+];
 
 const gitIgnoredPaths = readFileSync(new URL(".gitignore", import.meta.url), "utf8")
   .split(/\r?\n/)
@@ -50,7 +65,7 @@ export default defineConfig([
 
   // Baseline for every TS file in every package (web, shared, server).
   {
-    files: ["**/*.{ts,tsx}"],
+    files: ["**/*.{ts,tsx}", "shared/**/*.{mts,cts}"],
     extends: [js.configs.recommended, tseslint.configs.recommended],
   },
 
@@ -64,7 +79,7 @@ export default defineConfig([
 
   // Node packages: Node globals (process, etc.).
   {
-    files: ["server/**/*.ts", "shared/**/*.ts"],
+    files: ["server/**/*.ts", ...sharedTestFiles, "shared/vitest.config.ts"],
     languageOptions: { globals: globals.node },
   },
 
@@ -90,7 +105,7 @@ export default defineConfig([
   // These paths belong to their package's TypeScript project, including operational server scripts.
   // Root configuration files and JavaScript tooling retain the untyped baseline above.
   {
-    files: ["server/src/**/*.ts", "server/scripts/**/*.ts", "shared/src/**/*.ts"],
+    files: ["server/src/**/*.ts", "server/scripts/**/*.ts", "shared/src/**/*.{ts,tsx,mts,cts}"],
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -100,6 +115,27 @@ export default defineConfig([
     rules: {
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
+    },
+  },
+
+  {
+    files: ["shared/src/**/*.{ts,tsx,mts,cts}"],
+    ignores: sharedTestFiles,
+    rules: {
+      "no-restricted-globals": ["error", { globals: forbiddenSharedGlobals, checkGlobalObject: true }],
+      "no-restricted-imports": ["error", { paths: builtinModules, patterns: ["node:*"] }],
+    },
+  },
+
+  // Colocated shared tests use Node; production resolves through the pure package project.
+  {
+    files: sharedTestFiles,
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: ["./shared/tsconfig.test.json"],
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
   },
 

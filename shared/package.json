@@ -53,6 +53,6 @@
   },
   "scripts": {
     "test": "vitest run",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json"
   }
 }

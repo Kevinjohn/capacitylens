@@ -473,7 +473,7 @@ environment variables, routes, released migration files or serialized fields for
 
 - [ ] Test effective lint configuration for app/shared/server production, scripts, tests and browser workers.
 - [ ] Enable typed promise rules for server scripts already in its TS project; classify remaining tooling explicitly.
-- [ ] Separate shared production's pure environment from Node-based tests and enforce forbidden platform imports/globals.
+- [x] Separate shared production's pure environment from Node-based tests and enforce forbidden platform imports/globals.
 
 Dependencies: T03, T06. Scope: one source category per change; ESLint/tsconfig, policy tests and shared config.
 Verification: representative-path lint checks, deliberate floating-promise failures, production Node-global
@@ -490,6 +490,29 @@ now pass without script edits or suppressions. Both gates run the regressions. I
 found no findings or nits. Node 24.19.0 application gate (3,666 tests) and server gate (1,788 tests)
 pass, and E2E passes all 257 tests. Merge evidence remains pending; the wider environment coverage
 and shared production/test split remain queued.
+
+Progress (feature/shared-production-environment): shared production and tests have separate
+TypeScript environments. Standard web declarations retain the existing Headers contract and
+portable UUID/UTF-8/console capabilities; production lint rejects other platform globals and Node
+imports. A compiler-graph regression rejects Node types and test files pulled into production,
+including declarations loaded by dynamic imports. Tests retain Node filesystem access and typed
+promise checks. The corrected six-test suite fails four checks against the previous configuration.
+Review identified incomplete test-suffix coverage; the TypeScript/ESLint patterns now cover test/spec
+files across TS, TSX, MTS and CTS, plus test-support directories. A seventh regression checks real
+temporary files, and the compiler graph uses canonical source roles. All seven tests pass and
+follow-up review found no remaining issues. A real production Node import stops both full gates;
+the probe is removed. Documentation build and rendered-page inspection pass. No runtime implementation
+or shared contract changes. Initial full application/server gates pass. A final negative probe showed
+that aliasing globalThis bypasses named global-property checks, so production now forbids the entire
+global object; direct portable capabilities remain available. The regression fails before this fix.
+Final Node 24.19.0 application gate (3,666 tests) and server gate (1,788 tests) pass. Final rendered
+documentation and follow-up review pass. E2E passes all 257 tests. Merge evidence remains pending.
+
+The server-script promise-rule slice merged in [PR #607](https://github.com/Kevinjohn/capacitylens/pull/607),
+merge `f1482dac`. Main gate `33958243481`, E2E `33958243468`, docs, Docker, security, CodeQL and
+Scorecard all pass. PR #606's browser run was superseded by this newer main run: Chromium, Firefox
+and pinned OIDC passed on #606; WebKit was cancelled by workflow concurrency. The complete succeeding
+run passes with the Dependabot validator unchanged. PR #606's dependency-update run also passed.
 
 ### Foundation checkpoint
 
