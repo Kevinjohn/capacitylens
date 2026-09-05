@@ -22,7 +22,14 @@ describe("store slice composition", () => {
       createSchedulerSlice(emptyFilters)(set, get, useStore),
       createCatalogSlice(internals)(set, get, useStore),
       createResourceSlice(internals)(set, get, useStore),
-      createAllocationSlice(internals)(set, get, useStore),
+      createAllocationSlice({
+        guarded: internals.guarded,
+        addAllocationsImpl: internals.addAllocationsImpl,
+        updateOwned: internals.updateOwned,
+        assertAllocation: internals.assertAllocation,
+        findOwned: internals.findOwned,
+        mutate: internals.mutate,
+      })(set, get, useStore),
       createLifecycleSlice(internals)(set, get, useStore),
     ];
 

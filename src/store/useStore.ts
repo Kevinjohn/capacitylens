@@ -35,7 +35,14 @@ export const useStore = create<StoreState>()((set, get, store) => {
     ...createSchedulerSlice(emptyFilters)(set, get, store),
     ...createCatalogSlice(internals)(set, get, store),
     ...createResourceSlice(internals)(set, get, store),
-    ...createAllocationSlice(internals)(set, get, store),
+    ...createAllocationSlice({
+      guarded: internals.guarded,
+      addAllocationsImpl: internals.addAllocationsImpl,
+      updateOwned: internals.updateOwned,
+      assertAllocation: internals.assertAllocation,
+      findOwned: internals.findOwned,
+      mutate: internals.mutate,
+    })(set, get, store),
     ...createLifecycleSlice(internals)(set, get, store),
   };
 });
