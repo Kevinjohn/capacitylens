@@ -67,7 +67,7 @@ RUN apk add --no-cache openssl
 COPY scripts/internal-tls.sh /usr/local/bin/capacitylens-internal-tls
 ENTRYPOINT ["/usr/local/bin/capacitylens-internal-tls"]
 
-FROM nginxinc/nginx-unprivileged:1.31.3-alpine@sha256:f972e5322b9797dc2a6b830030094426437b1ae7032e4644496395336ac6fdac AS web-runtime
+FROM nginxinc/nginx-unprivileged:1.31.5-alpine@sha256:aa8c9087d36d93e9d650c5365f883b421e8214aedbad24ade52b844c583358f1 AS web-runtime
 USER root
 # The base installs curl for its generic entrypoint, which this image deliberately does not use.
 # Remove curl/libcurl rather than retaining an unnecessary network client and its CVE surface.
