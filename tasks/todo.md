@@ -537,6 +537,27 @@ Repair merged in [PR #609](https://github.com/Kevinjohn/capacitylens/pull/609), 
 Branch gate `33960023633` passed on `45bae4fa`. PR #608's main E2E `33959389740` also passed;
 the CI-only fixture failure did not affect the runtime or browser suites.
 
+T08 progress (feature/docs-source-lint-coverage): authored documentation code is no longer hidden
+by a directory-wide ESLint ignore. JavaScript/TypeScript receive the existing recommended baseline;
+Vue script setup and templates receive the Vue essential rules through the pinned development-only
+eslint-plugin-vue 10.10.0 dependency. Component names retain the repository's PascalCase policy.
+Build-time modules have Node globals, while theme source has browser globals. These VitePress files
+are explicitly untyped tooling outside the application/server TypeScript projects. Seven regression
+groups cover the complete current source inventory, future paths, script/template defects, runtime
+environment configuration, generated/prose exclusions and both-gate ownership. Four checks failed
+before enabling coverage; all seven now pass in CI mode without edits to documentation source.
+Review found missing future JSX coverage; the JavaScript baseline and environment globs now include
+JSX, and an actual JSX regression proves parsing and unused-variable detection. No code, test or
+dependency findings remain; the stale ledger test count found in final review is corrected.
+A temporary new invalid Vue component made both complete gate entry points fail at the docs lint
+regression; the probe was removed and all seven focused checks passed again. Frozen install,
+formatter checks and Node 24.19.0 CI-mode app gate (3,666 tests) and server gate (1,788 tests) pass.
+All 257 E2E tests pass. The docs build regenerated all 38 pages byte-identically; no docs source
+or generated output changes were needed, and no structural exceptions were added.
+
+Main CI for [PR #610](https://github.com/Kevinjohn/capacitylens/pull/610), merge `fe0db614`,
+passed: gate `33960540605`, E2E `33960540600`, docs, Docker, CodeQL, security and Scorecard.
+
 ### Foundation checkpoint
 
 - [ ] T01–T08 complete; negative fixtures prove the advertised guarantees.

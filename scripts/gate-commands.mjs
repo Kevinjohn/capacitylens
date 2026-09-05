@@ -3,6 +3,7 @@ const structuralChecks = [
   "policy:server-script-lint:test",
   "policy:shared-environment:test",
   "policy:script-environments:test",
+  "policy:docs-source-lint:test",
   "policy:source-inventory",
   "policy:source-inventory:test",
   "policy:function-metrics:test",

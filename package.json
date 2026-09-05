@@ -85,7 +85,8 @@
     "policy:dependabot:test": "node --test scripts/check-dependabot.test.mjs",
     "policy:server-script-lint:test": "node --test scripts/check-server-script-lint.test.mjs",
     "policy:shared-environment:test": "node --test scripts/check-shared-environment.test.mjs",
-    "policy:script-environments:test": "node --test scripts/check-script-environments.test.mjs"
+    "policy:script-environments:test": "node --test scripts/check-script-environments.test.mjs",
+    "policy:docs-source-lint:test": "node --test scripts/check-docs-source-lint.test.mjs"
   },
   "dependencies": {
     "@capacitylens/shared": "workspace:*",
@@ -128,6 +129,7 @@
     "eslint": "^10.8.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.4",
+    "eslint-plugin-vue": "10.10.0",
     "fake-indexeddb": "6.2.5",
     "globals": "^17.11.0",
     "jsdom": "^29.1.1",
