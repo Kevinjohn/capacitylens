@@ -232,12 +232,25 @@ All 38 regenerated HTML pages and the 108,648-byte CSS file differ only by a con
 mapping of 50 scope hashes and the CSS filename; no prose or style values changed. Rendered development
 page inspection confirms styling, breadcrumbs and images. Its automatic favicon request returns the
 same missing-file 404 as the baseline; neither tree supplies that asset. Generated-artifact review
-found no issues. Merge/CI evidence is pending.
+found no issues. Merged in PR #596 (`748c0cbb2361b88960aa90f56e7334e0aa9be122`).
+Main gate `33948238552` and browser run `33948238542` passed, including Chromium, Firefox, WebKit
+and pinned OIDC. Docs, Docker, CodeQL, security and Scorecard also passed.
 
 Separate CI follow-up: Dependabot run `33946797121` fails while updating Sonner from 2.0.7 to 2.0.8,
 with `ERR_PNPM_UNUSED_PATCH` for the version-pinned 2.0.7 patch. The repository gate and all browser
 jobs passed. Review the dependency and reapply its required patch in a separate change; do not relax
-unused-patch enforcement or disable updates.
+unused-patch enforcement or disable updates. The same failure recurred in run `33948293971`.
+
+Progress (feature/sonner-patch-update): reviewed Sonner 2.0.8 and retained the unchanged CSP patch
+under an exact 2.0.8 key. The original lockfile-only update fails with `ERR_PNPM_UNUSED_PATCH`;
+the repaired update and frozen workspace install pass. A Node-owned regression imports both ESM and
+CommonJS entry points in fresh DOM processes and verifies that neither injects a style element;
+it also checks the application stylesheet import. Both entry-point probes fail against an unpatched
+scratch copy, proving that the patch is necessary. Both repository gates run the new check.
+Node 24.19.0 application gate (3,650 tests), server gate (1,752 tests), and E2E (257 tests) pass.
+Rendered import-error toast inspection confirms readable text, the existing error accent and close
+control. Formatter checks pass. Independent review found no findings, including nits. Merge/main CI
+evidence is pending.
 
 ### T06 — Document the naming and ownership vocabulary (F8)
 

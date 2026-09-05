@@ -107,9 +107,9 @@ export function AppShell() {
   );
 
   // Keep the global notice host outside AppEntryGate: the controller publishes account-picker,
-  // sign-in and connection notices before the main app body exists. Sonner does not replay a toast
-  // published before its host mounts. The AA-safe neutral palette is shared by every tone; errors
-  // gain their separate danger accent through the toast-error class instead of richColors.
+  // sign-in and connection notices while the main app body is unavailable. The AA-safe neutral
+  // palette is shared by every tone; errors gain their separate danger accent through the
+  // toast-error class instead of richColors.
   const toaster = (
     <Toaster
       theme={themePref === "system" ? "system" : themePref}

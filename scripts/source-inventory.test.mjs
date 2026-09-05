@@ -70,7 +70,7 @@ test("classifies known non-source formats and generated roots explicitly", () =>
     ["server/.gitignore", "configuration"],
     ["nginx.conf", "configuration"],
     ["nginx.client.conf.template", "configuration"],
-    ["patches/sonner@2.0.7.patch", "patch"],
+    ["patches/sonner@2.0.8.patch", "patch"],
   ])
     assert.equal(classifyRepositoryPath(path).category, category, path);
 });
