@@ -435,6 +435,18 @@ Merged in [PR #606](https://github.com/Kevinjohn/capacitylens/pull/606), merge `
 Main gate `33957789859`, docs, Docker, security, CodeQL and Scorecard pass. Main E2E `33957789670`
 and the dependency-update run remain in progress at this checkpoint.
 
+Progress (feature/measured-test-processes): two executed JavaScript strings now have named
+source owners under `scripts/__tests__/`. Sonner still loads each published format in a fresh Node
+process with a real DOM and rejects import-time style injection. The policy API regression still
+executes explicit module stdin, preserving argv[1] as '-' for the CLI guard; its target module URL
+is passed separately as argv[2]. All 12 existing tests pass before and after extraction. Both helpers
+receive ordinary JavaScript lint and are classified as test source by the canonical inventory.
+Their measured module complexity/depth is 1/0 and 3/1; no budget exceptions are needed. Review
+found no findings or nits. Node 24.19.0 CI-mode app gate (3,666 tests), server gate (1,788 tests)
+and E2E (257 tests) pass, as do frozen install, lint and formatting. The initial app gate caught
+formatting in the new ledger paragraph; that was corrected before the successful full run.
+Workflow/package/Docker shell, patches and remaining embedded-source policy are still queued under T05.
+
 ### T06 — Document the naming and ownership vocabulary (F8)
 
 - [x] Specify PascalCase component/type files, camelCase hooks/utilities, kebab-case executable scripts,
@@ -582,6 +594,11 @@ timed out in the unchanged AccountPicker create/refetch test at five seconds. Al
 tests pass locally in CI mode without timeout/assertion changes. The failed CI job was rerun;
 attempt 2 passed on the unchanged merge revision. Main E2E `33961766170` also passed.
 The initial timeout cause remains unconfirmed; no product code, timeout or assertion was changed.
+
+The final T08 matrix merged in [PR #612](https://github.com/Kevinjohn/capacitylens/pull/612),
+merge `5bf42e41`, after PR #611's main gate retry and browser run passed. No linked issues;
+main gate `33962575858` and browser run `33962575789` passed, including WebKit, Firefox and
+strict OIDC. Docs, Docker, CodeQL, security and Scorecard also passed.
 
 ### Foundation checkpoint
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -131,9 +131,10 @@ test("dispatches every measured language and retains path, role and independent 
 
 test("importing policy APIs from explicit stdin neither runs a CLI nor resolves '-' as a file", () => {
   const modules = ["source-inventory.mjs", "check-file-sizes.mjs", "check-function-budgets.mjs"];
+  const source = readFileSync(new URL("./__tests__/policy-import.mjs", import.meta.url), "utf8");
   for (const name of modules) {
-    const result = spawnSync(process.execPath, ["--input-type=module", "-"], {
-      input: `await import(${JSON.stringify(new URL(name, import.meta.url).href)}); console.log('imported');`,
+    const result = spawnSync(process.execPath, ["--input-type=module", "-", new URL(name, import.meta.url).href], {
+      input: source,
       encoding: "utf8",
     });
     assert.equal(result.status, 0, result.stderr);
