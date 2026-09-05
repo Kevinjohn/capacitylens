@@ -521,8 +521,17 @@ Node tooling retains Node globals. Four regression groups exercise actual lint r
 and future browser paths, the worker, and root/server tools, and are wired into both gates. Before
 the fix, process, Buffer, require and __dirname were all accepted in browser code. Focused checks
 pass after the change. Review found no findings or nits. Node 24.19.0 application gate passes with
-3,666 tests. Server/E2E validation and incorporation of the shared lint CI repair remain pending;
+3,666 tests. The shared lint CI repair is incorporated for final validation; server/E2E remain pending;
 broader T08 coverage remains open.
+
+T08 CI repair (feature/shared-lint-ci-fixture): main gate `33959389758` on PR #608 failed the
+shared test-project promise probe. The failure reproduces locally with CI=true: the typed parser's
+single-run mode reads the project from disk, so lintText over an existing path did not diagnose the
+supplied floating promise. The regression now lints real temporary test files, one with a floating
+promise and one with an awaited promise; both retain a filesystem import. Fixtures are removed after
+the test. All seven checks pass in normal and CI modes. Node 24.19.0 CI-mode application gate
+(3,666 tests) and server gate (1,788 tests) pass. Review found no findings or nits. E2E passes all
+257 tests. Branch CI verification remains pending.
 
 ### Foundation checkpoint
 
