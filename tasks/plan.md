@@ -1,7 +1,7 @@
 # Maintainability batch 2: four small boundaries
 
-Status: draft under review (revision 3; revision 1 is d1728858, review in `plan-review.md`,
-consensus rounds in `consensus-round-*.md`). Base: `main` at `c0a6eb54`, version 0.60.0-alpha.1.
+Status: agreed 2026-09-05 (revision 3; revision 1 is d1728858, review in `plan-review.md`,
+consensus record in `plan-consensus.md`). Owner accepted the integration-validation bullet. Base: `main` at `c0a6eb54`, version 0.60.0-alpha.1.
 Date: 2026-09-05.
 
 AGENTS.md governs everything not stated here. This file adds only the batch, its rules and its
@@ -198,9 +198,9 @@ splitting, docs tooling. Revisit only for a recurring defect that review cannot 
 
 ## Completion record
 
-- [ ] Plan agreed; owner decision on the AGENTS.md batch-validation bullet recorded; historical
-      process documents (`tactical-plan.md`, `consensus-log.md`, `recovery-plan-review.md`)
-      removed from `tasks/`.
+- [x] Plan agreed; owner accepted the AGENTS.md batch-validation bullet; historical process
+      documents (`tactical-plan.md`, `consensus-log.md`, `recovery-plan-review.md`) removed from
+      `tasks/`.
 - [ ] Integration run of the three commands: revision and result.
 - [ ] N1 merged: PR, merge SHA, main CI result.
 - [ ] N3 merged: PR, merge SHA, main CI result; moved vs new test cases listed.
