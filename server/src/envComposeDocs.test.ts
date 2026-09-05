@@ -44,15 +44,6 @@ describe("Compose exceptions in the environment register", () => {
     expect(dockerfile).toMatch(/^ENV NODE_ENV=production$/m);
   });
 
-  it("selects the API healthcheck scheme from the same certificate/key pair as the listener", () => {
-    const healthcheck = dockerfile.match(/HEALTHCHECK[\s\S]*?\n\s*CMD node -e "([^"]+)"/)?.[1] ?? "";
-
-    expect(healthcheck).toContain("if(!cert&&!key)");
-    expect(healthcheck).toContain("fetch('http://127.0.0.1:'");
-    expect(healthcheck).toContain("https.get(");
-    expect(healthcheck).toContain("ca?{ca:fs.readFileSync(ca),servername:'api'}:{rejectUnauthorized:false}");
-  });
-
   it("builds the API runtime ahead of time instead of transforming TypeScript at startup", () => {
     expect(dockerfile).toContain("pnpm --filter capacitylens-server run build:runtime");
     expect(dockerfile).toContain("exec node dist/index.mjs");

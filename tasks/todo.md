@@ -249,8 +249,35 @@ it also checks the application stylesheet import. Both entry-point probes fail a
 scratch copy, proving that the patch is necessary. Both repository gates run the new check.
 Node 24.19.0 application gate (3,650 tests), server gate (1,752 tests), and E2E (257 tests) pass.
 Rendered import-error toast inspection confirms readable text, the existing error accent and close
-control. Formatter checks pass. Independent review found no findings, including nits. Merge/main CI
-evidence is pending.
+control. Formatter checks pass. Independent review found no findings, including nits. Merged in
+PR #598 (`d60954ecf6d19415d2f2f7d64ca38bd09d01f7ad`). Main gate `33949216774` passed, and
+Dependabot run `33949275286` now succeeds, verifying the failed update path is repaired.
+Browser run `33949216779` passed, including all three browsers and pinned OIDC; docs, Docker,
+CodeQL, security and Scorecard passed.
+
+Progress (feature/api-healthcheck-script): the API image invokes a standalone server script instead
+of a compressed JavaScript command inside Dockerfile. HTTP redirect handling, 2xx status bounds,
+certificate/key scheme selection, configured CA and api-hostname verification, loopback-only no-CA
+TLS, and error exit statuses are preserved. Eighteen real HTTP/TLS characterization cases passed
+against the original inline command and after extraction. A nineteenth test verifies Docker wiring;
+these replace the old source-string assertions. All 25 focused healthcheck/environment tests pass.
+The 27-line production script exposes all four callbacks to the existing function inventory; each
+is one non-comment line, with complexity at most three and no statement nesting. A reader needs the
+Docker invocation, script and focused behavior test to change the health probe; no new abstraction
+or capability contract is introduced. The production pnpm deployment contains the identical script,
+and that deployed copy passes a real HTTP probe. Independent review found no findings or nits.
+The crypto inventory follows the TLS probe to its new owner. Docs build passes; its only generated
+change is the byte-identical published JSON inventory, with no rendered page changes.
+Node 24.19.0 application gate (3,650 tests) and server gate (1,770 tests) pass. The first E2E run
+had three company-selection timeouts before palette assertions (254 passed); browser inputs are
+unchanged from main. All 14 palette tests passed with tracing, followed by all 257 E2E tests in a
+quiet worktree with reload logging. The initial cause remains unconfirmed; no timeout or assertion
+was relaxed. Image workflow evidence remains pending. Embedded TLS renewal/configuration coverage
+and complete structural budget enforcement remain queued.
+
+Inventory follow-up: importing `source-inventory.mjs` from `node --input-type=module -` fails in
+its CLI-entry guard because it calls `realpathSync("-")`. The parameterless stdin invocation works.
+Cover the importable API under an explicit stdin entry point when wiring the structural-policy CLI.
 
 ### T06 — Document the naming and ownership vocabulary (F8)
 

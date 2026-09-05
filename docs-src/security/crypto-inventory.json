@@ -3,7 +3,11 @@
   "entries": [
     {
       "path": "Dockerfile",
-      "purpose": "Digest-pinned TLS initializer build and health-check trust scoping"
+      "purpose": "Digest-pinned TLS initializer build"
+    },
+    {
+      "path": "server/scripts/check-health.mjs",
+      "purpose": "Loopback API health probe with configured CA and api-hostname verification; local liveness-only TLS when no CA is configured"
     },
     {
       "path": "nginx.conf",
