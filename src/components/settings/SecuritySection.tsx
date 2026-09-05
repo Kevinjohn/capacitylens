@@ -19,14 +19,7 @@ import { formatInstant } from "../../lib/dateDisplay";
 import { reloadPage } from "../../lib/reloadPage";
 import { Badge } from "../ui/badge";
 import { SettingsSection } from "./SettingsSection";
-import { isAccountSessionId } from "@capacitylens/shared/account/validation";
-
-interface SessionView {
-  id: string;
-  createdAt: string;
-  expiresAt: string | null;
-  current: boolean;
-}
+import { listSessions, type SessionView } from "../../account/sessionClient";
 
 export function SecuritySection() {
   const { providers } = useAuth();
@@ -113,48 +106,22 @@ export function SecuritySection() {
 
   const loadSessions = useCallback(async (): Promise<"loaded" | "unauthorized" | "failed" | "superseded"> => {
     const generation = ++sessionLoadGeneration.current;
-    const isCurrent = () => generation === sessionLoadGeneration.current;
-    try {
-      const response = await accountClient.listSessions();
-      const body: unknown = await response.json().catch(() => null);
-      const rows =
-        body &&
-        typeof body === "object" &&
-        !Array.isArray(body) &&
-        Array.isArray((body as { sessions?: unknown }).sessions)
-          ? (body as { sessions: unknown[] }).sessions
-          : null;
-      if (!response.ok || rows === null) {
-        if (!isCurrent()) return "superseded";
-        fail(null, m.settings_security_err_sessions_load());
-        return response.status === 401 ? "unauthorized" : "failed";
-      }
-      const valid = rows.filter((value): value is SessionView => {
-        if (!value || typeof value !== "object") return false;
-        const row = value as Partial<SessionView>;
-        return (
-          isAccountSessionId(row.id) &&
-          typeof row.createdAt === "string" &&
-          Number.isFinite(Date.parse(row.createdAt)) &&
-          (row.expiresAt === null ||
-            (typeof row.expiresAt === "string" && Number.isFinite(Date.parse(row.expiresAt)))) &&
-          typeof row.current === "boolean"
-        );
-      });
-      if (valid.length !== rows.length) {
-        if (!isCurrent()) return "superseded";
+    const result = await listSessions();
+    if (generation !== sessionLoadGeneration.current) return "superseded";
+    switch (result.kind) {
+      case "invalid":
         fail(null, m.settings_security_err_sessions_invalid());
         return "failed";
-      }
-      if (!isCurrent()) return "superseded";
-      setSessions(valid);
-      clear();
-      return "loaded";
-    } catch (cause) {
-      console.error("SecuritySection: session list failed", cause);
-      if (!isCurrent()) return "superseded";
-      fail(null, m.settings_security_err_sessions_load());
-      return "failed";
+      case "failed":
+        fail(null, m.settings_security_err_sessions_load());
+        return "failed";
+      case "unauthorized":
+        fail(null, m.settings_security_err_sessions_load());
+        return "unauthorized";
+      case "loaded":
+        setSessions(result.sessions);
+        clear();
+        return "loaded";
     }
   }, [fail, clear]);
 
