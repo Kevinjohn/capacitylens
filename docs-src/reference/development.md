@@ -369,7 +369,18 @@ requests or replace the persistence adapter in these tests.
 rollback and recovery behavior. See [Database migrations](#database-migrations) below for
 how to run it against a real installation copy.
 
-Both gates enforce a 400-line source-file ceiling with shrinking temporary exceptions in `scripts/file-size-exceptions.json`.
+Both gates enforce a 400-line ceiling for production and declaration source files and a
+600-line ceiling for tests and test-support files. The canonical source inventory includes
+tracked and untracked nonignored files across all directories, including scripts, public runtime
+code, Vue components, styles and HTML. Generated roots are explicit exclusions. Configuration,
+patch fragments, prose, data and assets have separate inventory categories.
+
+Every exception in `scripts/file-size-exceptions.json` names one file, its measured growth cap,
+a reason and an existing task in `tasks/todo.md`. No file has an unlimited exemption, including
+source-owned UI primitives. Both gates reject growth, duplicate entries, invalid metadata,
+missing files and exceptions whose files now meet their role's ceiling. Remove a resolved entry
+when splitting its file. Both gates run the checker and its regression suite.
+
 Both gates also run `pnpm run policy:import-cycles` to reject runtime import cycles.
 Explicit `import type` and `export type` clauses are excluded. Inline `type` bindings
 follow each package's `verbatimModuleSyntax` setting: an empty import or re-export can
