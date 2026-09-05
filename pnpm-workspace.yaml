@@ -20,7 +20,7 @@ dedupePeerDependents: false
 # Sonner injects its published CSS through a runtime <style> element. Keep the same upstream CSS
 # as a normal build asset instead so production can forbid inline style elements in CSP.
 patchedDependencies:
-  sonner@2.0.7: patches/sonner@2.0.7.patch
+  sonner@2.0.8: patches/sonner@2.0.8.patch
 
 # Keep vulnerable transitive packages on compatible patched releases where their parents have not
 # raised their own minimums. Every override remains inside the range accepted by its consumer except

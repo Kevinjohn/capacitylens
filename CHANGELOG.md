@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Update toast notifications to Sonner 2.0.8 while retaining the CSP-compatible stylesheet patch,
+  restoring dependency update checks and incorporating upstream notification fixes.
+
 ## [0.59.1-alpha.1] — 2026-09-05
 
 ### Internal
