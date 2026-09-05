@@ -1,39 +1,37 @@
-// Runtime (value) import cycles only: type-only imports/exports are skipped, like architecture.test.ts.
-import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
-import { resolve, dirname, relative } from "node:path";
+// Runtime cycles use syntax-aware edges; unresolved imports fail visibly.
+import { readFileSync, readdirSync } from "node:fs";
+import { resolve, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseDependencies, resolveDependency } from "./dependency-scanner.mjs";
 const root = resolve(process.argv[2] ?? fileURLToPath(new URL("..", import.meta.url)));
 const roots = ["src", "server/src", "shared/src"].map((d) => resolve(root, d));
 function files(d) {
   return readdirSync(d, { withFileTypes: true }).flatMap((e) => {
     const p = resolve(d, e.name);
     if (e.isDirectory()) return e.name === "paraglide" ? [] : files(p);
-    return /\.(ts|tsx)$/.test(e.name) && !/\.(test|spec)\.|\.d\.ts$/.test(e.name) ? [p] : [];
+    return /\.[cm]?[jt]sx?$/.test(e.name) && !/\.(test|spec)\.|\.d\.[cm]?ts$/.test(e.name) ? [p] : [];
   });
 }
-function mod(base) {
-  for (const c of [`${base}.ts`, `${base}.tsx`, base, resolve(base, "index.ts"), resolve(base, "index.tsx")])
-    if (existsSync(c) && statSync(c).isFile()) return c;
-  return null;
-}
-function deps(f) {
-  const s = readFileSync(f, "utf8");
-  const specs = new Set([
-    ...[...s.matchAll(/import\s+(?!type\b)[\s\S]*?\sfrom\s+['"]([^'"]+)['"]/g)].map((m) => m[1]),
-    ...[...s.matchAll(/(?:import|export)\s*['"]([^'"]+)['"]/g)].map((m) => m[1]),
-    ...[...s.matchAll(/export\s+(?!type\b)[\s\S]*?\sfrom\s+['"]([^'"]+)['"]/g)].map((m) => m[1]),
-  ]);
-  return [...specs]
-    .map((sp) =>
-      sp.startsWith(".")
-        ? mod(resolve(dirname(f), sp))
-        : sp.startsWith("@capacitylens/shared/")
-          ? mod(resolve(root, "shared/src", sp.slice(21)))
-          : sp.startsWith("@/")
-            ? mod(resolve(root, "src", sp.slice(2)))
-            : null,
-    )
-    .filter(Boolean);
+// Paraglide's two generated entry points do not exist until message compilation.
+// Only the owning i18n facade may omit these exact build outputs from this source graph.
+const generatedImports = new Set(["@/paraglide/messages.js", "@/paraglide/runtime.js"]);
+let invalidEdges = 0;
+function deps(file) {
+  const dependencies = [];
+  for (const edge of parseDependencies(readFileSync(file, "utf8"), file)) {
+    if (relative(root, file).replaceAll("\\", "/") === "src/i18n/index.ts" && generatedImports.has(edge.specifier))
+      continue;
+    const resolved = resolveDependency(edge.specifier, file, root);
+    if (resolved.classification === "unresolved" || resolved.classification === "nonliteral") {
+      console.error(
+        `${relative(root, file)}:${edge.line}: ${resolved.classification} import ${edge.specifier ?? edge.expression}`,
+      );
+      invalidEdges++;
+    } else if (resolved.classification === "internal" && edge.kind === "runtime") {
+      dependencies.push(resolved.path);
+    }
+  }
+  return dependencies;
 }
 const all = roots.flatMap(files);
 const g = new Map(all.map((f) => [f, deps(f)]));
@@ -60,4 +58,4 @@ for (const f of all) dfs(f);
 for (const c of [...cycles].sort()) console.error(c);
 console.error(`${cycles.size} runtime cycles`);
 
-if (cycles.size > 0) process.exitCode = 1;
+if (cycles.size > 0 || invalidEdges > 0) process.exitCode = 1;

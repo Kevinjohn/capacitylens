@@ -47,3 +47,32 @@ test("acyclic value imports pass", (t) => {
   assert.equal(result.status, 0);
   assert.match(result.stderr, /0 runtime cycles/);
 });
+
+test("literal dynamic import cycles fail", (t) => {
+  const result = scan(t, {
+    "a.ts": 'export const a = () => import("./b");',
+    "b.ts": 'import { a } from "./a"; export const b = a;',
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /1 runtime cycles/);
+});
+
+test("inline type imports do not create runtime cycles", (t) => {
+  const result = scan(t, {
+    "a.ts": 'import { type B } from "./b"; export type A = B;',
+    "b.ts": 'import { type A } from "./a"; export type B = A;',
+  });
+  assert.equal(result.status, 0);
+});
+
+test("unresolved internal imports fail with a source location", (t) => {
+  const result = scan(t, { "a.ts": 'import type { Missing } from "./missing";' });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /src\/a.ts:1: unresolved import .\/missing/);
+});
+
+test("nonliteral imports fail until explicitly classified", (t) => {
+  const result = scan(t, { "a.ts": "export const a = (path) => import(path);" });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /src\/a.ts:1: nonliteral import path/);
+});

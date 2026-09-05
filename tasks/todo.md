@@ -39,17 +39,27 @@ each produces ten constraint failures; the unmodified schema compiles. Four focu
 type-check and table-directory lint pass. Runtime definitions and released schemas are unchanged.
 Full validation: Node 24.19.0; `gate` (3,650 tests), `gate:server` (1,730 tests),
 `e2e` (257 tests) and `docs:build` pass. Independent review found no findings.
-Merge/CI evidence will be recorded after landing.
+Merged in [PR #586](https://github.com/Kevinjohn/capacitylens/pull/586), merge `40cf8db2`.
+Main CI: pending.
 
 ### T02 — Parse dependency syntax once (F2)
 
-- [ ] Add a shared scanner using the installed TypeScript parser; distinguish runtime and type-only edges.
-- [ ] Cover imports, inline type imports, re-exports, literal dynamic imports, aliases and supported file extensions.
-- [ ] Ignore comments/string contents; report unresolved internal edges and nonliteral imports explicitly.
+- [x] Add a shared scanner using the installed TypeScript parser; distinguish runtime and type-only edges.
+- [x] Cover imports, inline type imports, re-exports, literal dynamic imports, aliases and supported file extensions.
+- [x] Ignore comments/string contents; report unresolved internal edges and nonliteral imports explicitly.
 
 Dependencies: none. Scope: medium, scanner module, fixtures/tests, existing cycle entry point.
 Verification: negative cycle and positive acyclic fixtures; extension/index resolution and external-package
 classification. Nonliteral imports require a documented bounded exception rather than silent omission.
+
+Evidence (feature/dependency-scanner): the cycle entry point uses the shared TypeScript syntax
+parser. Ten Node regression tests pass, including dynamic cycles, type-only edges, aliases and
+extension/index resolution. Against the original entry point, dynamic-cycle, inline-type-cycle,
+unresolved-import and nonliteral-import fixtures fail. Current production scan: zero runtime cycles.
+The two generated Paraglide imports have an exact owner/specifier exception; nonliteral source imports
+have no exceptions and fail. Independent review found no findings. Gate wiring follows in T03.
+Full validation: Node 24.19.0; `gate` (3,650 tests), `gate:server` (1,730 tests),
+`e2e` (257 tests) and `docs:build` pass. Merge/CI evidence will follow landing.
 
 ### T03 — Integrate dependency checks into every gate (F2)
 
