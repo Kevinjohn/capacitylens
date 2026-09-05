@@ -445,8 +445,7 @@ Their measured module complexity/depth is 1/0 and 3/1; no budget exceptions are 
 found no findings or nits. Node 24.19.0 CI-mode app gate (3,666 tests), server gate (1,788 tests)
 and E2E (257 tests) pass, as do frozen install, lint and formatting. The initial app gate caught
 formatting in the new ledger paragraph; that was corrected before the successful full run.
-Workflow/package/Docker shell,
-patches and remaining embedded-source policy are still queued under T05.
+Workflow/package/Docker shell, patches and remaining embedded-source policy are still queued under T05.
 
 ### T06 — Document the naming and ownership vocabulary (F8)
 
@@ -598,7 +597,8 @@ The initial timeout cause remains unconfirmed; no product code, timeout or asser
 
 The final T08 matrix merged in [PR #612](https://github.com/Kevinjohn/capacitylens/pull/612),
 merge `5bf42e41`, after PR #611's main gate retry and browser run passed. No linked issues;
-main gate `33962575858` and browser run `33962575789` are being monitored.
+main gate `33962575858` and browser run `33962575789` passed, including WebKit, Firefox and
+strict OIDC. Docs, Docker, CodeQL, security and Scorecard also passed.
 
 ### Foundation checkpoint
 
