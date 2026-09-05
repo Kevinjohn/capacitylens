@@ -471,8 +471,8 @@ environment variables, routes, released migration files or serialized fields for
 
 ### T08 — Make validation coverage explicit (F9)
 
-- [ ] Test effective lint configuration for app/shared/server production, scripts, tests and browser workers.
-- [ ] Enable typed promise rules for server scripts already in its TS project; classify remaining tooling explicitly.
+- [x] Test effective lint configuration for app/shared/server production, scripts, tests and browser workers.
+- [x] Enable typed promise rules for server scripts already in its TS project; classify remaining tooling explicitly.
 - [x] Separate shared production's pure environment from Node-based tests and enforce forbidden platform imports/globals.
 
 Dependencies: T03, T06. Scope: one source category per change; ESLint/tsconfig, policy tests and shared config.
@@ -557,6 +557,31 @@ or generated output changes were needed, and no structural exceptions were added
 
 Main CI for [PR #610](https://github.com/Kevinjohn/capacitylens/pull/610), merge `fe0db614`,
 passed: gate `33960540605`, E2E `33960540600`, docs, Docker, CodeQL, security and Scorecard.
+
+T08 progress (feature/lint-coverage-matrix): both gates now verify the recommended lint baseline
+for every authored JavaScript, TypeScript and Vue file, plus representative existing/future typed
+production, test and tooling paths. The initial inventory exposed ignored root tooling declarations
+such as scripts/access-lab-env.d.mts; the TypeScript baseline now includes mts/cts in every directory.
+Real temporary production and test files in app, server and shared prove both floating and misused
+promises fail, while handled promises pass. Fixtures exist on disk before the parser loads projects,
+including CI single-run mode. Existing category-specific regressions remain independently owned by
+both gates. The development guide explicitly distinguishes typed promise checks from untyped tooling
+lint and separate compiler checks. Three groups failed before the fix/wiring; all five now pass in
+CI mode. The app gate passes 3,666 tests; the server gate passes 1,788; E2E passes all 257.
+Frozen install, lint, formatter checks, docs build and final rendered-table inspection pass on
+Node 24.19.0. The first server gate caught a documentation glob treated as a literal repository
+path; the corrected real-directory wording passes all five documentation tests and the full gate.
+Review found no code/test issues; its ledger finding is addressed by this evidence and the T08
+checkbox updates. T08's representative configuration, typed server scripts, explicit tooling
+classification and pure shared production/test split now all have checked evidence. T05 and T07
+still keep the foundation checkpoint open.
+
+Merged docs-source coverage in [PR #611](https://github.com/Kevinjohn/capacitylens/pull/611),
+merge `be32b1aa`; no linked issues. Main gate `33961766179` initially passed 3,665 app tests and
+timed out in the unchanged AccountPicker create/refetch test at five seconds. All 36 AccountPicker
+tests pass locally in CI mode without timeout/assertion changes. The failed CI job was rerun;
+attempt 2 passed on the unchanged merge revision. Main E2E `33961766170` also passed.
+The initial timeout cause remains unconfirmed; no product code, timeout or assertion was changed.
 
 ### Foundation checkpoint
 

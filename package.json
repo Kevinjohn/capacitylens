@@ -86,7 +86,8 @@
     "policy:server-script-lint:test": "node --test scripts/check-server-script-lint.test.mjs",
     "policy:shared-environment:test": "node --test scripts/check-shared-environment.test.mjs",
     "policy:script-environments:test": "node --test scripts/check-script-environments.test.mjs",
-    "policy:docs-source-lint:test": "node --test scripts/check-docs-source-lint.test.mjs"
+    "policy:docs-source-lint:test": "node --test scripts/check-docs-source-lint.test.mjs",
+    "policy:lint-coverage:test": "node --test scripts/check-lint-coverage.test.mjs"
   },
   "dependencies": {
     "@capacitylens/shared": "workspace:*",

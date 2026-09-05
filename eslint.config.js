@@ -78,7 +78,7 @@ export default defineConfig([
 
   // Baseline for every TS file in every package (web, shared, server).
   {
-    files: ["**/*.{ts,tsx}", "shared/**/*.{mts,cts}", "docs-src/**/*.{mts,cts}"],
+    files: ["**/*.{ts,tsx,mts,cts}"],
     extends: [js.configs.recommended, tseslint.configs.recommended],
   },
 
