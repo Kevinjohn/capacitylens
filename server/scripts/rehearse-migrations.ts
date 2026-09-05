@@ -18,7 +18,8 @@ import { writePreMigrationBackup } from "../src/backup";
 import { tx } from "../src/txn";
 import { assertMigrationValuesPreserved, captureMigrationValues } from "../src/migrationPreservation";
 
-const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Object.fromEntries(
+/** Reviewed redaction coverage, including historical columns needed by released fixtures. */
+export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Object.fromEntries(
   Object.entries({
     _meta: ["key", "value"],
     accounts: [
@@ -28,6 +29,7 @@ const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Object.from
       "schedulingMode",
       "timezone",
       "weekStartsOn",
+      "workingDays",
       "language",
       "disciplinesEnabled",
       "groupResourcesByEngagement",
@@ -76,6 +78,9 @@ const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Object.from
       "role",
       "disciplineId",
       "employmentType",
+      "engagement",
+      "halfDays",
+      "isFavourite",
       "workingHoursPerDay",
       "workingDays",
       "projectId",
@@ -93,6 +98,8 @@ const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Object.from
       "resourceId",
       "activityId",
       "taskId",
+      "projectId",
+      "seriesId",
       "startDate",
       "endDate",
       "hoursPerDay",
@@ -103,7 +110,27 @@ const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Object.from
       "updatedAt",
     ],
     timeOff: ["id", "accountId", "resourceId", "startDate", "endDate", "type", "note", "createdAt", "updatedAt"],
-    account_members: ["accountId", "userId", "role", "status", "createdAt"],
+    // Membership flags and scheduling settings/dates are deliberately retained.
+    account_members: ["accountId", "userId", "role", "status", "createdAt", "signInConfirmed"],
+    account_member_sign_in_tracking: ["accountId"],
+    closures: ["id", "accountId", "name", "startDate", "endDate", "createdAt", "updatedAt"],
+    capacitylens_federated_link_ceremonies: [
+      "id",
+      "principalId",
+      "providerId",
+      "createdAt",
+      "expiresAt",
+      "completedAt",
+    ],
+    capacitylens_federated_link_observations: [
+      "accountRowId",
+      "principalId",
+      "providerId",
+      "subject",
+      "verifiedAt",
+      "auditedAt",
+    ],
+    capacitylens_sso_cutover_state: ["applicationId", "activatedAt"],
     invites: ["tokenHash", "token", "id", "accountId", "role", "preauthEmail", "expiresAt", "usedAt", "createdAt"],
     user: ["id", "name", "email", "emailVerified", "image", "createdAt", "updatedAt", "twoFactorEnabled"],
     session: ["id", "expiresAt", "token", "createdAt", "updatedAt", "ipAddress", "userAgent", "userId"],
@@ -149,7 +176,8 @@ const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Object.from
     [DATABASE_MIGRATION_TABLE]: ["version", "name", "checksum", "appliedAt"],
   }).map(([table, names]) => [table, new Set(names)]),
 );
-const KNOWN_TABLES = new Set(Object.keys(KNOWN_COLUMNS));
+/** Tables whose columns have an explicit rehearsal redaction policy. */
+export const KNOWN_TABLES = new Set(Object.keys(KNOWN_COLUMNS));
 
 const quoteIdentifier = (value: string): string => `"${value.replaceAll('"', '""')}"`;
 
@@ -270,7 +298,7 @@ function scrubDanglingReferences(
 
 /** Sanitise only a temporary online snapshot. Unknown tables fail closed so a new auth/plugin table
  * cannot carry secrets into a kept rehearsal directory until the redaction policy covers it. */
-function anonymise(db: DatabaseSync): void {
+export function anonymise(db: DatabaseSync): void {
   const unknown = tableNames(db).filter((table) => !KNOWN_TABLES.has(table));
   if (unknown.length > 0) {
     throw new Error(`anonymiser does not cover table(s): ${unknown.join(", ")}`);
@@ -288,6 +316,31 @@ function anonymise(db: DatabaseSync): void {
   tx(
     db,
     () => {
+      // Tenant guards reject identity remaps and sync triggers can record source identifiers.
+      // Suspend them only on this temporary copy, restoring the exact definitions in the same
+      // transaction so both success and rollback preserve the schema being rehearsed.
+      const triggers = db
+        .prepare("SELECT name, sql FROM sqlite_schema WHERE type = 'trigger' ORDER BY rowid")
+        .all() as Array<{ name: string; sql: string }>;
+      for (const trigger of triggers) db.exec(`DROP TRIGGER ${quoteIdentifier(trigger.name)}`);
+      const hasProviderCoordinates =
+        hasTable(db, "account") &&
+        ["id", "accountId", "userId", "providerId"].every((column) => columns(db, "account").has(column));
+      // Preserve the original admission proof before remapping any identity coordinates.
+      // A stale subject, principal or provider must never become a valid proof after scrubbing.
+      updateIfPresent(
+        db,
+        "capacitylens_federated_link_observations",
+        "subject",
+        hasProviderCoordinates
+          ? `COALESCE((SELECT 'rehearsal-provider-account-' || account.rowid FROM account
+              WHERE account.id = capacitylens_federated_link_observations.accountRowId
+                AND account.accountId = capacitylens_federated_link_observations.subject
+                AND account.userId = capacitylens_federated_link_observations.principalId
+                AND account.providerId = capacitylens_federated_link_observations.providerId),
+              'rehearsal-orphan-subject-' || rowid)`
+          : `'rehearsal-orphan-subject-' || rowid`,
+      );
       remapIds(db, "accounts", "id", [
         { table: "clients", column: "accountId" },
         { table: "disciplines", column: "accountId" },
@@ -298,7 +351,9 @@ function anonymise(db: DatabaseSync): void {
         { table: "tasks", column: "accountId" },
         { table: "allocations", column: "accountId" },
         { table: "timeOff", column: "accountId" },
+        { table: "closures", column: "accountId" },
         { table: "account_members", column: "accountId" },
+        { table: "account_member_sign_in_tracking", column: "accountId" },
         { table: "invites", column: "accountId" },
         { table: "account_commands", column: "workspaceId" },
         { table: "capacitylens_sync_row_provenance", column: "accountId" },
@@ -310,6 +365,7 @@ function anonymise(db: DatabaseSync): void {
         { table: "resources", column: "projectId" },
         { table: "activities", column: "projectId" },
         { table: "tasks", column: "projectId" },
+        { table: "allocations", column: "projectId" },
       ]);
       remapIds(db, "phases", "id", [
         { table: "activities", column: "phaseId" },
@@ -327,6 +383,7 @@ function anonymise(db: DatabaseSync): void {
       ]);
       remapIds(db, "allocations", "id", []);
       remapIds(db, "timeOff", "id", []);
+      remapIds(db, "closures", "id", []);
       remapIds(db, "user", "id", [
         { table: "account", column: "userId" },
         { table: "session", column: "userId" },
@@ -336,11 +393,21 @@ function anonymise(db: DatabaseSync): void {
         { table: "account_commands", column: "actorPrincipalId" },
         { table: "account_commands", column: "targetPrincipalId" },
         { table: "account_session_assurance", column: "principalId" },
+        { table: "capacitylens_federated_link_ceremonies", column: "principalId" },
+        { table: "capacitylens_federated_link_observations", column: "principalId" },
         // Better Auth password-reset ceremonies join through value = user.id. Preserve that
         // relationship under the rehearsal-safe id so migrations v12/v14 exercise their deletes.
         { table: "verification", column: "value" },
       ]);
-      remapIds(db, "account", "id", []);
+      remapIds(db, "account", "id", [{ table: "capacitylens_federated_link_observations", column: "accountRowId" }]);
+      remapIds(db, "capacitylens_federated_link_ceremonies", "id", []);
+      scrubDanglingReferences(
+        db,
+        "account",
+        "id",
+        [{ table: "capacitylens_federated_link_observations", column: "accountRowId" }],
+        "provider-account",
+      );
       // Assurance keys are application-scoped hashes of bearer session tokens, not Better Auth row
       // ids, so anonymise the two namespaces independently.
       remapIds(db, "session", "id", []);
@@ -352,6 +419,8 @@ function anonymise(db: DatabaseSync): void {
       remapIds(db, "account_federated_provider_bindings", "providerId", [
         { table: "account", column: "providerId" },
         { table: "account_session_assurance", column: "providerId" },
+        { table: "capacitylens_federated_link_ceremonies", column: "providerId" },
+        { table: "capacitylens_federated_link_observations", column: "providerId" },
       ]);
       scrubDanglingReferences(
         db,
@@ -359,6 +428,7 @@ function anonymise(db: DatabaseSync): void {
         "id",
         [
           { table: "account_members", column: "accountId" },
+          { table: "account_member_sign_in_tracking", column: "accountId" },
           { table: "invites", column: "accountId" },
           { table: "account_commands", column: "workspaceId" },
         ],
@@ -369,11 +439,14 @@ function anonymise(db: DatabaseSync): void {
         "user",
         "id",
         [
+          { table: "account", column: "userId" },
           { table: "account_members", column: "userId" },
           { table: "account_security_revisions", column: "principalId" },
           { table: "account_commands", column: "actorPrincipalId" },
           { table: "account_commands", column: "targetPrincipalId" },
           { table: "account_session_assurance", column: "principalId" },
+          { table: "capacitylens_federated_link_ceremonies", column: "principalId" },
+          { table: "capacitylens_federated_link_observations", column: "principalId" },
           // Other Better Auth ceremony values need not be user ids. Values that did not remap above
           // are still source identifiers, so replace only those dangling/non-user values safely.
           { table: "verification", column: "value" },
@@ -390,6 +463,8 @@ function anonymise(db: DatabaseSync): void {
         [
           { table: "account", column: "providerId" },
           { table: "account_session_assurance", column: "providerId" },
+          { table: "capacitylens_federated_link_ceremonies", column: "providerId" },
+          { table: "capacitylens_federated_link_observations", column: "providerId" },
         ],
         "provider",
       );
@@ -423,6 +498,8 @@ function anonymise(db: DatabaseSync): void {
       );
       updateIfPresent(db, "allocations", "note", "NULL");
       updateIfPresent(db, "timeOff", "note", "NULL");
+      updateIfPresent(db, "closures", "name", `'Rehearsal Closure ' || rowid`);
+      // Preserve scheduling flags, working days, half-days, engagement, series grouping and dates.
       updateIfPresent(db, "capacitylens_audit_outbox", "id", `'rehearsal-audit-' || rowid`);
       updateIfPresent(db, "capacitylens_audit_outbox", "payload", `'{}'`);
       remapIds(db, "capacitylens_sync_sessions", "sessionId", [
@@ -435,6 +512,21 @@ function anonymise(db: DatabaseSync): void {
       updateIfPresent(db, "user", "email", `'rehearsal-user-' || rowid || '@example.invalid'`);
       updateIfPresent(db, "user", "image", "NULL");
       updateIfPresent(db, "account", "accountId", `'rehearsal-provider-account-' || rowid`);
+      if (hasProviderCoordinates && hasTable(db, "capacitylens_federated_link_observations")) {
+        // Unbound providers/principals are scrubbed independently by row. Carry their final
+        // coordinates to observations only when the complete original proof matched above.
+        db.exec(`UPDATE capacitylens_federated_link_observations AS observation
+          SET (principalId, providerId) = (
+            SELECT account.userId, account.providerId FROM account WHERE account.id = observation.accountRowId
+          )
+          WHERE EXISTS (
+            SELECT 1 FROM account
+            WHERE account.id = observation.accountRowId AND account.accountId = observation.subject
+          )`);
+      }
+      remapIds(db, "capacitylens_sso_cutover_state", "applicationId", []);
+      // Identity timestamps and completion/audit flags are retained; ceremony ids are disabled
+      // by remapping and provider/principal coordinates are remapped or scrubbed above.
       for (const secret of ["accessToken", "refreshToken", "idToken", "password"]) {
         updateIfPresent(db, "account", secret, "NULL");
       }
@@ -475,6 +567,7 @@ function anonymise(db: DatabaseSync): void {
         "issuer",
         `'https://idp-' || rowid || '.example.invalid'`,
       );
+      for (const trigger of triggers) db.exec(trigger.sql);
     },
     "immediate",
   );
@@ -862,12 +955,14 @@ async function main(): Promise<void> {
   }
 }
 
-if (process.argv[2] === "--worker-kill") {
-  const targetVersion = Number(process.argv[4]);
-  if (!Number.isSafeInteger(targetVersion) || targetVersion <= 0) {
-    throw new Error("--worker-kill requires a positive target migration version");
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (process.argv[2] === "--worker-kill") {
+    const targetVersion = Number(process.argv[4]);
+    if (!Number.isSafeInteger(targetVersion) || targetVersion <= 0) {
+      throw new Error("--worker-kill requires a positive target migration version");
+    }
+    await workerKill(resolve(process.argv[3]), targetVersion);
+  } else {
+    await main();
   }
-  await workerKill(resolve(process.argv[3]), targetVersion);
-} else {
-  await main();
 }

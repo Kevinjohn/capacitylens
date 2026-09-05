@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Migration rehearsal failed closed for databases newer than schema v16 because the anonymiser
+  ledger lagged the schema.
+
 ## [0.59.0-alpha.1] — 2026-09-04
 
 Maintainability release: every non-test source file in the app, server and shared packages is now
