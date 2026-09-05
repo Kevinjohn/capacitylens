@@ -1,5 +1,8 @@
 import { APP_DATA_WRITE_ORDER, SCOPED_WRITE_ORDER } from "@capacitylens/shared/types/entities";
 import { TABLE_DEFINITIONS } from "./tables/columns";
+import type { ColumnSpec, TableSpec } from "./tables/tableSpecs";
+// Preserve existing consumers while the column owner depends only on the pure contract.
+export type { ColumnSpec, TableSpec } from "./tables/tableSpecs";
 export { INTERNAL_CLIENT_UNIQUE_INDEX_SQL, SCHEMA_SQL, SCHEMA_V8_SQL } from "./tables/ddl";
 // The single source of truth for the SQL schema and the row<->object mapping. One
 // entry per AppData table. `columns` is the exact column order used for INSERT and
@@ -7,25 +10,6 @@ export { INTERNAL_CLIENT_UNIQUE_INDEX_SQL, SCHEMA_SQL, SCHEMA_V8_SQL } from "./t
 // read; `optional` columns are stored NULL when absent and omitted (not null) when
 // read back, so a round-tripped row deep-equals the client's object.
 
-export interface ColumnSpec {
-  name: string;
-  json?: boolean;
-  optional?: boolean;
-  /** Preserve SQL NULL as an explicit object value instead of treating it as an omitted optional.
-   * Changes what `optional` means for this column: unlike a normal optional column (absent when
-   * NULL), the field is always present on read and NULL is a meaningful value in its own right.
-   * Retained for decoding historical schema specifications. */
-  preserveNull?: boolean;
-  /** SQLite storage class; omitted means TEXT. Kept beside the write-column contract so startup
-   * can reject a live declaration that no longer matches the values insertRow binds. */
-  sqlType?: "INTEGER" | "REAL";
-}
-
-export interface TableSpec {
-  /** AppData key === REST path segment (e.g. 'timeOff' → /api/timeOff). */
-  key: string;
-  columns: ColumnSpec[];
-}
 export function assertUniqueTableColumns(tableKey: string, columns: readonly ColumnSpec[]): void {
   const seen = new Set<string>();
   for (const column of columns) {

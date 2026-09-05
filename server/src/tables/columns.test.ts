@@ -16,6 +16,11 @@ function compileColumns(contents: string) {
   const readFile = host.readFile.bind(host);
   host.readFile = (path) => (path === columnsPath ? contents : readFile(path));
   const program = ts.createProgram([columnsPath], { ...parsed.options, noEmit: true }, host);
+  // Compiler fixtures need only schema contracts, never the runtime database or
+  // authentication implementations and their transitive dependency graphs.
+  expect(program.getSourceFiles().map((file) => file.fileName.replaceAll("\\", "/"))).not.toEqual(
+    expect.arrayContaining([expect.stringMatching(/\/server\/src\/(?:db|auth)\.ts$/)]),
+  );
   const file = program.getSourceFile(columnsPath)!;
   return [...program.getSyntacticDiagnostics(file), ...program.getSemanticDiagnostics(file)];
 }
