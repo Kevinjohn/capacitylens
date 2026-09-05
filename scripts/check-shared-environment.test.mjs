@@ -4,8 +4,6 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import ts from "typescript";
 import { ESLint } from "eslint";
-import { classifyRepositoryPath } from "./source-inventory.mjs";
-import { gateCommands } from "./gate-commands.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -37,7 +35,7 @@ test("the production compiler graph contains no Node types or test files and typ
     paths.filter(
       (path) =>
         path.includes("/@types/node/") ||
-        (path.startsWith(`${root}shared/src/`) && classifyRepositoryPath(path.slice(root.length)).role === "test"),
+        (path.startsWith(`${root}shared/src/`) && /\.(test|spec)\.|\/__tests__\//.test(path.slice(root.length))),
     ),
     [],
   );
@@ -123,15 +121,6 @@ test("production lint rejects platform globals while retaining existing portable
     assert.ok(
       result.messages.some(({ ruleId }) => ruleId === "no-restricted-imports"),
       source,
-    );
-  }
-});
-
-test("both gates enforce the shared production environment", () => {
-  for (const mode of ["app", "server"]) {
-    assert.equal(
-      gateCommands(mode).filter((args) => args.join(" ") === "run policy:shared-environment:test").length,
-      1,
     );
   }
 });

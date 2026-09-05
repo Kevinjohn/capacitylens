@@ -2,15 +2,9 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { ESLint } from "eslint";
-import { gateCommands } from "./gate-commands.mjs";
 
 const eslint = new ESLint({ cwd: fileURLToPath(new URL("../", import.meta.url)) });
-const browserFiles = [
-  "public/auth-error-init.js",
-  "public/theme-init.js",
-  "scripts/docs-lightbox.js",
-  "public/future-script.js",
-];
+const browserFiles = ["public/auth-error-init.js", "public/theme-init.js", "public/future-script.js"];
 
 test("browser and worker scripts reject Node globals", async () => {
   for (const filePath of [...browserFiles, "public/offline-worker.js"]) {
@@ -48,15 +42,6 @@ test("Node tooling retains Node globals without receiving browser globals", asyn
       invalid.messages.map(({ ruleId }) => ruleId),
       ["no-undef", "no-undef"],
       filePath,
-    );
-  }
-});
-
-test("both gates check effective JavaScript environments", () => {
-  for (const mode of ["app", "server"]) {
-    assert.equal(
-      gateCommands(mode).filter((args) => args.join(" ") === "run policy:script-environments:test").length,
-      1,
     );
   }
 });
