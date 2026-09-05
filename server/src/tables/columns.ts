@@ -11,7 +11,7 @@ import type {
   Resource,
   TimeOff,
 } from "@capacitylens/shared/types/entities";
-import type { ColumnSpec, TableSpec } from "../tables";
+import type { ColumnSpec, TableSpec } from "./tableSpecs";
 // Coverage and uniqueness are separate proofs: a union of names loses duplicates.
 // Return false on drift; never would satisfy Assert<T extends true> and hide it.
 type UniqueColumns<Cols extends readonly ColumnSpec[]> = Cols extends readonly [
