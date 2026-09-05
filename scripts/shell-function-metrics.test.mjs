@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { measureShellFunctions } from "./shell-function-metrics.mjs";
 
-const measure = (source) => measureShellFunctions(source, "fixture.sh");
+const measure = async (source) =>
+  (await measureShellFunctions(source, "fixture.sh")).filter(({ origin }) => origin !== "program");
 
 test("measures POSIX and Bash function definitions with lexical ownership", async () => {
   const result = await measure("outer() { inner() { :; }; :; }\nfunction keyword { :; }\nouter() ( : )\n");
@@ -112,7 +113,7 @@ test("rejects malformed or unsupported input and measures empty files without in
 test("measures both repository shell scripts without executing their commands", async () => {
   const root = new URL("../", import.meta.url);
   const source = readFileSync(new URL("scripts/internal-tls.sh", root), "utf8");
-  const result = await measureShellFunctions(source, "scripts/internal-tls.sh");
+  const result = await measure(source);
   assert.deepEqual(
     result.map(({ symbol, lines, complexity, depth }) => ({ symbol, lines, complexity, depth })),
     [
@@ -122,13 +123,7 @@ test("measures both repository shell scripts without executing their commands", 
       { symbol: "function:publish_generation", lines: 8, complexity: 1, depth: 0 },
     ],
   );
-  assert.deepEqual(
-    await measureShellFunctions(
-      readFileSync(new URL("scripts/renew-internal-tls.sh", root), "utf8"),
-      "scripts/renew-internal-tls.sh",
-    ),
-    [],
-  );
+  assert.deepEqual(await measure(readFileSync(new URL("scripts/renew-internal-tls.sh", root), "utf8")), []);
 });
 
 test("distinguishes wildcard defaults from quoted case patterns and nonbranching expansions", async () => {

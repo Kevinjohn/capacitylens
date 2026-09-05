@@ -374,7 +374,24 @@ All new source is within the structural budgets. Both complete gate commands rej
 101-line function at the function-budget check before runtime tests; the probe was removed.
 Independent review found no findings or nits. Node 24.19.0 application gate (3,650 tests),
 server gate (1,788 tests), focused lint and formatter checks pass. All 257 browser tests pass
-in an unchanged worktree.
+in an unchanged worktree. Merged in [PR #603](https://github.com/Kevinjohn/capacitylens/pull/603),
+merge `6b1ba9d0`. Main gate `33954921245` and browser run `33954921279` passed, including
+all three browsers and pinned OIDC. Docker, docs, security, CodeQL, Scorecard and Dependabot passed.
+
+Progress (feature/module-control-budgets): JS/TS module scopes, Vue script control flow and shell
+top-level flow now receive complexity/depth limits of 12/4. Module length retains the physical file
+budget; nested function control metrics and lexical identities remain independent. Vue script blocks
+share one script scope, separate from template/style regions. Seven newly exposed module complexity
+exceptions have exact measured caps and specific T20 decomposition reasons; no existing cap grows.
+Four new regression tests failed before implementation and pass afterward; all 49 focused metric and
+policy tests pass. Both complete gates reject temporary JS and shell modules with complexity 13
+before runtime tests; the probes were removed. Comparing the original and updated collectors over
+all current source proves that all 16,424 non-program scope records retain identical symbols,
+coordinates and metrics across 1,044 files. Independent review found no functional issues; its
+Unicode formatting nit was corrected, leaving the original 520 exception entries byte-identical.
+Docs build and rendered-policy inspection pass. Node 24.19.0 application gate (3,650 tests),
+server gate (1,788 tests), focused lint and formatter checks pass. All 257 browser tests pass
+in an unchanged worktree. Final review found no findings or nits.
 
 ### T06 — Document the naming and ownership vocabulary (F8)
 

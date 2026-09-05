@@ -88,7 +88,7 @@ test("rejects malformed, broad, duplicate or unowned exceptions", () => {
     assert.equal(check([unit({ lines: 110 })], invalid).valid, false, JSON.stringify(invalid));
 });
 
-test("rejects invalid or duplicate measurements; only field initializers omit length", () => {
+test("rejects invalid or duplicate measurements; only field initializers and modules omit length", () => {
   const field = unit({ origin: "class-field-initializer", lines: null });
   assert.equal(check([field]).valid, true);
   assert.equal(check([{ ...field, complexity: 13 }]).valid, false);
@@ -159,7 +159,7 @@ test("inventories new source and nested callbacks while exposing the remaining c
   writeFileSync(join(root, "package.json"), JSON.stringify({ scripts: { probe: "node -e 'embedded()'" } }));
   writeFileSync(join(root, "index.html"), "<script>embedded()</script>");
   const inventory = await collectFunctionInventory(root);
-  assert.equal(inventory.units.length, 4);
+  assert.equal(inventory.units.length, 7);
   assert.equal(inventory.units.find(({ path }) => path === "e2e/helper.ts").role, "test");
   assert.deepEqual(
     inventory.unmeasured.map(({ path }) => path),

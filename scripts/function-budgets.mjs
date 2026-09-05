@@ -41,7 +41,10 @@ function measurementErrors(units) {
       !nonempty(entry.path) ||
       !nonempty(entry.symbol) ||
       !integerAtLeast(entry.startLine, 1) ||
-      !(integerAtLeast(entry.lines, 0) || (entry.lines === null && entry.origin === "class-field-initializer")) ||
+      !(
+        integerAtLeast(entry.lines, 0) ||
+        (entry.lines === null && ["class-field-initializer", "program"].includes(entry.origin))
+      ) ||
       !integerAtLeast(entry.complexity, 1) ||
       !integerAtLeast(entry.depth, 0)
     )

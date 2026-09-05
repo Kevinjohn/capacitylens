@@ -74,7 +74,7 @@
     "gate:server": "node scripts/run-gate.mjs server",
     "policy:source-inventory": "node scripts/source-inventory.mjs",
     "policy:source-inventory:test": "node --test scripts/source-inventory.test.mjs",
-    "policy:function-metrics:test": "node --test scripts/function-metrics.test.mjs",
+    "policy:function-metrics:test": "node --test scripts/function-metrics.test.mjs scripts/module-control-metrics.test.mjs",
     "policy:shell-metrics:test": "node --test scripts/shell-function-metrics.test.mjs",
     "policy:vue-metrics:test": "node --test scripts/vue-function-metrics.test.mjs",
     "policy:sonner-csp:test": "node --test scripts/check-sonner-csp.test.mjs",

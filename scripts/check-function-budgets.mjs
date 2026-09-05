@@ -60,7 +60,7 @@ async function main() {
           `limits ${JSON.stringify(functionLimits)}; ${exceptions.length} bounded metric exceptions.`,
       );
       console.log(
-        "Coverage: JS/TS functions and class scopes, Vue authored regions, shell declarations. " +
+        "Coverage: JS/TS and shell module flow, functions and class scopes, Vue authored regions. " +
           "Other embedded code remains queued; --json lists paths outside function coverage.",
       );
       for (const error of result.errors) console.error(error);

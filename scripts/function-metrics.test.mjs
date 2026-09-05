@@ -3,7 +3,7 @@ import test from "node:test";
 import { measureFunctions } from "./function-metrics.mjs";
 
 function metrics(source, filename = "fixture.tsx") {
-  return measureFunctions(source, filename);
+  return measureFunctions(source, filename).filter(({ origin }) => origin !== "program");
 }
 
 function named(source, symbol) {

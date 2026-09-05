@@ -37,7 +37,16 @@ function branchCount(node) {
 }
 
 function collectFunctions(root, source) {
-  const entries = [];
+  const module = {
+    symbol: null,
+    origin: "program",
+    startLine: 1,
+    endLine: root.endPosition.row + 1,
+    lines: null,
+    complexity: 1,
+    depth: 0,
+  };
+  const entries = [module];
   const occurrences = new Map();
   const comments = root.descendantsOfType("comment").map((node) => [node.startIndex, node.endIndex]);
   const lineCount = createCodeLineCounter(source, comments);
@@ -46,7 +55,7 @@ function collectFunctions(root, source) {
     let currentDepth = depth;
     if (node.type === "function_definition") {
       const name = node.childForFieldName("name").text;
-      const base = owner ? `${owner.symbol}/function:${name}` : `function:${name}`;
+      const base = owner.symbol ? `${owner.symbol}/function:${name}` : `function:${name}`;
       const occurrence = (occurrences.get(base) ?? 0) + 1;
       occurrences.set(base, occurrence);
       current = {
@@ -61,19 +70,19 @@ function collectFunctions(root, source) {
       currentDepth = 0;
       entries.push(current);
     }
-    if (current) {
-      current.complexity += branchCount(node);
-      if (nestedNodes.has(node.type)) currentDepth++;
-      current.depth = Math.max(current.depth, currentDepth);
-    }
+    current.complexity += branchCount(node);
+    if (nestedNodes.has(node.type)) currentDepth++;
+    current.depth = Math.max(current.depth, currentDepth);
     for (const child of node.namedChildren) visit(child, current, currentDepth);
   }
-  visit(root, null, 0);
+  visit(root, module, 0);
+  module.symbol = "module";
   return entries;
 }
 
 /**
- * Measure shell function declarations without executing commands or interpreting quoted script text.
+ * Measure shell module control flow and functions without executing commands or interpreting quoted text.
+ * Module length uses the physical file budget; its control metrics exclude function bodies.
  * Count conditional/loop branches, non-default case arms, logical operators, parameter defaults and
  * arithmetic ternaries. Count nesting of conditional/loop/case statements; elif stays at its if's depth.
  * Nested functions have independent control metrics, but their lines remain in the enclosing length.

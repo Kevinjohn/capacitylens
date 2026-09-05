@@ -386,8 +386,10 @@ have limits of 100 nonblank, non-comment lines, cyclomatic complexity 12 and sta
 depth 4. The check includes nested callbacks, memo-wrapped components, methods, class scopes,
 Vue's authored JavaScript regions and shell function declarations. Nested bodies count toward
 their enclosing function's length; their complexity and nesting are measured independently.
-Class field initializers have complexity and nesting limits; their function values receive
-separate length measurements.
+Top-level JS/TS, Vue script and shell control flow has the same complexity and nesting limits,
+reported as the `module` symbol. Nested functions remain independent and keep their lexical identities.
+Module length uses the physical file budget. Class field initializers also have complexity and
+nesting limits; their function values receive separate length measurements.
 
 `scripts/function-budget-exceptions.json` records existing debt by exact file, symbol and metric,
 with a measured growth cap, reason and cleanup task. A length exception does not relax the other
@@ -397,8 +399,8 @@ ownership; moving or reordering indistinguishable callbacks requires reviewing t
 
 Run `pnpm run policy:function-budgets --json` for the full current function inventory and
 coverage boundaries. Physical limits cover CSS and HTML, but this function gate does not yet
-measure their embedded code, code in configuration/data files or patch fragments, or top-level
-module and shell control flow outside functions. Data includes the command strings in `package.json`.
+measure their embedded code, code in configuration/data files or patch fragments.
+Data includes the command strings in `package.json`.
 These remaining coverage tasks are recorded in T05.
 Generated output and prose examples remain explicit exclusions.
 
