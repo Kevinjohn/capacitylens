@@ -304,7 +304,33 @@ nits. Docs build passes; the rendered development guide has correct policy parag
 and images. Node 24.19.0 application gate (3,650 tests), server gate (1,770 tests), E2E (257 tests),
 and formatter checks pass. Both complete gate commands reject the same 401-line script and 601-line
 test probes at file-size enforcement before their application/server test suites. Probes are removed;
-the clean policy check passes with exactly 39 exceptions. Merge/main CI evidence remains pending.
+the clean policy check passes with exactly 39 exceptions. Merged in
+[PR #600](https://github.com/Kevinjohn/capacitylens/pull/600), merge `1ad9c51c`.
+Main gate `33951641510` and browser run `33951641436` passed, including all three browsers
+and pinned OIDC. Docs, Docker, security, CodeQL and Scorecard passed.
+
+Progress (feature/function-budgets): the canonical JS/TS, Vue and shell collectors now feed a
+shared evaluator in both gate commands. Limits are 100 nonblank/non-comment lines, complexity 12
+and nesting depth 4. The initial baseline has 520 over-limit metrics across 475 units, each recorded
+by exact file/symbol/metric, current measured limit, reason and real cleanup-task heading. A length
+exception never relaxes complexity or nesting. Growth, deleted symbols, individually resolved
+metrics, duplicate measurements/entries and malformed policy fail. No new policy function exceeds
+the limits. The CLI's JSON report publishes current measurements, source ownership and paths whose
+embedded code remains outside this function gate. CSS/HTML retain physical budgets; configuration,
+patch fragments, top-level module/shell control flow and other embedded code remain queued in T05.
+Nine focused regressions pass, including nested callbacks in new files, syntax/discovery failures,
+all metric boundaries, exact exceptions, coverage reporting and CLI status. The explicit-stdin
+import regression failed before correcting the inventory/file-budget guards and passes afterward.
+Both full gate commands rejected a temporary 101-line function and a complexity-13 test callback
+at the function-budget step before their application/server test suites; both probes were removed.
+Independent review found no findings or nits. Follow-up inspection found that the coverage report
+omitted data containers such as package.json; it now lists every excluded inventory category, with
+regressions for command strings and generated code. The nine focused tests pass after that change,
+and follow-up review found no issues. The final inventory has 16,360 units in 1,036 measured files
+(1,039 physical source files); all 520 exception values equal their current measured baselines.
+Node 24.19.0 application gate (3,650 tests), server gate (1,770 tests), focused lint/formatter checks
+and docs build pass. The rendered guide has the correct policy paragraphs, coverage limitations,
+sidebar, breadcrumbs and intact images. All 257 browser tests pass in an unchanged worktree.
 
 ### T06 — Document the naming and ownership vocabulary (F8)
 

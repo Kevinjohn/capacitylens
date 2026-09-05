@@ -67,17 +67,19 @@
     "e2e:rehearsal": "playwright test --project=rehearsal",
     "test:account-conformance": "pnpm run paraglide:compile && vitest run shared/src/account && pnpm --filter capacitylens-server exec vitest run src/accounts/conformance src/accounts/sqliteAccountAdminPort.test.ts src/accounts/state.test.ts src/accountConfig.test.ts",
     "gate:deps": "pnpm audit --prod --audit-level high",
-    "gate": "pnpm run gate:deps && pnpm run security:crypto-inventory && pnpm run security:gitleaks-config && pnpm run policy:dco:test && pnpm run policy:source-inventory && pnpm run policy:source-inventory:test && pnpm run policy:function-metrics:test && pnpm run policy:shell-metrics:test && pnpm run policy:vue-metrics:test && pnpm run policy:sonner-csp:test && pnpm run policy:file-sizes && pnpm run policy:file-sizes:test && pnpm run policy:import-cycles && pnpm run policy:dependencies:test && pnpm run policy:workflow-report:test && pnpm run ui:check && pnpm run format:check && pnpm run paraglide:compile && pnpm --filter @capacitylens/shared type-check && tsc -b && pnpm run typecheck:e2e && eslint . --max-warnings 0 && vitest run --coverage && pnpm run coverage:files && vite build && pnpm run bundle:check",
+    "gate": "pnpm run gate:deps && pnpm run security:crypto-inventory && pnpm run security:gitleaks-config && pnpm run policy:dco:test && pnpm run policy:source-inventory && pnpm run policy:source-inventory:test && pnpm run policy:function-metrics:test && pnpm run policy:shell-metrics:test && pnpm run policy:vue-metrics:test && pnpm run policy:sonner-csp:test && pnpm run policy:function-budgets && pnpm run policy:function-budgets:test && pnpm run policy:file-sizes && pnpm run policy:file-sizes:test && pnpm run policy:import-cycles && pnpm run policy:dependencies:test && pnpm run policy:workflow-report:test && pnpm run ui:check && pnpm run format:check && pnpm run paraglide:compile && pnpm --filter @capacitylens/shared type-check && tsc -b && pnpm run typecheck:e2e && eslint . --max-warnings 0 && vitest run --coverage && pnpm run coverage:files && vite build && pnpm run bundle:check",
     "mutation": "pnpm run paraglide:compile && stryker run",
     "rehearse:migrations": "pnpm --filter capacitylens-server rehearse:migrations",
     "test:server": "pnpm --filter capacitylens-server test",
-    "gate:server": "pnpm run security:crypto-inventory && pnpm run policy:source-inventory && pnpm run policy:source-inventory:test && pnpm run policy:function-metrics:test && pnpm run policy:shell-metrics:test && pnpm run policy:vue-metrics:test && pnpm run policy:sonner-csp:test && pnpm run policy:file-sizes && pnpm run policy:file-sizes:test && pnpm run policy:import-cycles && pnpm run policy:dependencies:test && prettier --check server shared && pnpm --filter capacitylens-server type-check && pnpm --filter capacitylens-server build:runtime && pnpm --filter capacitylens-server test && eslint server shared --max-warnings 0",
+    "gate:server": "pnpm run security:crypto-inventory && pnpm run policy:source-inventory && pnpm run policy:source-inventory:test && pnpm run policy:function-metrics:test && pnpm run policy:shell-metrics:test && pnpm run policy:vue-metrics:test && pnpm run policy:sonner-csp:test && pnpm run policy:function-budgets && pnpm run policy:function-budgets:test && pnpm run policy:file-sizes && pnpm run policy:file-sizes:test && pnpm run policy:import-cycles && pnpm run policy:dependencies:test && prettier --check server shared && pnpm --filter capacitylens-server type-check && pnpm --filter capacitylens-server build:runtime && pnpm --filter capacitylens-server test && eslint server shared --max-warnings 0",
     "policy:source-inventory": "node scripts/source-inventory.mjs",
     "policy:source-inventory:test": "node --test scripts/source-inventory.test.mjs",
     "policy:function-metrics:test": "node --test scripts/function-metrics.test.mjs",
     "policy:shell-metrics:test": "node --test scripts/shell-function-metrics.test.mjs",
     "policy:vue-metrics:test": "node --test scripts/vue-function-metrics.test.mjs",
-    "policy:sonner-csp:test": "node --test scripts/check-sonner-csp.test.mjs"
+    "policy:sonner-csp:test": "node --test scripts/check-sonner-csp.test.mjs",
+    "policy:function-budgets": "node scripts/check-function-budgets.mjs",
+    "policy:function-budgets:test": "node --test scripts/check-function-budgets.test.mjs"
   },
   "dependencies": {
     "@capacitylens/shared": "workspace:*",
