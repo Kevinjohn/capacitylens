@@ -68,8 +68,7 @@ export function SchedulerGrid() {
   }, [announceStatus, ui.drawMode]);
 
   const viewport = useSchedulerViewport({ ui, minimiseWeekends, snapToWeekStart, calendarWeekStartsOn });
-  const { scrollRef, headerRef, stickyHeaderHeight, timelineWidth, days, dayWidth, geom, onScroll, visibleStartDate } =
-    viewport;
+  const { scrollRef, headerRef, stickyHeaderHeight, timelineWidth, days, geom, onScroll, visibleStartDate } = viewport;
   const { model, density, today, todayX, visibleWeeksLabel, visibleSpanCompact, overallUtil, filtersActive } =
     useSchedulerGridModel(prefs, viewport);
   const virtualization = useSchedulerGridVirtualization(model, ui, density, data, viewport);
@@ -170,7 +169,6 @@ export function SchedulerGrid() {
             visibleSpanCompact={visibleSpanCompact}
             overallUtil={overallUtil}
             days={days}
-            dayWidth={dayWidth}
             geom={geom}
             ui={ui}
             calendarWeekStartsOn={calendarWeekStartsOn}
@@ -235,7 +233,6 @@ export function SchedulerGrid() {
             setModal={setModal}
             days={days}
             todayX={todayX}
-            dayWidth={dayWidth}
             calendarWeekStartsOn={calendarWeekStartsOn}
             handleEdit={handleEdit}
             handleDraw={handleDraw}

@@ -31,7 +31,6 @@ export function SchedulerGridRows({
   setModal,
   days,
   todayX,
-  dayWidth,
   calendarWeekStartsOn,
   handleEdit,
   handleDraw,
@@ -76,7 +75,6 @@ export function SchedulerGridRows({
                   setModal={setModal}
                   days={days}
                   todayX={todayX}
-                  dayWidth={dayWidth}
                   geom={geom}
                   calendarWeekStartsOn={calendarWeekStartsOn}
                   handleEdit={handleEdit}
