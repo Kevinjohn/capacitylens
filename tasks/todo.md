@@ -353,7 +353,28 @@ unchanged at 42 implementation paths; the verifier compares an existing digest a
 or TLS configuration. The Docker smoke workflow now executes it through the actual Compose network.
 Independent review found no findings or nits. Node 24.19.0 application gate (3,650 tests), server
 gate (1,788 tests), focused lint and formatter checks pass. All 257 browser tests pass in an
-unchanged worktree. Image workflow evidence remains pending.
+unchanged worktree. Docker workflow `33953532711` passed on feature commit
+`d8dcfd2a413c201bde7b293ac0c31eb7e415e506`; its new live-generation step executed the deployed
+script through nginx and reported coordinated renewal verified. Merged in
+[PR #602](https://github.com/Kevinjohn/capacitylens/pull/602), merge `b6d0c1b3`.
+Main gate `33953889132` and browser run `33953889072` passed. Docker, security, CodeQL
+and Scorecard also passed.
+
+Progress (feature/ordered-validation-gates): package scripts select a small gate runner backed by
+explicit ordered pnpm argument arrays. Shared structural checks are listed once; application and
+server-specific checks remain visible in their own lists. The runner reuses the repository's pnpm
+launcher and runs from the repository root with inherited environment and terminal streams. Ordinary
+command exit codes propagate and stop later checks; failed starts and signals use the launcher's
+existing diagnostic/status policy. Unsupported modes and extra arguments fail before execution.
+A mechanical comparison against the original shell chains confirms all 28 application and 18 server
+commands and argument order are retained. Bare tools now use pnpm exec. The only added command is
+the runner's regression suite in both gates. Six subprocess tests pass, proving sequence, working
+directory/environment, early stopping, status propagation, signal/start failures and argument rejection.
+All new source is within the structural budgets. Both complete gate commands rejected a temporary
+101-line function at the function-budget check before runtime tests; the probe was removed.
+Independent review found no findings or nits. Node 24.19.0 application gate (3,650 tests),
+server gate (1,788 tests), focused lint and formatter checks pass. All 257 browser tests pass
+in an unchanged worktree.
 
 ### T06 — Document the naming and ownership vocabulary (F8)
 
