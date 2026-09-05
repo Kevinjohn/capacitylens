@@ -168,6 +168,25 @@ remain. All nine discovery/CLI regressions pass. A temporary untracked Python fi
 commands fail at classification; the probe was removed. Node 24.19.0 `gate` (3,650 tests),
 `gate:server` (1,752 tests), `e2e` (257 tests), focused formatter checks and complexity-12 lint pass.
 The classification corrections were verified with focused regressions after the app gate.
+Merged in [PR #593](https://github.com/Kevinjohn/capacitylens/pull/593), merge `a4890726`.
+Main gate `33944108027` and browser run `33944108010` passed, including all browsers and pinned OIDC.
+
+Progress (feature/function-metrics): JavaScript/TypeScript measurement uses public ESLint code-path
+and parser APIs. Nested functions have independent complexity/depth; their bodies still contribute
+to enclosing function length. Length excludes blank and comment-only lines, including multiple comments
+on one line. Default values, optional chains, logical assignments and switch cases count as branches.
+Implicit class initializers have separate complexity scopes; static blocks and field arrows are measured.
+Symbols retain lexical ownership and callback labels, independent of line numbers. Indistinguishable
+repeated callbacks use occurrence suffixes; reordering them requires baseline review. Inline directives
+cannot suppress collection, and unsupported formats or parse/configuration failures are errors.
+Both local gates run the measurement regressions. Vue/shell/embedded-code measurement, published
+complete inventory and exact budget exceptions remain queued. All 1,021 JS/TS files parse successfully:
+16,172 executable units, with 361 length, 156 complexity and three depth violations. These are overlapping
+measurements, not enabled budget failures. All 13 regression tests and complexity-12 lint pass.
+Node 24.19.0 `gate` (3,650 tests), `gate:server` (1,752 tests) and `e2e` (257 tests) pass.
+A subsequent syntax probe found BigInt keys could throw during symbol formatting; a failing/passing
+regression and one-line fix resolved it. Focused tests, lint, formatter checks and the complete JS/TS
+measurement were rerun after that fix. Independent review found no remaining findings.
 Merge/CI evidence is pending.
 
 ### T06 — Document the naming and ownership vocabulary (F8)
