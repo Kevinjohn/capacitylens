@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
-import { anonymise } from "../scripts/rehearse-migrations";
+import { anonymise } from "../scripts/rehearse/anonymise";
 
 describe("migration rehearsal redaction", () => {
   it("preserves federated identity joins while scrubbing ceremonies, observations and orphan identifiers", () => {
