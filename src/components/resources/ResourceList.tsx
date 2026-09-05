@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from "react";
-import { Plus, Star, Users } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import { useStore } from "../../store/useStore";
 import {
   disciplinesEnabledFor,
@@ -9,22 +9,11 @@ import {
 } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useCrudListState } from "../../hooks/useCrudListState";
-import {
-  AddButton,
-  ColorSwatch,
-  ConfirmDialog,
-  DeleteButton,
-  EditButton,
-  EmptyState,
-  ListPage,
-  SectionHelp,
-} from "../common/ui";
+import { AddButton, ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
 import { Separator } from "../ui/separator";
 import { resourceDisplayName } from "../../lib/metadata";
 import { ResourceForm } from "./ResourceForm";
 import { ExternalForm } from "../external/ExternalForm";
-import { externalExplainer } from "../../lib/externalCopy";
-import { NEUTRAL_COLOR } from "../../lib/palette";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import type { Resource, ResourceKind } from "@capacitylens/shared/types/entities";
 import { useLifecycleActions } from "../../hooks/useLifecycleActions";
@@ -36,47 +25,13 @@ import {
   engagementFavouriteDisplayNameComparator,
   favouriteDisplayNameComparator,
 } from "../../lib/displayOrder";
-import { Button } from "../ui/button";
-import { useCanEdit } from "../../auth/permissionContext";
-import { errorMessage } from "../../lib/errorMessage";
-import { cn } from "../../lib/utils";
+import { FavouriteButton } from "./FavouriteButton";
+import { ExternalResourceSection } from "./ExternalResourceSection";
 
 const byFavouriteResourceDisplayName = favouriteDisplayNameComparator<Resource>(resourceDisplayName);
 const byEngagementFavouriteResourceDisplayName =
   engagementFavouriteDisplayNameComparator<Resource>(resourceDisplayName);
 const byResourceDisplayName = displayNameComparator<Resource>(resourceDisplayName);
-
-function FavouriteButton({ resource }: { resource: Resource }) {
-  const canEdit = useCanEdit();
-  const updateResource = useStore((state) => state.updateResource);
-  const setNotice = useStore((state) => state.setNotice);
-
-  if (!canEdit) return null;
-
-  const selected = resource.isFavourite === true;
-  const name = resourceDisplayName(resource);
-  const label = selected ? m.list_resources_unfavourite_aria({ name }) : m.list_resources_favourite_aria({ name });
-
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="icon-sm"
-      aria-label={label}
-      title={label}
-      aria-pressed={selected}
-      onClick={() => {
-        try {
-          updateResource(resource.id, { isFavourite: !selected });
-        } catch (error) {
-          setNotice(errorMessage(error), "error");
-        }
-      }}
-    >
-      <Star aria-hidden className={cn("text-muted-foreground", selected && "fill-warn text-warn")} />
-    </Button>
-  );
-}
 
 export function ResourceList() {
   const data = useActiveScopedData();
@@ -263,60 +218,12 @@ export function ResourceList() {
           per-account `externalEnabled` pref (default off, Settings → External). When off, the whole
           section is hidden; existing external data is preserved untouched and returns when re-enabled. */}
       {externalEnabled && (
-        <section aria-labelledby="external-heading">
-          {/* Decorative rule before the External section (Phase 8) — see the People→Placeholders
-              Separator above. */}
-          <Separator className="mt-8" />
-          <div className="mb-4 mt-8 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-1">
-              <h2 id="external-heading" className="text-lg font-semibold">
-                {m.list_resources_external_heading()}
-              </h2>
-              <SectionHelp title={m.list_resources_external_heading()}>{externalExplainer()}</SectionHelp>
-            </div>
-            <AddButton label={m.list_resources_add_external()} onClick={() => ext.setCreating(true)} />
-          </div>
-          {externals.length === 0 ? (
-            <EmptyState
-              icon={Users}
-              description={m.list_resources_external_empty_desc()}
-              action={{
-                label: m.list_resources_external_empty_action(),
-                onClick: () => ext.setCreating(true),
-                icon: Plus,
-                requiresEdit: true,
-              }}
-            >
-              {m.list_resources_external_empty()}
-            </EmptyState>
-          ) : (
-            <ItemGroup className="rounded-md border bg-card">
-              {externals.map((r, index) => (
-                <Fragment key={r.id}>
-                  {index > 0 && <ItemSeparator />}
-                  <Item size="sm" role="listitem" data-testid="external-row" className="rounded-none">
-                    <ItemContent className="flex-row flex-wrap items-center gap-2">
-                      <ColorSwatch color={NEUTRAL_COLOR} />
-                      <span className="font-medium">{r.name ?? r.role}</span>
-                      {r.name && r.role && <span className="text-sm text-muted-foreground">· {r.role}</span>}
-                    </ItemContent>
-                    <ItemActions>
-                      <FavouriteButton resource={r} />
-                      <EditButton
-                        label={m.list_edit_aria({ name: r.name ?? r.role })}
-                        onClick={() => ext.setEditing(r)}
-                      />
-                      <DeleteButton
-                        label={m.list_resources_archive_aria({ name: r.name ?? r.role })}
-                        onClick={() => ext.setConfirming(r)}
-                      />
-                    </ItemActions>
-                  </Item>
-                </Fragment>
-              ))}
-            </ItemGroup>
-          )}
-        </section>
+        <ExternalResourceSection
+          externals={externals}
+          onAdd={() => ext.setCreating(true)}
+          onEdit={(r) => ext.setEditing(r)}
+          onRequestArchive={(r) => ext.setConfirming(r)}
+        />
       )}
 
       {creatingKind && <ResourceForm kind={creatingKind} onClose={() => setCreatingKind(null)} />}
