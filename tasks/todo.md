@@ -138,7 +138,9 @@ vendor template imports. All probes were removed. Two transitive type fixtures a
 fixture failed before implementation. All 42 architecture and 14 scanner tests pass, as do focused
 server type-check and lint. Node 24.19.0 `gate` (3,650 tests), `gate:server` (1,752 tests),
 `docs:build`, rendered-page inspection and scanner complexity lint pass. Independent review found
-no findings. All 257 browser tests pass. Merge/CI evidence is pending.
+no findings. All 257 browser tests pass. Merged in [PR #592](https://github.com/Kevinjohn/capacitylens/pull/592),
+merge `bcbc64fb`. Main gate `33942991948` and browser run `33942991947` passed, including the
+complete browser matrix and pinned OIDC.
 
 ### T05 — Enforce structural budgets across source categories (F3, F7, F9, M3)
 
@@ -151,6 +153,22 @@ Likely owners: `scripts/check-file-sizes*`, `scripts/file-size-exceptions.json`,
 Verification: exact-threshold and over-threshold fixtures, memo callbacks, nested arrows, methods, JSX,
 comments, blank lines, deleted symbols and newly added files. Run an inventory before choosing exceptions.
 Count nested bodies consistently; do not accidentally give a long closure a free composition exemption.
+
+Progress (feature/source-inventory): explicit path classification inventories tracked and untracked
+nonignored files, including scripts, public runtime code, declarations, Vue, shell, styles and HTML.
+Source-owned UI primitives remain production source. Generated roots, prose, assets, data,
+configuration and patches are distinguished; unknown formats and unsupported entries fail.
+Configuration and patches may contain embedded code and are not claimed as function-metric coverage.
+Deleted tracked files leave the inventory so future budget exceptions can become stale.
+The CLI supports a readable category summary and `--json` for the full path inventory.
+Both local gates run discovery and its regression tests. Syntax-aware function measurements,
+complete measured baselines and structural enforcement remain queued. The current inventory contains
+1,024 source files. Review corrected test-support classification and two presentation nits; no findings
+remain. All nine discovery/CLI regressions pass. A temporary untracked Python file made both full gate
+commands fail at classification; the probe was removed. Node 24.19.0 `gate` (3,650 tests),
+`gate:server` (1,752 tests), `e2e` (257 tests), focused formatter checks and complexity-12 lint pass.
+The classification corrections were verified with focused regressions after the app gate.
+Merge/CI evidence is pending.
 
 ### T06 — Document the naming and ownership vocabulary (F8)
 
