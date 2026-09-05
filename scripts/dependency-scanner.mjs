@@ -1,12 +1,27 @@
 import { existsSync, statSync } from "node:fs";
-import { dirname, extname, resolve } from "node:path";
+import { dirname, extname, resolve, sep } from "node:path";
 import ts from "typescript";
 
+function importKind(clause, verbatimModuleSyntax) {
+  if (clause?.isTypeOnly) return "type";
+  const bindings = clause?.namedBindings;
+  if (verbatimModuleSyntax || clause?.name || !bindings || !ts.isNamedImports(bindings)) return "runtime";
+  return bindings.elements.length > 0 && bindings.elements.every((item) => item.isTypeOnly) ? "type" : "runtime";
+}
+
+function exportKind(declaration, verbatimModuleSyntax) {
+  if (declaration.isTypeOnly) return "type";
+  const clause = declaration.exportClause;
+  if (verbatimModuleSyntax || !clause || !ts.isNamedExports(clause)) return "runtime";
+  return clause.elements.length > 0 && clause.elements.every((item) => item.isTypeOnly) ? "type" : "runtime";
+}
+
 /** Parse source dependencies without treating comments or string contents as code.
- * Type edges remain available for ownership checks but never imply a runtime cycle.
+ * Explicit type-only clauses are erased. Inline type bindings can still initialize
+ * their module when verbatimModuleSyntax is enabled; retain those runtime edges.
  * Nonliteral imports retain their location and expression so callers must classify them.
  */
-export function parseDependencies(source, filename) {
+export function parseDependencies(source, filename, { verbatimModuleSyntax = false } = {}) {
   const file = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true);
   const edges = [];
   function add(node, argument, kind) {
@@ -20,25 +35,9 @@ export function parseDependencies(source, filename) {
   }
   function visit(node) {
     if (ts.isImportDeclaration(node)) {
-      const clause = node.importClause;
-      const bindings = clause?.namedBindings;
-      const onlyTypes =
-        clause?.isTypeOnly ||
-        (!clause?.name &&
-          bindings &&
-          ts.isNamedImports(bindings) &&
-          bindings.elements.length > 0 &&
-          bindings.elements.every((item) => item.isTypeOnly));
-      add(node, node.moduleSpecifier, onlyTypes ? "type" : "runtime");
+      add(node, node.moduleSpecifier, importKind(node.importClause, verbatimModuleSyntax));
     } else if (ts.isExportDeclaration(node) && node.moduleSpecifier) {
-      const clause = node.exportClause;
-      const onlyTypes =
-        node.isTypeOnly ||
-        (clause &&
-          ts.isNamedExports(clause) &&
-          clause.elements.length > 0 &&
-          clause.elements.every((item) => item.isTypeOnly));
-      add(node, node.moduleSpecifier, onlyTypes ? "type" : "runtime");
+      add(node, node.moduleSpecifier, exportKind(node, verbatimModuleSyntax));
     } else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) {
       add(node, node.moduleReference.expression, node.isTypeOnly ? "type" : "runtime");
     } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
@@ -78,4 +77,33 @@ export function resolveDependency(specifier, filename, root) {
   ];
   const path = candidates.find((candidate) => existsSync(candidate) && statSync(candidate).isFile());
   return path ? { classification: "internal", path } : { classification: "unresolved" };
+}
+
+function readVerbatimSetting(configPath) {
+  const loaded = ts.readConfigFile(configPath, ts.sys.readFile);
+  if (loaded.error) throw new Error(ts.flattenDiagnosticMessageText(loaded.error.messageText, "\n"));
+  const parsed = ts.parseJsonConfigFileContent(loaded.config, ts.sys, dirname(configPath), {}, configPath);
+  if (parsed.errors.length) {
+    throw new Error(parsed.errors.map((error) => ts.flattenDiagnosticMessageText(error.messageText, "\n")).join("\n"));
+  }
+  return parsed.options.verbatimModuleSyntax ?? false;
+}
+
+/** Read each source package's compiler setting once, including inherited options.
+ * Fixtures outside these packages use TypeScript's default import-elision mode.
+ * Invalid or missing project configurations fail visibly rather than changing the graph.
+ */
+export function createDependencyParser(root) {
+  const projects = [
+    ["src", "tsconfig.app.json"],
+    ["server/src", "server/tsconfig.json"],
+    ["shared/src", "shared/tsconfig.json"],
+  ].map(([directory, config]) => ({
+    prefix: resolve(root, directory) + sep,
+    verbatimModuleSyntax: readVerbatimSetting(resolve(root, config)),
+  }));
+  return (source, filename) => {
+    const project = projects.find(({ prefix }) => resolve(filename).startsWith(prefix));
+    return parseDependencies(source, filename, { verbatimModuleSyntax: project?.verbatimModuleSyntax ?? false });
+  };
 }

@@ -50,7 +50,8 @@ JavaScript for tables.ts and columns.ts is unchanged. Node 24.19.0 `gate` (3,650
 `gate:server` (1,730 tests), `e2e` (257 tests) and `docs:build` pass. Review found only a path-separator
 portability issue, now fixed. Repair merged in [PR #588](https://github.com/Kevinjohn/capacitylens/pull/588),
 merge `ae51d417`. Branch gate run `33938212737` passed; all four compiler fixtures took 4.6 seconds
-combined under CI coverage (previously 18.8 seconds). Main CI is being monitored.
+combined under CI coverage (previously 18.8 seconds). Subsequent main gate and browser runs
+`33938939361` and `33938939353` passed on `dafcbad2`.
 
 ### T02 — Parse dependency syntax once (F2)
 
@@ -69,7 +70,23 @@ unresolved-import and nonliteral-import fixtures fail. Current production scan: 
 The two generated Paraglide imports have an exact owner/specifier exception; nonliteral source imports
 have no exceptions and fail. Independent review found no findings. Gate wiring follows in T03.
 Full validation: Node 24.19.0; `gate` (3,650 tests), `gate:server` (1,730 tests),
-`e2e` (257 tests) and `docs:build` pass. Merge/CI evidence will follow landing.
+`e2e` (257 tests) and `docs:build` pass. Merged in
+[PR #587](https://github.com/Kevinjohn/capacitylens/pull/587), merge `dafcbad2`.
+Main gate `33938939361` and browser run `33938939353` passed.
+
+T02 compiler-mode follow-up (feature/dependency-emit-semantics): a compiler-backed fixture exposed
+that inline type bindings retain module initialization in verbatim mode. The scanner now reads each
+package's effective configuration, including inherited settings. Explicit type-only clauses remain
+erased; inline bindings are runtime edges when preserved by the compiler. Thirteen focused tests
+cover both emission modes, per-package differences and invalid/missing configs. Production scan:
+zero runtime cycles. Main gate `33938939361` and browser run `33938939353` passed on `dafcbad2`;
+this additional case was found by compiler comparison rather than those existing tests.
+Follow-up validation: Node 24.19.0 `gate` (3,650 tests), `gate:server` (1,730 tests),
+`docs:build`, rendered-page inspection and focused complexity lint pass. Independent review found
+no findings. The first browser run passed 252 tests and timed out in five company-picker flows;
+all ten affected-suite tests then passed in isolation. A full unchanged rerun passed all 257 tests.
+The initial failure cause remains unconfirmed; no product/test behavior was changed to obtain green.
+Merge/CI evidence is pending.
 
 ### T03 — Integrate dependency checks into every gate (F2)
 
@@ -122,7 +139,9 @@ tool, generated and public-contract exceptions remain explicit. Existing differe
 debt for T07, not a claim of current enforcement. Real module examples were checked against source.
 Docs build and visual inspection of the standalone page pass. Review corrected an import example;
 the corrected examples and rebuilt output were verified. Node 24.19.0 `gate` (3,650 tests),
-`gate:server` (1,730 tests), `e2e` (257 tests) and `docs:build` pass. Merge/CI evidence is pending.
+`gate:server` (1,730 tests), `e2e` (257 tests) and `docs:build` pass. Merged in
+[PR #589](https://github.com/Kevinjohn/capacitylens/pull/589), merge `602903a8`; its docs CI passed.
+Subsequent main gate `33938939361` and browser run `33938939353` passed on `dafcbad2`.
 
 ### T07 — Enforce naming and imports (F8, F9)
 

@@ -2,8 +2,9 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseDependencies, resolveDependency } from "./dependency-scanner.mjs";
+import { createDependencyParser, resolveDependency } from "./dependency-scanner.mjs";
 const root = resolve(process.argv[2] ?? fileURLToPath(new URL("..", import.meta.url)));
+const parseDependencies = createDependencyParser(root);
 const roots = ["src", "server/src", "shared/src"].map((d) => resolve(root, d));
 function files(d) {
   return readdirSync(d, { withFileTypes: true }).flatMap((e) => {
