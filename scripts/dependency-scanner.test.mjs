@@ -3,7 +3,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
-import { parseDependencies, resolveDependency } from "./dependency-scanner.mjs";
+import ts from "typescript";
+import { createDependencyParser, parseDependencies, resolveDependency } from "./dependency-scanner.mjs";
 
 test("classifies static, inline type, re-export, dynamic and import-equals syntax", () => {
   const source = `
@@ -84,4 +85,55 @@ test("resolves relative paths, aliases, extensions and indexes; distinguishes ex
   assert.deepEqual(resolveDependency("node:fs", from, root), { classification: "external" });
   assert.deepEqual(resolveDependency("./missing", from, root), { classification: "unresolved" });
   assert.deepEqual(resolveDependency(null, from, root), { classification: "nonliteral" });
+});
+
+test("matches compiler emission for inline type imports and re-exports in both modes", () => {
+  for (const verbatimModuleSyntax of [false, true]) {
+    for (const source of [
+      'import { type T } from "./types"; export type Item = T;',
+      'export { type T } from "./types";',
+      'import type { T } from "./types"; export type Item = T;',
+      'export type { T } from "./types";',
+    ]) {
+      const emitted = ts.transpileModule(source, {
+        compilerOptions: { module: ts.ModuleKind.ESNext, verbatimModuleSyntax },
+      }).outputText;
+      const runtime = parseDependencies(source, "fixture.ts", { verbatimModuleSyntax }).some(
+        (edge) => edge.kind === "runtime",
+      );
+      assert.equal(runtime, emitted.includes('from "./types"'), `${verbatimModuleSyntax}: ${source}`);
+    }
+  }
+});
+
+test("uses each package's compiler configuration, including inherited options, and rejects invalid config", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "dependency-options-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(
+    join(root, "base.json"),
+    JSON.stringify({ compilerOptions: { module: "ESNext", verbatimModuleSyntax: true } }),
+  );
+  for (const directory of ["src", "server/src", "shared/src"]) {
+    mkdirSync(join(root, directory), { recursive: true });
+    writeFileSync(join(root, directory, "main.ts"), "export {};");
+  }
+  writeFileSync(join(root, "tsconfig.app.json"), JSON.stringify({ extends: "./base.json", include: ["src"] }));
+  writeFileSync(join(root, "shared/tsconfig.json"), JSON.stringify({ extends: "../base.json", include: ["src"] }));
+  writeFileSync(
+    join(root, "server/tsconfig.json"),
+    JSON.stringify({
+      extends: "../base.json",
+      compilerOptions: { verbatimModuleSyntax: false },
+      include: ["src"],
+    }),
+  );
+  const parse = createDependencyParser(root);
+  const source = 'import { type T } from "./types";';
+  assert.equal(parse(source, join(root, "src/main.ts"))[0].kind, "runtime");
+  assert.equal(parse(source, join(root, "shared/src/main.ts"))[0].kind, "runtime");
+  assert.equal(parse(source, join(root, "server/src/main.ts"))[0].kind, "type");
+  writeFileSync(join(root, "server/tsconfig.json"), JSON.stringify({ compilerOptions: { unknownSetting: true } }));
+  assert.throws(() => createDependencyParser(root), /Unknown compiler option/);
+  rmSync(join(root, "server/tsconfig.json"));
+  assert.throws(() => createDependencyParser(root), /Cannot read file/);
 });

@@ -8,11 +8,22 @@ import test from "node:test";
 
 const script = fileURLToPath(new URL("./check-import-cycles.mjs", import.meta.url));
 
-function scan(t, sources) {
+function scan(t, sources, verbatimModuleSyntax = false) {
   const root = mkdtempSync(join(tmpdir(), "import-cycles-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const directory of ["src", "server/src", "shared/src"]) {
     mkdirSync(join(root, directory), { recursive: true });
+    writeFileSync(join(root, directory, "empty.ts"), "export {};");
+  }
+  for (const [path, include] of [
+    ["tsconfig.app.json", "src"],
+    ["server/tsconfig.json", "src"],
+    ["shared/tsconfig.json", "src"],
+  ]) {
+    writeFileSync(
+      join(root, path),
+      JSON.stringify({ compilerOptions: { module: "ESNext", verbatimModuleSyntax }, include: [include] }),
+    );
   }
   for (const [file, content] of Object.entries(sources)) {
     writeFileSync(join(root, "src", file), content);
@@ -57,7 +68,7 @@ test("literal dynamic import cycles fail", (t) => {
   assert.match(result.stderr, /1 runtime cycles/);
 });
 
-test("inline type imports do not create runtime cycles", (t) => {
+test("inline type imports do not create runtime cycles when the compiler erases them", (t) => {
   const result = scan(t, {
     "a.ts": 'import { type B } from "./b"; export type A = B;',
     "b.ts": 'import { type A } from "./a"; export type B = A;',
@@ -75,4 +86,17 @@ test("nonliteral imports fail until explicitly classified", (t) => {
   const result = scan(t, { "a.ts": "export const a = (path) => import(path);" });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /src\/a.ts:1: nonliteral import path/);
+});
+
+test("inline type imports retain runtime cycles in verbatim module mode", (t) => {
+  const result = scan(
+    t,
+    {
+      "a.ts": 'import { type B } from "./b"; export type A = B;',
+      "b.ts": 'import { type A } from "./a"; export type B = A;',
+    },
+    true,
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /1 runtime cycles/);
 });
