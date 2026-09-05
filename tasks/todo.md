@@ -431,6 +431,10 @@ passes with 1,788 tests and E2E passes all 257 tests. Review found no additional
 remains pending. Embedded executable-code coverage
 elsewhere remains queued; this extraction does not complete T05.
 
+Merged in [PR #606](https://github.com/Kevinjohn/capacitylens/pull/606), merge `38897fa4`.
+Main gate `33957789859`, docs, Docker, security, CodeQL and Scorecard pass. Main E2E `33957789670`
+and the dependency-update run remain in progress at this checkpoint.
+
 ### T06 — Document the naming and ownership vocabulary (F8)
 
 - [x] Specify PascalCase component/type files, camelCase hooks/utilities, kebab-case executable scripts,
@@ -475,6 +479,17 @@ Dependencies: T03, T06. Scope: one source category per change; ESLint/tsconfig, 
 Verification: representative-path lint checks, deliberate floating-promise failures, production Node-global
 and import failures, and passing filesystem-backed tests under their test config. Inspect legitimate
 platform requirements before narrowing shared types; preserve current runtime behavior.
+
+Progress (feature/server-script-promise-rules): server/scripts/**/*.ts now receives the existing
+typed floating-promise and misused-promise rules, matching server/tsconfig.json's include. Four
+effective-configuration regressions inspect every current TypeScript script, a future nested path,
+and tooling outside that project. Real lintText checks prove both promise violations fail and handled
+promises pass using an existing script's project. Before the change, both violations were accepted
+and the configuration/gate ownership tests failed. All four tests and existing server script lint
+now pass without script edits or suppressions. Both gates run the regressions. Independent review
+found no findings or nits. Node 24.19.0 application gate (3,666 tests) and server gate (1,788 tests)
+pass, and E2E passes all 257 tests. Merge evidence remains pending; the wider environment coverage
+and shared production/test split remain queued.
 
 ### Foundation checkpoint
 
