@@ -61,6 +61,18 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 - Scoped reads go through `useScopedData` / `scopedTables()`. The server independently authorizes
   every tenant operation from session membership.
 
+## Naming and module contracts
+
+- Follow the naming, import-path and ownership tables in
+  `docs-src/reference/development.md` → “Name modules and keep their contracts small”.
+- Match principal component/type exports with PascalCase filenames, hooks/utilities with
+  camelCase filenames, and executable scripts with kebab-case filenames. Cohesive collections
+  name their capability; preserve documented primitive, tool and public-contract exceptions.
+- Give extracted modules explicit inputs containing only consumed capabilities. Keep orchestration
+  visible and local helpers local; smaller files must reduce the reading context for a behavior.
+- Preserve existing account/workspace/provider vocabulary and semantic ID aliases at their owning
+  contracts. Naming changes never alter wire fields, stable identifiers or released migrations.
+
 ## Load-bearing invariants
 
 - Every scoped entity carries `accountId`; `activeAccountId` is never persisted.

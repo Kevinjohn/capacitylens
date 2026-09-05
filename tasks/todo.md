@@ -85,15 +85,24 @@ Count nested bodies consistently; do not accidentally give a long closure a free
 
 ### T06 — Document the naming and ownership vocabulary (F8)
 
-- [ ] Specify PascalCase component/type files, camelCase hooks/utilities, kebab-case executable scripts,
+- [x] Specify PascalCase component/type files, camelCase hooks/utilities, kebab-case executable scripts,
       matching principal exports, type-import style and one cross-feature import-path convention.
-- [ ] Define account/workspace/provider-account vocabulary and acronym/semantic-ID conventions; preserve
+- [x] Define account/workspace/provider-account vocabulary and acronym/semantic-ID conventions; preserve
       existing public names and wire fields through explicit compatibility exceptions.
-- [ ] Add a compact module ownership map and contributor examples; keep root instructions short.
+- [x] Add a compact module ownership map and contributor examples; keep root instructions short.
 
 Dependencies: none. Scope: medium, AGENTS.md, DECISIONS.md and `docs-src/reference/development.md` plus generated docs.
 Verification: examples match actual modules; list exceptions for primitives, migrations, config and test
 suffixes. Explain whether a filename denotes one component or a cohesive set; avoid generic `utils` buckets.
+
+Evidence (feature/maintainability-conventions): development-guide tables specify principal and
+collection names, acronym/ID vocabulary, import paths and explicit module ownership. Root guidance
+links to the detailed rules; DECISIONS.md records why small consumed contracts matter. Primitive,
+tool, generated and public-contract exceptions remain explicit. Existing differences are migration
+debt for T07, not a claim of current enforcement. Real module examples were checked against source.
+Docs build and visual inspection of the standalone page pass. Review corrected an import example;
+the corrected examples and rebuilt output were verified. Node 24.19.0 `gate` (3,650 tests),
+`gate:server` (1,730 tests), `e2e` (257 tests) and `docs:build` pass. Merge/CI evidence is pending.
 
 ### T07 — Enforce naming and imports (F8, F9)
 

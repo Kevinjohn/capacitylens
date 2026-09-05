@@ -144,6 +144,104 @@ relevant area:
   both `MAX_BATCH_OPS` and the client's `MAX_OPS_PER_BATCH` together, or move the database
   work to a genuinely isolated execution model.
 
+## Name modules and keep their contracts small
+
+For example, `ResourceLane.tsx` names its principal component, while `gestureMath.ts`
+names a cohesive set of gesture calculations. A contributor changing a calculation should
+need its implementation, its explicit inputs and focused tests. Moving the calculation
+into a helper that receives the whole scheduler state does not reduce that reading work.
+
+These conventions apply to new code and deliberate migrations. Existing differences are
+tracked debt; the naming-policy task adds exact exceptions before enforcing them. A green
+lint result does not yet prove that all these conventions hold.
+
+### Names and exports
+
+| Kind | Convention | Example or exception |
+| --- | --- | --- |
+| Principal component | PascalCase file and matching named export | `ResourceLane.tsx` exports `ResourceLane`. |
+| Principal type or interface | PascalCase file and matching named export | A new dedicated `SessionSummary.ts` would export `SessionSummary`. |
+| Hook | camelCase file and matching `use` export | `useScopedData.ts` exports `useScopedData`. |
+| Principal utility function | camelCase file and matching named export | `reloadPage.ts` exports `reloadPage`. |
+| Cohesive set of functions or types | camelCase capability name; name each export for its role | `gestureMath.ts`, `entities.ts`, `ports.ts`; keep a short ownership comment when the grouping is not obvious. |
+| Executable script | kebab-case filename | `check-import-cycles.mjs`, `rehearse-migrations.ts`. |
+| Constants | UPPER_SNAKE_CASE for fixed module policy values; camelCase for local values | `MAX_OPS_PER_BATCH`; a local `remainingAttempts`. |
+| Tests | Owner name plus `.test` or `.spec`, optionally a named behavior before the suffix | `ResourceLane.test.tsx`, `useStore.allocations.test.ts`. |
+
+Prefer named exports for application code. A framework-required default export, such as a
+Vite configuration, keeps its framework convention. A collection file must own one named
+capability; names such as `utils`, `helpers`, `misc` or a broad `index` barrel do not explain
+that ownership. Do not create a separate file for every small private helper.
+
+Source-owned UI primitives retain registry-compatible filenames such as `button.tsx` and
+`toggle-group.tsx`; this naming exception does not exempt them from local behavior review.
+Tool configuration, declaration files and generated outputs retain the names their tools
+require. Released migrations and database fixtures retain their exact names and contents.
+Package exports and externally consumed symbols need explicit compatibility exceptions
+until a separately authorized migration changes the contract. Existing filenames outside
+these categories are migration debt, not an open-ended naming exemption.
+
+Use ordinary acronym casing in new internal names: `OidcProvider`, `parseOidcClaims`,
+`HttpResponse`, `accountId`. Preserve existing exported semantic aliases, including `ID`,
+`ISODate`, `ISOTimestamp`, `PrincipalId`, `WorkspaceId` and `IsoInstant`. Use the alias owned
+by the relevant contract rather than replacing it with `string` or inventing a parallel
+alias. This convention introduces no branded IDs and changes no wire fields.
+
+### Account vocabulary
+
+| Term | Meaning and owning contract |
+| --- | --- |
+| Product account / workspace | A scheduling tenant. Product entities use `Account` and `accountId`; the portable account boundary uses `WorkspaceId`. Keep each existing contract's terminology. |
+| Principal | A person's identity across workspaces, represented by `PrincipalId` in the portable boundary. |
+| Membership | A principal's access and role in one workspace. |
+| Provider account | A linked external sign-in identity. The auth vendor's singular `account` table is not the product's plural `accounts` table. |
+| Session | Identity-global sign-in state, not workspace-local membership. |
+
+Name new adapters explicitly when they translate between these contracts. Preserve routes,
+SQL names, environment variables, IDs, emails, test-ids and serialized property names;
+a naming cleanup is not a public-contract migration. Display names in fixtures follow the
+comic-book naming policy in `AGENTS.md`, independently of these stable identifiers.
+
+### Import paths and ownership
+
+Import from the owning module, not through a broad re-export barrel. Use these paths
+consistently for each boundary:
+
+- Across workspace packages, use the declared `@capacitylens/shared/...` export. Never
+  reach into another package with `../../shared/src/...` in production code.
+- In the browser app, use `@/...` across feature directories and relative paths within
+  one feature. For example, scheduler `activityOptions.ts` imports `@/lib/displayOrder`;
+  `useSchedulerGridVirtualization.ts` imports `./virtualWindow`. Shared UI primitives and
+  `@/i18n` are explicit app-wide capabilities.
+- In server and shared code, use relative paths within the package; those packages have
+  no source-root alias. Keep cross-feature imports directed toward the owner below.
+- Use `import type` for declarations used only as types. In a mixed import, split the
+  type declarations into a separate `import type` statement from the same owner.
+
+Keep imports in readable groups: platform modules, external packages, shared package
+contracts, other features, then local modules. Sort specifiers within a group when order
+is irrelevant. Preserve side-effect import order and document order-sensitive setup;
+never apply a sorting fix that changes initialization behavior.
+
+| Owner | Responsibility | Allowed boundary |
+| --- | --- | --- |
+| `shared/src/domain`, `shared/src/lib`, `shared/src/types` | Pure scheduling rules and entities | Other pure shared modules; no browser, Node, HTTP or database capabilities. |
+| `shared/src/account` | Portable identity, workspace and membership contracts | Explicit ports and pure policy; no auth-vendor or storage implementation. |
+| `src/store` | Client mutations, IDs, timestamps and undo/redo | Shared domain rules and explicit local slice capabilities. |
+| `src/data` | Persistence, refresh and offline snapshot lifecycle | Adapter contracts and named state-owner operations. |
+| `src/account`, `src/auth` | Account protocol, session and identity coordination | Validated client results consumed by UI features. |
+| `src/components/scheduler` | Grid geometry, view-model and interactions | Scoped data and narrow actions; no persistence internals. |
+| `server/src/accounts/flows` | Portable account use-case coordination | Identity/admin ports, transaction and command-ledger contracts. |
+| `server/src/accounts/identityPort`, `adminPort` | Vendor and SQLite implementations | Their corresponding portable ports; vendor/storage details stay inside adapters. |
+| `server/src/routes`, `server/src/accounts/routes` | HTTP parsing, authorization and response mapping | Owned use cases and storage boundaries; UI visibility never authorizes an operation. |
+| `server/src/tenantStore.ts`, `server/src/tables` | Scoped product storage and column specifications | Explicit storage operations and immutable versioned migrations. |
+
+`src/store/useStore.ts`, `server/src/app.ts` and the auth configuration entry points compose
+their owned capabilities. Their ability to connect implementations is an explicit composition
+responsibility, not permission for neighboring helpers to import those implementations.
+An extraction must receive only the operations it consumes; avoid whole-store inputs,
+`ReturnType<typeof parentFactory>` contracts and mutable context bags at feature boundaries.
+
 ## Checks
 
 Run these before proposing a change:

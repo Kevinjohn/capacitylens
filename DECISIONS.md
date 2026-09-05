@@ -324,3 +324,21 @@ This is the short, present-tense record of decisions that constrain future work.
 - CodeQL runs in the public-repository security workflow. Private-repository runner/upload
   limitations are no longer part of the active CI policy.
 - Dependabot continues its monthly root-workspace updates independently of the runner policy.
+
+## Maintainable module boundaries
+
+- A module owns one named behavior or cohesive capability. Extractions must reduce the context
+  needed for a representative change: implementation, explicit consumed inputs and focused tests.
+  Shorter files alone are not evidence of improved modularity. Preserve visible orchestration,
+  state-owner invariants, transaction order and failure propagation.
+- Principal filenames match their named exports; cohesive collections name the capability they
+  own. Component/type names use PascalCase, hooks/utilities use camelCase, and executable scripts
+  use kebab-case. The detailed naming, import and ownership tables live in
+  `docs-src/reference/development.md`; root guidance stays short.
+- Existing product account names, portable workspace/principal aliases and vendor provider-account
+  names describe different contracts. Keep those distinctions and existing semantic aliases;
+  do not introduce branded IDs or rename public fields as part of structural cleanup.
+- Compatibility exceptions are explicit: source-owned primitives retain registry filenames,
+  tools retain required entry names, and shipped migrations/fixtures remain immutable. Other
+  existing naming differences are tracked migration debt. Enforcement must baseline exact paths
+  and reject new unclassified debt; documenting a convention does not itself make lint enforce it.
