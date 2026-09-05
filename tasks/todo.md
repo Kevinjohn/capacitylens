@@ -86,17 +86,32 @@ Follow-up validation: Node 24.19.0 `gate` (3,650 tests), `gate:server` (1,730 te
 no findings. The first browser run passed 252 tests and timed out in five company-picker flows;
 all ten affected-suite tests then passed in isolation. A full unchanged rerun passed all 257 tests.
 The initial failure cause remains unconfirmed; no product/test behavior was changed to obtain green.
-Merge/CI evidence is pending.
+Merged in [PR #590](https://github.com/Kevinjohn/capacitylens/pull/590), merge `182605ed`.
+Main gate `33940373222` and browser run `33940373331` passed, including Firefox, WebKit and strict OIDC.
 
 ### T03 — Integrate dependency checks into every gate (F2)
 
-- [ ] Replace the architecture suite's duplicate parser with T02 while preserving its storage/vendor rules.
-- [ ] Wire scanner/cycle regression tests into the root and relevant server gate.
-- [ ] Prove a newly introduced forbidden edge fails the gate entry point, including a dynamic edge.
+- [x] Replace the architecture suite's duplicate parser with T02 while preserving its storage/vendor rules.
+- [x] Wire scanner/cycle regression tests into the root and relevant server gate.
+- [x] Prove a newly introduced forbidden edge fails the gate entry point, including a dynamic edge.
 
 Dependencies: T02. Scope: medium, `scripts/check-import-cycles*`, root package scripts and
 `server/src/accounts/conformance/architecture.test.ts`.
 Verification: Node test runner for scanner tests; server architecture suite; both policy gate commands.
+
+Evidence (feature/dependency-gate-integration): the architecture suite now consumes the shared
+parser/resolver through a small typed declaration, retaining all existing SQL/vendor ownership checks.
+Six added fixtures failed with the old parser: template-literal imports, inline type-only imports
+and exports, comment text, unresolved paths and nonliteral expressions. All 27 architecture tests
+and 13 dependency tests pass with the shared parser. Both local gates and the server CI static job
+run the dependency regression command. Temporary dynamic-cycle probes made both `gate` and
+`gate:server` fail at the cycle check. A temporary template-literal import of controlTables from an
+unlisted server sibling made `test:account-conformance` fail its storage-ownership assertion.
+All probes were removed. Focused server type-check and architecture lint pass.
+Node 24.19.0 `gate` (3,650 tests), `gate:server` (1,737 tests), `docs:build`,
+rendered-page inspection and workflow YAML parsing pass. Both gate logs include all 13 scanner
+regressions. Independent review found no findings. All 257 browser tests pass.
+Merge/CI evidence is pending.
 
 ### T04 — Enforce ownership by directory (F2, F9)
 

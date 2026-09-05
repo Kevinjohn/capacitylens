@@ -117,6 +117,8 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Check cryptographic implementation inventory
         run: pnpm run security:crypto-inventory
+      - name: Check dependency graph and scanner regressions
+        run: pnpm run policy:import-cycles && pnpm run policy:dependencies:test
       - name: Type-check server
         run: pnpm --filter capacitylens-server type-check
       - name: Lint server and shared packages

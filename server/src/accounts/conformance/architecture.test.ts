@@ -1,21 +1,16 @@
 import { afterAll, describe, expect, it } from "vitest";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, relative, resolve, sep } from "node:path";
+
+import { createDependencyParser, resolveDependency } from "../../../../scripts/dependency-scanner.mjs";
 
 const serverRoot = resolve(import.meta.dirname, "../..");
 const sharedRoot = resolve(serverRoot, "../../shared/src");
 const sharedAccountRoot = resolve(sharedRoot, "account");
 const browserRoot = resolve(serverRoot, "../../src");
+const repositoryRoot = resolve(serverRoot, "../..");
+const parseDependencies = createDependencyParser(repositoryRoot);
 
 const appBoundaryFiles = [
   "app.ts",
@@ -49,39 +44,17 @@ function sourceFiles(directory: string): string[] {
   });
 }
 
-function resolveModule(base: string): string | undefined {
-  const candidates = [
-    `${base}.ts`,
-    `${base}.tsx`,
-    `${base}.mts`,
-    `${base}.mjs`,
-    base,
-    resolve(base, "index.ts"),
-    resolve(base, "index.tsx"),
-  ];
-  return candidates.find((candidate) => existsSync(candidate) && statSync(candidate).isFile());
-}
-
 function runtimeImports(file: string): string[] {
-  const source = readFileSync(file, "utf8");
-  const imports = new Set([
-    ...[...source.matchAll(/import\s+(?!type\b)[\s\S]*?\sfrom\s+['"]([^'"]+)['"]/g)].map((match) => match[1]!),
-    ...[...source.matchAll(/(?:import|export)\s*['"]([^'"]+)['"]/g)].map((match) => match[1]!),
-    ...[...source.matchAll(/import\s*\(\s*['"]([^'"]+)['"]\s*\)/g)].map((match) => match[1]!),
-    ...[...source.matchAll(/export\s+(?!type\b)[\s\S]*?\sfrom\s+['"]([^'"]+)['"]/g)].map((match) => match[1]!),
-  ]);
-  return [...imports].flatMap((specifier) => {
-    const base = specifier.startsWith(".")
-      ? resolve(dirname(file), specifier)
-      : specifier.startsWith("@capacitylens/shared/")
-        ? resolve(sharedRoot, specifier.slice("@capacitylens/shared/".length))
-        : specifier.startsWith("@/")
-          ? resolve(browserRoot, specifier.slice(2))
-          : null;
-    if (base === null) return [];
-    const resolved = resolveModule(base);
-    return resolved ? [resolved] : [];
-  });
+  const dependencies = new Set<string>();
+  for (const edge of parseDependencies(readFileSync(file, "utf8"), file)) {
+    const resolved = resolveDependency(edge.specifier, file, repositoryRoot);
+    if (resolved.classification === "unresolved" || resolved.classification === "nonliteral") {
+      const target = edge.specifier === null ? edge.expression : edge.specifier;
+      throw new Error(`${relative(repositoryRoot, file)}:${edge.line}: ${resolved.classification} import ${target}`);
+    }
+    if (resolved.classification === "internal" && edge.kind === "runtime") dependencies.add(resolved.path);
+  }
+  return [...dependencies];
 }
 
 function dependencyPath(
@@ -420,11 +393,26 @@ describe("scanner calibration", () => {
     expect(readFileSync(sibling, "utf8")).toMatch(accountSql);
   });
 
+  it("rejects unresolved internal edges instead of silently losing ownership checks", () => {
+    const source = fixture("unresolved.ts", 'void import("./missing-module");');
+    expect(() => runtimeImports(source)).toThrow(/unresolved.*missing-module/);
+  });
+
+  it("rejects nonliteral imports until their dependencies are explicitly classified", () => {
+    const source = fixture("nonliteral.ts", "void import(modulePath);");
+    expect(() => runtimeImports(source)).toThrow(/nonliteral.*modulePath/);
+  });
+
   it.each([
     ['import { value } from "./c";', true],
     ['export { value } from "./c";', true],
     ['export * from "./c";', true],
     ['import "./c";', true],
+    ['void import("./c");', true],
+    ["void import(`./c`);", true],
+    ['import { type T } from "./c";', false],
+    ['export { type T } from "./c";', false],
+    ['// import { value } from "./c";\nexport const value = 1;', false],
     ['export type { T } from "./c";', false],
     ['import type { T } from "./c";', false],
   ])("traces runtime dependencies through %s", (source, runtime) => {

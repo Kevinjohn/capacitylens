@@ -375,6 +375,9 @@ Explicit `import type` and `export type` clauses are excluded. Inline `type` bin
 follow each package's `verbatimModuleSyntax` setting: an empty import or re-export can
 still initialize its module. The check reads the effective compiler configurations,
 including inherited settings, and rejects missing or invalid configurations.
+Both gates run `pnpm run policy:dependencies:test` to verify the scanner and cycle checker
+against regression fixtures. The account architecture suite uses the same parser and
+resolver for its runtime ownership checks; unresolved and nonliteral imports fail visibly.
 
 Both gates also run the cryptographic implementation-path discovery check: a new
 primitive, certificate/key path or TLS configuration must be reviewed into
