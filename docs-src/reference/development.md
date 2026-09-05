@@ -272,6 +272,25 @@ Both gates check the production compiler graph, including dynamically imported d
 Node types and accidental test imports. Colocated tests use `shared/tsconfig.test.json` with Node
 types and typed promise linting. `pnpm --filter @capacitylens/shared type-check` checks both projects.
 
+Both gates verify the effective lint configuration against the authored source inventory and
+representative new files. The JavaScript and TypeScript recommended rules cover scripts and
+declarations too, including `.mts` and `.cts`. Vue documentation components receive the Vue
+essential rules for their scripts and templates. Generated output and prose are excluded.
+
+| Source | Promise linting | Environment and other checks |
+| --- | --- | --- |
+| App `.ts`/`.tsx`, including tests | Typed | React rules and browser globals; filesystem tests use the Node compiler project. |
+| Server `.ts` files under `server/src/` and `server/scripts/`, including tests | Typed | Node compiler project and globals. |
+| Shared source and colocated tests | Typed | Separate pure production and Node test projects, as described above. |
+| E2E, root/package configuration and remaining scripts | Untyped | Recommended lint rules; compiler checks apply where a tool has its own TypeScript project. |
+| Public scripts and docs lightbox handler | Untyped | Browser globals; the offline worker receives service-worker globals instead. |
+| VitePress build modules and theme | Untyped | Node build-time globals, browser theme globals, and Vue template checks. |
+
+“Untyped” means ESLint does not load a TypeScript project for promise analysis. It does not
+exempt the source from linting. Real temporary production and test files prove that floating
+and misused promises fail in all three typed packages; handled promises pass. Category-specific
+regressions also check browser/worker isolation, shared purity and documentation source coverage.
+
 The enforced browser/shared coverage floors:
 
 | Metric     | Floor |
