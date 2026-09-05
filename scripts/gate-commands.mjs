@@ -17,6 +17,8 @@ const structuralChecks = [
 const commands = {
   app: [
     ["run", "gate:deps"],
+    ["run", "policy:dependabot"],
+    ["run", "policy:dependabot:test"],
     ["run", "security:crypto-inventory"],
     ["run", "security:gitleaks-config"],
     ["run", "policy:dco:test"],
