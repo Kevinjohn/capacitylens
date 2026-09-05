@@ -381,6 +381,27 @@ source-owned UI primitives. Both gates reject growth, duplicate entries, invalid
 missing files and exceptions whose files now meet their role's ceiling. Remove a resolved entry
 when splitting its file. Both gates run the checker and its regression suite.
 
+Both gates run `pnpm run policy:function-budgets` and its regression suite. Measured functions
+have limits of 100 nonblank, non-comment lines, cyclomatic complexity 12 and statement nesting
+depth 4. The check includes nested callbacks, memo-wrapped components, methods, class scopes,
+Vue's authored JavaScript regions and shell function declarations. Nested bodies count toward
+their enclosing function's length; their complexity and nesting are measured independently.
+Class field initializers have complexity and nesting limits; their function values receive
+separate length measurements.
+
+`scripts/function-budget-exceptions.json` records existing debt by exact file, symbol and metric,
+with a measured growth cap, reason and cleanup task. A length exception does not relax the other
+limits. The check rejects growth, duplicate or invalid entries, deleted symbols and resolved
+metrics. Remove each exception when its metric meets the limit. Symbol identities use lexical
+ownership; moving or reordering indistinguishable callbacks requires reviewing their entries.
+
+Run `pnpm run policy:function-budgets --json` for the full current function inventory and
+coverage boundaries. Physical limits cover CSS and HTML, but this function gate does not yet
+measure their embedded code, code in configuration/data files or patch fragments, or top-level
+module and shell control flow outside functions. Data includes the command strings in `package.json`.
+These remaining coverage tasks are recorded in T05.
+Generated output and prose examples remain explicit exclusions.
+
 Both gates also run `pnpm run policy:import-cycles` to reject runtime import cycles.
 Explicit `import type` and `export type` clauses are excluded. Inline `type` bindings
 follow each package's `verbatimModuleSyntax` setting: an empty import or re-export can
