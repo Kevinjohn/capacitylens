@@ -1,10 +1,243 @@
 {
-  "ceiling": 400,
-  "permanent": [
+  "ceilings": {
+    "production": 400,
+    "test": 600,
+    "declaration": 400
+  },
+  "exceptions": [
+    {
+      "path": "server/src/accounts/conformance/accountFlows.conformance.test.ts",
+      "baseline": 1433,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "server/src/accounts/conformance/localIdentityPort.conformance.test.ts",
+      "baseline": 1284,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "server/src/accounts/sqliteAccountAdminPort.test.ts",
+      "baseline": 1340,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "server/src/accounts/state.test.ts",
+      "baseline": 623,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "server/src/app.auth.test.ts",
+      "baseline": 2070,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "server/src/app.authz.test.ts",
+      "baseline": 1444,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "server/src/app.invites.test.ts",
+      "baseline": 1167,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "server/src/app.lifecycle.test.ts",
+      "baseline": 1329,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "server/src/app.members.test.ts",
+      "baseline": 1652,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "server/src/app.test.ts",
+      "baseline": 3698,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "server/src/audit.test.ts",
+      "baseline": 895,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "server/src/auth.test.ts",
+      "baseline": 969,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "server/src/backup.test.ts",
+      "baseline": 841,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "server/src/controlTables.test.ts",
+      "baseline": 698,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "server/src/db.migrate.test.ts",
+      "baseline": 3155,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "server/src/strictOidc.test.ts",
+      "baseline": 878,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "shared/src/data/migrate.test.ts",
+      "baseline": 671,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "shared/src/domain/lifecycle.test.ts",
+      "baseline": 970,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "shared/src/domain/mutations.test.ts",
+      "baseline": 1748,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "shared/src/lib/integrity.test.ts",
+      "baseline": 813,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/auth/AuthProvider.test.tsx",
+      "baseline": 1183,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/components/AppShell.test.tsx",
+      "baseline": 1082,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/components/ImportExport.test.tsx",
+      "baseline": 947,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/components/accounts/AccountPicker.test.tsx",
+      "baseline": 777,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/components/common/ui.test.tsx",
+      "baseline": 1338,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/components/invites/InviteAccept.test.tsx",
+      "baseline": 887,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/components/scheduler/AllocationBar.interaction.test.tsx",
+      "baseline": 1279,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/components/scheduler/AllocationModal.test.tsx",
+      "baseline": 2643,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/components/scheduler/SchedulerGrid.test.tsx",
+      "baseline": 665,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/components/scheduler/schedulerModel.test.ts",
+      "baseline": 3163,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/components/settings/MembersSection.test.tsx",
+      "baseline": 2432,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/components/settings/SettingsView.test.tsx",
+      "baseline": 623,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
     {
       "path": "src/components/ui/sidebar.tsx",
-      "reason": "shadcn-generated"
+      "baseline": 735,
+      "reason": "Review and separate source-owned sidebar controls without losing composition behavior.",
+      "task": "T19"
+    },
+    {
+      "path": "src/data/ServerSyncAdapter.test.ts",
+      "baseline": 2562,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/data/offlineCache.test.ts",
+      "baseline": 1218,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/data/persist.test.ts",
+      "baseline": 2943,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/index.css",
+      "baseline": 630,
+      "reason": "Separate design tokens and cohesive global style layers while preserving cascade order.",
+      "task": "T20"
+    },
+    {
+      "path": "src/lib/capacity.test.ts",
+      "baseline": 869,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
+    },
+    {
+      "path": "src/store/useStore.crud.test.ts",
+      "baseline": 1058,
+      "reason": "Split by behavior while preserving assertions and integration coverage.",
+      "task": "T09"
     }
-  ],
-  "temporary": []
+  ]
 }

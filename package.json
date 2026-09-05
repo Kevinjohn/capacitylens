@@ -71,7 +71,7 @@
     "mutation": "pnpm run paraglide:compile && stryker run",
     "rehearse:migrations": "pnpm --filter capacitylens-server rehearse:migrations",
     "test:server": "pnpm --filter capacitylens-server test",
-    "gate:server": "pnpm run security:crypto-inventory && pnpm run policy:source-inventory && pnpm run policy:source-inventory:test && pnpm run policy:function-metrics:test && pnpm run policy:shell-metrics:test && pnpm run policy:vue-metrics:test && pnpm run policy:sonner-csp:test && pnpm run policy:file-sizes && pnpm run policy:import-cycles && pnpm run policy:dependencies:test && prettier --check server shared && pnpm --filter capacitylens-server type-check && pnpm --filter capacitylens-server build:runtime && pnpm --filter capacitylens-server test && eslint server shared --max-warnings 0",
+    "gate:server": "pnpm run security:crypto-inventory && pnpm run policy:source-inventory && pnpm run policy:source-inventory:test && pnpm run policy:function-metrics:test && pnpm run policy:shell-metrics:test && pnpm run policy:vue-metrics:test && pnpm run policy:sonner-csp:test && pnpm run policy:file-sizes && pnpm run policy:file-sizes:test && pnpm run policy:import-cycles && pnpm run policy:dependencies:test && prettier --check server shared && pnpm --filter capacitylens-server type-check && pnpm --filter capacitylens-server build:runtime && pnpm --filter capacitylens-server test && eslint server shared --max-warnings 0",
     "policy:source-inventory": "node scripts/source-inventory.mjs",
     "policy:source-inventory:test": "node --test scripts/source-inventory.test.mjs",
     "policy:function-metrics:test": "node --test scripts/function-metrics.test.mjs",

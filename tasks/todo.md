@@ -272,12 +272,39 @@ Node 24.19.0 application gate (3,650 tests) and server gate (1,770 tests) pass. 
 had three company-selection timeouts before palette assertions (254 passed); browser inputs are
 unchanged from main. All 14 palette tests passed with tracing, followed by all 257 E2E tests in a
 quiet worktree with reload logging. The initial cause remains unconfirmed; no timeout or assertion
-was relaxed. Image workflow evidence remains pending. Embedded TLS renewal/configuration coverage
+was relaxed. Docker build and production smoke `33950100654` passed on the exact feature commit
+`2b6fdd2fd9693817aae8e94fe81d2862e1250125`; Compose waited for the API container to report healthy
+before starting nginx. Merged in PR #599 (`a690972a9373dec96ba6ab47e718f9735b0935ad`).
+Main gate `33950406954`, Docker, docs, CodeQL, security, Scorecard and the dependency update passed.
+Browser run `33950406927` passed, including Chromium, Firefox, WebKit and pinned OIDC.
+Embedded TLS renewal/configuration coverage
 and complete structural budget enforcement remain queued.
 
 Inventory follow-up: importing `source-inventory.mjs` from `node --input-type=module -` fails in
 its CLI-entry guard because it calls `realpathSync("-")`. The parameterless stdin invocation works.
 Cover the importable API under an explicit stdin entry point when wiring the structural-policy CLI.
+
+Progress (feature/source-file-budgets): physical-file enforcement now consumes the canonical source
+inventory: 1,036 source files instead of 588 tracked app/server/shared TS files. Production and
+declaration files have a 400-line ceiling; test and test-support files have a 600-line ceiling.
+There are 39 exact measured exceptions: 37 test suites owned by T09, the 735-line source-owned sidebar
+owned by T19, and the 630-line global stylesheet owned by T20. Every entry has a non-growing cap,
+reason and verified task heading. No permanent/unbounded exception remains. Duplicate entries,
+invalid metadata, unknown roles, missing files, and resolved or growing debt fail. Both gates run
+the policy and its regression suite. Prose/data/assets/configuration/patch categories remain separate;
+this slice does not claim embedded-code or function-budget completion.
+Eleven regressions pass. The old checker accepted an untracked 401-line script and 601-line test;
+the new checker rejects both. Temporary probes were removed. Changed functions meet 100/12/4 limits.
+Review identified a task-reference gap: a syntactically valid but nonexistent T99 owner passed.
+A failing regression now passes with task IDs checked against headings in tasks/todo.md. The old
+approximate function diagnostics are removed; canonical collectors and function enforcement remain
+in this task's queue. Development documentation records the exact scope and exception rules.
+The task-reference fix and documentation passed independent review with no remaining findings or
+nits. Docs build passes; the rendered development guide has correct policy paragraphs, breadcrumbs
+and images. Node 24.19.0 application gate (3,650 tests), server gate (1,770 tests), E2E (257 tests),
+and formatter checks pass. Both complete gate commands reject the same 401-line script and 601-line
+test probes at file-size enforcement before their application/server test suites. Probes are removed;
+the clean policy check passes with exactly 39 exceptions. Merge/main CI evidence remains pending.
 
 ### T06 — Document the naming and ownership vocabulary (F8)
 
