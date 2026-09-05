@@ -514,6 +514,15 @@ Scorecard all pass. PR #606's browser run was superseded by this newer main run:
 and pinned OIDC passed on #606; WebKit was cancelled by workflow concurrency. The complete succeeding
 run passes with the Dependabot validator unchanged. PR #606's dependency-update run also passed.
 
+T08 CI repair (feature/shared-lint-ci-fixture): main gate `33959389758` on PR #608 failed the
+shared test-project promise probe. The failure reproduces locally with CI=true: the typed parser's
+single-run mode reads the project from disk, so lintText over an existing path did not diagnose the
+supplied floating promise. The regression now lints real temporary test files, one with a floating
+promise and one with an awaited promise; both retain a filesystem import. Fixtures are removed after
+the test. All seven checks pass in normal and CI modes. Node 24.19.0 CI-mode application gate
+(3,666 tests) and server gate (1,788 tests) pass. Review found no findings or nits. E2E passes all
+257 tests. Branch CI verification remains pending.
+
 ### Foundation checkpoint
 
 - [ ] T01–T08 complete; negative fixtures prove the advertised guarantees.
