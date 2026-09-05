@@ -18,7 +18,7 @@
       "purpose": "Unkeyed SHA-256 source-integrity digests for deliberate review of source-owned UI primitive changes"
     },
     {
-      "path": "server/scripts/rehearse-migrations.ts",
+      "path": "server/scripts/rehearse/rehearsalChecks.ts",
       "purpose": "Unkeyed SHA-256 database-state digests for temporary anonymised migration rollback rehearsals"
     },
     {

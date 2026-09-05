@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Internal
+
+- Separate the migration rehearsal ledger, anonymiser and checks from the command-line driver,
+  with direct tests for schema coverage and anonymisation helpers.
+
 ### Fixed
 
 - Migration rehearsal failed closed for databases newer than schema v16 because the anonymiser
