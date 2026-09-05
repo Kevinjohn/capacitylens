@@ -533,6 +533,10 @@ the test. All seven checks pass in normal and CI modes. Node 24.19.0 CI-mode app
 (3,666 tests) and server gate (1,788 tests) pass. Review found no findings or nits. E2E passes all
 257 tests. Branch CI verification remains pending.
 
+Repair merged in [PR #609](https://github.com/Kevinjohn/capacitylens/pull/609), merge `f620c114`.
+Branch gate `33960023633` passed on `45bae4fa`. PR #608's main E2E `33959389740` also passed;
+the CI-only fixture failure did not affect the runtime or browser suites.
+
 ### Foundation checkpoint
 
 - [ ] T01–T08 complete; negative fixtures prove the advertised guarantees.
