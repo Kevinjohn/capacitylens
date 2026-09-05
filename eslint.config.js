@@ -150,9 +150,9 @@ export default defineConfig([
     },
   },
 
-  // Generated shadcn/ui primitives live here. They legitimately co-export
-  // non-component values (variant maps, etc.), which trips the Fast-Refresh
-  // rule; turn it off for generated files only, not hand-written components.
+  // Source-owned shadcn primitives are checked in and maintained here. They
+  // legitimately co-export non-component values (variant maps, etc.), which
+  // trips the Fast-Refresh rule; turn it off for these primitives only.
   {
     files: ["src/components/ui/**"],
     rules: { "react-refresh/only-export-components": "off" },
