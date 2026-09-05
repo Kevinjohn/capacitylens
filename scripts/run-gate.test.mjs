@@ -70,7 +70,7 @@ test("a command failure keeps its exit code and prevents every later check", (t)
   const fake = fixture(t);
   for (const gate of ["app", "server"]) {
     const commands = gateCommands(gate);
-    const failing = commands.findIndex((args) => args.includes("policy:function-budgets"));
+    const failing = commands.findIndex((args) => args.includes("policy:file-sizes"));
     assert.ok(failing > 0);
     const result = fake.run([gate], {
       CAPACITYLENS_GATE_FAIL_COMMAND: JSON.stringify(commands[failing]),

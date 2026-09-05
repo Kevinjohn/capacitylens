@@ -6,8 +6,6 @@ import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 import { readFileSync } from "node:fs";
 import { builtinModules } from "node:module";
-import vue from "eslint-plugin-vue";
-import vueParser from "vue-eslint-parser";
 
 // Standard web types preserve the existing Headers contract and UTF-8/UUID capabilities.
 // Their ambient declarations must not grant shared production access to a browser or Node runtime.
@@ -43,8 +41,12 @@ export default defineConfig([
     // linting them double-parses every file and confuses the typed parser's tsconfig-root lookup.
     ".stryker-tmp",
     "reports",
-    // Generated documentation is excluded; authored docs scripts and components are linted below.
+    // Documentation: docs/ is the generated build, docs-src/ is hand-maintained
+    // prose (plus its VitePress config) — linters keep their hands off both.
     "docs",
+    "docs-src",
+    "scripts/docs-lightbox.js",
+    "scripts/docs-standalone.mjs",
   ]),
 
   // Authored JavaScript shares a baseline, but runtime globals belong to its execution environment.
@@ -54,15 +56,11 @@ export default defineConfig([
   },
   {
     files: ["**/*.{js,jsx,mjs,cjs}"],
-    ignores: ["public/**", "scripts/docs-lightbox.js", "docs-src/.vitepress/theme/**"],
+    ignores: ["public/**"],
     languageOptions: { globals: globals.node },
   },
   {
-    files: [
-      "public/**/*.{js,jsx,mjs,cjs}",
-      "scripts/docs-lightbox.js",
-      "docs-src/.vitepress/theme/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts,vue}",
-    ],
+    files: ["public/**/*.{js,jsx,mjs,cjs}"],
     ignores: ["public/offline-worker.js"],
     languageOptions: { globals: globals.browser },
   },
@@ -92,8 +90,7 @@ export default defineConfig([
 
   // Node packages: Node globals (process, etc.).
   {
-    files: ["server/**/*.ts", ...sharedTestFiles, "shared/vitest.config.ts", "docs-src/**/*.{ts,mts,cts}"],
-    ignores: ["docs-src/.vitepress/theme/**"],
+    files: ["server/**/*.ts", ...sharedTestFiles, "shared/vitest.config.ts"],
     languageOptions: { globals: globals.node },
   },
 
@@ -150,21 +147,6 @@ export default defineConfig([
         project: ["./shared/tsconfig.test.json"],
         tsconfigRootDir: import.meta.dirname,
       },
-    },
-  },
-
-  // VitePress Vue components are authored source. TypeScript script blocks use the existing
-  // parser; Vue's essential rules check template syntax and script/template integration.
-  {
-    files: ["docs-src/**/*.vue"],
-    extends: [js.configs.recommended, tseslint.configs.recommended, vue.configs["flat/essential"]],
-    languageOptions: {
-      parser: vueParser,
-      parserOptions: { parser: tseslint.parser },
-    },
-    rules: {
-      // Repository component names use PascalCase; they do not require a second word.
-      "vue/multi-word-component-names": "off",
     },
   },
 
