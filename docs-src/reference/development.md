@@ -264,6 +264,14 @@ enforced coverage floors, rejects any new measured executable module with zero c
 lines, and builds the SPA. A short exact-file allow-list records existing zero-coverage
 debt; broad patterns are forbidden so unrelated new files can't inherit an exception.
 
+Shared production compiles without Node types. Its standard web declarations preserve the existing
+`Headers` contract, UUID generation and UTF-8 encoding; lint permits ECMAScript globals except
+`globalThis`, plus `console`, `crypto` and `TextEncoder`. Passing the entire global object would bypass
+the named capabilities. Browser and Node runtime globals and Node imports are rejected.
+Both gates check the production compiler graph, including dynamically imported declarations, for
+Node types and accidental test imports. Colocated tests use `shared/tsconfig.test.json` with Node
+types and typed promise linting. `pnpm --filter @capacitylens/shared type-check` checks both projects.
+
 The enforced browser/shared coverage floors:
 
 | Metric     | Floor |
