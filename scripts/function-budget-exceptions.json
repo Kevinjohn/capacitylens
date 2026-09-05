@@ -1403,7 +1403,7 @@
     "path": "server/src/internalTls.test.ts",
     "symbol": "function:describe(\"loadInternalTls\") callback",
     "metric": "lines",
-    "baseline": 224,
+    "baseline": 212,
     "reason": "Split behavior groups and callbacks while preserving assertions, fixtures and integration coverage.",
     "task": "T09"
   },

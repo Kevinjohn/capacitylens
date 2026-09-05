@@ -54,6 +54,8 @@ jobs:
           done
           echo "api never became healthy" >&2
           exit 1
+      - name: Verify live internal TLS generation
+        run: docker compose exec -T api node scripts/verify-tls-renewal.mjs
       - name: Smoke test security headers
         run: |
           headers="$(curl -fsS -D - -o /dev/null http://localhost:8080/)"

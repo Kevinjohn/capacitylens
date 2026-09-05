@@ -241,17 +241,4 @@ describe("loadInternalTls", () => {
       rmSync(root, { recursive: true, force: true });
     }
   }, 20_000);
-
-  it("coordinates both consumers and verifies the live generation before reporting success", () => {
-    const script = readFileSync(new URL("../../scripts/renew-internal-tls.sh", import.meta.url), "utf8");
-    const stop = script.indexOf("docker compose stop web api");
-    const rotate = script.indexOf("CAPACITYLENS_INTERNAL_TLS_ROTATE=1");
-    const restart = script.indexOf("--force-recreate --wait");
-    const verify = script.indexOf('http.get("http://web:8080/api/health"');
-    expect(stop).toBeGreaterThan(0);
-    expect(rotate).toBeGreaterThan(stop);
-    expect(restart).toBeGreaterThan(rotate);
-    expect(verify).toBeGreaterThan(restart);
-    expect(script).toContain("health.internalTls?.fingerprintSha256 !== marker");
-  });
 });

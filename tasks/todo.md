@@ -331,6 +331,29 @@ and follow-up review found no issues. The final inventory has 16,360 units in 1,
 Node 24.19.0 application gate (3,650 tests), server gate (1,770 tests), focused lint/formatter checks
 and docs build pass. The rendered guide has the correct policy paragraphs, coverage limitations,
 sidebar, breadcrumbs and intact images. All 257 browser tests pass in an unchanged worktree.
+Merged in [PR #601](https://github.com/Kevinjohn/capacitylens/pull/601), merge `82516aa9`.
+Main gate `33952632902` and browser run `33952632933` passed, including all three browsers
+and pinned OIDC. Docker, docs, security, CodeQL, Scorecard and Dependabot also passed.
+
+Progress (feature/tls-renewal-verifier): the coordinated renewal shell command calls a dedicated
+server script for live-generation verification. The 45-line shell workflow is now 18 lines, retaining
+the same build/stop/rotate/restart order and the comments explaining the maintenance window and
+nginx verification path. The 27-line verifier preserves the Compose URL, trimmed marker, strict
+fingerprint equality, 2xx status bounds, response parsing and error/exit behavior. Its four callbacks
+are now measured: maximum 19 code lines, complexity six and nesting depth two. No new exception is
+needed. Moving the old orchestration assertion alongside the behavior tests lowers the existing
+internalTls test-suite length baseline from 224 to 212.
+Eighteen characterization cases passed against the original inline command and the extracted script.
+With the moved order/wiring assertion and existing TLS tests, all 36 focused cases pass. The fixture
+asserts the exact Compose destination before redirecting only that request to a real ephemeral HTTP
+server; production code receives no test URL option. A predicate change now has a direct script owner
+and focused behavior tests, without shell-string quoting. The deployed production package contains
+the byte-identical script, and that copy passes a real HTTP probe. Cryptographic discovery remains
+unchanged at 42 implementation paths; the verifier compares an existing digest and adds no primitive
+or TLS configuration. The Docker smoke workflow now executes it through the actual Compose network.
+Independent review found no findings or nits. Node 24.19.0 application gate (3,650 tests), server
+gate (1,788 tests), focused lint and formatter checks pass. All 257 browser tests pass in an
+unchanged worktree. Image workflow evidence remains pending.
 
 ### T06 — Document the naming and ownership vocabulary (F8)
 
