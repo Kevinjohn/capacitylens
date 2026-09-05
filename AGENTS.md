@@ -39,6 +39,9 @@ change:
   span more than a couple of files.
 - Compare footprints before serialising. Pull requests touching disjoint files may be validated and
   landed in parallel; serialise only where they genuinely share a file.
+- Disjoint pull requests in one batch may be validated once, on their integrated tree, before any
+  of them is submitted; main CI validates each merge. A branch that changes after that run is
+  re-integrated and validated again.
 - Take one release for the batch, not one per issue. See "Version and CI policy".
 - Sequence work that captures screenshots or other generated assets last, after every code change
   in the batch has landed. See "Documentation".
