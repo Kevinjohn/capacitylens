@@ -46,7 +46,7 @@ function measuredNode(node) {
   return node;
 }
 
-function collector(entries) {
+function collector(entries, programSymbol) {
   return {
     meta: { schema: [] },
     create(context) {
@@ -60,10 +60,10 @@ function collector(entries) {
         onCodePathStart(path, node) {
           const owner = stack.at(-1)?.symbol;
           const measured = measuredNode(node);
-          const symbol = path.origin === "program" ? null : symbolFor(node, path.origin, owner);
+          const symbol = path.origin === "program" ? programSymbol : symbolFor(node, path.origin, owner);
           const entry = {
             symbol,
-            origin: path.origin,
+            origin: path.origin === "program" && programSymbol ? "embedded-region" : path.origin,
             startLine: measured.loc.start.line,
             endLine: measured.loc.end.line,
             lines:
@@ -106,18 +106,27 @@ function collector(entries) {
  */
 export function measureFunctions(source, filename) {
   if (!/\.(?:[cm]?[jt]s|[jt]sx)$/.test(filename)) throw new Error(`Unsupported function source: ${filename}`);
+  return measureWithParser(source, filename, {
+    parser: tseslint.parser,
+    sourceType: /\.(cjs|cts)$/.test(filename) ? "commonjs" : "module",
+    parserOptions: { ecmaFeatures: { jsx: true } },
+  });
+}
+
+/**
+ * Collect metrics through a public ESLint parser, retaining original source coordinates.
+ * A named program measures an authored embedded region as well as its nested functions;
+ * it does not represent a generated framework callback. Parser failures remain fatal.
+ */
+export function measureWithParser(source, filename, languageOptions, programSymbol = null) {
   const entries = [];
   const messages = new Linter().verify(
     source,
     [
       {
-        files: ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
-        languageOptions: {
-          parser: tseslint.parser,
-          sourceType: /\.(cjs|cts)$/.test(filename) ? "commonjs" : "module",
-          parserOptions: { ecmaFeatures: { jsx: true } },
-        },
-        plugins: { metrics: { rules: { collect: collector(entries) } } },
+        files: ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts,vue}"],
+        languageOptions,
+        plugins: { metrics: { rules: { collect: collector(entries, programSymbol) } } },
         rules: { "metrics/collect": "error" },
       },
     ],

@@ -204,7 +204,40 @@ Node 24.19.0 `gate` (3,650 tests), `gate:server` (1,752 tests) and `e2e` (257 te
 The first server check lacked server dependencies after the root-only package addition; a frozen install
 of all three workspace projects resolved it without code changes. The lockfile remained current, and
 existing documentation-tooling peer warnings were also present in the primary checkout.
-Merge/CI evidence is pending.
+Merged in [PR #595](https://github.com/Kevinjohn/capacitylens/pull/595), merge `fffa5331`.
+Main gate `33946739998` and browser run `33946739996` passed, including all browsers and pinned OIDC.
+
+Progress (feature/vue-source-metrics): Vue SFC scripts and authored JavaScript regions in templates
+and CSS bindings share the existing ESLint metric collector. Dynamic arguments, directives, event
+statements, interpolations, loop iterables/alias defaults and slot defaults are included. Each embedded
+region has independent metrics and lexical identities for nested real functions. Regions use the same
+proposed budgets as functions, preventing long event handlers or expressions from becoming exemptions.
+The metric model follows authored source: it does not invent Vue-generated render callbacks or count
+template directives as generated JavaScript branches. Template markup retains the physical file budget.
+Original parser coordinates and comments preserve physical line counts through HTML entities and Unicode.
+AST clones keep parser-owned parent graphs intact. Unsupported blocks/languages, external sources,
+duplicate/unclosed blocks, recovered expressions and malformed CSS fail visibly. PostCSS delimiter
+validation closes a parser skip for unterminated CSS v-bind(). New dependencies are development-only;
+the scope manager and PostCSS versions match those already locked in the workspace.
+Both local gates run Vue regressions. Remaining embedded code includes JavaScript in TLS renewal and
+Docker health checks, alongside configuration/HTML coverage, complete inventory and budget enforcement.
+All 13 Vue and 13 JS/TS regression tests pass, including exact budget boundaries, independent nested
+scopes, class initializers, JSX/TSX, comments/entities/Unicode, stable identities and parser recovery.
+The authored documentation component has four functions and eight regions, all within proposed limits.
+Node 24.19.0 `gate` (3,650 tests), `gate:server` (1,752 tests), `e2e` (257 tests), `docs:build`,
+formatter checks and complexity-12 lint pass. A frozen install covered all workspace projects.
+Independent review found no functional issues; an unrelated JSON escape was restored before completion.
+Making PostCSS explicit changes VitePress's optional peer path and therefore its scoped-style hashes.
+All 38 regenerated HTML pages and the 108,648-byte CSS file differ only by a consistent bijective
+mapping of 50 scope hashes and the CSS filename; no prose or style values changed. Rendered development
+page inspection confirms styling, breadcrumbs and images. Its automatic favicon request returns the
+same missing-file 404 as the baseline; neither tree supplies that asset. Generated-artifact review
+found no issues. Merge/CI evidence is pending.
+
+Separate CI follow-up: Dependabot run `33946797121` fails while updating Sonner from 2.0.7 to 2.0.8,
+with `ERR_PNPM_UNUSED_PATCH` for the version-pinned 2.0.7 patch. The repository gate and all browser
+jobs passed. Review the dependency and reapply its required patch in a separate change; do not relax
+unused-patch enforcement or disable updates.
 
 ### T06 — Document the naming and ownership vocabulary (F8)
 

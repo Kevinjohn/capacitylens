@@ -117,6 +117,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.4
         version: 19.2.4(@types/react@19.2.18)
+      '@typescript-eslint/scope-manager':
+        specifier: 8.67.0
+        version: 8.67.0
       '@vitejs/plugin-react':
         specifier: ^6.0.5
         version: 6.0.5(vite@8.2.1(@types/node@24.13.2))
@@ -147,6 +150,9 @@ importers:
       playwright-core:
         specifier: ^1.62.1
         version: 1.62.1
+      postcss:
+        specifier: 8.5.23
+        version: 8.5.23
       prettier:
         specifier: ^3.9.6
         version: 3.9.6
@@ -167,10 +173,13 @@ importers:
         version: 8.2.1(@types/node@24.13.2)
       vitepress:
         specifier: ^1.6.4
-        version: 1.6.4(@types/node@24.13.2)(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)
+        version: 1.6.4(@types/node@24.13.2)(@types/react@19.2.18)(postcss@8.5.23)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@24.13.2)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(vite@8.2.1(@types/node@24.13.2))
+      vue-eslint-parser:
+        specifier: 10.4.1
+        version: 10.4.1(eslint@10.8.1)
       web-tree-sitter:
         specifier: 0.27.0
         version: 0.27.0
@@ -4588,6 +4597,12 @@ packages:
       jsdom:
         optional: true
 
+  vue-eslint-parser@10.4.1:
+    resolution: {integrity: sha512-Gk6gRDj0n/fkRa3C3l0bBheoBckUq/Rs0F/TvMWIS6nzzx67amAViMe9CkNgsP2tXyQONvGiHQESHwFtZ3aYDA==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
+
   vue@3.5.41:
     resolution: {integrity: sha512-2laE0p+aK+/AOPG/XL/WepOs/GlK755LJ1XECi9kDUrz1FKNw8rb2Xzlw9JS1rqEV55nb0ttsKxVlTCcd+R5cg==}
     peerDependencies:
@@ -8824,7 +8839,7 @@ snapshots:
       '@types/node': 24.13.2
       fsevents: 2.3.3
 
-  vitepress@1.6.4(@types/node@24.13.2)(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3):
+  vitepress@1.6.4(@types/node@24.13.2)(@types/react@19.2.18)(postcss@8.5.23)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3):
     dependencies:
       '@docsearch/css': 3.8.2
       '@docsearch/js': 3.8.2(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -8844,6 +8859,8 @@ snapshots:
       shiki: 2.5.0
       vite: 6.4.3(@types/node@24.13.2)
       vue: 3.5.41(typescript@6.0.3)
+    optionalDependencies:
+      postcss: 8.5.23
     transitivePeerDependencies:
       - '@algolia/client-search'
       - '@types/node'
@@ -8930,6 +8947,18 @@ snapshots:
       '@types/node': 24.13.2
     transitivePeerDependencies:
       - msw
+
+  vue-eslint-parser@10.4.1(eslint@10.8.1):
+    dependencies:
+      debug: 4.4.3
+      eslint: 10.8.1
+      eslint-scope: 9.1.2
+      eslint-visitor-keys: 5.0.1
+      espree: 11.2.0
+      esquery: 1.7.0
+      semver: 7.8.5
+    transitivePeerDependencies:
+      - supports-color
 
   vue@3.5.41(typescript@6.0.3):
     dependencies:
