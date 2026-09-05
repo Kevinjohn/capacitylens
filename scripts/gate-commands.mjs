@@ -1,5 +1,6 @@
 const structuralChecks = [
   "policy:gate-runner:test",
+  "policy:server-script-lint:test",
   "policy:source-inventory",
   "policy:source-inventory:test",
   "policy:function-metrics:test",

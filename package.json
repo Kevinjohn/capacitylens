@@ -82,7 +82,8 @@
     "policy:function-budgets:test": "node --test scripts/check-function-budgets.test.mjs",
     "policy:gate-runner:test": "node --test scripts/run-gate.test.mjs",
     "policy:dependabot": "node scripts/check-dependabot.mjs",
-    "policy:dependabot:test": "node --test scripts/check-dependabot.test.mjs"
+    "policy:dependabot:test": "node --test scripts/check-dependabot.test.mjs",
+    "policy:server-script-lint:test": "node --test scripts/check-server-script-lint.test.mjs"
   },
   "dependencies": {
     "@capacitylens/shared": "workspace:*",
