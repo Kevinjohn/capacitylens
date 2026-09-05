@@ -580,7 +580,8 @@ Merged docs-source coverage in [PR #611](https://github.com/Kevinjohn/capacityle
 merge `be32b1aa`; no linked issues. Main gate `33961766179` initially passed 3,665 app tests and
 timed out in the unchanged AccountPicker create/refetch test at five seconds. All 36 AccountPicker
 tests pass locally in CI mode without timeout/assertion changes. The failed CI job was rerun;
-its result remains pending and the initial timeout cause is unconfirmed.
+attempt 2 passed on the unchanged merge revision. Main E2E `33961766170` also passed.
+The initial timeout cause remains unconfirmed; no product code, timeout or assertion was changed.
 
 ### Foundation checkpoint
 
