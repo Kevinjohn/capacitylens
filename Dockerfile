@@ -59,7 +59,7 @@ RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack 
 USER node
 EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "const fs=require('node:fs'),https=require('node:https'),port=process.env.PORT||8787,cert=process.env.CAPACITYLENS_INTERNAL_TLS_CERT,key=process.env.CAPACITYLENS_INTERNAL_TLS_KEY,ca=process.env.CAPACITYLENS_INTERNAL_TLS_CA;if(!cert&&!key){fetch('http://127.0.0.1:'+port+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1));}else{https.get({hostname:'127.0.0.1',port,path:'/api/health',...(ca?{ca:fs.readFileSync(ca),servername:'api'}:{rejectUnauthorized:false})},r=>process.exit(r.statusCode>=200&&r.statusCode<300?0:1)).on('error',()=>process.exit(1));}"
+  CMD ["node", "scripts/check-health.mjs"]
 CMD ["sh", "-c", "node scripts/check-node.mjs && exec node dist/index.mjs"]
 
 FROM alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS internal-tls
