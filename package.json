@@ -80,7 +80,9 @@
     "policy:sonner-csp:test": "node --test scripts/check-sonner-csp.test.mjs",
     "policy:function-budgets": "node scripts/check-function-budgets.mjs",
     "policy:function-budgets:test": "node --test scripts/check-function-budgets.test.mjs",
-    "policy:gate-runner:test": "node --test scripts/run-gate.test.mjs"
+    "policy:gate-runner:test": "node --test scripts/run-gate.test.mjs",
+    "policy:dependabot": "node scripts/check-dependabot.mjs",
+    "policy:dependabot:test": "node --test scripts/check-dependabot.test.mjs"
   },
   "dependencies": {
     "@capacitylens/shared": "workspace:*",
@@ -137,6 +139,7 @@
     "vitepress": "^1.6.4",
     "vitest": "^4.1.10",
     "vue-eslint-parser": "10.4.1",
-    "web-tree-sitter": "0.27.0"
+    "web-tree-sitter": "0.27.0",
+    "yaml": "2.9.0"
   }
 }

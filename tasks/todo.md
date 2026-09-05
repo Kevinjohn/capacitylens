@@ -413,6 +413,24 @@ Independent review found no findings or nits. Node 24.19.0 application gate (3,6
 server gate (1,788 tests), focused type/lint/formatter checks and docs build pass.
 All 257 browser tests pass in an unchanged worktree.
 
+The docs lightbox extraction merged in [PR #605](https://github.com/Kevinjohn/capacitylens/pull/605),
+merge `05711592`. Main gate `33956431695`, E2E `33956431737`, docs, Docker, security, CodeQL
+and Scorecard all passed.
+
+Progress (feature/dependabot-config-validator): the workflow's inline Ruby field validator moves
+to scripts/check-dependabot.mjs, owned by the application gate and its existing CI job. The exact
+development dependency yaml 2.9.0 supplies YAML 1.1 parsing; no existing dependency version changes.
+Forty-nine cases match the prior field policy and relevant safe-loader acceptance, using the old
+validation body with the local Ruby file reader adapted to safe_load. Duplicate keys, extra documents
+and unknown tags are intentionally rejected more strictly. Twelve focused validator/runner tests pass.
+An invalid configuration stops the real application gate before Vitest; the original file is restored.
+Frozen installation and docs build pass. Generated output changes only by 51 consistently mapped
+scope identifiers and the stylesheet filename across 38 pages; the development page was inspected
+in a real browser. Node 24.19.0 application gate passes with 3,666 tests; the complete server gate
+passes with 1,788 tests and E2E passes all 257 tests. Review found no additional issues. Merge evidence
+remains pending. Embedded executable-code coverage
+elsewhere remains queued; this extraction does not complete T05.
+
 ### T06 — Document the naming and ownership vocabulary (F8)
 
 - [x] Specify PascalCase component/type files, camelCase hooks/utilities, kebab-case executable scripts,
