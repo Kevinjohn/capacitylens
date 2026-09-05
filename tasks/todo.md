@@ -48,17 +48,28 @@ exports. A new dependency-isolation assertion fails before the extraction; all s
 checks pass afterward. The four compiler tests also pass with coverage enabled. Emitted runtime
 JavaScript for tables.ts and columns.ts is unchanged. Node 24.19.0 `gate` (3,650 tests),
 `gate:server` (1,730 tests), `e2e` (257 tests) and `docs:build` pass. Review found only a path-separator
-portability issue, now fixed. Repair merge/CI evidence is pending.
+portability issue, now fixed. Repair merged in [PR #588](https://github.com/Kevinjohn/capacitylens/pull/588),
+merge `ae51d417`. Branch gate run `33938212737` passed; all four compiler fixtures took 4.6 seconds
+combined under CI coverage (previously 18.8 seconds). Main CI is being monitored.
 
 ### T02 — Parse dependency syntax once (F2)
 
-- [ ] Add a shared scanner using the installed TypeScript parser; distinguish runtime and type-only edges.
-- [ ] Cover imports, inline type imports, re-exports, literal dynamic imports, aliases and supported file extensions.
-- [ ] Ignore comments/string contents; report unresolved internal edges and nonliteral imports explicitly.
+- [x] Add a shared scanner using the installed TypeScript parser; distinguish runtime and type-only edges.
+- [x] Cover imports, inline type imports, re-exports, literal dynamic imports, aliases and supported file extensions.
+- [x] Ignore comments/string contents; report unresolved internal edges and nonliteral imports explicitly.
 
 Dependencies: none. Scope: medium, scanner module, fixtures/tests, existing cycle entry point.
 Verification: negative cycle and positive acyclic fixtures; extension/index resolution and external-package
 classification. Nonliteral imports require a documented bounded exception rather than silent omission.
+
+Evidence (feature/dependency-scanner): the cycle entry point uses the shared TypeScript syntax
+parser. Ten Node regression tests pass, including dynamic cycles, type-only edges, aliases and
+extension/index resolution. Against the original entry point, dynamic-cycle, inline-type-cycle,
+unresolved-import and nonliteral-import fixtures fail. Current production scan: zero runtime cycles.
+The two generated Paraglide imports have an exact owner/specifier exception; nonliteral source imports
+have no exceptions and fail. Independent review found no findings. Gate wiring follows in T03.
+Full validation: Node 24.19.0; `gate` (3,650 tests), `gate:server` (1,730 tests),
+`e2e` (257 tests) and `docs:build` pass. Merge/CI evidence will follow landing.
 
 ### T03 — Integrate dependency checks into every gate (F2)
 
