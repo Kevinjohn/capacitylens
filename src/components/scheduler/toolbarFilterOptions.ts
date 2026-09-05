@@ -1,20 +1,6 @@
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { m } from "@/i18n";
 import { byName } from "../../lib/displayOrder";
 import { byDisciplineOrder } from "../../store/selectors";
-
-/**
- * The jump-to-date picker is deliberately not rendered: reaching a far-off date is rare enough that
- * it doesn't earn toolbar space, and a month list is the likelier affordance for it. {@link
- * JumpToDateInput} stays live and tested so re-surfacing it is a one-line flip — see DECISIONS.md.
- * Typed `boolean` (not the `false` literal) so the render below is a condition, not dead code.
- */
-export const SHOW_JUMP_TO_DATE: boolean = false;
-
-/** A visible span in words — "1 week" / "4 weeks". Shared by the dropdown's options and its
- *  accessible name so the two can't drift apart. */
-export const zoomLabel = (weeks: number) =>
-  weeks > 1 ? m.scheduler_weeks_option_other({ count: weeks }) : m.scheduler_weeks_option_one({ count: weeks });
 
 /** One entity option in a {@link FilterSelect} — the stored id and the text the menu shows. */
 export interface FilterOption {
