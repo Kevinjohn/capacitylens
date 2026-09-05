@@ -43,6 +43,8 @@ overrides:
 # allowlist explicit so a newly introduced lifecycle script fails a clean install.
 allowBuilds:
   esbuild: true
+  # Structural checks load only the published WASM grammar, never the native binding.
+  tree-sitter-bash: false
 
 minimumReleaseAgeExclude:
   - fast-uri@4.1.4
