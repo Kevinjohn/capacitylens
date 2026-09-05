@@ -39,7 +39,16 @@ each produces ten constraint failures; the unmodified schema compiles. Four focu
 type-check and table-directory lint pass. Runtime definitions and released schemas are unchanged.
 Full validation: Node 24.19.0; `gate` (3,650 tests), `gate:server` (1,730 tests),
 `e2e` (257 tests) and `docs:build` pass. Independent review found no findings.
-Merge/CI evidence will be recorded after landing.
+Merged in [PR #586](https://github.com/Kevinjohn/capacitylens/pull/586), merge `40cf8db2`.
+CI follow-up (feature/column-compiler-scope): server coverage run `33937315433` found a 5.23-second
+compiler fixture exceeding the five-second timeout. The type import through tables.ts loaded 1,199
+files, including runtime database/authentication implementations. Moving the unchanged two interfaces
+to a pure tableSpecs.ts contract reduces the compiler graph to 176 files while preserving existing
+exports. A new dependency-isolation assertion fails before the extraction; all seven column/table
+checks pass afterward. The four compiler tests also pass with coverage enabled. Emitted runtime
+JavaScript for tables.ts and columns.ts is unchanged. Node 24.19.0 `gate` (3,650 tests),
+`gate:server` (1,730 tests), `e2e` (257 tests) and `docs:build` pass. Review found only a path-separator
+portability issue, now fixed. Repair merge/CI evidence is pending.
 
 ### T02 — Parse dependency syntax once (F2)
 
