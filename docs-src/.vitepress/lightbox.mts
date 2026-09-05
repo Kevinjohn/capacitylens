@@ -36,7 +36,7 @@
 // linked. Neither matters for "let me see that screenshot properly".
 //
 // Escape closes the lightbox, via the one small inline script the standalone
-// build keeps (defined in config.mts). Everything here still works without it:
+// build keeps (scripts/docs-lightbox.js, read by config.mts). Everything here still works without it:
 // the script only unchecks the toggle, which is what clicking the overlay does.
 //
 // Known keyboard limitation: the overlay is still not a modal. Opening leaves

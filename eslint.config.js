@@ -40,7 +40,7 @@ export default defineConfig([
     languageOptions: { globals: globals.node },
   },
   {
-    files: ["public/auth-error-init.js", "public/theme-init.js"],
+    files: ["public/auth-error-init.js", "public/theme-init.js", "scripts/docs-lightbox.js"],
     languageOptions: { globals: globals.browser },
   },
   {
