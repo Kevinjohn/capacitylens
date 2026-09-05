@@ -10,7 +10,18 @@ type AllocationSlice = Pick<
   "addAllocation" | "addAllocations" | "updateAllocation" | "deleteAllocation" | "deleteAllocationSeriesFrom"
 >;
 
-export function createAllocationSlice(internals: StoreInternals): StateCreator<StoreState, [], [], AllocationSlice> {
+export interface AllocationSliceInternals {
+  guarded: StoreInternals["guarded"];
+  addAllocationsImpl: StoreInternals["addAllocationsImpl"];
+  updateOwned: StoreInternals["updateOwned"];
+  assertAllocation: StoreInternals["assertAllocation"];
+  findOwned: StoreInternals["findOwned"];
+  mutate: StoreInternals["mutate"];
+}
+
+export function createAllocationSlice(
+  internals: AllocationSliceInternals,
+): StateCreator<StoreState, [], [], AllocationSlice> {
   return (_set, get) => {
     const { guarded, addAllocationsImpl, updateOwned, assertAllocation, findOwned, mutate } = internals;
     return {
