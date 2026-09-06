@@ -1,219 +1,173 @@
-# Maintainability batch 2: four small boundaries
+# Hygiene batch: dependency patches, screenshot audit, seam simplification
 
-Status: agreed 2026-09-05 (revision 3; revision 1 is d1728858, review in `plan-review.md`,
-consensus record in `plan-consensus.md`). Owner accepted the integration-validation bullet. Base: `main` at `c0a6eb54`, version 0.60.0-alpha.1.
-Date: 2026-09-05.
+Status: agreed 2026-09-06 (revision 2; revision 1 reviewed and revised the same day). Base: `main` at `9bb6440e`, version 0.60.0-alpha.1. Date: 2026-09-06.
+Previous batch (maintainability batch 2, PRs #623–#631) is complete; its plan is in git history.
 
-AGENTS.md governs everything not stated here. This file adds only the batch, its rules and its
-briefs. No build, test or CI reads this file.
+AGENTS.md governs everything not stated here. No build, test or CI reads this file.
 
 ## Outcome
 
-A contributor changing one behaviour reads its implementation, one small explicit contract and
-the focused tests, and nothing else. This batch removes one piece of misleading wiring, corrects
-the guide that still advertises deleted tooling, and gives two behaviours an explicit contract.
-It preserves visible behaviour. It adds no tooling.
+Production dependencies are at their latest patch level with a clean production audit, the
+documentation screenshots are confirmed current against the last batch, the two contracts that
+batch introduced are as small as they can be, and one patch release records it all.
 
 ## Rules for the batch
 
-- **Hard exclusions.** No new dependencies, scripts, lint rules, scanners, budgets, ledgers,
-  CI workflows, docs tests or generic frameworks. No change to schemas, migrations, fixtures, wire
-  shapes, stable ids, public `StoreState`, permissions, session policy or scheduling maths.
-- **Footprint is the contract.** Each brief lists its files. An edit outside that list stops the
-  task and reports; it does not widen the task.
-- **Stop rule.** Two failed fix attempts on a focused test, or a boundary that cannot preserve a
+- **Hard exclusions.** No new dependencies, scripts, lint rules, CI workflows or tooling. No minor
+  or major dependency updates (`.github/dependabot.yml` states the policy). No change to schemas,
+  migrations, fixtures, wire shapes, public `StoreState`, permissions or session policy.
+- **Footprint is the contract.** Each task lists its files. An edit outside that list stops the
+  task and reports.
+- **Stop rule.** Two failed fix attempts on a focused check, or a boundary that cannot preserve a
   listed behaviour, stops the task with the obstacle, files changed and smallest remaining step.
-  Preserve every existing behavioural assertion; the only permitted test edits are the typed-prop
-  and mock changes each brief names.
-- **Validation during implementation.** `pnpm exec tsc -b`, `pnpm run lint`, `pnpm exec prettier
---check` on touched files, and the brief's focused tests via `pnpm run paraglide:compile && pnpm
-exec vitest run <paths>`. Nothing is rerun for reassurance.
-- **Validation before submission.** AGENTS.md requires the complete validation commands before a
-  pull request is submitted. This batch satisfies that once for the four disjoint tasks: merge the
-  four finished branches into a throwaway integration worktree, run `pnpm run gate`,
-  `pnpm run gate:server` and `pnpm run e2e` there, sequentially, Node >= 24, one Playwright process
-  on the machine, and only then open the pull requests. A task that changes after that run is
-  re-integrated and the three commands run again. Main CI after each merge is the GitHub evidence;
-  a red main is fixed forward before the next merge lands.
-- **Owner decision required.** The integration run above is how the repository's August batches
-  were validated, but AGENTS.md's batch section does not yet say so. The pull request that lands
-  this plan adds one bullet there: "Disjoint pull requests in one batch may be validated once, on
-  their integrated tree, before any of them is submitted; main CI validates each merge." If the
-  owner declines, every pull request runs the three commands itself and the rest of this plan
-  stands.
-- **Delivery.** One branch, worktree and PR per task; signed commits; normal merge; verify PR,
-  merge SHA, workflow outcomes and branch deletion. N1, N3 and N5 are disjoint and may be
-  implemented in parallel. N2 commits generated `docs/`, so it merges last, after the three code
-  tasks, per AGENTS.md's generated-assets rule.
-- **Release.** None unless the owner asks. If asked, one bump at the end of the batch, per
-  AGENTS.md's version rules.
-- **Done means stop.** When N1, N2, N3 and N5 are merged and main is green, tick the completion
-  record and stop. Later options are selected one at a time, by the owner.
+- **Validation.** During implementation: `pnpm exec tsc -b`, `pnpm run lint`, `pnpm exec prettier
+--check` on touched files, and the task's focused checks. Before submission: one integration
+  worktree merging every finished branch, `pnpm run gate`, `pnpm run gate:server`, `pnpm run e2e`,
+  Node >= 24, then the pull requests. Main CI after each merge is the GitHub evidence.
+- **Release.** One patch bump at the end (H4). Nothing else in this batch is a release.
+- **Done means stop.** When H1–H4 are merged and main is green, tick the completion record.
 
 ## Batch briefs
 
-### N1 — Remove the unread `dayWidth` prop from DateHeader and ResourceLane
+### H1 — Dependency patch bumps
 
-**Facts.** `DateHeader.tsx:53` and `ResourceLane.tsx:92` declare `dayWidth` and never read it
-(the other DateHeader occurrence, line 70, is a comment). The ResourceLane comment at lines 89–91
-already says to drop it together with its caller. Forwarders: `SchedulerGrid.tsx:173,238`,
-`SchedulerGridRows.tsx:79`, `SchedulerGridRow.tsx:32,182` (`dayWidth: LaneProps["dayWidth"]`),
-`SchedulerGridHeader.tsx:69`. Real width maths lives in `useSchedulerViewport.ts`,
-`columnGeometry.ts` and `schedulerConfig.ts` and is untouched.
+**Facts.** `pnpm outdated -r` at 9bb6440e lists 29 updates: eight majors (`typescript` 7,
+`vitest`/`@vitest/coverage-v8` 5, `@types/node` 26, `jsdom` 30, `@testing-library/jest-dom` 7,
+two `@stryker-mutator` 10) and nine minors (`better-auth` 1.7.2, `lucide-react`, `eslint`,
+`typescript-eslint`, `globals`, `@inlang/paraglide-js`, `@playwright/test`, `playwright-core`,
+`@vitejs/plugin-react`), all excluded by policy, and twelve patches. `pnpm outdated` shows only
+the newest version, so it hides patches on a current line behind a newer major: the registry
+(2026-09-06) also has `vitest` and `@vitest/coverage-v8` 4.1.11 (lockfile 4.1.10) and `@types/node`
+24.13.3 (lockfile 24.13.2); every other excluded package is already at the last patch of its
+current line. One listed patch is excluded: `@inlang/plugin-m-function-matcher` 2.2.13 declares `@inlang/sdk` 3.0.3 (npm
+registry) while the lockfile resolves `@inlang/sdk` 2.10.2, a transitive major; the same bump was
+dropped from Dependabot PR #450 in August for that reason. `pnpm audit --prod` at 9bb6440e reports
+two moderate fastify advisories (GHSA-w2qp-rph6-63g4, GHSA-3m5p-2c4r-xxw2), both patched at
 
-**Change.** Delete the prop from both props types, delete only the forwarding that becomes unused,
-delete the two "declared but not read" comments, and update the typed test props at
-`DateHeader.test.tsx:16,102,171` and `ResourceLane.test.tsx:77,111`.
+> =5.12.1; `gate:deps` (`package.json:69`) audits at level high, which is why main is green.
+> Dependabot PR #617 (16 updates, based on 0.59.1) is stale: jose 6.2.10 and fastify 5.12.1 where
+> 6.2.12 and 5.12.3 are current, and it carries the `@inlang/sdk` 3 pull. Dependabot PRs
+> #481–#484 bump `github/codeql-action` (init, analyze, upload-sarif) 4.37.6→4.37.9 and
+> `anchore/sbom-action` 0.24.0→0.24.2, all patch, all MERGEABLE CLEAN. `better-auth` 1.6.30 is the
+> last 1.6.x release. AGENTS.md: a schema-affecting Better Auth upgrade also bumps
+> `DB_SCHEMA_VERSION`; a patch that changes no auth DDL does not.
 
-**Files.** `src/components/scheduler/{DateHeader,ResourceLane,SchedulerGrid,SchedulerGridRows,
-SchedulerGridRow,SchedulerGridHeader}.tsx` and `{DateHeader,ResourceLane,SchedulerGrid}.test.tsx`.
+**Change.** Bump exactly these fourteen, in every manifest that declares them, then
+`pnpm install` to refresh the lockfile: root `package.json` — `react-router-dom` ^7.18.3,
+`@inlang/plugin-message-format` 4.4.4, `@testing-library/react` ^16.3.3,
+`@testing-library/user-event` ^14.6.7, `@types/react-dom` ^19.2.7, `eslint-plugin-react-refresh`
+^0.5.6, `vite` ^8.2.2, `vitest` ^4.1.11, `@vitest/coverage-v8` ^4.1.11, `@types/node` ^24.13.3,
+`better-auth` 1.6.30; `server/package.json` — `@fastify/helmet` ^13.1.1, `fastify` ^5.12.3, `jose`
+6.2.12, `tsx` 4.23.13, `better-auth` 1.6.30, `@vitest/coverage-v8` ^4.1.11, `@types/node`
+^24.13.3; `shared/package.json` — `vite` ^8.2.2, `vitest` ^4.1.11, `@types/node` ^24.13.3. Report
+every top-level lockfile resolution that changed; transitive movement inside declared ranges is
+acceptable and is reported, not constrained. Better Auth DDL evidence: the installed package
+carries no changelog, so before and after the bump run a throwaway script (scratch directory, not
+committed) that builds the server's auth in password mode with required MFA (so the two-factor plugin's
+tables are included) on a fresh in-memory SQLite database with the existing
+`runAuthMigrations` helper and prints `name` and `sql` from `sqlite_master` ordered by name; diff
+the two dumps. An empty diff is the evidence that `DB_SCHEMA_VERSION` stays. A non-empty diff
+stops the task with the diff in the report. Add to `CHANGELOG.md` → `Unreleased`: a
+`Security` entry for the fastify advisories and one `Changed` line for the patch updates.
+Orchestrator, after the branch is green: close #617 with a one-line comment naming the
+superseding pull request; merge #481–#484 one at a time.
 
-**Focused tests.** `DateHeader.test.tsx`, `ResourceLane.test.tsx`, `SchedulerGrid.test.tsx`,
-`SchedulerGrid.identity.test.tsx`, `drawModeRerender.test.tsx`. No new tests.
+**Files.** `package.json`, `server/package.json`, `shared/package.json`, `pnpm-lock.yaml`,
+`CHANGELOG.md`.
 
-**Done.** Neither component declares or receives the prop; `tsc` is clean; the five suites'
-behavioural assertions are unchanged and pass. Stop if any deleted value turns out to feed
-geometry or timing.
+**Focused checks.** `pnpm run gate:deps` and `pnpm audit --prod` (must report no
+vulnerabilities), `pnpm outdated -r` (must list only the eight majors, nine minors and the excluded
+matcher plugin, each at its current-line last patch), `pnpm --filter capacitylens-server exec vitest run src/app.auth.test.ts
+src/db.migrate.test.ts`, `pnpm exec vitest run src/account src/components/settings`.
 
-### N2 — Correct the development guide and the primitive-ownership wording
+**Done.** Fourteen packages at the stated versions; audit clean; `pnpm outdated -r` shows only the
+eighteen excluded entries; auth DDL dump diff empty and `DB_SCHEMA_VERSION` untouched; changelog entries present; #617 closed; #481–#484
+merged.
 
-**Facts.** `docs-src/reference/development.md:154` promises a naming-enforcement programme and
-lines 399–448 document `policy:function-budgets`, a 600-line test ceiling, `tasks/todo.md`
-exceptions and "T15"; the script, ceiling and ledger no longer exist (`package.json` scripts,
-`scripts/`). The three adapter type imports are pinned by
-`server/src/accounts/conformance/architecture.test.ts`, not by a ledger.
-`server/src/documentation.test.ts:41–46` requires every backticked `scripts/*.mjs|js|ts` path in
-the guide to exist and at least one to remain (lines 306 and 841 already qualify).
-`scripts/file-size-exceptions.json:6` and `eslint.config.js:153–155` call the sidebar primitive
-"generated"; AGENTS.md:129 and DECISIONS.md:341 call `src/components/ui/*` source-owned.
-The actual check (`scripts/check-file-sizes.mjs`) scans 592 tracked production TS/TSX files under
-`src`, `server/src`, `shared/src`, ceiling 400, excludes tests, `.d.ts`, `src/paraglide` and `e2e`,
-one permanent sidebar exception, and prints an unenforced "approximately N lines" function diagnostic.
+### H2 — Screenshot audit against the batch-2 merges
 
-**Change.** Describe the actual check; remove the function-budget commands, the test ceiling, the
-`tasks/todo.md` references and the naming-enforcement promise; say the adapter imports are pinned
-by the conformance test. Keep the import-cycle (line 434), account-ownership (line 443) and
-environment guidance. Change the exception `reason` and the ESLint comment from "generated" to
-"source-owned shadcn primitive"; no lint behaviour or exception semantics change. Then
-`pnpm run docs:build` and commit `docs/`.
+**Facts.** 46 images under `docs-src/screenshots/flows/`, last modified between 2026-08-09 and
+2026-08-20 (newest at bf4ac9fd and c5b4b93d). All 46 predate the four batch-2 merges (1094b19e N1,
+8df65297 N3, 050807f9 N5, 8e3d8394 N2), so the `git merge-base --is-ancestor` method in AGENTS.md
+flags all 46: a superset. The merge diffs: N1 removed the `dayWidth` prop type and its forwarding
+and collapsed the `<DateHeader …>` call to one line, with no className, style, text or geometry
+change; N3 kept SecuritySection's JSX and messages unchanged (and
+`settings_account_disclosures.jpg` is server-backed, not demo-reachable); N5 changed the store
+composition only; N2 changed guide prose, an ESLint comment, an exception reason, `tasks/plan.md`
+and regenerated `docs/`, no image. The demo seeds relative to the clock (`src/main.tsx:49`
+`seedForCurrentWeek`; `shared/src/data/seed.ts:38–61`), so a live capture never reproduces a
+committed image byte-for-byte: dates, the today marker and bar positions move with the week.
+Bar packing is deterministic (`src/lib/lanePacking.ts:30–35` breaks ties by id).
 
-**Files.** `docs-src/reference/development.md`, `scripts/file-size-exceptions.json`,
-`eslint.config.js`, generated `docs/**`.
+**Change.** No file change. The audit is: (a) the classification above; (b) a live check at
+9bb6440e, already performed: demo on port 5199, schedule (`/`, 1568×900) and settings overview
+(`/settings`, 1920×928) captured with a throwaway Playwright script and compared by inspection
+against `schedule.jpg` and `settings_overview.jpg` for everything the seed does not move: sidebar,
+header controls, utilisation column, discipline groups, lane structure, bar styling, holiday band,
+weekend shading, and the settings cards and toggles. Result: identical in every compared element;
+only the seeded week differs. This batch's target is the already-merged batch-2 set; H1 and H3 are not UI changes by
+intent (patch-level dependency movement and a type plus a validation-loop rewrite that preserves
+behaviour), so no further capture is scheduled for them.
 
-**Focused tests.** `pnpm --filter capacitylens-server exec vitest run src/documentation.test.ts`,
-`pnpm run policy:file-sizes`. Open the rebuilt development page and read the edited section. No
-screenshots change.
+**Files.** None.
 
-**Done.** The guide names only commands that exist in `package.json`; primitive wording matches
-AGENTS.md; docs rebuilt. Do not fix unrelated docs issues seen on the way.
+**Done.** Completion record carries the classification and the inspection result above.
 
-### N3 — Typed session-list result from the account client
+### H3 — Simplify pass over the N3/N5 seams
 
-**Facts.** `accountClient.listSessions()` returns `Promise<Response>` (`accountClient.ts:34–38`)
-through the shared `apiFetch` timeout, credentials and audit-warning path. Its only production
-caller, `SecuritySection.tsx:114–159`, parses the envelope (non-array object with array
-`sessions`), validates rows with `isAccountSessionId`, finite `Date.parse` on `createdAt`, nullable
-finite `expiresAt` and boolean `current`, and returns `"loaded" | "unauthorized" | "failed" |
-"superseded"`: 401 is `"unauthorized"` regardless of body; other non-OK, unreadable body and
-malformed envelope are `"failed"` with `err_sessions_load`; any bad row rejects the whole list with
-`err_sessions_invalid`; an empty list loads; transport errors are logged and mapped to
-`err_sessions_load`; a stale generation returns `"superseded"` before any UI effect.
+**Facts.** `src/account/sessionClient.ts` is 54 lines: `isSessionView` predicate (17–27),
+`listSessions` (30–54) with a two-cast envelope narrowing (39–45) and a filter-then-length-compare
+row check (47–48). `SecuritySection.loadSessions` (`SecuritySection.tsx:107–127`) is a
+four-case switch. `AllocationSliceInternals` (`allocationSlice.ts:13–20`) lists six members as
+`StoreInternals["…"]` indexed types; the six-line object literal appears at `useStore.ts:38–45`
+and `sliceComposition.test.ts:25–32`.
 
-**Change.** New `src/account/sessionClient.ts` exporting `SessionView` and
-`listSessions(): Promise<SessionListResult>` where
-`SessionListResult = { kind: "loaded"; sessions: SessionView[] } | { kind: "unauthorized" } |
-{ kind: "failed" } | { kind: "invalid" }`. It calls the existing `apiFetch` and moves the envelope
-check and row predicate out of SecuritySection verbatim. `"failed"` covers other non-OK, unreadable
-body, malformed envelope and thrown transport error (logged, not rethrown). SecuritySection maps
-`"invalid"` to `err_sessions_invalid`, the other two failures to `err_sessions_load`, and keeps the
-generation check and `"superseded"` outcome, since only it knows which request is current. Remove
-`accountClient.listSessions` once nothing calls it.
+**Candidates.** A finding never widens or narrows a shared type or contract.
 
-**Files.** `src/account/sessionClient.ts` (new), `src/account/accountClient.ts`,
-`src/components/settings/SecuritySection.tsx`, `SecuritySection.test.tsx` (mocks move from
-`Response` to `SessionListResult`, line 20 onward), `src/account/sessionClient.test.ts` (new,
-holds the moved payload cases only).
+- C1: declare `AllocationSliceInternals` as `Pick<StoreInternals, "guarded" | "addAllocationsImpl"
+| "updateOwned" | "assertAllocation" | "findOwned" | "mutate">`. Same six members, same
+  signatures, eight lines become three. Author: yes.
+- C2: replace the filter-and-count at `sessionClient.ts:47–48` with `rows.every(isSessionView)`
+  and return `rows` typed by the guard. Author: yes.
+- C3: collapse the envelope narrowing at 39–45 into one typed helper. Author: no; it is not
+  clearer.
+- C4: anything in `loadSessions`. Author: no; the switch is the contract made visible.
 
-**Focused tests.** `src/account/accountClient.test.ts`, `src/account/sessionClient.test.ts`,
-`src/components/settings/SecuritySection.test.tsx`. The eleven password/session integration cases
-at `SecuritySection.test.tsx:155–378` (stale post-password request, current-session revoke,
-unknown outcomes, failed list, invalid list not rendering its valid subset, transport reconcile)
-stay as integration proof with their assertions intact. Add a client case only where the moved
-predicate has no assertion of its own.
+**Change.** Whatever the review agrees, implemented directly by the orchestrator (expected diff
+under fifteen lines; no brief). No test edits; no behaviour change. A pass that agrees on no
+change is complete.
 
-**Done.** SecuritySection contains no JSON parsing or row predicate for sessions; every outcome
-above is asserted somewhere once; no `Response` leaks through the new function. Stop if the change
-wants to touch provider links, invitations, command outcomes or the server.
+**Files.** `src/store/slices/allocationSlice.ts`, `src/account/sessionClient.ts`.
 
-### N5 — Pass the allocation slice only what it uses
+**Focused tests.** `pnpm exec vitest run src/account/sessionClient.test.ts
+src/components/settings/SecuritySection.test.tsx src/store/slices/sliceComposition.test.ts
+src/store/useStore.allocations.test.ts`.
 
-**Facts.** `createAllocationSlice(internals: StoreInternals)` (`allocationSlice.ts:13`)
-destructures exactly six members at line 15: `guarded`, `addAllocationsImpl`, `updateOwned`,
-`assertAllocation`, `findOwned`, `mutate`. Their signatures are declared in
-`storeInternal.ts:32,75,98,124` and `storeGuards.ts:60,62`. Composition points:
-`useStore.ts:38` and `sliceComposition.test.ts:25`.
+**Done.** Agreed candidates applied, `tsc` clean, the four suites pass with unchanged assertions.
 
-**Change.** Define `AllocationSliceInternals` beside `createAllocationSlice` as an explicit
-interface of those six members with their existing signatures. Change the parameter type and pass
-an object literal of the six function references from `useStore.ts`. No wrappers, no
-`Pick<StoreInternals, …>` while still passing the whole object, no change to other slices or to
-`StoreInternals` itself. If a signature cannot be named without editing `StoreInternals`, stop and
-report.
+### H4 — Release 0.60.1-alpha.1
 
-**Files.** `src/store/slices/allocationSlice.ts`, `src/store/useStore.ts`,
-`src/store/slices/sliceComposition.test.ts`. Read-only: `storeInternal.ts`, `storeGuards.ts`.
+After H1, H3, any H2 recapture and #481–#484 have merged and main is green: separate branch and
+worktree; `package.json` and `server/package.json` to 0.60.1-alpha.1; move the batch's
+`Unreleased` entries into a dated `[0.60.1-alpha.1]` section; add its comparison link and move
+the `[Unreleased]` link; pull request title carries `[skip ci]`; no workflow dispatch. Patch
+release, so no CI question for the owner. Move only this batch's entries; any unrelated entry
+that has landed under `Unreleased` in the meantime stays there. After merging, confirm the head of
+`CHANGELOG.md` and that the links resolve.
 
-**Focused tests.** `src/store/useStore.allocations.test.ts`, `useStore.crud.test.ts`,
-`useStore.undoSync.test.ts`, `useStore.tenancy.test.ts`, `slices/sliceComposition.test.ts`.
+## Sequence
 
-**Done.** The slice's parameter type lists six members; `tsc` proves the composition; all listed
-suites' assertions are unchanged and pass.
-
-## Later options (not selected; each needs a brief written against the base at that time)
-
-- **N4 — session behaviour owner.** After N3. Contract, decided now so selection is a yes/no:
-  `useSecuritySessions({ onError, onClear, onNotice })` returning `{ sessions, refresh, revoke }`;
-  `SecuritySessions.tsx` renders rows from `{ sessions, busy, onRevoke }`; busy stays in
-  SecuritySection by wrapping `revoke`; password success still awaits `refresh`. Files:
-  SecuritySection, the two new files, existing SecuritySection tests. Select only if a session
-  change is actually wanted.
-- **N6 — lane drawing hook.** After N1. `useLaneDrawing` owns the lane ref, client-X lookup,
-  gesture state and listener cleanup (`ResourceLane.tsx:126–169` today); rendering layers stay in
-  ResourceLane. Preserve the pointer cases in `ResourceLane.test.tsx`, `drawModeRerender.test.tsx`
-  and `AllocationBar.interaction.test.tsx`; run the gesture specs in `e2e/scheduler.spec.ts` and
-  `e2e/features.spec.ts` on all three configured browsers.
-- **N7 — one persistence transition.** Give the write-failure/retry updates in
-  `attachmentState.ts` (`update(patch)` at line 76, mutated from `writeQueue.ts:51,98,114,116`) a
-  named operation. Brief must enumerate exact fields, callers and the tests in `persist.test.ts`,
-  `persist.overlap.test.ts`, `ImportExport.persistence.test.tsx` and `e2e/persistence.db.spec.ts`
-  before any edit.
-- **N8 — typed import stage.** Pass typed rows through one stage of `importFold.ts`, preferably
-  allocation relationship repair (line 222, after sanitisation and parent repair), removing that
-  stage's `as unknown as` casts. Tests: `shared/src/domain/mutations.test.ts`,
-  `shared/src/lib/{sanitizeImport,integrity}.test.ts`, `src/store/importHardening.test.ts`, import
-  scenarios in `server/src/app.test.ts`.
-
-Retired for good: naming/import enforcement, function budgets, exception ledgers, blanket test
-splitting, docs tooling. Revisit only for a recurring defect that review cannot catch.
+1. This plan lands first (docs-only pull request, cheap ladder).
+2. H1 (delegate, own worktree) and H2 (orchestrator, no worktree) run concurrently.
+3. H3 after review agreement, own worktree, directly by the orchestrator.
+4. One integration worktree merging H1 and H3; the three validation commands once; then the
+   H1 and H3 pull requests, #617 closed, #481–#484 merged, any H2 recapture last.
+5. H4.
 
 ## Completion record
 
-- [x] Plan agreed; owner accepted the AGENTS.md batch-validation bullet; historical process
-      documents (`tactical-plan.md`, `consensus-log.md`, `recovery-plan-review.md`) removed from
-      `tasks/`.
-- [x] Integration run of the three commands: integration/batch2 at 584cbaa9 (origin/main 2db733cb
-      plus the four branches), Node 24.16.0; `gate:server` passed, `e2e` 257 passed, `gate` 3717
-      tests passed.
-- [x] N1 merged: PR #624, merge 1094b19e; its own main run was superseded by the next merge.
-- [x] N3 merged: PR #625, merge 8df65297; superseded likewise. The component suite kept its
-      visible-error assertions with mocks adapted to the typed result. `sessionClient.test.ts`
-      is new coverage at the decoder layer: 401 regardless of body, other non-OK statuses,
-      unreadable JSON, malformed envelopes, each invalid-row shape, empty list, valid list,
-      transport failure. No component cases were added.
-- [x] N5 merged: PR #626, merge 050807f9; main CI on 050807f9 green on all six workflows (gate,
-      e2e, docker, security, CodeQL, Scorecard).
-- [x] N2 merged last: PR #627, merge 8e3d8394. Main CI on 8e3d8394: e2e, docs, docker, security,
-      CodeQL and Scorecard green; `gate` failed on one calendar-dependent store test untouched by
-      the batch (it asserted against the Sunday of the current week on that very Sunday). Fixed
-      forward by PR #628, merge 2976c908; CI result recorded below.
-- [x] Stopped. Main CI on 2976c908: gate, e2e, docker, security, CodeQL and Scorecard all green.
+- [ ] Plan agreed and merged.
+- [ ] H1 merged; audit clean; #617 closed; #481–#484 merged.
+- [x] H2 classification and inspection recorded (live check at 9bb6440e, 2026-09-06).
+- [ ] H3 merged (or agreed no change).
+- [ ] H4 released; main green.
