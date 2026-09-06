@@ -210,5 +210,8 @@ splitting, docs tooling. Revisit only for a recurring defect that review cannot 
       invalid-row shape, empty list, valid list, transport failure. No new component cases.
 - [x] N5 merged: PR #626, merge 050807f9; main CI on 050807f9 green on all six workflows (gate,
       e2e, docker, security, CodeQL, Scorecard).
-- [ ] N2 merged last: PR #627, merge SHA and main CI result recorded after merge.
-- [ ] Stopped.
+- [x] N2 merged last: PR #627, merge 8e3d8394. Main CI on 8e3d8394: e2e, docs, docker, security,
+      CodeQL and Scorecard green; `gate` failed on one calendar-dependent store test untouched by
+      the batch (it asserted against the Sunday of the current week on that very Sunday). Fixed
+      forward by PR #628, merge 2976c908; CI result recorded below.
+- [x] Stopped. Main CI on 2976c908: gate, e2e, docker, security, CodeQL and Scorecard all green.
