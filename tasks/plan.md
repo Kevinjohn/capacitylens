@@ -1,6 +1,6 @@
 # Code conventions: names, parameters and results
 
-Status: agreed 2026-09-06 (revision 3; revisions 1 and 2 reviewed and revised the same day). Base: `main` at `3bb01646`, version 0.60.1-alpha.1.
+Status: complete 2026-09-06 (agreed at revision 3 the same day; C1 and C2 landed). Base: `main` at `3bb01646`, version 0.60.1-alpha.1.
 Issues: #636 (conventions page), #637 (lint enforcement), #638 (audit), #639 (debt retirement).
 Previous batch (hygiene, PRs #632–#635) is complete; its plan is in git history.
 
@@ -170,9 +170,12 @@ passes; `pnpm exec prettier --check eslint.config.js eslint-suppressions.json`.
    page the lint sentence refers to exists.
 3. Close #636 and #637 with merge SHAs. Stop.
 
+Integration gate at fc4628e1 (both branches merged, docs regenerated): `gate:server`, `e2e` and
+`gate` green on Node 24.16.0.
+
 ## Completion record
 
-- [ ] C1 merged: PR #, merge SHA
-- [ ] C2 merged: PR #, merge SHA
-- [ ] Main CI green on the final merge SHA
-- [ ] #636 and #637 closed
+- [x] C1 merged: PR #640, merge bae69f7e
+- [x] C2 merged: PR #641, merge 201fa733 (main merged into the branch first; docs regenerated)
+- [x] Main CI green on 201fa733 (Scorecard, e2e, CodeQL, security, docs, gate, docker)
+- [x] #636 and #637 closed with merge links; #638 unblocked
