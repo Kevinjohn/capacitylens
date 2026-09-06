@@ -33,10 +33,12 @@
 Process overhead, not implementation, dominates a batch of small changes. Scale the ceremony to the
 change:
 
-- Triage first. An issue whose plan is a paragraph describing a visible change goes straight to
-  implementation. Reserve plan review, design discussion and pre-merge quality passes for issues
-  that assert something about the codebase that may be false, introduce a model or contract, or
-  span more than a couple of files.
+- Triage first. An issue that needs no plan beyond a paragraph describing a visible change goes
+  straight to implementation. Any written plan gets an independent adversarial review before
+  implementation starts: the reviewer verifies every claim against the tree and trusts nothing
+  the author wrote. Aim for consensus in one substantive round plus one round for blockers; only
+  a genuine tiebreaker goes to the owner. Reserve design discussion and pre-merge quality passes
+  for changes that introduce a model or contract or span more than a couple of files.
 - Compare footprints before serialising. Pull requests touching disjoint files may be validated and
   landed in parallel; serialise only where they genuinely share a file.
 - Disjoint pull requests in one batch may be validated once, on their integrated tree, before any
