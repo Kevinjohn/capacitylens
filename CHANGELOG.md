@@ -7,7 +7,7 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-### Internal
+### Changed
 
 - Lint now enforces identifier casing, rejects negated boolean names and caps functions at
   three parameters in the typed packages, with existing violations baselined in
@@ -36,7 +36,7 @@ new features and **patch** versions carry fixes.
 
 ## [0.59.1-alpha.1] — 2026-09-05
 
-### Internal
+### Changed
 
 - Separate the migration rehearsal ledger, anonymiser and checks from the command-line driver,
   with direct tests for schema coverage and anonymisation helpers.
@@ -3638,7 +3638,7 @@ several accessibility/interaction fixes, and hardening of the lint and CI safety
 - **Escape cancels an in-flight gesture on the schedule** — a drag/resize of an allocation, or a
   draw-to-create, can now be abandoned mid-gesture with Escape (reverting cleanly, no commit).
 
-### Internal
+### Changed
 
 - Type-aware ESLint promise-safety rules now cover the `server/`
   and `shared/` workspaces and runs as part of `gate:server`.
