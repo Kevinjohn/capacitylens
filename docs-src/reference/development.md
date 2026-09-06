@@ -263,6 +263,12 @@ enforced coverage floors, rejects any new measured executable module with zero c
 lines, and builds the SPA. A short exact-file allow-list records existing zero-coverage
 debt; broad patterns are forbidden so unrelated new files can't inherit an exception.
 
+Lint also holds the typed packages to the mechanical rules of the code conventions page:
+identifier casing, no negated boolean names, and at most three parameters. Existing violations
+are recorded per file and rule in `eslint-suppressions.json` at the repository root. A count
+that rises fails lint, and an entry that is no longer needed fails lint until
+`pnpm exec eslint . --prune-suppressions` removes it, so the baseline only shrinks.
+
 Shared production compiles without Node types. Its standard web declarations preserve the existing
 `Headers` contract, UUID generation and UTF-8 encoding; lint permits ECMAScript globals except
 `globalThis`, plus `console`, `crypto` and `TextEncoder`. Passing the entire global object would bypass

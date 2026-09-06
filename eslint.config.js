@@ -16,6 +16,9 @@ const forbiddenSharedGlobals = [
   "globalThis",
 ];
 
+// `isNotNull` is the SQL term in server/src/schema/introspection.ts, not a negated boolean.
+const negatedBooleanName = "^(hasNo|not[A-Z]|isNot(?!Null))";
+
 const sharedTestFiles = [
   "shared/src/**/*.{test,spec}.{ts,tsx,mts,cts}",
   "shared/src/**/__tests__/**/*.{ts,tsx,mts,cts}",
@@ -135,6 +138,50 @@ export default defineConfig([
     rules: {
       "no-restricted-globals": ["error", { globals: forbiddenSharedGlobals, checkGlobalObject: true }],
       "no-restricted-imports": ["error", { paths: builtinModules, patterns: ["node:*"] }],
+    },
+  },
+
+  // The mechanical part of docs-src/reference/conventions.md: identifier casing, no negated
+  // boolean names, and at most three positional parameters. Properties, methods and imports are
+  // unformatted because many mirror wire fields, SQL columns and library names. Existing
+  // violations are baselined in eslint-suppressions.json (see the page for how to prune it).
+  {
+    files: ["src/**/*.{ts,tsx}", "server/src/**/*.ts", "server/scripts/**/*.ts", "shared/src/**/*.{ts,tsx,mts,cts}"],
+    rules: {
+      "max-params": ["error", 3],
+      "@typescript-eslint/naming-convention": [
+        "error",
+        { selector: "default", format: ["camelCase"], leadingUnderscore: "allow" },
+        // An identifier is checked against its first matching selector only, so the
+        // negated-name regex is repeated on every selector that names a value.
+        {
+          selector: "variable",
+          modifiers: ["const"],
+          format: ["camelCase", "UPPER_CASE", "PascalCase"],
+          leadingUnderscore: "allow",
+          custom: { regex: negatedBooleanName, match: false },
+        },
+        {
+          selector: "variable",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+          custom: { regex: negatedBooleanName, match: false },
+        },
+        {
+          selector: "parameter",
+          format: ["camelCase", "PascalCase"],
+          leadingUnderscore: "allow",
+          custom: { regex: negatedBooleanName, match: false },
+        },
+        { selector: "function", format: ["camelCase", "PascalCase"] },
+        { selector: "typeLike", format: ["PascalCase"] },
+        { selector: "enumMember", format: ["PascalCase", "UPPER_CASE"] },
+        {
+          selector: ["objectLiteralProperty", "typeProperty", "classProperty", "objectLiteralMethod", "typeMethod"],
+          format: null,
+        },
+        { selector: "import", format: null },
+      ],
     },
   },
 

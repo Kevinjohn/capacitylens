@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Internal
+
+- Lint now enforces identifier casing, rejects negated boolean names and caps functions at
+  three parameters in the typed packages, with existing violations baselined in
+  `eslint-suppressions.json` so the count can only fall.
+
 ## [0.60.1-alpha.1] - 2026-09-06
 
 ### Security
