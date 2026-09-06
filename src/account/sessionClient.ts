@@ -44,9 +44,8 @@ export async function listSessions(): Promise<SessionListResult> {
         ? (body as { sessions: unknown[] }).sessions
         : null;
     if (rows === null) return { kind: "failed" };
-    const valid = rows.filter(isSessionView);
-    if (valid.length !== rows.length) return { kind: "invalid" };
-    return { kind: "loaded", sessions: valid };
+    if (!rows.every(isSessionView)) return { kind: "invalid" };
+    return { kind: "loaded", sessions: rows };
   } catch (cause) {
     console.error("sessionClient: session list failed", cause);
     return { kind: "failed" };

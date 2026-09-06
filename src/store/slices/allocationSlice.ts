@@ -10,14 +10,10 @@ type AllocationSlice = Pick<
   "addAllocation" | "addAllocations" | "updateAllocation" | "deleteAllocation" | "deleteAllocationSeriesFrom"
 >;
 
-export interface AllocationSliceInternals {
-  guarded: StoreInternals["guarded"];
-  addAllocationsImpl: StoreInternals["addAllocationsImpl"];
-  updateOwned: StoreInternals["updateOwned"];
-  assertAllocation: StoreInternals["assertAllocation"];
-  findOwned: StoreInternals["findOwned"];
-  mutate: StoreInternals["mutate"];
-}
+export type AllocationSliceInternals = Pick<
+  StoreInternals,
+  "guarded" | "addAllocationsImpl" | "updateOwned" | "assertAllocation" | "findOwned" | "mutate"
+>;
 
 export function createAllocationSlice(
   internals: AllocationSliceInternals,
