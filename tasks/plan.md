@@ -1,181 +1,189 @@
-# Code conventions: names, parameters and results
+# Code conventions: audit, debt retirement and upkeep
 
-Status: complete 2026-09-06 (agreed at revision 3 the same day; C1 and C2 landed). Base: `main` at `3bb01646`, version 0.60.1-alpha.1.
-Issues: #636 (conventions page), #637 (lint enforcement), #638 (audit), #639 (debt retirement).
-Previous batch (hygiene, PRs #632–#635) is complete; its plan is in git history.
+Status: agreed 2026-09-06 (revision 2; revision 1 reviewed and revised the same day). Base: `main` at `e07278b8`, version 0.60.1-alpha.1.
+Issues: #638 (audit), #639 (debt retirement), #643 (upkeep).
+Previous batch (conventions page and lint baseline, PRs #640–#642) is complete; its plan is in git
+history.
 
-AGENTS.md governs everything not stated here. No build, test or CI reads this file.
+AGENTS.md governs everything not stated here. No build, test or CI reads this file. This plan
+authorises no implementation: C3, C4 and C5 each start only when selected.
 
 ## Outcome
 
-The repository has one page that says what a function name promises, how variables are named,
-when parameters become an options object and what shape a result takes; the mechanical subset
-of that page is enforced by lint against a committed baseline that can only shrink; and the
-audit and debt-retirement work that follows is tracked in issues, not started here.
+Every non-test file in the typed packages has been read against
+`docs-src/reference/conventions.md`, each deviation is a cited row with a class and a proposal,
+the rows are triaged into batches that retire the debt without touching any stable identifier,
+and a standing decision says how the page and its lint baseline are kept current.
 
-## Rules for the batch
+## Rules for the programme
 
-- **Scope.** C1 and C2 only. No renames, signature changes or result-shape changes to satisfy
-  the new page: every existing violation is recorded, never fixed, in this batch (#638, #639).
-- **Hard exclusions.** No new dependencies, scripts, CI workflows or tooling beyond the two lint
-  rules and the suppressions file ESLint already supports. No change to wire shapes, stable
-  identifiers, schemas, migrations or fixtures.
-- **Footprint is the contract.** Each task lists its files. An edit outside that list stops the
+- **Order.** C3 first and alone. C4 starts only from a triaged audit, one batch at a time. C5 is
+  docs-only and may land with C3.
+- **Hard exclusions, all tasks.** No change to wire fields, SQL names, routes, environment
+  variables, ids, emails, test-ids, released migrations, database fixtures or the exported
+  surface of `@capacitylens/shared`, except where a C4 batch block records an explicit
+  authorisation for a named export. No new dependencies, scripts, lint rules or tooling.
+- **Footprint is the contract.** Each batch lists its files. An edit outside that list stops the
   task and reports.
 - **Stop rule.** Two failed fix attempts on a focused check, or a boundary that cannot preserve a
   listed behaviour, stops the task with the obstacle, files changed and smallest remaining step.
-- **Validation.** During implementation: `pnpm run lint`, `pnpm exec tsc -b`, `pnpm exec prettier
---check` on touched files, `pnpm run docs:build` for C1, and the task's focused checks. Before
-  submission: one integration worktree merging both branches, `pnpm run gate`, `pnpm run
-gate:server`, `pnpm run e2e`, Node >= 24, then the pull requests: the three commands AGENTS.md
-  "Green gate" names. The longer list in `development.md` ("Checks") adds the OIDC browser suite,
-  migration rehearsal, coverage and mutation runs, none of which a prose page or a lint rule can
-  affect; `gate` already runs the coverage floors. Main CI after each merge is the GitHub evidence.
-- **Release.** None. Both changes go under `Unreleased`; the next release picks them up.
-- **Done means stop.** When C1 and C2 are merged and main is green, tick the completion record.
+- **Validation.** Prose tasks: `pnpm exec prettier --check` on the file and a citation
+  spot-check. Code batches: during implementation `pnpm run lint`, `pnpm exec tsc -b`, Prettier
+  on touched files and the batch's focused tests; before submission one integration worktree per
+  batch, `pnpm run gate`, `pnpm run gate:server`, `pnpm run e2e`, Node >= 24. Main CI after each
+  merge is the GitHub evidence.
+- **Release.** One release per C4 batch, after the batch lands. C3 and C5 are not releases.
+- **Merges to `main` at least five minutes apart** (the alpha host deploys on every merge).
 
 ## Batch briefs
 
-### C1 — Conventions page (#636)
+### C3 — Audit (#638)
 
-**Facts.** `docs-src/reference/development.md:147–243` covers filenames, exports, acronyms,
-account vocabulary, imports and ownership; nothing in the tree covers function verbs, variable
-naming, parameter style or result shapes. `DECISIONS.md:336–344` ("Maintainable module
-boundaries") says detailed naming tables live in the development guide, existing differences are
-tracked debt, and documenting a convention does not itself make lint enforce it. The tree at
-3bb01646, non-test source: `DEFENSIVE-CODING.md` section 2 fixes the validator contract
-(`ValidationResult { ok, errors }` or a `fail` callback, never throw), yet exported `validate*`
-functions return `ValidationResult` (3), `string | null` (2), `boolean` (2) and `T | null` (4);
-`assertAccountAuthority` (`server/src/accounts/adminPort/authority.ts:29`) returns the `Role` it
-established; parsers take three shapes: decoders return `null` (`parseISOTimestamp`), boundary
-parsers throw (`parseData`, `shared/src/data/transfer.ts:31`), configuration parsers apply a
-documented default (`parseRateLimit`, `server/src/rateLimit.ts:20`; `server/src/backup.ts:44`) or
-refuse start-up (`parsePort`, `server/src/boot/refusals.ts:38`); in-memory lookups return `undefined` (`src/store/selectors.ts:108–114`)
-and storage lookups return `null`; `ensureInternalClients` is exported from
-`shared/src/data/internalClient.ts:138` returning `AppData` and from `server/src/db/repairs.ts:28`
-returning `void`; `getRow` in `server/src/db/rows.ts:99` returns `Row | undefined` while the other
-storage `get*` lookups return `T | null`; `make*` is used only by fixture factories in
-`src/test/fixtures.ts`; `{ ok: true }` occurs in `ValidationResult`, server route responses and the import
-worker message protocol; `handle*` names occur four times in `src/`, while callbacks passed to `on*` props are
-plain verbs (`cancel`, `submit`). `docs-src/STYLE.md` defines the page shape: a concept page has
-a title as a verb phrase, an opening paragraph, and one idea explained with a concrete example
-before the rule, `title` and `description` front matter, and a definition of done that includes
-checking the built page by eye in a browser. `.prettierignore` excludes `docs-src/`, so Prettier
-never checks the Markdown. The sidebar is `docs-src/.vitepress/config.mts:145–150` ("Reference").
-`DECISIONS.md:336–337` says the detailed naming tables live in the development guide.
+**Facts.** The lint scope is `src/**`, `shared/src/**`, `server/src/**` and `server/scripts/**`
+(`eslint.config.js`, conventions block). The ownership table in
+`docs-src/reference/development.md:227–236` names ten owner areas, but leaves out directories
+that hold much of the code: `src/lib` (38 non-test files), `src/components` outside the scheduler
+(13 at the top level plus feature subdirectories), `src/hooks`, `server/src` at its root (49) and
+`server/scripts`. So the audit unit is the directory, not the ownership row. Baseline at
+e07278b8 (`eslint-suppressions.json`): `max-params` 252 (server/src 144, src/components 41,
+src/lib 27, shared/src 20, src/data 10, other 10) and `naming-convention` 15 (ten `COLS_<table>`
+constants in `server/src/tables/columns.ts`, one PascalCase `let` in a test, four negated names).
+Known deviations recorded on the page: `ensureInternalClients` twice with different contracts,
+`validateAuthUser` (a parse with a flag parameter), the four `validate*` return shapes,
+`ensureBarColors`, `getRow` returning `undefined`, `isUnavailable` with four positional
+parameters, `Status` and `OfflineCacheWriteResult` naming. Surveys at 3bb01646 also found one
+exported `find*` (`findUserIdsByEmail`, `server/src/auth.ts:192`), four `handle*` names in
+`src/`, and `resolveTheme(pref)` outside the abbreviation list. `tasks/plan-consensus.md` and
+`tasks/plan-review.md` are leftovers of maintainability batch 2, whose plan is in git history.
 
 **Fixed decisions.**
 
-- New page `docs-src/reference/conventions.md`, already drafted on this branch. Its rules are the
-  decisions: the verb table (with `assert` returning the established value, `parse` naming its
-  three shapes, `validate` bound to the `DEFENSIVE-CODING.md` contract), a concrete example
-  before the first rule per `docs-src/STYLE.md:30–31`, the
-  abbreviation allowlist, three positional parameters and no flags, `kind` unions, `status` for
-  lifecycle only, `ok` for `ValidationResult` and wire shapes only, absence following the source
-  (`undefined` in memory, `null` from storage), tuples for labelled pairs only, no `find`/`handle`
-  verbs, `make` for fixtures only, enforcement throwing per `DEFENSIVE-CODING.md`.
-- The page states which rules lint enforces (casing, negated-boolean regex, `max-params` 3) and
-  the prune command; this must match C2 exactly.
-- `development.md` gets one sentence at the end of "Name modules and keep their contracts small"
-  pointing at the page. `AGENTS.md` "Naming and module contracts" gets one bullet pointing at it.
-  `CONTRIBUTING.md` gets one sentence beside the Prettier line (line 59). `DECISIONS.md:336–337`
-  names the page beside the development guide. No other prose changes.
-- Sidebar entry `{ text: "Code conventions", link: "/reference/conventions" }` after the
-  development guide.
-- `CHANGELOG.md` `Unreleased` entry under `### Added`.
-- The counterexamples in the page are listed as debt only; none is changed here.
+- Output is one file, `tasks/conventions-audit.md`, landed by its own docs-only pull request. It
+  holds one table per directory with the columns `file:line` (at the audit base SHA), `symbol`,
+  `rule` (the page section and bullet), `class`, `proposal` (the new name or signature), and
+  `consumers` (every importer, re-export path, owning filename that must follow a principal
+  rename per `development.md:161–168`, test file and string pin that the change touches). A
+  symbol with two deviations gets two rows, one per rule (`validateAuthUser`: rename and flag
+  parameter).
+- Classes: `R` rename within one file; `E` rename of an export with callers in other files; `P`
+  parameter shape (positional list to options type); `S` result shape (return type changes);
+  `X` excluded by the hard exclusions, with the identifier named; `D` accepted debt, with the
+  reason. Every row has exactly one class.
+- Scope: every non-test file in the lint scope. Tests are not audited for prose rules; test files
+  appear only through the `consumers` column and through baseline entries. Every
+  `eslint-suppressions.json` entry, including entries in test files, is resolved to its
+  declarations (the baseline records only file, rule and count) and each declaration gets its own
+  classified row: a suppressed name is `R`, `E` or `X` on its own merits (`notInAccount` in
+  `shared/src/domain/tenancy.ts:25` is a package export, so `E` or `X`, never `R`), a suppressed
+  parameter list is `P`, `X` or `D`.
+- Every row cites a line at the base SHA and quotes the rule it breaks. A row without a rule is
+  not a finding. The page is not changed by the audit; a rule the audit finds unworkable becomes
+  a `D` row with the reason and a note for C5.
+- The audit changes no code and proposes nothing on stable identifiers beyond an `X` row.
+- Triage is part of C3: the file ends with the C4 batch list, each batch naming its class, its
+  directories, its row count and its focused tests.
+- The two leftover batch-2 files in `tasks/` are deleted in the same pull request.
 
-**Permitted discretion.** Wording; the exact sentence placement in the three linking files;
-table column widths.
+**Permitted discretion.** How directories are grouped into tables; row order; proposal wording;
+whether one directory with under five rows is folded into its parent's table.
 
-**Files.** `docs-src/reference/conventions.md` (new), `docs-src/.vitepress/config.mts`,
-`docs-src/reference/development.md`, `AGENTS.md`, `CONTRIBUTING.md`, `DECISIONS.md`,
-`CHANGELOG.md`, `docs/` (regenerated), `tasks/plan.md`.
+**Files.** `tasks/conventions-audit.md` (new), `tasks/plan-consensus.md` and
+`tasks/plan-review.md` (deleted), `tasks/plan.md` (completion record).
 
-**Focused tests.** `pnpm run docs:build` succeeds with no dead-link error and
-`docs/reference/conventions.html` exists; the built page is opened in a browser and checked by
-eye (sidebar entry, outline, table rendering); every path and symbol the page cites resolves at
-the base (`grep -n` per citation).
+**Focused tests.** `pnpm exec prettier --check tasks/conventions-audit.md`; ten randomly chosen
+rows resolve at the base SHA (`git show <sha>:<file> | sed -n <line>p`).
 
-**Done.** Page merged and built; the four pointers in place; #636 closed with the merge SHA.
+**Done.** Audit merged; a comment on #638 gives the row count per class and links the merge; the
+C4 batch list is in the file.
 
-### C2 — Lint enforcement with a suppressions baseline (#637)
+### C4 — Debt retirement (#639)
 
-**Facts.** `eslint.config.js` applies typed linting to `src/**`, `server/src/**`,
-`server/scripts/**` and `shared/src/**` (two blocks, lines 99–131) and enforces only the two
-promise rules there; no naming or parameter rule exists anywhere in the config. ESLint 10.8.1
-(`package.json:121`) supports bulk suppressions: `--suppress-rule <rule>` writes
-`eslint-suppressions.json` in the working directory, ordinary runs read that file by default,
-a file whose count for a rule rises fails, and an unused suppression fails until
-`--prune-suppressions` removes it. Probe at 3bb01646 with the rule set below over the typed
-globs: `naming-convention` 15 (ten `COLS_<table>` constants in `server/src/tables/columns.ts`, one
-PascalCase `let` in a test, four negated names such as `notTentativeHidden` in
-`src/components/scheduler/schedulerRowModel.ts:31`); `max-params` at 3: 252 (167 source, 85 test);
-a boolean-prefix requirement
-would add 469 source hits, most of them shipped entity field names such as `ignoreWeekends`
-destructured into variables, so it is excluded. `scripts/check-lint-coverage.test.mjs` lints
-fixture files that contain no identifiers or parameters, so it stays green. `pnpm run lint` is
-`eslint . --max-warnings 0`. `naming-convention` applies the first matching selector only, so a
-custom regex must be repeated on every selector that names a value. Suppressions are counted per
-file and rule: a rising count fails, a falling count fails until pruned, and a like-for-like
-replacement at the same count passes.
+**Facts.** `docs-src/reference/development.md:179–180` requires explicit compatibility exceptions
+for package exports and externally consumed symbols; AGENTS.md "Naming and module contracts"
+says naming changes never alter wire fields, stable identifiers or released migrations. ESLint
+prunes the baseline with `pnpm exec eslint . --prune-suppressions`; an unpruned entry fails
+`pnpm run lint`. Renames of exported symbols ripple into tests and, for `shared/`, into both
+`src/` and `server/`; a principal rename moves its owning filename and test filename
+(`development.md:161–168`). `P` rows on package exports exist (`rangesOverlap`,
+`shared/src/lib/dateMath.ts:122`, four positional parameters, called with that signature in
+`dateMath.test.ts:111–118`), so `P` changes call expressions in tests as well as sources. A
+result-shape change (`S`) changes every caller's control flow.
 
 **Fixed decisions.**
 
-- One new block in `eslint.config.js` for the same four typed globs:
-  - `max-params: ["error", 3]`.
-  - `@typescript-eslint/naming-convention` with: default camelCase; `const` variables camelCase,
-    UPPER_CASE or PascalCase; other variables camelCase; parameters camelCase or PascalCase;
-    functions camelCase or PascalCase; `typeLike` PascalCase; `enumMember` PascalCase or
-    UPPER_CASE; object, type and class properties, methods and imports unformatted
-    (`format: null`) because many mirror wire and library names. Selectors are first-match, so
-    `leadingUnderscore: "allow"` and the custom regex `^(hasNo|not[A-Z]|isNot(?!Null))`
-    (`match: false`) are each repeated on the `default`, `const` variable, other variable and
-    parameter entries (regex on the three value entries only).
-  - No `types: ["boolean"]` selector and no prefix requirement.
-- Baseline generated once with `pnpm exec eslint . --suppress-rule max-params --suppress-rule
-@typescript-eslint/naming-convention` and committed as `eslint-suppressions.json`.
-- `pnpm run lint` green with no other config change. No new script; the prune command is
-  documented on the conventions page (C1) and in one sentence under "What `gate` checks" in
-  `development.md`.
-- `CHANGELOG.md` `Unreleased` entry under `### Changed`.
-- The page's "What lint enforces" section (C1) states exactly this rule set and the count
-  semantics.
+- Batches run in class order, each on its own branch and worktree: `R` and `E` renames grouped
+  by package (`shared/`, `src/`, `server/`; at most one pull request per package per batch), then
+  `P` grouped by directory, then `S` one module per pull request.
+- Each batch is briefed from the audit rows it takes, and the brief is reviewed adversarially
+  before implementation, as for any plan. The brief lists every file the rows touch plus the
+  tests that reference the renamed symbols, and names the focused tests.
+- Every batch prunes `eslint-suppressions.json` for the files it touches and adds no entry. A
+  batch that would need a new entry stops.
+- Any row of any class that changes a `@capacitylens/shared` export or another externally
+  consumed symbol proceeds only when the batch block in this plan records the authorisation for
+  that symbol by name together with its complete consumer footprint from the audit's `consumers`
+  column; otherwise the row becomes `X` and its baseline entry stays.
+- Behaviour is preserved in `R`, `E` and `P` batches: every existing assertion keeps its
+  guarantee. Tests may change mechanically to follow the change (renamed identifiers and
+  imports, renamed test files, call expressions rewritten to the options type, mock and
+  assertion references, string pins), and nothing else. Where a renamed symbol is a returned or
+  shorthand object key that is also a wire or contract key, the key keeps its name through a
+  local alias. Predicate renames keep their polarity. An `S` batch keeps every existing
+  assertion's guarantee and labels any test as moved or new.
+- `D` rows are not touched; they stay in the audit file with their reason.
 
-**Permitted discretion.** Comment wording in the config block; whether the block sits before or
-after the shared-globals block.
+**Permitted discretion.** Batch boundaries within a class; the order of modules inside a batch;
+local helper placement where an options type is introduced.
 
-**Files.** `eslint.config.js`, `eslint-suppressions.json` (new), `docs-src/reference/development.md`,
-`docs/` (regenerated, for the development.md sentence), `CHANGELOG.md`.
+**Files.** Per batch, listed in its brief. This plan gains one block per batch when it is selected.
 
-**Focused tests.** `pnpm run lint` exits 0; a scratch file with a four-parameter function and a
-`notReady` variable fails lint and is deleted; `node --test scripts/check-lint-coverage.test.mjs`
-passes; `pnpm exec prettier --check eslint.config.js eslint-suppressions.json`.
+**Focused tests.** Per batch, listed in its brief; every batch runs `pnpm run lint` with the
+pruned baseline.
 
-**Done.** Rules and baseline merged; #637 closed with the merge SHA.
+**Done.** Every `R`, `E`, `P` and `S` row is either landed or reclassified `D` or `X` with a
+reason; the baseline holds only the entries of `D` and `X` rows; #639 closed with the merge links.
 
-## Later options (not selected; brief written when selected, against the base at that time)
+### C5 — Upkeep (going forward)
 
-- **C3 — Audit (#638).** Select after C1 merges. Read-only, one findings table per owner area
-  in the development guide's ownership table, against the merged page.
-- **C4 — Debt retirement (#639).** Select after C3 produces triaged batches. Renames in large
-  batches, result-shape changes one module per change, baseline pruned each batch, one release
-  per batch.
+**Facts.** In place at e07278b8: `AGENTS.md` "Naming and module contracts" points at the page;
+`CONTRIBUTING.md:59` says review checks names, parameters and result shapes against it;
+`DECISIONS.md:334–339` names the page beside the development guide; the page's "What lint
+enforces" section documents the baseline and the prune command. Not in place: a standing decision
+that says the baseline only shrinks, how a new verb or shape enters the page, and where debt that
+a batch declines to fix is recorded.
+
+**Fixed decisions.**
+
+- One bullet group added under `DECISIONS.md` "Maintainable module boundaries", after the bullet
+  at lines 334–339:
+  - `eslint-suppressions.json` only shrinks. A change touching a file with entries prunes what it
+    can and never adds an entry; new code meets the rules.
+  - A new verb, abbreviation or result shape enters the page in the same pull request as its
+    first use, with a tree example, and is reviewed like code.
+  - Debt a batch declines to fix is recorded in `tasks/conventions-audit.md` as `D` with a reason,
+    never dropped; the audit issue, which the page names as the place to note untouched
+    deviations, links to that record.
+- No other file changes. The page itself is not edited by C5.
+
+**Permitted discretion.** Wording.
+
+**Files.** `DECISIONS.md`.
+
+**Focused tests.** `pnpm exec prettier --check DECISIONS.md`.
+
+**Done.** Decision merged; #643 closed with the merge link.
 
 ## Sequence
 
-1. C1 and C2 on separate branches from 3bb01646; footprints overlap only in `CHANGELOG.md`,
-   `docs-src/reference/development.md` and `docs/`, resolved at integration.
-2. One integration worktree, full gates once, then both pull requests; C1 lands first so the
-   page the lint sentence refers to exists.
-3. Close #636 and #637 with merge SHAs. Stop.
-
-Integration gate at fc4628e1 (both branches merged, docs regenerated): `gate:server`, `e2e` and
-`gate` green on Node 24.16.0.
+1. This plan lands by its own pull request; #638 and #639 are updated with the agreed C3 and C4
+   blocks, and the upkeep issue is opened with C5.
+2. C3 when selected (its pull request may carry C5). C4 batches when selected, one at a time.
+3. Stop.
 
 ## Completion record
 
-- [x] C1 merged: PR #640, merge bae69f7e
-- [x] C2 merged: PR #641, merge 201fa733 (main merged into the branch first; docs regenerated)
-- [x] Main CI green on 201fa733 (Scorecard, e2e, CodeQL, security, docs, gate, docker)
-- [x] #636 and #637 closed with merge links; #638 unblocked
+- [ ] Plan merged: PR #, merge SHA
+- [x] #638 and #639 updated; upkeep issue #643 opened
+- [ ] C3 merged: PR #, merge SHA
+- [ ] C5 merged: PR #, merge SHA
+- [ ] C4 batches: added per batch
