@@ -7,6 +7,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Security
+
+- Updated fastify to 5.12.3, resolving GHSA-w2qp-rph6-63g4 and GHSA-3m5p-2c4r-xxw2.
+
+### Changed
+
+- Updated direct dependencies to their latest patch releases, including Better Auth 1.6.30 and jose 6.2.12.
+
 ## [0.60.0-alpha.1] - 2026-09-05
 
 ### Changed
