@@ -152,8 +152,7 @@ need its implementation, its explicit inputs and focused tests. Moving the calcu
 into a helper that receives the whole scheduler state does not reduce that reading work.
 
 These conventions apply to new code and deliberate migrations. Existing differences are
-tracked debt; the naming-policy task adds exact exceptions before enforcing them. A green
-lint result does not yet prove that all these conventions hold.
+tracked debt. A green lint result does not yet prove that all these conventions hold.
 
 ### Names and exports
 
@@ -396,40 +395,19 @@ requests or replace the persistence adapter in these tests.
 rollback and recovery behavior. See [Database migrations](#database-migrations) below for
 how to run it against a real installation copy.
 
-Both gates enforce a 400-line ceiling for production and declaration source files and a
-600-line ceiling for tests and test-support files. The canonical source inventory includes
-tracked and untracked nonignored files across all directories, including scripts, public runtime
-code, Vue components, styles and HTML. Generated roots are explicit exclusions. Configuration,
-patch fragments, prose, data and assets have separate inventory categories.
+Run `pnpm run policy:file-sizes` to check file lengths. The checker,
+`scripts/check-file-sizes.mjs`, scans tracked production TS/TSX files under `src`,
+`server/src` and `shared/src`. It excludes tests, `.d.ts` files, `src/paraglide` and
+`e2e` directories.
 
-Every exception in `scripts/file-size-exceptions.json` names one file, its measured growth cap,
-a reason and an existing task in `tasks/todo.md`. No file has an unlimited exemption, including
-source-owned UI primitives. Both gates reject growth, duplicate entries, invalid metadata,
-missing files and exceptions whose files now meet their role's ceiling. Remove a resolved entry
-when splitting its file. Both gates run the checker and its regression suite.
+The 400-line ceiling comes from `scripts/file-size-exceptions.json`. That file carries
+one permanent exception for the source-owned sidebar primitive and no temporary exceptions.
+A successful run prints `File-size check passed` with the source-file count, ceiling and
+temporary-exception count.
 
-Both gates run `pnpm run policy:function-budgets` and its regression suite. Measured functions
-have limits of 100 nonblank, non-comment lines, cyclomatic complexity 12 and statement nesting
-depth 4. The check includes nested callbacks, memo-wrapped components, methods, class scopes,
-Vue's authored JavaScript regions and shell function declarations. Nested bodies count toward
-their enclosing function's length; their complexity and nesting are measured independently.
-Top-level JS/TS, Vue script and shell control flow has the same complexity and nesting limits,
-reported as the `module` symbol. Nested functions remain independent and keep their lexical identities.
-Module length uses the physical file budget. Class field initializers also have complexity and
-nesting limits; their function values receive separate length measurements.
-
-`scripts/function-budget-exceptions.json` records existing debt by exact file, symbol and metric,
-with a measured growth cap, reason and cleanup task. A length exception does not relax the other
-limits. The check rejects growth, duplicate or invalid entries, deleted symbols and resolved
-metrics. Remove each exception when its metric meets the limit. Symbol identities use lexical
-ownership; moving or reordering indistinguishable callbacks requires reviewing their entries.
-
-Run `pnpm run policy:function-budgets --json` for the full current function inventory and
-coverage boundaries. Physical limits cover CSS and HTML, but this function gate does not yet
-measure their embedded code, code in configuration/data files or patch fragments.
-Data includes the command strings in `package.json`.
-These remaining coverage tasks are recorded in T05.
-Generated output and prose examples remain explicit exclusions.
+The checker also prints an unenforced `approximately N lines` diagnostic for long
+top-level functions. These approximate lengths help identify functions to review;
+they do not affect whether the check passes.
 
 Both gates also run `pnpm run policy:import-cycles` to reject runtime import cycles.
 Explicit `import type` and `export type` clauses are excluded. Inline `type` bindings
@@ -444,8 +422,9 @@ Account ownership checks discover every source file in the coordinator, product-
 account-route and auth-builder directories, including new nested siblings. Ownership
 traversal includes type-only dependencies. The named `Db` type is a terminal public
 contract; importing other facade exports or importing it at runtime still follows the graph.
-Three concrete adapter type imports remain exact, non-growing migration entries for T15
-in `tasks/todo.md`. The storage mapper may import its named `AccountMember` row type.
+Three concrete adapter type imports are pinned by
+`server/src/accounts/conformance/architecture.test.ts`. The storage mapper may import its
+named `AccountMember` row type.
 Tests pin the permitted consumers and symbols and reject stale, duplicate or widened entries.
 SQL ownership retains exact file lists; membership in a neighboring directory grants no SQL access.
 

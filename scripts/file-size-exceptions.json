@@ -3,7 +3,7 @@
   "permanent": [
     {
       "path": "src/components/ui/sidebar.tsx",
-      "reason": "shadcn-generated"
+      "reason": "source-owned shadcn primitive"
     }
   ],
   "temporary": []
