@@ -260,7 +260,8 @@ describe("store scheduler UI", () => {
     );
 
     expect(weekdayOf(s().ui.focusDate)).toBe(0);
-    // The panned week is deliberately far in the future so today's week can never coincide with it.
+    // The panned week is deliberately far in the future so today's week does not coincide with it
+    // until then; the assertion is about re-anchoring, not about the calendar.
     expect(s().ui.focusDate).not.toBe("2031-09-07");
     expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
   });
