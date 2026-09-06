@@ -201,9 +201,14 @@ splitting, docs tooling. Revisit only for a recurring defect that review cannot 
 - [x] Plan agreed; owner accepted the AGENTS.md batch-validation bullet; historical process
       documents (`tactical-plan.md`, `consensus-log.md`, `recovery-plan-review.md`) removed from
       `tasks/`.
-- [ ] Integration run of the three commands: revision and result.
-- [ ] N1 merged: PR, merge SHA, main CI result.
-- [ ] N3 merged: PR, merge SHA, main CI result; moved vs new test cases listed.
-- [ ] N5 merged: PR, merge SHA, main CI result.
-- [ ] N2 merged last: PR, merge SHA, main CI result.
+- [x] Integration run of the three commands: integration/batch2 at 584cbaa9 (origin/main 2db733cb
+      plus the four branches), Node 24.16.0; `gate:server` passed, `e2e` 257 passed, `gate` 3717
+      tests passed.
+- [x] N1 merged: PR #624, merge 1094b19e; its own main run was superseded by the next merge.
+- [x] N3 merged: PR #625, merge 8df65297; superseded likewise. Moved to `sessionClient.test.ts`:
+      401 regardless of body, other non-OK statuses, unreadable JSON, malformed envelopes, each
+      invalid-row shape, empty list, valid list, transport failure. No new component cases.
+- [x] N5 merged: PR #626, merge 050807f9; main CI on 050807f9 green on all six workflows (gate,
+      e2e, docker, security, CodeQL, Scorecard).
+- [ ] N2 merged last: PR #627, merge SHA and main CI result recorded after merge.
 - [ ] Stopped.
