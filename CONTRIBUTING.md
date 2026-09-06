@@ -56,7 +56,8 @@ the vendored shadcn primitives in `src/components/ui/`, which retain the upstrea
 so registry diffs show substantive changes instead of reflow noise. Everything else is stock. Run
 `pnpm run format` before committing — `pnpm run gate` fails on unformatted files.
 
-Style is not reviewable: if Prettier produced it, it is correct. Reach for `// prettier-ignore`
+Names, parameters and result shapes follow `docs-src/reference/conventions.md`; the review
+checks them. Style is not reviewable: if Prettier produced it, it is correct. Reach for `// prettier-ignore`
 only when a hand-aligned block genuinely reads better, and say why in the patch.
 
 Run the applicable cross-browser suite for interaction or layout changes:

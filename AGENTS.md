@@ -70,6 +70,9 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 
 - Follow the naming, import-path and ownership tables in
   `docs-src/reference/development.md` → “Name modules and keep their contracts small”.
+- Inside a module, follow `docs-src/reference/conventions.md` for function verbs, variable
+  names, parameter style and result shapes. Existing differences are tracked debt; record them,
+  do not fix them in an unrelated change.
 - Match principal component/type exports with PascalCase filenames, hooks/utilities with
   camelCase filenames, and executable scripts with kebab-case filenames. Cohesive collections
   name their capability; preserve documented primitive, tool and public-contract exceptions.

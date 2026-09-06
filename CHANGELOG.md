@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- A code conventions page to the development reference covering function verbs,
+  variable naming, parameter style and result shapes.
+
 ## [0.60.1-alpha.1] - 2026-09-06
 
 ### Security
