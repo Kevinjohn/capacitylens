@@ -334,7 +334,9 @@ This is the short, present-tense record of decisions that constrain future work.
 - Principal filenames match their named exports; cohesive collections name the capability they
   own. Component/type names use PascalCase, hooks/utilities use camelCase, and executable scripts
   use kebab-case. The detailed naming, import and ownership tables live in
-  `docs-src/reference/development.md`; root guidance stays short.
+  `docs-src/reference/development.md`, and the in-module conventions (function verbs, variable
+  names, parameter style, result shapes) in `docs-src/reference/conventions.md`; root guidance
+  stays short.
 - Existing product account names, portable workspace/principal aliases and vendor provider-account
   names describe different contracts. Keep those distinctions and existing semantic aliases;
   do not introduce branded IDs or rename public fields as part of structural cleanup.

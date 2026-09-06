@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- A code conventions page to the development reference covering function verbs,
+  variable naming, parameter style and result shapes.
+
 ### Changed
 
 - Lint now enforces identifier casing, rejects negated boolean names and caps functions at

@@ -147,6 +147,7 @@ export default defineConfig({
         items: [
           { text: "Glossary", link: "/reference/glossary" },
           { text: "Development guide", link: "/reference/development" },
+          { text: "Code conventions", link: "/reference/conventions" },
         ],
       },
     ],
