@@ -251,7 +251,7 @@ describe("store scheduler UI", () => {
     const accountId = "late-account";
     s().setAccountSummaries([{ id: accountId, name: "Late account", role: "owner" }]);
     s().setActiveAccount(accountId); // absent locally: temporarily anchored with GMT/Monday
-    s().goToDate("2026-09-09");
+    s().goToDate("2031-09-10");
 
     s().replaceAll(
       makeAppData({
@@ -260,7 +260,8 @@ describe("store scheduler UI", () => {
     );
 
     expect(weekdayOf(s().ui.focusDate)).toBe(0);
-    expect(s().ui.focusDate).not.toBe("2026-09-06"); // today's week, not the previously panned week
+    // The panned week is deliberately far in the future so today's week can never coincide with it.
+    expect(s().ui.focusDate).not.toBe("2031-09-07");
     expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
   });
 
