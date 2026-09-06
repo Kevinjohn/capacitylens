@@ -1,177 +1,178 @@
-# Hygiene batch: dependency patches, screenshot audit, seam simplification
+# Code conventions: names, parameters and results
 
-Status: agreed 2026-09-06 (revision 2; revision 1 reviewed and revised the same day). Base: `main` at `9bb6440e`, version 0.60.0-alpha.1. Date: 2026-09-06.
-Previous batch (maintainability batch 2, PRs #623–#631) is complete; its plan is in git history.
+Status: agreed 2026-09-06 (revision 3; revisions 1 and 2 reviewed and revised the same day). Base: `main` at `3bb01646`, version 0.60.1-alpha.1.
+Issues: #636 (conventions page), #637 (lint enforcement), #638 (audit), #639 (debt retirement).
+Previous batch (hygiene, PRs #632–#635) is complete; its plan is in git history.
 
 AGENTS.md governs everything not stated here. No build, test or CI reads this file.
 
 ## Outcome
 
-Production dependencies are at their latest patch level with a clean production audit, the
-documentation screenshots are confirmed current against the last batch, the two contracts that
-batch introduced are as small as they can be, and one patch release records it all.
+The repository has one page that says what a function name promises, how variables are named,
+when parameters become an options object and what shape a result takes; the mechanical subset
+of that page is enforced by lint against a committed baseline that can only shrink; and the
+audit and debt-retirement work that follows is tracked in issues, not started here.
 
 ## Rules for the batch
 
-- **Hard exclusions.** No new dependencies, scripts, lint rules, CI workflows or tooling. No minor
-  or major dependency updates (`.github/dependabot.yml` states the policy). No change to schemas,
-  migrations, fixtures, wire shapes, public `StoreState`, permissions or session policy.
+- **Scope.** C1 and C2 only. No renames, signature changes or result-shape changes to satisfy
+  the new page: every existing violation is recorded, never fixed, in this batch (#638, #639).
+- **Hard exclusions.** No new dependencies, scripts, CI workflows or tooling beyond the two lint
+  rules and the suppressions file ESLint already supports. No change to wire shapes, stable
+  identifiers, schemas, migrations or fixtures.
 - **Footprint is the contract.** Each task lists its files. An edit outside that list stops the
   task and reports.
 - **Stop rule.** Two failed fix attempts on a focused check, or a boundary that cannot preserve a
   listed behaviour, stops the task with the obstacle, files changed and smallest remaining step.
-- **Validation.** During implementation: `pnpm exec tsc -b`, `pnpm run lint`, `pnpm exec prettier
---check` on touched files, and the task's focused checks. Before submission: one integration
-  worktree merging every finished branch, `pnpm run gate`, `pnpm run gate:server`, `pnpm run e2e`,
-  Node >= 24, then the pull requests. Main CI after each merge is the GitHub evidence.
-- **Release.** One patch bump at the end (H4). Nothing else in this batch is a release.
-- **Done means stop.** When H1–H4 are merged and main is green, tick the completion record.
+- **Validation.** During implementation: `pnpm run lint`, `pnpm exec tsc -b`, `pnpm exec prettier
+--check` on touched files, `pnpm run docs:build` for C1, and the task's focused checks. Before
+  submission: one integration worktree merging both branches, `pnpm run gate`, `pnpm run
+gate:server`, `pnpm run e2e`, Node >= 24, then the pull requests: the three commands AGENTS.md
+  "Green gate" names. The longer list in `development.md` ("Checks") adds the OIDC browser suite,
+  migration rehearsal, coverage and mutation runs, none of which a prose page or a lint rule can
+  affect; `gate` already runs the coverage floors. Main CI after each merge is the GitHub evidence.
+- **Release.** None. Both changes go under `Unreleased`; the next release picks them up.
+- **Done means stop.** When C1 and C2 are merged and main is green, tick the completion record.
 
 ## Batch briefs
 
-### H1 — Dependency patch bumps
+### C1 — Conventions page (#636)
 
-**Facts.** `pnpm outdated -r` at 9bb6440e lists 29 updates: eight majors (`typescript` 7,
-`vitest`/`@vitest/coverage-v8` 5, `@types/node` 26, `jsdom` 30, `@testing-library/jest-dom` 7,
-two `@stryker-mutator` 10) and nine minors (`better-auth` 1.7.2, `lucide-react`, `eslint`,
-`typescript-eslint`, `globals`, `@inlang/paraglide-js`, `@playwright/test`, `playwright-core`,
-`@vitejs/plugin-react`), all excluded by policy, and twelve patches. `pnpm outdated` shows only
-the newest version, so it hides patches on a current line behind a newer major: the registry
-(2026-09-06) also has `vitest` and `@vitest/coverage-v8` 4.1.11 (lockfile 4.1.10) and `@types/node`
-24.13.3 (lockfile 24.13.2); every other excluded package is already at the last patch of its
-current line. One listed patch is excluded: `@inlang/plugin-m-function-matcher` 2.2.13 declares `@inlang/sdk` 3.0.3 (npm
-registry) while the lockfile resolves `@inlang/sdk` 2.10.2, a transitive major; the same bump was
-dropped from Dependabot PR #450 in August for that reason. `pnpm audit --prod` at 9bb6440e reports
-two moderate fastify advisories (GHSA-w2qp-rph6-63g4, GHSA-3m5p-2c4r-xxw2), both patched at
+**Facts.** `docs-src/reference/development.md:147–243` covers filenames, exports, acronyms,
+account vocabulary, imports and ownership; nothing in the tree covers function verbs, variable
+naming, parameter style or result shapes. `DECISIONS.md:336–344` ("Maintainable module
+boundaries") says detailed naming tables live in the development guide, existing differences are
+tracked debt, and documenting a convention does not itself make lint enforce it. The tree at
+3bb01646, non-test source: `DEFENSIVE-CODING.md` section 2 fixes the validator contract
+(`ValidationResult { ok, errors }` or a `fail` callback, never throw), yet exported `validate*`
+functions return `ValidationResult` (3), `string | null` (2), `boolean` (2) and `T | null` (4);
+`assertAccountAuthority` (`server/src/accounts/adminPort/authority.ts:29`) returns the `Role` it
+established; parsers take three shapes: decoders return `null` (`parseISOTimestamp`), boundary
+parsers throw (`parseData`, `shared/src/data/transfer.ts:31`), configuration parsers apply a
+documented default (`parseRateLimit`, `server/src/rateLimit.ts:20`; `server/src/backup.ts:44`) or
+refuse start-up (`parsePort`, `server/src/boot/refusals.ts:38`); in-memory lookups return `undefined` (`src/store/selectors.ts:108–114`)
+and storage lookups return `null`; `ensureInternalClients` is exported from
+`shared/src/data/internalClient.ts:138` returning `AppData` and from `server/src/db/repairs.ts:28`
+returning `void`; `getRow` in `server/src/db/rows.ts:99` returns `Row | undefined` while the other
+storage `get*` lookups return `T | null`; `make*` is used only by fixture factories in
+`src/test/fixtures.ts`; `{ ok: true }` occurs in `ValidationResult`, server route responses and the import
+worker message protocol; `handle*` names occur four times in `src/`, while callbacks passed to `on*` props are
+plain verbs (`cancel`, `submit`). `docs-src/STYLE.md` defines the page shape: a concept page has
+a title as a verb phrase, an opening paragraph, and one idea explained with a concrete example
+before the rule, `title` and `description` front matter, and a definition of done that includes
+checking the built page by eye in a browser. `.prettierignore` excludes `docs-src/`, so Prettier
+never checks the Markdown. The sidebar is `docs-src/.vitepress/config.mts:145–150` ("Reference").
+`DECISIONS.md:336–337` says the detailed naming tables live in the development guide.
 
-> =5.12.1; `gate:deps` (`package.json:69`) audits at level high, which is why main is green.
-> Dependabot PR #617 (16 updates, based on 0.59.1) is stale: jose 6.2.10 and fastify 5.12.1 where
-> 6.2.12 and 5.12.3 are current, and it carries the `@inlang/sdk` 3 pull. Dependabot PRs
-> #481–#484 bump `github/codeql-action` (init, analyze, upload-sarif) 4.37.6→4.37.9 and
-> `anchore/sbom-action` 0.24.0→0.24.2, all patch, all MERGEABLE CLEAN. `better-auth` 1.6.30 is the
-> last 1.6.x release. AGENTS.md: a schema-affecting Better Auth upgrade also bumps
-> `DB_SCHEMA_VERSION`; a patch that changes no auth DDL does not.
+**Fixed decisions.**
 
-**Change.** Bump exactly these fourteen, in every manifest that declares them, then
-`pnpm install` to refresh the lockfile: root `package.json` — `react-router-dom` ^7.18.3,
-`@inlang/plugin-message-format` 4.4.4, `@testing-library/react` ^16.3.3,
-`@testing-library/user-event` ^14.6.7, `@types/react-dom` ^19.2.7, `eslint-plugin-react-refresh`
-^0.5.6, `vite` ^8.2.2, `vitest` ^4.1.11, `@vitest/coverage-v8` ^4.1.11, `@types/node` ^24.13.3,
-`better-auth` 1.6.30; `server/package.json` — `@fastify/helmet` ^13.1.1, `fastify` ^5.12.3, `jose`
-6.2.12, `tsx` 4.23.13, `better-auth` 1.6.30, `@vitest/coverage-v8` ^4.1.11, `@types/node`
-^24.13.3; `shared/package.json` — `vite` ^8.2.2, `vitest` ^4.1.11, `@types/node` ^24.13.3. Report
-every top-level lockfile resolution that changed; transitive movement inside declared ranges is
-acceptable and is reported, not constrained. Better Auth DDL evidence: the installed package
-carries no changelog, so before and after the bump run a throwaway script (scratch directory, not
-committed) that builds the server's auth in password mode with required MFA (so the two-factor plugin's
-tables are included) on a fresh in-memory SQLite database with the existing
-`runAuthMigrations` helper and prints `name` and `sql` from `sqlite_master` ordered by name; diff
-the two dumps. An empty diff is the evidence that `DB_SCHEMA_VERSION` stays. A non-empty diff
-stops the task with the diff in the report. Add to `CHANGELOG.md` → `Unreleased`: a
-`Security` entry for the fastify advisories and one `Changed` line for the patch updates.
-Orchestrator, after the branch is green: close #617 with a one-line comment naming the
-superseding pull request; merge #481–#484 one at a time.
+- New page `docs-src/reference/conventions.md`, already drafted on this branch. Its rules are the
+  decisions: the verb table (with `assert` returning the established value, `parse` naming its
+  three shapes, `validate` bound to the `DEFENSIVE-CODING.md` contract), a concrete example
+  before the first rule per `docs-src/STYLE.md:30–31`, the
+  abbreviation allowlist, three positional parameters and no flags, `kind` unions, `status` for
+  lifecycle only, `ok` for `ValidationResult` and wire shapes only, absence following the source
+  (`undefined` in memory, `null` from storage), tuples for labelled pairs only, no `find`/`handle`
+  verbs, `make` for fixtures only, enforcement throwing per `DEFENSIVE-CODING.md`.
+- The page states which rules lint enforces (casing, negated-boolean regex, `max-params` 3) and
+  the prune command; this must match C2 exactly.
+- `development.md` gets one sentence at the end of "Name modules and keep their contracts small"
+  pointing at the page. `AGENTS.md` "Naming and module contracts" gets one bullet pointing at it.
+  `CONTRIBUTING.md` gets one sentence beside the Prettier line (line 59). `DECISIONS.md:336–337`
+  names the page beside the development guide. No other prose changes.
+- Sidebar entry `{ text: "Code conventions", link: "/reference/conventions" }` after the
+  development guide.
+- `CHANGELOG.md` `Unreleased` entry under `### Added`.
+- The counterexamples in the page are listed as debt only; none is changed here.
 
-**Files.** `package.json`, `server/package.json`, `shared/package.json`, `pnpm-lock.yaml`,
-`CHANGELOG.md`.
+**Permitted discretion.** Wording; the exact sentence placement in the three linking files;
+table column widths.
 
-**Focused checks.** `pnpm run gate:deps` and `pnpm audit --prod` (must report no
-vulnerabilities), `pnpm outdated -r` (must list only the eight majors, nine minors and the excluded
-matcher plugin, each at its current-line last patch), `pnpm --filter capacitylens-server exec vitest run src/app.auth.test.ts
-src/db.migrate.test.ts`, `pnpm exec vitest run src/account src/components/settings`.
+**Files.** `docs-src/reference/conventions.md` (new), `docs-src/.vitepress/config.mts`,
+`docs-src/reference/development.md`, `AGENTS.md`, `CONTRIBUTING.md`, `DECISIONS.md`,
+`CHANGELOG.md`, `docs/` (regenerated), `tasks/plan.md`.
 
-**Done.** Fourteen packages at the stated versions; audit clean; `pnpm outdated -r` shows only the
-eighteen excluded entries; auth DDL dump diff empty and `DB_SCHEMA_VERSION` untouched; changelog entries present; #617 closed; #481–#484
-merged.
+**Focused tests.** `pnpm run docs:build` succeeds with no dead-link error and
+`docs/reference/conventions.html` exists; the built page is opened in a browser and checked by
+eye (sidebar entry, outline, table rendering); every path and symbol the page cites resolves at
+the base (`grep -n` per citation).
 
-### H2 — Screenshot audit against the batch-2 merges
+**Done.** Page merged and built; the four pointers in place; #636 closed with the merge SHA.
 
-**Facts.** 46 images under `docs-src/screenshots/flows/`, last modified between 2026-08-09 and
-2026-08-20 (newest at bf4ac9fd and c5b4b93d). All 46 predate the four batch-2 merges (1094b19e N1,
-8df65297 N3, 050807f9 N5, 8e3d8394 N2), so the `git merge-base --is-ancestor` method in AGENTS.md
-flags all 46: a superset. The merge diffs: N1 removed the `dayWidth` prop type and its forwarding
-and collapsed the `<DateHeader …>` call to one line, with no className, style, text or geometry
-change; N3 kept SecuritySection's JSX and messages unchanged (and
-`settings_account_disclosures.jpg` is server-backed, not demo-reachable); N5 changed the store
-composition only; N2 changed guide prose, an ESLint comment, an exception reason, `tasks/plan.md`
-and regenerated `docs/`, no image. The demo seeds relative to the clock (`src/main.tsx:49`
-`seedForCurrentWeek`; `shared/src/data/seed.ts:38–61`), so a live capture never reproduces a
-committed image byte-for-byte: dates, the today marker and bar positions move with the week.
-Bar packing is deterministic (`src/lib/lanePacking.ts:30–35` breaks ties by id).
+### C2 — Lint enforcement with a suppressions baseline (#637)
 
-**Change.** No file change. The audit is: (a) the classification above; (b) a live check at
-9bb6440e, already performed: demo on port 5199, schedule (`/`, 1568×900) and settings overview
-(`/settings`, 1920×928) captured with a throwaway Playwright script and compared by inspection
-against `schedule.jpg` and `settings_overview.jpg` for everything the seed does not move: sidebar,
-header controls, utilisation column, discipline groups, lane structure, bar styling, holiday band,
-weekend shading, and the settings cards and toggles. Result: identical in every compared element;
-only the seeded week differs. This batch's target is the already-merged batch-2 set; H1 and H3 are not UI changes by
-intent (patch-level dependency movement and a type plus a validation-loop rewrite that preserves
-behaviour), so no further capture is scheduled for them.
+**Facts.** `eslint.config.js` applies typed linting to `src/**`, `server/src/**`,
+`server/scripts/**` and `shared/src/**` (two blocks, lines 99–131) and enforces only the two
+promise rules there; no naming or parameter rule exists anywhere in the config. ESLint 10.8.1
+(`package.json:121`) supports bulk suppressions: `--suppress-rule <rule>` writes
+`eslint-suppressions.json` in the working directory, ordinary runs read that file by default,
+a file whose count for a rule rises fails, and an unused suppression fails until
+`--prune-suppressions` removes it. Probe at 3bb01646 with the rule set below over the typed
+globs: `naming-convention` 15 (ten `COLS_<table>` constants in `server/src/tables/columns.ts`, one
+PascalCase `let` in a test, four negated names such as `notTentativeHidden` in
+`src/components/scheduler/schedulerRowModel.ts:31`); `max-params` at 3: 252 (167 source, 85 test);
+a boolean-prefix requirement
+would add 469 source hits, most of them shipped entity field names such as `ignoreWeekends`
+destructured into variables, so it is excluded. `scripts/check-lint-coverage.test.mjs` lints
+fixture files that contain no identifiers or parameters, so it stays green. `pnpm run lint` is
+`eslint . --max-warnings 0`. `naming-convention` applies the first matching selector only, so a
+custom regex must be repeated on every selector that names a value. Suppressions are counted per
+file and rule: a rising count fails, a falling count fails until pruned, and a like-for-like
+replacement at the same count passes.
 
-**Files.** None.
+**Fixed decisions.**
 
-**Done.** Completion record carries the classification and the inspection result above.
+- One new block in `eslint.config.js` for the same four typed globs:
+  - `max-params: ["error", 3]`.
+  - `@typescript-eslint/naming-convention` with: default camelCase; `const` variables camelCase,
+    UPPER_CASE or PascalCase; other variables camelCase; parameters camelCase or PascalCase;
+    functions camelCase or PascalCase; `typeLike` PascalCase; `enumMember` PascalCase or
+    UPPER_CASE; object, type and class properties, methods and imports unformatted
+    (`format: null`) because many mirror wire and library names. Selectors are first-match, so
+    `leadingUnderscore: "allow"` and the custom regex `^(hasNo|not[A-Z]|isNot(?!Null))`
+    (`match: false`) are each repeated on the `default`, `const` variable, other variable and
+    parameter entries (regex on the three value entries only).
+  - No `types: ["boolean"]` selector and no prefix requirement.
+- Baseline generated once with `pnpm exec eslint . --suppress-rule max-params --suppress-rule
+@typescript-eslint/naming-convention` and committed as `eslint-suppressions.json`.
+- `pnpm run lint` green with no other config change. No new script; the prune command is
+  documented on the conventions page (C1) and in one sentence under "What `gate` checks" in
+  `development.md`.
+- `CHANGELOG.md` `Unreleased` entry under `### Changed`.
+- The page's "What lint enforces" section (C1) states exactly this rule set and the count
+  semantics.
 
-### H3 — Simplify pass over the N3/N5 seams
+**Permitted discretion.** Comment wording in the config block; whether the block sits before or
+after the shared-globals block.
 
-**Facts.** `src/account/sessionClient.ts` is 54 lines: `isSessionView` predicate (17–27),
-`listSessions` (30–54) with a two-cast envelope narrowing (39–45) and a filter-then-length-compare
-row check (47–48). `SecuritySection.loadSessions` (`SecuritySection.tsx:107–127`) is a
-four-case switch. `AllocationSliceInternals` (`allocationSlice.ts:13–20`) lists six members as
-`StoreInternals["…"]` indexed types; the six-line object literal appears at `useStore.ts:38–45`
-and `sliceComposition.test.ts:25–32`.
+**Files.** `eslint.config.js`, `eslint-suppressions.json` (new), `docs-src/reference/development.md`,
+`docs/` (regenerated, for the development.md sentence), `CHANGELOG.md`.
 
-**Candidates.** A finding never widens or narrows a shared type or contract.
+**Focused tests.** `pnpm run lint` exits 0; a scratch file with a four-parameter function and a
+`notReady` variable fails lint and is deleted; `node --test scripts/check-lint-coverage.test.mjs`
+passes; `pnpm exec prettier --check eslint.config.js eslint-suppressions.json`.
 
-- C1: declare `AllocationSliceInternals` as `Pick<StoreInternals, "guarded" | "addAllocationsImpl"
-| "updateOwned" | "assertAllocation" | "findOwned" | "mutate">`. Same six members, same
-  signatures, eight lines become three. Author: yes.
-- C2: replace the filter-and-count at `sessionClient.ts:47–48` with `rows.every(isSessionView)`
-  and return `rows` typed by the guard. Author: yes.
-- C3: collapse the envelope narrowing at 39–45 into one typed helper. Author: no; it is not
-  clearer.
-- C4: anything in `loadSessions`. Author: no; the switch is the contract made visible.
+**Done.** Rules and baseline merged; #637 closed with the merge SHA.
 
-**Change.** Whatever the review agrees, implemented directly by the orchestrator (expected diff
-under fifteen lines; no brief). No test edits; no behaviour change. A pass that agrees on no
-change is complete.
+## Later options (not selected; brief written when selected, against the base at that time)
 
-**Files.** `src/store/slices/allocationSlice.ts`, `src/account/sessionClient.ts`.
-
-**Focused tests.** `pnpm exec vitest run src/account/sessionClient.test.ts
-src/components/settings/SecuritySection.test.tsx src/store/slices/sliceComposition.test.ts
-src/store/useStore.allocations.test.ts`.
-
-**Done.** Agreed candidates applied, `tsc` clean, the four suites pass with unchanged assertions.
-
-### H4 — Release 0.60.1-alpha.1
-
-After H1, H3, any H2 recapture and #481–#484 have merged and main is green: separate branch and
-worktree; `package.json` and `server/package.json` to 0.60.1-alpha.1; move the batch's
-`Unreleased` entries into a dated `[0.60.1-alpha.1]` section; add its comparison link and move
-the `[Unreleased]` link; pull request title carries `[skip ci]`; no workflow dispatch. Patch
-release, so no CI question for the owner. Move only this batch's entries; any unrelated entry
-that has landed under `Unreleased` in the meantime stays there. After merging, confirm the head of
-`CHANGELOG.md` and that the links resolve.
+- **C3 — Audit (#638).** Select after C1 merges. Read-only, one findings table per owner area
+  in the development guide's ownership table, against the merged page.
+- **C4 — Debt retirement (#639).** Select after C3 produces triaged batches. Renames in large
+  batches, result-shape changes one module per change, baseline pruned each batch, one release
+  per batch.
 
 ## Sequence
 
-1. This plan lands first (docs-only pull request, cheap ladder).
-2. H1 (delegate, own worktree) and H2 (orchestrator, no worktree) run concurrently.
-3. H3 after review agreement, own worktree, directly by the orchestrator.
-4. One integration worktree merging H1 and H3; the three validation commands once; then the
-   H1 and H3 pull requests, #617 closed, #481–#484 merged, any H2 recapture last.
-5. H4.
+1. C1 and C2 on separate branches from 3bb01646; footprints overlap only in `CHANGELOG.md`,
+   `docs-src/reference/development.md` and `docs/`, resolved at integration.
+2. One integration worktree, full gates once, then both pull requests; C1 lands first so the
+   page the lint sentence refers to exists.
+3. Close #636 and #637 with merge SHAs. Stop.
 
 ## Completion record
 
-- [x] Plan agreed (two review rounds, 2026-09-06) and merged: PR #632, merge 129ac8e0.
-- [x] H1 merged: PR #633, merge 84976539; fourteen patches, `pnpm audit --prod` clean, auth DDL
-      dump diff empty, `DB_SCHEMA_VERSION` unchanged. #617 closed as superseded. #481–#484 merged
-      (39dee30f, 4fa12af8, 185ee444, cf8478fc). Integration gate on main 129ac8e0 plus both
-      branches, Node 24.16.0: `gate:server` passed, `e2e` 257 passed, `gate` 3717 tests passed.
-- [x] H2 classification and inspection recorded (live check at 9bb6440e, 2026-09-06).
-- [x] H3 merged: PR #634, merge 382dcbb3; C1 and C2 applied, C3 and C4 declined, no test edits.
-- [x] Main CI on 382dcbb3 green on all six workflows (gate, e2e, docker, security, CodeQL, Scorecard).
-      H4: release 0.60.1-alpha.1 in this pull request, `[skip ci]`, patch release. Stopped.
+- [ ] C1 merged: PR #, merge SHA
+- [ ] C2 merged: PR #, merge SHA
+- [ ] Main CI green on the final merge SHA
+- [ ] #636 and #637 closed

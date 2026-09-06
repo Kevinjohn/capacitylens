@@ -241,6 +241,9 @@ responsibility, not permission for neighboring helpers to import those implement
 An extraction must receive only the operations it consumes; avoid whole-store inputs,
 `ReturnType<typeof parentFactory>` contracts and mutable context bags at feature boundaries.
 
+Inside a module, function verbs, variable names, parameter style and result shapes follow
+[Name functions, variables and results](/reference/conventions).
+
 ## Checks
 
 Run these before proposing a change:
