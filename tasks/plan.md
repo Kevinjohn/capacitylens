@@ -166,8 +166,12 @@ that has landed under `Unreleased` in the meantime stays there. After merging, c
 
 ## Completion record
 
-- [ ] Plan agreed and merged.
-- [ ] H1 merged; audit clean; #617 closed; #481–#484 merged.
+- [x] Plan agreed (two review rounds, 2026-09-06) and merged: PR #632, merge 129ac8e0.
+- [x] H1 merged: PR #633, merge 84976539; fourteen patches, `pnpm audit --prod` clean, auth DDL
+      dump diff empty, `DB_SCHEMA_VERSION` unchanged. #617 closed as superseded. #481–#484 merged
+      (39dee30f, 4fa12af8, 185ee444, cf8478fc). Integration gate on main 129ac8e0 plus both
+      branches, Node 24.16.0: `gate:server` passed, `e2e` 257 passed, `gate` 3717 tests passed.
 - [x] H2 classification and inspection recorded (live check at 9bb6440e, 2026-09-06).
-- [ ] H3 merged (or agreed no change).
-- [ ] H4 released; main green.
+- [x] H3 merged: PR #634, merge 382dcbb3; C1 and C2 applied, C3 and C4 declined, no test edits.
+- [x] Main CI on 382dcbb3 green on all six workflows (gate, e2e, docker, security, CodeQL, Scorecard).
+      H4: release 0.60.1-alpha.1 in this pull request, `[skip ci]`, patch release. Stopped.

@@ -7,6 +7,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.60.1-alpha.1] - 2026-09-06
+
 ### Security
 
 - Updated fastify to 5.12.3, resolving GHSA-w2qp-rph6-63g4 and GHSA-3m5p-2c4r-xxw2.
@@ -4134,7 +4136,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.1-alpha.1...HEAD
+[0.60.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.0-alpha.1...v0.60.1-alpha.1
 [0.60.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.59.1-alpha.1...v0.60.0-alpha.1
 [0.59.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.59.0-alpha.1...v0.59.1-alpha.1
 [0.59.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.58.0-alpha.1...v0.59.0-alpha.1
