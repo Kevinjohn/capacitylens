@@ -9,6 +9,36 @@ import {
   type LifecycleFields,
 } from "./lifecycle";
 
+interface ValidationRowOptions {
+  data: AppData;
+  table: AppDataKey;
+  id: ID;
+  lookup?: ValidationDataLookup;
+}
+
+interface OwnedRowOptions {
+  data: AppData;
+  table: AppDataKey;
+  id: ID;
+  accountId: ID;
+  lookup?: ValidationDataLookup;
+}
+
+interface ValidationAllocationsForOptions {
+  data: AppData;
+  accountId: ID;
+  side: "resource" | "activity";
+  id: ID;
+  lookup?: ValidationDataLookup;
+}
+
+interface IsEffectivelyActiveOptions {
+  data: AppData;
+  table: AppDataKey;
+  row: LifecycleFields & { id: ID };
+  lookup?: ValidationDataLookup;
+}
+
 /**
  * Optional indexed view used by server batch validation. The browser/store callers keep using the
  * AppData arrays directly; a large transaction can supply these point/reverse lookups so applying
@@ -22,38 +52,38 @@ export interface ValidationDataLookup {
   resourceHasTimeOff(accountId: ID, resourceId: ID): boolean;
 }
 
-export const resolveValidationRow = (
-  data: AppData,
-  table: AppDataKey,
-  id: ID,
-  lookup?: ValidationDataLookup,
-): (Record<string, unknown> & { id: ID }) | undefined => {
+export const resolveValidationRow = ({
+  data,
+  table,
+  id,
+  lookup,
+}: ValidationRowOptions): (Record<string, unknown> & { id: ID }) | undefined => {
   if (lookup) return lookup.row(table, id);
   return (data[table] as unknown as (Record<string, unknown> & { id: ID })[]).find((row) => row.id === id);
 };
 
 /** Fetch a row and narrow it to THIS account in one step. An ABSENT row and a CROSS-ACCOUNT row both
  * read as `undefined`, so every caller keeps its own domain-specific rejection message. */
-export const resolveOwnedRow = <T extends ScopedEntity>(
-  data: AppData,
-  table: AppDataKey,
-  id: ID,
-  accountId: ID,
-  lookup?: ValidationDataLookup,
-): T | undefined => {
-  const row = resolveValidationRow(data, table, id, lookup) as T | undefined;
+export const resolveOwnedRow = <T extends ScopedEntity>({
+  data,
+  table,
+  id,
+  accountId,
+  lookup,
+}: OwnedRowOptions): T | undefined => {
+  const row = resolveValidationRow({ data, table, id, lookup }) as T | undefined;
   return row && belongsToAccount(row, accountId) ? row : undefined;
 };
 
 /** The account's allocations on ONE end of the pair, beside {@link resolveValidationRow}: the indexed
  * server-batch lookup when a large transaction supplies one, otherwise a scan of the local array. */
-export const listValidationAllocations = (
-  data: AppData,
-  accountId: ID,
-  side: "resource" | "activity",
-  id: ID,
-  lookup?: ValidationDataLookup,
-): readonly Allocation[] => {
+export const listValidationAllocations = ({
+  data,
+  accountId,
+  side,
+  id,
+  lookup,
+}: ValidationAllocationsForOptions): readonly Allocation[] => {
   if (lookup) {
     return side === "resource"
       ? lookup.allocationsForResource(accountId, id)
@@ -75,14 +105,9 @@ export const assertValid = (validation: ValidationResult): void => {
 
 /** Match normal-read lifecycle closure at the shared active-write boundary. Indexed server batch
  * callers retain O(depth) point lookups; browser/store callers traverse the same bounded graph over
- * their local arrays. Missing/cross-account parents return false and keep each caller's existing
- * domain-specific validation message. */
-export const isEffectivelyActive = (
-  data: AppData,
-  table: AppDataKey,
-  row: LifecycleFields & { id: ID },
-  lookup?: ValidationDataLookup,
-): boolean =>
+ * their local arrays. Inactive rows or ancestors return false; missing, malformed or cross-account
+ * ancestors do not imply lifecycle state and are handled separately by integrity validation. */
+export const isEffectivelyActive = ({ data, table, row, lookup }: IsEffectivelyActiveOptions): boolean =>
   lifecycleStatus(row) === "active" &&
   inspectLifecycleAncestry(
     table,
@@ -91,5 +116,6 @@ export const isEffectivelyActive = (
     // LifecycleAncestryRow the walk reads by field name. Every field the walk touches
     // (id / accountId / tombstones / FK ids) is present on these rows.
     row as unknown as LifecycleAncestryRow,
-    (parentTable, id) => resolveValidationRow(data, parentTable, id, lookup) as LifecycleAncestryRow | undefined,
+    (parentTable, id) =>
+      resolveValidationRow({ data, table: parentTable, id, lookup }) as LifecycleAncestryRow | undefined,
   ).visible;

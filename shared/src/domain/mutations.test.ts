@@ -31,6 +31,28 @@ import type {
   Weekday,
 } from "../types/entities";
 
+interface ActivityOptions {
+  id: ID;
+  accountId: ID;
+  projectId: ID;
+  phaseId?: ID;
+}
+
+interface AllocationOptions {
+  id: ID;
+  accountId: ID;
+  resourceId: ID;
+  activityId: ID;
+  overrides?: Partial<Allocation>;
+}
+
+interface TimeOffOptions {
+  id: ID;
+  accountId: ID;
+  resourceId: ID;
+  overrides?: Partial<TimeOff>;
+}
+
 // These specs target the PURE domain mutations directly (no store, no React). The
 // store and a future server both call this exact module, so locking the rules in
 // here is what makes "server validation == client validation" free.
@@ -66,7 +88,7 @@ const phase = (id: ID, accountId: ID, projectId: ID): Phase => ({
   name: "Discovery",
   projectId,
 });
-const activity = (id: ID, accountId: ID, projectId: ID, phaseId?: ID): Activity => ({
+const activity = ({ id, accountId, projectId, phaseId }: ActivityOptions): Activity => ({
   ...meta(id, accountId),
   name: "Activity",
   kind: "project",
@@ -98,13 +120,7 @@ const external = (id: ID, accountId: ID): Resource => ({
   ...person(id, accountId),
   kind: "external",
 });
-const allocation = (
-  id: ID,
-  accountId: ID,
-  resourceId: ID,
-  activityId: ID,
-  o: Partial<Allocation> = {},
-): Allocation => ({
+const allocation = ({ id, accountId, resourceId, activityId, overrides: o = {} }: AllocationOptions): Allocation => ({
   ...meta(id, accountId),
   resourceId,
   activityId,
@@ -114,7 +130,7 @@ const allocation = (
   status: "confirmed",
   ...o,
 });
-const timeOff = (id: ID, accountId: ID, resourceId: ID, o: Partial<TimeOff> = {}): TimeOff => ({
+const timeOff = ({ id, accountId, resourceId, overrides: o = {} }: TimeOffOptions): TimeOff => ({
   ...meta(id, accountId),
   resourceId,
   startDate: "2026-01-01",
@@ -512,13 +528,13 @@ describe("assertScopedRefs", () => {
     });
 
     it("passes an UNCHANGED projectId+phaseId pair even when both are absent from data", () => {
-      const existing = activity("t1", A1, "p-archived", "ph-archived");
+      const existing = activity({ id: "t1", accountId: A1, projectId: "p-archived", phaseId: "ph-archived" });
       const merged = { ...existing, name: "Renamed" };
       expect(() => assertScopedRefs(base(), A1, "activities", merged, existing)).not.toThrow();
     });
 
     it("rejects an unchanged phaseId when the resolved legacy phase belongs to another account", () => {
-      const existing = activity("t1", A1, "p1", "cross-account-phase");
+      const existing = activity({ id: "t1", accountId: A1, projectId: "p1", phaseId: "cross-account-phase" });
       const data: AppData = {
         ...base(),
         projects: [project("p1", A1, "c1")],
@@ -537,7 +553,7 @@ describe("assertScopedRefs", () => {
         clients: [client("c1", A1)],
         projects: [project("p1", A1, "c1")],
       };
-      const existing = activity("t1", A1, "p1", "ph-old");
+      const existing = activity({ id: "t1", accountId: A1, projectId: "p1", phaseId: "ph-old" });
       const merged = { ...existing, phaseId: "ph-new" }; // changed → must resolve, and it can't
       expect(() => assertScopedRefs(data, A1, "activities", merged, existing)).toThrow(
         "Activity phase must belong to this company.",
@@ -564,7 +580,7 @@ describe("assertAllocationRefs", () => {
     ...base(),
     clients: [client("c1", A1)],
     projects: [project("p1", A1, "c1")],
-    activities: [activity("t1", A1, "p1")],
+    activities: [activity({ id: "t1", accountId: A1, projectId: "p1" })],
     resources: [person("r1", A1)],
   });
 
@@ -635,7 +651,10 @@ describe("assertAllocationRefs", () => {
     const data: AppData = {
       ...world(),
       projects: [project("p1", A1, "c1"), { ...project("p2", A1, "c1"), archivedAt: TS }],
-      activities: [activity("t1", A1, "p1"), activity("t2", A1, "p2")],
+      activities: [
+        activity({ id: "t1", accountId: A1, projectId: "p1" }),
+        activity({ id: "t2", accountId: A1, projectId: "p2" }),
+      ],
       resources: [person("r1", A1), { ...person("r2", A1), archivedAt: TS }],
     };
 
@@ -664,7 +683,7 @@ describe("assertAllocationRefs", () => {
       ...base(),
       clients: [client("c1", A1)],
       projects: [project("p1", A1, "c1"), project("p2", A1, "c1")],
-      activities: [activity("t2", A1, "p2")],
+      activities: [activity({ id: "t2", accountId: A1, projectId: "p2" })],
       resources: [placeholder("ph", A1, "p1")],
     };
     expect(() => assertAllocationRefs(data, A1, "ph", "t2", 8)).toThrow(
@@ -687,7 +706,11 @@ describe("assertAllocationRefs", () => {
   });
 
   it("enforces repeatable-only attribution, project ownership/liveness and placeholder scope", () => {
-    const repeatable = { ...activity("repeatable", A1, "p1"), kind: "repeatable" as const, projectId: undefined };
+    const repeatable = {
+      ...activity({ id: "repeatable", accountId: A1, projectId: "p1" }),
+      kind: "repeatable" as const,
+      projectId: undefined,
+    };
     const data: AppData = {
       ...world(),
       projects: [project("p1", A1, "c1"), project("p2", A1, "c1"), project("foreign", A2, "c2")],
@@ -707,7 +730,11 @@ describe("assertAllocationRefs", () => {
   });
 
   it("allows an unchanged archived allocation attribution but rejects changing to it", () => {
-    const repeatable = { ...activity("repeatable", A1, "p1"), kind: "repeatable" as const, projectId: undefined };
+    const repeatable = {
+      ...activity({ id: "repeatable", accountId: A1, projectId: "p1" }),
+      kind: "repeatable" as const,
+      projectId: undefined,
+    };
     const data: AppData = {
       ...world(),
       projects: [{ ...project("p1", A1, "c1"), archivedAt: TS }],
@@ -794,9 +821,11 @@ describe("assertResourceKindAllowsDependents", () => {
     const data: AppData = {
       ...base(),
       resources: [person("r1", A1)],
-      activities: [activity("t1", A1, "p1")],
-      allocations: [allocation("al", A1, "r1", "t1", { hoursPerDay: 8 })],
-      timeOff: [timeOff("to", A1, "r1")],
+      activities: [activity({ id: "t1", accountId: A1, projectId: "p1" })],
+      allocations: [
+        allocation({ id: "al", accountId: A1, resourceId: "r1", activityId: "t1", overrides: { hoursPerDay: 8 } }),
+      ],
+      timeOff: [timeOff({ id: "to", accountId: A1, resourceId: "r1" })],
     };
     expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "person")).not.toThrow();
     expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "placeholder")).not.toThrow();
@@ -806,7 +835,9 @@ describe("assertResourceKindAllowsDependents", () => {
     const data: AppData = {
       ...base(),
       resources: [person("r1", A1)],
-      allocations: [allocation("al", A1, "r1", "t1", { hoursPerDay: 8 })],
+      allocations: [
+        allocation({ id: "al", accountId: A1, resourceId: "r1", activityId: "t1", overrides: { hoursPerDay: 8 } }),
+      ],
     };
     expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).toThrow(reject);
   });
@@ -815,7 +846,7 @@ describe("assertResourceKindAllowsDependents", () => {
     const data: AppData = {
       ...base(),
       resources: [person("r1", A1)],
-      timeOff: [timeOff("to", A1, "r1")],
+      timeOff: [timeOff({ id: "to", accountId: A1, resourceId: "r1" })],
     };
     expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).toThrow(reject);
   });
@@ -840,7 +871,9 @@ describe("assertResourceKindAllowsDependents", () => {
     const data: AppData = {
       ...base(),
       resources: [person("r1", A1)],
-      allocations: [allocation("al", A1, "r1", "t1", { hoursPerDay: 0 })],
+      allocations: [
+        allocation({ id: "al", accountId: A1, resourceId: "r1", activityId: "t1", overrides: { hoursPerDay: 0 } }),
+      ],
     };
     expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).not.toThrow();
   });
@@ -856,10 +889,10 @@ describe("assertResourceKindAllowsDependents", () => {
       ...base(),
       resources: [person("r1", A1), person("other", A1)],
       allocations: [
-        allocation("al", A1, "other", "t1", { hoursPerDay: 8 }), // belongs to a DIFFERENT resource
-        allocation("al2", A2, "r1", "t1", { hoursPerDay: 8 }), // same resource id, DIFFERENT account
+        allocation({ id: "al", accountId: A1, resourceId: "other", activityId: "t1", overrides: { hoursPerDay: 8 } }), // belongs to a DIFFERENT resource
+        allocation({ id: "al2", accountId: A2, resourceId: "r1", activityId: "t1", overrides: { hoursPerDay: 8 } }), // same resource id, DIFFERENT account
       ],
-      timeOff: [timeOff("to", A2, "r1")], // same resource id, DIFFERENT account
+      timeOff: [timeOff({ id: "to", accountId: A2, resourceId: "r1" })], // same resource id, DIFFERENT account
     };
     expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).not.toThrow();
   });
@@ -876,8 +909,8 @@ describe("parent project edits preserve placeholder allocation assignments", () 
       clients: [client("c1", A1)],
       projects: [project("p1", A1, "c1"), project("p2", A1, "c1")],
       resources: [existing],
-      activities: [activity("t1", A1, "p1")],
-      allocations: [allocation("al", A1, "ph", "t1")],
+      activities: [activity({ id: "t1", accountId: A1, projectId: "p1" })],
+      allocations: [allocation({ id: "al", accountId: A1, resourceId: "ph", activityId: "t1" })],
     };
 
     expect(() =>
@@ -891,7 +924,7 @@ describe("parent project edits preserve placeholder allocation assignments", () 
       ...base(),
       resources: [existing],
       activities: [{ ...meta("general", A1), name: "Admin", kind: "repeatable" }],
-      allocations: [allocation("al", A1, "ph", "general")],
+      allocations: [allocation({ id: "al", accountId: A1, resourceId: "ph", activityId: "general" })],
     };
 
     expect(() =>
@@ -908,7 +941,9 @@ describe("parent project edits preserve placeholder allocation assignments", () 
       projects: [project("p1", A1, "c1"), project("p2", A1, "c1")],
       resources: [existing],
       activities: [repeatable],
-      allocations: [allocation("al", A1, "ph", "shared", { projectId: "p1" })],
+      allocations: [
+        allocation({ id: "al", accountId: A1, resourceId: "ph", activityId: "shared", overrides: { projectId: "p1" } }),
+      ],
     };
 
     expect(() =>
@@ -924,7 +959,9 @@ describe("parent project edits preserve placeholder allocation assignments", () 
       projects: [project("p1", A1, "c1"), project("p2", A1, "c1")],
       resources: [placeholder("ph", A1, "p1")],
       activities: [existing],
-      allocations: [allocation("al", A1, "ph", "shared", { projectId: "p1" })],
+      allocations: [
+        allocation({ id: "al", accountId: A1, resourceId: "ph", activityId: "shared", overrides: { projectId: "p1" } }),
+      ],
     };
 
     expect(() =>
@@ -946,8 +983,8 @@ describe("parent project edits preserve placeholder allocation assignments", () 
     const data: AppData = {
       ...base(),
       resources: [existing],
-      activities: [activity("t1", A1, "p1")],
-      allocations: [allocation("al", A1, "r1", "t1")],
+      activities: [activity({ id: "t1", accountId: A1, projectId: "p1" })],
+      allocations: [allocation({ id: "al", accountId: A1, resourceId: "r1", activityId: "t1" })],
     };
 
     expect(() =>
@@ -962,12 +999,12 @@ describe("parent project edits preserve placeholder allocation assignments", () 
   });
 
   it("rejects moving an activity while a placeholder bound to its previous project owns it", () => {
-    const existing = activity("t1", A1, "p1");
+    const existing = activity({ id: "t1", accountId: A1, projectId: "p1" });
     const data: AppData = {
       ...base(),
       resources: [placeholder("ph", A1, "p1")],
       activities: [existing],
-      allocations: [allocation("al", A1, "ph", "t1")],
+      allocations: [allocation({ id: "al", accountId: A1, resourceId: "ph", activityId: "t1" })],
     };
 
     expect(() =>
@@ -976,15 +1013,15 @@ describe("parent project edits preserve placeholder allocation assignments", () 
   });
 
   it("allows moving an activity owned only by people and allows making placeholder work project-less", () => {
-    const projectActivity = activity("project-work", A1, "p1");
-    const placeholderActivity = activity("placeholder-work", A1, "p1");
+    const projectActivity = activity({ id: "project-work", accountId: A1, projectId: "p1" });
+    const placeholderActivity = activity({ id: "placeholder-work", accountId: A1, projectId: "p1" });
     const data: AppData = {
       ...base(),
       resources: [person("person", A1), placeholder("ph", A1, "p1")],
       activities: [projectActivity, placeholderActivity],
       allocations: [
-        allocation("person-al", A1, "person", "project-work"),
-        allocation("placeholder-al", A1, "ph", "placeholder-work"),
+        allocation({ id: "person-al", accountId: A1, resourceId: "person", activityId: "project-work" }),
+        allocation({ id: "placeholder-al", accountId: A1, resourceId: "ph", activityId: "placeholder-work" }),
       ],
     };
 
@@ -1010,12 +1047,12 @@ describe("parent project edits preserve placeholder allocation assignments", () 
 
   it("does not make an unrelated edit the repair boundary for already-corrupt assignments", () => {
     const resource = placeholder("ph", A1, "p2");
-    const activityRow = activity("t1", A1, "p1");
+    const activityRow = activity({ id: "t1", accountId: A1, projectId: "p1" });
     const data: AppData = {
       ...base(),
       resources: [resource],
       activities: [activityRow],
-      allocations: [allocation("al", A1, "ph", "t1")],
+      allocations: [allocation({ id: "al", accountId: A1, resourceId: "ph", activityId: "t1" })],
     };
 
     expect(() => assertResourceProjectAllowsDependents(data, A1, "ph", resource, resource)).not.toThrow();
@@ -1029,10 +1066,10 @@ describe("deleteAccountCascade", () => {
       ...base(),
       clients: [client("c1", A1), client("c2", A2)],
       projects: [project("p1", A1, "c1")],
-      activities: [activity("t1", A1, "p1")],
+      activities: [activity({ id: "t1", accountId: A1, projectId: "p1" })],
       resources: [person("r1", A1)],
-      allocations: [allocation("al1", A1, "r1", "t1")],
-      timeOff: [timeOff("to1", A1, "r1")],
+      allocations: [allocation({ id: "al1", accountId: A1, resourceId: "r1", activityId: "t1" })],
+      timeOff: [timeOff({ id: "to1", accountId: A1, resourceId: "r1" })],
     };
     const next = deleteAccountCascade(data, A1);
     expect(next.accounts.map((a) => a.id)).toEqual([A2]);
@@ -1050,7 +1087,7 @@ describe("remapAndValidateImport", () => {
     ...emptyAppData(),
     clients: [client("src-c", "src-acct")],
     projects: [project("src-p", "src-acct", "src-c")],
-    activities: [activity("src-t", "src-acct", "src-p")],
+    activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
   });
 
   it("imports into the active account with FRESH ids and remapped foreign keys", () => {
@@ -1132,17 +1169,23 @@ describe("remapAndValidateImport", () => {
       ...emptyAppData(),
       clients: [client("src-c", "src-acct")],
       projects: [project("src-p", "src-acct", "src-c")],
-      activities: [activity("src-t", "src-acct", "src-p")],
+      activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
       resources: [person("src-r", "src-acct")],
       allocations: [
-        allocation("ok", "src-acct", "src-r", "src-t"),
-        allocation("reversed", "src-acct", "src-r", "src-t", {
-          startDate: "2026-02-10",
-          endDate: "2026-02-01",
+        allocation({ id: "ok", accountId: "src-acct", resourceId: "src-r", activityId: "src-t" }),
+        allocation({
+          id: "reversed",
+          accountId: "src-acct",
+          resourceId: "src-r",
+          activityId: "src-t",
+          overrides: {
+            startDate: "2026-02-10",
+            endDate: "2026-02-01",
+          },
         }),
-        allocation("dangling", "src-acct", "src-r", "no-such-activity"),
+        allocation({ id: "dangling", accountId: "src-acct", resourceId: "src-r", activityId: "no-such-activity" }),
       ],
-      timeOff: [timeOff("to-dangling", "src-acct", "no-such-resource")],
+      timeOff: [timeOff({ id: "to-dangling", accountId: "src-acct", resourceId: "no-such-resource" })],
     };
     const { data, skipped } = remapAndValidateImport(base(), A1, bad, TS);
     expect(data.allocations).toHaveLength(1); // only the valid one survives
@@ -1207,26 +1250,48 @@ describe("remapAndValidateImport", () => {
       ...emptyAppData(),
       clients: [client("src-c", "src-acct")],
       projects: [project("src-p", "src-acct", "src-c")],
-      activities: [activity("src-t", "src-acct", "src-p")],
+      activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
       resources: [person("src-r", "src-acct")],
       allocations: [
-        allocation("at-limit", "src-acct", "src-r", "src-t", {
-          startDate: start,
-          endDate: atLimit,
+        allocation({
+          id: "at-limit",
+          accountId: "src-acct",
+          resourceId: "src-r",
+          activityId: "src-t",
+          overrides: {
+            startDate: start,
+            endDate: atLimit,
+          },
         }),
-        allocation("over-limit", "src-acct", "src-r", "src-t", {
-          startDate: start,
-          endDate: overLimit,
+        allocation({
+          id: "over-limit",
+          accountId: "src-acct",
+          resourceId: "src-r",
+          activityId: "src-t",
+          overrides: {
+            startDate: start,
+            endDate: overLimit,
+          },
         }),
       ],
       timeOff: [
-        timeOff("to-at-limit", "src-acct", "src-r", {
-          startDate: start,
-          endDate: atLimit,
+        timeOff({
+          id: "to-at-limit",
+          accountId: "src-acct",
+          resourceId: "src-r",
+          overrides: {
+            startDate: start,
+            endDate: atLimit,
+          },
         }),
-        timeOff("to-over-limit", "src-acct", "src-r", {
-          startDate: start,
-          endDate: overLimit,
+        timeOff({
+          id: "to-over-limit",
+          accountId: "src-acct",
+          resourceId: "src-r",
+          overrides: {
+            startDate: start,
+            endDate: overLimit,
+          },
         }),
       ],
     };
@@ -1268,14 +1333,20 @@ describe("remapAndValidateImport", () => {
       ...emptyAppData(),
       clients: [client("src-c", "src-acct")],
       projects: [project("src-p", "src-acct", "src-c")],
-      activities: [activity("src-t", "src-acct", "src-p")],
+      activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
       resources: [external("src-ext", "src-acct")],
       allocations: [
-        allocation("al-ext", "src-acct", "src-ext", "src-t", {
-          hoursPerDay: 8,
+        allocation({
+          id: "al-ext",
+          accountId: "src-acct",
+          resourceId: "src-ext",
+          activityId: "src-t",
+          overrides: {
+            hoursPerDay: 8,
+          },
         }),
       ],
-      timeOff: [timeOff("to-ext", "src-acct", "src-ext")],
+      timeOff: [timeOff({ id: "to-ext", accountId: "src-acct", resourceId: "src-ext" })],
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     expect(data.allocations).toHaveLength(1);
@@ -1312,22 +1383,44 @@ describe("remapAndValidateImport", () => {
       ...emptyAppData(),
       clients: [client("src-c", "src-acct")],
       projects: [project("src-p", "src-acct", "src-c")],
-      activities: [activity("src-t", "src-acct", "src-p")],
+      activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
       resources: [deleted, person("active-r", "src-acct")],
       allocations: [
-        allocation("deleted-al", "src-acct", "src-r", "src-t", {
-          note: "Private project context",
+        allocation({
+          id: "deleted-al",
+          accountId: "src-acct",
+          resourceId: "src-r",
+          activityId: "src-t",
+          overrides: {
+            note: "Private project context",
+          },
         }),
-        allocation("active-al", "src-acct", "active-r", "src-t", {
-          note: "Keep this context",
+        allocation({
+          id: "active-al",
+          accountId: "src-acct",
+          resourceId: "active-r",
+          activityId: "src-t",
+          overrides: {
+            note: "Keep this context",
+          },
         }),
       ],
       timeOff: [
-        timeOff("deleted-to", "src-acct", "src-r", {
-          note: "Private medical detail",
+        timeOff({
+          id: "deleted-to",
+          accountId: "src-acct",
+          resourceId: "src-r",
+          overrides: {
+            note: "Private medical detail",
+          },
         }),
-        timeOff("active-to", "src-acct", "active-r", {
-          note: "Keep this absence detail",
+        timeOff({
+          id: "active-to",
+          accountId: "src-acct",
+          resourceId: "active-r",
+          overrides: {
+            note: "Keep this absence detail",
+          },
         }),
       ],
     };
@@ -1359,7 +1452,7 @@ describe("remapAndValidateImport", () => {
       projects: [project("p-orphan", "src", "ghost-client")], // dropped: client absent
       phases: [phase("ph-orphan", "src", "ghost-project")], // dropped: project absent
       resources: [{ ...person("r1", "src"), disciplineId: "ghost-disc" }], // kept, unbound
-      activities: [activity("t1", "src", "ghost-project", "ghost-phase")], // kept, unbound to general
+      activities: [activity({ id: "t1", accountId: "src", projectId: "ghost-project", phaseId: "ghost-phase" })], // kept, unbound to general
     };
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, handEdited, TS);
     expect(data.projects).toHaveLength(0);
@@ -1381,8 +1474,8 @@ describe("remapAndValidateImport", () => {
     const handEdited: AppData = {
       ...emptyAppData(),
       resources: [placeholder("ph", "src", "ghost-project")], // unbinds (project absent)
-      activities: [activity("t-general", "src", "ghost-project")], // unbinds to a general activity
-      allocations: [allocation("al", "src", "ph", "t-general")],
+      activities: [activity({ id: "t-general", accountId: "src", projectId: "ghost-project" })], // unbinds to a general activity
+      allocations: [allocation({ id: "al", accountId: "src", resourceId: "ph", activityId: "t-general" })],
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     expect(data.resources[0].projectId).toBeUndefined();
@@ -1397,9 +1490,9 @@ describe("remapAndValidateImport", () => {
       ...emptyAppData(),
       clients: [client("c", "src")],
       projects: [project("p", "src", "c")], // survives → t-proj stays project-bound
-      activities: [activity("t-proj", "src", "p")],
+      activities: [activity({ id: "t-proj", accountId: "src", projectId: "p" })],
       resources: [placeholder("ph", "src", "ghost-project")], // unbinds (project absent)
-      allocations: [allocation("al", "src", "ph", "t-proj")],
+      allocations: [allocation({ id: "al", accountId: "src", resourceId: "ph", activityId: "t-proj" })],
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     expect(data.resources[0].projectId).toBeUndefined();
@@ -1520,7 +1613,7 @@ describe("remapAndValidateImport", () => {
       clients: [client("c", "src")],
       projects: [project("p1", "src", "c"), project("p2", "src", "c")],
       phases: [phase("ph1", "src", "p1")], // a phase OF p1
-      activities: [activity("t", "src", "p2", "ph1")], // bound to p2 but referencing p1's phase
+      activities: [activity({ id: "t", accountId: "src", projectId: "p2", phaseId: "ph1" })], // bound to p2 but referencing p1's phase
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     const t = data.activities.find((x) => x.accountId === A1);
@@ -1547,9 +1640,9 @@ describe("remapAndValidateImport", () => {
       projects: [project("p", "src", "c")],
       phases: [phase("ph", "src", "p")],
       resources: [{ ...person("r", "src"), disciplineId: "d", projectId: "p" }],
-      activities: [activity("t", "src", "p", "ph")],
-      allocations: [allocation("al", "src", "r", "t")],
-      timeOff: [timeOff("to", "src", "r")],
+      activities: [activity({ id: "t", accountId: "src", projectId: "p", phaseId: "ph" })],
+      allocations: [allocation({ id: "al", accountId: "src", resourceId: "r", activityId: "t" })],
+      timeOff: [timeOff({ id: "to", accountId: "src", resourceId: "r" })],
       closures: [
         {
           ...meta("closure", "src"),
@@ -1629,7 +1722,7 @@ describe("remapAndValidateImport", () => {
       clients: [client("c", "src")],
       projects: [project("p", "src", "c")],
       phases: [phase("ph", "src", "p")],
-      activities: [activity("t", "src", "p", "ph")],
+      activities: [activity({ id: "t", accountId: "src", projectId: "p", phaseId: "ph" })],
     };
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const t = data.activities.find((x) => x.accountId === A1);
@@ -1646,7 +1739,7 @@ describe("remapAndValidateImport", () => {
       clients: [client("c", "src")],
       projects: [project("p", "src", "c")],
       phases: [phase("ph", "src", "p")],
-      activities: [{ ...activity("t", "src", "p", "ph"), kind: "internal" }],
+      activities: [{ ...activity({ id: "t", accountId: "src", projectId: "p", phaseId: "ph" }), kind: "internal" }],
     };
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const t = data.activities.find((x) => x.accountId === A1);
@@ -1661,7 +1754,7 @@ describe("remapAndValidateImport", () => {
       clients: [client("c", "src")],
       projects: [project("p", "src", "c")],
       phases: [phase("ph", "src", "p")],
-      activities: [{ ...activity("t", "src", "p", "ph"), kind: "repeatable" }],
+      activities: [{ ...activity({ id: "t", accountId: "src", projectId: "p", phaseId: "ph" }), kind: "repeatable" }],
     };
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const t = data.activities.find((x) => x.accountId === A1);
@@ -1705,13 +1798,19 @@ describe("remapAndValidateImport", () => {
       ...emptyAppData(),
       clients: [client("c", "src")],
       projects: [project("p", "src", "c")],
-      activities: [activity("t", "src", "p")],
+      activities: [activity({ id: "t", accountId: "src", projectId: "p" })],
       resources: [person("r", "src")],
       // single-digit month/day — would fail the YYYY-MM-DD range check if not normalized.
       allocations: [
-        allocation("al", "src", "r", "t", {
-          startDate: "2026-6-1",
-          endDate: "2026-6-5",
+        allocation({
+          id: "al",
+          accountId: "src",
+          resourceId: "r",
+          activityId: "t",
+          overrides: {
+            startDate: "2026-6-1",
+            endDate: "2026-6-5",
+          },
         }),
       ],
     };
@@ -1728,13 +1827,37 @@ describe("remapAndValidateImport", () => {
       ...emptyAppData(),
       clients: [client("c", "src")],
       projects: [project("p1", "src", "c"), project("p2", "src", "c")],
-      activities: [repeatable, activity("project", "src", "p1")],
+      activities: [repeatable, activity({ id: "project", accountId: "src", projectId: "p1" })],
       resources: [person("person", "src"), placeholder("placeholder", "src", "p1")],
       allocations: [
-        allocation("valid", "src", "person", "repeatable", { projectId: "p1", note: "valid" }),
-        allocation("dangling", "src", "person", "repeatable", { projectId: "missing", note: "dangling" }),
-        allocation("forbidden", "src", "person", "project", { projectId: "p1", note: "forbidden" }),
-        allocation("mismatch", "src", "placeholder", "repeatable", { projectId: "p2", note: "mismatch" }),
+        allocation({
+          id: "valid",
+          accountId: "src",
+          resourceId: "person",
+          activityId: "repeatable",
+          overrides: { projectId: "p1", note: "valid" },
+        }),
+        allocation({
+          id: "dangling",
+          accountId: "src",
+          resourceId: "person",
+          activityId: "repeatable",
+          overrides: { projectId: "missing", note: "dangling" },
+        }),
+        allocation({
+          id: "forbidden",
+          accountId: "src",
+          resourceId: "person",
+          activityId: "project",
+          overrides: { projectId: "p1", note: "forbidden" },
+        }),
+        allocation({
+          id: "mismatch",
+          accountId: "src",
+          resourceId: "placeholder",
+          activityId: "repeatable",
+          overrides: { projectId: "p2", note: "mismatch" },
+        }),
       ],
     };
 
