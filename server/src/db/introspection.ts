@@ -45,7 +45,15 @@ export const tableHasColumns = (db: Db, table: string, required: readonly string
 export const tableExists = (db: Db, table: string): boolean =>
   db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) !== undefined;
 
-const tableHasForeignKey = (db: Db, table: string, from: string, targetTable: string, targetColumn = "id"): boolean =>
+interface TableHasForeignKeyInput {
+  db: Db;
+  table: string;
+  from: string;
+  targetTable: string;
+  targetColumn?: string | undefined;
+}
+
+const tableHasForeignKey = ({ db, table, from, targetTable, targetColumn = "id" }: TableHasForeignKeyInput): boolean =>
   (
     db.prepare(`PRAGMA foreign_key_list("${table}")`).all() as Array<{
       from: string;
@@ -71,11 +79,11 @@ export function hasLegacyCapacityLensShape(db: Db, tables: readonly string[]): b
     tableHasColumns(db, "projects", ["id", "accountId", "clientId"]) &&
     tableHasColumns(db, workTable, ["id", "accountId", "name", "projectId"]) &&
     tableHasColumns(db, "allocations", ["id", "accountId", "resourceId", allocationWorkColumn]) &&
-    tableHasForeignKey(db, "clients", "accountId", "accounts") &&
-    tableHasForeignKey(db, "projects", "accountId", "accounts") &&
-    tableHasForeignKey(db, "projects", "clientId", "clients") &&
-    tableHasForeignKey(db, workTable, "accountId", "accounts") &&
-    tableHasForeignKey(db, workTable, "projectId", "projects") &&
-    tableHasForeignKey(db, "allocations", "accountId", "accounts")
+    tableHasForeignKey({ db, table: "clients", from: "accountId", targetTable: "accounts" }) &&
+    tableHasForeignKey({ db, table: "projects", from: "accountId", targetTable: "accounts" }) &&
+    tableHasForeignKey({ db, table: "projects", from: "clientId", targetTable: "clients" }) &&
+    tableHasForeignKey({ db, table: workTable, from: "accountId", targetTable: "accounts" }) &&
+    tableHasForeignKey({ db, table: workTable, from: "projectId", targetTable: "projects" }) &&
+    tableHasForeignKey({ db, table: "allocations", from: "accountId", targetTable: "accounts" })
   );
 }
