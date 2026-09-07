@@ -76,19 +76,19 @@ function createWriteBoundaryToken(): string {
   }
 }
 
-export function advanceWriteBoundary(): {
-  token: string;
-  storageError: unknown | null;
-} {
+type WriteBoundaryAdvanceResult =
+  { kind: "stored"; token: string } | { kind: "storageFailed"; token: string; storageError: unknown };
+
+export function advanceWriteBoundary(): WriteBoundaryAdvanceResult {
   advanceCacheGeneration();
   const token = createWriteBoundaryToken();
   try {
     localStorage.setItem(OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, token);
-    return { token, storageError: null };
+    return { kind: "stored", token };
   } catch (error) {
     // The durable IndexedDB token below still rejects every earlier writer. Report the preference
     // storage failure after data cleanup so callers can surface it without sacrificing deletion.
-    return { token, storageError: error };
+    return { kind: "storageFailed", token, storageError: error };
   }
 }
 
