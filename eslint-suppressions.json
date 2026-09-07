@@ -3596,9 +3596,6 @@
     }
   },
   "src/test/docs-lightbox.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
     "max-lines-per-function": {
       "count": 1
     }
