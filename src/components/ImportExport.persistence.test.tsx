@@ -75,7 +75,14 @@ describe("ImportExport with the real persistence coordinator", () => {
     onPersistenceError = vi.fn((error: unknown) => {
       useStore.getState().setNotice(error instanceof Error ? error.message : "Persistence failed.", "error");
     });
-    detachPersistence = attachPersistence(useStore, adapter, 0, onPersistenceError, undefined, true);
+    detachPersistence = attachPersistence({
+      store: useStore,
+      adapter: adapter,
+      debounceMs: 0,
+      onError: onPersistenceError,
+      onSuccess: undefined,
+      serverMode: true,
+    });
   });
 
   afterEach(() => {

@@ -153,12 +153,22 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       );
     }
     if (batchBody === null) return;
-    const receipt = await dispatchPreparedBatch(this.state, batchBody, orderedOps, {
-      keepalive: true,
-      archiveLifecycleDeletes: true,
+    const receipt = await dispatchPreparedBatch({
+      state: this.state,
+      body: batchBody,
+      ops: orderedOps,
+      options: {
+        keepalive: true,
+        archiveLifecycleDeletes: true,
+      },
     });
     if (!receipt.superseded) {
-      rememberRevisions(this.state, batchOps, receipt.revisions, canonicalTarget);
+      rememberRevisions({
+        state: this.state,
+        ops: batchOps,
+        revisions: receipt.revisions,
+        committedSnapshot: canonicalTarget,
+      });
       publishAllocationRewrites(this.state, receipt.revisions, canonicalTarget);
       rememberLifecycleArchives(this.state, lifecycleDeletes, receipt.archivedLifecycleKeys);
     }
@@ -238,7 +248,12 @@ export class ServerSyncAdapter implements PersistenceAdapter {
           continue;
         }
         if (targetSeedGen === this.state.seedGen) {
-          rememberRevisions(this.state, batchOps, receipt.revisions, canonicalTarget);
+          rememberRevisions({
+            state: this.state,
+            ops: batchOps,
+            revisions: receipt.revisions,
+            committedSnapshot: canonicalTarget,
+          });
           publishAllocationRewrites(this.state, receipt.revisions, canonicalTarget);
           committedTarget = applyCommittedRevisions(canonicalTarget, receipt.revisions);
         }
