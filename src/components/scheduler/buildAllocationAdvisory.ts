@@ -78,14 +78,14 @@ export function buildAllocationAdvisory({
     // The repeat variant counts whole OCCURRENCES rather than days; the two tallies otherwise read
     // and render identically, so they share the one advisory sentence builder.
     const { overCapacityAllocations, timeOffAllocations, nonEffectiveStartAllocations } =
-      buildRepeatingAllocationAdvisory(
-        selectedResource,
-        others,
-        resourceTimeOff,
-        repeatProjection.drafts,
-        selectedEffectiveWeek,
-        data.closures,
-      );
+      buildRepeatingAllocationAdvisory({
+        resource: selectedResource,
+        existingLoad: others,
+        timeOff: resourceTimeOff,
+        proposedDrafts: repeatProjection.drafts,
+        effectiveWeek: selectedEffectiveWeek,
+        closures: data.closures,
+      });
     return (
       formatCapacityAdvisory(
         {

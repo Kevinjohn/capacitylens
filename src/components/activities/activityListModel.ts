@@ -28,7 +28,7 @@ interface ActivityListModel {
 function compareNamed(left: NamedEntity, right: NamedEntity): number {
   const leftKey = "id" in left ? left.id : left.key;
   const rightKey = "id" in right ? right.id : right.key;
-  return compareDisplayNames(left.name, leftKey, right.name, rightKey);
+  return compareDisplayNames({ leftName: left.name, leftId: leftKey, rightName: right.name, rightId: rightKey });
 }
 
 function compareGroups<T extends NamedEntity & { unavailable: boolean }>(left: T, right: T): number {

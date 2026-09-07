@@ -73,7 +73,12 @@ export function buildTimeOffGroups({
   }
 
   const resourceGroups = [...byResource.values()].sort((left, right) =>
-    compareDisplayNames(left.name, left.resourceId, right.name, right.resourceId),
+    compareDisplayNames({
+      leftName: left.name,
+      leftId: left.resourceId,
+      rightName: right.name,
+      rightId: right.resourceId,
+    }),
   );
   const groups: TimeOffGroup[] = [];
   for (const group of resourceGroups) {

@@ -21,7 +21,7 @@ export function sortGroupedOptions(options: readonly Option[]): Option[] {
   return options.toSorted((left, right) => {
     return (
       resolveGroupOrder(left.groupKey) - resolveGroupOrder(right.groupKey) ||
-      compareDisplayNames(left.label, left.value, right.label, right.value)
+      compareDisplayNames({ leftName: left.label, leftId: left.value, rightName: right.label, rightId: right.value })
     );
   });
 }
@@ -66,7 +66,13 @@ export function buildActivityOptions(
     (left, right) =>
       (groupedProjectScope
         ? resolveGroupOrder(resolveGroupKeyForKind(left.kind)) - resolveGroupOrder(resolveGroupKeyForKind(right.kind))
-        : 0) || compareDisplayNames(left.baseLabel, left.activity.id, right.baseLabel, right.activity.id),
+        : 0) ||
+      compareDisplayNames({
+        leftName: left.baseLabel,
+        leftId: left.activity.id,
+        rightName: right.baseLabel,
+        rightId: right.activity.id,
+      }),
   );
   return resolved.map(({ activity, kind: resolvedKind, baseLabel }) => {
     const occurrence = (occurrenceCountsByLabel.get(baseLabel) ?? 0) + 1;
