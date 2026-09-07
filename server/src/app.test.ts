@@ -298,13 +298,15 @@ interface ProjectBinding {
 }
 
 interface ClientSnapshot {
+  accountId: string;
+  color: string;
+  createdAt: string;
   id: string;
   name: string;
-}
-
-interface ClientResponse extends ClientSnapshot {
   updatedAt: string;
 }
+
+type ClientResponse = ClientSnapshot;
 
 interface ValidatedStateResponse {
   activities: ProjectBinding[];
@@ -316,6 +318,12 @@ interface ValidatedStateResponse {
 
 function isUnknownRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function readRequiredString(value: Record<string, unknown>, key: string, context: string): string {
+  const field = value[key];
+  if (typeof field !== "string") throw new Error(`Expected ${context} ${key} to be a string.`);
+  return field;
 }
 
 function readStateArray(value: Record<string, unknown>, key: string): unknown[] {
@@ -343,26 +351,27 @@ function readProjectBindings(rows: unknown[], table: string): ProjectBinding[] {
 function readClientSnapshots(rows: unknown[]): ClientSnapshot[] {
   return rows
     .map((row) => {
-      if (
-        typeof row !== "object" ||
-        row === null ||
-        !("id" in row) ||
-        typeof row.id !== "string" ||
-        !("name" in row) ||
-        typeof row.name !== "string"
-      ) {
-        throw new Error("Expected every client row to contain string id and name fields.");
-      }
-      return { id: row.id, name: row.name };
+      if (!isUnknownRecord(row)) throw new Error("Expected every client row to be an object.");
+      return {
+        accountId: readRequiredString(row, "accountId", "client row"),
+        color: readRequiredString(row, "color", "client row"),
+        createdAt: readRequiredString(row, "createdAt", "client row"),
+        id: readRequiredString(row, "id", "client row"),
+        name: readRequiredString(row, "name", "client row"),
+        updatedAt: readRequiredString(row, "updatedAt", "client row"),
+      };
     })
-    .filter((clientRow) => !clientRow.id.startsWith("internal:"))
-    .map(({ id, name }) => ({ id, name }));
+    .filter((clientRow) => !clientRow.id.startsWith("internal:"));
+}
+
+function readFirstClient(clients: ClientSnapshot[]): ClientSnapshot {
+  const clientRow = clients[0];
+  if (!clientRow) throw new Error("Expected the state response to contain a client.");
+  return clientRow;
 }
 
 function readFirstClientName(clients: ClientSnapshot[]): string {
-  const clientRow = clients[0];
-  if (!clientRow) throw new Error("Expected the state response to contain a client.");
-  return clientRow.name;
+  return readFirstClient(clients).name;
 }
 
 function readClientIds(clients: ClientSnapshot[]): string[] {
@@ -370,19 +379,25 @@ function readClientIds(clients: ClientSnapshot[]): string[] {
 }
 
 function readClientResponseValue(value: unknown): ClientResponse {
-  if (
-    !isUnknownRecord(value) ||
-    typeof value.id !== "string" ||
-    typeof value.name !== "string" ||
-    typeof value.updatedAt !== "string"
-  ) {
-    throw new Error("Expected a client response with string id, name and updatedAt fields.");
-  }
-  return { id: value.id, name: value.name, updatedAt: value.updatedAt };
+  if (!isUnknownRecord(value)) throw new Error("Expected the client response to be an object.");
+  return {
+    accountId: readRequiredString(value, "accountId", "client response"),
+    color: readRequiredString(value, "color", "client response"),
+    createdAt: readRequiredString(value, "createdAt", "client response"),
+    id: readRequiredString(value, "id", "client response"),
+    name: readRequiredString(value, "name", "client response"),
+    updatedAt: readRequiredString(value, "updatedAt", "client response"),
+  };
 }
 
 function readClientResponse(response: LightMyRequestResponse): ClientResponse {
   return readClientResponseValue(response.json());
+}
+
+function readUpdatedAtResponse(response: LightMyRequestResponse): string {
+  const value: unknown = response.json();
+  if (!isUnknownRecord(value)) throw new Error("Expected the entity response to be an object.");
+  return readRequiredString(value, "updatedAt", "entity response");
 }
 
 interface ConflictResponse {
@@ -396,6 +411,16 @@ function readConflictResponse(response: LightMyRequestResponse): ConflictRespons
     throw new Error("Expected a conflict response with an error and current row.");
   }
   return { error: value.error, current: readClientResponseValue(value.current) };
+}
+
+function readBatchSuperseded(response: LightMyRequestResponse): boolean | undefined {
+  const value: unknown = response.json();
+  if (!isUnknownRecord(value)) throw new Error("Expected the batch response to be an object.");
+  if (!("superseded" in value)) return undefined;
+  if (typeof value.superseded !== "boolean") {
+    throw new Error("Expected a present batch superseded field to be boolean.");
+  }
+  return value.superseded;
 }
 
 function readProjectId(rows: ProjectBinding[], id: string): string | undefined {
@@ -3583,7 +3608,7 @@ describe("optimistic concurrency (default-on)", () => {
       },
     ]);
     expect(res.statusCode).toBe(200);
-    expect((await state(app)).clients[0].name).toBe("Stale");
+    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Stale");
   });
 
   it.each([true, false])(
@@ -3592,7 +3617,7 @@ describe("optimistic concurrency (default-on)", () => {
       const app = createApp(openDb(":memory:"), { optimisticConcurrency });
       await post(app, "accounts", account("a1"));
       const created = await put({ app, entity: "clients", id: "c1", payload: client("c1", "a1") });
-      const baseRevision = created.json().updatedAt as string;
+      const baseRevision = readClientResponse(created).updatedAt;
       const sessionId = "browser-session-0001";
       const first = await orderedBatch({
         app,
@@ -3631,8 +3656,8 @@ describe("optimistic concurrency (default-on)", () => {
 
       expect(first.statusCode).toBe(200);
       expect(second.statusCode).toBe(200);
-      expect(second.json().superseded).toBeUndefined();
-      expect((await state(app)).clients[0].name).toBe("Newest");
+      expect(readBatchSuperseded(second)).toBeUndefined();
+      expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Newest");
     },
   );
 
@@ -3642,7 +3667,7 @@ describe("optimistic concurrency (default-on)", () => {
       const app = createApp(openDb(":memory:"), { optimisticConcurrency });
       await post(app, "accounts", account("a1"));
       const created = await put({ app, entity: "clients", id: "c1", payload: client("c1", "a1") });
-      const baseRevision = created.json().updatedAt as string;
+      const baseRevision = readClientResponse(created).updatedAt;
       const sessionId = "browser-session-0002";
       const second = await orderedBatch({
         app,
@@ -3686,7 +3711,7 @@ describe("optimistic concurrency (default-on)", () => {
         applied: 1,
         superseded: true,
       });
-      expect((await state(app)).clients[0].name).toBe("Newest");
+      expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Newest");
     },
   );
 
@@ -3730,7 +3755,7 @@ describe("optimistic concurrency (default-on)", () => {
       expect(teardown.json()).toMatchObject({ ok: true, applied: 1, changed: 0 });
       expect(olderCreation.statusCode).toBe(200);
       expect(olderCreation.json()).toMatchObject({ ok: true, applied: 1, superseded: true });
-      expect((await state(app)).clients).toEqual([]);
+      expect((await readValidatedState(app)).clients).toEqual([]);
     },
   );
 
@@ -3750,7 +3775,7 @@ describe("optimistic concurrency (default-on)", () => {
           table: "clients",
           id: "c1",
           accountId: "a1",
-          updatedAt: created.json().updatedAt,
+          updatedAt: readClientResponse(created).updatedAt,
         },
       ],
     });
@@ -3764,7 +3789,7 @@ describe("optimistic concurrency (default-on)", () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
     const created = await put({ app, entity: "clients", id: "c1", payload: client("c1", "a1") });
-    const baseRevision = created.json().updatedAt as string;
+    const baseRevision = readClientResponse(created).updatedAt;
     const sessionId = "browser-session-0003";
     await orderedBatch({
       app,
@@ -3779,7 +3804,7 @@ describe("optimistic concurrency (default-on)", () => {
         },
       ],
     });
-    const afterFirst = (await state(app)).clients[0];
+    const afterFirst = readFirstClient((await readValidatedState(app)).clients);
     await put({ app, entity: "clients", id: "c1", payload: { ...afterFirst, name: "External" } });
     const successor = await orderedBatch({
       app,
@@ -3796,7 +3821,7 @@ describe("optimistic concurrency (default-on)", () => {
     });
 
     expect(successor.statusCode).toBe(409);
-    expect((await state(app)).clients[0].name).toBe("External");
+    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("External");
   });
 
   it("ordered stale DELETE rolls back its batch and preserves an externally edited row", async () => {
@@ -3820,7 +3845,7 @@ describe("optimistic concurrency (default-on)", () => {
       },
     });
     expect(external.statusCode).toBe(200);
-    expect(external.json().updatedAt).not.toBe(baseRevision);
+    expect(readUpdatedAtResponse(external)).not.toBe(baseRevision);
 
     const staleDelete = await orderedBatch({
       app,
@@ -3856,7 +3881,7 @@ describe("optimistic concurrency (default-on)", () => {
       current: {
         id: "al1",
         note: "Committed by another browser",
-        updatedAt: external.json().updatedAt,
+        updatedAt: readUpdatedAtResponse(external),
       },
     });
     const current = await state(app);
