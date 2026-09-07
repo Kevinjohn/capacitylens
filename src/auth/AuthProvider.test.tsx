@@ -870,7 +870,7 @@ describe("AuthProvider — server mode", () => {
       outcome,
       new Promise<"unsettled">((resolve) => setTimeout(() => resolve("unsettled"), 100)),
     ]);
-    expect(settled).toBe(false);
+    expect(settled).toEqual({ kind: "cancelled" });
     expect(isReauthPending()).toBe(false);
   });
 
