@@ -484,11 +484,6 @@
       "count": 1
     }
   },
-  "src/components/scheduler/weekSnap.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "src/components/settings/MembersSection.test.tsx": {
     "max-params": {
       "count": 6
