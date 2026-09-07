@@ -18,8 +18,13 @@ export function hasOverCapacity(allocated: number, available: number): boolean {
  *  reference day the fraction is documented against. */
 const BLOCK_PROJECTED_HOURS_PER_DAY = blockHoursPerDay(FULL_DAY_HOURS);
 
+interface ApplyCapacityModeInput {
+  allocations: Allocation[];
+  blocksMode: boolean;
+}
+
 /** Blocks carry placement but no hourly load. Reuse this projection across every capacity surface. */
-export function applyCapacityMode(allocations: Allocation[], blocksMode: boolean): Allocation[] {
+export function applyCapacityMode({ allocations, blocksMode }: ApplyCapacityModeInput): Allocation[] {
   return blocksMode
     ? allocations.map((allocation) => ({ ...allocation, hoursPerDay: BLOCK_PROJECTED_HOURS_PER_DAY }))
     : allocations;
@@ -49,17 +54,23 @@ export function warnOnNonFiniteCapacity(hours: number): void {
   }
 }
 
+interface HasAllocationLoadOnDayInput {
+  effectiveWeek: EffectiveWorkingWeek;
+  ignoreWorkingDays: boolean | undefined;
+  dayIsWorking: boolean;
+}
+
 // Every public helper below takes an `ISODate` and derives its weekday; each `…ForWeekday` twin
 // takes one already derived. `weekdayOf` is a parseISO, and `buildDayCapacity` — the scheduler's hottest
 // path, ~27k resource-days per model rebuild — needs the SAME weekday four times over. It derives
 // it ONCE and threads it through the twins; the public signatures stay date-only.
 /** Whether an allocation loads this date. Keep `none` explicit: an empty weekday array has
  * calendar-day semantics in allocationWorksOnDay, which is the opposite of the capacity contract. */
-export function hasAllocationLoadOnDay(
-  effectiveWeek: EffectiveWorkingWeek,
-  ignoreWorkingDays: boolean | undefined,
-  dayIsWorking: boolean,
-): boolean {
+export function hasAllocationLoadOnDay({
+  effectiveWeek,
+  ignoreWorkingDays,
+  dayIsWorking,
+}: HasAllocationLoadOnDayInput): boolean {
   if (ignoreWorkingDays) return true;
   if (effectiveWeek.kind === "none") return false;
   return allocationWorksOnDay(effectiveWeek.days, false, dayIsWorking);

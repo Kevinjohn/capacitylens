@@ -27,13 +27,25 @@ const weekFor = (resource: Resource, accountWorkingDays = DEFAULT_ACCOUNT_WORKIN
 const scheduledHoursOnDay = (resource: Resource, date: ISODate, accountWorkingDays?: Weekday[]) =>
   scheduledHoursOnDayWithWeek(resource, date, weekFor(resource, accountWorkingDays));
 const availableHoursOnDay = (resource: Resource, date: ISODate, timeOff: TimeOff[], accountWorkingDays?: Weekday[]) =>
-  availableHoursOnDayWithWeek(resource, date, timeOff, weekFor(resource, accountWorkingDays), []);
+  availableHoursOnDayWithWeek({
+    resource: resource,
+    date: date,
+    timeOff: timeOff,
+    effectiveWeek: weekFor(resource, accountWorkingDays),
+    closures: [],
+  });
 const allocatedHoursOnDay = (
   resource: Resource,
   date: ISODate,
   allocations: Allocation[],
   accountWorkingDays?: Weekday[],
-) => allocatedHoursOnDayWithWeek(resource, date, allocations, weekFor(resource, accountWorkingDays));
+) =>
+  allocatedHoursOnDayWithWeek({
+    resource: resource,
+    date: date,
+    allocations: allocations,
+    effectiveWeek: weekFor(resource, accountWorkingDays),
+  });
 const dayCapacity = (
   resource: Resource,
   date: ISODate,
@@ -66,14 +78,14 @@ const capacityAdvisory = (
   accountWorkingDays?: Weekday[],
   closures: Closure[] = [],
 ) =>
-  capacityAdvisoryWithWeek(
-    resource,
-    proposal,
-    otherAllocations,
-    timeOff,
-    weekFor(resource, accountWorkingDays),
-    closures,
-  );
+  capacityAdvisoryWithWeek({
+    resource: resource,
+    proposal: proposal,
+    otherAllocations: otherAllocations,
+    timeOff: timeOff,
+    effectiveWeek: weekFor(resource, accountWorkingDays),
+    closures: closures,
+  });
 const isWorkingDay = (resource: Resource, date: ISODate, accountWorkingDays?: Weekday[]) =>
   isWorkingDayWithWeek(weekFor(resource, accountWorkingDays), date);
 
@@ -172,8 +184,8 @@ describe("effective working-week semantics table", () => {
   const normalMonday = [makeAlloc({ startDate: monday, endDate: monday, hoursPerDay: 8 })];
   const normalFriday = [makeAlloc({ startDate: friday, endDate: friday, hoursPerDay: 8 })];
   const ignoredFriday = [makeAlloc({ startDate: friday, endDate: friday, hoursPerDay: 8, ignoreWeekends: true })];
-  const blockMonday = applyCapacityMode(normalMonday, true);
-  const blockFriday = applyCapacityMode(normalFriday, true);
+  const blockMonday = applyCapacityMode({ allocations: normalMonday, blocksMode: true });
+  const blockFriday = applyCapacityMode({ allocations: normalFriday, blocksMode: true });
 
   it.each([
     ["normal allocation on an effective day", monday, normalMonday, [], { allocated: 8, available: 8, over: false }],
@@ -228,8 +240,8 @@ describe("effective working-week semantics table", () => {
 describe("capacityAllocationsForMode", () => {
   it("preserves hourly allocations and projects blocks to zero load without mutating input", () => {
     const allocations = [makeAlloc({ hoursPerDay: 7 })];
-    expect(applyCapacityMode(allocations, false)).toBe(allocations);
-    const blocks = applyCapacityMode(allocations, true);
+    expect(applyCapacityMode({ allocations: allocations, blocksMode: false })).toBe(allocations);
+    const blocks = applyCapacityMode({ allocations: allocations, blocksMode: true });
     expect(blocks).toEqual([{ ...allocations[0], hoursPerDay: 0 }]);
     expect(allocations[0].hoursPerDay).toBe(7);
   });
@@ -812,7 +824,7 @@ describe("capacityAdvisory", () => {
     // Blocks propose 0 load too, so nothing is over — whereas the RAW hourly rows would flag
     // nothing here either; the difference shows when the proposal itself carries hours.
     expect(capacityAdvisory(r, proposal("2026-06-01", "2026-06-05", 1, false), legacy, []).overDays).toBe(5);
-    const projected = applyCapacityMode(legacy, true);
+    const projected = applyCapacityMode({ allocations: legacy, blocksMode: true });
     expect(capacityAdvisory(r, proposal("2026-06-01", "2026-06-05", 1, false), projected, []).overDays).toBe(0);
   });
 
