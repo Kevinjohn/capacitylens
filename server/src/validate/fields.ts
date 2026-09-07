@@ -24,14 +24,21 @@ export function listAcceptedFieldNames(table: string, row: unknown): string[] {
     : [];
 }
 
+interface ListAppliedRequestedFieldNamesInput {
+  table: string;
+  requested: unknown;
+  existing: Record<string, unknown> | undefined;
+  applied: Record<string, unknown>;
+}
+
 /** Field names the caller requested AND the write funnel actually changed. This keeps audit
  * metadata value-free while excluding rejected, pinned and normalized-to-existing input. */
-export function listAppliedRequestedFieldNames(
-  table: string,
-  requested: unknown,
-  existing: Record<string, unknown> | undefined,
-  applied: Record<string, unknown>,
-): string[] {
+export function listAppliedRequestedFieldNames({
+  table,
+  requested,
+  existing,
+  applied,
+}: ListAppliedRequestedFieldNamesInput): string[] {
   if (!requested || typeof requested !== "object") return [];
   return listAcceptedFieldNames(table, requested).filter(
     (field) =>

@@ -29,16 +29,6 @@
       "count": 1
     }
   },
-  "server/src/validate/fields.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/validate/sanitize.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "shared/src/account/policy.ts": {
     "max-params": {
       "count": 1

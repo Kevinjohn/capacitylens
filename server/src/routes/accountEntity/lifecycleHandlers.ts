@@ -60,7 +60,12 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
         action: "create",
         entity: "accounts",
         id: row.id as string,
-        changedFields: listAppliedRequestedFieldNames("accounts", requestRow, undefined, row),
+        changedFields: listAppliedRequestedFieldNames({
+          table: "accounts",
+          requested: requestRow,
+          existing: undefined,
+          applied: row,
+        }),
       };
       // A company is not usable without its singleton Internal client. Commit both rows as one unit
       // so a constraint/storage failure cannot leave a degraded company behind.
