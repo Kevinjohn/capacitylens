@@ -15,7 +15,7 @@ const parseDependencies = createDependencyParser(repositoryRoot);
 
 const boundaryLocations = {
   productRoutes: ["app.ts", "routes"],
-  coordinators: ["accounts/localAccountFlows.ts", "accounts/flows"],
+  coordinators: ["accounts/createLocalAccountFlows.ts", "accounts/flows"],
   accountRoutes: ["accounts/accountRoutes.ts", "accounts/routes"],
   authBuilders: ["auth.ts", "authConfig"],
 } as const;
@@ -60,8 +60,8 @@ const runtimeImports = (file: string): string[] => internalImports(file, (edge) 
 // These three concrete adapter contracts remain migration debt for T15. Only the named type
 // edges are tolerated; another consumer, a runtime import or a duplicate declaration fails.
 const adapterTypeDebt = [
-  ["accounts/localAccountFlows.ts", "accounts/betterAuthIdentityPort.ts", "LocalIdentityPort"],
-  ["accounts/localAccountFlows.ts", "accounts/sqliteAccountAdminPort.ts", "LocalAccountAdminPort"],
+  ["accounts/createLocalAccountFlows.ts", "accounts/betterAuthIdentityPort.ts", "LocalIdentityPort"],
+  ["accounts/createLocalAccountFlows.ts", "accounts/sqliteAccountAdminPort.ts", "LocalAccountAdminPort"],
   ["accounts/flows/actorContext.ts", "accounts/sqliteAccountAdminPort.ts", "LocalAccountAdminPort"],
 ] as const;
 function isOwnershipTypeBoundary(
@@ -139,7 +139,7 @@ function displayPath(path: readonly string[]): string {
 }
 
 const read = (rel: string): string => readFileSync(resolve(serverRoot, rel), "utf8");
-const localAccountFlowsPath = "accounts/localAccountFlows.ts";
+const createLocalAccountFlowsPath = "accounts/createLocalAccountFlows.ts";
 const coordinatorPaths = boundaryPaths(serverRoot, "coordinators");
 const accountRoutePaths = boundaryPaths(serverRoot, "accountRoutes");
 
@@ -199,9 +199,9 @@ describe("account-boundary architecture", () => {
     ],
     [
       "follows workspace aliases as well as relative imports",
-      resolve(serverRoot, localAccountFlowsPath),
+      resolve(serverRoot, createLocalAccountFlowsPath),
       resolve(sharedAccountRoot, "errors.ts"),
-      ["accounts/localAccountFlows.ts", "../../shared/src/account/errors.ts"],
+      ["accounts/createLocalAccountFlows.ts", "../../shared/src/account/errors.ts"],
     ],
   ] as const)("%s", (_name, start, target, expected) => {
     const path = dependencyPath(start, new Set([target]));

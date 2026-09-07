@@ -69,9 +69,15 @@ export const safeHalfDays = (value: unknown, workingDays: Weekday[]): Weekday[] 
   ].sort((a, b) => a - b);
 };
 
+interface CleanFieldOptions {
+  record: Record<string, unknown>;
+  field: string;
+  multiline?: boolean;
+}
+
 // Strip emoji / control / zero-width junk from a free-text field in place (the forms
-// reject it; import can't, so it repairs). No-op on a missing/non-string field.
-export const cleanField = (record: Record<string, unknown>, field: string, multiline = false): void => {
+// reject it; import can't, so it repairs). Leave undefined fields unchanged; delete non-string fields.
+export const cleanField = ({ record, field, multiline = false }: CleanFieldOptions): void => {
   if (record[field] === undefined) return;
   if (typeof record[field] !== "string") {
     delete record[field];

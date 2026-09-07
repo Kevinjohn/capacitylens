@@ -8,7 +8,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { isMatchingSecretToken, type Auth, type AuthMode } from "../auth";
 import type { Db } from "../db";
 import { insertRow, listAccountSummaries, readState } from "../db";
-import type { LocalAccountFlows } from "../accounts/localAccountFlows";
+import type { LocalAccountFlows } from "../accounts/createLocalAccountFlows";
 import type { MasqueradeRegistry } from "../MasqueradeRegistry";
 import type { TenantStore } from "../tenantStore";
 import { listAcceptedFieldNames, sanitizeWrite, assertValidWrite } from "../validate";

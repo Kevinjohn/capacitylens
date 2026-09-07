@@ -19,7 +19,7 @@ import {
 } from "./routes/handlers/memberAdmin";
 import { reconcile } from "./routes/handlers/reconcile";
 import { listSessions, revokeSession, signOut } from "./routes/handlers/session";
-import { replyHelpers } from "./routes/replyHelpers";
+import { createReplyHelpers } from "./routes/createReplyHelpers";
 export type { AccountRouteDependencies } from "./routes/accountRouteDependencies";
 
 /**
@@ -29,7 +29,7 @@ export type { AccountRouteDependencies } from "./routes/accountRouteDependencies
  * account-administration port/policy module; cross-port ordering stays in AccountFlows.
  */
 export function registerAccountRoutes(app: FastifyInstance, dependencies: AccountRouteDependencies): void {
-  const context = { ...dependencies, ...replyHelpers(dependencies) };
+  const context = { ...dependencies, ...createReplyHelpers(dependencies) };
 
   // A command id plus its independent idempotency key is a high-entropy reconciliation bearer.
   // The response contains status and redacted repair coordinates only; never tenant or identity data.

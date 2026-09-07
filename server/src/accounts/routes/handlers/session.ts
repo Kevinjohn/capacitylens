@@ -1,6 +1,6 @@
 import { isAccountSessionId } from "@capacitylens/shared/account/validation";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { AccountRouteContext } from "../replyHelpers";
+import type { AccountRouteContext } from "../createReplyHelpers";
 
 export async function signOut(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const { identity: identityPort, fail: accountFail } = context;
