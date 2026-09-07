@@ -1076,7 +1076,12 @@ describe("MembersSection — member lifecycle", () => {
       m.settings_member_col_edit(),
       m.settings_member_col_settings(),
     ]);
-    const editorRow = await findMemberRow(/Clark Kent/);
+    const editorRow = requireValue(
+      within(table)
+        .getAllByTestId("member-row")
+        .find((row) => within(row).queryByText("Clark Kent")),
+      "the Clark Kent row in the members table",
+    );
     const cells = within(editorRow).getAllByRole("cell");
     expect(cells).toHaveLength(5);
     expect(within(requireValue(cells[3], "the edit cell")).getByTestId("member-edit")).toBeInTheDocument();
