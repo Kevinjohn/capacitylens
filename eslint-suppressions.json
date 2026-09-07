@@ -605,7 +605,7 @@
       "count": 2
     },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 11
+      "count": 7
     },
     "max-lines-per-function": {
       "count": 9
@@ -619,7 +619,7 @@
       "count": 6
     },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 12
+      "count": 5
     },
     "max-lines-per-function": {
       "count": 6
@@ -679,10 +679,10 @@
       "count": 1
     },
     "@typescript-eslint/no-unsafe-assignment": {
-      "count": 3
+      "count": 2
     },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 19
+      "count": 14
     },
     "max-lines-per-function": {
       "count": 7
@@ -713,9 +713,6 @@
   "server/src/app.members.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 10
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 1
     },
     "max-lines-per-function": {
       "count": 12
@@ -774,10 +771,10 @@
       "count": 17
     },
     "@typescript-eslint/no-unsafe-assignment": {
-      "count": 102
+      "count": 98
     },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 223
+      "count": 196
     },
     "max-lines-per-function": {
       "count": 15
@@ -860,7 +857,7 @@
   },
   "server/src/auth.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
-      "count": 59
+      "count": 29
     },
     "@typescript-eslint/no-unsafe-assignment": {
       "count": 7
@@ -2770,7 +2767,7 @@
   },
   "src/components/scheduler/schedulerModel.test.ts": {
     "max-lines-per-function": {
-      "count": 12
+      "count": 11
     }
   },
   "src/components/scheduler/schedulerModel.ts": {
@@ -2925,9 +2922,6 @@
     }
   },
   "src/components/settings/MembersSection.test.tsx": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 45
-    },
     "max-lines-per-function": {
       "count": 9
     }
