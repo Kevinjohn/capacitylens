@@ -3419,7 +3419,7 @@ describe("optimistic concurrency (default-on)", () => {
         row: {
           ...client("c1", "a1"),
           name: "Fresh",
-          updatedAt: created.json().updatedAt,
+          updatedAt: readClientResponse(created).updatedAt,
         },
       },
     ]);
@@ -3432,7 +3432,7 @@ describe("optimistic concurrency (default-on)", () => {
         updatedAt: expect.any(String),
       }),
     ]);
-    expect((await state(app)).clients[0].name).toBe("Fresh");
+    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Fresh");
   });
 
   it("rejects existing-row PUTs that omit the required revision precondition", async () => {
@@ -3468,7 +3468,7 @@ describe("optimistic concurrency (default-on)", () => {
     });
     expect(viaBatch.statusCode).toBe(viaPut.statusCode);
     expect(viaBatch.statusCode).toBe(409);
-    expect((await state(app)).clients[0].name).toBe("Acme");
+    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Acme");
   });
 
   it("rejects a future-authored revision instead of treating it as fresher than the server", async () => {
@@ -3488,7 +3488,7 @@ describe("optimistic concurrency (default-on)", () => {
     });
 
     expect(res.statusCode).toBe(409);
-    expect((await state(app)).clients[0].name).toBe("Acme");
+    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Acme");
   });
 
   it("accepts a partial PATCH that omits updatedAt (a normal partial edit is never a 409)", async () => {
@@ -3500,8 +3500,8 @@ describe("optimistic concurrency (default-on)", () => {
     await put({ app, entity: "clients", id: "c1", payload: client("c1", "a1") });
     const res = await patch({ app, entity: "clients", id: "c1", payload: { name: "Renamed" } });
     expect(res.statusCode).toBe(200);
-    expect(res.json().name).toBe("Renamed");
-    expect(Date.parse(res.json().updatedAt)).not.toBeNaN();
+    expect(readClientResponse(res).name).toBe("Renamed");
+    expect(Date.parse(readClientResponse(res).updatedAt)).not.toBeNaN();
   });
 
   it("rejects null for a required PATCH field without rewriting the stored value", async () => {
@@ -3512,8 +3512,8 @@ describe("optimistic concurrency (default-on)", () => {
     const res = await patch({ app, entity: "clients", id: "c1", payload: { name: null } });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/required field.*cannot be null/i);
-    expect((await state(app)).clients[0].name).toBe("Acme");
+    expect(readErrorResponse(res).error).toMatch(/required field.*cannot be null/i);
+    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Acme");
   });
 
   it("keeps writing to a row whose STORED updatedAt is unparseable (never write-bricked)", async () => {
@@ -3538,8 +3538,8 @@ describe("optimistic concurrency (default-on)", () => {
       },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().name).toBe("Recovered");
-    expect(Date.parse(res.json().updatedAt)).not.toBeNaN();
+    expect(readClientResponse(res).name).toBe("Recovered");
+    expect(Date.parse(readClientResponse(res).updatedAt)).not.toBeNaN();
   });
 
   it.each(["9999-12-31T23:59:59.999Z", "+010000-01-01T00:00:00.000Z", "+275760-09-13T00:00:00.000Z"])(
@@ -3553,8 +3553,8 @@ describe("optimistic concurrency (default-on)", () => {
       const res = await patch({ app, entity: "clients", id: "c1", payload: { name: "Recovered boundary" } });
 
       expect(res.statusCode).toBe(200);
-      expect(isIsoInstant(res.json().updatedAt)).toBe(true);
-      expect(res.json().updatedAt).not.toBe(storedRevision);
+      expect(isIsoInstant(readClientResponse(res).updatedAt)).toBe(true);
+      expect(readClientResponse(res).updatedAt).not.toBe(storedRevision);
     },
   );
 
