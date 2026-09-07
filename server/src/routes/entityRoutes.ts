@@ -113,7 +113,12 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
         action: "create",
         entity,
         id: row.id as string,
-        changedFields: listAppliedRequestedFieldNames(entity, requestRow, undefined, row),
+        changedFields: listAppliedRequestedFieldNames({
+          table: entity,
+          requested: requestRow,
+          existing: undefined,
+          applied: row,
+        }),
       });
       commitProductAudit(reply, auditRecord, () => {
         insertRow(db, entity, row);
@@ -194,7 +199,7 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
         action: existing ? "update" : "create",
         entity,
         id,
-        changedFields: listAppliedRequestedFieldNames(entity, body, existing, row),
+        changedFields: listAppliedRequestedFieldNames({ table: entity, requested: body, existing, applied: row }),
       });
       let rewrittenAllocations: RewrittenAllocationRevision[] = [];
       commitProductAudit(reply, auditRecord, () => {
@@ -262,12 +267,12 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
         entity,
         (req.body as { accountId?: unknown }).accountId ?? existing.accountId,
       );
-      const merged = sanitizeWrite(
-        entity,
-        { ...existing, ...(req.body as Record<string, unknown>), id },
+      const merged = sanitizeWrite({
+        table: entity,
+        row: { ...existing, ...(req.body as Record<string, unknown>), id },
         existing,
-        visibility,
-      );
+        options: visibility,
+      });
       // accountId is immutable — a patch must not re-home the row to another company (ownsRow).
       if (!ownsRow(existing, merged.accountId)) {
         return reply.code(404).send({ error: "Not found" });
@@ -301,7 +306,12 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
           action: "patch",
           entity,
           id,
-          changedFields: listAppliedRequestedFieldNames(entity, req.body, existing, stamped),
+          changedFields: listAppliedRequestedFieldNames({
+            table: entity,
+            requested: req.body,
+            existing,
+            applied: stamped,
+          }),
         }),
         () => {
           if (entity === "activities") {

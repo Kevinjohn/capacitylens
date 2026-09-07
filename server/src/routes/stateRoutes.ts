@@ -238,11 +238,14 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
         typeof (req.body as { id?: unknown })?.id === "string" && (req.body as { id: string }).id.trim() !== ""
           ? (req.body as { id: string }).id
           : buildWorkspaceId(command.commandId);
-      const accountRow = sanitizeWrite("accounts", {
-        ...(req.body as Record<string, unknown>),
-        id,
-        createdAt: now,
-        updatedAt: now,
+      const accountRow = sanitizeWrite({
+        table: "accounts",
+        row: {
+          ...(req.body as Record<string, unknown>),
+          id,
+          createdAt: now,
+          updatedAt: now,
+        },
       });
       // Server timestamps are result data, not caller intent. Excluding them from the command
       // digest lets an identical retry replay the first committed row after wall time advances.

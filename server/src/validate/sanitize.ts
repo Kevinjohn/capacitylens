@@ -26,6 +26,14 @@ const DIRECT_WRITE_REQUIRED_FIELDS: Partial<Record<ScopedEntityKey, readonly str
   timeOff: ["resourceId", "type"],
   closures: ["name"],
 };
+
+interface SanitizeWriteInput {
+  table: string;
+  row: Record<string, unknown>;
+  existing?: Record<string, unknown> | undefined;
+  options?: SanitizeWriteOptions | undefined;
+}
+
 /**
  * Repair the constrained value-level fields of a write body, returning a NEW object
  * (the input is not mutated). Scoped tables delegate to the shared
@@ -41,15 +49,10 @@ const DIRECT_WRITE_REQUIRED_FIELDS: Partial<Record<ScopedEntityKey, readonly str
  * what's on disk (see the scoped branch); it is undefined on a CREATE (POST), which is why a new
  * row always starts with its tombstones stripped (active).
  *
- * `opts` carries writer-context facts (see {@link SanitizeWriteOptions}); omit it entirely for
+ * `options` carries writer-context facts (see {@link SanitizeWriteOptions}); omit it entirely for
  * tables the options don't apply to.
  */
-export function sanitizeWrite(
-  table: string,
-  row: Record<string, unknown>,
-  existing?: Record<string, unknown>,
-  options: SanitizeWriteOptions = {},
-): Record<string, unknown> {
+export function sanitizeWrite({ table, row, existing, options = {} }: SanitizeWriteInput): Record<string, unknown> {
   assertIdPresent(row);
   if (table === "closures" && Object.hasOwn(row, "resourceId")) {
     throw new ValidationError("Company closures cannot reference a resource.");
