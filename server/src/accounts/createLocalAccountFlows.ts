@@ -102,8 +102,8 @@ export function createLocalAccountFlows(input: {
       "immediate",
     );
   // issuePasswordReset and revokeMemberSessions both deny on the same evaluateIdentityAdminAuthority
-  // shape: persist the compensated terminal outcome, then throw denied(). Only the audit action and
-  // denied()'s second argument differ between the two callers; their outer catch blocks have real
+  // shape: persist the compensated terminal outcome, then throw createAuthorityDenial(). Only the audit action and
+  // createAuthorityDenial()'s second argument differ between the two callers; their outer catch blocks have real
   // divergence (requiresReconciliation exclusions, non-reconciliation audit action) and stay separate.
   const denyIdentityAdminCommand = ({
     scope,
