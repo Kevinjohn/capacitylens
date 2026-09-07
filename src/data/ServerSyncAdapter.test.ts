@@ -332,6 +332,52 @@ function expectCompensatingFinalStateOps(): void {
   ]);
 }
 
+const concurrentRewriteFixture = () => {
+  const activity: Activity = {
+    id: "t1",
+    accountId: "a1",
+    name: "Planning",
+    kind: "repeatable",
+    createdAt: TS1,
+    updatedAt: TS1,
+  };
+  const allocationRow = { ...allocation("allocation", "2026-01-01"), projectId: "p1" };
+  return {
+    activity,
+    allocationRow,
+    baseline: withData({ activities: [activity], allocations: [allocationRow] }),
+    rewrittenAt: "2030-01-02T00:00:00.000Z",
+  };
+};
+
+interface ConcurrentRewriteReceiptInput {
+  activity: Activity;
+  allocationRow: Allocation;
+  flushed: AppData;
+  rewrittenAt: string;
+}
+
+const concurrentRewriteReceipt = ({
+  activity,
+  allocationRow,
+  flushed,
+  rewrittenAt,
+}: ConcurrentRewriteReceiptInput): Response =>
+  Response.json({
+    ok: true,
+    applied: 1,
+    revisions: [
+      revisionFor({ method: "PUT", table: "activities", id: activity.id, row: required(flushed.activities[0]) }),
+      {
+        table: "allocations",
+        id: allocationRow.id,
+        createdAt: TS1,
+        updatedAt: rewrittenAt,
+        rewrite: true,
+      },
+    ],
+  });
+
 describe("diffOps", () => {
   it("emits PUT for new rows, parent-before-child", () => {
     const next = withData({
@@ -1303,17 +1349,7 @@ describe("ServerSyncAdapter.saveAll", () => {
     ["ordinary", undefined],
     ["unload", { unload: true }],
   ] as const)("keeps a concurrent allocation edit dirty after an %s rewrite receipt", async (_label, options) => {
-    const activity: Activity = {
-      id: "t1",
-      accountId: "a1",
-      name: "Planning",
-      kind: "repeatable",
-      createdAt: TS1,
-      updatedAt: TS1,
-    };
-    const allocationRow = { ...allocation("allocation", "2026-01-01"), projectId: "p1" };
-    const baseline = withData({ activities: [activity], allocations: [allocationRow] });
-    const rewrittenAt = "2030-01-02T00:00:00.000Z";
+    const { activity, allocationRow, baseline, rewrittenAt } = concurrentRewriteFixture();
     let releaseReceipt: ((response: Response) => void) | undefined;
     const fetchImpl = vi.fn((url: string | URL | Request, init?: RequestInit) => {
       if (String(url).endsWith("/api/state")) return Promise.resolve(Response.json(baseline));
@@ -1356,22 +1392,7 @@ describe("ServerSyncAdapter.saveAll", () => {
       ...flushed,
       allocations: [{ ...required(flushed.allocations[0]), projectId: "p2", updatedAt: "2026-01-03T00:00:00.000Z" }],
     };
-    required(releaseReceipt)(
-      Response.json({
-        ok: true,
-        applied: 1,
-        revisions: [
-          revisionFor({ method: "PUT", table: "activities", id: activity.id, row: required(flushed.activities[0]) }),
-          {
-            table: "allocations",
-            id: allocationRow.id,
-            createdAt: TS1,
-            updatedAt: rewrittenAt,
-            rewrite: true,
-          },
-        ],
-      }),
-    );
+    required(releaseReceipt)(concurrentRewriteReceipt({ activity, allocationRow, flushed, rewrittenAt }));
     await saving;
 
     expect(visible.allocations[0]).toMatchObject({
