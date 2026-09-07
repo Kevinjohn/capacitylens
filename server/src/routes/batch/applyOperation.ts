@@ -50,7 +50,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
       throw new ValidationError("Each PUT op needs a row whose id matches the op id.");
     }
     // accountId is immutable (ownsRow): a write must not re-home an existing row.
-    const persistedExisting = getRow(db, table, id);
+    const persistedExisting = getRow(db, table, id) ?? undefined;
     const existing =
       table === "allocations"
         ? (projection.row("allocations", id) as Record<string, unknown> | undefined)
@@ -178,7 +178,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
     if (!isLifecycleEntity(table)) {
       throw new ValidationError("ARCHIVE is supported only for lifecycle entities.");
     }
-    const existing = getRow(db, table, id);
+    const existing = getRow(db, table, id) ?? undefined;
     if (!ownsRow(existing, op.accountId)) {
       throw new AccountContractError({
         code: "NOT_FOUND",
@@ -219,7 +219,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
     if (table === "accounts") {
       throw new ValidationError("Use the dedicated company deletion endpoint.");
     }
-    const existing = getRow(db, table, id);
+    const existing = getRow(db, table, id) ?? undefined;
     // Scoped deletes assert ownership (same rule as the DELETE route).
     if (isScopedTable(table)) {
       if (typeof op.accountId !== "string") {

@@ -147,7 +147,7 @@ describe("ServerSyncAdapter ordered batch integration", () => {
       releaseFirstBatch();
       await Promise.all([ordinary, teardown]);
 
-      expect(getRow(db, "disciplines", "d1")).toBeUndefined();
+      expect(getRow(db, "disciplines", "d1")).toBeNull();
       await app.close();
       db.close();
     },

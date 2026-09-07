@@ -127,7 +127,7 @@ export function createCutover(
       removeAllInvitesForAccount(db, workspaceId);
       return principalIds.filter(
         (principalId) =>
-          !listMembershipsForUser(db, principalId).some((row) => getRow(db, "accounts", row.accountId) !== undefined),
+          !listMembershipsForUser(db, principalId).some((row) => getRow(db, "accounts", row.accountId) !== null),
       );
     },
   };
