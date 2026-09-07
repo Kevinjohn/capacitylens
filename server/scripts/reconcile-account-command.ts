@@ -30,7 +30,7 @@ if (!databasePath || !applicationId || !commandId || !operatorReference) {
       );
     }
     assertAccountBoundaryStateCurrent(db);
-    const record = getAccountCommandByIdForReconciliation(db, applicationId, commandId);
+    const record = getAccountCommandByIdForReconciliation({ db, applicationId, commandId });
     if (!record) throw new Error("No matching account command exists.");
     if (record.status !== "reconciliation_required") {
       throw new Error(`Command is ${record.status}; only reconciliation_required commands can be closed.`);
@@ -53,7 +53,7 @@ if (!databasePath || !applicationId || !commandId || !operatorReference) {
       }),
     );
     const referenceHash = buildSecretDigest("reconciliation-reference", operatorReference);
-    if (!closeAccountCommandReconciliation(db, applicationId, commandId, referenceHash)) {
+    if (!closeAccountCommandReconciliation({ db, applicationId, commandId, referenceHash })) {
       throw new Error("The command changed while reconciliation was being closed; inspect it again.");
     }
     console.log(JSON.stringify({ commandId, status: "compensated", referenceHash }));

@@ -669,7 +669,14 @@ describe("CAPACITYLENS_AUTH password", () => {
       `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?)`,
     ).run("federated-link", "sso", "subject-1", principalId, TS, TS);
-    recordSessionAssurance(db, "federated-session", principalId, "federated", "sso", TS);
+    recordSessionAssurance({
+      db,
+      sessionId: "federated-session",
+      principalId,
+      assurance: "federated",
+      providerId: "sso",
+      now: TS,
+    });
     const auth = {
       ...configured.auth!,
       api: {
