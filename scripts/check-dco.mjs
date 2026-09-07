@@ -1,7 +1,10 @@
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 const SIGN_OFF_PATTERN = /^Signed-off-by:\s+(.+?)\s+<([^<>\s]+)>\s*$/gim;
+const COMMIT_SHA_PATTERN = /^[0-9a-f]{40}$/;
+const RATIFICATIONS_URL = new URL("./dco-ratifications.json", import.meta.url);
 
 function normalizedEmail(email) {
   return email.trim().toLowerCase();
@@ -30,6 +33,31 @@ export function evaluateDcoCommit({ authorEmail, committerEmail, message }) {
   };
 }
 
+export function validateDcoRatifications(ratifications) {
+  if (!ratifications || typeof ratifications !== "object" || Array.isArray(ratifications)) {
+    throw new TypeError("DCO ratifications must be an object keyed by full commit SHA");
+  }
+
+  for (const [commit, email] of Object.entries(ratifications)) {
+    if (!COMMIT_SHA_PATTERN.test(commit) || typeof email !== "string" || email.trim().length === 0) {
+      throw new TypeError("Each DCO ratification must map a full lowercase commit SHA to an email");
+    }
+  }
+
+  return ratifications;
+}
+
+export function isDcoRatifiedCommit({ commit, authorEmail, committerEmail }, ratifications) {
+  if (!Object.hasOwn(ratifications, commit)) return false;
+
+  const ratifierEmail = normalizedEmail(ratifications[commit]);
+  return [authorEmail, committerEmail].map(normalizedEmail).includes(ratifierEmail);
+}
+
+function loadDcoRatifications() {
+  return validateDcoRatifications(JSON.parse(readFileSync(RATIFICATIONS_URL, "utf8")));
+}
+
 function git(args) {
   return execFileSync("git", args, { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
 }
@@ -44,6 +72,7 @@ export function verifyDcoRange(base, head, pullRequestAuthor) {
     .trim()
     .split("\n")
     .filter(Boolean);
+  const ratifications = loadDcoRatifications();
   let valid = true;
 
   for (const commit of commits) {
@@ -61,7 +90,9 @@ export function verifyDcoRange(base, head, pullRequestAuthor) {
       commit,
     ]).split("\0");
     const result = evaluateDcoCommit({ authorEmail, committerEmail, message });
-    if (!result.valid) {
+    if (!result.valid && isDcoRatifiedCommit({ commit, authorEmail, committerEmail }, ratifications)) {
+      console.log(`Accepting ratified DCO commit ${commit}.`);
+    } else if (!result.valid) {
       console.error(`::error::Commit ${commit} needs a Signed-off-by trailer matching its author or committer email`);
       valid = false;
     }
