@@ -274,7 +274,7 @@ function readEntityIds(body: Record<string, unknown>, entity: keyof LifecycleSta
   });
 }
 
-function readLifecycleStateIds(response: unknown): LifecycleStateIds {
+function readResponseBodyRecord(response: unknown): Record<string, unknown> {
   if (!isUnknownRecord(response) || typeof response.body !== "string") {
     throw new Error("Expected a lifecycle response.");
   }
@@ -282,6 +282,11 @@ function readLifecycleStateIds(response: unknown): LifecycleStateIds {
   if (!isUnknownRecord(body)) {
     throw new Error("Expected a lifecycle state response body.");
   }
+  return body;
+}
+
+function readLifecycleStateIds(response: unknown): LifecycleStateIds {
+  const body = readResponseBodyRecord(response);
   return {
     clients: readEntityIds(body, "clients"),
     projects: readEntityIds(body, "projects"),
@@ -289,6 +294,43 @@ function readLifecycleStateIds(response: unknown): LifecycleStateIds {
     activities: readEntityIds(body, "activities"),
     allocations: readEntityIds(body, "allocations"),
     resources: readEntityIds(body, "resources"),
+  };
+}
+
+interface SurvivorResource {
+  id: string;
+  updatedAt: string;
+  projectId?: string;
+}
+
+interface SurvivorState {
+  projectIds: string[];
+  resources: SurvivorResource[];
+}
+
+function readSurvivorState(response: unknown): SurvivorState {
+  const body = readResponseBodyRecord(response);
+  const resources = body.resources;
+  if (!Array.isArray(resources)) {
+    throw new Error("Expected lifecycle state resource rows.");
+  }
+  return {
+    projectIds: readEntityIds(body, "projects"),
+    resources: resources.map((resource) => {
+      if (
+        !isUnknownRecord(resource) ||
+        typeof resource.id !== "string" ||
+        typeof resource.updatedAt !== "string" ||
+        (resource.projectId !== undefined && typeof resource.projectId !== "string")
+      ) {
+        throw new Error("Expected lifecycle survivor resources with valid revisions and project ids.");
+      }
+      return {
+        id: resource.id,
+        updatedAt: resource.updatedAt,
+        ...(resource.projectId === undefined ? {} : { projectId: resource.projectId }),
+      };
+    }),
   };
 }
 
@@ -847,15 +889,17 @@ describe("P2.5a lifecycle — purge stamps the survivor rows the cascade unbinds
         .statusCode,
     ).toBe(204);
 
-    const body = (await readInactive(app, "a1", cookie)).json();
-    expect(body.projects.map((p: { id: string }) => p.id)).not.toContain("pBound");
-    const phBound = body.resources.find((r: { id: string }) => r.id === "phBound");
+    const state = readSurvivorState(await readInactive(app, "a1", cookie));
+    expect(state.projectIds).not.toContain("pBound");
+    const phBound = state.resources.find((resource) => resource.id === "phBound");
+    if (!phBound) throw new Error("Expected the unbound placeholder to survive the purge.");
     // Survivor: unbound from the purged project AND re-stamped after its future, non-canonical
     // offset revision. This proves purge ordering is chronological rather than lexical.
     expect(phBound.projectId ?? null).toBeNull();
     expect(Date.parse(phBound.updatedAt)).toBeGreaterThan(Date.parse(futureOffsetRevision));
     // Untouched by the cascade → its revision must NOT be gratuitously bumped.
-    const rFree = body.resources.find((r: { id: string }) => r.id === "rFree");
+    const rFree = state.resources.find((resource) => resource.id === "rFree");
+    if (!rFree) throw new Error("Expected the unrelated resource to survive the purge.");
     expect(rFree.updatedAt).toBe(TS);
   });
 });
