@@ -57,7 +57,13 @@ export function parseBatchRequest(req: FastifyRequest, reply: FastifyReply): Par
       return null;
     }
     if (op.method === "PUT") {
-      const rejection = checkEntityWriteBody("replace", op.table, op.row, op.id, isScopedTable(op.table));
+      const rejection = checkEntityWriteBody({
+        verb: "replace",
+        entity: op.table,
+        body: op.row,
+        urlId: op.id,
+        scoped: isScopedTable(op.table),
+      });
       if (rejection) {
         reply.code(rejection.status).send({ error: rejection.error });
         return null;

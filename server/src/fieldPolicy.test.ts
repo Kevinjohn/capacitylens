@@ -56,7 +56,12 @@ describe("field policy catalogue", () => {
 
   it("pins stored gated fields on blind updates and strips them from blind creates", () => {
     const timeOffUpdate = { note: "attempted overwrite" };
-    pinGatedFields("timeOff", timeOffUpdate, { note: "stored note" }, { canSeeTimeOffNote: false });
+    pinGatedFields({
+      table: "timeOff",
+      cleaned: timeOffUpdate,
+      existing: { note: "stored note" },
+      options: { canSeeTimeOffNote: false },
+    });
     expect(timeOffUpdate).toEqual({ note: "stored note" });
 
     const privateUpdate: Record<string, unknown> = {
@@ -65,16 +70,16 @@ describe("field policy catalogue", () => {
       codeName: "attempted overwrite",
       color: "#000",
     };
-    pinGatedFields(
-      "clients",
-      privateUpdate,
-      {
+    pinGatedFields({
+      table: "clients",
+      cleaned: privateUpdate,
+      existing: {
         name: "Real client",
         isPrivate: true,
         codeName: "Project Finch",
       },
-      { canSeePrivateNames: false },
-    );
+      options: { canSeePrivateNames: false },
+    });
     expect(privateUpdate).toEqual({
       name: "Real client",
       isPrivate: true,
@@ -87,8 +92,13 @@ describe("field policy catalogue", () => {
       isPrivate: true,
       codeName: "Hidden",
     };
-    pinGatedFields("clients", blindCreate, undefined, {
-      canSeePrivateNames: false,
+    pinGatedFields({
+      table: "clients",
+      cleaned: blindCreate,
+      existing: undefined,
+      options: {
+        canSeePrivateNames: false,
+      },
     });
     expect(blindCreate).toEqual({ name: "Public client" });
   });

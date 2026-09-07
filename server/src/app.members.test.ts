@@ -46,12 +46,14 @@ const membersReq = (app: FastifyInstance, accountId: string, headers: Record<str
     headers,
   });
 
-const memberSignInTrackingReq = (
-  app: FastifyInstance,
-  accountId: string,
-  enabled: unknown,
-  headers: Record<string, string> = {},
-) =>
+interface MemberSignInTrackingReqInput {
+  app: FastifyInstance;
+  accountId: string;
+  enabled: unknown;
+  headers?: Record<string, string> | undefined;
+}
+
+const memberSignInTrackingReq = ({ app, accountId, enabled, headers = {} }: MemberSignInTrackingReqInput) =>
   call(app, {
     method: "PUT",
     url: `/api/accounts/${accountId}/member-sign-in-tracking`,
@@ -59,13 +61,15 @@ const memberSignInTrackingReq = (
     headers,
   });
 
-const patchRoleReq = (
-  app: FastifyInstance,
-  accountId: string,
-  userId: string,
-  role: unknown,
-  headers: Record<string, string> = {},
-) =>
+interface PatchRoleReqInput {
+  app: FastifyInstance;
+  accountId: string;
+  userId: string;
+  role: unknown;
+  headers?: Record<string, string> | undefined;
+}
+
+const patchRoleReq = ({ app, accountId, userId, role, headers = {} }: PatchRoleReqInput) =>
   call(app, {
     method: "PATCH",
     url: `/api/accounts/${accountId}/members/${userId}`,
@@ -73,19 +77,28 @@ const patchRoleReq = (
     headers,
   });
 
-const removeReq = (app: FastifyInstance, accountId: string, userId: string, headers: Record<string, string> = {}) =>
+interface RemoveReqInput {
+  app: FastifyInstance;
+  accountId: string;
+  userId: string;
+  headers?: Record<string, string> | undefined;
+}
+
+const removeReq = ({ app, accountId, userId, headers = {} }: RemoveReqInput) =>
   call(app, {
     method: "DELETE",
     url: `/api/accounts/${accountId}/members/${userId}`,
     headers,
   });
 
-const revokeSessionsReq = (
-  app: FastifyInstance,
-  accountId: string,
-  userId: string,
-  headers: Record<string, string> = {},
-) =>
+interface RevokeSessionsReqInput {
+  app: FastifyInstance;
+  accountId: string;
+  userId: string;
+  headers?: Record<string, string> | undefined;
+}
+
+const revokeSessionsReq = ({ app, accountId, userId, headers = {} }: RevokeSessionsReqInput) =>
   call(app, {
     method: "POST",
     url: `/api/accounts/${accountId}/members/${userId}/revoke-sessions`,
@@ -276,7 +289,7 @@ describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
 
-    expect((await revokeSessionsReq(app, "a1", "target")).statusCode).toBe(401);
+    expect((await revokeSessionsReq({ app, accountId: "a1", userId: "target" })).statusCode).toBe(401);
     expect(
       (
         await call(app, {
@@ -317,8 +330,13 @@ describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
       ).statusCode,
     ).toBe(200);
 
-    const revoked = await revokeSessionsReq(app, "a1", target.userId, {
-      cookie: owner.cookie,
+    const revoked = await revokeSessionsReq({
+      app,
+      accountId: "a1",
+      userId: target.userId,
+      headers: {
+        cookie: owner.cookie,
+      },
     });
     expect(revoked.statusCode).toBe(204);
     expect(
@@ -361,8 +379,13 @@ describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
 
     expect(
       (
-        await revokeSessionsReq(app, "a1", target.userId, {
-          cookie: owner.cookie,
+        await revokeSessionsReq({
+          app,
+          accountId: "a1",
+          userId: target.userId,
+          headers: {
+            cookie: owner.cookie,
+          },
         })
       ).statusCode,
     ).toBe(403);
@@ -411,8 +434,13 @@ describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
         })
       ).statusCode,
     ).toBe(200);
-    const result = await revokeSessionsReq(app, "a1", target.userId, {
-      cookie: owner.cookie,
+    const result = await revokeSessionsReq({
+      app,
+      accountId: "a1",
+      userId: target.userId,
+      headers: {
+        cookie: owner.cookie,
+      },
     });
     expect(result.statusCode).toBe(403);
     expect(result.json().code).toBe("SESSION_NOT_FRESH");
@@ -494,7 +522,7 @@ describe("step-up freshness gate — missing sessionCreatedAt fails closed", () 
       auth: timestamplessAuth("undated-owner"),
     });
 
-    const result = await revokeSessionsReq(app, "a1", "undated-target");
+    const result = await revokeSessionsReq({ app, accountId: "a1", userId: "undated-target" });
     expect(result.statusCode).toBe(403);
     expect(result.json().code).toBe("SESSION_NOT_FRESH");
     // The membership itself is intact — only the freshness gate refused, not authorization.
@@ -555,8 +583,14 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
       createdAt: TS,
     });
 
-    const res = await patchRoleReq(app, "a1", target.userId, "viewer", {
-      cookie: admin.cookie,
+    const res = await patchRoleReq({
+      app,
+      accountId: "a1",
+      userId: target.userId,
+      role: "viewer",
+      headers: {
+        cookie: admin.cookie,
+      },
     });
     expect(res.statusCode).toBe(200);
     expect(getMemberRole(db, "a1", target.userId)).toBe("viewer");
@@ -582,8 +616,14 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
       createdAt: TS,
     });
 
-    const res = await patchRoleReq(app, "a1", target.userId, "owner", {
-      cookie: admin.cookie,
+    const res = await patchRoleReq({
+      app,
+      accountId: "a1",
+      userId: target.userId,
+      role: "owner",
+      headers: {
+        cookie: admin.cookie,
+      },
     });
     expect(res.statusCode).toBe(400);
     expect(getMemberRole(db, "a1", target.userId)).toBe("editor"); // unchanged
@@ -609,8 +649,14 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
       createdAt: TS,
     });
 
-    const res = await patchRoleReq(app, "a1", owner.userId, "editor", {
-      cookie: admin.cookie,
+    const res = await patchRoleReq({
+      app,
+      accountId: "a1",
+      userId: owner.userId,
+      role: "editor",
+      headers: {
+        cookie: admin.cookie,
+      },
     });
     expect(res.statusCode).toBe(403);
     expect(getMemberRole(db, "a1", owner.userId)).toBe("owner");
@@ -638,16 +684,28 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
 
     expect(
       (
-        await patchRoleReq(app, "a1", ed.userId, "admin", {
-          cookie: owner.cookie,
+        await patchRoleReq({
+          app,
+          accountId: "a1",
+          userId: ed.userId,
+          role: "admin",
+          headers: {
+            cookie: owner.cookie,
+          },
         })
       ).statusCode,
     ).toBe(200);
     expect(getMemberRole(db, "a1", ed.userId)).toBe("admin");
     expect(
       (
-        await patchRoleReq(app, "a1", ed.userId, "owner", {
-          cookie: owner.cookie,
+        await patchRoleReq({
+          app,
+          accountId: "a1",
+          userId: ed.userId,
+          role: "owner",
+          headers: {
+            cookie: owner.cookie,
+          },
         })
       ).statusCode,
     ).toBe(400);
@@ -670,20 +728,36 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
       code: "NOT_FOUND",
       retryable: false,
     };
-    const patch = await patchRoleReq(app, "a1", "ghost", "editor", {
-      cookie: owner.cookie,
+    const patch = await patchRoleReq({
+      app,
+      accountId: "a1",
+      userId: "ghost",
+      role: "editor",
+      headers: {
+        cookie: owner.cookie,
+      },
     });
     expect(patch.statusCode).toBe(404);
     expect(patch.json()).toMatchObject(expectedNotFound);
     expect(patch.json().commandId).toEqual(expect.any(String));
-    const remove = await removeReq(app, "a1", "ghost", {
-      cookie: owner.cookie,
+    const remove = await removeReq({
+      app,
+      accountId: "a1",
+      userId: "ghost",
+      headers: {
+        cookie: owner.cookie,
+      },
     });
     expect(remove.statusCode).toBe(404);
     expect(remove.json()).toMatchObject(expectedNotFound);
     expect(remove.json().commandId).toEqual(expect.any(String));
-    const revoke = await revokeSessionsReq(app, "a1", "ghost", {
-      cookie: owner.cookie,
+    const revoke = await revokeSessionsReq({
+      app,
+      accountId: "a1",
+      userId: "ghost",
+      headers: {
+        cookie: owner.cookie,
+      },
     });
     expect(revoke.statusCode).toBe(404);
     expect(revoke.json()).toMatchObject(expectedNotFound);
@@ -698,8 +772,14 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
     });
     expect(
       (
-        await patchRoleReq(app, "a1", ed.userId, "superuser", {
-          cookie: owner.cookie,
+        await patchRoleReq({
+          app,
+          accountId: "a1",
+          userId: ed.userId,
+          role: "superuser",
+          headers: {
+            cookie: owner.cookie,
+          },
         })
       ).statusCode,
     ).toBe(400);
@@ -721,8 +801,14 @@ describe("exactly-one-Owner protection", () => {
 
     expect(
       (
-        await patchRoleReq(app, "a1", owner.userId, "editor", {
-          cookie: owner.cookie,
+        await patchRoleReq({
+          app,
+          accountId: "a1",
+          userId: owner.userId,
+          role: "editor",
+          headers: {
+            cookie: owner.cookie,
+          },
         })
       ).statusCode,
     ).toBe(403);
@@ -740,7 +826,9 @@ describe("exactly-one-Owner protection", () => {
       status: "active",
       createdAt: TS,
     });
-    expect((await removeReq(app, "a1", owner.userId, { cookie: owner.cookie })).statusCode).toBe(403);
+    expect(
+      (await removeReq({ app, accountId: "a1", userId: owner.userId, headers: { cookie: owner.cookie } })).statusCode,
+    ).toBe(403);
   });
 
   it("the database refuses a second active Owner", async () => {
@@ -797,8 +885,12 @@ describe("DELETE /api/accounts/:id/members/:userId — revoke gate", () => {
       createdAt: TS,
     });
 
-    expect((await removeReq(app, "a1", owner.userId, { cookie: admin.cookie })).statusCode).toBe(403);
-    expect((await removeReq(app, "a1", ed.userId, { cookie: admin.cookie })).statusCode).toBe(204);
+    expect(
+      (await removeReq({ app, accountId: "a1", userId: owner.userId, headers: { cookie: admin.cookie } })).statusCode,
+    ).toBe(403);
+    expect(
+      (await removeReq({ app, accountId: "a1", userId: ed.userId, headers: { cookie: admin.cookie } })).statusCode,
+    ).toBe(204);
     expect(getMemberRole(db, "a1", ed.userId)).toBeNull();
   });
 
@@ -822,7 +914,9 @@ describe("DELETE /api/accounts/:id/members/:userId — revoke gate", () => {
         status: "active",
         createdAt: TS,
       });
-      expect((await removeReq(app, "a1", ed.userId, { cookie: actor.cookie })).statusCode).toBe(403);
+      expect(
+        (await removeReq({ app, accountId: "a1", userId: ed.userId, headers: { cookie: actor.cookie } })).statusCode,
+      ).toBe(403);
     }
   });
 });
@@ -973,10 +1067,10 @@ describe("member endpoints — OFF mode (trusted-local)", () => {
     expect((await invitesReq(app, "a1")).json()).toEqual({ invites: [] });
     // Trusted-local has no member model, so neither nonexistent nor manually seeded rows should
     // make an inert request look like a committed membership mutation.
-    const ghostPatch = await patchRoleReq(app, "a1", "ghost", "editor");
+    const ghostPatch = await patchRoleReq({ app, accountId: "a1", userId: "ghost", role: "editor" });
     expect(ghostPatch.statusCode).toBe(400);
     expect(ghostPatch.json()).toEqual(unavailable);
-    const ghostRemove = await removeReq(app, "a1", "ghost");
+    const ghostRemove = await removeReq({ app, accountId: "a1", userId: "ghost" });
     expect(ghostRemove.statusCode).toBe(400);
     expect(ghostRemove.json()).toEqual(unavailable);
 
@@ -987,10 +1081,10 @@ describe("member endpoints — OFF mode (trusted-local)", () => {
       status: "active",
       createdAt: TS,
     });
-    const patch = await patchRoleReq(app, "a1", "demo", "admin");
+    const patch = await patchRoleReq({ app, accountId: "a1", userId: "demo", role: "admin" });
     expect(patch.statusCode).toBe(400);
     expect(patch.json()).toEqual(unavailable);
-    const remove = await removeReq(app, "a1", "demo");
+    const remove = await removeReq({ app, accountId: "a1", userId: "demo" });
     expect(remove.statusCode).toBe(400);
     expect(remove.json()).toEqual(unavailable);
     const transfer = await call(app, {
@@ -1006,7 +1100,14 @@ describe("member endpoints — OFF mode (trusted-local)", () => {
 });
 
 describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership (owner-only)", () => {
-  const transfer = (app: FastifyInstance, accountId: string, toUserId: string, cookie?: string) =>
+  interface TransferInput {
+    app: FastifyInstance;
+    accountId: string;
+    toUserId: string;
+    cookie?: string | undefined;
+  }
+
+  const transfer = ({ app, accountId, toUserId, cookie }: TransferInput) =>
     call(app, {
       method: "POST",
       url: `/api/accounts/${accountId}/transfer-ownership`,
@@ -1034,7 +1135,9 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
       createdAt: TS,
     });
 
-    expect((await transfer(app, "a1", member.userId, owner.cookie)).statusCode).toBe(200);
+    expect((await transfer({ app, accountId: "a1", toUserId: member.userId, cookie: owner.cookie })).statusCode).toBe(
+      200,
+    );
     expect(getMemberRole(db, "a1", member.userId)).toBe("owner");
     expect(getMemberRole(db, "a1", owner.userId)).toBe("admin");
     // createdAt is the immutable JOIN timestamp — a transfer (a role change on both rows) must NOT
@@ -1070,7 +1173,9 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
       createdAt: TS,
     });
 
-    expect((await transfer(app, "a1", member.userId, admin.cookie)).statusCode).toBe(403);
+    expect((await transfer({ app, accountId: "a1", toUserId: member.userId, cookie: admin.cookie })).statusCode).toBe(
+      403,
+    );
     expect(getMemberRole(db, "a1", admin.userId)).toBe("admin"); // unchanged
     expect(getMemberRole(db, "a1", member.userId)).toBe("editor");
   });
@@ -1087,8 +1192,10 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
       createdAt: TS,
     });
 
-    expect((await transfer(app, "a1", "ghost-user", owner.cookie)).statusCode).toBe(404);
-    const selfTransfer = await transfer(app, "a1", owner.userId, owner.cookie);
+    expect((await transfer({ app, accountId: "a1", toUserId: "ghost-user", cookie: owner.cookie })).statusCode).toBe(
+      404,
+    );
+    const selfTransfer = await transfer({ app, accountId: "a1", toUserId: owner.userId, cookie: owner.cookie });
     expect(selfTransfer.statusCode).toBe(400);
     expect(selfTransfer.json().code).toBe("VALIDATION_FAILED");
     expect(getMemberRole(db, "a1", owner.userId)).toBe("owner"); // still the owner
@@ -1118,7 +1225,7 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
       ).statusCode,
     ).toBe(400);
     // Empty-string toUserId.
-    expect((await transfer(app, "a1", "", owner.cookie)).statusCode).toBe(400);
+    expect((await transfer({ app, accountId: "a1", toUserId: "", cookie: owner.cookie })).statusCode).toBe(400);
     expect(getMemberRole(db, "a1", owner.userId)).toBe("owner"); // still the owner; nothing changed
   });
 
@@ -1142,23 +1249,27 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
       createdAt: TS,
     });
 
-    expect((await transfer(app, "a2", a2member.userId, a1owner.cookie)).statusCode).toBe(403);
+    expect(
+      (await transfer({ app, accountId: "a2", toUserId: a2member.userId, cookie: a1owner.cookie })).statusCode,
+    ).toBe(403);
     expect(getMemberRole(db, "a2", a2member.userId)).toBe("editor"); // unchanged
   });
 });
+
+interface PatchStatusReqInput {
+  app: FastifyInstance;
+  accountId: string;
+  userId: string;
+  status: unknown;
+  headers?: Record<string, string> | undefined;
+}
 
 // ── Member lifecycle: disable / archive / restore (#175) ──────────────────────────────────────
 // A membership's status is what every authorization read narrows on, so these routes are an access
 // control surface, not a labelling one. The assertions below fix BOTH halves: the status actually
 // changes, AND the account stops admitting the member the moment it does.
 
-const patchStatusReq = (
-  app: FastifyInstance,
-  accountId: string,
-  userId: string,
-  status: unknown,
-  headers: Record<string, string> = {},
-) =>
+const patchStatusReq = ({ app, accountId, userId, status, headers = {} }: PatchStatusReqInput) =>
   call(app, {
     method: "PATCH",
     url: `/api/accounts/${accountId}/members/${userId}/status`,
@@ -1191,7 +1302,13 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
       (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
     ).toBe(200);
 
-    const res = await patchStatusReq(app, "a1", ed.userId, "disabled", { cookie: owner.cookie });
+    const res = await patchStatusReq({
+      app,
+      accountId: "a1",
+      userId: ed.userId,
+      status: "disabled",
+      headers: { cookie: owner.cookie },
+    });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ userId: ed.userId, status: "disabled" });
     expect(storedStatus(db, "a1", ed.userId)).toBe("disabled");
@@ -1208,7 +1325,17 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
 
   it("archives a member and denies entry exactly as disabling does", async () => {
     const { app, db, owner, ed } = await ownerAndEditor("archive");
-    expect((await patchStatusReq(app, "a1", ed.userId, "archived", { cookie: owner.cookie })).statusCode).toBe(200);
+    expect(
+      (
+        await patchStatusReq({
+          app,
+          accountId: "a1",
+          userId: ed.userId,
+          status: "archived",
+          headers: { cookie: owner.cookie },
+        })
+      ).statusCode,
+    ).toBe(200);
     expect(storedStatus(db, "a1", ed.userId)).toBe("archived");
     expect(
       (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
@@ -1217,10 +1344,26 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
 
   it("restores a disabled member to active, and their role is preserved throughout", async () => {
     const { app, db, owner, ed } = await ownerAndEditor("restore");
-    await patchStatusReq(app, "a1", ed.userId, "disabled", { cookie: owner.cookie });
+    await patchStatusReq({
+      app,
+      accountId: "a1",
+      userId: ed.userId,
+      status: "disabled",
+      headers: { cookie: owner.cookie },
+    });
     expect(getMemberRole(db, "a1", ed.userId)).toBe("editor"); // role survives the suspension
 
-    expect((await patchStatusReq(app, "a1", ed.userId, "active", { cookie: owner.cookie })).statusCode).toBe(200);
+    expect(
+      (
+        await patchStatusReq({
+          app,
+          accountId: "a1",
+          userId: ed.userId,
+          status: "active",
+          headers: { cookie: owner.cookie },
+        })
+      ).statusCode,
+    ).toBe(200);
     expect(storedStatus(db, "a1", ed.userId)).toBe("active");
     expect(
       (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
@@ -1229,7 +1372,13 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
 
   it("keeps a non-active member VISIBLE in the directory, so an admin can reverse it", async () => {
     const { app, owner, ed } = await ownerAndEditor("visible");
-    await patchStatusReq(app, "a1", ed.userId, "disabled", { cookie: owner.cookie });
+    await patchStatusReq({
+      app,
+      accountId: "a1",
+      userId: ed.userId,
+      status: "disabled",
+      headers: { cookie: owner.cookie },
+    });
 
     const res = await membersReq(app, "a1", { cookie: owner.cookie });
     expect(res.statusCode).toBe(200);
@@ -1246,13 +1395,33 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
     upsertMember(db, { accountId: "a1", userId: ed.userId, role: "admin", status: "active", createdAt: TS });
     // Even an admin acting within their tier cannot disable the owner; the single-active-owner index
     // and the boot assertion both key on role='owner' AND status='active'.
-    expect((await patchStatusReq(app, "a1", owner.userId, "disabled", { cookie: ed.cookie })).statusCode).toBe(403);
+    expect(
+      (
+        await patchStatusReq({
+          app,
+          accountId: "a1",
+          userId: owner.userId,
+          status: "disabled",
+          headers: { cookie: ed.cookie },
+        })
+      ).statusCode,
+    ).toBe(403);
     expect(storedStatus(db, "a1", owner.userId)).toBe("active");
   });
 
   it("refuses SELF-suspension — an admin must not be able to lock themselves out", async () => {
     const { app, db, owner } = await ownerAndEditor("self");
-    expect((await patchStatusReq(app, "a1", owner.userId, "disabled", { cookie: owner.cookie })).statusCode).toBe(403);
+    expect(
+      (
+        await patchStatusReq({
+          app,
+          accountId: "a1",
+          userId: owner.userId,
+          status: "disabled",
+          headers: { cookie: owner.cookie },
+        })
+      ).statusCode,
+    ).toBe(403);
     expect(storedStatus(db, "a1", owner.userId)).toBe("active");
   });
 
@@ -1268,7 +1437,15 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
       upsertMember(db, { accountId: "a1", userId: target.userId, role: "editor", status: "active", createdAt: TS });
 
       expect(
-        (await patchStatusReq(app, "a1", target.userId, "disabled", { cookie: actor.cookie })).statusCode,
+        (
+          await patchStatusReq({
+            app,
+            accountId: "a1",
+            userId: target.userId,
+            status: "disabled",
+            headers: { cookie: actor.cookie },
+          })
+        ).statusCode,
         role,
       ).toBe(403);
       expect(storedStatus(db, "a1", target.userId), role).toBe("active");
@@ -1283,16 +1460,30 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
     const a2member = await signUp(app, "a2member-status@capacitylens.dev");
     upsertMember(db, { accountId: "a2", userId: a2member.userId, role: "editor", status: "active", createdAt: TS });
 
-    expect((await patchStatusReq(app, "a2", a2member.userId, "disabled", { cookie: a1owner.cookie })).statusCode).toBe(
-      403,
-    );
+    expect(
+      (
+        await patchStatusReq({
+          app,
+          accountId: "a2",
+          userId: a2member.userId,
+          status: "disabled",
+          headers: { cookie: a1owner.cookie },
+        })
+      ).statusCode,
+    ).toBe(403);
     expect(storedStatus(db, "a2", a2member.userId)).toBe("active");
   });
 
   it("rejects an unknown status with 400 and leaves the row untouched", async () => {
     const { app, db, owner, ed } = await ownerAndEditor("bad-status");
     for (const bad of ["suspended", "", null, 42, undefined]) {
-      const res = await patchStatusReq(app, "a1", ed.userId, bad, { cookie: owner.cookie });
+      const res = await patchStatusReq({
+        app,
+        accountId: "a1",
+        userId: ed.userId,
+        status: bad,
+        headers: { cookie: owner.cookie },
+      });
       expect(res.statusCode, JSON.stringify(bad)).toBe(400);
     }
     expect(storedStatus(db, "a1", ed.userId)).toBe("active");
@@ -1301,14 +1492,24 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
   it("404s for a principal who is not a member of the account", async () => {
     const { app, owner } = await ownerAndEditor("missing");
     const outsider = await signUp(app, "outsider-status@capacitylens.dev");
-    expect((await patchStatusReq(app, "a1", outsider.userId, "disabled", { cookie: owner.cookie })).statusCode).toBe(
-      404,
-    );
+    expect(
+      (
+        await patchStatusReq({
+          app,
+          accountId: "a1",
+          userId: outsider.userId,
+          status: "disabled",
+          headers: { cookie: owner.cookie },
+        })
+      ).statusCode,
+    ).toBe(404);
   });
 
   it("a session-less request is 401", async () => {
     const { app, ed } = await ownerAndEditor("anon");
-    expect((await patchStatusReq(app, "a1", ed.userId, "disabled")).statusCode).toBe(401);
+    expect((await patchStatusReq({ app, accountId: "a1", userId: ed.userId, status: "disabled" })).statusCode).toBe(
+      401,
+    );
   });
 });
 
@@ -1320,11 +1521,21 @@ describe("member sign-in confirmation", () => {
     upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
 
     for (let request = 0; request < 5; request += 1) {
-      expect((await memberSignInTrackingReq(app, "a1", request % 2 === 0, { cookie: owner.cookie })).statusCode).toBe(
-        200,
-      );
+      expect(
+        (
+          await memberSignInTrackingReq({
+            app,
+            accountId: "a1",
+            enabled: request % 2 === 0,
+            headers: { cookie: owner.cookie },
+          })
+        ).statusCode,
+      ).toBe(200);
     }
-    expect((await memberSignInTrackingReq(app, "a1", false, { cookie: owner.cookie })).statusCode).toBe(429);
+    expect(
+      (await memberSignInTrackingReq({ app, accountId: "a1", enabled: false, headers: { cookie: owner.cookie } }))
+        .statusCode,
+    ).toBe(429);
   });
 
   it("is owner-controlled, default-off, timestamp-free, resettable and erased when disabled", async () => {
@@ -1344,10 +1555,21 @@ describe("member sign-in confirmation", () => {
     expect(initialDirectory.signInTrackingEnabled).toBe(false);
     expect(initialDirectory.members.find((member) => member.userId === owner.userId)?.signInConfirmed).toBeNull();
     expect(initialDirectory.members.find((member) => member.userId === ed.userId)?.signInConfirmed).toBeNull();
-    expect((await memberSignInTrackingReq(app, "a1", true, { cookie: ed.cookie })).statusCode).toBe(403);
-    expect((await memberSignInTrackingReq(app, "a1", "true", { cookie: owner.cookie })).statusCode).toBe(400);
+    expect(
+      (await memberSignInTrackingReq({ app, accountId: "a1", enabled: true, headers: { cookie: ed.cookie } }))
+        .statusCode,
+    ).toBe(403);
+    expect(
+      (await memberSignInTrackingReq({ app, accountId: "a1", enabled: "true", headers: { cookie: owner.cookie } }))
+        .statusCode,
+    ).toBe(400);
 
-    const enabled = await memberSignInTrackingReq(app, "a1", true, { cookie: owner.cookie });
+    const enabled = await memberSignInTrackingReq({
+      app,
+      accountId: "a1",
+      enabled: true,
+      headers: { cookie: owner.cookie },
+    });
     expect(enabled.statusCode).toBe(200);
     expect(enabled.json()).toEqual({ enabled: true });
     let directory = (await membersReq(app, "a1", { cookie: owner.cookie })).json() as {
@@ -1368,7 +1590,10 @@ describe("member sign-in confirmation", () => {
     directory = (await membersReq(app, "a1", { cookie: owner.cookie })).json();
     expect(directory.members.find((member) => member.userId === ed.userId)?.signInConfirmed).toBe(true);
 
-    expect((await revokeSessionsReq(app, "a1", ed.userId, { cookie: owner.cookie })).statusCode).toBe(204);
+    expect(
+      (await revokeSessionsReq({ app, accountId: "a1", userId: ed.userId, headers: { cookie: owner.cookie } }))
+        .statusCode,
+    ).toBe(204);
     directory = (await membersReq(app, "a1", { cookie: owner.cookie })).json();
     expect(directory.members.find((member) => member.userId === ed.userId)?.signInConfirmed).toBe(false);
 
@@ -1383,7 +1608,10 @@ describe("member sign-in confirmation", () => {
     directory = (await membersReq(app, "a1", { cookie: owner.cookie })).json();
     expect(directory.members.find((member) => member.userId === ed.userId)?.signInConfirmed).toBe(false);
 
-    expect((await memberSignInTrackingReq(app, "a1", false, { cookie: owner.cookie })).statusCode).toBe(200);
+    expect(
+      (await memberSignInTrackingReq({ app, accountId: "a1", enabled: false, headers: { cookie: owner.cookie } }))
+        .statusCode,
+    ).toBe(200);
     expect(db.prepare("SELECT signInConfirmed FROM account_members WHERE accountId = 'a1'").all()).toEqual([
       { signInConfirmed: null },
       { signInConfirmed: null },
@@ -1406,7 +1634,10 @@ describe("disabling holds across every membership path (#175 review)", () => {
     upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
     const ed = await signUp(app, `editor-${suffix}@capacitylens.dev`);
     upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
-    expect((await patchStatusReq(app, "a1", ed.userId, status, { cookie: owner.cookie })).statusCode).toBe(200);
+    expect(
+      (await patchStatusReq({ app, accountId: "a1", userId: ed.userId, status, headers: { cookie: owner.cookie } }))
+        .statusCode,
+    ).toBe(200);
     return { app, db, owner, ed };
   }
 
@@ -1478,7 +1709,17 @@ describe("disabling holds across every membership path (#175 review)", () => {
         .statusCode,
     ).toBe(403);
 
-    expect((await patchStatusReq(app, "a1", ed.userId, "active", { cookie: owner.cookie })).statusCode).toBe(200);
+    expect(
+      (
+        await patchStatusReq({
+          app,
+          accountId: "a1",
+          userId: ed.userId,
+          status: "active",
+          headers: { cookie: owner.cookie },
+        })
+      ).statusCode,
+    ).toBe(200);
     expect(
       (await call(app, { method: "POST", url: `/api/invites/${token}/accept`, headers: { cookie: ed.cookie } }))
         .statusCode,
@@ -1574,7 +1815,13 @@ describe("re-applying a member's current status is a no-op (#175 review)", () =>
     // ...then a second admin, on a stale screen, re-applies the status the member already holds.
     // SQLite counts a MATCHED row as changed even when the written value is identical, so an
     // unguarded UPDATE would run the membership-write security protocol and silently kill the link.
-    const res = await patchStatusReq(app, "a1", ed.userId, "active", { cookie: owner.cookie });
+    const res = await patchStatusReq({
+      app,
+      accountId: "a1",
+      userId: ed.userId,
+      status: "active",
+      headers: { cookie: owner.cookie },
+    });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ userId: ed.userId, status: "active" });
     expect(storedStatus(db, "a1", ed.userId)).toBe("active");
@@ -1607,7 +1854,17 @@ describe("re-applying a member's current status is a no-op (#175 review)", () =>
 
     // The guard must not become an excuse to skip the protocol on a REAL transition: a link minted
     // while the member was active must not redeem into a non-active one.
-    expect((await patchStatusReq(app, "a1", ed.userId, "disabled", { cookie: owner.cookie })).statusCode).toBe(200);
+    expect(
+      (
+        await patchStatusReq({
+          app,
+          accountId: "a1",
+          userId: ed.userId,
+          status: "disabled",
+          headers: { cookie: owner.cookie },
+        })
+      ).statusCode,
+    ).toBe(200);
     expect(storedStatus(db, "a1", ed.userId)).toBe("disabled");
     expect(
       (

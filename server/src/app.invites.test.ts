@@ -776,8 +776,10 @@ describe("P1.10 — preauthInviteAllows / normalizeEmail (pure decision matrix)"
   });
 
   it("null preauth → true for ANY signed-in caller (link invite — even unverified)", () => {
-    expect(preauthInviteAllows(null, { email: "anyone@x.io", emailVerified: false })).toBe(true);
-    expect(preauthInviteAllows(null, { email: "anyone@x.io", emailVerified: true })).toBe(true);
+    expect(preauthInviteAllows({ preauthEmail: null, user: { email: "anyone@x.io", emailVerified: false } })).toBe(
+      true,
+    );
+    expect(preauthInviteAllows({ preauthEmail: null, user: { email: "anyone@x.io", emailVerified: true } })).toBe(true);
   });
 
   it("preauth + verified + EXACT (normalized) match → true (case/whitespace folded by store-time normalize)", () => {
@@ -785,15 +787,21 @@ describe("P1.10 — preauthInviteAllows / normalizeEmail (pure decision matrix)"
     // differently-cased / padded live email still matches the normalized stored value.
     const stored = normalizeEmail("Carol@Example.com"); // = 'carol@example.com'
     expect(
-      preauthInviteAllows(stored, {
-        email: "Carol@Example.com",
-        emailVerified: true,
+      preauthInviteAllows({
+        preauthEmail: stored,
+        user: {
+          email: "Carol@Example.com",
+          emailVerified: true,
+        },
       }),
     ).toBe(true);
     expect(
-      preauthInviteAllows(stored, {
-        email: "  CAROL@EXAMPLE.COM ",
-        emailVerified: true,
+      preauthInviteAllows({
+        preauthEmail: stored,
+        user: {
+          email: "  CAROL@EXAMPLE.COM ",
+          emailVerified: true,
+        },
       }),
     ).toBe(true);
   });
@@ -801,9 +809,12 @@ describe("P1.10 — preauthInviteAllows / normalizeEmail (pure decision matrix)"
   it("preauth + verified + DIFFERENT email → false", () => {
     const stored = normalizeEmail("carol@example.com");
     expect(
-      preauthInviteAllows(stored, {
-        email: "dave@example.com",
-        emailVerified: true,
+      preauthInviteAllows({
+        preauthEmail: stored,
+        user: {
+          email: "dave@example.com",
+          emailVerified: true,
+        },
       }),
     ).toBe(false);
   });
@@ -811,12 +822,21 @@ describe("P1.10 — preauthInviteAllows / normalizeEmail (pure decision matrix)"
   it("preauth + unverified matching email is SSO-denied but password-mode allowed", () => {
     const stored = normalizeEmail("carol@example.com");
     expect(
-      preauthInviteAllows(stored, {
-        email: "carol@example.com",
-        emailVerified: false,
+      preauthInviteAllows({
+        preauthEmail: stored,
+        user: {
+          email: "carol@example.com",
+          emailVerified: false,
+        },
       }),
     ).toBe(false);
-    expect(preauthInviteAllows(stored, { email: "carol@example.com", emailVerified: false }, true)).toBe(true);
+    expect(
+      preauthInviteAllows({
+        preauthEmail: stored,
+        user: { email: "carol@example.com", emailVerified: false },
+        passwordMode: true,
+      }),
+    ).toBe(true);
   });
 });
 

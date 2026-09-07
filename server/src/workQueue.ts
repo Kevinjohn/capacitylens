@@ -28,6 +28,13 @@ export function readAbortReason(signal: AbortSignal): unknown {
   return signal.reason ?? new DOMException("The queued work was cancelled.", "AbortError");
 }
 
+interface BoundedWorkQueueInput {
+  maxActive: number;
+  maxQueued: number;
+  fullMessage: string;
+  options?: WorkQueueOptions | undefined;
+}
+
 /**
  * A small fail-closed in-process concurrency/queue bound for memory-expensive operations.
  *
@@ -38,13 +45,17 @@ export function readAbortReason(signal: AbortSignal): unknown {
 export class BoundedWorkQueue {
   private active = 0;
   private readonly waiting: WaitingWork[] = [];
+  readonly maxActive: number;
+  readonly maxQueued: number;
+  private readonly fullMessage: string;
+  private readonly options: WorkQueueOptions;
 
-  constructor(
-    readonly maxActive: number,
-    readonly maxQueued: number,
-    private readonly fullMessage: string,
-    private readonly options: WorkQueueOptions = {},
-  ) {
+  constructor({ maxActive, maxQueued, fullMessage, options = {} }: BoundedWorkQueueInput) {
+    this.maxActive = maxActive;
+    this.maxQueued = maxQueued;
+    this.fullMessage = fullMessage;
+    this.options = options;
+
     if (!Number.isSafeInteger(maxActive) || maxActive < 1) throw new RangeError("maxActive must be positive.");
     if (!Number.isSafeInteger(maxQueued) || maxQueued < 0) throw new RangeError("maxQueued must be non-negative.");
     if (options.maxWaitMs !== undefined && (!Number.isSafeInteger(options.maxWaitMs) || options.maxWaitMs < 1))
