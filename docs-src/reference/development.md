@@ -133,7 +133,7 @@ relevant area:
   rebuilds, or either read path with whole-database `loadState()` — relationship
   validation needs complete target slices, not quadratic copies or unrelated tenant rows.
   When you add a new AppData foreign key, update the relationship graph in
-  `server/src/batchProjection.ts` alongside the table definition and its cascade-parity
+  `server/src/BatchStateProjection.ts` alongside the table definition and its cascade-parity
   tests.
 - The 5,000-operation atomic batch cap is also an event-loop availability bound. The
   inclusive server integration test applies 5,000 real updates and requires the handler to
