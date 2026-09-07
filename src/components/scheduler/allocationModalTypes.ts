@@ -1,8 +1,9 @@
 import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import type { ISODate, Resource, SchedulingMode } from "@capacitylens/shared/types/entities";
 export type AllocationModalProps =
-  | { allocationId: string; onClose: () => void }
+  | { kind: "edit"; allocationId: string; onClose: () => void }
   | {
+      kind: "create";
       create: { resourceId: string; startDate: ISODate; endDate: ISODate };
       onClose: () => void;
     };

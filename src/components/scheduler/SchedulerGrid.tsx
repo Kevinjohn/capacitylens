@@ -250,7 +250,7 @@ export function SchedulerGrid() {
           {modal && (
             <Suspense fallback={null}>
               {modal.kind === "edit" ? (
-                <AllocationModal allocationId={modal.allocationId} onClose={() => setModal(null)} />
+                <AllocationModal kind="edit" allocationId={modal.allocationId} onClose={() => setModal(null)} />
               ) : modal.kind === "timeoff" ? (
                 <TimeOffForm
                   defaults={{
@@ -262,6 +262,7 @@ export function SchedulerGrid() {
                 />
               ) : (
                 <AllocationModal
+                  kind="create"
                   create={{
                     resourceId: modal.resourceId,
                     startDate: modal.startDate,
