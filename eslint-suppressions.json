@@ -4,61 +4,6 @@
       "count": 3
     }
   },
-  "server/src/accounts/adminPort/authority.ts": {
-    "max-params": {
-      "count": 7
-    }
-  },
-  "server/src/accounts/commands.ts": {
-    "max-params": {
-      "count": 7
-    }
-  },
-  "server/src/accounts/conformance/architecture.test.ts": {
-    "max-params": {
-      "count": 4
-    }
-  },
-  "server/src/accounts/conformance/localIdentityPort.conformance.test.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "server/src/accounts/flows/actorContext.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/accounts/identityPort/sessionRevocation.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/accounts/memberSignInTracking.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/accounts/state/commandLedgerReads.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/accounts/state/commandLedgerWrites.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "server/src/accounts/state/federatedProviders.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/accounts/state/sessionAssurance.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "server/src/authConfig/bootstrapAdmin.ts": {
     "max-params": {
       "count": 1

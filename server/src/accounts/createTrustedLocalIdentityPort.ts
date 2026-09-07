@@ -50,7 +50,7 @@ export function createTrustedLocalIdentityPort(principal: LocalPrincipal): Local
       return [];
     },
     async revokeOwnSession({ command }) {
-      return createOperationReceipt(command.commandId, false);
+      return createOperationReceipt({ commandId: command.commandId, changed: false });
     },
     async createProvisionalCredentialPrincipal({ command }) {
       return throwUnsupportedOperation(command.commandId);
@@ -62,7 +62,7 @@ export function createTrustedLocalIdentityPort(principal: LocalPrincipal): Local
       return throwUnsupportedOperation(command.commandId);
     },
     async deprovisionLocalPrincipal({ command }) {
-      return createOperationReceipt(command.commandId);
+      return createOperationReceipt({ commandId: command.commandId });
     },
     async issuePasswordReset({ command }) {
       return throwUnsupportedOperation(command.commandId);
