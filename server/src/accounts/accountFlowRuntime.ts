@@ -42,7 +42,7 @@ interface CreateOperationReceiptInput {
 
 /** Shared identity-port operation receipt: an embedded port (Better Auth, trusted-local) stamps
  *  this on completion rather than reading back a stored record (contrast {@link
- *  "./commands".operationReceipt}, which reflects a persisted command's own `updatedAt`). */
+ *  "./commands".buildOperationReceipt}, which reflects a persisted command's own `updatedAt`). */
 export function createOperationReceipt({ commandId, changed }: CreateOperationReceiptInput): OperationReceipt {
   return { commandId, completedAt: new Date().toISOString(), ...(changed === undefined ? {} : { changed }) };
 }
