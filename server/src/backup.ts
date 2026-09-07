@@ -38,6 +38,56 @@ export interface Backups {
 export const MAX_BACKUP_INTERVAL_MIN = 35_000;
 export const MAX_BACKUP_KEEP = 10_000;
 
+interface ReportSubstitutionInput {
+  name: string;
+  raw: string;
+  applied: number;
+  bound: string;
+}
+
+type ReportSubstitution = (input: ReportSubstitutionInput) => void;
+
+function createSubstitutionReporter(log: (message: string) => void): ReportSubstitution {
+  return ({ name, raw, applied, bound }) => {
+    log(
+      `capacitylens-server: backup configuration warning — ${name} requested ${JSON.stringify(raw)}; applied ${applied} (${bound}).`,
+    );
+  };
+}
+
+interface ParseBoundedNumberInput {
+  name: string;
+  raw: string | undefined;
+  fallback: number;
+  max: number;
+  reportSubstitution: ReportSubstitution;
+}
+
+function parseBoundedInteger({ name, raw, fallback, max, reportSubstitution }: ParseBoundedNumberInput): number {
+  if (raw === undefined) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    reportSubstitution({ name, raw, applied: fallback, bound: `valid range 1..${max}; using default` });
+    return fallback;
+  }
+  if (parsed > max) reportSubstitution({ name, raw, applied: max, bound: `maximum ${max}` });
+  return Math.min(parsed, max);
+}
+
+function parseBoundedFloor({ name, raw, fallback, max, reportSubstitution }: ParseBoundedNumberInput): number {
+  if (raw === undefined) return fallback;
+  const parsed = Number(raw);
+  const floored = Math.floor(parsed);
+  if (!Number.isSafeInteger(floored) || floored < 1) {
+    reportSubstitution({ name, raw, applied: fallback, bound: `valid range 1..${max}; using default` });
+    return fallback;
+  }
+  if (parsed !== floored)
+    reportSubstitution({ name, raw, applied: Math.min(floored, max), bound: "fractional value floored" });
+  else if (floored > max) reportSubstitution({ name, raw, applied: max, bound: `maximum ${max}` });
+  return Math.min(floored, max);
+}
+
 /** Fail-closed env parse: no CAPACITYLENS_BACKUP_DIR ⇒ null ⇒ backups don't exist. The numeric
  *  knobs are only read when backups are on; junk/low values use the documented defaults while
  *  over-limit values clamp to the published operator-safety ceiling. */
@@ -47,57 +97,7 @@ export function parseBackupConfig(
 ): BackupConfig | null {
   const dir = environment.CAPACITYLENS_BACKUP_DIR;
   if (!dir) return null;
-
-  interface ReportSubstitutionInput {
-    name: string;
-    raw: string;
-    applied: number;
-    bound: string;
-  }
-
-  const reportSubstitution = ({ name, raw, applied, bound }: ReportSubstitutionInput) => {
-    log(
-      `capacitylens-server: backup configuration warning — ${name} requested ${JSON.stringify(raw)}; applied ${applied} (${bound}).`,
-    );
-  };
-
-  interface ParseBoundedIntegerInput {
-    name: string;
-    raw: string | undefined;
-    fallback: number;
-    max: number;
-  }
-
-  const parseBoundedInteger = ({ name, raw, fallback, max }: ParseBoundedIntegerInput) => {
-    if (raw === undefined) return fallback;
-    const n = Number(raw);
-    if (!Number.isSafeInteger(n) || n < 1) {
-      reportSubstitution({ name, raw, applied: fallback, bound: `valid range 1..${max}; using default` });
-      return fallback;
-    }
-    if (n > max) reportSubstitution({ name, raw, applied: max, bound: `maximum ${max}` });
-    return Math.min(n, max);
-  };
-
-  interface ParseBoundedFloorInput {
-    name: string;
-    raw: string | undefined;
-    fallback: number;
-    max: number;
-  }
-
-  const parseBoundedFloor = ({ name, raw, fallback, max }: ParseBoundedFloorInput) => {
-    if (raw === undefined) return fallback;
-    const floored = Math.floor(Number(raw));
-    if (!Number.isSafeInteger(floored) || floored < 1) {
-      reportSubstitution({ name, raw, applied: fallback, bound: `valid range 1..${max}; using default` });
-      return fallback;
-    }
-    if (Number(raw) !== floored)
-      reportSubstitution({ name, raw, applied: Math.min(floored, max), bound: "fractional value floored" });
-    else if (floored > max) reportSubstitution({ name, raw, applied: max, bound: `maximum ${max}` });
-    return Math.min(floored, max);
-  };
+  const reportSubstitution = createSubstitutionReporter(log);
   return {
     dir,
     intervalMin: parseBoundedInteger({
@@ -105,6 +105,7 @@ export function parseBackupConfig(
       raw: environment.CAPACITYLENS_BACKUP_INTERVAL_MIN,
       fallback: 60,
       max: MAX_BACKUP_INTERVAL_MIN,
+      reportSubstitution,
     }),
     // Released compatibility contract: a bounded fractional retention value means its floor. Do
     // not route it through the whole-minute parser above: falling back from e.g. 100.5 to 48 would
@@ -114,6 +115,7 @@ export function parseBackupConfig(
       raw: environment.CAPACITYLENS_BACKUP_KEEP,
       fallback: 48,
       max: MAX_BACKUP_KEEP,
+      reportSubstitution,
     }),
   };
 }
