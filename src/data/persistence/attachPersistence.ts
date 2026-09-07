@@ -105,7 +105,7 @@ export function attachPersistence({
 
   // Flush-pending seam for out-of-band whole-slice writers (the server-mode import): land any
   // still-debounced edit against the CURRENT state, in order, and report whether writes are clean.
-  // Returning false (a write is still failed) tells the caller its precondition — "local edits are
+  // Returning blocked (a write is still failed) tells the caller its precondition — "local edits are
   // persisted or knowingly abandoned" — does not hold; the import path refuses to proceed rather
   // than let its post-import reload wipe an unsaved edit or its retry replay a stale diff over the
   // freshly imported slice.

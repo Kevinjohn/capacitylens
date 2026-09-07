@@ -1591,7 +1591,7 @@ describe("flushPendingWrites (the import seam)", () => {
     detach();
   });
 
-  it("returns true (clean, nothing to flush) when no orchestrator is attached", async () => {
+  it("returns clean when no orchestrator is attached and there is nothing to flush", async () => {
     expect(await flushPendingWrites()).toEqual({ kind: "clean" });
   });
 
