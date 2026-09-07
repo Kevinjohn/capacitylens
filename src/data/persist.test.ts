@@ -1412,42 +1412,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
     // CANCELLING B's late-resolving load — then installed A's slice while activeAccountId === B
     // (cross-tenant display → cross-tenant writes). The entry guard must make the stale call a
     // pure no-op: no loadAll(A), no token bump, and B's held-open load still lands.
-    const aSlice: AppData = {
-      ...emptyAppData(),
-      accounts: [
-        {
-          id: "a1",
-          name: "Alpha",
-          color: "#1",
-          createdAt: "t",
-          updatedAt: "t",
-        },
-      ],
-      clients: [
-        {
-          id: "ca",
-          accountId: "a1",
-          name: "Alpha Client",
-          color: "#1",
-          createdAt: "t",
-          updatedAt: "t",
-        },
-      ],
-    };
-    const bSlice: AppData = {
-      ...emptyAppData(),
-      accounts: [{ id: "b1", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
-      clients: [
-        {
-          id: "cb",
-          accountId: "b1",
-          name: "Beta Client",
-          color: "#1",
-          createdAt: "t",
-          updatedAt: "t",
-        },
-      ],
-    };
+    const { aSlice, bSlice } = accountSwitchSlices();
     let releaseB: (() => void) | null = null;
     const loadAll = vi.fn((accountId?: string): Promise<AppData> => {
       if (accountId === "b1") {
