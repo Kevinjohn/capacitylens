@@ -271,9 +271,9 @@ export function createAuthAdapterFactory({
         // Bound (not bare-referenced): Better Auth's api endpoints resolve their context via `this`.
         requestPasswordReset: (input) => raw.api.requestPasswordReset(input),
       },
-      createCredentialUser: (email, name, password, emailVerified = false, correlateInTransaction) =>
+      createCredentialUser: ({ email, name, password, emailVerified = false, correlateInTransaction }) =>
         raw.$context.then((context) =>
-          createCredentialUserWith(context, db, email, name, password, emailVerified, correlateInTransaction),
+          createCredentialUserWith({ context, db, email, name, password, emailVerified, correlateInTransaction }),
         ),
       deleteCredentialUser: (userId) => raw.$context.then((context) => context.internalAdapter.deleteUser(userId)),
       revokeUserSessions: (userId) =>
