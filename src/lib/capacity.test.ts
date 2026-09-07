@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  type DayCapacity,
   applyCapacityMode,
   resolveAllocatedHoursOnDay as allocatedHoursOnDayWithWeek,
   resolveAvailableHoursOnDay as availableHoursOnDayWithWeek,
@@ -21,12 +22,77 @@ import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingW
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import type { Allocation, Closure, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 
+interface AvailableHoursOnDayTestInput {
+  resource: Resource;
+  date: ISODate;
+  timeOff: TimeOff[];
+  accountWorkingDays?: Weekday[] | undefined;
+}
+
+interface AllocatedHoursOnDayTestInput {
+  resource: Resource;
+  date: ISODate;
+  allocations: Allocation[];
+  accountWorkingDays?: Weekday[] | undefined;
+}
+
+interface DayCapacityTestInput {
+  resource: Resource;
+  date: ISODate;
+  allocations: Allocation[];
+  timeOff: TimeOff[];
+  accountWorkingDays?: Weekday[] | undefined;
+}
+
+interface CapacityForWindowTestInput {
+  resource: Resource;
+  allocations: Allocation[];
+  timeOff: TimeOff[];
+  start: ISODate;
+  end: ISODate;
+  accountWorkingDays?: Weekday[] | undefined;
+}
+
+interface UtilizationTestInput {
+  resource: Resource;
+  allocations: Allocation[];
+  timeOff: TimeOff[];
+  start: ISODate;
+  end: ISODate;
+  accountWorkingDays?: Weekday[] | undefined;
+  closures?: Closure[] | undefined;
+}
+
+interface CapacityAdvisoryTestInput {
+  resource: Resource;
+  proposal: CapacityAllocationInput;
+  otherAllocations: readonly CapacityAllocationInput[];
+  timeOff: TimeOff[];
+  accountWorkingDays?: Weekday[] | undefined;
+  closures?: Closure[] | undefined;
+}
+
+interface CapacityCaseInput {
+  name: string;
+  date: ISODate;
+  allocations: readonly Allocation[];
+  timeOff: readonly TimeOff[];
+  expected: Pick<DayCapacity, "allocated" | "available" | "over">;
+}
+
+interface ProposalTestInput {
+  startDate: ISODate;
+  endDate: ISODate;
+  hoursPerDay: number;
+  ignoreWeekends: boolean;
+}
+
 const DEFAULT_ACCOUNT_WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5];
 const weekFor = (resource: Resource, accountWorkingDays = DEFAULT_ACCOUNT_WORKING_DAYS) =>
   effectiveWorkingWeek(resource, accountWorkingDays);
 const scheduledHoursOnDay = (resource: Resource, date: ISODate, accountWorkingDays?: Weekday[]) =>
   scheduledHoursOnDayWithWeek(resource, date, weekFor(resource, accountWorkingDays));
-const availableHoursOnDay = (resource: Resource, date: ISODate, timeOff: TimeOff[], accountWorkingDays?: Weekday[]) =>
+const availableHoursOnDay = ({ resource, date, timeOff, accountWorkingDays }: AvailableHoursOnDayTestInput) =>
   availableHoursOnDayWithWeek({
     resource: resource,
     date: date,
@@ -34,50 +100,65 @@ const availableHoursOnDay = (resource: Resource, date: ISODate, timeOff: TimeOff
     effectiveWeek: weekFor(resource, accountWorkingDays),
     closures: [],
   });
-const allocatedHoursOnDay = (
-  resource: Resource,
-  date: ISODate,
-  allocations: Allocation[],
-  accountWorkingDays?: Weekday[],
-) =>
+const allocatedHoursOnDay = ({ resource, date, allocations, accountWorkingDays }: AllocatedHoursOnDayTestInput) =>
   allocatedHoursOnDayWithWeek({
     resource: resource,
     date: date,
     allocations: allocations,
     effectiveWeek: weekFor(resource, accountWorkingDays),
   });
-const dayCapacity = (
-  resource: Resource,
-  date: ISODate,
-  allocations: Allocation[],
-  timeOff: TimeOff[],
-  accountWorkingDays?: Weekday[],
-) => dayCapacityWithWeek(resource, date, allocations, timeOff, weekFor(resource, accountWorkingDays), []);
-const capacityForWindow = (
-  resource: Resource,
-  allocations: Allocation[],
-  timeOff: TimeOff[],
-  start: ISODate,
-  end: ISODate,
-  accountWorkingDays?: Weekday[],
-) => capacityForWindowWithWeek(resource, allocations, timeOff, start, end, weekFor(resource, accountWorkingDays), []);
-const utilization = (
-  resource: Resource,
-  allocations: Allocation[],
-  timeOff: TimeOff[],
-  start: ISODate,
-  end: ISODate,
-  accountWorkingDays?: Weekday[],
-  closures: Closure[] = [],
-) => utilizationWithWeek(resource, allocations, timeOff, start, end, weekFor(resource, accountWorkingDays), closures);
-const capacityAdvisory = (
-  resource: Resource,
-  proposal: CapacityAllocationInput,
-  otherAllocations: readonly CapacityAllocationInput[],
-  timeOff: TimeOff[],
-  accountWorkingDays?: Weekday[],
-  closures: Closure[] = [],
-) =>
+const dayCapacity = ({ resource, date, allocations, timeOff, accountWorkingDays }: DayCapacityTestInput) =>
+  dayCapacityWithWeek({
+    resource: resource,
+    date: date,
+    allocations: allocations,
+    timeOff: timeOff,
+    effectiveWeek: weekFor(resource, accountWorkingDays),
+    closures: [],
+  });
+const capacityForWindow = ({
+  resource,
+  allocations,
+  timeOff,
+  start,
+  end,
+  accountWorkingDays,
+}: CapacityForWindowTestInput) =>
+  capacityForWindowWithWeek({
+    resource: resource,
+    allocations: allocations,
+    timeOff: timeOff,
+    start: start,
+    end: end,
+    effectiveWeek: weekFor(resource, accountWorkingDays),
+    closures: [],
+  });
+const utilization = ({
+  resource,
+  allocations,
+  timeOff,
+  start,
+  end,
+  accountWorkingDays,
+  closures = [],
+}: UtilizationTestInput) =>
+  utilizationWithWeek({
+    resource: resource,
+    allocations: allocations,
+    timeOff: timeOff,
+    start: start,
+    end: end,
+    effectiveWeek: weekFor(resource, accountWorkingDays),
+    closures: closures,
+  });
+const capacityAdvisory = ({
+  resource,
+  proposal,
+  otherAllocations,
+  timeOff,
+  accountWorkingDays,
+  closures = [],
+}: CapacityAdvisoryTestInput) =>
   capacityAdvisoryWithWeek({
     resource: resource,
     proposal: proposal,
@@ -154,9 +235,32 @@ describe("#257 characterization: effective-week capacity", () => {
     });
 
     expect(scheduledHoursOnDay(resource, "2026-06-05", accountWorkingDays)).toBe(0);
-    expect(availableHoursOnDay(resource, "2026-06-05", [], accountWorkingDays)).toBe(0);
-    expect(allocatedHoursOnDay(resource, "2026-06-05", [allocation], accountWorkingDays)).toBe(0);
-    expect(utilization(resource, [allocation], [], "2026-06-05", "2026-06-05", accountWorkingDays)).toBe(0);
+    expect(
+      availableHoursOnDay({
+        resource: resource,
+        date: "2026-06-05",
+        timeOff: [],
+        accountWorkingDays: accountWorkingDays,
+      }),
+    ).toBe(0);
+    expect(
+      allocatedHoursOnDay({
+        resource: resource,
+        date: "2026-06-05",
+        allocations: [allocation],
+        accountWorkingDays: accountWorkingDays,
+      }),
+    ).toBe(0);
+    expect(
+      utilization({
+        resource: resource,
+        allocations: [allocation],
+        timeOff: [],
+        start: "2026-06-05",
+        end: "2026-06-05",
+        accountWorkingDays: accountWorkingDays,
+      }),
+    ).toBe(0);
   });
 
   // Flipped in Phase 3: intersecting with a partial company week makes a seven-day
@@ -169,8 +273,8 @@ describe("#257 characterization: effective-week capacity", () => {
       hoursPerDay: 8,
     });
 
-    expect(allocatedHoursOnDay(resource, "2026-06-06", [allocation])).toBe(0);
-    expect(allocatedHoursOnDay(resource, "2026-06-07", [allocation])).toBe(0);
+    expect(allocatedHoursOnDay({ resource: resource, date: "2026-06-06", allocations: [allocation] })).toBe(0);
+    expect(allocatedHoursOnDay({ resource: resource, date: "2026-06-07", allocations: [allocation] })).toBe(0);
   });
 });
 
@@ -188,34 +292,72 @@ describe("effective working-week semantics table", () => {
   const blockFriday = applyCapacityMode({ allocations: normalFriday, blocksMode: true });
 
   it.each([
-    ["normal allocation on an effective day", monday, normalMonday, [], { allocated: 8, available: 8, over: false }],
-    [
-      "normal allocation over time off on an effective day",
-      monday,
-      normalMonday,
-      mondayOff,
-      { allocated: 8, available: 0, over: true },
-    ],
-    ["normal allocation on a company day off", friday, normalFriday, [], { allocated: 0, available: 0, over: false }],
-    [
-      "normal allocation on a company day off plus time off",
-      friday,
-      normalFriday,
-      fridayOff,
-      { allocated: 0, available: 0, over: false },
-    ],
-    ["ignored allocation on a company day off", friday, ignoredFriday, [], { allocated: 8, available: 0, over: true }],
-    [
-      "ignored allocation on a company day off plus time off",
-      friday,
-      ignoredFriday,
-      fridayOff,
-      { allocated: 8, available: 0, over: true },
-    ],
-    ["zero-load block on a company day off", friday, blockFriday, [], { allocated: 0, available: 0, over: false }],
-    ["zero-load block over time off", monday, blockMonday, mondayOff, { allocated: 0, available: 0, over: false }],
-  ] as const)("implements %s", (_name, date, allocations, timeOff, expected) => {
-    expect(dayCapacity(resource, date, [...allocations], [...timeOff], companyMondayOnly)).toMatchObject(expected);
+    {
+      name: "normal allocation on an effective day",
+      date: monday,
+      allocations: normalMonday,
+      timeOff: [],
+      expected: { allocated: 8, available: 8, over: false },
+    },
+    {
+      name: "normal allocation over time off on an effective day",
+      date: monday,
+      allocations: normalMonday,
+      timeOff: mondayOff,
+      expected: { allocated: 8, available: 0, over: true },
+    },
+    {
+      name: "normal allocation on a company day off",
+      date: friday,
+      allocations: normalFriday,
+      timeOff: [],
+      expected: { allocated: 0, available: 0, over: false },
+    },
+    {
+      name: "normal allocation on a company day off plus time off",
+      date: friday,
+      allocations: normalFriday,
+      timeOff: fridayOff,
+      expected: { allocated: 0, available: 0, over: false },
+    },
+    {
+      name: "ignored allocation on a company day off",
+      date: friday,
+      allocations: ignoredFriday,
+      timeOff: [],
+      expected: { allocated: 8, available: 0, over: true },
+    },
+    {
+      name: "ignored allocation on a company day off plus time off",
+      date: friday,
+      allocations: ignoredFriday,
+      timeOff: fridayOff,
+      expected: { allocated: 8, available: 0, over: true },
+    },
+    {
+      name: "zero-load block on a company day off",
+      date: friday,
+      allocations: blockFriday,
+      timeOff: [],
+      expected: { allocated: 0, available: 0, over: false },
+    },
+    {
+      name: "zero-load block over time off",
+      date: monday,
+      allocations: blockMonday,
+      timeOff: mondayOff,
+      expected: { allocated: 0, available: 0, over: false },
+    },
+  ] as const)("implements $name", ({ date, allocations, timeOff, expected }: CapacityCaseInput) => {
+    expect(
+      dayCapacity({
+        resource: resource,
+        date: date,
+        allocations: [...allocations],
+        timeOff: [...timeOff],
+        accountWorkingDays: companyMondayOnly,
+      }),
+    ).toMatchObject(expected);
     expect(isOnTimeOff(resource.id, date, [...timeOff])).toBe(timeOff.length > 0);
   });
 
@@ -225,11 +367,43 @@ describe("effective working-week semantics table", () => {
     const ignored = [makeAlloc({ startDate: monday, endDate: monday, hoursPerDay: 8, ignoreWeekends: true })];
 
     expect(scheduledHoursOnDay(resource, monday, noneCompanyWeek)).toBe(0);
-    expect(availableHoursOnDay(resource, monday, [], noneCompanyWeek)).toBe(0);
-    expect(allocatedHoursOnDay(resource, monday, normal, noneCompanyWeek)).toBe(0);
-    expect(dayCapacity(resource, monday, normal, [], noneCompanyWeek).over).toBe(false);
-    expect(allocatedHoursOnDay(resource, monday, ignored, noneCompanyWeek)).toBe(8);
-    expect(dayCapacity(resource, monday, ignored, [], noneCompanyWeek)).toMatchObject({
+    expect(
+      availableHoursOnDay({ resource: resource, date: monday, timeOff: [], accountWorkingDays: noneCompanyWeek }),
+    ).toBe(0);
+    expect(
+      allocatedHoursOnDay({
+        resource: resource,
+        date: monday,
+        allocations: normal,
+        accountWorkingDays: noneCompanyWeek,
+      }),
+    ).toBe(0);
+    expect(
+      dayCapacity({
+        resource: resource,
+        date: monday,
+        allocations: normal,
+        timeOff: [],
+        accountWorkingDays: noneCompanyWeek,
+      }).over,
+    ).toBe(false);
+    expect(
+      allocatedHoursOnDay({
+        resource: resource,
+        date: monday,
+        allocations: ignored,
+        accountWorkingDays: noneCompanyWeek,
+      }),
+    ).toBe(8);
+    expect(
+      dayCapacity({
+        resource: resource,
+        date: monday,
+        allocations: ignored,
+        timeOff: [],
+        accountWorkingDays: noneCompanyWeek,
+      }),
+    ).toMatchObject({
       allocated: 8,
       available: 0,
       over: true,
@@ -293,11 +467,21 @@ describe("availability", () => {
   });
 
   it("uses fixed eight-hour full days, four-hour half days, and zero for non-working/time-off days", () => {
-    expect(availableHoursOnDay(r, "2026-06-01", [])).toBe(8); // Monday
-    expect(availableHoursOnDay(makeResource({ workingHoursPerDay: 6, halfDays: [2] }), "2026-06-02", [])).toBe(4);
-    expect(availableHoursOnDay(makeResource({ workingHoursPerDay: 6 }), "2026-06-01", [])).toBe(8);
-    expect(availableHoursOnDay(r, "2026-06-06", [])).toBe(0); // Saturday
-    expect(availableHoursOnDay(makeResource({ halfDays: [3] }), "2026-06-03", [makeTimeOff()])).toBe(0);
+    expect(availableHoursOnDay({ resource: r, date: "2026-06-01", timeOff: [] })).toBe(8); // Monday
+    expect(
+      availableHoursOnDay({
+        resource: makeResource({ workingHoursPerDay: 6, halfDays: [2] }),
+        date: "2026-06-02",
+        timeOff: [],
+      }),
+    ).toBe(4);
+    expect(
+      availableHoursOnDay({ resource: makeResource({ workingHoursPerDay: 6 }), date: "2026-06-01", timeOff: [] }),
+    ).toBe(8);
+    expect(availableHoursOnDay({ resource: r, date: "2026-06-06", timeOff: [] })).toBe(0); // Saturday
+    expect(
+      availableHoursOnDay({ resource: makeResource({ halfDays: [3] }), date: "2026-06-03", timeOff: [makeTimeOff()] }),
+    ).toBe(0);
   });
 });
 
@@ -306,7 +490,7 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", (
 
   it("ignores a legacy non-finite workingHoursPerDay because full-day capacity is fixed", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    availableHoursOnDay(makeResource({ workingHoursPerDay: NaN }), "2026-06-01", []); // Monday
+    availableHoursOnDay({ resource: makeResource({ workingHoursPerDay: NaN }), date: "2026-06-01", timeOff: [] }); // Monday
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
@@ -320,7 +504,7 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", (
         hoursPerDay: NaN,
       }),
     ];
-    allocatedHoursOnDay(r, "2026-06-01", allocs);
+    allocatedHoursOnDay({ resource: r, date: "2026-06-01", allocations: allocs });
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0][0]).toContain("allocated hours sum");
     warn.mockRestore();
@@ -352,9 +536,9 @@ describe("allocatedHoursOnDay", () => {
         hoursPerDay: 9,
       }),
     ];
-    expect(allocatedHoursOnDay(r, "2026-06-02", allocs)).toBe(4);
-    expect(allocatedHoursOnDay(r, "2026-06-03", allocs)).toBe(7); // 4 + 3, ignoring other resource
-    expect(allocatedHoursOnDay(r, "2026-06-10", allocs)).toBe(0);
+    expect(allocatedHoursOnDay({ resource: r, date: "2026-06-02", allocations: allocs })).toBe(4);
+    expect(allocatedHoursOnDay({ resource: r, date: "2026-06-03", allocations: allocs })).toBe(7); // 4 + 3, ignoring other resource
+    expect(allocatedHoursOnDay({ resource: r, date: "2026-06-10", allocations: allocs })).toBe(0);
   });
 
   it("a weekend-aware allocation does no work on a weekend it merely spans", () => {
@@ -367,10 +551,10 @@ describe("allocatedHoursOnDay", () => {
         hoursPerDay: 8,
       }),
     ];
-    expect(allocatedHoursOnDay(r, "2026-06-05", allocs)).toBe(8); // Fri (working)
-    expect(allocatedHoursOnDay(r, "2026-06-06", allocs)).toBe(0); // Sat (spanned, no work)
-    expect(allocatedHoursOnDay(r, "2026-06-07", allocs)).toBe(0); // Sun (spanned, no work)
-    expect(allocatedHoursOnDay(r, "2026-06-08", allocs)).toBe(8); // Mon (working)
+    expect(allocatedHoursOnDay({ resource: r, date: "2026-06-05", allocations: allocs })).toBe(8); // Fri (working)
+    expect(allocatedHoursOnDay({ resource: r, date: "2026-06-06", allocations: allocs })).toBe(0); // Sat (spanned, no work)
+    expect(allocatedHoursOnDay({ resource: r, date: "2026-06-07", allocations: allocs })).toBe(0); // Sun (spanned, no work)
+    expect(allocatedHoursOnDay({ resource: r, date: "2026-06-08", allocations: allocs })).toBe(8); // Mon (working)
   });
 
   it("an ignoreWeekends allocation places its hours on the weekend AND still on its working days", () => {
@@ -382,10 +566,10 @@ describe("allocatedHoursOnDay", () => {
         ignoreWeekends: true,
       }),
     ];
-    expect(allocatedHoursOnDay(r, "2026-06-05", allocs)).toBe(8); // Fri (working — still covered)
-    expect(allocatedHoursOnDay(r, "2026-06-06", allocs)).toBe(8); // Sat (opted in)
-    expect(allocatedHoursOnDay(r, "2026-06-07", allocs)).toBe(8); // Sun (opted in)
-    expect(allocatedHoursOnDay(r, "2026-06-08", allocs)).toBe(8); // Mon (working — still covered)
+    expect(allocatedHoursOnDay({ resource: r, date: "2026-06-05", allocations: allocs })).toBe(8); // Fri (working — still covered)
+    expect(allocatedHoursOnDay({ resource: r, date: "2026-06-06", allocations: allocs })).toBe(8); // Sat (opted in)
+    expect(allocatedHoursOnDay({ resource: r, date: "2026-06-07", allocations: allocs })).toBe(8); // Sun (opted in)
+    expect(allocatedHoursOnDay({ resource: r, date: "2026-06-08", allocations: allocs })).toBe(8); // Mon (working — still covered)
   });
 
   it("skips a non-working WEEKDAY too, not just Sat/Sun (a Mon–Wed part-timer)", () => {
@@ -399,9 +583,9 @@ describe("allocatedHoursOnDay", () => {
         hoursPerDay: 8,
       }),
     ];
-    expect(allocatedHoursOnDay(monWed, "2026-06-03", allocs)).toBe(8); // Wed (working)
-    expect(allocatedHoursOnDay(monWed, "2026-06-04", allocs)).toBe(0); // Thu (non-working weekday)
-    expect(allocatedHoursOnDay(monWed, "2026-06-05", allocs)).toBe(0); // Fri (non-working weekday)
+    expect(allocatedHoursOnDay({ resource: monWed, date: "2026-06-03", allocations: allocs })).toBe(8); // Wed (working)
+    expect(allocatedHoursOnDay({ resource: monWed, date: "2026-06-04", allocations: allocs })).toBe(0); // Thu (non-working weekday)
+    expect(allocatedHoursOnDay({ resource: monWed, date: "2026-06-05", allocations: allocs })).toBe(0); // Fri (non-working weekday)
   });
 });
 
@@ -416,7 +600,7 @@ describe("dayCapacity over-allocation", () => {
         hoursPerDay: 10,
       }),
     ];
-    const cap = dayCapacity(r, "2026-06-01", allocs, []);
+    const cap = dayCapacity({ resource: r, date: "2026-06-01", allocations: allocs, timeOff: [] });
     expect(cap).toMatchObject({ allocated: 10, available: 8, over: true });
   });
 
@@ -430,7 +614,7 @@ describe("dayCapacity over-allocation", () => {
         hoursPerDay: 8,
       }),
     ];
-    const cap = dayCapacity(r, "2026-06-06", allocs, []); // Saturday
+    const cap = dayCapacity({ resource: r, date: "2026-06-06", allocations: allocs, timeOff: [] }); // Saturday
     expect(cap).toMatchObject({ allocated: 0, available: 0, over: false });
   });
 
@@ -445,7 +629,7 @@ describe("dayCapacity over-allocation", () => {
         ignoreWeekends: true,
       }),
     ];
-    const cap = dayCapacity(r, "2026-06-06", allocs, []); // Saturday
+    const cap = dayCapacity({ resource: r, date: "2026-06-06", allocations: allocs, timeOff: [] }); // Saturday
     expect(cap).toMatchObject({ allocated: 2, available: 0, over: true });
   });
 
@@ -459,7 +643,12 @@ describe("dayCapacity over-allocation", () => {
         hoursPerDay: 4,
       }),
     ];
-    const cap = dayCapacity(r, "2026-06-03", allocs, [makeTimeOff({ startDate: "2026-06-03", endDate: "2026-06-03" })]);
+    const cap = dayCapacity({
+      resource: r,
+      date: "2026-06-03",
+      allocations: allocs,
+      timeOff: [makeTimeOff({ startDate: "2026-06-03", endDate: "2026-06-03" })],
+    });
     expect(cap).toMatchObject({ allocated: 4, available: 0, over: true });
   });
 
@@ -473,12 +662,12 @@ describe("dayCapacity over-allocation", () => {
         hoursPerDay: 8,
       }),
     ];
-    expect(dayCapacity(monWed, "2026-06-04", allocs, [])).toMatchObject({
+    expect(dayCapacity({ resource: monWed, date: "2026-06-04", allocations: allocs, timeOff: [] })).toMatchObject({
       allocated: 0,
       available: 0,
       over: false,
     }); // Thu
-    expect(dayCapacity(monWed, "2026-06-02", allocs, []).over).toBe(false); // Tue (working, at capacity)
+    expect(dayCapacity({ resource: monWed, date: "2026-06-02", allocations: allocs, timeOff: [] }).over).toBe(false); // Tue (working, at capacity)
   });
 
   it("is not over when within available hours", () => {
@@ -489,7 +678,7 @@ describe("dayCapacity over-allocation", () => {
         hoursPerDay: 8,
       }),
     ];
-    expect(dayCapacity(r, "2026-06-01", allocs, []).over).toBe(false);
+    expect(dayCapacity({ resource: r, date: "2026-06-01", allocations: allocs, timeOff: [] }).over).toBe(false);
   });
 
   // The acceptance boundary: "over" is STRICTLY allocated > available. Exactly AT capacity
@@ -502,7 +691,7 @@ describe("dayCapacity over-allocation", () => {
         hoursPerDay: 8,
       }),
     ];
-    const cap = dayCapacity(r, "2026-06-01", allocs, []);
+    const cap = dayCapacity({ resource: r, date: "2026-06-01", allocations: allocs, timeOff: [] });
     expect(cap).toMatchObject({ allocated: 8, available: 8, over: false });
   });
 
@@ -514,7 +703,7 @@ describe("dayCapacity over-allocation", () => {
         hoursPerDay: 9,
       }),
     ];
-    const cap = dayCapacity(r, "2026-06-01", allocs, []);
+    const cap = dayCapacity({ resource: r, date: "2026-06-01", allocations: allocs, timeOff: [] });
     expect(cap).toMatchObject({ allocated: 9, available: 8, over: true });
   });
 
@@ -533,14 +722,26 @@ describe("dayCapacity over-allocation", () => {
 
     for (const order of orders) {
       const ordered = order.map((index) => allocations[index]);
-      expect(dayCapacity(resource, "2026-06-01", ordered, []).over).toBe(false);
-      expect(capacityForWindow(resource, ordered, [], "2026-06-01", "2026-06-01").some((c) => c.over)).toBe(false);
+      expect(dayCapacity({ resource: resource, date: "2026-06-01", allocations: ordered, timeOff: [] }).over).toBe(
+        false,
+      );
+      expect(
+        capacityForWindow({
+          resource: resource,
+          allocations: ordered,
+          timeOff: [],
+          start: "2026-06-01",
+          end: "2026-06-01",
+        }).some((c) => c.over),
+      ).toBe(false);
     }
 
     const genuinelyOver = allocations.map((allocation, index) =>
       index === 2 ? { ...allocation, hoursPerDay: allocation.hoursPerDay + 0.05 } : allocation,
     );
-    expect(dayCapacity(resource, "2026-06-01", genuinelyOver, []).over).toBe(true);
+    expect(dayCapacity({ resource: resource, date: "2026-06-01", allocations: genuinelyOver, timeOff: [] }).over).toBe(
+      true,
+    );
   });
 });
 
@@ -567,18 +768,30 @@ describe("utilization", () => {
         hoursPerDay: 4,
       }),
     ];
-    expect(utilization(r, allocs, [], "2026-06-01", "2026-06-07")).toBeCloseTo(0.5);
+    expect(
+      utilization({ resource: r, allocations: allocs, timeOff: [], start: "2026-06-01", end: "2026-06-07" }),
+    ).toBeCloseTo(0.5);
   });
 
   it("uses mixed full and half-day capacity in the utilisation denominator", () => {
     const resource = makeResource({ workingDays: [1, 2], halfDays: [2] });
     const allocations = [makeAlloc({ startDate: "2026-06-01", endDate: "2026-06-02", hoursPerDay: 3 })];
-    expect(utilization(resource, allocations, [], "2026-06-01", "2026-06-02")).toBeCloseTo(0.5);
+    expect(
+      utilization({
+        resource: resource,
+        allocations: allocations,
+        timeOff: [],
+        start: "2026-06-01",
+        end: "2026-06-02",
+      }),
+    ).toBeCloseTo(0.5);
   });
 
   it("returns 0 when there is no availability in the window", () => {
     // A weekend-only window for a Mon–Fri resource has no availability.
-    expect(utilization(r, [makeAlloc()], [], "2026-06-06", "2026-06-07")).toBe(0);
+    expect(
+      utilization({ resource: r, allocations: [makeAlloc()], timeOff: [], start: "2026-06-06", end: "2026-06-07" }),
+    ).toBe(0);
   });
 
   it("does not exceed 100% for a full booking that merely spans a weekend", () => {
@@ -592,7 +805,9 @@ describe("utilization", () => {
         hoursPerDay: 8,
       }),
     ];
-    expect(utilization(r, allocs, [], "2026-06-01", "2026-06-14")).toBeCloseTo(1);
+    expect(
+      utilization({ resource: r, allocations: allocs, timeOff: [], start: "2026-06-01", end: "2026-06-14" }),
+    ).toBeCloseTo(1);
   });
 
   it("reports one entry per calendar day of the window (capacityForWindow)", () => {
@@ -605,7 +820,13 @@ describe("utilization", () => {
         hoursPerDay: 4,
       }),
     ];
-    const days = capacityForWindow(r, allocs, [], "2026-06-01", "2026-06-07");
+    const days = capacityForWindow({
+      resource: r,
+      allocations: allocs,
+      timeOff: [],
+      start: "2026-06-01",
+      end: "2026-06-07",
+    });
     expect(days.map((d) => d.date)).toEqual(eachDayISO("2026-06-01", "2026-06-07"));
     expect(days.map((d) => d.allocated)).toEqual([4, 4, 4, 4, 4, 0, 0]);
   });
@@ -622,7 +843,9 @@ describe("utilization", () => {
         ignoreWeekends: true,
       }),
     ];
-    expect(utilization(r, allocs, [], "2026-06-01", "2026-06-07")).toBe(0);
+    expect(utilization({ resource: r, allocations: allocs, timeOff: [], start: "2026-06-01", end: "2026-06-07" })).toBe(
+      0,
+    );
   });
 
   it("excludes a company-closure day from both sides of utilisation", () => {
@@ -632,8 +855,20 @@ describe("utilization", () => {
     ];
     const closures = [makeClosure({ startDate: "2026-06-01", endDate: "2026-06-01" })];
 
-    expect(utilization(r, allocations, [], "2026-06-01", "2026-06-02")).toBeCloseTo(0.75);
-    expect(utilization(r, allocations, [], "2026-06-01", "2026-06-02", undefined, closures)).toBeCloseTo(0.5);
+    expect(
+      utilization({ resource: r, allocations: allocations, timeOff: [], start: "2026-06-01", end: "2026-06-02" }),
+    ).toBeCloseTo(0.75);
+    expect(
+      utilization({
+        resource: r,
+        allocations: allocations,
+        timeOff: [],
+        start: "2026-06-01",
+        end: "2026-06-02",
+        accountWorkingDays: undefined,
+        closures: closures,
+      }),
+    ).toBeCloseTo(0.5);
   });
 });
 
@@ -643,7 +878,9 @@ describe("utilization", () => {
 describe("over-allocated inside a window", () => {
   const r = makeResource();
   const overInWindow = (allocations: Allocation[], start: ISODate, end: ISODate) =>
-    capacityForWindow(r, allocations, [], start, end).some((day) => day.over);
+    capacityForWindow({ resource: r, allocations: allocations, timeOff: [], start: start, end: end }).some(
+      (day) => day.over,
+    );
 
   it("is true when a working day is genuinely over-allocated", () => {
     const allocs = [
@@ -685,16 +922,27 @@ describe("over-allocated inside a window", () => {
 describe("capacityAdvisory", () => {
   const r = makeResource();
   /** The proposed allocation under test — cases vary only its window, hours and weekend rule. */
-  const proposal = (
-    startDate: ISODate,
-    endDate: ISODate,
-    hoursPerDay: number,
-    ignoreWeekends: boolean,
-  ): CapacityAllocationInput => ({ resourceId: r.id, startDate, endDate, hoursPerDay, ignoreWeekends });
+  const proposal = ({
+    startDate,
+    endDate,
+    hoursPerDay,
+    ignoreWeekends,
+  }: ProposalTestInput): CapacityAllocationInput => ({
+    resourceId: r.id,
+    startDate,
+    endDate,
+    hoursPerDay,
+    ignoreWeekends,
+  });
 
   it("counts working days the proposed hours push over capacity", () => {
     const others = [makeAlloc({ hoursPerDay: 4 })]; // 4h Mon–Fri 06-01..05
-    const { overDays, timeOffDays } = capacityAdvisory(r, proposal("2026-06-01", "2026-06-05", 8, false), others, []);
+    const { overDays, timeOffDays } = capacityAdvisory({
+      resource: r,
+      proposal: proposal({ startDate: "2026-06-01", endDate: "2026-06-05", hoursPerDay: 8, ignoreWeekends: false }),
+      otherAllocations: others,
+      timeOff: [],
+    });
     expect(overDays).toBe(5); // 4 + 8 > 8 on all five weekdays
     expect(timeOffDays).toBe(0);
   });
@@ -702,12 +950,12 @@ describe("capacityAdvisory", () => {
   it("counts time-off days and excludes them from over (availability is 0 there)", () => {
     const others = [makeAlloc({ hoursPerDay: 4 })];
     const timeOff = [makeTimeOff({ startDate: "2026-06-03", endDate: "2026-06-03" })];
-    const { overDays, timeOffDays } = capacityAdvisory(
-      r,
-      proposal("2026-06-01", "2026-06-05", 8, false),
-      others,
-      timeOff,
-    );
+    const { overDays, timeOffDays } = capacityAdvisory({
+      resource: r,
+      proposal: proposal({ startDate: "2026-06-01", endDate: "2026-06-05", hoursPerDay: 8, ignoreWeekends: false }),
+      otherAllocations: others,
+      timeOff: timeOff,
+    });
     expect(timeOffDays).toBe(1);
     expect(overDays).toBe(4); // 06-03 is unavailable → not "over", the other 4 weekdays are
   });
@@ -715,7 +963,16 @@ describe("capacityAdvisory", () => {
   it("counts closure dates in the same advisory category", () => {
     const closures = [makeClosure({ startDate: "2026-06-03", endDate: "2026-06-03" })];
 
-    expect(capacityAdvisory(r, proposal("2026-06-01", "2026-06-05", 8, false), [], [], undefined, closures)).toEqual({
+    expect(
+      capacityAdvisory({
+        resource: r,
+        proposal: proposal({ startDate: "2026-06-01", endDate: "2026-06-05", hoursPerDay: 8, ignoreWeekends: false }),
+        otherAllocations: [],
+        timeOff: [],
+        accountWorkingDays: undefined,
+        closures: closures,
+      }),
+    ).toEqual({
       overDays: 0,
       timeOffDays: 1,
     });
@@ -724,12 +981,24 @@ describe("capacityAdvisory", () => {
   it("does not count time off on non-working days (a weekend holiday costs no capacity)", () => {
     // Resource works Mon–Fri; a holiday block falls only on the weekend 06-06..06-07.
     const timeOff = [makeTimeOff({ startDate: "2026-06-06", endDate: "2026-06-07" })];
-    const { timeOffDays } = capacityAdvisory(r, proposal("2026-06-01", "2026-06-07", 8, false), [], timeOff);
+    const { timeOffDays } = capacityAdvisory({
+      resource: r,
+      proposal: proposal({ startDate: "2026-06-01", endDate: "2026-06-07", hoursPerDay: 8, ignoreWeekends: false }),
+      otherAllocations: [],
+      timeOff: timeOff,
+    });
     expect(timeOffDays).toBe(0); // the resource never works those days, so it's not "on time off"
   });
 
   it("is clean when the proposal fits within availability", () => {
-    expect(capacityAdvisory(r, proposal("2026-06-01", "2026-06-05", 8, false), [], [])).toEqual({
+    expect(
+      capacityAdvisory({
+        resource: r,
+        proposal: proposal({ startDate: "2026-06-01", endDate: "2026-06-05", hoursPerDay: 8, ignoreWeekends: false }),
+        otherAllocations: [],
+        timeOff: [],
+      }),
+    ).toEqual({
       overDays: 0,
       timeOffDays: 0,
     });
@@ -737,8 +1006,27 @@ describe("capacityAdvisory", () => {
 
   it("treats exactly four hours as fitting a half day and anything above as over", () => {
     const resource = makeResource({ halfDays: [2] });
-    expect(capacityAdvisory(resource, proposal("2026-06-02", "2026-06-02", 4, false), [], []).overDays).toBe(0);
-    expect(capacityAdvisory(resource, proposal("2026-06-02", "2026-06-02", 4.01, false), [], []).overDays).toBe(1);
+    expect(
+      capacityAdvisory({
+        resource: resource,
+        proposal: proposal({ startDate: "2026-06-02", endDate: "2026-06-02", hoursPerDay: 4, ignoreWeekends: false }),
+        otherAllocations: [],
+        timeOff: [],
+      }).overDays,
+    ).toBe(0);
+    expect(
+      capacityAdvisory({
+        resource: resource,
+        proposal: proposal({
+          startDate: "2026-06-02",
+          endDate: "2026-06-02",
+          hoursPerDay: 4.01,
+          ignoreWeekends: false,
+        }),
+        otherAllocations: [],
+        timeOff: [],
+      }).overDays,
+    ).toBe(1);
   });
 
   it("does not advise over-capacity for an exact fractional days-mode split", () => {
@@ -749,23 +1037,63 @@ describe("capacityAdvisory", () => {
       .map((hoursPerDay, index) => makeAlloc({ id: `existing-fraction-${index}`, hoursPerDay }));
 
     expect(
-      capacityAdvisory(resource, proposal("2026-06-01", "2026-06-01", fractional[2], false), others, []).overDays,
+      capacityAdvisory({
+        resource: resource,
+        proposal: proposal({
+          startDate: "2026-06-01",
+          endDate: "2026-06-01",
+          hoursPerDay: fractional[2],
+          ignoreWeekends: false,
+        }),
+        otherAllocations: others,
+        timeOff: [],
+      }).overDays,
     ).toBe(0);
     expect(
-      capacityAdvisory(resource, proposal("2026-06-01", "2026-06-01", fractional[2] + 0.05, false), others, [])
-        .overDays,
+      capacityAdvisory({
+        resource: resource,
+        proposal: proposal({
+          startDate: "2026-06-01",
+          endDate: "2026-06-01",
+          hoursPerDay: fractional[2] + 0.05,
+          ignoreWeekends: false,
+        }),
+        otherAllocations: others,
+        timeOff: [],
+      }).overDays,
     ).toBe(1);
   });
 
   it("mirrors the over-marker for an ignoreWeekends weekend; weekend-aware does not", () => {
     // Fri–Sun: a weekend-aware proposal leaves Sat/Sun uncounted, but opting into weekends flags
     // them — a Mon–Fri person has 0 weekend capacity, so the advisory matches the red over-marker.
-    expect(capacityAdvisory(r, proposal("2026-06-05", "2026-06-07", 8, false), [], []).overDays).toBe(0);
-    expect(capacityAdvisory(r, proposal("2026-06-05", "2026-06-07", 8, true), [], []).overDays).toBe(2);
+    expect(
+      capacityAdvisory({
+        resource: r,
+        proposal: proposal({ startDate: "2026-06-05", endDate: "2026-06-07", hoursPerDay: 8, ignoreWeekends: false }),
+        otherAllocations: [],
+        timeOff: [],
+      }).overDays,
+    ).toBe(0);
+    expect(
+      capacityAdvisory({
+        resource: r,
+        proposal: proposal({ startDate: "2026-06-05", endDate: "2026-06-07", hoursPerDay: 8, ignoreWeekends: true }),
+        otherAllocations: [],
+        timeOff: [],
+      }).overDays,
+    ).toBe(2);
   });
 
   it("returns the zeroed advisory when the window is empty (start after end)", () => {
-    expect(capacityAdvisory(r, proposal("2026-06-05", "2026-06-01", 8, false), [], [])).toEqual({
+    expect(
+      capacityAdvisory({
+        resource: r,
+        proposal: proposal({ startDate: "2026-06-05", endDate: "2026-06-01", hoursPerDay: 8, ignoreWeekends: false }),
+        otherAllocations: [],
+        timeOff: [],
+      }),
+    ).toEqual({
       overDays: 0,
       timeOffDays: 0,
     });
@@ -773,7 +1101,19 @@ describe("capacityAdvisory", () => {
 
   it("returns before expanding a proposed window beyond the shared calendar-span bound", () => {
     const start = "2026-01-01";
-    expect(capacityAdvisory(r, proposal(start, addDaysISO(start, MAX_SPAN_DAYS), 8, false), [], [])).toEqual({
+    expect(
+      capacityAdvisory({
+        resource: r,
+        proposal: proposal({
+          startDate: start,
+          endDate: addDaysISO(start, MAX_SPAN_DAYS),
+          hoursPerDay: 8,
+          ignoreWeekends: false,
+        }),
+        otherAllocations: [],
+        timeOff: [],
+      }),
+    ).toEqual({
       overDays: 0,
       timeOffDays: 0,
     });
@@ -788,7 +1128,12 @@ describe("capacityAdvisory", () => {
         hoursPerDay: 4,
       }),
     ];
-    const { overDays } = capacityAdvisory(r, proposal("2026-06-01", "2026-06-03", 5, false), others, []);
+    const { overDays } = capacityAdvisory({
+      resource: r,
+      proposal: proposal({ startDate: "2026-06-01", endDate: "2026-06-03", hoursPerDay: 5, ignoreWeekends: false }),
+      otherAllocations: others,
+      timeOff: [],
+    });
     expect(overDays).toBe(1); // only Wed (4 + 5 > 8); Mon/Tue see 0 + 5, not over
   });
 
@@ -801,7 +1146,12 @@ describe("capacityAdvisory", () => {
         hoursPerDay: 4,
       }),
     ];
-    const { overDays } = capacityAdvisory(r, proposal("2026-06-01", "2026-06-03", 5, false), others, []);
+    const { overDays } = capacityAdvisory({
+      resource: r,
+      proposal: proposal({ startDate: "2026-06-01", endDate: "2026-06-03", hoursPerDay: 5, ignoreWeekends: false }),
+      otherAllocations: others,
+      timeOff: [],
+    });
     expect(overDays).toBe(1); // only Mon (4 + 5 > 8); Tue/Wed see 0 + 5, not over
   });
 
@@ -812,7 +1162,12 @@ describe("capacityAdvisory", () => {
       makeAlloc({ id: "someone-else", resourceId: "r2", hoursPerDay: 8 }),
       makeAlloc({ id: "ours", hoursPerDay: 4 }),
     ];
-    const { overDays } = capacityAdvisory(r, proposal("2026-06-01", "2026-06-05", 4, false), others, []);
+    const { overDays } = capacityAdvisory({
+      resource: r,
+      proposal: proposal({ startDate: "2026-06-01", endDate: "2026-06-05", hoursPerDay: 4, ignoreWeekends: false }),
+      otherAllocations: others,
+      timeOff: [],
+    });
     expect(overDays).toBe(0); // 4 (ours) + 4 (proposed) fits in 8; r2's 8h must not be counted
   });
 
@@ -820,12 +1175,33 @@ describe("capacityAdvisory", () => {
     // What the modal / grid / drag path all feed in once an account switches to blocks: the stored
     // hours stay on the row, but capacityAllocationsForMode projects them to 0 before counting.
     const legacy = [makeAlloc({ hoursPerDay: 8 })];
-    expect(capacityAdvisory(r, proposal("2026-06-01", "2026-06-05", 0, false), legacy, []).overDays).toBe(0);
+    expect(
+      capacityAdvisory({
+        resource: r,
+        proposal: proposal({ startDate: "2026-06-01", endDate: "2026-06-05", hoursPerDay: 0, ignoreWeekends: false }),
+        otherAllocations: legacy,
+        timeOff: [],
+      }).overDays,
+    ).toBe(0);
     // Blocks propose 0 load too, so nothing is over — whereas the RAW hourly rows would flag
     // nothing here either; the difference shows when the proposal itself carries hours.
-    expect(capacityAdvisory(r, proposal("2026-06-01", "2026-06-05", 1, false), legacy, []).overDays).toBe(5);
+    expect(
+      capacityAdvisory({
+        resource: r,
+        proposal: proposal({ startDate: "2026-06-01", endDate: "2026-06-05", hoursPerDay: 1, ignoreWeekends: false }),
+        otherAllocations: legacy,
+        timeOff: [],
+      }).overDays,
+    ).toBe(5);
     const projected = applyCapacityMode({ allocations: legacy, blocksMode: true });
-    expect(capacityAdvisory(r, proposal("2026-06-01", "2026-06-05", 1, false), projected, []).overDays).toBe(0);
+    expect(
+      capacityAdvisory({
+        resource: r,
+        proposal: proposal({ startDate: "2026-06-01", endDate: "2026-06-05", hoursPerDay: 1, ignoreWeekends: false }),
+        otherAllocations: projected,
+        timeOff: [],
+      }).overDays,
+    ).toBe(0);
   });
 
   it("does not count an existing weekend-aware allocation on a weekend day it merely spans", () => {
@@ -839,7 +1215,12 @@ describe("capacityAdvisory", () => {
         hoursPerDay: 8,
       }),
     ];
-    const { overDays } = capacityAdvisory(r, proposal("2026-06-06", "2026-06-06", 0, true), others, []);
+    const { overDays } = capacityAdvisory({
+      resource: r,
+      proposal: proposal({ startDate: "2026-06-06", endDate: "2026-06-06", hoursPerDay: 0, ignoreWeekends: true }),
+      otherAllocations: others,
+      timeOff: [],
+    });
     expect(overDays).toBe(0);
   });
 });

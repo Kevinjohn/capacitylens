@@ -8,6 +8,20 @@ import {
 } from "@capacitylens/shared/lib/dateMath";
 import type { ISODate, Weekday } from "@capacitylens/shared/types/entities";
 
+interface ResolveResizedEdgeInput {
+  range: DateRange;
+  deltaDays: number;
+  edge: "start" | "end";
+  weekendAwareDays: Weekday[] | null;
+}
+
+interface ApplyGestureInput {
+  mode: DragMode;
+  range: DateRange;
+  deltaDays: number;
+  options?: GestureOptions | undefined;
+}
+
 // Pure drag/resize math, extracted from the pointer hook so it can be unit
 // tested without a DOM. A gesture is: pixels dragged -> whole-day delta (snap)
 // -> new inclusive [start, end]. Resizes keep a minimum 1-day duration.
@@ -57,12 +71,7 @@ function isPast(date: ISODate, limit: ISODate, direction: Direction): boolean {
  *  hand-mirrored copies — down to the pin-and-re-snap over-drag fix — so the next correction
  *  could easily have landed in only one of them. `weekendAwareDays` is non-null only when the
  *  gesture is weekend-aware (see `applyGesture`). */
-function resolveResizedEdge(
-  range: DateRange,
-  deltaDays: number,
-  edge: "start" | "end",
-  weekendAwareDays: Weekday[] | null,
-): ISODate {
+function resolveResizedEdge({ range, deltaDays, edge, weekendAwareDays }: ResolveResizedEdgeInput): ISODate {
   // The opposite edge is the one an over-drag collapses onto; `toAnchor` is the direction it
   // lies in, `toOrigin` the way back to where this edge started.
   const toAnchor: Direction = edge === "start" ? 1 : -1;
@@ -85,7 +94,7 @@ function resolveResizedEdge(
   return moved;
 }
 
-export function applyGesture(mode: DragMode, range: DateRange, deltaDays: number, options?: GestureOptions): DateRange {
+export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureInput): DateRange {
   // Resolve weekend-awareness ONCE for the whole gesture: non-null exactly when the resource has a
   // partial working week and the allocation hasn't opted out. Carrying the working-day array rather
   // than a boolean is what lets every branch below drop the `opts!.workingDays!` assertions.
@@ -114,8 +123,24 @@ export function applyGesture(mode: DragMode, range: DateRange, deltaDays: number
       return { startDate: newStart, endDate: newEnd };
     }
     case "resize-start":
-      return { startDate: resolveResizedEdge(range, deltaDays, "start", weekendAwareDays), endDate: range.endDate };
+      return {
+        startDate: resolveResizedEdge({
+          range: range,
+          deltaDays: deltaDays,
+          edge: "start",
+          weekendAwareDays: weekendAwareDays,
+        }),
+        endDate: range.endDate,
+      };
     case "resize-end":
-      return { startDate: range.startDate, endDate: resolveResizedEdge(range, deltaDays, "end", weekendAwareDays) };
+      return {
+        startDate: range.startDate,
+        endDate: resolveResizedEdge({
+          range: range,
+          deltaDays: deltaDays,
+          edge: "end",
+          weekendAwareDays: weekendAwareDays,
+        }),
+      };
   }
 }

@@ -119,7 +119,12 @@ describe("SSO cutover routes", () => {
     expect((await refused.inject({ method: "GET", url: "/api/accounts/workspace-1/sso-readiness" })).statusCode).toBe(
       200,
     );
-    expect(authorize).toHaveBeenCalledWith(expect.anything(), expect.anything(), "workspace-1", "manageMembers");
+    expect(authorize).toHaveBeenCalledWith({
+      req: expect.anything(),
+      reply: expect.anything(),
+      accountId: "workspace-1",
+      action: "manageMembers",
+    });
     expect(identity.readSsoCutoverSnapshot).not.toHaveBeenCalled();
     await refused.close();
 

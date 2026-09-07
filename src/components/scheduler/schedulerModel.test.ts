@@ -24,15 +24,15 @@ const capacityForWindowOf = (
   accountWorkingDays = DEFAULT_ACCOUNT_WORKING_DAYS,
   closures: AppData["closures"] = [],
 ) =>
-  capacityForWindowWithWeek(
-    resource,
-    allocations,
-    timeOff,
-    windowStart,
-    windowEnd,
-    effectiveWorkingWeek(resource, accountWorkingDays),
-    closures,
-  );
+  capacityForWindowWithWeek({
+    resource: resource,
+    allocations: allocations,
+    timeOff: timeOff,
+    start: windowStart,
+    end: windowEnd,
+    effectiveWeek: effectiveWorkingWeek(resource, accountWorkingDays),
+    closures: closures,
+  });
 const utilizationOf = (
   resource: Resource,
   allocations: Allocation[],
@@ -42,15 +42,15 @@ const utilizationOf = (
   accountWorkingDays = DEFAULT_ACCOUNT_WORKING_DAYS,
   closures: AppData["closures"] = [],
 ) =>
-  utilizationWithWeek(
-    resource,
-    allocations,
-    timeOff,
-    windowStart,
-    windowEnd,
-    effectiveWorkingWeek(resource, accountWorkingDays),
-    closures,
-  );
+  utilizationWithWeek({
+    resource: resource,
+    allocations: allocations,
+    timeOff: timeOff,
+    start: windowStart,
+    end: windowEnd,
+    effectiveWeek: effectiveWorkingWeek(resource, accountWorkingDays),
+    closures: closures,
+  });
 
 const start = "2026-06-01";
 const end = "2026-06-07";

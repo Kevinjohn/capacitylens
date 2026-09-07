@@ -10,6 +10,35 @@ export * from "./capacity/advisoryCopy";
 export * from "./capacity/primitives";
 import { hasOverCapacity } from "./capacity/primitives";
 
+interface BuildDayCapacityInput {
+  resource: Resource;
+  date: ISODate;
+  allocations: Allocation[];
+  timeOff: TimeOff[];
+  effectiveWeek: EffectiveWorkingWeek;
+  closures: Closure[];
+}
+
+interface BuildCapacityWindowInput {
+  resource: Resource;
+  allocations: Allocation[];
+  timeOff: TimeOff[];
+  start: ISODate;
+  end: ISODate;
+  effectiveWeek: EffectiveWorkingWeek;
+  closures: Closure[];
+}
+
+interface ResolveUtilizationInput {
+  resource: Resource;
+  allocations: Allocation[];
+  timeOff: TimeOff[];
+  start: ISODate;
+  end: ISODate;
+  effectiveWeek: EffectiveWorkingWeek;
+  closures: Closure[];
+}
+
 export interface DayCapacity {
   date: ISODate;
   allocated: number;
@@ -19,14 +48,14 @@ export interface DayCapacity {
 
 /** Allocated vs. available hours for one resource-day, with the `over` flag (allocated > available).
  *  @remarks Assumes finite, non-negative hours (see the top-of-file precondition). */
-export function buildDayCapacity(
-  resource: Resource,
-  date: ISODate,
-  allocations: Allocation[],
-  timeOff: TimeOff[],
-  effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[],
-): DayCapacity {
+export function buildDayCapacity({
+  resource,
+  date,
+  allocations,
+  timeOff,
+  effectiveWeek,
+  closures,
+}: BuildDayCapacityInput): DayCapacity {
   // ONE parseISO for the whole resource-day: the availability and load halves each need the
   // weekday (twice over, for the working-week and half-day tests), and this runs per resource ×
   // per visible day on every model rebuild.
@@ -59,17 +88,24 @@ export function buildDayCapacity(
  *  resource, so it builds the day array once, buckets each resource's allocations and time off by
  *  covered date (`bucketByCoveredDate`), and memoises `buildDayCapacity` per date. This stays the
  *  straight-line definition those optimisations are checked against. */
-export function buildCapacityWindow(
-  resource: Resource,
-  allocations: Allocation[],
-  timeOff: TimeOff[],
-  start: ISODate,
-  end: ISODate,
-  effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[],
-): DayCapacity[] {
+export function buildCapacityWindow({
+  resource,
+  allocations,
+  timeOff,
+  start,
+  end,
+  effectiveWeek,
+  closures,
+}: BuildCapacityWindowInput): DayCapacity[] {
   return eachDayISO(start, end).map((day) =>
-    buildDayCapacity(resource, day, allocations, timeOff, effectiveWeek, closures),
+    buildDayCapacity({
+      resource: resource,
+      date: day,
+      allocations: allocations,
+      timeOff: timeOff,
+      effectiveWeek: effectiveWeek,
+      closures: closures,
+    }),
   );
 }
 
@@ -91,16 +127,24 @@ export function resolveUtilizationFromCapacity(days: Iterable<DayCapacity>): num
  *  would push a normal allocation that merely spans a weekend past 100%.
  *  Like `buildCapacityWindow`, this is the straight-line definition; the render path reaches the same
  *  number through `resolveUtilizationFromCapacity` over its memoised per-date capacity. */
-export function resolveUtilization(
-  resource: Resource,
-  allocations: Allocation[],
-  timeOff: TimeOff[],
-  start: ISODate,
-  end: ISODate,
-  effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[],
-): number {
+export function resolveUtilization({
+  resource,
+  allocations,
+  timeOff,
+  start,
+  end,
+  effectiveWeek,
+  closures,
+}: ResolveUtilizationInput): number {
   return resolveUtilizationFromCapacity(
-    buildCapacityWindow(resource, allocations, timeOff, start, end, effectiveWeek, closures),
+    buildCapacityWindow({
+      resource: resource,
+      allocations: allocations,
+      timeOff: timeOff,
+      start: start,
+      end: end,
+      effectiveWeek: effectiveWeek,
+      closures: closures,
+    }),
   );
 }

@@ -1,5 +1,6 @@
+import type { AuthorizeBasicInput } from "./routeShared";
 import { createHash } from "node:crypto";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
 import type { Role } from "@capacitylens/shared/account/types";
 import { canSeePrivateNames } from "@capacitylens/shared/domain/access";
@@ -14,6 +15,8 @@ import type { runImportWorker } from "../runImportWorker";
 import type { TenantStore } from "../tenantStore";
 import { tx } from "../txn";
 import { WorkQueueFullError } from "../workQueue";
+
+type AuthorizeImportInput = Omit<AuthorizeBasicInput, "action"> & { action: "purge" };
 
 type ImportAccountAdministration = AccountAdminPort & {
   roleForPrincipalInWorkspace(principalId: string, workspaceId: string): Role | null;
@@ -54,7 +57,7 @@ export interface ImportRouteDependencies {
   authMode: AuthMode;
   allowReset: boolean;
   accountAdminPort: ImportAccountAdministration;
-  authorize: (req: FastifyRequest, reply: FastifyReply, accountId: string, action: "purge") => boolean;
+  authorize: (input: AuthorizeImportInput) => boolean;
   executeImportWorker: typeof runImportWorker;
   commitProductAudit: (reply: FastifyReply, record: AuditRecord, mutation: () => void) => boolean;
   fail: (reply: FastifyReply, error: unknown) => FastifyReply;
@@ -100,7 +103,7 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
     // used as a replacement — it would turn the cover name into the persisted real name and repair
     // the missing code name to "Confidential", destroying the owner-only identity. OFF mode keeps
     // the open behaviour (demo/e2e parity — authorize no-ops there).
-    if (!authorize(req, reply, body.accountId, "purge")) return;
+    if (!authorize({ req, reply, accountId: body.accountId, action: "purge" })) return;
     if (authMode !== "off") {
       const role = accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, body.accountId);
       if (role === null || !canSeePrivateNames(role)) {
