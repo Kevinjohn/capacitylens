@@ -48,7 +48,7 @@ export function authorizeBatchOperations(parameters: {
   const authorizeOnce = (accountId: string, action: Action): boolean => {
     const actions = authorizedActions.get(accountId);
     if (actions?.has(action)) return true;
-    if (!authorize(req, reply, accountId, action)) return false;
+    if (!authorize({ req, reply, accountId, action })) return false;
     if (actions) actions.add(action);
     else authorizedActions.set(accountId, new Set([action]));
     return true;

@@ -34,13 +34,18 @@ export function countAccounts(db: Db): number {
   return (db.prepare("SELECT COUNT(*) AS n FROM accounts").get() as { n: number }).n;
 }
 
+interface IsAccountCreateCappedInput {
+  db: Db;
+  multiAccount: boolean;
+}
+
 /**
  * True when creating a NEW `accounts` row right now would violate the single-company cap: the table
  * already holds ≥1 row AND the instance has not opted into `multiAccount`. Callers MUST call this
  * only for the CREATE case (no existing row) — an UPDATE/DELETE of an already-existing account is
  * never capped; enforcement is create-time only, per AppOptions.multiAccount.
  */
-export function isAccountCreateCapped(db: Db, multiAccount: boolean): boolean {
+export function isAccountCreateCapped({ db, multiAccount }: IsAccountCreateCappedInput): boolean {
   return !multiAccount && countAccounts(db) > 0;
 }
 

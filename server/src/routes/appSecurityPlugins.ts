@@ -63,7 +63,7 @@ export function installSecurityPlugins(app: FastifyInstance, options: AppOptions
           statusCode: context.statusCode,
         }),
       keyGenerator: (req: FastifyRequest) => {
-        return resolveRequestClientIp(req, options.trustProxyHeaders === true);
+        return resolveRequestClientIp({ request: req, trustProxyHeaders: options.trustProxyHeaders === true });
       },
     });
   }

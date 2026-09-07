@@ -68,7 +68,7 @@ export function createReplyHelpers(dependencies: AccountRouteDependencies) {
   // 403/404 on failure), then OFF mode's "no real member model" refusal. Same order/short-circuit as
   // each call site had inline.
   const authorizeMemberMutation = ({ req, reply, accountId, action }: AuthorizeMemberMutationInput): boolean => {
-    if (!authorize(req, reply, accountId, action)) return false;
+    if (!authorize({ req, reply, accountId, action })) return false;
     if (authMode === "off") {
       rejectTrustedLocalMemberMutation(reply);
       return false;

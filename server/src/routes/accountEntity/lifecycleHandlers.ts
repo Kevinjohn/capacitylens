@@ -121,7 +121,7 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
       // is total tenant destruction, intentionally stricter than purging one tombstoned record —
       // only an owner may erase the tenant and orphaned member identities. OFF mode short-circuits
       // to allow so the default deploy can still delete companies.
-      if (!authorize(req, reply, id, "deleteAccount")) return;
+      if (!authorize({ req, reply, accountId: id, action: "deleteAccount" })) return;
       // Preserve the auth-off API's established idempotent-delete contract. The coordinated erasure
       // path deliberately requires a real workspace so authenticated callers cannot use it as an
       // existence oracle, but trusted-local deletion historically returned 204 for an absent account.

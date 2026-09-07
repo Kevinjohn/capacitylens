@@ -1,3 +1,4 @@
+import type { ResolveIncomingSessionInput } from "./appSessionResolution";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
 import type { ApplicationSession } from "@capacitylens/shared/account/types";
@@ -48,14 +49,21 @@ function isBetterAuthProxyRouteAllowed(authMode: Exclude<AuthMode, "off">, metho
   ]).has(`${method} ${pathname}`);
 }
 
+interface ResolveAuthenticationUserIdInput {
+  auth: Auth;
+  headers: Headers;
+  req: FastifyRequest;
+  logOn: boolean;
+}
+
 /** Resolve only an already-issued, verified session for security-event attribution. Submitted
  * identifiers are intentionally never used: a failed sign-in must not be able to claim a user. */
-async function resolveAuthenticationUserId(
-  auth: Auth,
-  headers: Headers,
-  req: FastifyRequest,
-  logOn: boolean,
-): Promise<string | null> {
+async function resolveAuthenticationUserId({
+  auth,
+  headers,
+  req,
+  logOn,
+}: ResolveAuthenticationUserIdInput): Promise<string | null> {
   try {
     return (await auth.api.getSession({ headers }))?.user.id ?? null;
   } catch (error) {
@@ -92,12 +100,19 @@ function withResponseCookies(requestHeaders: Headers, setCookies: readonly strin
   return headers;
 }
 
-async function canUserCreateAccount(
-  administration: AccountAdminPort,
-  authMode: AuthMode,
-  userId: string,
-  count: number,
-): Promise<boolean> {
+interface CanUserCreateAccountInput {
+  administration: AccountAdminPort;
+  authMode: AuthMode;
+  userId: string;
+  count: number;
+}
+
+async function canUserCreateAccount({
+  administration,
+  authMode,
+  userId,
+  count,
+}: CanUserCreateAccountInput): Promise<boolean> {
   return (
     count === 0 ||
     authMode === "off" ||
@@ -116,7 +131,7 @@ export interface AuthProxyRouteDependencies {
   requireMfa: boolean;
   accountAdminPort: AccountAdminPort;
   masquerades: MasqueradeRegistry;
-  resolveIncomingSession: (req: FastifyRequest, force?: boolean) => Promise<SessionResolutionResult>;
+  resolveIncomingSession: (input: ResolveIncomingSessionInput) => Promise<SessionResolutionResult>;
   sessionUserFromApplicationSession: (session: ApplicationSession) => SessionUser;
   sessionSatisfiesRequiredMfa: (session: ApplicationSession) => boolean;
   toWebHeaders: (raw: FastifyRequest["headers"]) => Headers;
@@ -155,7 +170,7 @@ export function registerAuthProxyRoutes(app: FastifyInstance, dependencies: Auth
       // account facts for a caller who isn't authenticated / whose session state is unknown) — an
       // anon caller on an auth-on instance is never told it can create.
       // The cap arm (WHETHER a new company may exist at all) — POST /api/orgs' GATE 0.
-      const capAllows = !isAccountCreateCapped(db, multiAccount);
+      const capAllows = !isAccountCreateCapped({ db, multiAccount });
       if (authMode === "off") {
         // OFF mode: userMayCreateAccount is trivially true (its authMode arm), so the cap decides.
         return {
@@ -166,7 +181,7 @@ export function registerAuthProxyRoutes(app: FastifyInstance, dependencies: Auth
           canCreateAccount: capAllows,
         };
       }
-      const resolution = await resolveIncomingSession(req, true);
+      const resolution = await resolveIncomingSession({ req, force: true });
       if (resolution.kind === "absent_or_invalid") {
         // First-run signal: password mode + an EMPTY user table means the setup-token-guarded
         // bootstrap is available (the live gate in auth.ts), so the login screen offers
@@ -202,7 +217,12 @@ export function registerAuthProxyRoutes(app: FastifyInstance, dependencies: Auth
             capAllows &&
             (authMode !== "sso" ||
               (session.assurance === "federated" && session.providerId === auth?.strictProvider?.id)) &&
-            (await canUserCreateAccount(accountAdminPort, authMode, user.id, countAccounts(db))),
+            (await canUserCreateAccount({
+              administration: accountAdminPort,
+              authMode,
+              userId: user.id,
+              count: countAccounts(db),
+            })),
         };
       } catch (e) {
         // The auth backend failed — NOT "no session". Surface a 503 with a clear, DISTINCT message
@@ -245,7 +265,7 @@ export function registerAuthProxyRoutes(app: FastifyInstance, dependencies: Auth
         }
         const requestHeaders = toWebHeaders(req.headers);
         if (requestHeaders.has("cookie") || requestHeaders.has("authorization")) {
-          const incoming = await resolveIncomingSession(req);
+          const incoming = await resolveIncomingSession({ req });
           req.authenticationUserId = incoming.kind === "verified" ? incoming.session.principal.id : null;
         }
         const response = await auth.handler(
@@ -263,12 +283,12 @@ export function registerAuthProxyRoutes(app: FastifyInstance, dependencies: Auth
         const cookies = response.headers.getSetCookie();
         if (cookies.length > 0) reply.header("set-cookie", cookies);
         if (req.authenticationUserId === null && response.status < 400 && cookies.length > 0) {
-          req.authenticationUserId = await resolveAuthenticationUserId(
+          req.authenticationUserId = await resolveAuthenticationUserId({
             auth,
-            withResponseCookies(requestHeaders, cookies),
+            headers: withResponseCookies(requestHeaders, cookies),
             req,
             logOn,
-          );
+          });
         }
         return reply.send(response.body ? Buffer.from(await response.arrayBuffer()) : null);
       },
