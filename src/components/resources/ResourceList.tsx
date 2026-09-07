@@ -28,6 +28,14 @@ import {
 import { FavouriteButton } from "./FavouriteButton";
 import { ExternalResourceSection } from "./ExternalResourceSection";
 
+interface RenderEngagementSectionInput {
+  id: string;
+  title: string;
+  rows: Resource[];
+  empty: string;
+  separated?: boolean | undefined;
+}
+
 const byFavouriteResourceDisplayName = createFavouriteDisplayNameComparator<Resource>(resolveResourceDisplayName);
 const byEngagementFavouriteResourceDisplayName =
   createEngagementFavouriteDisplayNameComparator<Resource>(resolveResourceDisplayName);
@@ -160,7 +168,7 @@ export function ResourceList() {
       </ItemGroup>
     );
 
-  const renderEngagementSection = (id: string, title: string, rows: Resource[], empty: string, separated = false) => (
+  const renderEngagementSection = ({ id, title, rows, empty, separated = false }: RenderEngagementSectionInput) => (
     <section aria-labelledby={id}>
       {separated && <Separator className="mt-8" />}
       <h2 id={id} className="mb-4 mt-8 text-lg font-semibold">
@@ -178,19 +186,19 @@ export function ResourceList() {
     >
       {groupResourcesByEngagement && people.length > 0 ? (
         <>
-          {renderEngagementSection(
-            "studio-resources-heading",
-            m.list_resources_studio_heading(),
-            studioPeople,
-            m.list_resources_studio_empty(),
-          )}
-          {renderEngagementSection(
-            "supplementary-resources-heading",
-            m.list_resources_supplementary_heading(),
-            supplementaryPeople,
-            m.list_resources_supplementary_empty(),
-            true,
-          )}
+          {renderEngagementSection({
+            id: "studio-resources-heading",
+            title: m.list_resources_studio_heading(),
+            rows: studioPeople,
+            empty: m.list_resources_studio_empty(),
+          })}
+          {renderEngagementSection({
+            id: "supplementary-resources-heading",
+            title: m.list_resources_supplementary_heading(),
+            rows: supplementaryPeople,
+            empty: m.list_resources_supplementary_empty(),
+            separated: true,
+          })}
         </>
       ) : (
         box(
