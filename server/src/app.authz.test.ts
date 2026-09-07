@@ -159,6 +159,22 @@ function readTimeOffNote(response: LightMyRequestResponse): string | undefined {
   return row.note;
 }
 
+function readAccountRows(response: LightMyRequestResponse): unknown[] {
+  const body = readJsonObject(response);
+  if (!("accounts" in body) || !isUnknownArray(body.accounts)) {
+    throw new TypeError("Expected the state response to contain an accounts array.");
+  }
+  return body.accounts;
+}
+
+function readWorkingDays(response: LightMyRequestResponse): unknown {
+  const [accountRow] = readAccountRows(response);
+  if (typeof accountRow !== "object" || accountRow === null || !("workingDays" in accountRow)) {
+    throw new TypeError("Expected the first account response row to contain workingDays.");
+  }
+  return accountRow.workingDays;
+}
+
 /** Add owner-only names to the a1 client/project without changing the broad authz fixture shape. */
 function seedPrivateNames(db: Db): void {
   seedTwo(db);
@@ -1040,7 +1056,7 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
   /** Does the accounts row still exist? Read it back through an authorized member session. */
   const accountExists = async (app: FastifyInstance, id: string, cookie: string): Promise<boolean> => {
     const res = await getState(app, id, cookie);
-    return res.statusCode === 200 && Array.isArray(res.json().accounts) && res.json().accounts.length === 1;
+    return res.statusCode === 200 ? readAccountRows(res).length === 1 : false;
   };
 
   it("non-member: direct DELETE is 403 and generic batch DELETE is 400; a1 survives", async () => {
@@ -1244,7 +1260,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     upsertMember(db, { accountId: "a1", userId: editor.userId, role: "editor", status: "active", createdAt: TS });
     expect((await putAccount(app, "a1", editor.cookie)).statusCode).toBe(200);
     expect((await patchAccount(app, "a1", editor.cookie)).statusCode).toBe(200);
-    expect((await getState(app, "a1", editor.cookie)).json().accounts[0].workingDays).toEqual([1, 2, 3, 4]);
+    expect(readWorkingDays(await getState(app, "a1", editor.cookie))).toEqual([1, 2, 3, 4]);
     expect((await batchPutAccount(app, "a1", editor.cookie)).statusCode).toBe(200);
   });
 
