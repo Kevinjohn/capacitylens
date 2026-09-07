@@ -75,7 +75,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
           isStaleWrite,
           redact,
           checkOwnsRow: { accountId: body.accountId },
-          checkFrozen: { candidate: sanitizeWrite("accounts", body, existing) },
+          checkFrozen: { candidate: sanitizeWrite({ table: "accounts", row: body, existing }) },
         })
       )
         return;
@@ -90,7 +90,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
           workspaceId: id,
           command: workspaceCommand,
           canonicalProductPayload: buildCanonicalAccountProductPayload(
-            sanitizeWrite("accounts", body, existing, visibility),
+            sanitizeWrite({ table: "accounts", row: body, existing, options: visibility }),
           ),
         });
         if (replay) return reply.code(200).send(redact("accounts", replay.product, visibility));
@@ -130,7 +130,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
         action: existing ? "update" : "create",
         entity: "accounts",
         id,
-        changedFields: listAppliedRequestedFieldNames("accounts", body, existing, row),
+        changedFields: listAppliedRequestedFieldNames({ table: "accounts", requested: body, existing, applied: row }),
       };
       let responseRow = row;
       if (!existing) {
@@ -191,12 +191,12 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
       if (!authorize({ req, reply, accountId: id, action: "write" })) return;
       const assertedAccountId = (req.body as { accountId?: unknown }).accountId;
       const visibility = fieldVisibility(req, "accounts", assertedAccountId ?? existing.accountId);
-      const merged = sanitizeWrite(
-        "accounts",
-        { ...existing, ...(req.body as Record<string, unknown>), id },
+      const merged = sanitizeWrite({
+        table: "accounts",
+        row: { ...existing, ...(req.body as Record<string, unknown>), id },
         existing,
-        visibility,
-      );
+        options: visibility,
+      });
       // accountId is immutable (ownsRow). `accounts` is unscoped, so sanitisation drops any
       // asserted accountId from `merged`; like PUT, the ownsRow guard receives the CALLER's raw
       // assertion so a claim on another company is REJECTED (404) rather than silently ignored.
@@ -237,7 +237,12 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
           action: "patch",
           entity: "accounts",
           id,
-          changedFields: listAppliedRequestedFieldNames("accounts", req.body, existing, stamped),
+          changedFields: listAppliedRequestedFieldNames({
+            table: "accounts",
+            requested: req.body,
+            existing,
+            applied: stamped,
+          }),
         },
         () => upsertRow(db, "accounts", stamped),
       );

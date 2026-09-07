@@ -157,7 +157,7 @@ export function prepareScopedWrite(input: {
   verb: WriteVerb;
 }): PreparedWrite {
   const { store, entity, body, existing, vis, verb } = input;
-  const row = stampServerRevision(sanitizeWrite(entity, body, existing, vis), existing);
+  const row = stampServerRevision(sanitizeWrite({ table: entity, row: body, existing, options: vis }), existing);
   // Finding 9: scope the referential read to the write's OWN account (accounts key on id; scoped
   // tables on accountId) instead of loadState(db)'s SELECT * over every tenant.
   const scopeId = entity === "accounts" ? String(row.id) : String(row.accountId);
