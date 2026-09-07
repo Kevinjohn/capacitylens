@@ -33,8 +33,8 @@ export interface WeekStartSnapTargetInput {
  * @param input.days   the visible day window (one validated `ISODate` per column).
  * @param input.scrollLeft the container's current horizontal scroll position, in px.
  * @param input.weekStartsOn 0 = Sunday, 1 = Monday (ISO-style) — the account's calendar week start.
- * @param input.epsilon convergence band in px (default 0.5): the browser stores `scrollLeft` as a
- *                     whole number, so a target within half a pixel is already aligned.
+ * @param input.epsilon convergence tolerance in px (default 0.5): treat a raw scroll position
+ *                     within half a pixel of the target as aligned, including fractional positions.
  * @returns the target `scrollLeft` px to floor-snap to, or `null` when already within `epsilon`
  *   of the week start (a no-op — the caller must NOT write, or the snap re-arms itself).
  *

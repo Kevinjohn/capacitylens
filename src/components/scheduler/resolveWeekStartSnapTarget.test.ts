@@ -37,9 +37,8 @@ describe("resolveWeekStartSnapTarget — floor to the current week start (unifor
   });
 
   it("returns null within the 0.5px convergence band (sub-pixel already-aligned)", () => {
-    // Just ABOVE the exact Monday offset still resolves to that Monday's column → target === mon2,
-    // within the band → null. (A value just BELOW it floors to the prior — Sunday — column, which is
-    // a genuine different week start, so that case is NOT a no-op and is covered by the floor tests.)
+    // A position 0.4px above Monday resolves to that Monday and falls within the convergence band.
+    // Rounding also keeps a position 0.4px below Monday on the same column, as tested below.
     expect(resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: mon2 + 0.4, weekStartsOn: 1 })).toBeNull();
     // …but just past the band it snaps.
     expect(resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: mon2 + 0.6, weekStartsOn: 1 })).toBe(mon2);
@@ -116,8 +115,8 @@ describe("resolveWeekStartSnapTarget — degenerate inputs stay finite", () => {
 // Monday boundary (`mondayOffset - 0.4`) must NOT resolve to the previous (weekend) day and jump the
 // snap back a whole week. Run BOTH geometries: the minimised-weekend case is where it actually bites
 // (the narrow Sunday sits immediately before the Monday, so a strict floor lands on it and
-// startOfWeekISO of a Sunday is the PRIOR week's Monday — a full-week jump). These cases FAIL before
-// the Math.round in resolveWeekStartSnapTarget and pass after.
+// startOfWeekISO of a Sunday is the PRIOR week's Monday — a full-week jump). These cases depend on
+// the rounding owned by indexAtScroll, reached through resolveLeftEdgeDate.
 describe.each([
   ["minimise OFF", OFF],
   ["minimise ON", ON],
