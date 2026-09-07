@@ -11,12 +11,12 @@ import { createServerRevision } from "../revision";
 export function insertRowRaw(db: Db, table: string, row: Row): void {
   const spec = resolveTable(table);
   const columns = spec.columns.map((c) => c.name);
-  const statement = createCachedTableStatement(
-    createStatementCache(db).insertRow,
+  const statement = createCachedTableStatement({
+    cache: createStatementCache(db).insertRow,
     table,
     db,
-    `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${buildPlaceholders(columns.length)})`,
-  );
+    sql: `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${buildPlaceholders(columns.length)})`,
+  });
   statement.run(...toRow(spec, row));
 }
 
@@ -76,13 +76,14 @@ export function upsertRow(db: Db, table: string, row: Row): void {
   const setCols = columns.filter((c) => c !== "id" && c !== "createdAt");
   const set = setCols.map((c) => `${c} = excluded.${c}`).join(", ");
   tx(db, () => {
-    const statement = createCachedTableStatement(
-      createStatementCache(db).upsertRow,
+    const statement = createCachedTableStatement({
+      cache: createStatementCache(db).upsertRow,
       table,
       db,
-      `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${buildPlaceholders(columns.length)}) ` +
+      sql:
+        `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${buildPlaceholders(columns.length)}) ` +
         `ON CONFLICT(id) DO UPDATE SET ${set}`,
-    );
+    });
     statement.run(...toRow(spec, row));
     markInitialized(db);
   });
@@ -92,23 +93,23 @@ export function upsertRow(db: Db, table: string, row: Row): void {
  *  ON DELETE can both target the same row; whichever loses the race must not error). */
 export function deleteRow(db: Db, table: string, id: string): void {
   assertKnownTable(table);
-  const statement = createCachedTableStatement(
-    createStatementCache(db).deleteRow,
+  const statement = createCachedTableStatement({
+    cache: createStatementCache(db).deleteRow,
     table,
     db,
-    `DELETE FROM ${table} WHERE id = ?`,
-  );
+    sql: `DELETE FROM ${table} WHERE id = ?`,
+  });
   statement.run(id);
 }
 
 export function getRow(db: Db, table: string, id: string): Row | undefined {
   const spec = resolveTable(table);
-  const statement = createCachedTableStatement(
-    createStatementCache(db).getRow,
+  const statement = createCachedTableStatement({
+    cache: createStatementCache(db).getRow,
     table,
     db,
-    `SELECT * FROM ${table} WHERE id = ?`,
-  );
+    sql: `SELECT * FROM ${table} WHERE id = ?`,
+  });
   const row = statement.get(id);
   return row ? fromRow(spec, row) : undefined;
 }

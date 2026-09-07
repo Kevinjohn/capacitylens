@@ -38,13 +38,15 @@ function insertUser(db: ReturnType<typeof openDb>, id: string, email: string) {
   ).run(id, id, email, timestamp, timestamp);
 }
 
-function insertAccount(
-  db: ReturnType<typeof openDb>,
-  id: string,
-  providerId: string,
-  subject: string,
-  principalId: string,
-) {
+interface InsertAccountInput {
+  db: ReturnType<typeof openDb>;
+  id: string;
+  providerId: string;
+  subject: string;
+  principalId: string;
+}
+
+function insertAccount({ db, id, providerId, subject, principalId }: InsertAccountInput) {
   db.prepare(
     `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
      VALUES (?, ?, ?, ?, ?, ?)`,
@@ -61,8 +63,20 @@ describe("stopped-server SSO cutover repair", () => {
     const prepared = await database();
     insertUser(prepared.db, "wrong-principal", "wrong@example.com");
     insertUser(prepared.db, "right-principal", "right@example.com");
-    insertAccount(prepared.db, "wrong-link", "workforce", "duplicate-subject", "wrong-principal");
-    insertAccount(prepared.db, "wrong-credential", "credential", "wrong-principal", "wrong-principal");
+    insertAccount({
+      db: prepared.db,
+      id: "wrong-link",
+      providerId: "workforce",
+      subject: "duplicate-subject",
+      principalId: "wrong-principal",
+    });
+    insertAccount({
+      db: prepared.db,
+      id: "wrong-credential",
+      providerId: "credential",
+      subject: "wrong-principal",
+      principalId: "wrong-principal",
+    });
     prepared.db.prepare(`UPDATE account SET password = ? WHERE id = ?`).run("stored-password-hash", "wrong-credential");
     // Simulate the pre-v25 race state: v24 had no composite uniqueness backstop.
     prepared.db.exec(`
@@ -72,7 +86,13 @@ describe("stopped-server SSO cutover repair", () => {
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
       PRAGMA user_version = 24;
     `);
-    insertAccount(prepared.db, "right-link", "workforce", "duplicate-subject", "right-principal");
+    insertAccount({
+      db: prepared.db,
+      id: "right-link",
+      providerId: "workforce",
+      subject: "duplicate-subject",
+      principalId: "right-principal",
+    });
     prepared.db.close();
 
     await expect(
@@ -109,7 +129,13 @@ describe("stopped-server SSO cutover repair", () => {
     const prepared = await database();
     insertUser(prepared.db, "orphan-principal", "former@example.com");
     if (withCredential) {
-      insertAccount(prepared.db, "credential-link", "credential", "orphan-principal", "orphan-principal");
+      insertAccount({
+        db: prepared.db,
+        id: "credential-link",
+        providerId: "credential",
+        subject: "orphan-principal",
+        principalId: "orphan-principal",
+      });
     }
     prepared.db.close();
 
@@ -135,9 +161,21 @@ describe("stopped-server SSO cutover repair", () => {
   it("removes an exact alternative-provider link", async () => {
     const prepared = await database();
     insertUser(prepared.db, "principal-1", "owner@example.com");
-    insertAccount(prepared.db, "credential-link", "credential", "principal-1", "principal-1");
+    insertAccount({
+      db: prepared.db,
+      id: "credential-link",
+      providerId: "credential",
+      subject: "principal-1",
+      principalId: "principal-1",
+    });
     prepared.db.prepare(`UPDATE account SET password = ? WHERE id = ?`).run("stored-password-hash", "credential-link");
-    insertAccount(prepared.db, "github-link", "github", "github-subject", "principal-1");
+    insertAccount({
+      db: prepared.db,
+      id: "github-link",
+      providerId: "github",
+      subject: "github-subject",
+      principalId: "principal-1",
+    });
     prepared.db.close();
 
     await expect(
@@ -165,15 +203,33 @@ describe("stopped-server SSO cutover repair", () => {
   it("repairs one exact row from a legacy multi-link state", async () => {
     const prepared = await database();
     insertUser(prepared.db, "principal-1", "owner@example.com");
-    insertAccount(prepared.db, "credential-link", "credential", "principal-1", "principal-1");
+    insertAccount({
+      db: prepared.db,
+      id: "credential-link",
+      providerId: "credential",
+      subject: "principal-1",
+      principalId: "principal-1",
+    });
     prepared.db.prepare(`UPDATE account SET password = ? WHERE id = ?`).run("stored-password-hash", "credential-link");
     prepared.db.exec(`
       DROP INDEX idx_account_principal_provider_unique;
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
       PRAGMA user_version = 24;
     `);
-    insertAccount(prepared.db, "keep-link", "workforce", "subject-correct", "principal-1");
-    insertAccount(prepared.db, "wrong-link", "workforce", "subject-wrong", "principal-1");
+    insertAccount({
+      db: prepared.db,
+      id: "keep-link",
+      providerId: "workforce",
+      subject: "subject-correct",
+      principalId: "principal-1",
+    });
+    insertAccount({
+      db: prepared.db,
+      id: "wrong-link",
+      providerId: "workforce",
+      subject: "subject-wrong",
+      principalId: "principal-1",
+    });
     prepared.db.close();
 
     await expect(
@@ -200,7 +256,13 @@ describe("stopped-server SSO cutover repair", () => {
   it("assigns an active member as Owner in an ownerless workspace", async () => {
     const prepared = await database();
     insertUser(prepared.db, "principal-1", "admin@example.com");
-    insertAccount(prepared.db, "credential-link", "credential", "principal-1", "principal-1");
+    insertAccount({
+      db: prepared.db,
+      id: "credential-link",
+      providerId: "credential",
+      subject: "principal-1",
+      principalId: "principal-1",
+    });
     prepared.db
       .prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`)
       .run("workspace-1", "Studio", "#3b82f6", timestamp, timestamp);
@@ -255,7 +317,13 @@ describe("stopped-server SSO cutover repair", () => {
   it("refuses a credential principal that still belongs to a workspace", async () => {
     const prepared = await database();
     insertUser(prepared.db, "member-principal", "member@example.com");
-    insertAccount(prepared.db, "credential-link", "credential", "member-principal", "member-principal");
+    insertAccount({
+      db: prepared.db,
+      id: "credential-link",
+      providerId: "credential",
+      subject: "member-principal",
+      principalId: "member-principal",
+    });
     prepared.db
       .prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`)
       .run("workspace-1", "Studio", "#3b82f6", timestamp, timestamp);

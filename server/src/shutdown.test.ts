@@ -13,12 +13,12 @@ import {
 describe("createShutdownHandler", () => {
   it("drains background work after a fatal listen failure", async () => {
     const order: string[] = [];
-    const shutdown = createShutdownHandler(
-      { close: async () => void order.push("app.close") },
-      { close: () => void order.push("db.close") },
-      (code) => void order.push(`exit ${code}`),
-      async () => void order.push("backups.stop"),
-    );
+    const shutdown = createShutdownHandler({
+      app: { close: async () => void order.push("app.close") },
+      db: { close: () => void order.push("db.close") },
+      exit: (code) => void order.push(`exit ${code}`),
+      stopBackgroundWork: async () => void order.push("backups.stop"),
+    });
     const listenError = new Error("EADDRINUSE");
 
     await handleListenFailure(listenError, shutdown, (error) => void order.push(`log ${(error as Error).message}`));
@@ -28,11 +28,11 @@ describe("createShutdownHandler", () => {
 
   it("closes the app (drain) before the db, then exits 0", async () => {
     const order: string[] = [];
-    const handler = createShutdownHandler(
-      { close: async () => void order.push("app.close") },
-      { close: () => void order.push("db.close") },
-      (code) => void order.push(`exit ${code}`),
-    );
+    const handler = createShutdownHandler({
+      app: { close: async () => void order.push("app.close") },
+      db: { close: () => void order.push("db.close") },
+      exit: (code) => void order.push(`exit ${code}`),
+    });
     await handler();
     expect(order).toEqual(["app.close", "db.close", "exit 0"]);
   });
@@ -42,11 +42,11 @@ describe("createShutdownHandler", () => {
     let releaseDrain!: () => void;
     const drain = new Promise<void>((resolve) => (releaseDrain = resolve));
     const order: string[] = [];
-    const handler = createShutdownHandler(
-      { close: () => drain.then(() => void order.push("app.close")) },
-      { close: () => void order.push("db.close") },
-      (code) => void order.push(`exit ${code}`),
-    );
+    const handler = createShutdownHandler({
+      app: { close: () => drain.then(() => void order.push("app.close")) },
+      db: { close: () => void order.push("db.close") },
+      exit: (code) => void order.push(`exit ${code}`),
+    });
     const first = handler();
     await handler(0, "signal:SIGTERM"); // second signal arrives mid-drain
     expect(order).toEqual(["exit 1"]); // forced out; db.close must not have run yet
@@ -64,7 +64,11 @@ describe("createShutdownHandler", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const exit = vi.fn();
     const dbClose = vi.fn();
-    const handler = createShutdownHandler({ close: () => new Promise(() => {}) }, { close: dbClose }, exit);
+    const handler = createShutdownHandler({
+      app: { close: () => new Promise(() => {}) },
+      db: { close: dbClose },
+      exit,
+    });
 
     void handler();
     await vi.advanceTimersByTimeAsync(DEFAULT_SHUTDOWN_DEADLINE_MS);
@@ -81,16 +85,16 @@ describe("createShutdownHandler", () => {
   it("still closes the db and exits 1 when the request drain throws", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const order: string[] = [];
-    const handler = createShutdownHandler(
-      {
+    const handler = createShutdownHandler({
+      app: {
         close: async () => {
           order.push("app.close");
           throw new Error("boom");
         },
       },
-      { close: () => void order.push("db.close") },
-      (code) => void order.push(`exit ${code}`),
-    );
+      db: { close: () => void order.push("db.close") },
+      exit: (code) => void order.push(`exit ${code}`),
+    });
     await handler();
     expect(order).toEqual(["app.close", "db.close", "exit 1"]);
     expect(error).toHaveBeenCalledWith(
@@ -103,15 +107,15 @@ describe("createShutdownHandler", () => {
   it("drains requests and closes the db after background-work stop fails", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const order: string[] = [];
-    const handler = createShutdownHandler(
-      { close: async () => void order.push("app.close") },
-      { close: () => void order.push("db.close") },
-      (code) => void order.push(`exit ${code}`),
-      async () => {
+    const handler = createShutdownHandler({
+      app: { close: async () => void order.push("app.close") },
+      db: { close: () => void order.push("db.close") },
+      exit: (code) => void order.push(`exit ${code}`),
+      stopBackgroundWork: async () => {
         order.push("backups.stop");
         throw new Error("snapshot failed");
       },
-    );
+    });
 
     await handler();
 
@@ -131,23 +135,23 @@ describe("createShutdownHandler", () => {
     const requestDrainHeld = new Promise<void>((resolve) => (releaseRequestDrain = resolve));
     const backgroundFinished = new Promise<void>((resolve) => (reportBackgroundFinished = resolve));
     const order: string[] = [];
-    const handler = createShutdownHandler(
-      {
+    const handler = createShutdownHandler({
+      app: {
         close: async () => {
           order.push("app.close started");
           await requestDrainHeld;
           order.push("app.close finished");
         },
       },
-      { close: () => void order.push("db.close") },
-      (code) => void order.push(`exit ${code}`),
-      async () => {
+      db: { close: () => void order.push("db.close") },
+      exit: (code) => void order.push(`exit ${code}`),
+      stopBackgroundWork: async () => {
         order.push("backups.stop started");
         await backgroundHeld;
         order.push("backups.stop finished");
         reportBackgroundFinished();
       },
-    );
+    });
 
     const pending = handler();
     expect(order).toEqual(["backups.stop started", "app.close started"]);
@@ -171,25 +175,25 @@ describe("createShutdownHandler", () => {
   it("reports every cleanup failure after attempting every stage", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const order: string[] = [];
-    const handler = createShutdownHandler(
-      {
+    const handler = createShutdownHandler({
+      app: {
         close: async () => {
           order.push("app.close");
           throw new Error("drain failed");
         },
       },
-      {
+      db: {
         close: () => {
           order.push("db.close");
           throw new Error("close failed");
         },
       },
-      (code) => void order.push(`exit ${code}`),
-      async () => {
+      exit: (code) => void order.push(`exit ${code}`),
+      stopBackgroundWork: async () => {
         order.push("backups.stop");
         throw new Error("stop failed");
       },
-    );
+    });
 
     await handler();
 
@@ -204,11 +208,11 @@ describe("createShutdownHandler", () => {
 
   it("preserves a non-zero exit code after an orderly fatal drain", async () => {
     const order: string[] = [];
-    const handler = createShutdownHandler(
-      { close: async () => void order.push("app.close") },
-      { close: () => void order.push("db.close") },
-      (code) => void order.push(`exit ${code}`),
-    );
+    const handler = createShutdownHandler({
+      app: { close: async () => void order.push("app.close") },
+      db: { close: () => void order.push("db.close") },
+      exit: (code) => void order.push(`exit ${code}`),
+    });
     await handler(1);
     expect(order).toEqual(["app.close", "db.close", "exit 1"]);
   });
@@ -222,7 +226,7 @@ describe("createLastResortErrorHandler", () => {
     });
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
     const exit = vi.fn();
-    const shutdown = createShutdownHandler({ close: () => drain }, { close: vi.fn() }, exit);
+    const shutdown = createShutdownHandler({ app: { close: () => drain }, db: { close: vi.fn() }, exit });
     const first = shutdown(0, "signal:SIGTERM");
     const lastResort = createLastResortErrorHandler(shutdown, vi.fn(), vi.fn());
 

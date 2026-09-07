@@ -995,24 +995,31 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect((db.prepare(`SELECT COUNT(*) AS n FROM session`).get() as { n: number }).n).toBe(0);
   });
 
+  interface SessionActivityBoundaryInput {
+    _label: string;
+    rep: "integer epoch" | "ISO-8601 text";
+    elapsed: number;
+    active: boolean;
+  }
+
   // Both storage representations: ISO-8601 text is what Better Auth's node:sqlite adapter really
   // writes (the column is declared `date`, so text stays text); integer epoch milliseconds is the
   // legacy fixture representation the implementation must also survive. The column below is
   // declared `date` like the real schema — a hand-made table with a different declared type once
   // hid the representation mismatch entirely.
-  const boundaryCases = (["integer epoch", "ISO-8601 text"] as const).flatMap((rep) =>
+  const boundaryCases: SessionActivityBoundaryInput[] = (["integer epoch", "ISO-8601 text"] as const).flatMap((rep) =>
     (
       [
         ["one millisecond before", SESSION_INACTIVITY_TTL_SECONDS * 1000 - 1, true],
         ["exactly at", SESSION_INACTIVITY_TTL_SECONDS * 1000, false],
         ["one millisecond after", SESSION_INACTIVITY_TTL_SECONDS * 1000 + 1, false],
       ] as const
-    ).map(([label, elapsed, active]) => [`${label} (${rep})`, rep, elapsed, active] as const),
+    ).map(([label, elapsed, active]) => ({ _label: `${label} (${rep})`, rep: rep, elapsed: elapsed, active: active })),
   );
 
   it.each(boundaryCases)(
-    "treats a session %s the inactivity deadline as active=%s",
-    async (_label, rep, elapsed, active) => {
+    "treats a session $_label the inactivity deadline as active=$rep",
+    async ({ rep, elapsed, active }: SessionActivityBoundaryInput) => {
       const db = openDb(":memory:");
       const now = Date.parse("2026-07-31T09:00:00.000Z");
       const token = `boundary-${rep}-${elapsed}`;
@@ -1846,10 +1853,18 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
   it("enforces the code-point policy on direct identity creation that bypasses HTTP routes", async () => {
     const { auth } = await bootstrapFixture();
     await expect(
-      auth!.createCredentialUser("direct-short@capacitylens.dev", "Direct Short", "🔐".repeat(14)),
+      auth!.createCredentialUser({
+        email: "direct-short@capacitylens.dev",
+        name: "Direct Short",
+        password: "🔐".repeat(14),
+      }),
     ).rejects.toThrow(`at least ${MIN_PASSWORD_LENGTH} characters`);
     await expect(
-      auth!.createCredentialUser("direct-max@capacitylens.dev", "Direct Max", "🔐".repeat(128)),
+      auth!.createCredentialUser({
+        email: "direct-max@capacitylens.dev",
+        name: "Direct Max",
+        password: "🔐".repeat(128),
+      }),
     ).resolves.toEqual({ id: expect.any(String) });
   });
 

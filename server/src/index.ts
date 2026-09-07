@@ -2,7 +2,7 @@ import { createApp, DEFAULT_CORS, parseRateLimit } from "./app";
 import { initializeOpenDb, openDbConnection, planDatabaseMigrations, seedIfUninitialized, type Db } from "./db";
 import { seedForCurrentWeek } from "@capacitylens/shared/data/seed";
 import { createLastResortErrorHandler, createShutdownHandler, handleListenFailure } from "./shutdown";
-import { installStartupSignalHandlers } from "./startupSignals";
+import { installStartupSignalHandlers, stopStartupIfRequested } from "./startupSignals";
 import { isResetForbidden } from "./bootGuard";
 import { evaluateProductionPosture } from "./productionGuard";
 import {
@@ -77,7 +77,9 @@ const log = process.env.CAPACITYLENS_LOG === "1";
 const healthDeep = process.env.CAPACITYLENS_HEALTH_DEEP === "1";
 const rateLimit = parseRateLimit(process.env.CAPACITYLENS_RATE_LIMIT);
 const requireMfa = accountEnv.CAPACITYLENS_REQUIRE_MFA === "1";
-const internalTls: ReturnType<typeof loadInternalTls> = tryOrRefuse(() => loadInternalTls(process.env));
+const internalTls: ReturnType<typeof loadInternalTls> = tryOrRefuse(() =>
+  loadInternalTls({ environment: process.env }),
+);
 // P1.8 constrained org-creation. An empty/unset value leaves the token path DISABLED (the app
 // treats undefined and '' identically — bootstrapTokenMatches never allows an empty secret), so
 // the secure default holds: POST /api/orgs is first-run-only or an existing Owner/Admin.
@@ -123,18 +125,6 @@ const startupSignals = installStartupSignalHandlers({
   onRepeated: () => process.exit(1),
 });
 
-const stopStartupIfRequested = (openDb?: Db) => {
-  const signal = startupSignals.requested();
-  if (!signal) return;
-  try {
-    openDb?.close();
-  } catch (error) {
-    console.error("capacitylens-server: database close failed while stopping startup", error);
-  }
-  startupSignals.dispose();
-  process.exit(0);
-};
-
 // Open without application DDL, inspect the immutable migration plan, and take a verified online
 // rollback snapshot before the first schema mutation. Existing databases fail closed when that
 // snapshot cannot be written; fresh/in-memory databases have nothing to roll back.
@@ -164,20 +154,23 @@ try {
   const authMigrationPlan = auth ? await planAuthSchemaMigrations(auth) : { pending: false, tables: [] };
   const needsMigrationSnapshot = migrationPlan.migrations.length > 0 || authMigrationPlan.pending;
   if (needsMigrationSnapshot && !migrationPlan.fresh) {
-    await writePreMigrationBackup(db, {
-      dbPath,
-      fromVersion: migrationPlan.fromVersion,
-      toVersion: migrationPlan.toVersion,
-      dir: backupConfig?.dir,
+    await writePreMigrationBackup({
+      db,
+      options: {
+        dbPath,
+        fromVersion: migrationPlan.fromVersion,
+        toVersion: migrationPlan.toVersion,
+        dir: backupConfig?.dir,
+      },
     });
-    stopStartupIfRequested(db);
+    stopStartupIfRequested({ startupSignals, openDb: db });
   }
   initializeOpenDb(db, dbPath);
   if (auth) {
     ensureAuthControlTables(db, accountEnv);
     auth.ensureProviderBindings();
   }
-  stopStartupIfRequested(db);
+  stopStartupIfRequested({ startupSignals, openDb: db });
 } catch (e) {
   closeDbSafely(db);
   refuseToStart(e instanceof Error ? e.message : String(e));
@@ -208,7 +201,7 @@ try {
   if (auth) {
     await runAuthMigrations(auth);
     auth.reconcileFederatedLinks?.();
-    stopStartupIfRequested(db);
+    stopStartupIfRequested({ startupSignals, openDb: db });
   }
   if (auth && authMode === "sso" && (accountProfile === "self-hosted-sso-only" || accountProfile === null)) {
     const provider = auth.strictProvider;
@@ -247,7 +240,7 @@ try {
   // "skipped" line and boot continues (deliberately NOT an error — see its TSDoc).
   if (bootstrapAdmin) await createBootstrapAdmin(db, authMode, auth);
   if (process.env.CAPACITYLENS_SEED_DEMO === "1") seedIfUninitialized(db, seedForCurrentWeek());
-  stopStartupIfRequested(db);
+  stopStartupIfRequested({ startupSignals, openDb: db });
   userCount = countUsers(db);
   if (
     authMode === "password" &&
@@ -341,7 +334,7 @@ const { app, backups } = (() => {
     // Backups (P4.1, flag CAPACITYLENS_BACKUP_DIR — default OFF: no timer, no writes).
     if (backupConfig) {
       startingBackups = true;
-      backupController = startBackups(db, backupConfig, log ? (m) => app.log.info(m) : console.log);
+      backupController = startBackups({ db, config: backupConfig, log: log ? (m) => app.log.info(m) : console.log });
       startingBackups = false;
     }
     return { app, backups: backupController };
@@ -364,12 +357,12 @@ const { app, backups } = (() => {
 // and the listener stops accepting work immediately. SQLite closes only after both any in-flight
 // snapshot and every accepted request have drained (P4.1; a SIGTERM during the start-up shot would
 // otherwise truncate a snapshot mid-write).
-const shutdown = createShutdownHandler(
+const shutdown = createShutdownHandler({
   app,
   db,
-  (code) => process.exit(code),
-  backups ? () => backups.stop() : undefined,
-);
+  exit: (code) => process.exit(code),
+  stopBackgroundWork: backups ? () => backups.stop() : undefined,
+});
 const onSignal = (signal: NodeJS.Signals) => {
   console.log(`capacitylens-server: ${signal} — draining requests, then exiting`);
   void shutdown(0, `signal:${signal}`);

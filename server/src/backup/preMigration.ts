@@ -15,12 +15,20 @@ export interface PreMigrationBackupOptions {
   /** Uses the scheduled backup directory when configured; otherwise the database directory. */
   dir?: string;
 }
-function removeLegacyPreMigrationBackups(
-  dir: string,
-  fromVersion: number,
-  toVersion: number,
-  log: (message: string) => void,
-): void {
+
+interface RemoveLegacyPreMigrationBackupsInput {
+  dir: string;
+  fromVersion: number;
+  toVersion: number;
+  log: (message: string) => void;
+}
+
+function removeLegacyPreMigrationBackups({
+  dir,
+  fromVersion,
+  toVersion,
+  log,
+}: RemoveLegacyPreMigrationBackupsInput): void {
   const legacyName = new RegExp(
     `^capacitylens-pre-migration-v${fromVersion}-to-v${toVersion}-\\d{8}-\\d{6}-\\d{3}(?:-\\d+)?\\.db$`,
   );
@@ -46,17 +54,24 @@ function removeLegacyPreMigrationBackups(
   }
 }
 
+interface WritePreMigrationBackupInput {
+  db: Db;
+  options: PreMigrationBackupOptions;
+  log?: ((message: string) => void) | undefined;
+  publisher?: DurableSnapshotPublisher | undefined;
+}
+
 /** Write and verify the mandatory rollback point for an on-disk schema upgrade. Unlike periodic
  * snapshots this is not retention-pruned: the operator keeps it until the upgraded release has
  * been verified, then removes it deliberately. Repeated attempts for one version pair atomically
  * refresh one stable filename, bounding crash-loop storage without reusing stale database content.
  * A fresh or in-memory database has nothing to roll back and returns null. */
-export async function writePreMigrationBackup(
-  db: Db,
-  options: PreMigrationBackupOptions,
-  log: (message: string) => void = console.log,
-  publisher: DurableSnapshotPublisher = durableSnapshotPublisher,
-): Promise<string | null> {
+export async function writePreMigrationBackup({
+  db,
+  options,
+  log = console.log,
+  publisher = durableSnapshotPublisher,
+}: WritePreMigrationBackupInput): Promise<string | null> {
   if (options.dbPath === ":memory:") return null;
   const dir = options.dir ?? dirname(resolve(options.dbPath));
   ensurePrivateBackupDirectory(dir);
@@ -75,13 +90,21 @@ export async function writePreMigrationBackup(
   writeFileSync(tmp, "", { flag: "wx", mode: 0o600 });
 
   try {
-    await writeVerifiedSnapshot(db, tmp, file, dir, "pre-migration snapshot", options.fromVersion, publisher);
+    await writeVerifiedSnapshot({
+      db,
+      tmp,
+      file,
+      dir,
+      label: "pre-migration snapshot",
+      expectedVersion: options.fromVersion,
+      publisher,
+    });
   } catch (error) {
     cleanupSnapshotTemp(tmp, "pre-migration backup", log);
     throw error;
   }
 
-  removeLegacyPreMigrationBackups(dir, options.fromVersion, options.toVersion, log);
+  removeLegacyPreMigrationBackups({ dir, fromVersion: options.fromVersion, toVersion: options.toVersion, log });
   log(`capacitylens-server: pre-migration backup written ${file}`);
   return file;
 }

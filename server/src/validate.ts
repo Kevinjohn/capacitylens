@@ -34,22 +34,24 @@ export type { SanitizeWriteOptions } from "./fieldPolicy";
 //   1. sanitizeWrite — repair value-level fields (enums / colour / hours /
 //      workingDays) exactly as the import path does, so a hand-crafted request can't
 //      persist a junk enum, non-hex colour, or NaN/negative hours.
-//   2. validateWrite — referential integrity + date ranges, throwing ValidationError
+//   2. assertValidWrite — referential integrity + date ranges, throwing ValidationError
 //      (mapped to HTTP 400 by the caller; an unexpected throw becomes 500).
 const SCOPED_REF_TABLES: ScopedEntityKey[] = ["projects", "phases", "activities", "resources"];
+
+interface AssertValidWriteInput {
+  state: AppData;
+  table: string;
+  row: Record<string, unknown>;
+  existing?: Record<string, unknown> | undefined;
+  lookup?: ValidationDataLookup | undefined;
+}
 
 /**
  * Referential-integrity + date-range validation for a write. `row` is the full
  * entity (it carries id/accountId/timestamps). Throws ValidationError on any
  * violation so the route can map it to 400 rather than leaking it as a 500.
  */
-export function assertValidWrite(
-  state: AppData,
-  table: string,
-  row: Record<string, unknown>,
-  existing?: Record<string, unknown>,
-  lookup?: ValidationDataLookup,
-): void {
+export function assertValidWrite({ state, table, row, existing, lookup }: AssertValidWriteInput): void {
   // The built-in Internal singleton is always active. In particular, a legacy-id replacement must
   // not promote an archived/soft-deleted ordinary client while retiring the healthy generated row.
   // Check both values so this invariant remains closed even if a future caller does not run the

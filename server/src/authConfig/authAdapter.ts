@@ -271,9 +271,9 @@ export function createAuthAdapterFactory({
         // Bound (not bare-referenced): Better Auth's api endpoints resolve their context via `this`.
         requestPasswordReset: (input) => raw.api.requestPasswordReset(input),
       },
-      createCredentialUser: (email, name, password, emailVerified = false, correlateInTransaction) =>
+      createCredentialUser: ({ email, name, password, emailVerified = false, correlateInTransaction }) =>
         raw.$context.then((context) =>
-          createCredentialUserWith(context, db, email, name, password, emailVerified, correlateInTransaction),
+          createCredentialUserWith({ context, db, email, name, password, emailVerified, correlateInTransaction }),
         ),
       deleteCredentialUser: (userId) => raw.$context.then((context) => context.internalAdapter.deleteUser(userId)),
       revokeUserSessions: (userId) =>
@@ -314,9 +314,13 @@ export function createAuthAdapterFactory({
         const ceremonyId = randomBytes(24).toString("base64url");
         const success = parseLinkReturnUrl(callbackURL, "capacitylensSsoLinked", ceremonyId);
         const failure = parseLinkReturnUrl(errorCallbackURL, "capacitylensSsoLinkFailed", ceremonyId);
-        const ceremony = createFederatedLinkCeremony(db, principalId, strictProvider.id, ceremonyId, () =>
-          revokeFederatedLinkStateInTx(db, principalId),
-        );
+        const ceremony = createFederatedLinkCeremony({
+          db,
+          principalId,
+          providerId: strictProvider.id,
+          ceremonyId,
+          revokeSupersededProviderStateInTransaction: () => revokeFederatedLinkStateInTx(db, principalId),
+        });
         const requestHeaders = new Headers(headers);
         requestHeaders.set("content-type", "application/json");
         const response = await raw.handler(

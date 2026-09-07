@@ -31,7 +31,13 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
     // Shared body-shape guard (the Finding 7 funnel). A missing/non-object body would otherwise
     // null-deref in sanitizeWrite's assertIdPresent BEFORE the try block could classify it — a
     // misclassified 500. `accounts` is unscoped, so no accountId is required.
-    const bodyCheck = checkEntityWriteBody("create", "accounts", req.body, undefined, false);
+    const bodyCheck = checkEntityWriteBody({
+      verb: "create",
+      entity: "accounts",
+      body: req.body,
+      urlId: undefined,
+      scoped: false,
+    });
     if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
     if (authMode !== "off") {
       return reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE });
@@ -72,7 +78,7 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
           // the single-company cap became full after its original success. Reuses the funnel's
           // scoped slice (Finding 9 — accounts validation is name-only, so a second full-DB
           // loadState here would be pure waste).
-          assertValidWrite(scopedState, "accounts", row);
+          assertValidWrite({ state: scopedState, table: "accounts", row });
           insertRow(db, "accounts", row);
           insertRow(
             db,
