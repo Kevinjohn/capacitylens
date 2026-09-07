@@ -151,7 +151,7 @@ const SIDEBAR_STORAGE_KEY = `${STORAGE_KEY_PREFIX}sidebar`;
 
 /** The widest viewport still treated as a phone. Single-sourced here because two separate
  *  breakpoint consumers key off it: the sidebar's first-run default below and the
- *  `useIsMobile` hook (hooks/use-mobile.ts). */
+ *  `useIsMobile` hook (hooks/useIsMobile.ts). */
 export const PHONE_MAX_WIDTH_PX = 767;
 
 /** Small-screen query for the sidebar's first-run default. Phone-portrait widths

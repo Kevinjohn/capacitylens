@@ -20,7 +20,7 @@ export const FAKE_USER = {
  *  surface is suppressed and `src/auth/` owns sign-in/out.
  *
  *  In terms of the other demo predicate: this is `resolveAccessExperience(authMode) === "demo" &&
- *  authMode === "off"` (see lib/accessMode.ts). It is deliberately the NARROWER of the two —
+ *  authMode === "off"` (see lib/resolveAccessExperience.ts). It is deliberately the NARROWER of the two —
  *  `resolveAccessExperience` answers "what access posture do we describe to the viewer?" and drives
  *  the access copy, whereas this answers only "is the fake sign-in chrome on screen?". A demo
  *  build running WITH real auth on still has a "demo" experience but no demo chrome. */
