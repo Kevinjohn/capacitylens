@@ -137,7 +137,13 @@ export function buildRepeatingAllocationAdvisory(
   const shared = batchWindow
     ? {
         window: batchWindow,
-        load: bucketCapacityLoad(resource, existingLoad, batchWindow.start, batchWindow.end, effectiveWeek),
+        load: bucketCapacityLoad({
+          resource: resource,
+          allocations: existingLoad,
+          start: batchWindow.start,
+          end: batchWindow.end,
+          effectiveWeek: effectiveWeek,
+        }),
       }
     : null;
   // Only reachable from an absurd (~100-year) span, where the batch is wider than one
@@ -149,14 +155,36 @@ export function buildRepeatingAllocationAdvisory(
   let nonEffectiveStartAllocations = 0;
   for (const draft of proposedDrafts) {
     const result = shared
-      ? buildCapacityAdvisoryFromLoad(resource, draft, shared.load, timeOff, effectiveWeek, closures)
-      : buildCapacityAdvisory(resource, draft, rebuiltLoad, timeOff, effectiveWeek, closures);
+      ? buildCapacityAdvisoryFromLoad({
+          resource: resource,
+          proposal: draft,
+          loadByDay: shared.load,
+          timeOff: timeOff,
+          effectiveWeek: effectiveWeek,
+          closures: closures,
+        })
+      : buildCapacityAdvisory({
+          resource: resource,
+          proposal: draft,
+          otherAllocations: rebuiltLoad,
+          timeOff: timeOff,
+          effectiveWeek: effectiveWeek,
+          closures: closures,
+        });
     if (result.overDays > 0) overCapacityAllocations += 1;
     if (result.timeOffDays > 0) timeOffAllocations += 1;
     if (startsOnNonEffectiveWeekday(effectiveWeek, draft.ignoreWeekends, weekdayOf(draft.startDate))) {
       nonEffectiveStartAllocations += 1;
     }
-    if (shared) addCapacityLoad(shared.load, resource, draft, shared.window.start, shared.window.end, effectiveWeek);
+    if (shared)
+      addCapacityLoad({
+        byDay: shared.load,
+        resource: resource,
+        allocation: draft,
+        start: shared.window.start,
+        end: shared.window.end,
+        effectiveWeek: effectiveWeek,
+      });
     else rebuiltLoad.push(draft);
   }
   return { overCapacityAllocations, timeOffAllocations, nonEffectiveStartAllocations };

@@ -69,24 +69,28 @@ describe("server allocation project attribution", () => {
   it("enforces activity kind, project existence and placeholder scope", () => {
     const data = state();
     expect(() =>
-      assertValidWrite(data, "allocations", allocation() as unknown as Record<string, unknown>),
+      assertValidWrite({ state: data, table: "allocations", row: allocation() as unknown as Record<string, unknown> }),
     ).not.toThrow();
     expect(() =>
-      assertValidWrite(
-        data,
-        "allocations",
-        allocation({ activityId: "internal" }) as unknown as Record<string, unknown>,
-      ),
+      assertValidWrite({
+        state: data,
+        table: "allocations",
+        row: allocation({ activityId: "internal" }) as unknown as Record<string, unknown>,
+      }),
     ).toThrow(/only an all-projects activity/i);
     expect(() =>
-      assertValidWrite(data, "allocations", allocation({ projectId: "missing" }) as unknown as Record<string, unknown>),
+      assertValidWrite({
+        state: data,
+        table: "allocations",
+        row: allocation({ projectId: "missing" }) as unknown as Record<string, unknown>,
+      }),
     ).toThrow(/active project/i);
     expect(() =>
-      assertValidWrite(
-        data,
-        "allocations",
-        allocation({ resourceId: "placeholder", projectId: "p2" }) as unknown as Record<string, unknown>,
-      ),
+      assertValidWrite({
+        state: data,
+        table: "allocations",
+        row: allocation({ resourceId: "placeholder", projectId: "p2" }) as unknown as Record<string, unknown>,
+      }),
     ).toThrow(/bound project/i);
   });
 

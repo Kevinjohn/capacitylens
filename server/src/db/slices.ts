@@ -17,7 +17,7 @@ export function readState(db: Db): AppData {
     // rejects a missing table at the current version.
     if (!tableExists(db, table)) continue;
     const spec = TABLES[table];
-    const statement = createCachedTableStatement(cache, table, db, `SELECT * FROM ${table}`);
+    const statement = createCachedTableStatement({ cache, table, db, sql: `SELECT * FROM ${table}` });
     data[table] = statement.all().map((r) => fromRow(spec, r));
   }
   return data as unknown as AppData;
@@ -143,12 +143,12 @@ function readSliceFromSnapshot(
   // Every scoped table: WHERE accountId = ? — never an unpredicated read (the no-cross-tenant invariant).
   for (const table of SCOPED_ORDER) {
     const spec = TABLES[table];
-    const statement = createCachedTableStatement(
-      cache.scopedSelect,
+    const statement = createCachedTableStatement({
+      cache: cache.scopedSelect,
       table,
       db,
-      `SELECT * FROM ${table} WHERE accountId = ?`,
-    );
+      sql: `SELECT * FROM ${table} WHERE accountId = ?`,
+    });
     data[table] = statement.all(accountId).map((r) => fromRow(spec, r));
   }
   // P1.6 / private-name field-level redaction: derive BOTH gated-field redactions from the SAME

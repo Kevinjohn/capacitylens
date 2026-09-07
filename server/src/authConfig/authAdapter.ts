@@ -314,9 +314,13 @@ export function createAuthAdapterFactory({
         const ceremonyId = randomBytes(24).toString("base64url");
         const success = parseLinkReturnUrl(callbackURL, "capacitylensSsoLinked", ceremonyId);
         const failure = parseLinkReturnUrl(errorCallbackURL, "capacitylensSsoLinkFailed", ceremonyId);
-        const ceremony = createFederatedLinkCeremony(db, principalId, strictProvider.id, ceremonyId, () =>
-          revokeFederatedLinkStateInTx(db, principalId),
-        );
+        const ceremony = createFederatedLinkCeremony({
+          db,
+          principalId,
+          providerId: strictProvider.id,
+          ceremonyId,
+          revokeSupersededProviderStateInTransaction: () => revokeFederatedLinkStateInTx(db, principalId),
+        });
         const requestHeaders = new Headers(headers);
         requestHeaders.set("content-type", "application/json");
         const response = await raw.handler(

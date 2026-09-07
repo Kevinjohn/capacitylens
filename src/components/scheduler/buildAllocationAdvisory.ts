@@ -66,10 +66,12 @@ export function buildAllocationAdvisory({
   // legacy hourly allocations must not be advised "over capacity" here while the grid's markers
   // (schedulerModel) and the drag-commit toast (useAllocationGesture) — both of which project the
   // same way — show nothing. Every capacity surface reads the same projected load.
-  const others = applyCapacityMode(
-    data.allocations.filter((allocation) => allocation.resourceId === resourceId && allocation.id !== editId),
-    isBlocks,
-  );
+  const others = applyCapacityMode({
+    allocations: data.allocations.filter(
+      (allocation) => allocation.resourceId === resourceId && allocation.id !== editId,
+    ),
+    blocksMode: isBlocks,
+  });
   const resourceTimeOff = listTimeOffApplyingTo(resourceId, data.timeOff);
   if (create && repeat !== "none") {
     if (!repeatProjection) return null;
@@ -97,9 +99,9 @@ export function buildAllocationAdvisory({
   }
   return (
     formatCapacityAdvisory(
-      buildCapacityAdvisory(
-        selectedResource,
-        {
+      buildCapacityAdvisory({
+        resource: selectedResource,
+        proposal: {
           resourceId,
           startDate,
           endDate: effectiveEndDate,
@@ -107,11 +109,11 @@ export function buildAllocationAdvisory({
           ignoreWeekends,
           ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
         },
-        others,
-        resourceTimeOff,
-        selectedEffectiveWeek,
-        data.closures,
-      ),
+        otherAllocations: others,
+        timeOff: resourceTimeOff,
+        effectiveWeek: selectedEffectiveWeek,
+        closures: data.closures,
+      }),
       "form",
     ) || null
   );
