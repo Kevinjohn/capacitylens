@@ -1542,6 +1542,21 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
   });
 });
 
+function heldFirstSaveAdapter() {
+  let release: (() => void) | null = null;
+  let firstHeld = true;
+  const saveAll = vi.fn<(data: AppData) => Promise<void>>(() => {
+    if (!firstHeld) return Promise.resolve();
+    firstHeld = false;
+    return new Promise((resolve) => {
+      release = resolve;
+    });
+  });
+  const loadAll = vi.fn(async () => a2Slice());
+  const releaseFirst = () => requireValue(release, "first flush release")();
+  return { adapter: { loadAll, saveAll }, releaseFirst, saveAll };
+}
+
 describe("flushPendingWrites (the import seam)", () => {
   it("lands a pending debounced edit and reports clean; reports NOT clean while a write is failed", async () => {
     const { adapter, saveAll } = recordingAdapter(a2Slice());
@@ -1568,19 +1583,8 @@ describe("flushPendingWrites (the import seam)", () => {
     // Writes are unsuspended during the flush's await, so an edit can arm a fresh debounce whose
     // save outlives a single round. A one-shot flush returned "clean" while that save was still
     // on the wire — the import POST then raced it against the pre-import snapshot.
-    let releaseFirst: (() => void) | null = null;
-    let firstHeld = true;
-    const saveAll = vi.fn<(data: AppData) => Promise<void>>(() => {
-      if (firstHeld) {
-        firstHeld = false;
-        return new Promise((resolve) => {
-          releaseFirst = () => resolve();
-        });
-      }
-      return Promise.resolve();
-    });
-    const loadAll = vi.fn(async () => a2Slice());
-    const detach = await attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 300 });
+    const { adapter, releaseFirst, saveAll } = heldFirstSaveAdapter();
+    const detach = await attachActiveA2({ adapter, debounceMs: 300 });
 
     useStore.getState().addClient({ name: "First", color: "#222222" }); // parked in the debounce
     const flush = flushPendingWrites(); // consumes it → round-trip A, held open
@@ -1588,7 +1592,7 @@ describe("flushPendingWrites (the import seam)", () => {
     expect(saveAll).toHaveBeenCalledTimes(1);
 
     useStore.getState().addClient({ name: "Mid-flush", color: "#333333" }); // lands during A's await
-    requireValue(releaseFirst, "first flush release")();
+    releaseFirst();
     expect(await flush).toEqual({ kind: "clean" });
     // The flush swept the mid-flush edit too before reporting clean — nothing left on the wire.
     expect(saveAll).toHaveBeenCalledTimes(2);
