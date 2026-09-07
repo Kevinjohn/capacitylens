@@ -539,36 +539,6 @@
       "count": 1
     }
   },
-  "src/lib/capacity.test.ts": {
-    "max-params": {
-      "count": 8
-    }
-  },
-  "src/lib/capacity.ts": {
-    "max-params": {
-      "count": 3
-    }
-  },
-  "src/lib/displayOrder.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/lib/gestureMath.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "src/lib/repeatingAllocations.test.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "src/lib/repeatingAllocations.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "src/store/storeInternal.ts": {
     "max-params": {
       "count": 1
