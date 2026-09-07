@@ -132,7 +132,7 @@ export function registerBatchRoutes(app: FastifyInstance, dependencies: BatchRou
     const revisions: BatchRevision[] = [];
     const lifecycleArchives: Array<{ table: string; id: string; archived: boolean }> = [];
     try {
-      const { supersededSyncBatch, auditRecords } = await runBatch({
+      const result = await runBatch({
         ops,
         syncOrder,
         req,
@@ -149,7 +149,7 @@ export function registerBatchRoutes(app: FastifyInstance, dependencies: BatchRou
         hasAccountOperations,
         authorizeOperations,
       });
-      if (supersededSyncBatch) {
+      if (result.kind === "superseded") {
         return reply.code(200).send({
           ok: true,
           applied: ops.length,
@@ -169,7 +169,7 @@ export function registerBatchRoutes(app: FastifyInstance, dependencies: BatchRou
       return reply.code(200).send({
         ok: true,
         applied: ops.length,
-        changed: auditRecords.filter((record) => record !== null).length,
+        changed: result.auditRecords.filter((record) => record !== null).length,
         revisions,
         archives: lifecycleArchives,
         auditWarning: auditFailed,

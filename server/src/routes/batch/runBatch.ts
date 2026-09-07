@@ -34,7 +34,9 @@ type RunBatchParameters = Pick<
   authorizeOperations: () => boolean;
 };
 
-export async function runBatch(parameters: RunBatchParameters) {
+type BatchRunResult = { kind: "superseded" } | { kind: "applied"; auditRecords: Array<AuditRecord | null> };
+
+export async function runBatch(parameters: RunBatchParameters): Promise<BatchRunResult> {
   const {
     ops,
     syncOrder,
@@ -192,5 +194,5 @@ export async function runBatch(parameters: RunBatchParameters) {
       serializeWorkspaceProvisioning: hasAccountOperations,
     },
   );
-  return { supersededSyncBatch, auditRecords };
+  return supersededSyncBatch ? { kind: "superseded" } : { kind: "applied", auditRecords };
 }
