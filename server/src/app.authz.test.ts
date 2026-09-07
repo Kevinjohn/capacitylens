@@ -114,12 +114,24 @@ function isUnknownArray(value: unknown): value is unknown[] {
   return Array.isArray(value);
 }
 
-function expectPrivateClientExport(response: LightMyRequestResponse): object {
+function readClientRows(response: LightMyRequestResponse): unknown[] {
   const body = readJsonObject(response);
   if (!("clients" in body) || !isUnknownArray(body.clients)) {
     throw new TypeError("Expected the exported state to contain a clients array.");
   }
-  const matchingClient = body.clients.find(
+  return body.clients;
+}
+
+function readClientId(row: unknown): string {
+  if (typeof row !== "object" || row === null || !("id" in row) || typeof row.id !== "string") {
+    throw new TypeError("Expected a client response row with a string id.");
+  }
+  return row.id;
+}
+
+function expectPrivateClientExport(response: LightMyRequestResponse): object {
+  const body = readJsonObject(response);
+  const matchingClient = readClientRows(response).find(
     (row) => typeof row === "object" && row !== null && "id" in row && row.id === "c1",
   );
   expect(matchingClient).toMatchObject({ name: '"Nightwing"', isPrivate: true });
@@ -433,12 +445,12 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     // member and confirm only the originally-seeded client c1 exists.
     const a1 = await getState(app, "a1", cookie);
     expect(a1.statusCode).toBe(200);
-    expect(
-      a1
-        .json()
-        .clients.map((c: { id: string }) => c.id)
-        .sort(),
-    ).toEqual(["c1"]);
+    const clientIds: string[] = [];
+    for (const clientRow of readClientRows(a1)) {
+      clientIds.push(readClientId(clientRow));
+    }
+    clientIds.sort();
+    expect(clientIds).toEqual(["c1"]);
   });
 
   it("viewer of a1: read → 200; any write to a1 → 403", async () => {
