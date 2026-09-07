@@ -196,6 +196,28 @@ const barIds = (model: GroupModel[]) =>
     .map((b) => b.allocation.id)
     .sort();
 
+function buildCompanyWorkingWeekRow(data: AppData, accountWorkingDays: Weekday[]) {
+  return requireValue(
+    buildSchedulerModel({
+      data,
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters: buildEmptyFilters(),
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+        accountWorkingDays,
+      },
+    })
+      .flatMap((group) => group.rows)
+      .find((candidate) => candidate.resource.id === "r1"),
+    "r1 scheduler row",
+  );
+}
+
 describe("#257 characterization: company-off tint/capacity agreement", () => {
   // Flipped in Phase 3: company closure now also zeroes scheduled and available capacity.
   it("tints a company-closed Friday unavailable with zero available capacity", () => {
@@ -204,25 +226,7 @@ describe("#257 characterization: company-off tint/capacity agreement", () => {
       data.resources.find((candidate) => candidate.id === "r1"),
       "r1 resource",
     );
-    const row = requireValue(
-      buildSchedulerModel({
-        data,
-        geom,
-        days,
-        visibleWindow: { start, end },
-        overSoonWindow: { start, end },
-        filters: buildEmptyFilters(),
-        preferences: {
-          disciplinesEnabled: true,
-          placeholdersEnabled: true,
-          externalEnabled: true,
-          accountWorkingDays: [1, 2, 3, 4],
-        },
-      })
-        .flatMap((group) => group.rows)
-        .find((candidate) => candidate.resource.id === resource.id),
-      "r1 scheduler row",
-    );
+    const row = buildCompanyWorkingWeekRow(data, [1, 2, 3, 4]);
     const fridayCapacity = requireValue(
       capacityForWindowOf({
         resource,
@@ -241,25 +245,7 @@ describe("#257 characterization: company-off tint/capacity agreement", () => {
 
   it("marks every visible day creation-blocked for a resource with no effective working week", () => {
     const data = dataset();
-    const row = requireValue(
-      buildSchedulerModel({
-        data,
-        geom,
-        days,
-        visibleWindow: { start, end },
-        overSoonWindow: { start, end },
-        filters: buildEmptyFilters(),
-        preferences: {
-          disciplinesEnabled: true,
-          placeholdersEnabled: true,
-          externalEnabled: true,
-          accountWorkingDays: [0],
-        },
-      })
-        .flatMap((group) => group.rows)
-        .find((candidate) => candidate.resource.id === "r1"),
-      "r1 scheduler row",
-    );
+    const row = buildCompanyWorkingWeekRow(data, [0]);
 
     expect(row.dayStates).toHaveLength(days.length);
     expect(row.dayStates.every(({ creationBlocked }) => creationBlocked)).toBe(true);
@@ -270,25 +256,7 @@ describe("#257 characterization: company-off tint/capacity agreement", () => {
     data.resources = data.resources.map((resource) =>
       resource.id === "r1" ? { ...resource, halfDays: [5] } : resource,
     );
-    const row = requireValue(
-      buildSchedulerModel({
-        data,
-        geom,
-        days,
-        visibleWindow: { start, end },
-        overSoonWindow: { start, end },
-        filters: buildEmptyFilters(),
-        preferences: {
-          disciplinesEnabled: true,
-          placeholdersEnabled: true,
-          externalEnabled: true,
-          accountWorkingDays: [1, 2, 3, 4],
-        },
-      })
-        .flatMap((group) => group.rows)
-        .find((candidate) => candidate.resource.id === "r1"),
-      "r1 scheduler row",
-    );
+    const row = buildCompanyWorkingWeekRow(data, [1, 2, 3, 4]);
 
     expect(row.dayStates[4]).toMatchObject({ unavailable: true, partialCapacity: false });
   });
