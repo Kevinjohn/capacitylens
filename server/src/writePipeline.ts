@@ -9,7 +9,7 @@ import { createServerRevision } from "./revision";
 //
 // POST (create), PUT (replace), PATCH (patch) and the /api/batch loop used to each RE-SEQUENCE the
 // same write pipeline inline — body-shape checks, the builtin-Internal guard, sanitizeWrite, the
-// revision stamp, validateWrite — and the copies had already DRIFTED (four builtin-guard messages;
+// revision stamp, assertValidWrite — and the copies had already DRIFTED (four builtin-guard messages;
 // two accountId-required messages). This module owns that shared sequence ONCE so the four call
 // sites are thin and cannot drift again. Each site still owns its own transport specifics
 // (authorize, account provisioning, persistence, audit) — only the deterministic middle is shared.
@@ -27,7 +27,7 @@ export interface WriteRejection {
 
 /**
  * The FULL (unredacted, tombstones-retained) slice read the referential validators need. Every
- * check in validateWrite (validate.ts) only ever matches rows with `parent.accountId === accountId`
+ * check in assertValidWrite (validate.ts) only ever matches rows with `parent.accountId === accountId`
  * AND inspects lifecycle tombstones (archivedAt/deletedAt), so the write's OWN account slice — with
  * inactive rows retained — is complete coverage. Private-name/note redaction is irrelevant to
  * validation, so all three include flags are `true`. (Mirrors lifecycleRoutes' FULL_SLICE_READ.)
@@ -103,7 +103,7 @@ interface ResolveBuiltinWriteRejectionInput {
  *  - a CREATE (POST) may not hand-craft a builtin client ('managed by the server') — it is minted
  *    only by account provisioning or the deterministic replacement path. PUT-as-create keeps
  *    verb `replace`, so its authorized legacy adoption flows through
- *    generatedBuiltinReplacement untouched.
+ *    resolveGeneratedBuiltinReplacement untouched.
  * Returns the rejection, or `null` when the write is allowed. The batch loop first validates its
  * minted-Internal exception against the canonical generated row (an account's freshly-minted
  * Internal can be echoed in the same batch), then defers to this single message for other writes.
@@ -218,7 +218,7 @@ interface ReplaceGeneratedBuiltinInput {
 
 /** Replace the deterministic auto-created Internal client with a legacy/client-supplied id
  * without firing its ON DELETE CASCADE. Must run inside the caller's transaction.
- * `state` is the caller's already-loaded AppData projection (see generatedBuiltinReplacement) —
+ * `state` is the caller's already-loaded AppData projection (see resolveGeneratedBuiltinReplacement) —
  * reused here instead of a fresh loadState(db), so a batch of many such ops stays O(1) DB scans. */
 export function replaceGeneratedBuiltin({ db, state, generatedId, row }: ReplaceGeneratedBuiltinInput): void {
   if (!db.isTransaction) {
