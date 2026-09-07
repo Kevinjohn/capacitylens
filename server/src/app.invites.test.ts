@@ -659,7 +659,11 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
       CAPACITYLENS_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
     });
     await runAuthMigrations(auth!);
-    const inviter = await auth!.createCredentialUser("inviter-closed@capacitylens.dev", "Inviter", "password-123456");
+    const inviter = await auth!.createCredentialUser({
+      email: "inviter-closed@capacitylens.dev",
+      name: "Inviter",
+      password: "password-123456",
+    });
     const app = buildApp(db, { authMode: mode, auth });
     seedOne(db);
     upsertMember(db, {

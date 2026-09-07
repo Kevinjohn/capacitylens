@@ -104,22 +104,7 @@
       "count": 1
     }
   },
-  "server/src/authConfig/authAdapter.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/authConfig/authTypes.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "server/src/authConfig/bootstrapAdmin.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "server/src/authConfig/providers.ts": {
     "max-params": {
       "count": 1
     }
