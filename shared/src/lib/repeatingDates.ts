@@ -141,8 +141,7 @@ export function generateRepeatingStartDates(
   }
   const startDates: ISODate[] = [];
   const append = (candidate: ISODate) => {
-    const previous = startDates.at(-1);
-    if (previous !== undefined && candidate <= previous) {
+    if (startDates.length > 0 && candidate <= startDates[startDates.length - 1]) {
       throw new Error("Repeating allocation dates must be strictly increasing.");
     }
     if (startDates.length >= GENERATED_ALLOCATION_LIMIT) {

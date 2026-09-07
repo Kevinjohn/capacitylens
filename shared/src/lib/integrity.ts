@@ -15,9 +15,7 @@ import type { Activity, Allocation, AppData, ID, ISODate, Resource } from "../ty
  */
 export function daysInMonth(year: number, month: number): number {
   const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
-  if (days === undefined) throw new RangeError("Month must be between 1 and 12.");
-  return days;
+  return [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
 }
 
 /**
@@ -230,12 +228,9 @@ export function deletePhaseCascade(data: AppData, phaseId: ID, updatedAt: string
   return {
     ...data,
     phases: data.phases.filter((phase) => phase.id !== phaseId),
-    activities: data.activities.map((activity) => {
-      if (activity.phaseId !== phaseId) return activity;
-      const remaining = { ...activity };
-      delete remaining.phaseId;
-      return { ...remaining, updatedAt };
-    }),
+    activities: data.activities.map((activity) =>
+      activity.phaseId === phaseId ? { ...activity, phaseId: undefined, updatedAt } : activity,
+    ),
   };
 }
 
@@ -268,26 +263,23 @@ function dropProjectSubtree(data: AppData, removedProjectIds: Set<ID>, updatedAt
     phases: data.phases.filter((phase) => !removedPhaseIds.has(phase.id)),
     activities: data.activities
       .filter((activity) => !removedActivityIds.has(activity.id))
-      .map((activity) => {
-        if (activity.phaseId === undefined || !removedPhaseIds.has(activity.phaseId)) return activity;
-        const remaining = { ...activity };
-        delete remaining.phaseId;
-        return { ...remaining, updatedAt };
-      }),
+      .map((activity) =>
+        activity.phaseId !== undefined && removedPhaseIds.has(activity.phaseId)
+          ? { ...activity, phaseId: undefined, updatedAt }
+          : activity,
+      ),
     allocations: data.allocations
       .filter((allocation) => !removedActivityIds.has(allocation.activityId))
-      .map((allocation) => {
-        if (allocation.projectId === undefined || !removedProjectIds.has(allocation.projectId)) return allocation;
-        const remaining = { ...allocation };
-        delete remaining.projectId;
-        return { ...remaining, updatedAt };
-      }),
-    resources: data.resources.map((resource) => {
-      if (resource.projectId === undefined || !removedProjectIds.has(resource.projectId)) return resource;
-      const remaining = { ...resource };
-      delete remaining.projectId;
-      return { ...remaining, updatedAt };
-    }),
+      .map((allocation) =>
+        allocation.projectId !== undefined && removedProjectIds.has(allocation.projectId)
+          ? { ...allocation, projectId: undefined, updatedAt }
+          : allocation,
+      ),
+    resources: data.resources.map((resource) =>
+      resource.projectId !== undefined && removedProjectIds.has(resource.projectId)
+        ? { ...resource, projectId: undefined, updatedAt }
+        : resource,
+    ),
   };
 }
 
@@ -313,11 +305,8 @@ export function deleteDisciplineCascade(data: AppData, disciplineId: ID, updated
   return {
     ...data,
     disciplines: data.disciplines.filter((discipline) => discipline.id !== disciplineId),
-    resources: data.resources.map((resource) => {
-      if (resource.disciplineId !== disciplineId) return resource;
-      const remaining = { ...resource };
-      delete remaining.disciplineId;
-      return { ...remaining, updatedAt };
-    }),
+    resources: data.resources.map((resource) =>
+      resource.disciplineId === disciplineId ? { ...resource, disciplineId: undefined, updatedAt } : resource,
+    ),
   };
 }

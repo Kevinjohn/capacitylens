@@ -99,10 +99,10 @@ export function assertResourceProjectAllowsDependents(
     data,
     accountId,
     id: resourceId,
-    edit: { side: "resource", merged, ...(existing === undefined ? {} : { existing }) },
+    edit: { side: "resource", merged, existing },
     code: "placeholder_project_dependents",
     message: "Reassign or remove this placeholder’s work before changing its bound project.",
-    ...(lookup === undefined ? {} : { lookup }),
+    lookup,
   });
 }
 
@@ -121,8 +121,7 @@ function assertAllocationPairStaysValid({
   message,
   lookup,
 }: AssertAllocationPairStaysValidOptions): void {
-  const lookupOptions = lookup === undefined ? {} : { lookup };
-  for (const allocation of listValidationAllocations({ data, accountId, side: edit.side, id, ...lookupOptions })) {
+  for (const allocation of listValidationAllocations({ data, accountId, side: edit.side, id, lookup })) {
     let before: ValidationResult | undefined;
     let after: ValidationResult;
     if (edit.side === "resource") {
@@ -131,7 +130,7 @@ function assertAllocationPairStaysValid({
         table: "activities",
         id: allocation.activityId,
         accountId,
-        ...lookupOptions,
+        lookup,
       });
       if (!activity) continue;
       const projectId = effectiveProjectId(allocation, activity);
@@ -143,7 +142,7 @@ function assertAllocationPairStaysValid({
         table: "resources",
         id: allocation.resourceId,
         accountId,
-        ...lookupOptions,
+        lookup,
       });
       if (!resource) continue;
       before = edit.existing && validateAllocationAssignment(resource, effectiveProjectId(allocation, edit.existing));
@@ -177,10 +176,10 @@ export function assertActivityProjectAllowsDependents(
     data,
     accountId,
     id: activityId,
-    edit: { side: "activity", merged, ...(existing === undefined ? {} : { existing }) },
+    edit: { side: "activity", merged, existing },
     code: "activity_project_dependents",
     message: "Reassign placeholder work before changing this activity’s project.",
-    ...(lookup === undefined ? {} : { lookup }),
+    lookup,
   });
 }
 
@@ -204,14 +203,13 @@ export function assertResourceExists(
   existing?: Pick<TimeOff, "resourceId">,
   lookup?: ValidationDataLookup,
 ): void {
-  const lookupOptions = lookup === undefined ? {} : { lookup };
-  const resource = resolveOwnedRow<Resource>({ data, table: "resources", id: resourceId, accountId, ...lookupOptions });
+  const resource = resolveOwnedRow<Resource>({ data, table: "resources", id: resourceId, accountId, lookup });
   if (!resource) {
     domainError("time_off_resource_invalid", "Time off must reference an existing resource in this company.");
   }
   if (
     existing?.resourceId !== resourceId &&
-    !isEffectivelyActive({ data, table: "resources", row: resource, ...lookupOptions })
+    !isEffectivelyActive({ data, table: "resources", row: resource, lookup })
   ) {
     domainError("time_off_resource_inactive", "Time off must reference an active resource in this company.");
   }

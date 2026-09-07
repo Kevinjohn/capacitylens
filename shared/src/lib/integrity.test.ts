@@ -55,17 +55,12 @@ const placeholder = (over: Partial<Resource> = {}): Resource => ({
   halfDays: over.halfDays ?? [],
 });
 
-const unboundPlaceholder = (): Resource => {
-  const resource = placeholder();
-  delete resource.projectId;
-  return resource;
-};
-
-const person = (over: Partial<Resource> = {}): Resource => {
-  const base = placeholder(over);
-  delete base.projectId;
-  return { ...base, kind: "person", ...over };
-};
+const person = (over: Partial<Resource> = {}): Resource => ({
+  ...placeholder(over),
+  kind: "person",
+  projectId: undefined,
+  ...over,
+});
 
 // A small connected dataset: client c1 -> project p1 -> phase ph -> activities; allocations; a bound placeholder.
 function sampleData(): AppData {
@@ -282,7 +277,7 @@ describe("placeholder binding", () => {
 
   it("validateAllocationAssignment explains the rejection", () => {
     expect(validateAllocationAssignment(placeholder({ projectId: "p1" }), "p2").ok).toBe(false);
-    expect(validateAllocationAssignment(unboundPlaceholder(), "p1").ok).toBe(false);
+    expect(validateAllocationAssignment(placeholder({ projectId: undefined }), "p1").ok).toBe(false);
     expect(validateAllocationAssignment(placeholder({ projectId: "p1" }), "p1").ok).toBe(true);
     expect(validateAllocationAssignment(person(), "p1").ok).toBe(true);
   });
@@ -291,7 +286,9 @@ describe("placeholder binding", () => {
     // An unbound placeholder (no projectId) and one bound to the WRONG project both reject,
     // but with DIFFERENT reasons — so the `!resource.projectId` branch and each message string
     // are load-bearing, not interchangeable.
-    expect(validateAllocationAssignment(unboundPlaceholder(), "p1").errors[0]).toMatch(/not bound to a project/i);
+    expect(validateAllocationAssignment(placeholder({ projectId: undefined }), "p1").errors[0]).toMatch(
+      /not bound to a project/i,
+    );
     expect(validateAllocationAssignment(placeholder({ projectId: "p1" }), "p2").errors[0]).toMatch(
       /only be assigned to activities from its bound project/i,
     );
@@ -301,7 +298,7 @@ describe("placeholder binding", () => {
     expect(validateAllocationAssignment(person(), undefined).ok).toBe(true);
     // The project restriction does not bite when the activity has no project.
     expect(validateAllocationAssignment(placeholder({ projectId: "p1" }), undefined).ok).toBe(true);
-    expect(validateAllocationAssignment(unboundPlaceholder(), undefined).ok).toBe(true);
+    expect(validateAllocationAssignment(placeholder({ projectId: undefined }), undefined).ok).toBe(true);
   });
 });
 
@@ -408,8 +405,8 @@ describe("cascade deletes", () => {
     const next = deleteProjectCascade(data, "p1", CASCADE_REVISION);
     expect(next.activities.map((t) => t.id)).toEqual(["t3"]);
     expect(next.allocations.map((a) => a.id)).toEqual(["a3"]);
-    expect(next.allocations[0]?.projectId).toBeUndefined();
-    expect(next.allocations[0]?.updatedAt).toBe(CASCADE_REVISION);
+    expect(next.allocations[0].projectId).toBeUndefined();
+    expect(next.allocations[0].updatedAt).toBe(CASCADE_REVISION);
   });
 
   it("deleteProjectCascade unbinds a surviving activity’s phaseId that pointed at a deleted phase", () => {
@@ -608,8 +605,8 @@ describe("cascade deletes", () => {
     expect(next.projects).toHaveLength(0);
     expect(next.activities.map((activity) => activity.id)).toEqual(["shared"]);
     expect(next.allocations.map((allocation) => allocation.id)).toEqual(["attributed"]);
-    expect(next.allocations[0]?.projectId).toBeUndefined();
-    expect(next.allocations[0]?.updatedAt).toBe(CASCADE_REVISION);
+    expect(next.allocations[0].projectId).toBeUndefined();
+    expect(next.allocations[0].updatedAt).toBe(CASCADE_REVISION);
     expect(next.resources.find((r) => r.id === "ph1")!.projectId).toBeUndefined();
   });
 
@@ -779,24 +776,32 @@ describe("cascade deletes", () => {
     const revision = "2026-07-15T00:00:00.000Z";
 
     const afterPhase = deletePhaseCascade(sampleData(), "phase1", revision);
-    const activityWithoutPhase = afterPhase.activities.find((activity) => activity.id === "t1");
-    expect(activityWithoutPhase).toMatchObject({ id: "t1", updatedAt: revision });
-    expect(activityWithoutPhase).not.toHaveProperty("phaseId");
+    expect(afterPhase.activities.find((a) => a.id === "t1")).toMatchObject({
+      id: "t1",
+      phaseId: undefined,
+      updatedAt: revision,
+    });
 
     const afterProject = deleteProjectCascade(sampleData(), "p1", revision);
-    const projectlessAfterProject = afterProject.resources.find((resource) => resource.id === "ph1");
-    expect(projectlessAfterProject).toMatchObject({ id: "ph1", updatedAt: revision });
-    expect(projectlessAfterProject).not.toHaveProperty("projectId");
+    expect(afterProject.resources.find((r) => r.id === "ph1")).toMatchObject({
+      id: "ph1",
+      projectId: undefined,
+      updatedAt: revision,
+    });
 
     const afterClient = deleteClientCascade(sampleData(), "c1", revision);
-    const projectlessAfterClient = afterClient.resources.find((resource) => resource.id === "ph1");
-    expect(projectlessAfterClient).toMatchObject({ id: "ph1", updatedAt: revision });
-    expect(projectlessAfterClient).not.toHaveProperty("projectId");
+    expect(afterClient.resources.find((r) => r.id === "ph1")).toMatchObject({
+      id: "ph1",
+      projectId: undefined,
+      updatedAt: revision,
+    });
 
     const afterDiscipline = deleteDisciplineCascade(sampleData(), "d1", revision);
-    const undisciplined = afterDiscipline.resources.find((resource) => resource.id === "r1");
-    expect(undisciplined).toMatchObject({ id: "r1", updatedAt: revision });
-    expect(undisciplined).not.toHaveProperty("disciplineId");
+    expect(afterDiscipline.resources.find((r) => r.id === "r1")).toMatchObject({
+      id: "r1",
+      disciplineId: undefined,
+      updatedAt: revision,
+    });
   });
 
   it("does not mutate the input", () => {

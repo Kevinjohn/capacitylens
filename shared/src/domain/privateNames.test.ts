@@ -52,13 +52,12 @@ describe("private-name projection", () => {
     const data = { ...emptyAppData(), clients: [privateClient], projects: [privateProject] };
     const projected = redactPrivateNames(data);
     const projectedAgain = redactPrivateNames(projected);
-    expect(projectedAgain.clients[0]?.name).toBe('"Nightwing"');
-    expect(projectedAgain.projects[0]?.name).toBe('"Aurora"');
+    expect(projectedAgain.clients[0].name).toBe('"Nightwing"');
+    expect(projectedAgain.projects[0].name).toBe('"Aurora"');
   });
 
   it("fails closed to a neutral code name when a private row has no usable code name", () => {
-    const malformed = { ...privateClient, name: "Secret Real Name" };
-    delete malformed.codeName;
+    const malformed = { ...privateClient, name: "Secret Real Name", codeName: undefined };
     const redacted = redactPrivateName(malformed);
     expect(redacted.name).toBe('"Confidential #c1"');
     expect(redacted.name).not.toContain("Secret Real Name");
@@ -66,8 +65,7 @@ describe("private-name projection", () => {
   });
 
   it("does not mistake a quoted private real name for a trusted prior projection", () => {
-    const malformed = { ...privateClient, name: '"Secret Real Name"' };
-    delete malformed.codeName;
+    const malformed = { ...privateClient, name: '"Secret Real Name"', codeName: undefined };
     const redacted = redactPrivateName(malformed);
     expect(redacted.name).toBe('"Confidential #c1"');
     expect(redacted.name).not.toContain("Secret Real Name");
@@ -100,13 +98,13 @@ describe("private-name projection", () => {
   });
 
   it("redacts only clients and projects, leaving public names and all other tables untouched", () => {
-    const publicClient: Client = {
+    const publicClient = {
       ...privateClient,
       id: "c2",
       name: "Public Client",
+      isPrivate: undefined,
+      codeName: undefined,
     };
-    delete publicClient.isPrivate;
-    delete publicClient.codeName;
     const data = {
       ...emptyAppData(),
       clients: [privateClient, publicClient],
@@ -114,7 +112,7 @@ describe("private-name projection", () => {
     };
     const visible = redactPrivateNames(data);
     expect(visible.clients.map((c) => c.name)).toEqual(['"Nightwing"', "Public Client"]);
-    expect(visible.projects[0]?.name).toBe('"Aurora"');
+    expect(visible.projects[0].name).toBe('"Aurora"');
     expect(visible.accounts).toBe(data.accounts);
   });
 });

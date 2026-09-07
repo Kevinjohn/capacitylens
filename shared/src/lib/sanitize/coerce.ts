@@ -41,9 +41,7 @@ export const normalizeISODate = (value: unknown): unknown => {
   if (typeof value !== "string") return value;
   const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(value.trim());
   if (!match) return value;
-  const [, year, month, day] = match;
-  if (year === undefined || month === undefined || day === undefined) return value;
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  return `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`;
 };
 
 // DE-DUPLICATE: the scheduling math keys weekend-awareness on workingDays.length (a

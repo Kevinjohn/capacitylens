@@ -187,7 +187,6 @@ export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData
       );
     });
     const retained = builtins[0];
-    if (!retained) continue;
     retainedIndexes.add(retained.index);
     for (const duplicate of builtins.slice(1)) {
       duplicateIndexes.add(duplicate.index);
