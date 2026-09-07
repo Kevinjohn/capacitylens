@@ -356,22 +356,30 @@ function readDeletedResourceResponse(response: unknown): DeletedResourceResponse
   return readDeletedResource(readResponseBodyRecord(response));
 }
 
-function readDeletedResourceState(response: unknown, id: string): DeletedResourceResponse {
-  const resources = readResponseBodyRecord(response).resources;
-  if (!Array.isArray(resources)) {
-    throw new Error("Expected lifecycle state resource rows.");
+function readEntityRecord(body: Record<string, unknown>, entity: string, id: string): Record<string, unknown> {
+  const rows = body[entity];
+  if (!Array.isArray(rows)) {
+    throw new Error(`Expected lifecycle state ${entity} rows.`);
   }
-  let resource: unknown;
-  for (const row of resources) {
+  for (const row of rows) {
     const candidate: unknown = row;
     if (isUnknownRecord(candidate) && candidate.id === id) {
-      resource = candidate;
-      break;
+      return candidate;
     }
   }
-  if (resource === undefined) {
-    throw new Error(`Expected lifecycle state resource ${id}.`);
+  throw new Error(`Expected lifecycle state ${entity} row ${id}.`);
+}
+
+function readRequiredString(record: Record<string, unknown>, property: string): string {
+  const value = record[property];
+  if (typeof value !== "string") {
+    throw new Error(`Expected lifecycle state ${property} to be a string.`);
   }
+  return value;
+}
+
+function readDeletedResourceState(response: unknown, id: string): DeletedResourceResponse {
+  const resource = readEntityRecord(readResponseBodyRecord(response), "resources", id);
   return readDeletedResource(resource);
 }
 
@@ -1196,16 +1204,16 @@ describe("P2.5a lifecycle — targeted writes preserve unrelated siblings", () =
     // Admin read (includeInactive=1) so the inactive siblings are visible to assert against.
     const after = await readInactive(app, "a1");
     expect(after.statusCode).toBe(200);
-    const body = after.json();
-    const byId = (id: string) => body.resources.find((r: { id: string }) => r.id === id);
+    const body = readResponseBodyRecord(after);
+    const resourceById = (id: string) => readEntityRecord(body, "resources", id);
 
     // (a) the unrelated archived sibling still carries its archivedAt.
-    expect(byId("rArc").archivedAt).toBe(TS);
+    expect(readRequiredString(resourceById("rArc"), "archivedAt")).toBe(TS);
     // (b) the unrelated tombstone still carries its deletedAt.
-    expect(byId("rDel").deletedAt).toBe(THIRTY_ONE_DAYS_AGO);
+    expect(readRequiredString(resourceById("rDel"), "deletedAt")).toBe(THIRTY_ONE_DAYS_AGO);
     // (c) the time-off note survives the unrelated lifecycle write.
-    const to = body.timeOff.find((t: { id: string }) => t.id === "to1");
-    expect(to.note).toBe(TIMEOFF_NOTE);
+    const timeOff = readEntityRecord(body, "timeOff", "to1");
+    expect(readRequiredString(timeOff, "note")).toBe(TIMEOFF_NOTE);
   });
 });
 
