@@ -8,6 +8,7 @@ import { attachPersistence } from "../data/persist";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { setOfflineReadState } from "../data/offlineCache";
 import { markCompanyPickerForNextReload } from "../lib/companyPickerEntry";
+import { m } from "@/i18n";
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
 vi.mock("@/i18n", async (importOriginal) => ({
@@ -375,6 +376,25 @@ describe("AppShell navigation links", () => {
     renderAppShell(["/resources/"]);
 
     await waitFor(() => expect(document.title).toBe("Resources · CapacityLens"));
+  });
+
+  it("resolves navigation labels again after the account locale changes", async () => {
+    let secondLocale = false;
+    vi.spyOn(m, "nav_resources").mockImplementation(
+      () => (secondLocale ? "Ressources" : "Resources") as ReturnType<typeof m.nav_resources>,
+    );
+
+    renderAppShell(["/resources"]);
+    await waitFor(() => expect(screen.getByRole("link", { name: "Resources" })).toBeInTheDocument());
+    expect(document.title).toBe("Resources · CapacityLens");
+
+    secondLocale = true;
+    act(() => {
+      useStore.setState({ data: makeAppData({ accounts: [makeAccount({ language: "fr" })] }) });
+    });
+
+    await waitFor(() => expect(screen.getByRole("link", { name: "Ressources" })).toBeInTheDocument());
+    expect(document.title).toBe("Ressources · CapacityLens");
   });
 
   it("preserves the last locale while a selected company's slice is still loading", async () => {
