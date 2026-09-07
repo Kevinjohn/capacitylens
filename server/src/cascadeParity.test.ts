@@ -97,7 +97,16 @@ function seed(): AppData {
     { id: "t5", accountId: ACCOUNT, name: "Design system", kind: "repeatable", ...meta },
     { id: "t9", accountId: OTHER_ACCOUNT, name: "Theirs", kind: "project", projectId: "p9", ...meta },
   ];
-  const allocation = (id: string, resourceId: string, activityId: string, accountId = ACCOUNT, projectId?: string) => ({
+
+  interface AllocationInput {
+    id: string;
+    resourceId: string;
+    activityId: string;
+    accountId?: string | undefined;
+    projectId?: string | undefined;
+  }
+
+  const allocation = ({ id, resourceId, activityId, accountId = ACCOUNT, projectId }: AllocationInput) => ({
     id,
     accountId,
     resourceId,
@@ -110,13 +119,13 @@ function seed(): AppData {
     ...meta,
   });
   d.allocations = [
-    allocation("al1", "r1", "t1"),
-    allocation("al2", "r1", "t2"),
-    allocation("al3", "r2", "t3"),
-    allocation("al4", "r3", "t4"),
-    allocation("al5", "r1", "t5", ACCOUNT, "p1"),
-    allocation("al6", "r1", "t5", ACCOUNT, "p3"),
-    allocation("al9", "r9", "t9", OTHER_ACCOUNT),
+    allocation({ id: "al1", resourceId: "r1", activityId: "t1" }),
+    allocation({ id: "al2", resourceId: "r1", activityId: "t2" }),
+    allocation({ id: "al3", resourceId: "r2", activityId: "t3" }),
+    allocation({ id: "al4", resourceId: "r3", activityId: "t4" }),
+    allocation({ id: "al5", resourceId: "r1", activityId: "t5", accountId: ACCOUNT, projectId: "p1" }),
+    allocation({ id: "al6", resourceId: "r1", activityId: "t5", accountId: ACCOUNT, projectId: "p3" }),
+    allocation({ id: "al9", resourceId: "r9", activityId: "t9", accountId: OTHER_ACCOUNT }),
   ];
   const off = (id: string, resourceId: string, accountId = ACCOUNT) => ({
     id,

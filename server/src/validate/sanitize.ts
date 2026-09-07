@@ -154,7 +154,7 @@ export function sanitizeWrite(
     // it from every row they ever received), their write body is missing that key BY CONSTRUCTION —
     // pin it to the stored value on an UPDATE, strip it on a CREATE. A writer who CAN see the field
     // (owner/admin, or auth OFF) passes through untouched.
-    pinGatedFields(table, cleaned, existing, options);
+    pinGatedFields({ table, cleaned, existing, options });
     return cleaned;
   }
   return copy;

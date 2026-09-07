@@ -202,7 +202,7 @@ describe("federated link observation reconciliation", () => {
       CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
     });
     await runAuthMigrations(configured.auth!);
-    const ceremony = createFederatedLinkCeremony(db, "principal-1", "workforce");
+    const ceremony = createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "workforce" });
 
     configured.auth!.reconcileFederatedLinks!();
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([{ id: ceremony.id }]);
@@ -249,7 +249,7 @@ describe("federated link observation reconciliation", () => {
       CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
     });
     await runAuthMigrations(configured.auth!);
-    createFederatedLinkCeremony(db, "principal-1", "workforce", "abandoned");
+    createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "workforce", ceremonyId: "abandoned" });
     db.prepare(
       `INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -263,9 +263,13 @@ describe("federated link observation reconciliation", () => {
     );
 
     expect(
-      createFederatedLinkCeremony(db, "principal-1", "workforce", "replacement", () =>
-        revokeFederatedLinkStateInTx(db, "principal-1"),
-      ).id,
+      createFederatedLinkCeremony({
+        db,
+        principalId: "principal-1",
+        providerId: "workforce",
+        ceremonyId: "replacement",
+        revokeSupersededProviderStateInTransaction: () => revokeFederatedLinkStateInTx(db, "principal-1"),
+      }).id,
     ).toBe("replacement");
     expect(
       db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies WHERE principalId = ?`).all("principal-1"),
@@ -289,7 +293,7 @@ describe("federated link observation reconciliation", () => {
       `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
        VALUES (?, ?, ?, 1, ?, ?)`,
     ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
-    createFederatedLinkCeremony(db, "principal-1", "workforce");
+    createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "workforce" });
     db.prepare(
       `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?)`,

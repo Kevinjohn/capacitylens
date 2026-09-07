@@ -19,13 +19,22 @@ import { isProtectedDatabasePath, listSnapshots, readMainDatabaseIdentity, prune
 // the thing that corrupts it). A fixed constant rather than 2× the interval because the interval
 // is operator-tunable down to seconds, which would defeat the margin.
 const TMP_SWEEP_AGE_MS = 60 * 60_000;
-export function startBackups(
-  db: Db,
-  config: BackupConfig,
-  log: (msg: string) => void = console.log,
-  now: () => Date = () => new Date(),
-  publisher: DurableSnapshotPublisher = durableSnapshotPublisher,
-): Backups {
+
+interface StartBackupsInput {
+  db: Db;
+  config: BackupConfig;
+  log?: ((msg: string) => void) | undefined;
+  now?: (() => Date) | undefined;
+  publisher?: DurableSnapshotPublisher | undefined;
+}
+
+export function startBackups({
+  db,
+  config,
+  log = console.log,
+  now = () => new Date(),
+  publisher = durableSnapshotPublisher,
+}: StartBackupsInput): Backups {
   // Deliberately fatal: the operator asked for backups via CAPACITYLENS_BACKUP_DIR, and a directory
   // we cannot create or restrict means snapshots cannot meet their configured privacy boundary.
   // Booting anyway would silently run without trustworthy backups. Later housekeeping degrades.
@@ -70,11 +79,10 @@ export function startBackups(
   //   2. The monotonic bump makes reuse impossible among the names THIS instance has issued — two
   //      snapshots in the same ms, or a clock stepping backwards mid-run, bump past the last stamp.
   //   3. The restart seeding (floor = the newest snapshot already on disk) extends that across
-  //      restarts — but only approximately: stampMs() parses names with the LOCAL-time Date
-  //      constructor, which is ambiguous in the DST fall-back hour, so the seeded floor can sit up
-  //      to 1h LOW and a clock rollback could still steer a stamp onto an existing file. It stays
-  //      as a good floor (cheap, right outside that hour).
-  //   4. The existsSync loop in uniqueStamp() is the DEFINITIVE backstop *within this process*:
+  //      restarts. parseSnapshotTimestamp() reads new names as UTC. Legacy names retain local-time
+  //      parsing, which is ambiguous in the DST fall-back hour: their seeded floor can sit up to
+  //      1h LOW, so a clock rollback could still steer a stamp onto an existing file.
+  //   4. The existsSync loop in createUniqueSnapshotName() is the DEFINITIVE backstop *within this process*:
   //      whatever the clock or the parse did, a name already on disk is never reused — bump 1ms
   //      and regenerate. It terminates because each iteration strictly advances lastStampMs past
   //      one of finitely many files.
@@ -123,16 +131,24 @@ export function startBackups(
   /** The actual write. Only ever runs serialized (via snapshotNow's chain) — never call directly. */
   const writeSnapshot = async (): Promise<string> => {
     // Claim the temp name EXCLUSIVELY (`wx` = O_EXCL: atomic fail-if-exists) before writing.
-    // existsSync in uniqueStamp() only covers finished `.db` names within this process; the
+    // existsSync in createUniqueSnapshotName() only covers finished `.db` names within this process; the
     // exclusive create is what stops a sibling instance from writing into the same temp file.
     // EEXIST just means the name is taken — bump to the next stamp and retry (terminates:
-    // uniqueStamp strictly advances past one of finitely many files per iteration).
+    // createUniqueSnapshotName strictly advances past one of finitely many files per iteration).
     const { file, tmp } = claimBackupTemp(() => join(config.dir, createUniqueSnapshotName()));
     try {
       // Write to the temp name and rename on success: rename is atomic on the same filesystem,
       // so a torn write (crash, full disk) never sits behind a valid snapshot name. Read the
       // source version for this attempt rather than caching it.
-      await writeVerifiedSnapshot(db, tmp, file, config.dir, "scheduled snapshot", readDatabaseVersion(db), publisher);
+      await writeVerifiedSnapshot({
+        db,
+        tmp,
+        file,
+        dir: config.dir,
+        label: "scheduled snapshot",
+        expectedVersion: readDatabaseVersion(db),
+        publisher,
+      });
     } catch (error) {
       health.degraded = true;
       // A failed write must not orphan its temp file: prune() and the start-up sweep both
@@ -144,7 +160,7 @@ export function startBackups(
     }
     // The just-published file is an explicit retention exclusion as a final fail-safe: a successful
     // snapshotNow() must never return a path that its own retention pass removed.
-    const pruned = prune(config.dir, config.keep, liveDatabase, file, log);
+    const pruned = prune({ dir: config.dir, keep: config.keep, database: liveDatabase, currentFile: file, log });
     if (pruned > 0) {
       try {
         // The new snapshot name was already synced before prune. Persist retention metadata too;
@@ -173,7 +189,7 @@ export function startBackups(
     // `current`, which stop() awaits — an unserialized overlap could null it while the older
     // snapshot still runs, letting shutdown close the DB underneath it). The predecessor's
     // rejection is swallowed HERE only as a queueing detail: its own initiator already surfaces
-    // it (safeSnapshot logs; direct callers hold the rejection), and a failed predecessor must
+    // it (writeSnapshotSafely logs; direct callers hold the rejection), and a failed predecessor must
     // not fail this independent snapshot.
     const run = (current ?? Promise.resolve()).then(writeSnapshot, writeSnapshot);
     current = run;
@@ -211,7 +227,7 @@ export function startBackups(
     // re-reads `current` after each settle (the clear handler nulls it only when it still
     // points at its own run) and only resolves once the tail is stable. Swallowing rejections
     // here is deliberate and safe: every snapshot's own initiator already surfaces its failure
-    // (safeSnapshot logs it; direct snapshotNow() callers get the rejection) — stop() only
+    // (writeSnapshotSafely logs it; direct snapshotNow() callers get the rejection) — stop() only
     // cares that the writes ended.
     while (current) await current.catch(() => undefined);
   };

@@ -1874,7 +1874,15 @@ describe("schema migration of an existing on-disk DB", () => {
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 24;
       PRAGMA user_version = 23;
     `);
-    const insert = (accountId: string, id: string, usedAt: string | null, expiresAt = "2999-01-01T00:00:00.000Z") =>
+
+    interface InsertInput {
+      accountId: string;
+      id: string;
+      usedAt: string | null;
+      expiresAt?: string | undefined;
+    }
+
+    const insert = ({ accountId, id, usedAt, expiresAt = "2999-01-01T00:00:00.000Z" }: InsertInput) =>
       createInvite(db, {
         token: `token-${accountId}-${id}`,
         id,
@@ -1886,12 +1894,16 @@ describe("schema migration of an existing on-disk DB", () => {
         createdAt: "2026-01-01T00:00:00.000Z",
       });
     for (let index = 0; index < USED_INVITATION_RETENTION_LIMIT + 2; index += 1) {
-      insert("account-1", `recent-${String(index).padStart(3, "0")}`, "2998-01-01T00:00:00.000Z");
+      insert({
+        accountId: "account-1",
+        id: `recent-${String(index).padStart(3, "0")}`,
+        usedAt: "2998-01-01T00:00:00.000Z",
+      });
     }
-    insert("account-1", "old", "2000-01-01T00:00:00.000Z");
-    insert("account-1", "live", null);
-    insert("account-1", "expired-unused", null, "2000-01-01T00:00:00.000Z");
-    insert("account-2", "other-account", "2998-01-01T00:00:00.000Z");
+    insert({ accountId: "account-1", id: "old", usedAt: "2000-01-01T00:00:00.000Z" });
+    insert({ accountId: "account-1", id: "live", usedAt: null });
+    insert({ accountId: "account-1", id: "expired-unused", usedAt: null, expiresAt: "2000-01-01T00:00:00.000Z" });
+    insert({ accountId: "account-2", id: "other-account", usedAt: "2998-01-01T00:00:00.000Z" });
 
     expect(planDatabaseMigrations(db).migrations).toEqual([
       {

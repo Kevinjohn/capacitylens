@@ -135,14 +135,16 @@ export function redactGatedEcho(
   return visible;
 }
 
+interface PinGatedFieldsInput {
+  table: string;
+  cleaned: Record<string, unknown>;
+  existing: Record<string, unknown> | undefined;
+  options: SanitizeWriteOptions;
+}
+
 /** Apply every gated-field WRITE pin (behaviour 2) whose policy governs `table` and whose flag is
- *  `false` on `opts`. Mutates `cleaned` in place, mirroring sanitizeWrite's tombstone pin. */
-export function pinGatedFields(
-  table: string,
-  cleaned: Record<string, unknown>,
-  existing: Record<string, unknown> | undefined,
-  options: SanitizeWriteOptions,
-): void {
+ *  `false` on `options`. Mutates `cleaned` in place, mirroring sanitizeWrite's tombstone pin. */
+export function pinGatedFields({ table, cleaned, existing, options }: PinGatedFieldsInput): void {
   for (const policy of GATED_FIELD_POLICIES) {
     if (policy.tables.includes(table) && options[policy.visKey] === false) {
       policy.pin(cleaned, existing);

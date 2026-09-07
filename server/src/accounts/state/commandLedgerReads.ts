@@ -45,12 +45,19 @@ function parseAccountCommandRow(row: Record<string, unknown>): AccountCommandRec
   };
 }
 
-export function getAccountCommand(
-  db: Db,
-  applicationId: string,
-  operation: string,
-  idempotencyKey: IdempotencyKey,
-): AccountCommandRecord | null {
+interface GetAccountCommandInput {
+  db: Db;
+  applicationId: string;
+  operation: string;
+  idempotencyKey: IdempotencyKey;
+}
+
+export function getAccountCommand({
+  db,
+  applicationId,
+  operation,
+  idempotencyKey,
+}: GetAccountCommandInput): AccountCommandRecord | null {
   const row = db
     .prepare(
       `

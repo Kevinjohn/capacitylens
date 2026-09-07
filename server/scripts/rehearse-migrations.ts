@@ -189,16 +189,16 @@ async function main(): Promise<void> {
     const happy = openDbConnection(happyPath);
     let rollback: string | null;
     try {
-      rollback = await writePreMigrationBackup(
-        happy,
-        {
+      rollback = await writePreMigrationBackup({
+        db: happy,
+        options: {
           dbPath: happyPath,
           fromVersion: plan.fromVersion,
           toVersion: plan.toVersion,
           dir: backups,
         },
-        () => {},
-      );
+        log: () => {},
+      });
       initializeOpenDb(happy, happyPath);
       checkIntegrity(happy, "happy path");
       assertPreserved(beforeCounts, readRowCountsByTable(happy), expectedCounts);

@@ -4,187 +4,12 @@
       "count": 3
     }
   },
-  "server/src/accountConfig.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/accounts/adminPort/authority.ts": {
-    "max-params": {
-      "count": 7
-    }
-  },
-  "server/src/accounts/commands.ts": {
-    "max-params": {
-      "count": 7
-    }
-  },
-  "server/src/accounts/conformance/architecture.test.ts": {
-    "max-params": {
-      "count": 4
-    }
-  },
-  "server/src/accounts/conformance/localIdentityPort.conformance.test.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "server/src/accounts/flows/actorContext.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/accounts/identityPort/sessionRevocation.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/accounts/memberSignInTracking.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/accounts/state/commandLedgerReads.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/accounts/state/commandLedgerWrites.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "server/src/accounts/state/federatedProviders.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/accounts/state/sessionAssurance.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/app.auth.test.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/app.authz.test.ts": {
-    "max-params": {
-      "count": 11
-    }
-  },
-  "server/src/app.erasure.test.ts": {
-    "max-params": {
-      "count": 3
-    }
-  },
-  "server/src/app.lifecycle.test.ts": {
-    "max-params": {
-      "count": 6
-    }
-  },
-  "server/src/app.members.test.ts": {
-    "max-params": {
-      "count": 6
-    }
-  },
-  "server/src/app.resetPassword.test.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "server/src/app.test.ts": {
-    "max-params": {
-      "count": 7
-    }
-  },
-  "server/src/audit.test.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "server/src/authConfig/bootstrapAdmin.ts": {
     "max-params": {
       "count": 1
     }
   },
-  "server/src/backup.ts": {
-    "max-params": {
-      "count": 3
-    }
-  },
-  "server/src/backup/preMigration.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "server/src/backup/publish.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "server/src/backup/retention.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/backup/scheduler.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/cascadeParity.test.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/cutoverRepair.test.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/db.migrate.test.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/db.tenantStore.test.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
   "server/src/db/migrationLedger.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/erasure.test.ts": {
-    "max-params": {
-      "count": 6
-    }
-  },
-  "server/src/federatedLinkLifecycle.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/fieldPolicy.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/internalTls.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/migrationPreservation.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "server/src/passwordSecurity.ts": {
     "max-params": {
       "count": 1
     }
@@ -249,16 +74,6 @@
       "count": 2
     }
   },
-  "server/src/shutdown.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/syncOrdering.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "server/src/tenantIndexes.ts": {
     "max-params": {
       "count": 1
@@ -269,17 +84,7 @@
       "count": 1
     }
   },
-  "server/src/tenantStore.ts": {
-    "max-params": {
-      "count": 3
-    }
-  },
   "server/src/txn.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/validate.ts": {
     "max-params": {
       "count": 1
     }
@@ -292,21 +97,6 @@
   "server/src/validate/sanitize.ts": {
     "max-params": {
       "count": 1
-    }
-  },
-  "server/src/workQueue.test.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/workQueue.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/writePipeline.ts": {
-    "max-params": {
-      "count": 3
     }
   },
   "shared/src/account/policy.ts": {

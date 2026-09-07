@@ -34,7 +34,13 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
   // a replayed batch (after a partial failure) is safe. The body's id must match the URL id.
   const put = async (req: FastifyRequest, reply: FastifyReply) => {
     const { id } = req.params as { id: string };
-    const bodyCheck = checkEntityWriteBody("replace", "accounts", req.body, id, false);
+    const bodyCheck = checkEntityWriteBody({
+      verb: "replace",
+      entity: "accounts",
+      body: req.body,
+      urlId: id,
+      scoped: false,
+    });
     if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
     const body = req.body as Record<string, unknown>;
     try {
@@ -138,7 +144,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
           bootstrapAuthorized: false,
           canonicalProductPayload: buildCanonicalAccountProductPayload(row),
           provisionProductData: () => {
-            assertValidWrite(scopedState, "accounts", row, existing);
+            assertValidWrite({ state: scopedState, table: "accounts", row, existing });
             upsertRow(db, "accounts", row);
             upsertRow(
               db,
@@ -169,7 +175,13 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
   // 404 when the row doesn't exist — a PATCH is therefore always an UPDATE, never a create.
   const patch = (req: FastifyRequest, reply: FastifyReply) => {
     const { id } = req.params as { id: string };
-    const bodyCheck = checkEntityWriteBody("patch", "accounts", req.body, id, false);
+    const bodyCheck = checkEntityWriteBody({
+      verb: "patch",
+      entity: "accounts",
+      body: req.body,
+      urlId: id,
+      scoped: false,
+    });
     if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
     try {
       const existing = getRow(db, "accounts", id);
@@ -214,7 +226,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
       // custom stores retain the complete-slice fallback. An account keys its own slice by id.
       const lookup = store.validationLookup?.();
       const validationState = lookup === undefined ? store.readFullSlice(id) : emptyAppData();
-      assertValidWrite(validationState, "accounts", stamped, existing, lookup);
+      assertValidWrite({ state: validationState, table: "accounts", row: stamped, existing, lookup });
       // Record only requested keys whose sanitized, pinned result actually differs from storage.
       commitProductAudit(
         reply,

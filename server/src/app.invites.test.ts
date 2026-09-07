@@ -943,7 +943,13 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
     ).run("github-link", "github", "github-subject", joiner.userId, timestamp, timestamp);
     const session = db.prepare(`SELECT token FROM session WHERE userId = ?`).get(joiner.userId) as { token: string };
     const sessionHandle = buildApplicationSessionHandle("capacitylens", session.token);
-    recordSessionAssurance(db, sessionHandle, joiner.userId, "federated", "github");
+    recordSessionAssurance({
+      db,
+      sessionId: sessionHandle,
+      principalId: joiner.userId,
+      assurance: "federated",
+      providerId: "github",
+    });
     const ssoApp = buildApp(db, { authMode: "sso", auth: configured.auth });
 
     const socialMe = await call(ssoApp, { method: "GET", url: "/api/auth/me", headers: { cookie: joiner.cookie } });
@@ -961,7 +967,13 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
       `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?)`,
     ).run("workforce-link", "workforce", "workforce-subject", joiner.userId, timestamp, timestamp);
-    recordSessionAssurance(db, sessionHandle, joiner.userId, "federated", "workforce");
+    recordSessionAssurance({
+      db,
+      sessionId: sessionHandle,
+      principalId: joiner.userId,
+      assurance: "federated",
+      providerId: "workforce",
+    });
     const strictProvision = await call(ssoApp, {
       method: "POST",
       url: "/api/orgs",
@@ -982,7 +994,13 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
       usedAt: null,
       createdAt: TS,
     });
-    recordSessionAssurance(db, sessionHandle, joiner.userId, "federated", "github");
+    recordSessionAssurance({
+      db,
+      sessionId: sessionHandle,
+      principalId: joiner.userId,
+      assurance: "federated",
+      providerId: "github",
+    });
 
     const refused = await acceptReq(ssoApp, "sso-provider-invite", { cookie: joiner.cookie });
     expect(refused.statusCode).toBe(403);
@@ -990,7 +1008,13 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
     expect(getMemberRole(db, "a1", joiner.userId)).toBeNull();
     expect(getInvite(db, "sso-provider-invite")!.usedAt).toBeNull();
 
-    recordSessionAssurance(db, sessionHandle, joiner.userId, "federated", "workforce");
+    recordSessionAssurance({
+      db,
+      sessionId: sessionHandle,
+      principalId: joiner.userId,
+      assurance: "federated",
+      providerId: "workforce",
+    });
     const accepted = await acceptReq(ssoApp, "sso-provider-invite", { cookie: joiner.cookie });
     expect(accepted.statusCode).toBe(200);
     expect(getMemberRole(db, "a1", joiner.userId)).toBe("editor");

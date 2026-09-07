@@ -1,11 +1,11 @@
 import type { CommandIdentity, PasswordResetCeremony } from "@capacitylens/shared/account/types";
 import type { AccountAuditInput, createAccountAuditWriter } from "../accountFlowRuntime";
-import type { terminateCommand } from "../commands";
+import type { CommandScope } from "../commands";
 import type { createLocalAccountFlows } from "../createLocalAccountFlows";
 import type { WriteOnceSecretReplay } from "../WriteOnceSecretReplay";
 
 export interface DenyIdentityAdminCommandInput {
-  scope: Pick<Parameters<typeof terminateCommand>[1], "applicationId" | "operation">;
+  scope: Pick<CommandScope, "applicationId" | "operation">;
   command: CommandIdentity;
   reason: string;
   actorPrincipalId: string;

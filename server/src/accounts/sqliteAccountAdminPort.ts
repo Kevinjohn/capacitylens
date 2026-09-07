@@ -72,7 +72,7 @@ export function createSqliteAccountAdminPort(input: {
         targetPrincipalId: options.targetPrincipalId ?? null,
         workspaceId: options.workspaceId ?? null,
       };
-      const begun = beginCommand<unknown>(db, scope, options.command, options.payload);
+      const begun = beginCommand<unknown>({ db, scope, command: options.command, canonicalPayload: options.payload });
       if (begun.kind === "replay") {
         options.replayGuard?.();
         return markAccountCommandReplay(
@@ -87,7 +87,12 @@ export function createSqliteAccountAdminPort(input: {
         // that proof for the transaction wrapper that also writes the command completion row.
         const transaction = (() => {
           const result = options.execute() as ReturnType<Execute>;
-          completeCommand(db, scope, options.command, options.persistResult ? options.persistResult(result) : result);
+          completeCommand({
+            db,
+            scope,
+            command: options.command,
+            result: options.persistResult ? options.persistResult(result) : result,
+          });
           if (options.audit) {
             audit({
               action: options.audit.action,
@@ -112,13 +117,13 @@ export function createSqliteAccountAdminPort(input: {
             tx(
               db,
               () => {
-                terminateCommand(
+                terminateCommand({
                   db,
                   scope,
-                  options.command,
-                  "compensated",
-                  error instanceof AccountContractError ? error.failure.code : "CONFLICT",
-                );
+                  command: options.command,
+                  status: "compensated",
+                  failureCode: error instanceof AccountContractError ? error.failure.code : "CONFLICT",
+                });
                 if (options.audit) {
                   const code = error instanceof AccountContractError ? error.failure.code : null;
                   const denied =

@@ -130,7 +130,7 @@ export function createCredentials(
           return eraseLocalPrincipalsInTx(db, [principalId], input.masqueradeSessions);
         });
         input.masqueradeSessions?.commit(masqueradeHandles);
-        return createOperationReceipt(command.commandId);
+        return createOperationReceipt({ commandId: command.commandId });
       } catch (error) {
         if (error instanceof MalformedVerificationStateError) {
           throw createInvalidVerificationStateError(command.commandId, error);
