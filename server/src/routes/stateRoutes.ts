@@ -126,7 +126,7 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
         // Refuse a cross-tenant read before any data leaves the DB. The authorize seam is the
         // single source of truth: OFF mode short-circuits to allow-all (trusted-local), auth-on
         // requires membership (read = any member, via can()) and 403s a non-member.
-        const authorization = authorize(req, reply, accountId, "read");
+        const authorization = authorize({ req, reply, accountId, action: "read" });
         if (!authorization) return;
         // P1.6 field-level redaction: the time-off `note` is owner/admin-only. Decide visibility from
         // the caller's role and redact it SERVER-SIDE so it never serializes for an Editor/Viewer.
@@ -156,7 +156,7 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
           return reply.code(400).send({ error: "includeInactive must be the literal value 1 when present." });
         }
         const wantsInactive = includeInactive === "1";
-        if (wantsInactive && !authorize(req, reply, accountId, "purge")) return;
+        if (wantsInactive && !authorize({ req, reply, accountId, action: "purge" })) return;
         // P2.4: the NORMAL app read HIDES archived/soft-deleted resources/clients/projects — pass
         // includeInactive:false so readSlice drops them server-side (the same rule the client views
         // apply via useActiveScopedData). The P2.5a admin read passes true to retain them.
@@ -258,7 +258,7 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
         provisionProductData: () => {
           // Finding 9: accounts validation is name-only (validate.ts), so it needs no cross-table
           // data — a full-DB loadState here was pure waste. Scope to this account's (empty) slice.
-          assertValidWrite(emptyAppData(), "accounts", accountRow);
+          assertValidWrite({ state: emptyAppData(), table: "accounts", row: accountRow });
           insertRow(db, "accounts", accountRow);
           insertRow(db, "clients", buildInternalClient(id, now) as unknown as Record<string, unknown>);
           enqueueAudit(db, {

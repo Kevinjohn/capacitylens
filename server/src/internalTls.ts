@@ -52,20 +52,27 @@ export function buildInternalTlsHealth(
   };
 }
 
+interface LoadInternalTlsInput {
+  environment: InternalTlsEnv;
+  read?: ((path: string) => Buffer) | undefined;
+  expiry?: ((certificate: Buffer) => string) | undefined;
+  validateIdentity?: ((certificate: Buffer, privateKey: Buffer) => void) | undefined;
+}
+
 /**
  * Load the API's internal HTTPS identity. Both paths are required together; a partial or unreadable
  * configuration refuses startup instead of silently falling back to plaintext. Omitting both keeps
  * local development and same-host reverse-proxy deployments HTTP-compatible. Production warns when
  * both are absent, while the default Compose deployment supplies a per-install certificate set.
  */
-export function loadInternalTls(
-  environment: InternalTlsEnv,
-  read: (path: string) => Buffer = (path) => readFileSync(path),
-  expiry: (certificate: Buffer) => string = parseCertificateExpiry,
-  validateIdentity: (certificate: Buffer, privateKey: Buffer) => void = (certificate, privateKey) => {
+export function loadInternalTls({
+  environment,
+  read = (path) => readFileSync(path),
+  expiry = parseCertificateExpiry,
+  validateIdentity = (certificate, privateKey) => {
     createSecureContext({ cert: certificate, key: privateKey });
   },
-): InternalTlsOptions | undefined {
+}: LoadInternalTlsInput): InternalTlsOptions | undefined {
   const rawCertPath = environment.CAPACITYLENS_INTERNAL_TLS_CERT;
   const rawKeyPath = environment.CAPACITYLENS_INTERNAL_TLS_KEY;
   const rawGenerationPath = environment.CAPACITYLENS_INTERNAL_TLS_GENERATION;

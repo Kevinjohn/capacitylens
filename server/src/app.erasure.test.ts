@@ -31,12 +31,14 @@ async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   return { app: createApp(db, { authMode: mode, auth }), db };
 }
 
-const deleteAccountRoute = (
-  app: FastifyInstance,
-  id: string,
-  cookie: string,
-  command?: { commandId: string; idempotencyKey: string },
-) =>
+interface DeleteAccountRouteInput {
+  app: FastifyInstance;
+  id: string;
+  cookie: string;
+  command?: { commandId: string; idempotencyKey: string } | undefined;
+}
+
+const deleteAccountRoute = ({ app, id, cookie, command }: DeleteAccountRouteInput) =>
   call(app, {
     method: "DELETE",
     url: `/api/accounts/${id}`,
@@ -93,7 +95,14 @@ function seedResetToken(db: Db, userId: string, id = `verification-${userId}`): 
   ).run(id, `reset-password:${id}`, userId, TS, TS, TS);
 }
 
-function seedAccountLinkState(db: Db, userId: string, email: string, id: string): void {
+interface SeedAccountLinkStateInput {
+  db: Db;
+  userId: string;
+  email: string;
+  id: string;
+}
+
+function seedAccountLinkState({ db, userId, email, id }: SeedAccountLinkStateInput): void {
   const value = JSON.stringify({
     callbackURL: "http://localhost:3000/settings",
     codeVerifier: `code-${id}`,
@@ -107,8 +116,15 @@ function seedAccountLinkState(db: Db, userId: string, email: string, id: string)
   ).run(id, id, value, TS, TS, TS);
 }
 
+interface SeedMembershipAndInviteInput {
+  db: Db;
+  accountId: string;
+  userId: string;
+  role: "owner" | "admin";
+}
+
 /** Seed a control-table membership + one outstanding invite for an account (the PII surfaces with no FK). */
-function seedMembershipAndInvite(db: Db, accountId: string, userId: string, role: "owner" | "admin"): void {
+function seedMembershipAndInvite({ db, accountId, userId, role }: SeedMembershipAndInviteInput): void {
   upsertMember(db, { accountId, userId, role, status: "active", createdAt: TS });
   createInvite(db, {
     token: `tok-${accountId}`,
@@ -133,8 +149,8 @@ describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
     // Each account has a sole owner, a membership row and an invite (the no-FK PII surfaces).
     const u1 = await signUp(app, "a-owner1@capacitylens.dev");
     const u2 = await signUp(app, "a-owner2@capacitylens.dev");
-    seedMembershipAndInvite(db, "a1", u1.userId, "owner");
-    seedMembershipAndInvite(db, "a2", u2.userId, "owner");
+    seedMembershipAndInvite({ db, accountId: "a1", userId: u1.userId, role: "owner" });
+    seedMembershipAndInvite({ db, accountId: "a2", userId: u2.userId, role: "owner" });
     // Use the retained a2 owner as actor so identity cleanup cannot incidentally remove this row.
     // The only reason the target command disappears must be its a1 workspace correlation.
     reserveAccountCommand(db, {
@@ -169,7 +185,7 @@ describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
     expect(memberCount(db, "a1")).toBe(1);
     expect(inviteCount(db, "a1")).toBe(1);
 
-    const res = await deleteAccountRoute(app, "a1", u1.cookie);
+    const res = await deleteAccountRoute({ app, id: "a1", cookie: u1.cookie });
     expect(res.statusCode).toBe(204);
 
     // a1 is GONE everywhere: account row, scoped clients, membership row, invite.
@@ -210,10 +226,10 @@ describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
 
     const u1 = await signUp(app, "boundary-route-owner1@capacitylens.dev");
     const u2 = await signUp(app, "boundary-route-owner2@capacitylens.dev");
-    seedMembershipAndInvite(db, "a1", u1.userId, "owner");
-    seedMembershipAndInvite(db, "a2", u2.userId, "owner");
+    seedMembershipAndInvite({ db, accountId: "a1", userId: u1.userId, role: "owner" });
+    seedMembershipAndInvite({ db, accountId: "a2", userId: u2.userId, role: "owner" });
 
-    const res = await deleteAccountRoute(app, "a1", u1.cookie);
+    const res = await deleteAccountRoute({ app, id: "a1", cookie: u1.cookie });
     expect(res.statusCode).toBe(500);
     expect(res.json()).toEqual({ error: "Internal server error" });
 
@@ -247,8 +263,8 @@ describe("P2.6b erasure — (b) last-company identity removal reopens password s
       targetPrincipalId: u.userId,
       payloadHash: "a".repeat(64),
     });
-    seedAccountLinkState(db, u.userId, "sole-owner@capacitylens.dev", "link-sole-owner");
-    seedAccountLinkState(db, "unrelated-user", "unrelated@capacitylens.dev", "link-unrelated");
+    seedAccountLinkState({ db, userId: u.userId, email: "sole-owner@capacitylens.dev", id: "link-sole-owner" });
+    seedAccountLinkState({ db, userId: "unrelated-user", email: "unrelated@capacitylens.dev", id: "link-unrelated" });
     db.prepare(
       `
       INSERT INTO twoFactor (id, secret, backupCodes, userId, verified, failedVerificationCount)
@@ -266,7 +282,7 @@ describe("P2.6b erasure — (b) last-company identity removal reopens password s
     expect(verificationExists(db, "link-sole-owner")).toBe(true);
     expect(verificationExists(db, "link-unrelated")).toBe(true);
 
-    expect((await deleteAccountRoute(app, "a1", u.cookie)).statusCode).toBe(204);
+    expect((await deleteAccountRoute({ app, id: "a1", cookie: u.cookie })).statusCode).toBe(204);
 
     expect(userRow(db, u.userId)).toBeUndefined();
     expect(authAccountCount(db, u.userId)).toBe(0);
@@ -319,9 +335,9 @@ describe("P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)", (
       idempotencyKey: "workspace-erasure-idempotency-replay-01",
     };
 
-    expect((await deleteAccountRoute(app, "a1", actor.cookie, command)).statusCode).toBe(204);
+    expect((await deleteAccountRoute({ app, id: "a1", cookie: actor.cookie, command })).statusCode).toBe(204);
     expect(accountCount(db, "a1")).toBe(0);
-    expect((await deleteAccountRoute(app, "a1", actor.cookie, command)).statusCode).toBe(204);
+    expect((await deleteAccountRoute({ app, id: "a1", cookie: actor.cookie, command })).statusCode).toBe(204);
     expect(
       (
         db
@@ -335,9 +351,14 @@ describe("P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)", (
       ).n,
     ).toBe(1);
 
-    const unrelated = await deleteAccountRoute(app, "a1", actor.cookie, {
-      commandId: "workspace-erasure-unrelated-command-01",
-      idempotencyKey: "workspace-erasure-unrelated-key-0001",
+    const unrelated = await deleteAccountRoute({
+      app,
+      id: "a1",
+      cookie: actor.cookie,
+      command: {
+        commandId: "workspace-erasure-unrelated-command-01",
+        idempotencyKey: "workspace-erasure-unrelated-key-0001",
+      },
     });
     expect(unrelated.statusCode).toBe(403);
   });
@@ -349,9 +370,14 @@ describe("P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)", (
     upsertMember(db, { accountId: "a1", userId: m.userId, role: "owner", status: "active", createdAt: TS });
     upsertMember(db, { accountId: "a2", userId: m.userId, role: "editor", status: "active", createdAt: TS });
     seedResetToken(db, m.userId);
-    seedAccountLinkState(db, m.userId, "multi-account-member@capacitylens.dev", "link-multi-account");
+    seedAccountLinkState({
+      db,
+      userId: m.userId,
+      email: "multi-account-member@capacitylens.dev",
+      id: "link-multi-account",
+    });
 
-    expect((await deleteAccountRoute(app, "a1", m.cookie)).statusCode).toBe(204);
+    expect((await deleteAccountRoute({ app, id: "a1", cookie: m.cookie })).statusCode).toBe(204);
 
     // a1's membership for M is gone; a2's membership survives.
     expect(memberCount(db, "a1")).toBe(0);
@@ -403,7 +429,7 @@ describe("P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)", (
         );
       }
 
-      expect((await deleteAccountRoute(app, "a1", member.cookie)).statusCode).toBe(204);
+      expect((await deleteAccountRoute({ app, id: "a1", cookie: member.cookie })).statusCode).toBe(204);
 
       // Any control row in a surviving workspace retains its principal so the row cannot dangle,
       // even when its status grants no live access. A row targeting a missing workspace has no
@@ -426,11 +452,11 @@ describe("P2.6b erasure — (d) account_members + invites for the deleted accoun
     const { app, db } = await appWithAuth();
     insertAll(db, { ...emptyAppData(), accounts: [account("a1")] } as unknown as AppData);
     const u = await signUp(app, "d-owner@capacitylens.dev");
-    seedMembershipAndInvite(db, "a1", u.userId, "owner");
+    seedMembershipAndInvite({ db, accountId: "a1", userId: u.userId, role: "owner" });
     expect(memberCount(db, "a1")).toBe(1);
     expect(inviteCount(db, "a1")).toBe(1);
 
-    expect((await deleteAccountRoute(app, "a1", u.cookie)).statusCode).toBe(204);
+    expect((await deleteAccountRoute({ app, id: "a1", cookie: u.cookie })).statusCode).toBe(204);
 
     expect(memberCount(db, "a1")).toBe(0);
     expect(inviteCount(db, "a1")).toBe(0);
@@ -460,7 +486,7 @@ describe("P2.6b erasure — (e) atomic rollback (fail-closed)", () => {
       END;
     `);
 
-    expect((await deleteAccountRoute(app, "a1", u.cookie)).statusCode).toBe(500);
+    expect((await deleteAccountRoute({ app, id: "a1", cookie: u.cookie })).statusCode).toBe(500);
 
     // The tx rolled back: NOTHING changed. Account row, its scoped client, the membership, and the
     // user's real PII are ALL still present (a partial erasure must never commit).
@@ -479,9 +505,14 @@ describe("P2.6b erasure — (e) atomic rollback (fail-closed)", () => {
       `INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?)`,
     ).run("malformed-link", "malformed-link", `{"link":{"userId":"${u.userId}"`, TS, TS, TS);
-    seedAccountLinkState(db, "unrelated-user", "unrelated@capacitylens.dev", "link-unrelated-malformed-control");
+    seedAccountLinkState({
+      db,
+      userId: "unrelated-user",
+      email: "unrelated@capacitylens.dev",
+      id: "link-unrelated-malformed-control",
+    });
 
-    expect((await deleteAccountRoute(app, "a1", u.cookie)).statusCode).toBe(500);
+    expect((await deleteAccountRoute({ app, id: "a1", cookie: u.cookie })).statusCode).toBe(500);
 
     // The uninterpretable structured row blocks the whole transaction. A successful erasure may
     // never leave principal-correlated bytes behind, and an unrelated well-formed row stays intact.

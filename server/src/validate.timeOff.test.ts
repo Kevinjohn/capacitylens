@@ -20,7 +20,7 @@ describe("time-off and closure validation", () => {
   it("accepts a closure without a resource reference", () => {
     const sanitized = sanitizeWrite("closures", { ...meta, name: "Christmas shutdown" });
     expect(sanitized).not.toHaveProperty("resourceId");
-    expect(() => assertValidWrite(emptyAppData(), "closures", sanitized)).not.toThrow();
+    expect(() => assertValidWrite({ state: emptyAppData(), table: "closures", row: sanitized })).not.toThrow();
   });
 
   it("rejects a closure carrying a resource reference", () => {
@@ -35,10 +35,14 @@ describe("time-off and closure validation", () => {
 
   it("rejects reversed closure dates", () => {
     expect(() =>
-      assertValidWrite(emptyAppData(), "closures", {
-        ...meta,
-        name: "Christmas shutdown",
-        endDate: "2026-12-23",
+      assertValidWrite({
+        state: emptyAppData(),
+        table: "closures",
+        row: {
+          ...meta,
+          name: "Christmas shutdown",
+          endDate: "2026-12-23",
+        },
       }),
     ).toThrow(/end date cannot be before the start date/i);
   });

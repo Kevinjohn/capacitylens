@@ -64,12 +64,15 @@ const adapterTypeDebt = [
   ["accounts/createLocalAccountFlows.ts", "accounts/sqliteAccountAdminPort.ts", "LocalAccountAdminPort"],
   ["accounts/flows/actorContext.ts", "accounts/sqliteAccountAdminPort.ts", "LocalAccountAdminPort"],
 ] as const;
-function isOwnershipTypeBoundary(
-  file: string,
-  kind: DependencyEdge["kind"],
-  target: string,
-  names: readonly string[] = [],
-): boolean {
+
+interface IsOwnershipTypeBoundaryInput {
+  file: string;
+  kind: DependencyEdge["kind"];
+  target: string;
+  names?: readonly string[] | undefined;
+}
+
+function isOwnershipTypeBoundary({ file, kind, target, names = [] }: IsOwnershipTypeBoundaryInput): boolean {
   if (kind !== "type" || names.length !== 1) return false;
   // Db is the public DatabaseSync alias, not permission to import database initialization.
   // Its type-only facade is a terminal contract; runtime edges still traverse every export.
@@ -79,7 +82,10 @@ function isOwnershipTypeBoundary(
   );
 }
 const ownershipImports = (file: string): string[] =>
-  internalImports(file, (edge, target) => !isOwnershipTypeBoundary(file, edge.kind, target, edge.typeNames));
+  internalImports(
+    file,
+    (edge, target) => !isOwnershipTypeBoundary({ file, kind: edge.kind, target, names: edge.typeNames }),
+  );
 
 function importSpecifiers(file: string): string[] {
   return parseDependencies(readFileSync(file, "utf8"), file).flatMap((edge) => edge.specifier ?? []);
@@ -97,12 +103,15 @@ function isControlTable(file: string): boolean {
     file === resolve(serverRoot, "controlTables.ts") || file.startsWith(resolve(serverRoot, "controlTables") + sep)
   );
 }
-function isRowMapperType(
-  file: string,
-  kind: DependencyEdge["kind"],
-  target: string,
-  names: readonly string[] = [],
-): boolean {
+
+interface IsRowMapperTypeInput {
+  file: string;
+  kind: DependencyEdge["kind"];
+  target: string;
+  names?: readonly string[] | undefined;
+}
+
+function isRowMapperType({ file, kind, target, names = [] }: IsRowMapperTypeInput): boolean {
   // The storage adapter maps an AccountMember row into the shared Membership contract.
   // It may name that one row facade but may not acquire executable control-table access.
   return (
@@ -114,12 +123,19 @@ function isRowMapperType(
   );
 }
 
-function dependencyPath(
-  start: string,
-  forbidden: ReadonlySet<string>,
-  forbiddenPrefixes: readonly string[] = [],
-  dependencies: (file: string) => readonly string[] = runtimeImports,
-): string[] | null {
+interface DependencyPathInput {
+  start: string;
+  forbidden: ReadonlySet<string>;
+  forbiddenPrefixes?: readonly string[] | undefined;
+  dependencies?: ((file: string) => readonly string[]) | undefined;
+}
+
+function dependencyPath({
+  start,
+  forbidden,
+  forbiddenPrefixes = [],
+  dependencies = runtimeImports,
+}: DependencyPathInput): string[] | null {
   const queue: string[][] = [[start]];
   const visited = new Set<string>();
   while (queue.length > 0) {
@@ -185,26 +201,38 @@ describe("account-boundary architecture", () => {
       (p) => resolve(serverRoot, p) + sep,
     );
     for (const file of coordinatorPaths) {
-      const path = dependencyPath(resolve(serverRoot, file), forbidden, forbiddenPrefixes, ownershipImports);
+      const path = dependencyPath({
+        start: resolve(serverRoot, file),
+        forbidden,
+        forbiddenPrefixes,
+        dependencies: ownershipImports,
+      });
       expect(path ? displayPath(path) : null, file).toBeNull();
     }
   });
 
+  interface DependencyPathCaseInput {
+    name: string;
+    start: string;
+    target: string;
+    expected: readonly string[];
+  }
+
   it.each([
-    [
-      "calibrates the transitive dependency scanner against a known adapter edge",
-      resolve(serverRoot, "accounts/adminPort/invitations.ts"),
-      resolve(serverRoot, "controlTables.ts"),
-      ["accounts/adminPort/invitations.ts", "controlTables.ts"],
-    ],
-    [
-      "follows workspace aliases as well as relative imports",
-      resolve(serverRoot, createLocalAccountFlowsPath),
-      resolve(sharedAccountRoot, "errors.ts"),
-      ["accounts/createLocalAccountFlows.ts", "../../shared/src/account/errors.ts"],
-    ],
-  ] as const)("%s", (_name, start, target, expected) => {
-    const path = dependencyPath(start, new Set([target]));
+    {
+      name: "calibrates the transitive dependency scanner against a known adapter edge",
+      start: resolve(serverRoot, "accounts/adminPort/invitations.ts"),
+      target: resolve(serverRoot, "controlTables.ts"),
+      expected: ["accounts/adminPort/invitations.ts", "controlTables.ts"],
+    },
+    {
+      name: "follows workspace aliases as well as relative imports",
+      start: resolve(serverRoot, createLocalAccountFlowsPath),
+      target: resolve(sharedAccountRoot, "errors.ts"),
+      expected: ["accounts/createLocalAccountFlows.ts", "../../shared/src/account/errors.ts"],
+    },
+  ] satisfies DependencyPathCaseInput[])("$name", ({ start, target, expected }: DependencyPathCaseInput) => {
+    const path = dependencyPath({ start, forbidden: new Set([target]) });
     expect(path?.map((file) => relative(serverRoot, file))).toEqual(expected);
   });
 
@@ -280,7 +308,7 @@ describe("account-boundary architecture", () => {
       if (!controlTableImporters.has(file)) {
         const dependencies = internalImports(
           file,
-          (edge, target) => !isRowMapperType(file, edge.kind, target, edge.typeNames),
+          (edge, target) => !isRowMapperType({ file, kind: edge.kind, target, names: edge.typeNames }),
         );
         expect(dependencies.filter(isControlTable), relative(serverRoot, file)).toEqual([]);
       }
@@ -400,10 +428,17 @@ describe("scanner calibration", () => {
         .filter((edge) => edge.specifier === "node:sqlite")
         .map((edge) => edge.kind),
     ).toEqual(["type"]);
-    expect(isOwnershipTypeBoundary("consumer.ts", "type", db, ["Db"])).toBe(true);
-    expect(isOwnershipTypeBoundary("consumer.ts", "runtime", db, ["Db"])).toBe(false);
-    expect(isOwnershipTypeBoundary("consumer.ts", "type", db, ["Db", "DatabaseMigrationPlan"])).toBe(false);
-    expect(isOwnershipTypeBoundary("consumer.ts", "type", db)).toBe(false);
+    expect(isOwnershipTypeBoundary({ file: "consumer.ts", kind: "type", target: db, names: ["Db"] })).toBe(true);
+    expect(isOwnershipTypeBoundary({ file: "consumer.ts", kind: "runtime", target: db, names: ["Db"] })).toBe(false);
+    expect(
+      isOwnershipTypeBoundary({
+        file: "consumer.ts",
+        kind: "type",
+        target: db,
+        names: ["Db", "DatabaseMigrationPlan"],
+      }),
+    ).toBe(false);
+    expect(isOwnershipTypeBoundary({ file: "consumer.ts", kind: "type", target: db })).toBe(false);
   });
 
   it.each(adapterTypeDebt)("keeps the T15 type-debt edge %s -> %s (%s) exact and non-growing", (from, to, name) => {
@@ -416,10 +451,12 @@ describe("scanner calibration", () => {
     expect(edges).toHaveLength(1);
     expect(edges[0]?.kind).toBe("type");
     expect(edges[0]?.typeNames).toEqual([name]);
-    expect(isOwnershipTypeBoundary(file, "type", target, [name])).toBe(true);
-    expect(isOwnershipTypeBoundary(file, "type", target, [name, "Other"])).toBe(false);
-    expect(isOwnershipTypeBoundary(file, "runtime", target, [name])).toBe(false);
-    expect(isOwnershipTypeBoundary(resolve(fixtureRoot, "new-consumer.ts"), "type", target, [name])).toBe(false);
+    expect(isOwnershipTypeBoundary({ file, kind: "type", target, names: [name] })).toBe(true);
+    expect(isOwnershipTypeBoundary({ file, kind: "type", target, names: [name, "Other"] })).toBe(false);
+    expect(isOwnershipTypeBoundary({ file, kind: "runtime", target, names: [name] })).toBe(false);
+    expect(
+      isOwnershipTypeBoundary({ file: resolve(fixtureRoot, "new-consumer.ts"), kind: "type", target, names: [name] }),
+    ).toBe(false);
   });
 
   it("permits only the storage mapper's named row-type dependency", () => {
@@ -432,16 +469,20 @@ describe("scanner calibration", () => {
     expect(edges).toHaveLength(1);
     expect(edges[0]?.kind).toBe("type");
     expect(edges[0]?.typeNames).toEqual(["AccountMember"]);
-    expect(isRowMapperType(file, "type", target, ["AccountMember"])).toBe(true);
-    expect(isRowMapperType(file, "type", target, ["AccountMember", "Other"])).toBe(false);
-    expect(isRowMapperType(file, "runtime", target, ["AccountMember"])).toBe(false);
-    expect(isRowMapperType(resolve(fixtureRoot, "new-mapper.ts"), "type", target, ["AccountMember"])).toBe(false);
+    expect(isRowMapperType({ file, kind: "type", target, names: ["AccountMember"] })).toBe(true);
+    expect(isRowMapperType({ file, kind: "type", target, names: ["AccountMember", "Other"] })).toBe(false);
+    expect(isRowMapperType({ file, kind: "runtime", target, names: ["AccountMember"] })).toBe(false);
+    expect(
+      isRowMapperType({ file: resolve(fixtureRoot, "new-mapper.ts"), kind: "type", target, names: ["AccountMember"] }),
+    ).toBe(false);
   });
 
   it("reports dependencies inside a forbidden directory prefix", () => {
     const a = fixture("a.ts", 'import { value } from "./zone/b.ts";');
     const b = fixture("zone/b.ts", "export const value = 1;");
-    expect(dependencyPath(a, new Set(), [resolve(fixtureRoot, "zone") + sep])).toEqual([a, b]);
+    expect(
+      dependencyPath({ start: a, forbidden: new Set(), forbiddenPrefixes: [resolve(fixtureRoot, "zone") + sep] }),
+    ).toEqual([a, b]);
   });
 
   it("matches state facades and submodules without matching stateless", () => {
@@ -474,10 +515,17 @@ describe("scanner calibration", () => {
     const a = fixture("ownership/entry.ts", source);
     const b = fixture("ownership/helper.ts", 'export type { T } from "./forbidden/leaf";');
     const c = fixture("ownership/forbidden/leaf.ts", "export type T = string;");
-    expect(dependencyPath(a, new Set(), [resolve(fixtureRoot, "ownership/forbidden") + sep], ownershipImports)).toEqual(
-      [a, b, c],
-    );
-    expect(dependencyPath(b, new Set([c]), [], ownershipImports)).toEqual([b, c]);
+    expect(
+      dependencyPath({
+        start: a,
+        forbidden: new Set(),
+        forbiddenPrefixes: [resolve(fixtureRoot, "ownership/forbidden") + sep],
+        dependencies: ownershipImports,
+      }),
+    ).toEqual([a, b, c]);
+    expect(
+      dependencyPath({ start: b, forbidden: new Set([c]), forbiddenPrefixes: [], dependencies: ownershipImports }),
+    ).toEqual([b, c]);
   });
 
   it("rejects unresolved internal edges instead of silently losing ownership checks", () => {
@@ -506,6 +554,6 @@ describe("scanner calibration", () => {
     const a = fixture("chain/a.ts", 'import { value } from "./b";');
     const b = fixture("chain/b.ts", source);
     const c = fixture("chain/c.ts", "export const value = 1; export type T = string;");
-    expect(dependencyPath(a, new Set([c]))).toEqual(runtime ? [a, b, c] : null);
+    expect(dependencyPath({ start: a, forbidden: new Set([c]) })).toEqual(runtime ? [a, b, c] : null);
   });
 });

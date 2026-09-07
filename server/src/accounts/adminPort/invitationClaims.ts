@@ -111,12 +111,12 @@ export function createInvitationClaims(
       const passwordMode = actor.assurance === "password" || actor.assurance === "mfa";
       const operation = `accept-invitation:actor:${actor.principalId}`;
       const payload = { tokenHash: createHashForToken(token), passwordMode };
-      const resumed = resumeExistingCommand<Membership>(
+      const resumed = resumeExistingCommand<Membership>({
         db,
-        { applicationId, operation, actorPrincipalId: actor.principalId },
+        scope: { applicationId, operation, actorPrincipalId: actor.principalId },
         command,
-        payload,
-      );
+        canonicalPayload: payload,
+      });
       if (resumed) return markAccountCommandReplay(resumed.result);
       const invite = getInvite(db, token);
       if (!invite) throw createAccountFailure("NOT_FOUND", "Invite not found.", command.commandId);
@@ -152,12 +152,12 @@ export function createInvitationClaims(
         emailVerified,
         passwordMode,
       };
-      const resumed = resumeExistingCommand<Membership>(
+      const resumed = resumeExistingCommand<Membership>({
         db,
-        { applicationId, operation: "claim-invitation", actorPrincipalId: null },
+        scope: { applicationId, operation: "claim-invitation", actorPrincipalId: null },
         command,
-        payload,
-      );
+        canonicalPayload: payload,
+      });
       if (resumed) return markAccountCommandReplay(resumed.result);
       const invite = getInvite(db, token);
       if (!invite) throw createAccountFailure("NOT_FOUND", "Invite not found.", command.commandId);

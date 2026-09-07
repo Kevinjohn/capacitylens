@@ -70,7 +70,12 @@ describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
     expect(db.prepare(`SELECT id FROM user`).all()).toEqual([]);
     expect(db.prepare(`SELECT id FROM account`).all()).toEqual([]);
     expect(
-      getAccountCommand(db, "correlation-test", "invite-password-signup", "correlation-idempotency"),
+      getAccountCommand({
+        db,
+        applicationId: "correlation-test",
+        operation: "invite-password-signup",
+        idempotencyKey: "correlation-idempotency",
+      }),
     ).toMatchObject({ status: "pending", targetPrincipalId: null });
     db.close();
   });
@@ -91,12 +96,12 @@ describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
       { accountId: users[0].id, providerId: "credential", userId: users[0].id },
     ]);
 
-    const reconciled = getAccountCommandByIdForReconciliation(
+    const reconciled = getAccountCommandByIdForReconciliation({
       db,
-      "crash-fixture",
-      "crash-command",
-      Date.now() + 20 * 60 * 1000,
-    );
+      applicationId: "crash-fixture",
+      commandId: "crash-command",
+      now: Date.now() + 20 * 60 * 1000,
+    });
     expect(reconciled).toMatchObject({
       status: "reconciliation_required",
       workspaceId: "workspace-1",

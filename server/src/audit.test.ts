@@ -49,7 +49,15 @@ const person = (id: string, accountId: string) => ({
   color: "#5c34d4",
   ...meta(),
 });
-const timeOff = (id: string, accountId: string, resourceId: string, o: Record<string, unknown> = {}) => ({
+
+interface TimeOffInput {
+  id: string;
+  accountId: string;
+  resourceId: string;
+  o?: Record<string, unknown> | undefined;
+}
+
+const timeOff = ({ id, accountId, resourceId, o = {} }: TimeOffInput) => ({
   id,
   accountId,
   resourceId,
@@ -203,13 +211,16 @@ describe("NO PII (2) — the #1 invariant", () => {
     const createIdx = lines().length; // the timeOff create line lands here (after the scaffold lines)
     const SECRET = "SECRET_NOTE_TEXT";
     // create with a secret note
-    expect((await post(app, "timeOff", timeOff("to1", "a1", "r1", { note: SECRET }))).statusCode).toBe(201);
+    expect(
+      (await post(app, "timeOff", timeOff({ id: "to1", accountId: "a1", resourceId: "r1", o: { note: SECRET } })))
+        .statusCode,
+    ).toBe(201);
     // update it (PUT) with a different secret note
     const SECRET2 = "ANOTHER_SECRET_VALUE";
     const put = await call(app, {
       method: "PUT",
       url: "/api/timeOff/to1",
-      payload: body(timeOff("to1", "a1", "r1", { note: SECRET2 })),
+      payload: body(timeOff({ id: "to1", accountId: "a1", resourceId: "r1", o: { note: SECRET2 } })),
     });
     expect(put.statusCode).toBe(200);
 

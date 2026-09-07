@@ -16,7 +16,7 @@ export async function resetPassword(req: FastifyRequest, reply: FastifyReply, co
     accountId: string;
     userId: string;
   };
-  if (!authorize(req, reply, accountId, "manageMembers")) return;
+  if (!authorize({ req, reply, accountId, action: "manageMembers" })) return;
   if (authMode !== "password") {
     // 'sso': the IdP owns sign-in — resetting a local password is meaningless there. 'off':
     // trusted-local, no credential model (and no UI shows the button) — a clear 400 either way.
@@ -68,7 +68,7 @@ export async function revokeMemberSessions(req: FastifyRequest, reply: FastifyRe
     accountId: string;
     userId: string;
   };
-  if (!authorize(req, reply, accountId, "manageMembers")) return;
+  if (!authorize({ req, reply, accountId, action: "manageMembers" })) return;
   if (authMode === "off" || !authenticationConfigured) {
     return reply.code(400).send({ error: "Sessions require authentication." });
   }

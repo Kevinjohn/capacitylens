@@ -103,16 +103,18 @@ export type IdentityPortInput = {
   publicBaseUrl?: string;
   masqueradeSessions?: MasqueradeSessionLifecycle;
 };
+export interface RevokePrincipalSessionsInTxInput {
+  db: Db;
+  applicationId: string;
+  principalId: string;
+  lifecycle?: MasqueradeSessionLifecycle | undefined;
+}
+
 export interface IdentityPortContext extends IdentityTableProbes {
   input: IdentityPortInput;
   makeCompensationHandle(principalId: string, commandId: string): string;
   assertCompensationHandle(provisional: ProvisionalPrincipal, commandId: string): void;
-  revokePrincipalSessionsInTx(
-    db: Db,
-    applicationId: string,
-    principalId: string,
-    lifecycle?: MasqueradeSessionLifecycle,
-  ): readonly string[];
+  revokePrincipalSessionsInTx(input: RevokePrincipalSessionsInTxInput): readonly string[];
   eraseLocalPrincipalsInTx(
     db: Db,
     principalIds: readonly string[],

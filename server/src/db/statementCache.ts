@@ -45,13 +45,20 @@ export function createStatementCache(db: Db): StatementCache {
   return cache;
 }
 
+interface CreateCachedTableStatementInput {
+  cache: Map<string, PreparedStatement>;
+  table: string;
+  db: Db;
+  sql: string;
+}
+
 /** Lazily prepare and cache one per-table Statement, keyed by table name within `cache`. */
-export function createCachedTableStatement(
-  cache: Map<string, PreparedStatement>,
-  table: string,
-  db: Db,
-  sql: string,
-): PreparedStatement {
+export function createCachedTableStatement({
+  cache,
+  table,
+  db,
+  sql,
+}: CreateCachedTableStatementInput): PreparedStatement {
   let statement = cache.get(table);
   if (!statement) {
     statement = db.prepare(sql);

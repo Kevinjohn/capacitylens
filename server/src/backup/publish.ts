@@ -93,13 +93,30 @@ export function ensurePrivateBackupDirectory(path: string): void {
   chmodSync(path, 0o700);
 }
 
-function publishDurableSnapshot(tmp: string, file: string, dir: string, publisher: DurableSnapshotPublisher): void {
+interface PublishDurableSnapshotInput {
+  tmp: string;
+  file: string;
+  dir: string;
+  publisher: DurableSnapshotPublisher;
+}
+
+function publishDurableSnapshot({ tmp, file, dir, publisher }: PublishDurableSnapshotInput): void {
   // Persist the final mode and completed SQLite inode before exposing its valid rollback name, then
   // persist the directory entry itself. Any failure propagates to startup before forward-only DDL.
   publisher.chmod(tmp, 0o600);
   publisher.syncFile(tmp);
   publisher.rename(tmp, file);
   publisher.syncDirectory(dir);
+}
+
+interface WriteVerifiedSnapshotInput {
+  db: Db;
+  tmp: string;
+  file: string;
+  dir: string;
+  label: string;
+  expectedVersion: number;
+  publisher: DurableSnapshotPublisher;
 }
 
 /** Write (backup(), or VACUUM INTO as its pre-approved fallback), verify, checkpoint WAL/SHM, and
@@ -111,15 +128,15 @@ function publishDurableSnapshot(tmp: string, file: string, dir: string, publishe
  * — an unusable new artifact must never advertise success or let a known-good restore point be
  * pruned in its place. Each caller keeps its own try/catch: cleanup-on-failure and degraded-health
  * signaling differ per caller and are not this function's concern. */
-export async function writeVerifiedSnapshot(
-  db: Db,
-  tmp: string,
-  file: string,
-  dir: string,
-  label: string,
-  expectedVersion: number,
-  publisher: DurableSnapshotPublisher,
-): Promise<void> {
+export async function writeVerifiedSnapshot({
+  db,
+  tmp,
+  file,
+  dir,
+  label,
+  expectedVersion,
+  publisher,
+}: WriteVerifiedSnapshotInput): Promise<void> {
   // node:sqlite's online backup (verified on Node 24); VACUUM INTO is the pre-approved fallback
   // should the API regress — same consistent-snapshot guarantee. backup() happily overwrites the
   // zero-byte placeholder; VACUUM INTO refuses an existing target, so the fallback drops the
@@ -133,5 +150,5 @@ export async function writeVerifiedSnapshot(
   verifyStandaloneSnapshot(tmp, label, expectedVersion);
   rmSync(`${tmp}-wal`, { force: true });
   rmSync(`${tmp}-shm`, { force: true });
-  publishDurableSnapshot(tmp, file, dir, publisher);
+  publishDurableSnapshot({ tmp, file, dir, publisher });
 }

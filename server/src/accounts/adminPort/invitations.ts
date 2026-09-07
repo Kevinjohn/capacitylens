@@ -55,8 +55,8 @@ export function createInvitations(
 
   return {
     async listInvitations({ actor, workspaceId }) {
-      assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
-      assertAccountAuthority(db, actor, workspaceId, "manage-invitations", trustedLocal);
+      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+      assertAccountAuthority({ db, actor, workspaceId, action: "manage-invitations", trustedLocal });
       return listInvitesForAccount(db, workspaceId).flatMap((invite) => {
         // Reads remain pure. Hide an expired unused bearer from the live management view without
         // deleting it outside the command ledger / mutation transaction.
@@ -158,7 +158,7 @@ export function createInvitations(
         replayGuard: () => {
           // A command replay can re-disclose the write-once bearer token. Re-evaluate current
           // authority first so a removed/demoted actor cannot recover it from the process cache.
-          assertInvitationAuthority(db, actor, requireMfa, trustedLocal, workspaceId, command.commandId);
+          assertInvitationAuthority({ db, actor, requireMfa, trustedLocal, workspaceId, commandId: command.commandId });
         },
         afterCommit: (invitation) => {
           invitationSecretReplay.storeReserved(command.commandId, invitation);
@@ -167,7 +167,7 @@ export function createInvitations(
           invitationSecretReplay.releaseReservation(command.commandId);
         },
         execute: () => {
-          assertInvitationAuthority(db, actor, requireMfa, trustedLocal, workspaceId, command.commandId);
+          assertInvitationAuthority({ db, actor, requireMfa, trustedLocal, workspaceId, commandId: command.commandId });
           const nowMs = Date.now();
           const effectiveExpiresAt = expiresAt ?? new Date(nowMs + 7 * 24 * 60 * 60 * 1000).toISOString();
           const expiry = parseISOTimestamp(effectiveExpiresAt);
@@ -235,11 +235,11 @@ export function createInvitations(
           invitationSecretReplay.deleteWhere((invitation) => invitation.id === invitationId);
         },
         execute: () => {
-          assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId);
-          assertAccountAuthority(db, actor, workspaceId, "manage-invitations", trustedLocal);
+          assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
+          assertAccountAuthority({ db, actor, workspaceId, action: "manage-invitations", trustedLocal });
           const changed = listInvitesForAccount(db, workspaceId).some((invite) => invite.id === invitationId);
           revokeInvite(db, workspaceId, invitationId);
-          return createOperationReceipt(command.commandId, changed);
+          return createOperationReceipt({ commandId: command.commandId, changed });
         },
       });
       return revoked;

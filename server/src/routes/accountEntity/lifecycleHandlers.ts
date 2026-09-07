@@ -31,7 +31,13 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
     // Shared body-shape guard (the Finding 7 funnel). A missing/non-object body would otherwise
     // null-deref in sanitizeWrite's assertIdPresent BEFORE the try block could classify it — a
     // misclassified 500. `accounts` is unscoped, so no accountId is required.
-    const bodyCheck = checkEntityWriteBody("create", "accounts", req.body, undefined, false);
+    const bodyCheck = checkEntityWriteBody({
+      verb: "create",
+      entity: "accounts",
+      body: req.body,
+      urlId: undefined,
+      scoped: false,
+    });
     if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
     if (authMode !== "off") {
       return reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE });
@@ -72,7 +78,7 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
           // the single-company cap became full after its original success. Reuses the funnel's
           // scoped slice (Finding 9 — accounts validation is name-only, so a second full-DB
           // loadState here would be pure waste).
-          assertValidWrite(scopedState, "accounts", row);
+          assertValidWrite({ state: scopedState, table: "accounts", row });
           insertRow(db, "accounts", row);
           insertRow(
             db,
@@ -115,7 +121,7 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
       // is total tenant destruction, intentionally stricter than purging one tombstoned record —
       // only an owner may erase the tenant and orphaned member identities. OFF mode short-circuits
       // to allow so the default deploy can still delete companies.
-      if (!authorize(req, reply, id, "deleteAccount")) return;
+      if (!authorize({ req, reply, accountId: id, action: "deleteAccount" })) return;
       // Preserve the auth-off API's established idempotent-delete contract. The coordinated erasure
       // path deliberately requires a real workspace so authenticated callers cannot use it as an
       // existence oracle, but trusted-local deletion historically returned 204 for an absent account.

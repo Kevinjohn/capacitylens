@@ -40,7 +40,14 @@ async function identityTables(db: Db): Promise<void> {
   await runAuthMigrations(realAuth!);
 }
 
-function insertIdentityUser(db: Db, id: string, name: string, email: string): void {
+interface InsertIdentityUserInput {
+  db: Db;
+  id: string;
+  name: string;
+  email: string;
+}
+
+function insertIdentityUser({ db, id, name, email }: InsertIdentityUserInput): void {
   db.prepare(
     `
     INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
@@ -49,7 +56,15 @@ function insertIdentityUser(db: Db, id: string, name: string, email: string): vo
   ).run(id, name, email, NOW, NOW);
 }
 
-function insertIdentityAccount(db: Db, id: string, providerId: string, accountId: string, userId: string): void {
+interface InsertIdentityAccountInput {
+  db: Db;
+  id: string;
+  providerId: string;
+  accountId: string;
+  userId: string;
+}
+
+function insertIdentityAccount({ db, id, providerId, accountId, userId }: InsertIdentityAccountInput): void {
   db.prepare(
     `
     INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
@@ -112,10 +127,27 @@ describe("local IdentityPort conformance", () => {
   }
 
   it("normalizes a federated application session without exposing provider records", async () => {
-    insertIdentityUser(db, sessionUser.id, sessionUser.name, sessionUser.email);
-    insertIdentityAccount(db, "link-1", "sso", "upstream-subject-1", sessionUser.id);
-    bindFederatedProvider(db, "conformance-app", "https://issuer.example", "sso");
-    recordSessionAssurance(db, "local-session-1", sessionUser.id, "federated", "sso");
+    insertIdentityUser({ db, id: sessionUser.id, name: sessionUser.name, email: sessionUser.email });
+    insertIdentityAccount({
+      db,
+      id: "link-1",
+      providerId: "sso",
+      accountId: "upstream-subject-1",
+      userId: sessionUser.id,
+    });
+    bindFederatedProvider({
+      db,
+      applicationId: "conformance-app",
+      issuer: "https://issuer.example",
+      providerId: "sso",
+    });
+    recordSessionAssurance({
+      db,
+      sessionId: "local-session-1",
+      principalId: sessionUser.id,
+      assurance: "federated",
+      providerId: "sso",
+    });
     const port = identityPort({
       auth: auth(async () => ({
         user: sessionUser,
@@ -143,11 +175,16 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("correlates only by the exact issuer and subject", async () => {
-    insertIdentityUser(db, "principal-1", "One", "one@example.com");
-    insertIdentityUser(db, "principal-2", "Two", "two@example.com");
-    insertIdentityAccount(db, "link-1", "sso", "subject-1", "principal-1");
-    insertIdentityAccount(db, "link-2", "sso", "subject-2", "principal-2");
-    bindFederatedProvider(db, "conformance-app", "https://issuer.example", "sso");
+    insertIdentityUser({ db, id: "principal-1", name: "One", email: "one@example.com" });
+    insertIdentityUser({ db, id: "principal-2", name: "Two", email: "two@example.com" });
+    insertIdentityAccount({ db, id: "link-1", providerId: "sso", accountId: "subject-1", userId: "principal-1" });
+    insertIdentityAccount({ db, id: "link-2", providerId: "sso", accountId: "subject-2", userId: "principal-2" });
+    bindFederatedProvider({
+      db,
+      applicationId: "conformance-app",
+      issuer: "https://issuer.example",
+      providerId: "sso",
+    });
     const port = identityPort({
       auth: auth(async () => null),
       authMode: "sso",
@@ -170,9 +207,15 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("does not upgrade a password-authenticated session merely because the user has a federated link", async () => {
-    insertIdentityUser(db, sessionUser.id, sessionUser.name, sessionUser.email);
-    insertIdentityAccount(db, "link-1", "sso", "upstream-subject-1", sessionUser.id);
-    recordSessionAssurance(db, "password-session-1", sessionUser.id, "password");
+    insertIdentityUser({ db, id: sessionUser.id, name: sessionUser.name, email: sessionUser.email });
+    insertIdentityAccount({
+      db,
+      id: "link-1",
+      providerId: "sso",
+      accountId: "upstream-subject-1",
+      userId: sessionUser.id,
+    });
+    recordSessionAssurance({ db, sessionId: "password-session-1", principalId: sessionUser.id, assurance: "password" });
     const port = identityPort({
       auth: auth(async () => ({
         user: sessionUser,
@@ -191,8 +234,14 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("does not infer per-session MFA assurance from account-level MFA enrollment", async () => {
-    insertIdentityUser(db, sessionUser.id, sessionUser.name, sessionUser.email);
-    insertIdentityAccount(db, "credential-link", "credential", sessionUser.id, sessionUser.id);
+    insertIdentityUser({ db, id: sessionUser.id, name: sessionUser.name, email: sessionUser.email });
+    insertIdentityAccount({
+      db,
+      id: "credential-link",
+      providerId: "credential",
+      accountId: sessionUser.id,
+      userId: sessionUser.id,
+    });
     const port = identityPort({
       auth: auth(async () => ({
         user: { ...sessionUser, twoFactorEnabled: true },
@@ -210,8 +259,14 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("fails closed when a mixed or external legacy session lacks provenance metadata", async () => {
-    insertIdentityUser(db, sessionUser.id, sessionUser.name, sessionUser.email);
-    insertIdentityAccount(db, "external-link", "sso", "upstream-subject", sessionUser.id);
+    insertIdentityUser({ db, id: sessionUser.id, name: sessionUser.name, email: sessionUser.email });
+    insertIdentityAccount({
+      db,
+      id: "external-link",
+      providerId: "sso",
+      accountId: "upstream-subject",
+      userId: sessionUser.id,
+    });
     const port = identityPort({
       auth: auth(async () => ({
         user: sessionUser,
@@ -267,7 +322,13 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("fails closed when a federated assurance record has no issuer/subject link", async () => {
-    recordSessionAssurance(db, "orphaned-federated-session", sessionUser.id, "federated", "sso");
+    recordSessionAssurance({
+      db,
+      sessionId: "orphaned-federated-session",
+      principalId: sessionUser.id,
+      assurance: "federated",
+      providerId: "sso",
+    });
     const port = identityPort({
       auth: auth(async () => ({
         user: sessionUser,
@@ -375,7 +436,7 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("rejects and rolls back direct deprovisioning when structured verification state is malformed", async () => {
-    insertIdentityUser(db, sessionUser.id, sessionUser.name, sessionUser.email);
+    insertIdentityUser({ db, id: sessionUser.id, name: sessionUser.name, email: sessionUser.email });
     insertVerification(db, "malformed-link", `{"link":{"userId":"${sessionUser.id}"`);
     const port = identityPort({
       auth: auth(async () => null),
@@ -408,7 +469,7 @@ describe("local IdentityPort conformance", () => {
     ["non-finite user id", JSON.stringify({ link: { userId: null } })],
     ["object user id", JSON.stringify({ link: { userId: { id: "principal-1" } } })],
   ])("fails closed on a %s in structured verification state", async (_name, value) => {
-    insertIdentityUser(db, sessionUser.id, sessionUser.name, sessionUser.email);
+    insertIdentityUser({ db, id: sessionUser.id, name: sessionUser.name, email: sessionUser.email });
     insertVerification(db, "malformed-link", value);
     const port = identityPort({ auth: auth(async () => null) });
 
@@ -438,8 +499,13 @@ describe("local IdentityPort conformance", () => {
           updatedAt TEXT NOT NULL
         );
       `);
-      insertIdentityUser(isolatedDb, "principal-1", "One", "old@example.com");
-      recordSessionAssurance(isolatedDb, "assurance-only", "principal-1", "password");
+      insertIdentityUser({ db: isolatedDb, id: "principal-1", name: "One", email: "old@example.com" });
+      recordSessionAssurance({
+        db: isolatedDb,
+        sessionId: "assurance-only",
+        principalId: "principal-1",
+        assurance: "password",
+      });
       const port = identityPort({ auth: auth(async () => null), db: isolatedDb });
 
       await port.correctPrincipalEmail({
@@ -460,9 +526,9 @@ describe("local IdentityPort conformance", () => {
 
   it("scans only structured verification candidates once when deprovisioning a principal set", async () => {
     const rawDb = db;
-    insertIdentityUser(rawDb, "principal-1", "One", "one@example.com");
-    insertIdentityUser(rawDb, "principal-2", "Two", "two@example.com");
-    insertIdentityUser(rawDb, "principal-3", "Three", "three@example.com");
+    insertIdentityUser({ db: rawDb, id: "principal-1", name: "One", email: "one@example.com" });
+    insertIdentityUser({ db: rawDb, id: "principal-2", name: "Two", email: "two@example.com" });
+    insertIdentityUser({ db: rawDb, id: "principal-3", name: "Three", email: "three@example.com" });
     insertVerification(rawDb, "target-scalar", "principal-1");
     insertVerification(rawDb, "target-link", JSON.stringify({ link: { userId: "principal-2" } }));
     for (let index = 0; index < 5; index += 1) {
@@ -557,7 +623,7 @@ describe("local IdentityPort conformance", () => {
       emailVerified: true,
       command,
     });
-    insertIdentityUser(db, provisional.principalId, "Bruce Wayne", "bruce@example.com");
+    insertIdentityUser({ db, id: provisional.principalId, name: "Bruce Wayne", email: "bruce@example.com" });
     const compensation = { provisional, reason: "invitation-claim-failed" as const, command };
 
     await expect(otherPort.compensateProvisionalPrincipal(compensation)).rejects.toMatchObject({
@@ -605,15 +671,25 @@ describe("local IdentityPort conformance", () => {
       command,
     });
 
-    expect(getAccountCommand(db, "conformance-app", "child", "child-key")).toBeNull();
-    expect(getAccountCommand(db, "conformance-app", "parent", "parent-key")).toMatchObject({ targetPrincipalId: null });
+    expect(
+      getAccountCommand({ db, applicationId: "conformance-app", operation: "child", idempotencyKey: "child-key" }),
+    ).toBeNull();
+    expect(
+      getAccountCommand({ db, applicationId: "conformance-app", operation: "parent", idempotencyKey: "parent-key" }),
+    ).toMatchObject({ targetPrincipalId: null });
   });
 
   it("atomically observes direct federated admissions and validates every stored coordinate", async () => {
-    insertIdentityUser(db, "principal-1", "One", "one@example.com");
-    insertIdentityUser(db, "orphan-1", "Orphan", "orphan@example.com");
-    insertIdentityAccount(db, "link-1", "sso", "subject-1", "principal-1");
-    insertIdentityAccount(db, "credential-1", "credential", "orphan-1", "orphan-1");
+    insertIdentityUser({ db, id: "principal-1", name: "One", email: "one@example.com" });
+    insertIdentityUser({ db, id: "orphan-1", name: "Orphan", email: "orphan@example.com" });
+    insertIdentityAccount({ db, id: "link-1", providerId: "sso", accountId: "subject-1", userId: "principal-1" });
+    insertIdentityAccount({
+      db,
+      id: "credential-1",
+      providerId: "credential",
+      accountId: "orphan-1",
+      userId: "orphan-1",
+    });
     const port = identityPort({
       auth: auth(async () => null),
     });
@@ -638,8 +714,8 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("ignores expired password-reset rows while retaining live readiness blockers", async () => {
-    insertIdentityUser(db, "principal-1", "One", "one@example.com");
-    insertIdentityUser(db, "principal-2", "Two", "two@example.com");
+    insertIdentityUser({ db, id: "principal-1", name: "One", email: "one@example.com" });
+    insertIdentityUser({ db, id: "principal-2", name: "Two", email: "two@example.com" });
     insertVerification(db, "expired-reset", "principal-1");
     insertVerification(db, "live-reset", "principal-2");
     db.prepare(`UPDATE verification SET expiresAt = ? WHERE id = ?`).run("2020-01-01T00:00:00.000Z", "expired-reset");
@@ -667,7 +743,7 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("rolls back the cutover when the readiness recheck fails under its writer reservation", async () => {
-    insertIdentityUser(db, "principal-1", "One", "one@example.com");
+    insertIdentityUser({ db, id: "principal-1", name: "One", email: "one@example.com" });
     insertVerification(db, "reset-1", "principal-1");
     const port = identityPort({
       auth: auth(async () => null),
@@ -689,19 +765,19 @@ describe("local IdentityPort conformance", () => {
     for (const [index, assurance] of ["password", "mfa", "federated", "missing"].entries()) {
       const principalId = `principal-${index}`;
       const sessionId = `session-${index}`;
-      insertIdentityUser(db, principalId, `Person ${index}`, `person-${index}@example.com`);
+      insertIdentityUser({ db, id: principalId, name: `Person ${index}`, email: `person-${index}@example.com` });
       db.prepare(
         `INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
          VALUES (?, ?, ?, ?, ?, ?)`,
       ).run(sessionId, LATER, `token-${index}`, NOW, NOW, principalId);
       if (assurance !== "missing") {
-        recordSessionAssurance(
+        recordSessionAssurance({
           db,
           sessionId,
           principalId,
-          assurance as "password" | "mfa" | "federated",
-          assurance === "federated" ? "sso" : undefined,
-        );
+          assurance: assurance as "password" | "mfa" | "federated",
+          providerId: assurance === "federated" ? "sso" : undefined,
+        });
       }
     }
     insertVerification(db, "reset-1", "principal-0");
@@ -730,19 +806,19 @@ describe("local IdentityPort conformance", () => {
 
   it("leaves an already-federated session untouched on a clean SSO-only restart", async () => {
     markSsoCutoverActivated(db);
-    insertIdentityUser(db, "principal-1", "One", "one@example.com");
+    insertIdentityUser({ db, id: "principal-1", name: "One", email: "one@example.com" });
     const token = "federated-token";
     db.prepare(
       `INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
        VALUES (?, ?, ?, ?, ?, ?)`,
     ).run("provider-session-1", LATER, token, NOW, NOW, "principal-1");
-    recordSessionAssurance(
+    recordSessionAssurance({
       db,
-      buildApplicationSessionHandle("conformance-app", token),
-      "principal-1",
-      "federated",
-      "sso",
-    );
+      sessionId: buildApplicationSessionHandle("conformance-app", token),
+      principalId: "principal-1",
+      assurance: "federated",
+      providerId: "sso",
+    });
     const port = identityPort({
       auth: auth(async () => null),
       authMode: "sso",
@@ -756,19 +832,19 @@ describe("local IdentityPort conformance", () => {
 
   it("does not treat abandoned OAuth state as a new cutover ceremony", async () => {
     markSsoCutoverActivated(db);
-    insertIdentityUser(db, "principal-1", "One", "one@example.com");
+    insertIdentityUser({ db, id: "principal-1", name: "One", email: "one@example.com" });
     const token = "federated-token";
     db.prepare(
       `INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
        VALUES (?, ?, ?, ?, ?, ?)`,
     ).run("provider-session-1", LATER, token, NOW, NOW, "principal-1");
-    recordSessionAssurance(
+    recordSessionAssurance({
       db,
-      buildApplicationSessionHandle("conformance-app", token),
-      "principal-1",
-      "federated",
-      "sso",
-    );
+      sessionId: buildApplicationSessionHandle("conformance-app", token),
+      principalId: "principal-1",
+      assurance: "federated",
+      providerId: "sso",
+    });
     insertVerification(
       db,
       "oauth-state-1",
@@ -791,7 +867,7 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("corrects an identity email with ceremony invalidation, session revocation, and audit in one durable outcome", async () => {
-    insertIdentityUser(db, "principal-1", "One", "old@example.com");
+    insertIdentityUser({ db, id: "principal-1", name: "One", email: "old@example.com" });
     insertVerification(db, "reset-1", "principal-1");
     insertVerification(
       db,
@@ -818,7 +894,7 @@ describe("local IdentityPort conformance", () => {
         (id, principalId, providerId, createdAt, expiresAt, completedAt)
        VALUES (?, ?, ?, ?, ?, NULL)`,
     ).run("ceremony-1", "principal-1", "sso", NOW, LATER);
-    recordSessionAssurance(db, "session-1", "principal-1", "password");
+    recordSessionAssurance({ db, sessionId: "session-1", principalId: "principal-1", assurance: "password" });
     db.prepare(
       `INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -876,9 +952,15 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("removes an incorrect provider link only after revoking sessions and commits its audit atomically", async () => {
-    insertIdentityUser(db, "principal-1", "One", "one@example.com");
-    insertIdentityAccount(db, "link-1", "sso", "subject-1", "principal-1");
-    insertIdentityAccount(db, "credential-1", "credential", "principal-1", "principal-1");
+    insertIdentityUser({ db, id: "principal-1", name: "One", email: "one@example.com" });
+    insertIdentityAccount({ db, id: "link-1", providerId: "sso", accountId: "subject-1", userId: "principal-1" });
+    insertIdentityAccount({
+      db,
+      id: "credential-1",
+      providerId: "credential",
+      accountId: "principal-1",
+      userId: "principal-1",
+    });
     db.prepare(`UPDATE account SET password = ? WHERE id = ?`).run("stored-password-hash", "credential-1");
     insertVerification(
       db,
@@ -919,9 +1001,15 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("refuses Owner self-repair when a federated link is the only viable sign-in method", async () => {
-    insertIdentityUser(db, "owner-1", "Owner", "owner@example.com");
-    insertIdentityAccount(db, "only-link", "sso", "subject-1", "owner-1");
-    insertIdentityAccount(db, "disabled-link", "disabled-provider", "stale-subject", "owner-1");
+    insertIdentityUser({ db, id: "owner-1", name: "Owner", email: "owner@example.com" });
+    insertIdentityAccount({ db, id: "only-link", providerId: "sso", accountId: "subject-1", userId: "owner-1" });
+    insertIdentityAccount({
+      db,
+      id: "disabled-link",
+      providerId: "disabled-provider",
+      accountId: "stale-subject",
+      userId: "owner-1",
+    });
     db.prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`).run(
       "workspace-1",
       "Studio",
@@ -963,8 +1051,8 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("allows the stopped-server repair capability to remove an unusable final provider link", async () => {
-    insertIdentityUser(db, "principal-1", "One", "one@example.com");
-    insertIdentityAccount(db, "only-link", "sso", "subject-1", "principal-1");
+    insertIdentityUser({ db, id: "principal-1", name: "One", email: "one@example.com" });
+    insertIdentityAccount({ db, id: "only-link", providerId: "sso", accountId: "subject-1", userId: "principal-1" });
     const port = identityPort({
       auth: auth(async () => null),
     });
@@ -994,8 +1082,14 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("never treats a password credential as a federated repair coordinate", async () => {
-    insertIdentityUser(db, "principal-1", "One", "one@example.com");
-    insertIdentityAccount(db, "credential-1", "credential", "principal-1", "principal-1");
+    insertIdentityUser({ db, id: "principal-1", name: "One", email: "one@example.com" });
+    insertIdentityAccount({
+      db,
+      id: "credential-1",
+      providerId: "credential",
+      accountId: "principal-1",
+      userId: "principal-1",
+    });
     const port = identityPort({
       auth: auth(async () => null),
     });
@@ -1042,8 +1136,8 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("rejects a provider-link coordinate whose subject changed after inspection", async () => {
-    insertIdentityUser(db, "principal-1", "One", "one@example.com");
-    insertIdentityAccount(db, "link-1", "sso", "actual-subject", "principal-1");
+    insertIdentityUser({ db, id: "principal-1", name: "One", email: "one@example.com" });
+    insertIdentityAccount({ db, id: "link-1", providerId: "sso", accountId: "actual-subject", userId: "principal-1" });
     const port = identityPort({ auth: auth(async () => null) });
 
     await expect(
@@ -1059,8 +1153,8 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("rejects a provider-link removal when the conditional delete loses a race", async () => {
-    insertIdentityUser(db, "principal-1", "One", "one@example.com");
-    insertIdentityAccount(db, "link-1", "sso", "subject-1", "principal-1");
+    insertIdentityUser({ db, id: "principal-1", name: "One", email: "one@example.com" });
+    insertIdentityAccount({ db, id: "link-1", providerId: "sso", accountId: "subject-1", userId: "principal-1" });
     db.exec(`
       CREATE TRIGGER ignore_test_link_delete
       BEFORE DELETE ON account
@@ -1093,7 +1187,7 @@ describe("local IdentityPort conformance", () => {
       }),
     ).rejects.toMatchObject({ failure: { code: "NOT_FOUND" } });
 
-    insertIdentityUser(db, "principal-1", "One", "old@example.com");
+    insertIdentityUser({ db, id: "principal-1", name: "One", email: "old@example.com" });
     db.exec(`
       CREATE TRIGGER ignore_test_email_update
       BEFORE UPDATE OF email ON user
@@ -1113,8 +1207,8 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("maps both pre-write and driver-level email collisions", async () => {
-    insertIdentityUser(db, "principal-1", "One", "one@example.com");
-    insertIdentityUser(db, "principal-2", "Two", "two@example.com");
+    insertIdentityUser({ db, id: "principal-1", name: "One", email: "one@example.com" });
+    insertIdentityUser({ db, id: "principal-2", name: "Two", email: "two@example.com" });
     const port = identityPort({ auth: auth(async () => null) });
     await expect(
       port.correctPrincipalEmail({
@@ -1145,15 +1239,26 @@ describe("local IdentityPort conformance", () => {
   });
 
   it("rejects ambiguous, unbound, and non-federated SSO session assurance", async () => {
-    insertIdentityUser(db, sessionUser.id, sessionUser.name, sessionUser.email);
+    insertIdentityUser({ db, id: sessionUser.id, name: sessionUser.name, email: sessionUser.email });
     const resolved = async () => ({
       user: sessionUser,
       session: { id: "session-1", createdAt: NOW, expiresAt: LATER },
     });
 
-    insertIdentityAccount(db, "link-1", "sso", "subject-1", sessionUser.id);
-    bindFederatedProvider(db, "conformance-app", "https://issuer.example", "sso");
-    recordSessionAssurance(db, "session-1", sessionUser.id, "federated", "sso");
+    insertIdentityAccount({ db, id: "link-1", providerId: "sso", accountId: "subject-1", userId: sessionUser.id });
+    bindFederatedProvider({
+      db,
+      applicationId: "conformance-app",
+      issuer: "https://issuer.example",
+      providerId: "sso",
+    });
+    recordSessionAssurance({
+      db,
+      sessionId: "session-1",
+      principalId: sessionUser.id,
+      assurance: "federated",
+      providerId: "sso",
+    });
     const ambiguousDb = new Proxy(db, {
       get(target, property) {
         if (property === "prepare") {
@@ -1192,17 +1297,22 @@ describe("local IdentityPort conformance", () => {
       identityPort({ auth: unboundAuth, authMode: "sso" }).verifyApplicationSession({ headers: new Headers() }),
     ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_INVALID_RESPONSE" } });
 
-    recordSessionAssurance(db, "session-1", sessionUser.id, "password");
+    recordSessionAssurance({ db, sessionId: "session-1", principalId: sessionUser.id, assurance: "password" });
     await expect(
       identityPort({ auth: auth(resolved), authMode: "sso" }).verifyApplicationSession({ headers: new Headers() }),
     ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_INVALID_RESPONSE" } });
   });
 
   it("refuses one federated subject mapped to multiple local principals", async () => {
-    insertIdentityUser(db, "principal-1", "One", "one@example.com");
-    insertIdentityUser(db, "principal-2", "Two", "two@example.com");
-    insertIdentityAccount(db, "link-1", "sso", "shared-subject", "principal-1");
-    bindFederatedProvider(db, "conformance-app", "https://issuer.example", "sso");
+    insertIdentityUser({ db, id: "principal-1", name: "One", email: "one@example.com" });
+    insertIdentityUser({ db, id: "principal-2", name: "Two", email: "two@example.com" });
+    insertIdentityAccount({ db, id: "link-1", providerId: "sso", accountId: "shared-subject", userId: "principal-1" });
+    bindFederatedProvider({
+      db,
+      applicationId: "conformance-app",
+      issuer: "https://issuer.example",
+      providerId: "sso",
+    });
     const ambiguousDb = new Proxy(db, {
       get(target, property) {
         if (property === "prepare") {

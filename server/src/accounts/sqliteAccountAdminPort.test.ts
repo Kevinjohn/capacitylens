@@ -402,7 +402,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
       command,
     };
-    setMemberSignInTracking(db, "workspace-1", actor.principalId, true);
+    setMemberSignInTracking({ db, accountId: "workspace-1", actorPrincipalId: actor.principalId, enabled: true });
     const created = await port.createInvitation(createInput);
     await port.claimInvitationForPrincipal({
       token: created.token,
