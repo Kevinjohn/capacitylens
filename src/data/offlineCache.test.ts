@@ -503,24 +503,24 @@ describe("offline tenant cache", () => {
 
   it("reports why writes are skipped instead of resolving ambiguously", async () => {
     localStorage.removeItem("capacitylens/offlineRead");
-    await expect(cacheAccountSummaries([])).resolves.toEqual({ status: "skipped", reason: "disabled" });
+    await expect(cacheAccountSummaries([])).resolves.toEqual({ kind: "skipped", reason: "disabled" });
 
     localStorage.setItem("capacitylens/offlineRead", "on");
-    await expect(cacheAccountSummaries([])).resolves.toEqual({ status: "skipped", reason: "unscoped" });
+    await expect(cacheAccountSummaries([])).resolves.toEqual({ kind: "skipped", reason: "unscoped" });
   });
 
   it("does not repeatedly encrypt an unchanged tenant slice during live refreshes", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     const slice = accountSlice("a-studio");
 
-    await expect(cacheAccountSlice("a-studio", slice)).resolves.toEqual({ status: "written" });
+    await expect(cacheAccountSlice("a-studio", slice)).resolves.toEqual({ kind: "written" });
     await expect(cacheAccountSlice("a-studio", structuredClone(slice))).resolves.toEqual({
-      status: "skipped",
+      kind: "skipped",
       reason: "unchanged",
     });
 
     slice.accounts[0]!.updatedAt = "2026-07-30T10:00:00.000Z";
-    await expect(cacheAccountSlice("a-studio", slice)).resolves.toEqual({ status: "written" });
+    await expect(cacheAccountSlice("a-studio", slice)).resolves.toEqual({ kind: "written" });
   });
 
   it("preserves and reports the cause when a generated device key cannot be persisted", async () => {
@@ -564,7 +564,7 @@ describe("offline tenant cache", () => {
       return originalAdd.call(this, value, key);
     });
 
-    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ status: "written" });
+    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ kind: "written" });
     await expect(readCachedAuthSnapshot()).resolves.toMatchObject({ value: { user: { id: "user-a" } } });
   });
 
@@ -623,7 +623,7 @@ describe("offline tenant cache", () => {
       return "on";
     });
 
-    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ status: "written" });
+    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ kind: "written" });
     await expect(getRaw(`auth:${currentCacheNamespace()}`)).resolves.toBeUndefined();
     expect(warning).toHaveBeenCalledWith(
       "offlineCache: the offline write boundary could not be read; rejecting cache writes",
@@ -740,7 +740,7 @@ describe("offline tenant cache", () => {
     });
 
     await expect(cacheAccountSummaries([{ id: "a-studio", name: "Studio", role: "owner" }])).resolves.toEqual({
-      status: "written",
+      kind: "written",
     });
     await expect(getRaw(`accounts:${currentCacheNamespace()}:user-a`)).resolves.toBeUndefined();
   });
@@ -1235,7 +1235,7 @@ describe("offline tenant cache", () => {
     expect(readOfflineStateSnapshot().cacheWriteFailed).toBe(true);
     await clearAllOfflineData();
 
-    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ status: "written" });
+    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ kind: "written" });
     expect(readOfflineStateSnapshot().cacheWriteFailed).toBe(false);
     await expect(readCachedAuthSnapshot()).resolves.toMatchObject({
       value: { user: { id: "user-a" } },

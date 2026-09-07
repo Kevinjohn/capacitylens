@@ -13,9 +13,9 @@ vi.mock("../../lib/reloadPage", () => reloadMock);
 const offlineMocks = vi.hoisted(() => ({
   enabled: false,
   setEnabled: vi.fn<(enabled: boolean) => Promise<void>>(),
-  cacheAuth: vi.fn(async () => ({ status: "written" as const })),
-  cacheSummaries: vi.fn(async () => ({ status: "written" as const })),
-  cacheSlice: vi.fn(async () => ({ status: "written" as const })),
+  cacheAuth: vi.fn(async () => ({ kind: "written" as const })),
+  cacheSummaries: vi.fn(async () => ({ kind: "written" as const })),
+  cacheSlice: vi.fn(async () => ({ kind: "written" as const })),
   clearAll: vi.fn<() => Promise<void>>(),
   preferenceListeners: new Set<() => void>(),
 }));

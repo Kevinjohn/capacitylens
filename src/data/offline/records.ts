@@ -146,15 +146,15 @@ export function createCachedRecord<T, A extends unknown[] = []>(
   const { readNeedsScope = true, gate } = options;
   return {
     async write(value: T, ...parameters: A): Promise<OfflineCacheWriteResult> {
-      if (!isOfflineReadEnabled()) return { status: "skipped", reason: "disabled" };
-      if (!scope) return { status: "skipped", reason: "unscoped" };
+      if (!isOfflineReadEnabled()) return { kind: "skipped", reason: "disabled" };
+      if (!scope) return { kind: "skipped", reason: "unscoped" };
       const key = keyFor(...parameters);
       const savedAt = Date.now();
       const written = gate?.(key, value, savedAt);
       if (written && typeof written !== "function") return written;
       await put({ key, savedAt, value });
       written?.();
-      return { status: "written" };
+      return { kind: "written" };
     },
     async read(...parameters: A): Promise<CachedRecord<T> | null> {
       if (!isOfflineReadEnabled() || (readNeedsScope && !scope)) return null;
