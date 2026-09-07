@@ -468,7 +468,8 @@ describe("startup configuration before database migration", () => {
       CAPACITYLENS_SSO_DISCOVERY_URL: discoveryUrl,
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
     });
-    const response = await auth!.handler(
+    const ssoAuth = assertPresent(auth, "SSO auth");
+    const response = await ssoAuth.handler(
       new Request("http://localhost:8787/api/auth/oidc/authorize/sso?client_id=client&state=opaque&scope=openid"),
     );
 
@@ -502,7 +503,8 @@ describe("startup configuration before database migration", () => {
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
     });
 
-    const response = await auth!.handler(
+    const ssoAuth = assertPresent(auth, "SSO auth");
+    const response = await ssoAuth.handler(
       new Request("http://localhost:8787/api/auth/oidc/authorize/sso?client_id=client&state=opaque"),
     );
     expect(response.status).toBe(302);
@@ -521,6 +523,7 @@ describe("startup configuration before database migration", () => {
       PRAGMA user_version = 19;
     `);
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV, { deferDatabaseSetup: true });
+    const auth = assertPresent(configured.auth, "password auth");
     expect(planDatabaseMigrations(db).migrations).toEqual([
       expect.objectContaining({ version: 20, name: "version-bootstrap-claim-control" }),
       expect.objectContaining({ version: 21, name: "index-tenant-entity-slices" }),
@@ -543,15 +546,15 @@ describe("startup configuration before database migration", () => {
         checksum: "19c2729bf7048ca0a3e317f3d00088b29c7c7c2cd4d60febce28146d1c42c9a3",
       }),
     ]);
-    const before = await planAuthSchemaMigrations(configured.auth!);
+    const before = await planAuthSchemaMigrations(auth);
     expect(before.pending).toBe(true);
     expect(before.tables).toContain("user");
 
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(auth);
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
-    await expect(planAuthSchemaMigrations(configured.auth!)).resolves.toEqual({ pending: false, tables: [] });
+    await expect(planAuthSchemaMigrations(auth)).resolves.toEqual({ pending: false, tables: [] });
     db.close();
   });
 });
