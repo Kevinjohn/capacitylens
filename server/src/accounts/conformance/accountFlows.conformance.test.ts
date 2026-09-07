@@ -85,25 +85,27 @@ function identityPort(overrides: Partial<LocalIdentityPort> = {}): LocalIdentity
     findPrincipalByFederatedSubject: vi.fn(async () => null),
     signOut: vi.fn(async () => ({ setCookies: [] })),
     listSessions: vi.fn(async () => []),
-    revokeOwnSession: vi.fn(async ({ command: value }) => ({
+    revokeOwnSession: vi.fn<LocalIdentityPort["revokeOwnSession"]>(async ({ command: value }) => ({
       commandId: value.commandId,
       completedAt: "2026-01-01T00:00:00.000Z",
     })),
-    createProvisionalCredentialPrincipal: vi.fn(async ({ command: value }) => ({
-      principalId: "principal-1",
-      compensationHandle: `opaque-${value.commandId}`,
-    })),
-    createCorrelatedProvisionalCredentialPrincipal: vi.fn(
-      async ({ command: value, correlatePrincipalInTransaction }) => {
-        correlatePrincipalInTransaction("principal-1");
-        return {
-          principalId: "principal-1",
-          compensationHandle: `opaque-${value.commandId}`,
-        };
-      },
+    createProvisionalCredentialPrincipal: vi.fn<LocalIdentityPort["createProvisionalCredentialPrincipal"]>(
+      async ({ command: value }) => ({
+        principalId: "principal-1",
+        compensationHandle: `opaque-${value.commandId}`,
+      }),
     ),
+    createCorrelatedProvisionalCredentialPrincipal: vi.fn<
+      LocalIdentityPort["createCorrelatedProvisionalCredentialPrincipal"]
+    >(async ({ command: value, correlatePrincipalInTransaction }) => {
+      correlatePrincipalInTransaction("principal-1");
+      return {
+        principalId: "principal-1",
+        compensationHandle: `opaque-${value.commandId}`,
+      };
+    }),
     compensateProvisionalPrincipal: vi.fn(async () => {}),
-    deprovisionLocalPrincipal: vi.fn(async ({ command: value }) => ({
+    deprovisionLocalPrincipal: vi.fn<LocalIdentityPort["deprovisionLocalPrincipal"]>(async ({ command: value }) => ({
       commandId: value.commandId,
       completedAt: "2026-01-01T00:00:00.000Z",
     })),
@@ -113,7 +115,7 @@ function identityPort(overrides: Partial<LocalIdentityPort> = {}): LocalIdentity
       expiresAt: "2026-01-02T00:00:00.000Z",
     })),
     revokePasswordResetCeremony: vi.fn(async () => {}),
-    revokePrincipalSessions: vi.fn(async ({ command: value }) => ({
+    revokePrincipalSessions: vi.fn<LocalIdentityPort["revokePrincipalSessions"]>(async ({ command: value }) => ({
       commandId: value.commandId,
       completedAt: "2026-01-01T00:00:00.000Z",
     })),
@@ -124,7 +126,7 @@ function identityPort(overrides: Partial<LocalIdentityPort> = {}): LocalIdentity
     ...overrides,
     createCorrelatedProvisionalCredentialPrincipal:
       overrides.createCorrelatedProvisionalCredentialPrincipal ??
-      vi.fn(async (input) => {
+      vi.fn<LocalIdentityPort["createCorrelatedProvisionalCredentialPrincipal"]>(async (input) => {
         const provisional = await create(input);
         input.correlatePrincipalInTransaction(provisional.principalId);
         return provisional;
@@ -140,13 +142,15 @@ function administrationPort(overrides: Partial<LocalAccountAdminPort> = {}): Loc
     evaluateWorkspaceProvisioningAuthorityInTx: vi.fn(() => ({
       allowed: true as const,
     })),
-    provisionOwnerMembershipInTx: vi.fn(({ workspaceId, principalId, joinedAt }) => ({
-      ...member,
-      workspaceId,
-      principalId,
-      role: "owner" as const,
-      joinedAt,
-    })),
+    provisionOwnerMembershipInTx: vi.fn<LocalAccountAdminPort["provisionOwnerMembershipInTx"]>(
+      ({ workspaceId, principalId, joinedAt }) => ({
+        ...member,
+        workspaceId,
+        principalId,
+        role: "owner" as const,
+        joinedAt,
+      }),
+    ),
     assertWorkspaceErasureAuthorityInTx: vi.fn(),
     eraseWorkspaceAdministrationInTx: vi.fn(() => []),
     listWorkspacesForPrincipal: vi.fn(async () => []),
@@ -174,13 +178,16 @@ function administrationPort(overrides: Partial<LocalAccountAdminPort> = {}): Loc
     })),
     acceptInvitation: vi.fn(async () => member),
     claimInvitationForPrincipal: vi.fn(async () => member),
-    revokeInvitation: vi.fn(async ({ command: value }) => ({
+    revokeInvitation: vi.fn<LocalAccountAdminPort["revokeInvitation"]>(async ({ command: value }) => ({
       commandId: value.commandId,
       completedAt: "2026-01-01T00:00:00.000Z",
     })),
     changeMemberRole: vi.fn(async () => member),
-    changeMemberStatus: vi.fn(async ({ nextStatus }) => ({ ...member, status: nextStatus })),
-    removeMember: vi.fn(async ({ command: value }) => ({
+    changeMemberStatus: vi.fn<LocalAccountAdminPort["changeMemberStatus"]>(async ({ nextStatus }) => ({
+      ...member,
+      status: nextStatus,
+    })),
+    removeMember: vi.fn<LocalAccountAdminPort["removeMember"]>(async ({ command: value }) => ({
       commandId: value.commandId,
       completedAt: "2026-01-01T00:00:00.000Z",
     })),
@@ -240,6 +247,13 @@ describe("AccountFlows conformance", () => {
     db = null;
   });
 
+  function currentDb(): Db {
+    if (db === null) {
+      throw new Error("The account-flow test database is not initialized");
+    }
+    return db;
+  }
+
   function harness(
     options: {
       identity?: LocalIdentityPort;
@@ -273,7 +287,7 @@ describe("AccountFlows conformance", () => {
         administration,
         lock,
         eraseProductWorkspaceInTx: (workspaceId) => {
-          db!.prepare(`DELETE FROM accounts WHERE id = ?`).run(workspaceId);
+          currentDb().prepare(`DELETE FROM accounts WHERE id = ?`).run(workspaceId);
         },
         audit,
         ...(options.writeOnceReplayCapacity === undefined
@@ -305,7 +319,7 @@ describe("AccountFlows conformance", () => {
       }),
     ).rejects.toMatchObject({ failure: { code: "INVITATION_EXPIRED" } });
     expect(create).not.toHaveBeenCalled();
-    expect(db!.prepare(`SELECT COUNT(*) AS count FROM account_commands`).get()).toEqual({ count: 0 });
+    expect(currentDb().prepare(`SELECT COUNT(*) AS count FROM account_commands`).get()).toEqual({ count: 0 });
     await expect(flows.reconcileCommand({ command, operation: "invite-password-signup" })).resolves.toBeNull();
   });
 
@@ -382,18 +396,26 @@ describe("AccountFlows conformance", () => {
       }),
     });
 
-    await expect(
-      flows.acceptInviteWithPasswordSignup({
+    const failure = await flows
+      .acceptInviteWithPasswordSignup({
         token: "concurrently-consumed-token",
         email: "person@example.com",
         displayName: "Person",
         password: "not-stored-password",
         command,
-      }),
-    ).rejects.toMatchObject({
+      })
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+    expect(failure).toMatchObject({
       failure: { code: "COMPENSATION_FAILED", commandId: command.commandId },
-      cause: expect.any(AggregateError),
     });
+    expect(failure).toBeInstanceOf(AccountContractError);
+    if (!(failure instanceof AccountContractError)) {
+      throw new Error("Expected the failed signup to surface an account contract error");
+    }
+    expect(failure.cause).toBeInstanceOf(AggregateError);
     expect(compensate).toHaveBeenCalledOnce();
     await expect(flows.reconcileCommand({ command, operation: "invite-password-signup" })).resolves.toMatchObject({
       status: "reconciliation-required",
@@ -405,7 +427,7 @@ describe("AccountFlows conformance", () => {
     const { flows } = harness({
       identity: identityPort({ compensateProvisionalPrincipal: compensate }),
     });
-    db!.exec(`
+    currentDb().exec(`
       CREATE TRIGGER fail_parent_invite_completion
       BEFORE UPDATE OF status ON account_commands
       WHEN OLD.operation = 'invite-password-signup' AND NEW.status = 'completed'
@@ -476,7 +498,7 @@ describe("AccountFlows conformance", () => {
       }),
     ).rejects.toMatchObject({ failure: { code: "IDEMPOTENCY_CONFLICT" } });
 
-    const stored = db!
+    const stored = currentDb()
       .prepare(
         `
       SELECT payloadHash, resultJson, workspaceId, targetPrincipalId
@@ -559,7 +581,7 @@ describe("AccountFlows conformance", () => {
 
     await entered;
     expect(
-      db!
+      currentDb()
         .prepare(
           `
       SELECT status, workspaceId
@@ -580,7 +602,7 @@ describe("AccountFlows conformance", () => {
         },
       }),
     ).resolves.toMatchObject({ commandId: "workspace-erasure-command" });
-    const commandAfterErasure = db!
+    const commandAfterErasure = currentDb()
       .prepare(
         `
       SELECT status, workspaceId
@@ -604,8 +626,12 @@ describe("AccountFlows conformance", () => {
     if (failCompensation) {
       expect(signupFailure).toMatchObject({
         failure: { code: "COMPENSATION_FAILED" },
-        cause: expect.any(AggregateError),
       });
+      expect(signupFailure).toBeInstanceOf(AccountContractError);
+      if (!(signupFailure instanceof AccountContractError)) {
+        throw new Error("Expected failed compensation to surface an account contract error");
+      }
+      expect(signupFailure.cause).toBeInstanceOf(AggregateError);
       await expect(
         flows.reconcileCommand({
           command,
@@ -684,9 +710,13 @@ describe("AccountFlows conformance", () => {
       ["principal-1", "principal-2", "principal-3"],
     ];
     let snapshotIndex = 0;
-    const workspacePrincipalIds = vi.fn(
-      () => membershipSnapshots[Math.min(snapshotIndex++, membershipSnapshots.length - 1)]!,
-    );
+    const workspacePrincipalIds = vi.fn<LocalAccountAdminPort["workspacePrincipalIds"]>(() => {
+      const snapshot = membershipSnapshots[Math.min(snapshotIndex++, membershipSnapshots.length - 1)];
+      if (snapshot === undefined) {
+        throw new Error("Expected a workspace membership snapshot");
+      }
+      return snapshot;
+    });
     const eraseWorkspaceAdministrationInTx = vi.fn(() => [] as string[]);
     const { flows } = harness({
       administration: administrationPort({
@@ -716,7 +746,7 @@ describe("AccountFlows conformance", () => {
     expect(workspacePrincipalIds).toHaveBeenCalledTimes(4);
     expect(eraseWorkspaceAdministrationInTx).not.toHaveBeenCalled();
     expect(
-      db!.prepare(`SELECT status FROM account_commands WHERE commandId = ?`).get(erasureCommand.commandId),
+      currentDb().prepare(`SELECT status FROM account_commands WHERE commandId = ?`).get(erasureCommand.commandId),
     ).toBeUndefined();
   });
 
@@ -777,7 +807,9 @@ describe("AccountFlows conformance", () => {
       }),
     ]);
     expect(
-      db!.prepare(`SELECT status, failureCode FROM account_commands WHERE commandId = ?`).get(command.commandId),
+      currentDb()
+        .prepare(`SELECT status, failureCode FROM account_commands WHERE commandId = ?`)
+        .get(command.commandId),
     ).toEqual({ status: "compensated", failureCode: testCase.code });
     expect(identity.issuePasswordReset).not.toHaveBeenCalled();
     expect(identity.revokePrincipalSessions).not.toHaveBeenCalled();
@@ -933,7 +965,7 @@ describe("AccountFlows conformance", () => {
       command,
     });
     await sideEffectEntered;
-    db!
+    currentDb()
       .prepare(`UPDATE account_commands SET updatedAt = ? WHERE commandId = ?`)
       .run("2000-01-01T00:00:00.000Z", command.commandId);
     const reconciliation = flows.reconcileCommand({
@@ -942,7 +974,9 @@ describe("AccountFlows conformance", () => {
     });
 
     expect(ceremonyVisible).toBe(false);
-    expect(db!.prepare(`SELECT status FROM account_commands WHERE commandId = ?`).get(command.commandId)).toEqual({
+    expect(
+      currentDb().prepare(`SELECT status FROM account_commands WHERE commandId = ?`).get(command.commandId),
+    ).toEqual({
       status: "pending",
     });
     release();
@@ -961,7 +995,7 @@ describe("AccountFlows conformance", () => {
     let revocationVisible = false;
     const { flows, lock } = harness({
       identity: identityPort({
-        revokePrincipalSessions: vi.fn(async ({ command: value }) => {
+        revokePrincipalSessions: vi.fn<LocalIdentityPort["revokePrincipalSessions"]>(async ({ command: value }) => {
           entered();
           await sideEffectRelease;
           revocationVisible = true;
@@ -979,7 +1013,7 @@ describe("AccountFlows conformance", () => {
       command,
     });
     await sideEffectEntered;
-    db!
+    currentDb()
       .prepare(`UPDATE account_commands SET updatedAt = ? WHERE commandId = ?`)
       .run("2000-01-01T00:00:00.000Z", command.commandId);
     const reconciliation = flows.reconcileCommand({
@@ -988,7 +1022,9 @@ describe("AccountFlows conformance", () => {
     });
 
     expect(revocationVisible).toBe(false);
-    expect(db!.prepare(`SELECT status FROM account_commands WHERE commandId = ?`).get(command.commandId)).toEqual({
+    expect(
+      currentDb().prepare(`SELECT status FROM account_commands WHERE commandId = ?`).get(command.commandId),
+    ).toEqual({
       status: "pending",
     });
     release();
@@ -1003,20 +1039,25 @@ describe("AccountFlows conformance", () => {
 
   it("still ages a stale pending command when no executor owns its command lock", async () => {
     const { flows } = harness();
-    reserveTestCommand(db!, { now: "2000-01-01T00:00:00.000Z" });
+    reserveTestCommand(currentDb(), { now: "2000-01-01T00:00:00.000Z" });
 
-    await expect(flows.reconcileCommand({ command, operation: "password-reset" })).resolves.toMatchObject({
+    const reconciliation = await flows.reconcileCommand({ command, operation: "password-reset" });
+    expect(reconciliation).toMatchObject({
       status: "reconciliation-required",
-      receipt: { commandId: command.commandId, observedAt: expect.any(String) },
+      receipt: { commandId: command.commandId },
       failure: { commandId: command.commandId },
       repair: { kind: "stale-pending", targetPrincipalId: "principal-1" },
     });
+    if (reconciliation?.status !== "reconciliation-required") {
+      throw new Error("Expected stale pending state to require reconciliation");
+    }
+    expect(typeof reconciliation.receipt.observedAt).toBe("string");
   });
 
   it("reports a live pending command observation without claiming it completed", async () => {
     const { flows } = harness();
     const observedAt = new Date().toISOString();
-    reserveTestCommand(db!, { now: observedAt });
+    reserveTestCommand(currentDb(), { now: observedAt });
 
     await expect(flows.reconcileCommand({ command, operation: "password-reset" })).resolves.toEqual({
       status: "pending",
@@ -1080,8 +1121,8 @@ describe("AccountFlows conformance", () => {
       const { flows } = harness();
       const ledgerOperation =
         operation === "invite-password-signup" ? operation : `${operation}:actor:${actor.principalId}`;
-      reserveTestCommand(db!, { operation: ledgerOperation });
-      finishAccountCommand(db!, {
+      reserveTestCommand(currentDb(), { operation: ledgerOperation });
+      finishAccountCommand(currentDb(), {
         applicationId: "conformance-application",
         operation: ledgerOperation,
         idempotencyKey: command.idempotencyKey,
@@ -1091,10 +1132,12 @@ describe("AccountFlows conformance", () => {
       });
       // Simulate storage corruption or an unsafe operational edit. The normal table CHECK rejects
       // invalid JSON, but reconciliation must still fail closed if the durable bytes are damaged.
-      db!.exec("PRAGMA ignore_check_constraints = ON");
-      db!.prepare(`UPDATE account_commands SET resultJson = ? WHERE commandId = ?`).run(resultJson, command.commandId);
-      db!.exec("PRAGMA ignore_check_constraints = OFF");
-      const stored = db!
+      currentDb().exec("PRAGMA ignore_check_constraints = ON");
+      currentDb()
+        .prepare(`UPDATE account_commands SET resultJson = ? WHERE commandId = ?`)
+        .run(resultJson, command.commandId);
+      currentDb().exec("PRAGMA ignore_check_constraints = OFF");
+      const stored = currentDb()
         .prepare(`SELECT status, resultJson FROM account_commands WHERE commandId = ?`)
         .get(command.commandId);
 
@@ -1104,15 +1147,17 @@ describe("AccountFlows conformance", () => {
         commandId: command.commandId,
       });
       expect(
-        db!.prepare(`SELECT status, resultJson FROM account_commands WHERE commandId = ?`).get(command.commandId),
+        currentDb()
+          .prepare(`SELECT status, resultJson FROM account_commands WHERE commandId = ?`)
+          .get(command.commandId),
       ).toEqual(stored);
     },
   );
 
   it("retains the explicit legacy fallback only for null reconciliation metadata", async () => {
     const { flows } = harness();
-    reserveTestCommand(db!);
-    finishAccountCommand(db!, {
+    reserveTestCommand(currentDb());
+    finishAccountCommand(currentDb(), {
       applicationId: "conformance-application",
       operation: "password-reset:actor:actor-1",
       idempotencyKey: command.idempotencyKey,
@@ -1134,8 +1179,8 @@ describe("AccountFlows conformance", () => {
 
   it("does not age stale pending state until command id, idempotency key and operation all match", async () => {
     const { flows } = harness();
-    reserveTestCommand(db!, { now: "2000-01-01T00:00:00.000Z" });
-    const original = db!
+    reserveTestCommand(currentDb(), { now: "2000-01-01T00:00:00.000Z" });
+    const original = currentDb()
       .prepare(
         `
       SELECT status, updatedAt FROM account_commands WHERE commandId = ?
@@ -1156,7 +1201,7 @@ describe("AccountFlows conformance", () => {
       }),
     ).resolves.toBeNull();
     expect(
-      db!
+      currentDb()
         .prepare(
           `
       SELECT status, updatedAt FROM account_commands WHERE commandId = ?
