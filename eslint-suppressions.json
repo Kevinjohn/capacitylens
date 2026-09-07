@@ -174,11 +174,6 @@
       "count": 1
     }
   },
-  "server/src/controlTables/members.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "server/src/cutoverRepair.test.ts": {
     "max-params": {
       "count": 1
