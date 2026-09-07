@@ -49,15 +49,15 @@ export function buildActivityListModel({
   unavailableClient: string;
   unavailableProject: string;
 }): ActivityListModel {
-  const projectById = new Map(projects.map((project) => [project.id, project]));
-  const clientById = new Map(clients.map((client) => [client.id, client]));
+  const projectsById = new Map(projects.map((project) => [project.id, project]));
+  const clientsById = new Map(clients.map((client) => [client.id, client]));
   const groupedClients = new Map<string, ClientActivityGroup>();
 
   for (const activity of activities) {
     if (activity.kind !== "project") continue;
 
-    const project = activity.projectId ? projectById.get(activity.projectId) : undefined;
-    const client = project ? clientById.get(project.clientId) : undefined;
+    const project = activity.projectId ? projectsById.get(activity.projectId) : undefined;
+    const client = project ? clientsById.get(project.clientId) : undefined;
     const clientKey = client ? `client:${client.id}` : "client:unavailable";
     const projectKey = project ? `project:${project.id}` : "project:unavailable";
     let clientGroup = groupedClients.get(clientKey);
@@ -84,13 +84,13 @@ export function buildActivityListModel({
     projectGroup.activities.push(activity);
   }
 
-  const sortedActivities = (kind: Activity["kind"]) =>
+  const listSortedActivities = (kind: Activity["kind"]) =>
     activities.filter((activity) => activity.kind === kind).toSorted(compareNamed);
 
   return {
     kindOrder: ACTIVITY_KIND_ORDER,
-    internal: sortedActivities("internal"),
-    crossProject: sortedActivities("repeatable"),
+    internal: listSortedActivities("internal"),
+    crossProject: listSortedActivities("repeatable"),
     clients: [...groupedClients.values()]
       .map((client) => ({
         ...client,

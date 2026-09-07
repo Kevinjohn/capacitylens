@@ -1,5 +1,5 @@
 /** True when a text-editing control should retain its native keyboard shortcut behavior. */
-export function textEntryOwnsShortcut(target: EventTarget | null): boolean {
+export function isTextEntryShortcutOwner(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target.matches("input, textarea, select") || target.isContentEditable) return true;
 

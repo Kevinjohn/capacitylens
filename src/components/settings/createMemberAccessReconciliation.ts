@@ -1,9 +1,9 @@
 import { m } from "@/i18n";
 import { teamAccessClient } from "../../account/teamAccessClient";
 import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
-import { offlineStateSnapshot } from "../../data/offlineCache";
+import { readOfflineStateSnapshot } from "../../data/offlineCache";
 import { refreshActiveAccountSlice } from "../../data/persist";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import type { MemberActionDependencies } from "./memberActionDependencies";
 import type { useTeamDirectory } from "./useTeamDirectory";
 import type { useMemberInvites } from "./useMemberInvites";
@@ -21,7 +21,7 @@ interface MemberAccessDependencies extends Pick<
   reconcileMintedInvite: ReturnType<typeof useMemberInvites>["reconcileMintedInvite"];
 }
 
-export function memberAccessReconciliation({
+export function createMemberAccessReconciliation({
   activeAccountId,
   invalidateMemberships,
   refreshAuth,
@@ -49,7 +49,7 @@ export function memberAccessReconciliation({
     if (!isActiveAccount(accountId)) return "left";
     // A cached fallback is useful for ordinary offline viewing but is not evidence of the caller's
     // post-mutation role. Fail closed instead of accepting a stale membership list as authority.
-    if (summaries === null || offlineStateSnapshot().readOnly) {
+    if (summaries === null || readOfflineStateSnapshot().readOnly) {
       closeActiveAccount();
       setNotice(m.settings_members_access_refresh_failed(), "error");
       return "failed";
@@ -64,7 +64,7 @@ export function memberAccessReconciliation({
     // `refreshActiveAccountSlice` can report `reloaded` after restoring an offline snapshot. That is
     // still not an authoritative post-role projection: close the tenant so confidential fields
     // from the caller's previous role cannot remain visible under an unverified role badge.
-    if (outcome === "reloaded" && !offlineStateSnapshot().readOnly) return "active";
+    if (outcome === "reloaded" && !readOfflineStateSnapshot().readOnly) return "active";
     // A user-initiated tenant switch can legitimately supersede this refresh. Never close the new
     // tenant or replace its notice because a stale operation finished late.
     closeActiveAccount();
@@ -108,7 +108,7 @@ export function memberAccessReconciliation({
           null,
           m.settings_members_reconcile_reload_failed({
             message,
-            error: errorMessage(reloadError),
+            error: resolveErrorMessage(reloadError),
           }),
         );
       }

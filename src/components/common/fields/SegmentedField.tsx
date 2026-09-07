@@ -7,7 +7,7 @@ import {
   type SegmentedOption,
   type SegmentedSize,
 } from "../SegmentedControl";
-import { productFieldLayoutProps } from "./fieldLayoutProps";
+import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
 import type { ProductFieldLayout } from "./fieldTypes";
 
 /** Labelled segmented option set that shares the product field layouts. */
@@ -45,7 +45,7 @@ export function SegmentedField<T extends string | number>({
 }) {
   const labelId = useId();
   return (
-    <Field {...productFieldLayoutProps(layout)}>
+    <Field {...buildProductFieldLayoutProps(layout)}>
       <FieldLabel id={labelId}>{label}</FieldLabel>
       <SegmentedControl
         value={value}

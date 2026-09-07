@@ -31,7 +31,7 @@ const DATE_FNS_LOCALES: Record<Locale, DateFnsLocale> = {
 
 /** Resolve date-fns presentation rules from the active Paraglide locale.
  *  The exhaustive map makes a new generated locale require one central date-locale mapping. */
-export function activeDateLocale(): DateFnsLocale {
+export function readActiveDateLocale(): DateFnsLocale {
   return DATE_FNS_LOCALES[getLocale()];
 }
 

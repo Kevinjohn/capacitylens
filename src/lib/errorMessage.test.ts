@@ -1,29 +1,29 @@
 import { describe, it, expect } from "vitest";
-import { errorMessage, domainErrorMessage } from "./errorMessage";
+import { resolveErrorMessage, resolveDomainErrorMessage } from "./errorMessage";
 import { DomainError, type DomainErrorCode } from "@capacitylens/shared/domain/errors";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 
 describe("errorMessage", () => {
   it("normalises an Error, a string, a React Router ErrorResponse, and unknown throws", () => {
-    expect(errorMessage(new Error("x"))).toBe("x");
-    expect(errorMessage("plain")).toBe("plain");
-    expect(errorMessage({ statusText: "Not Found" })).toBe("Not Found");
-    expect(errorMessage(null)).toBe("An unexpected error occurred.");
-    expect(errorMessage(undefined)).toBe("An unexpected error occurred.");
-    expect(errorMessage(42)).toBe("An unexpected error occurred.");
+    expect(resolveErrorMessage(new Error("x"))).toBe("x");
+    expect(resolveErrorMessage("plain")).toBe("plain");
+    expect(resolveErrorMessage({ statusText: "Not Found" })).toBe("Not Found");
+    expect(resolveErrorMessage(null)).toBe("An unexpected error occurred.");
+    expect(resolveErrorMessage(undefined)).toBe("An unexpected error occurred.");
+    expect(resolveErrorMessage(42)).toBe("An unexpected error occurred.");
   });
 
   it.each(["", "   ", new Error(""), new Error("   "), { statusText: "" }])(
     "never returns a blank message for %j",
     (error) => {
-      expect(errorMessage(error)).toBe("An unexpected error occurred.");
+      expect(resolveErrorMessage(error)).toBe("An unexpected error occurred.");
     },
   );
 
   it("falls back to the generic message when statusText is present but not a string", () => {
     // Exercises the `typeof statusText === 'string'` guard specifically (as opposed to the
     // earlier `'statusText' in error` check, which alone would let a non-string through).
-    expect(errorMessage({ statusText: 123 })).toBe("An unexpected error occurred.");
+    expect(resolveErrorMessage({ statusText: 123 })).toBe("An unexpected error occurred.");
   });
 
   it("remains total for hostile proxies whose traps throw", () => {
@@ -42,7 +42,7 @@ describe("errorMessage", () => {
       },
     );
 
-    expect(errorMessage(hostile)).toBe("An unexpected error occurred.");
+    expect(resolveErrorMessage(hostile)).toBe("An unexpected error occurred.");
   });
 
   it("snapshots a stateful Proxy statusText once before validating it", () => {
@@ -58,12 +58,12 @@ describe("errorMessage", () => {
       },
     );
 
-    expect(errorMessage(stateful)).toBe("Temporarily unavailable");
+    expect(resolveErrorMessage(stateful)).toBe("Temporarily unavailable");
     expect(reads).toBe(1);
   });
 
   it("maps a domain code through translations instead of trusting fallback prose", () => {
-    expect(errorMessage(new DomainError("record_wrong_account", "obsolete server wording"))).toBe(
+    expect(resolveErrorMessage(new DomainError("record_wrong_account", "obsolete server wording"))).toBe(
       "That record does not belong to the active company.",
     );
   });
@@ -103,7 +103,7 @@ describe("domainErrorMessage", () => {
   ];
 
   it.each(fixedMessageCases)("maps %s to its exact translated message", (code, expected) => {
-    expect(domainErrorMessage(code)).toBe(expected);
+    expect(resolveDomainErrorMessage(code)).toBe(expected);
   });
 
   it("keeps every code distinct so no two cases share a fallen-through message", () => {
@@ -116,22 +116,22 @@ describe("domainErrorMessage", () => {
   it("interpolates the formatted span limit into date_span_too_long", () => {
     // MAX_SPAN_DAYS is 36_500; toLocaleString("en-GB") groups thousands with a comma, so this
     // pins both the ObjectLiteral (the `{ max }` payload) and StringLiteral ("en-GB") mutants.
-    expect(domainErrorMessage("date_span_too_long")).toBe(
+    expect(resolveDomainErrorMessage("date_span_too_long")).toBe(
       `Date span cannot exceed ${MAX_SPAN_DAYS.toLocaleString("en-GB")} calendar days.`,
     );
-    expect(domainErrorMessage("date_span_too_long")).toBe("Date span cannot exceed 36,500 calendar days.");
+    expect(resolveDomainErrorMessage("date_span_too_long")).toBe("Date span cannot exceed 36,500 calendar days.");
   });
 });
 
 describe("errorMessage edge cases around the plain-object statusText branch", () => {
   it("falls back to generic for a bare object with no statusText", () => {
-    expect(errorMessage({})).toBe("An unexpected error occurred.");
+    expect(resolveErrorMessage({})).toBe("An unexpected error occurred.");
   });
 
   it("falls back to generic for a whitespace-only statusText", () => {
     // Distinguishes the real `statusText.trim()` truthiness check from a mutant that reads
     // `statusText` directly (untrimmed), which would treat "   " as a usable message.
-    expect(errorMessage({ statusText: "   " })).toBe("An unexpected error occurred.");
+    expect(resolveErrorMessage({ statusText: "   " })).toBe("An unexpected error occurred.");
   });
 
   it("ignores a truthy non-object error even when it carries a statusText property", () => {
@@ -141,6 +141,6 @@ describe("errorMessage edge cases around the plain-object statusText branch", ()
     // it back out.
     const fn = (): void => undefined;
     (fn as unknown as { statusText?: string }).statusText = "leaked from a function";
-    expect(errorMessage(fn)).toBe("An unexpected error occurred.");
+    expect(resolveErrorMessage(fn)).toBe("An unexpected error occurred.");
   });
 });

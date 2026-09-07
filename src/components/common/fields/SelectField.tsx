@@ -13,7 +13,7 @@ import {
 import { useMarkFormDirty } from "../formDirty";
 import { RequiredFieldLabel } from "./fieldLayout";
 import type { Option } from "./fieldTypes";
-import { productFieldLayoutProps } from "./fieldLayoutProps";
+import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
 import type { ProductFieldLayout } from "./fieldTypes";
 
 // Radix reserves the empty string for its placeholder state. Encode every caller value into a
@@ -38,7 +38,7 @@ export function SelectField({
 }: {
   label: string;
   value: string;
-  onChange: (v: string) => void;
+  onChange: (value: string) => void;
   options: Option[];
   placeholder?: string;
   disabled?: boolean;
@@ -65,7 +65,7 @@ export function SelectField({
     <Field
       data-invalid={invalid || undefined}
       data-disabled={disabled || undefined}
-      {...productFieldLayoutProps(layout)}
+      {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Select

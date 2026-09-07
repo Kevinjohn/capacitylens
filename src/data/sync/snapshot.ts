@@ -3,7 +3,7 @@ import { type AllocationRewriteRevision } from "../PersistenceAdapter";
 import { type Op } from "../syncOps";
 import {
   applyCommittedRevision,
-  rowKey,
+  buildRowKey,
   rowKeyParts,
   type AcknowledgedRevision,
   type CommittedRevision,
@@ -12,25 +12,27 @@ import type { SyncState } from "./state";
 
 /** Regroup the flat key→translation map into table→(id→translation) ONCE per pass, so a whole-table
  *  scan can look rows up by plain id instead of composing a key string per row. */
-export function acknowledgedByTable(state: SyncState): Map<keyof AppData, Map<string, AcknowledgedRevision>> {
-  const byTable = new Map<keyof AppData, Map<string, AcknowledgedRevision>>();
+export function buildAcknowledgedRevisionsByTable(
+  state: SyncState,
+): Map<keyof AppData, Map<string, AcknowledgedRevision>> {
+  const acknowledgedRevisionsByTable = new Map<keyof AppData, Map<string, AcknowledgedRevision>>();
   for (const [key, acknowledged] of state.acknowledgedRevisions) {
     const [table, id] = rowKeyParts(key);
-    let rows = byTable.get(table as keyof AppData);
+    let rows = acknowledgedRevisionsByTable.get(table as keyof AppData);
     if (!rows) {
       rows = new Map<string, AcknowledgedRevision>();
-      byTable.set(table as keyof AppData, rows);
+      acknowledgedRevisionsByTable.set(table as keyof AppData, rows);
     }
     rows.set(id, acknowledged);
   }
-  return byTable;
+  return acknowledgedRevisionsByTable;
 }
 
 export function canonicalizeAcknowledged(state: SyncState, data: AppData): AppData {
   if (state.acknowledgedRevisions.size === 0) return data;
   const next = { ...data };
   let changed = false;
-  for (const [table, acknowledgedById] of acknowledgedByTable(state)) {
+  for (const [table, acknowledgedById] of buildAcknowledgedRevisionsByTable(state)) {
     next[table] = data[table].map((row) => {
       const acknowledged = acknowledgedById.get(row.id);
       if (!acknowledged || row.updatedAt !== acknowledged.client) return row;
@@ -74,15 +76,15 @@ export function rememberRevisions(
   revisions: CommittedRevision[],
   committedSnapshot: AppData,
 ): void {
-  const byRow = new Map(
+  const revisionsByRowKey = new Map(
     revisions
       .filter((revision) => revision.rewrite !== true)
-      .map((revision) => [rowKey(revision.table, revision.id), revision]),
+      .map((revision) => [buildRowKey(revision.table, revision.id), revision]),
   );
   for (const op of ops) {
     if (op.method !== "PUT" || !op.row) continue;
-    const key = rowKey(op.table, op.id);
-    const server = byRow.get(key);
+    const key = buildRowKey(op.table, op.id);
+    const server = revisionsByRowKey.get(key);
     if (server) {
       state.acknowledgedRevisions.set(key, {
         client: op.row.updatedAt,
@@ -92,7 +94,7 @@ export function rememberRevisions(
   }
   const rowsByTable = new Map<Op["table"], Map<string, Entity>>();
   for (const revision of revisions) {
-    const key = rowKey(revision.table, revision.id);
+    const key = buildRowKey(revision.table, revision.id);
     if (revision.rewrite !== true) continue;
     let rows = rowsByTable.get(revision.table);
     if (!rows) {
@@ -128,10 +130,10 @@ export function pruneAcknowledgedRevisions(state: SyncState, data: AppData): voi
   // Nothing to prune, and — since only the tables the surviving translations MENTION can decide a
   // key's fate — never a reason to index every row of every table just to answer a handful of ids.
   if (state.acknowledgedRevisions.size === 0) return;
-  for (const [table, acknowledgedById] of acknowledgedByTable(state)) {
+  for (const [table, acknowledgedById] of buildAcknowledgedRevisionsByTable(state)) {
     const live = new Set<string>((data[table] as Entity[] | undefined)?.map((row) => row.id));
     for (const id of acknowledgedById.keys()) {
-      if (!live.has(id)) state.acknowledgedRevisions.delete(rowKey(table, id));
+      if (!live.has(id)) state.acknowledgedRevisions.delete(buildRowKey(table, id));
     }
   }
 }

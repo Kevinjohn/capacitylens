@@ -13,7 +13,7 @@ import { m } from "@/i18n";
 type Setup = { totpURI: string; backupCodes: string[] };
 
 /** Decode the auth HTTP boundary before a malformed success can replace the recoverable form. */
-function decodeSetup(value: unknown): Setup | null {
+function parseMfaSetup(value: unknown): Setup | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const { totpURI, backupCodes } = value as Record<string, unknown>;
   if (typeof totpURI !== "string" || totpURI.trim().length === 0) return null;
@@ -62,7 +62,7 @@ export function MfaEnrollmentScreen({
       if (result.error) {
         setError(result.error.message ?? m.mfa_enrollment_start_failed());
       } else {
-        const decoded = decodeSetup(result.data);
+        const decoded = parseMfaSetup(result.data);
         if (!decoded) {
           setError(m.mfa_enrollment_invalid_response());
         } else {

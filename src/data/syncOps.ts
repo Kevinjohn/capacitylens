@@ -38,8 +38,8 @@ export interface Op {
  *  bound to C1 in the DB) and its unmodified descendants, which carry no upsert op and
  *  would be lost. Doing upserts first lets the cascade find nothing to take.
  *  Exported for unit tests. */
-export function diffOps(prev: AppData, next: AppData): Op[] {
-  return diffOpsFromPossibleBases([prev], next);
+export function diffOps(previous: AppData, next: AppData): Op[] {
+  return diffOpsFromPossibleBases([previous], next);
 }
 
 /** Build one final-state delta that is correct when any supplied snapshot may be the server's
@@ -63,7 +63,7 @@ export function diffOpsFromPossibleBases(possibleBases: readonly AppData[], next
       throw new Error(`diffOps: table "${table}" is not an array — inputs must be post-migrate AppData.`);
     }
     const baseIndexes = baseRows.map((rows) => new Map(rows.map((entity) => [entity.id, entity])));
-    const nextById = new Map(nextRows.map((e) => [e.id, e]));
+    const nextById = new Map(nextRows.map((entity) => [entity.id, entity]));
     for (const row of nextRows) {
       if (baseIndexes.some((index) => index.get(row.id)?.updatedAt !== row.updatedAt)) {
         upserts.push({ method: "PUT", table, id: row.id, row });
@@ -137,13 +137,13 @@ export function applyOps(base: AppData, ops: Op[]): AppData {
   for (const op of ops) {
     const list = next[op.table];
     if (op.method === "DELETE") {
-      next[op.table] = list.filter((r) => r.id !== op.id);
+      next[op.table] = list.filter((row) => row.id !== op.id);
       indexByTable.delete(op.table);
     } else if (op.row) {
       const index = indexFor(op.table);
-      const idx = index.get(op.id);
-      if (idx !== undefined) {
-        list[idx] = op.row;
+      const rowIndex = index.get(op.id);
+      if (rowIndex !== undefined) {
+        list[rowIndex] = op.row;
         if (op.row.id !== op.id) indexByTable.delete(op.table);
       } else {
         list.push(op.row);

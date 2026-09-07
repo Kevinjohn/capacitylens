@@ -5,7 +5,7 @@ import type { AuthUser } from "../../auth/authContext";
 import { accountClient } from "../../account/accountClient";
 import { isServerConfigured } from "../../data/apiConfig";
 import { readApiError } from "../../lib/readApiError";
-import { messageForStatus, parsePreview } from "./inviteResponses";
+import { resolveMessageForStatus, parsePreview } from "./inviteResponses";
 
 interface Dependencies {
   token: string | undefined;
@@ -35,7 +35,7 @@ export function createInvitePreviewAction({
         if (!previewResponse.ok) {
           setState({
             kind: "error",
-            message: messageForStatus(previewResponse.status, await readApiError(previewResponse)),
+            message: resolveMessageForStatus(previewResponse.status, await readApiError(previewResponse)),
           });
           return;
         }

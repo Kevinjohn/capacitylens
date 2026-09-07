@@ -35,8 +35,8 @@ export function useSecondFactor({
         return;
       }
       onSignedIn();
-    } catch (err) {
-      console.error("LoginScreen: second-factor verification failed", err);
+    } catch (error) {
+      console.error("LoginScreen: second-factor verification failed", error);
       setError(m.login_network_error());
       setBusy(false);
     }

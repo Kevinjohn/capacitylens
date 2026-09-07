@@ -4,7 +4,7 @@ import { API_BASE, isServerConfigured } from "../data/apiConfig";
 import { persistenceAdapter } from "../data/storageAdapter";
 import { refreshActiveAccountSlice, type RefreshOutcome } from "../data/persist";
 import { useStore, type LifecycleEntity } from "../store/useStore";
-import { errorMessage } from "../lib/errorMessage";
+import { resolveErrorMessage } from "../lib/errorMessage";
 import { readApiError } from "../lib/readApiError";
 import { m } from "@/i18n";
 import { apiFetchReauth } from "../auth/apiFetchReauth";
@@ -37,7 +37,7 @@ import { API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
 export type LifecycleVerb = "archive" | "unarchive" | "delete" | "purge";
 
 /** A timeout or server/intermediary failure cannot prove whether the dispatched write committed. */
-function lifecycleOutcomeUnknown(response: Response): boolean {
+function isLifecycleOutcomeUnknown(response: Response): boolean {
   return response.status === 408 || response.status >= 500;
 }
 
@@ -105,12 +105,12 @@ async function reloadFromServer(accountId: string): Promise<LifecycleReloadOutco
   return "reloaded";
 }
 
-function committedButStaleMessage(outcome: "skipped" | "failed", cause?: unknown): string {
+function buildCommittedButStaleMessage(outcome: "skipped" | "failed", cause?: unknown): string {
   const guidance =
     outcome === "skipped"
       ? m.settings_archived_committed_refresh_skipped()
       : m.settings_archived_committed_refresh_failed();
-  return cause === undefined ? guidance : `${guidance} ${errorMessage(cause)}`;
+  return cause === undefined ? guidance : `${guidance} ${resolveErrorMessage(cause)}`;
 }
 
 // A confirmed mutation without its mandatory refresh must stay gated across route/component
@@ -130,12 +130,12 @@ const reloadRequiredByAccount = new Map<string, string>();
  */
 export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
   const mutationQueue = useRef<Promise<void>>(Promise.resolve());
-  const activeAccountId = useStore((s) => s.activeAccountId);
-  const setNotice = useStore((s) => s.setNotice);
-  const archiveEntity = useStore((s) => s.archiveEntity);
-  const unarchiveEntity = useStore((s) => s.unarchiveEntity);
-  const softDeleteEntity = useStore((s) => s.softDeleteEntity);
-  const purgeEntity = useStore((s) => s.purgeEntity);
+  const activeAccountId = useStore((state) => state.activeAccountId);
+  const setNotice = useStore((state) => state.setNotice);
+  const archiveEntity = useStore((state) => state.archiveEntity);
+  const unarchiveEntity = useStore((state) => state.unarchiveEntity);
+  const softDeleteEntity = useStore((state) => state.softDeleteEntity);
+  const purgeEntity = useStore((state) => state.purgeEntity);
 
   // The single server-mode dispatch: POST the dedicated route with {accountId}, reconcile an
   // ambiguous timeout/5xx, surface body.error on a definitive non-OK reply, else reload the active
@@ -171,7 +171,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
           },
           API_BULK_TIMEOUT_MS,
         );
-        if (lifecycleOutcomeUnknown(res)) {
+        if (isLifecycleOutcomeUnknown(res)) {
           throw new Error(`HTTP ${res.status} did not confirm whether the lifecycle mutation committed.`);
         }
         if (!res.ok && res.status !== 204) {
@@ -185,7 +185,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
         const outcome = await reloadFromServer(activeAccountId);
         if (outcome === "stale-account") return;
         if (outcome !== "reloaded") {
-          const message = committedButStaleMessage(outcome);
+          const message = buildCommittedButStaleMessage(outcome);
           reloadRequiredByAccount.set(activeAccountId, message);
           setNotice(message, "error");
           return;
@@ -197,7 +197,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
         // alarming old-company notice to the picker or the newly active company.
         if (useStore.getState().activeAccountId !== activeAccountId) return;
         if (mutationConfirmed) {
-          const message = committedButStaleMessage("failed", e);
+          const message = buildCommittedButStaleMessage("failed", e);
           reloadRequiredByAccount.set(activeAccountId, message);
           setNotice(message, "error");
           return;
@@ -210,12 +210,12 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
           }
           notifyReloaded = true;
           setNotice(
-            `The lifecycle request had an unknown outcome, so the latest company data was reloaded. ${errorMessage(e)}`,
+            `The lifecycle request had an unknown outcome, so the latest company data was reloaded. ${resolveErrorMessage(e)}`,
             "warning",
           );
         } catch (reloadError) {
           if (useStore.getState().activeAccountId !== activeAccountId) return;
-          const message = `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. ${errorMessage(reloadError)} Original request: ${errorMessage(e)}`;
+          const message = `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. ${resolveErrorMessage(reloadError)} Original request: ${resolveErrorMessage(e)}`;
           reloadRequiredByAccount.set(activeAccountId, message);
           setNotice(message, "error");
         }
@@ -242,7 +242,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
       try {
         storeAction[verb](entity, id);
       } catch (e) {
-        setNotice(errorMessage(e), "error");
+        setNotice(resolveErrorMessage(e), "error");
       }
     },
     [archiveEntity, unarchiveEntity, softDeleteEntity, purgeEntity, setNotice],
@@ -260,7 +260,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
         } catch (e) {
           // Preserve the public never-reject contract even if a configuration seam or future
           // dispatch branch throws outside the existing server/local error boundaries.
-          setNotice(errorMessage(e), "error");
+          setNotice(resolveErrorMessage(e), "error");
         }
       };
 

@@ -3,7 +3,7 @@ import { FieldLegend, FieldSet } from "../../ui/field";
 import { Label } from "../../ui/label";
 import { m } from "@/i18n";
 import type { Weekday } from "@capacitylens/shared/types/entities";
-import { weekdayLabel } from "../../../lib/weekdays";
+import { resolveWeekdayLabel } from "../../../lib/weekdays";
 import { useMarkFormDirty } from "../formDirty";
 import type { WorkingDayOption } from "./fieldTypes";
 
@@ -12,7 +12,7 @@ import type { WorkingDayOption } from "./fieldTypes";
 // order isn't re-stated per locale.
 const WEEKDAY_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
 
-function workingDayOptions(): Array<{ value: WorkingDayOption; label: string }> {
+function buildWorkingDayOptions(): Array<{ value: WorkingDayOption; label: string }> {
   return [
     { value: "full", label: m.form_resource_working_day_full() },
     { value: "half", label: m.form_resource_working_day_half() },
@@ -39,7 +39,7 @@ export function WorkingDayPicker({
 }) {
   const markDirty = useMarkFormDirty();
   const groupId = useId();
-  const options = workingDayOptions();
+  const options = buildWorkingDayOptions();
   const optionFor = (day: Weekday): WorkingDayOption =>
     !workingDays.includes(day) ? "off" : halfDays.includes(day) ? "half" : "full";
   const choose = (day: Weekday, option: WorkingDayOption) => {
@@ -85,7 +85,7 @@ export function WorkingDayPicker({
           </thead>
           <tbody>
             {WEEKDAY_ORDER.map((day) => {
-              const dayLabel = weekdayLabel(day);
+              const dayLabel = resolveWeekdayLabel(day);
               const rowHeadingId = `${groupId}-${day}-heading`;
               return (
                 <tr key={day} className="border-b last:border-b-0">

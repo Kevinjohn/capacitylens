@@ -34,19 +34,19 @@ function cleanupDownloadArtifacts(
  */
 export function downloadTextFile(filename: string, content: string, type = "application/json"): void {
   let url: string | undefined;
-  let a: HTMLAnchorElement | undefined;
+  let anchor: HTMLAnchorElement | undefined;
   try {
     const blob = new Blob([content], { type });
     url = URL.createObjectURL(blob);
-    a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
+    anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.style.display = "none";
+    document.body.appendChild(anchor);
+    anchor.click();
   } catch (e) {
     // The request was not accepted. Clean up the half-built artefacts before surfacing it.
-    cleanupDownloadArtifacts(a, url, "downloadTextFile: cleanup after failed download failed");
+    cleanupDownloadArtifacts(anchor, url, "downloadTextFile: cleanup after failed download failed");
     throw new Error(m.download_start_failed(), { cause: e });
   }
   // Deferred teardown runs in its own task after the browser has received the request. A failure
@@ -55,6 +55,6 @@ export function downloadTextFile(filename: string, content: string, type = "appl
   setTimeout(() => {
     // `a`/`url` are typed `… | undefined` (declared before the try) but are always assigned by the
     // time we reach here — the catch above re-throws. Guards retain that invariant defensively.
-    cleanupDownloadArtifacts(a, url, "downloadTextFile: cleanup after download failed");
+    cleanupDownloadArtifacts(anchor, url, "downloadTextFile: cleanup after download failed");
   }, 0);
 }

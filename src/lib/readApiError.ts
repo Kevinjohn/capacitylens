@@ -23,11 +23,11 @@ export async function readApiError(res: Response): Promise<string | undefined> {
     return undefined;
   }
   const body: unknown = await readable.json().catch(() => null);
-  return apiErrorFromBody(body);
+  return extractApiErrorMessage(body);
 }
 
 /** Best-effort read of a string API error code without consuming the response body. */
-export async function peekApiErrorCode(res: Response): Promise<string | null> {
+export async function readApiErrorCode(res: Response): Promise<string | null> {
   if (res.bodyUsed || typeof res.clone !== "function") return null;
   let readable: Response;
   try {
@@ -43,7 +43,7 @@ export async function peekApiErrorCode(res: Response): Promise<string | null> {
 }
 
 /** Validate an already-decoded API error body without reading a response. */
-export function apiErrorFromBody(body: unknown): string | undefined {
+export function extractApiErrorMessage(body: unknown): string | undefined {
   if (typeof body !== "object" || body === null) return undefined;
   const error = (body as { error?: unknown }).error;
   if (typeof error !== "string") return undefined;

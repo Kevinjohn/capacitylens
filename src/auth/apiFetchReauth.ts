@@ -1,6 +1,6 @@
 import { apiFetch, API_REQUEST_TIMEOUT_MS } from "../data/requestTimeout";
-import { peekApiErrorCode } from "../lib/readApiError";
-import { reauthResolution, requestReauth } from "./reauthCoordinator";
+import { readApiErrorCode } from "../lib/readApiError";
+import { readReauthResolution, requestReauth } from "./reauthCoordinator";
 import { m } from "@/i18n";
 
 // The step-up interception seam (DEFECT B). A drop-in replacement for `apiFetch` used only at
@@ -24,7 +24,7 @@ async function isSessionNotFresh(res: Response): Promise<boolean> {
   if (res.status !== 403) return false;
   // Best-effort per DEFENSIVE-CODING.md §5: an unreadable/non-JSON 403 body simply isn't a step-up
   // (it's an ordinary Forbidden) — fall through to the caller's existing handling, never swallow it.
-  return (await peekApiErrorCode(res)) === "SESSION_NOT_FRESH";
+  return (await readApiErrorCode(res)) === "SESSION_NOT_FRESH";
 }
 
 async function distinguishFailedStepUp(res: Response): Promise<Response> {
@@ -56,29 +56,31 @@ async function distinguishFailedStepUp(res: Response): Promise<Response> {
  */
 export async function apiFetchReauth(
   input: RequestInfo | URL,
-  init: RequestInit = {},
+  requestOptions: RequestInit = {},
   timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
 ): Promise<Response> {
-  const resolutionAtDispatch = reauthResolution();
+  const resolutionAtDispatch = readReauthResolution();
   // Request bodies are one-shot. Clone both attempts before the first dispatch so a successful
   // step-up can replay the same bytes. A stream supplied separately through RequestInit cannot be
   // cloned safely here, so reject it before sending anything rather than fail only after reauth.
-  if (init.body && typeof (init.body as { getReader?: unknown }).getReader === "function") {
+  if (requestOptions.body && typeof (requestOptions.body as { getReader?: unknown }).getReader === "function") {
     throw new TypeError("apiFetchReauth does not accept a one-shot RequestInit stream body.");
   }
   const firstInput = input instanceof Request ? input.clone() : input;
   const retryInput = input instanceof Request ? input.clone() : input;
-  const res = await apiFetch(firstInput, init, timeoutMs);
+  const res = await apiFetch(firstInput, requestOptions, timeoutMs);
   if (!(await isSessionNotFresh(res))) return res;
-  const method = (init.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+  const method = (requestOptions.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
-  new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+  new Headers(requestOptions.headers).forEach((value, key) => headers.set(key, value));
   if (method !== "GET" && method !== "HEAD" && !headers.has("Idempotency-Key")) return res;
-  const resolutionAfterResponse = reauthResolution();
+  const resolutionAfterResponse = readReauthResolution();
   if (resolutionAfterResponse.epoch !== resolutionAtDispatch.epoch) {
-    return resolutionAfterResponse.outcome ? distinguishFailedStepUp(await apiFetch(retryInput, init, timeoutMs)) : res;
+    return resolutionAfterResponse.outcome
+      ? distinguishFailedStepUp(await apiFetch(retryInput, requestOptions, timeoutMs))
+      : res;
   }
   const reauthenticated = await requestReauth();
   if (!reauthenticated) return res;
-  return distinguishFailedStepUp(await apiFetch(retryInput, init, timeoutMs));
+  return distinguishFailedStepUp(await apiFetch(retryInput, requestOptions, timeoutMs));
 }

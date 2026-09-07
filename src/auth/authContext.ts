@@ -53,7 +53,9 @@ export type AuthProviderInfo =
  *                    (no provider metadata yet, or no provider at all) yields `null`, not a throw.
  * @returns the first strict OIDC provider, or `null` when there is none.
  */
-export function strictOidcProvider(providers: readonly AuthProviderInfo[] | null | undefined): AuthProviderInfo | null {
+export function resolveStrictOidcProvider(
+  providers: readonly AuthProviderInfo[] | null | undefined,
+): AuthProviderInfo | null {
   return providers?.find((provider) => provider.kind === "oidc" && !provider.experimental) ?? null;
 }
 

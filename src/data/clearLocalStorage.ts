@@ -12,7 +12,7 @@ interface OwnedLocalStorageEntry {
   value: string;
 }
 
-function ownedLocalStorageKeys(store: Storage): string[] {
+function listOwnedLocalStorageKeys(store: Storage): string[] {
   const keys: string[] = [];
   for (let i = 0; i < store.length; i++) {
     const key = store.key(i);
@@ -23,7 +23,7 @@ function ownedLocalStorageKeys(store: Storage): string[] {
 
 /** Read app-owned values without parsing them, so corrupt bytes can still be downloaded intact. */
 export function readCapacitylensLocalStorage(store: Storage = localStorage): OwnedLocalStorageEntry[] {
-  return ownedLocalStorageKeys(store).map((key) => ({
+  return listOwnedLocalStorageKeys(store).map((key) => ({
     key,
     value: store.getItem(key) ?? "",
   }));
@@ -45,7 +45,7 @@ export function readCapacitylensLocalStorage(store: Storage = localStorage): Own
  *   surfaces it; clearing is all-or-nothing only up to the failing key.
  */
 export function clearCapacitylensLocalStorage(store: Storage = localStorage): number {
-  const keys = ownedLocalStorageKeys(store);
+  const keys = listOwnedLocalStorageKeys(store);
   for (const key of keys) store.removeItem(key);
   return keys.length;
 }

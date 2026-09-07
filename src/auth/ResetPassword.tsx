@@ -8,9 +8,9 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "../components/ui/fiel
 import { Card, CardContent } from "../components/ui/card";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
-import { messageForFailure } from "./resetPasswordFailure";
+import { resolveResetPasswordFailureMessage } from "./resetPasswordFailure";
 import { m } from "@/i18n";
-import { requestSignal } from "../data/requestTimeout";
+import { createRequestSignal } from "../data/requestTimeout";
 
 // Password-reset page for /reset-password/:token. The token arrives out-of-band — an
 // Owner/Admin minted it in Team & access and handed the link over directly (the app has no
@@ -84,7 +84,7 @@ export function ResetPassword() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ newPassword: password, token }),
-        signal: requestSignal(),
+        signal: createRequestSignal(),
       });
       if (res.ok) {
         setState({ kind: "done" });
@@ -99,12 +99,12 @@ export function ResetPassword() {
         return;
       }
       const body = (await res.json().catch(() => ({}))) as { code?: string };
-      setError(messageForFailure(body, res.status));
+      setError(resolveResetPasswordFailureMessage(body, res.status));
       setState({ kind: "form" });
-    } catch (err) {
+    } catch (error) {
       // A pre-response transport error (server down, DNS, offline) — surface a generic, actionable
       // message rather than a dead end, and log the real cause for debugging.
-      console.error("ResetPassword: reset request failed", err);
+      console.error("ResetPassword: reset request failed", error);
       setError(null);
       setState({ kind: "unknown" });
     }

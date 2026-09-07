@@ -11,19 +11,19 @@ import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
 import { Fragment, useMemo } from "react";
 import { Briefcase, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
-import { clientArchiveImpactCopy } from "../../lib/archiveImpactCopy";
+import { buildClientArchiveImpactCopy } from "../../lib/archiveImpactCopy";
 import { byName } from "../../lib/displayOrder";
 
 /** Build the archive-confirm message for a client, appending the descendant-count cascade warning
  *  ("this also hides N projects and M allocations") when the client has active work beneath it — so
  *  the admin sees exactly what an archive pulls out of the schedule (counts via the pure
  *  archiveImpact, which diffs the same activeOnly projection the view uses). */
-function clientArchiveMessage(data: AppData, client: Client): string {
+function buildClientArchiveMessage(data: AppData, client: Client): string {
   const name = client.isPrivate === true ? nameForQuotedContext(client.name) : client.name;
   const base = m.list_clients_archive_message({ name });
   const impact = archiveImpact(data, "clients", client.id);
   const { projects, phases, allocations } = impact;
-  return projects + phases + allocations > 0 ? `${base} ${clientArchiveImpactCopy(impact)}` : base;
+  return projects + phases + allocations > 0 ? `${base} ${buildClientArchiveImpactCopy(impact)}` : base;
 }
 
 export function ClientList() {
@@ -34,7 +34,10 @@ export function ClientList() {
   // Clients entry in the command palette (all of which read `useActiveScopedData().clients` directly,
   // not this view) — and a project under Internal still resolves its client label. See DECISIONS.md.
   const scoped = useActiveScopedData();
-  const clients = useMemo(() => scoped.clients.filter((c) => !isBuiltinClient(c)).sort(byName), [scoped.clients]);
+  const clients = useMemo(
+    () => scoped.clients.filter((client) => !isBuiltinClient(client)).sort(byName),
+    [scoped.clients],
+  );
   // The per-row action ARCHIVES (soft-delete is reached later from Settings → Archived & deleted);
   // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
   const { archive } = useLifecycleActions();
@@ -57,19 +60,19 @@ export function ClientList() {
         </EmptyState>
       ) : (
         <ItemGroup className="rounded-md border bg-card">
-          {clients.map((c, index) => (
-            <Fragment key={c.id}>
+          {clients.map((client, index) => (
+            <Fragment key={client.id}>
               {index > 0 && <ItemSeparator />}
               <Item size="sm" role="listitem" data-testid="client-row" className="rounded-none">
                 <ItemContent className="flex-row items-center gap-2">
-                  <ColorSwatch color={c.color} />
-                  {c.name}
+                  <ColorSwatch color={client.color} />
+                  {client.name}
                 </ItemContent>
                 <ItemActions>
-                  <EditButton label={m.list_edit_aria({ name: c.name })} onClick={() => setEditing(c)} />
+                  <EditButton label={m.list_edit_aria({ name: client.name })} onClick={() => setEditing(client)} />
                   <DeleteButton
-                    label={m.list_clients_archive_aria({ name: c.name })}
-                    onClick={() => setConfirming(c)}
+                    label={m.list_clients_archive_aria({ name: client.name })}
+                    onClick={() => setConfirming(client)}
                   />
                 </ItemActions>
               </Item>
@@ -83,7 +86,7 @@ export function ClientList() {
       {confirming && (
         <ConfirmDialog
           title={m.list_clients_archive_title()}
-          message={clientArchiveMessage(scoped, confirming)}
+          message={buildClientArchiveMessage(scoped, confirming)}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
             void archive("clients", confirming.id);

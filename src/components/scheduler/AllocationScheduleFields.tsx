@@ -13,15 +13,15 @@ import {
 } from "../common/ui";
 import { Alert, AlertDescription } from "../ui/alert";
 import { FieldError } from "../ui/field";
-import { allocationStatusOptions } from "../../lib/metadata";
+import { buildAllocationStatusOptions } from "../../lib/metadata";
 import { formatShortDate } from "../../lib/dateDisplay";
 import { AllocationControlColumn, AllocationSpanRow, DateRangeFields } from "./AllocationModalFieldLayout";
 import type { AllocationModalState } from "./useAllocationModalState";
 
 /** 2-dp rounding for the human-readable "…h/day" hint only — never fed back into a value. */
-const round2 = (n: number) => Math.round(n * 100) / 100;
+const roundDisplayHours = (numericValue: number) => Math.round(numericValue * 100) / 100;
 
-const repeatOptions = (): Option[] => [
+const buildRepeatOptions = (): Option[] => [
   { value: "none", label: m.form_allocation_repeat_none() },
   { value: "weekly", label: m.form_allocation_repeat_weekly() },
   { value: "every-two-weeks", label: m.form_allocation_repeat_every_two_weeks() },
@@ -30,7 +30,7 @@ const repeatOptions = (): Option[] => [
   { value: "monthly", label: m.form_allocation_repeat_monthly() },
 ];
 
-const hoursPerDayOptions = (): Option[] => [
+const buildHoursPerDayOptions = (): Option[] => [
   { value: "1", label: m.form_allocation_hours_per_day_one_hour() },
   { value: "2", label: m.form_allocation_hours_per_day_quarter_day() },
   { value: "4", label: m.form_allocation_hours_per_day_half_day() },
@@ -50,7 +50,7 @@ export function AllocationScheduleFields({
   hoursPerDay,
   setHoursPerDay,
   endDateHint,
-  effHoursPerDay,
+  effHoursPerDay: effectiveHoursPerDay,
   daysOfWork,
   setDaysOfWork,
   daysOver,
@@ -96,7 +96,7 @@ export function AllocationScheduleFields({
               label={m.form_allocation_hours_per_day_label()}
               value={String(hoursPerDay)}
               onChange={(value) => setHoursPerDay(Number(value))}
-              options={hoursPerDayOptions()}
+              options={buildHoursPerDayOptions()}
               required
               invalid={errorField === "hours"}
               describedById={errorId}
@@ -113,7 +113,10 @@ export function AllocationScheduleFields({
             startDate && endDateHint ? (
               <p className="text-xs text-muted-foreground">
                 {isDays
-                  ? m.form_allocation_ends_hint_hours({ date: endDateHint, hours: round2(effHoursPerDay) })
+                  ? m.form_allocation_ends_hint_hours({
+                      date: endDateHint,
+                      hours: roundDisplayHours(effectiveHoursPerDay),
+                    })
                   : m.form_allocation_ends_hint({ date: endDateHint })}
               </p>
             ) : undefined
@@ -160,7 +163,7 @@ export function AllocationScheduleFields({
             label={m.form_allocation_repeat_label()}
             value={repeat}
             onChange={onRepeatChange}
-            options={repeatOptions()}
+            options={buildRepeatOptions()}
             layout="label-control"
           />
           {repeat !== "none" && (
@@ -193,7 +196,7 @@ export function AllocationScheduleFields({
         label={m.form_allocation_status_label()}
         value={status}
         onChange={setStatus}
-        options={allocationStatusOptions()}
+        options={buildAllocationStatusOptions()}
         geometry="connected"
         fullWidth
         layout="label-control"

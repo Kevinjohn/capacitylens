@@ -1,4 +1,9 @@
-import { capacityAllocationsForMode, dayCapacity, utilizationFromCapacity, type DayCapacity } from "../../lib/capacity";
+import {
+  applyCapacityMode,
+  buildDayCapacity,
+  resolveUtilizationFromCapacity,
+  type DayCapacity,
+} from "../../lib/capacity";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import {
@@ -14,7 +19,7 @@ import type { CapacitySource, SchedulerModelOptions } from "./schedulerModelType
 
 export function createCapacitySource(
   days: ISODate[],
-  { start: visStart, end: visEnd }: SchedulerModelOptions["visibleWindow"],
+  { start: visibleStart, end: visibleEnd }: SchedulerModelOptions["visibleWindow"],
   { start: overStart, end: overEnd }: SchedulerModelOptions["overSoonWindow"],
   closures: Closure[],
   blocksMode: boolean,
@@ -28,29 +33,29 @@ export function createCapacitySource(
   // SCROLLABLE timeline, while overStart/overEnd
   // is a FIXED window anchored on today that can fall outside it (and visStart/visEnd, though always
   // within `days` in practice, isn't worth a fragile index-based slice to save one extra pair of calls).
-  const visDays = eachDayISO(visStart, visEnd);
+  const visibleDays = eachDayISO(visibleStart, visibleEnd);
   const overDays = eachDayISO(overStart, overEnd);
   // Every per-day capacity lookup below asks for a date drawn from one of those three arrays, so
   // their sorted, de-duplicated union is the COMPLETE set of dates any row can query. Bucketing a
   // resource's allocations / time off onto it once (see bucketByCoveredDate) is what turns the
   // per-row day loop from O(days × allocations) into O(days + coverage). Resource-invariant, so it
   // is built here once rather than per row. ISO dates sort lexicographically = chronologically.
-  const capacityDates = Array.from(new Set([...days, ...visDays, ...overDays])).sort();
+  const capacityDates = Array.from(new Set([...days, ...visibleDays, ...overDays])).sort();
   const capacityDateSet = new Set(capacityDates);
   const closuresByDate = bucketByCoveredDate(closures, capacityDates);
 
-  const NO_CAPACITY = (date: ISODate): DayCapacity => ({ date, allocated: 0, available: 0, over: false });
-  const capacitySourceFor = (
+  const buildEmptyDayCapacity = (date: ISODate): DayCapacity => ({ date, allocated: 0, available: 0, over: false });
+  const createResourceCapacitySource = (
     resource: Resource,
     allocations: Allocation[],
-    resTimeOff: TimeOff[],
+    resourceTimeOff: TimeOff[],
     effectiveWeek: EffectiveWorkingWeek,
   ): CapacitySource => {
     if (isExternalResource(resource)) {
       return {
         tracked: false,
         timeOffOn: () => NO_TIME_OFF,
-        capacityOnDay: NO_CAPACITY,
+        capacityOnDay: buildEmptyDayCapacity,
         allocationCountOn: () => 0,
         timeOffCountOn: () => 0,
         utilizationOver: () => 0,
@@ -58,13 +63,13 @@ export function createCapacitySource(
       };
     }
     // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
-    const capacityAllocs = capacityAllocationsForMode(allocations, blocksMode);
-    const rowTimeOff = resTimeOff;
+    const capacityAllocations = applyCapacityMode(allocations, blocksMode);
+    const rowTimeOff = resourceTimeOff;
     // Bucket this resource's load and time off by the days they cover, ONCE, so each of the
     // ~150 timeline days hands capacity.ts only the rows that actually touch that day instead
     // of making it rescan every allocation (and every time-off row) per day.
-    const allocsByDate = bucketByCoveredDate(capacityAllocs, capacityDates);
-    const personalTimeOffByDate = bucketByCoveredDate(resTimeOff, capacityDates);
+    const allocationsByDate = bucketByCoveredDate(capacityAllocations, capacityDates);
+    const personalTimeOffByDate = bucketByCoveredDate(resourceTimeOff, capacityDates);
     const capacityByDate = new Map<ISODate, DayCapacity>();
     const capacityOnDay = (date: ISODate): DayCapacity => {
       const cached = capacityByDate.get(date);
@@ -73,15 +78,15 @@ export function createCapacitySource(
       // bucketed" are indistinguishable), so fall back to the full lists. Nothing queries
       // such a date today; this keeps a future caller correct rather than silently empty.
       const computed = capacityDateSet.has(date)
-        ? dayCapacity(
+        ? buildDayCapacity(
             resource,
             date,
-            allocsByDate.get(date) ?? NO_ALLOCATIONS,
+            allocationsByDate.get(date) ?? NO_ALLOCATIONS,
             personalTimeOffByDate.get(date) ?? NO_TIME_OFF,
             effectiveWeek,
             closuresByDate.get(date) ?? NO_CLOSURES,
           )
-        : dayCapacity(resource, date, capacityAllocs, rowTimeOff, effectiveWeek, closures);
+        : buildDayCapacity(resource, date, capacityAllocations, rowTimeOff, effectiveWeek, closures);
       capacityByDate.set(date, computed);
       return computed;
     };
@@ -91,16 +96,16 @@ export function createCapacitySource(
       tracked: true,
       timeOffOn,
       capacityOnDay,
-      allocationCountOn: (date) => allocsByDate.get(date)?.length ?? 0,
+      allocationCountOn: (date) => allocationsByDate.get(date)?.length ?? 0,
       timeOffCountOn: (date) =>
         timeOffOn(date).length +
         (capacityDateSet.has(date)
           ? (closuresByDate.get(date)?.length ?? 0)
           : closures.filter((closure) => closure.startDate <= date && closure.endDate >= date).length),
-      utilizationOver: (dates) => utilizationFromCapacity(dates.map(capacityOnDay)),
+      utilizationOver: (dates) => resolveUtilizationFromCapacity(dates.map(capacityOnDay)),
       overOn: (dates) => dates.some((date) => capacityOnDay(date).over),
     };
   };
 
-  return { capacitySourceFor, visDays, overDays };
+  return { capacitySourceFor: createResourceCapacitySource, visDays: visibleDays, overDays };
 }

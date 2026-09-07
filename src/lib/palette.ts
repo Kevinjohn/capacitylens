@@ -32,7 +32,7 @@ export const SWATCHES: readonly string[] = PRESET_COLORS;
 const SWATCH_INDEX_BY_HEX = new Map(SWATCHES.map((hex, i) => [hex.toLowerCase(), i]));
 
 /** Index of `hex` (case-insensitive) within SWATCHES, or -1 when it isn't a known swatch. */
-export function swatchIndexOf(hex: string): number {
+export function resolveSwatchIndex(hex: string): number {
   return SWATCH_INDEX_BY_HEX.get(hex.toLowerCase()) ?? -1;
 }
 
@@ -44,7 +44,7 @@ export function swatchIndexOf(hex: string): number {
 // user hears them in the active locale. The `swatch_label` message ("{hue} {shade}") owns the word
 // ORDER, so a locale can flip hue/shade without touching this code. These are GETTERS (rebuilt per
 // call), not module consts, so a locale switch (which happens without a reload) is picked up live.
-const swatchHues = (): readonly string[] => [
+const listSwatchHues = (): readonly string[] => [
   m.swatch_hue_red(),
   m.swatch_hue_orange(),
   m.swatch_hue_amber(),
@@ -59,7 +59,7 @@ const swatchHues = (): readonly string[] => [
   m.swatch_hue_pink(),
   m.swatch_hue_brown(),
 ];
-const swatchShades = (): readonly string[] => [
+const listSwatchShades = (): readonly string[] => [
   m.swatch_shade_pale(),
   m.swatch_shade_soft(),
   m.swatch_shade_bright(),
@@ -67,16 +67,16 @@ const swatchShades = (): readonly string[] => [
 ];
 
 /** Name for the swatch at flat index `i` in the 13×4 grid, e.g. `"Blue bright"`. */
-export function swatchLabel(i: number): string {
-  const hue = swatchHues()[i % SWATCH_COLUMNS] ?? m.swatch_hue_fallback();
+export function resolveSwatchLabel(i: number): string {
+  const hue = listSwatchHues()[i % SWATCH_COLUMNS] ?? m.swatch_hue_fallback();
   // Out-of-grid rows have no shade word — return the bare hue (the message's trailing space would
   // otherwise dangle). In-grid (i in 0..51) always resolves a shade.
-  const shade = swatchShades()[Math.floor(i / SWATCH_COLUMNS)];
+  const shade = listSwatchShades()[Math.floor(i / SWATCH_COLUMNS)];
   return shade ? m.swatch_label({ hue, shade }) : hue;
 }
 
 /** Name for an arbitrary hex when it's a known swatch, else the hex itself (used by the trigger). */
-export function colorName(hex: string): string {
+export function resolveColorName(hex: string): string {
   const i = SWATCHES.indexOf(hex);
-  return i >= 0 ? swatchLabel(i) : hex;
+  return i >= 0 ? resolveSwatchLabel(i) : hex;
 }

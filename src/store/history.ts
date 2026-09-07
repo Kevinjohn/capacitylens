@@ -40,8 +40,8 @@ export function hasSameEntityRevisions(current: AppData, replacement: AppData): 
     const currentRows = current[key];
     const replacementRows = replacement[key];
     if (currentRows.length !== replacementRows.length) return false;
-    const replacementRevisions = new Map(replacementRows.map((row) => [row.id, row.updatedAt]));
-    if (currentRows.some((row) => replacementRevisions.get(row.id) !== row.updatedAt)) {
+    const replacementRevisionsById = new Map(replacementRows.map((row) => [row.id, row.updatedAt]));
+    if (currentRows.some((row) => replacementRevisionsById.get(row.id) !== row.updatedAt)) {
       return false;
     }
   }

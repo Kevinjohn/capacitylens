@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
-  defaultSidebarOpen,
+  readDefaultSidebarOpen,
   readStoredSidebarOpen,
   writeStoredSidebarOpen,
   readStoredMinimiseWeekends,
@@ -47,7 +47,7 @@ describe("sidebar preference", () => {
   it("defaults open when matchMedia is unavailable (non-browser environment)", () => {
     // jsdom has no matchMedia — the guard must fall back to a large-screen default
     // rather than throwing.
-    expect(defaultSidebarOpen()).toBe(true);
+    expect(readDefaultSidebarOpen()).toBe(true);
   });
 });
 
@@ -326,19 +326,19 @@ describe("sidebar default (viewport-derived)", () => {
   it("collapses by default when the viewport matches the small-screen query", () => {
     const matchMedia = vi.fn().mockReturnValue({ matches: true });
     window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
-    expect(defaultSidebarOpen()).toBe(false);
+    expect(readDefaultSidebarOpen()).toBe(false);
   });
 
   it("opens by default when the viewport does not match the small-screen query", () => {
     const matchMedia = vi.fn().mockReturnValue({ matches: false });
     window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
-    expect(defaultSidebarOpen()).toBe(true);
+    expect(readDefaultSidebarOpen()).toBe(true);
   });
 
   it("queries the documented small-viewport media query", () => {
     const matchMedia = vi.fn().mockReturnValue({ matches: false });
     window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
-    defaultSidebarOpen();
+    readDefaultSidebarOpen();
     expect(matchMedia).toHaveBeenCalledWith("(max-width: 767px), (max-height: 480px)");
   });
 
@@ -346,7 +346,7 @@ describe("sidebar default (viewport-derived)", () => {
     window.matchMedia = (() => {
       throw new Error("blocked");
     }) as unknown as typeof window.matchMedia;
-    expect(defaultSidebarOpen()).toBe(true);
+    expect(readDefaultSidebarOpen()).toBe(true);
   });
 });
 

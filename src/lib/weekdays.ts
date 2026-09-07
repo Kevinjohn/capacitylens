@@ -17,11 +17,11 @@ const WEEKDAY_MESSAGES: Record<Weekday, { long: () => string; short: () => strin
 };
 
 /** The localised full label for a weekday (Sun=0 … Sat=6). */
-export function weekdayLabel(day: Weekday): string {
+export function resolveWeekdayLabel(day: Weekday): string {
   return WEEKDAY_MESSAGES[day].long();
 }
 
 /** The localised abbreviated label for a weekday (Sun=0 … Sat=6). */
-export function weekdayShortLabel(day: Weekday): string {
+export function resolveWeekdayShortLabel(day: Weekday): string {
   return WEEKDAY_MESSAGES[day].short();
 }

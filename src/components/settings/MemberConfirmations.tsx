@@ -2,13 +2,13 @@ import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
 import type { TeamMember } from "../../account/teamAccessClient";
-import { confirmationCopy, labelFor, type MemberConfirmation } from "./memberConfirmationCopy";
+import { buildMemberConfirmationCopy, resolveMemberLabel, type MemberConfirmation } from "./memberConfirmationCopy";
 
 export type { MemberConfirmation, MemberConfirmationAction } from "./memberConfirmationCopy";
-import { roleSummary } from "../../lib/accessCopy";
+import { resolveRoleSummary } from "../../lib/accessCopy";
 import { ConfirmDialog, Modal, SelectField } from "../common/ui";
 import { Button } from "../ui/button";
-import { readinessMemberLabel, type ReadinessMember, type ReadinessRepairLink } from "./ssoReadiness";
+import { resolveReadinessMemberLabel, type ReadinessMember, type ReadinessRepairLink } from "./ssoReadiness";
 
 export type MemberRoleEdit = { member: TeamMember; nextRole: Role };
 export type UnlinkRepair = { member: ReadinessMember; link: ReadinessRepairLink };
@@ -38,7 +38,7 @@ export function MemberConfirmations({
   setUnlinkRepair: Dispatch<SetStateAction<UnlinkRepair | null>>;
   removeIncorrectSsoLink(member: ReadinessMember, link: ReadinessRepairLink): Promise<void>;
 }) {
-  const copy = memberConfirmation ? confirmationCopy(memberConfirmation) : null;
+  const copy = memberConfirmation ? buildMemberConfirmationCopy(memberConfirmation) : null;
   return (
     <>
       {memberConfirmation && copy && (
@@ -72,11 +72,11 @@ export function MemberConfirmations({
             </>
           }
         >
-          <p className="text-sm text-muted-foreground">{labelFor(roleEdit.member)}</p>
+          <p className="text-sm text-muted-foreground">{resolveMemberLabel(roleEdit.member)}</p>
           <span data-testid="member-role-select">
             <SelectField
               label={m.settings_member_role_label()}
-              ariaLabel={m.settings_member_role_aria({ member: labelFor(roleEdit.member) })}
+              ariaLabel={m.settings_member_role_aria({ member: resolveMemberLabel(roleEdit.member) })}
               value={roleEdit.nextRole}
               onChange={(value) =>
                 setRoleEdit((current) => (current ? { ...current, nextRole: value as Role } : current))
@@ -86,7 +86,7 @@ export function MemberConfirmations({
             />
           </span>
           <p className="text-xs text-muted-foreground" aria-live="polite" data-testid="member-role-summary">
-            {roleSummary(roleEdit.nextRole)}
+            {resolveRoleSummary(roleEdit.nextRole)}
           </p>
         </Modal>
       )}
@@ -94,7 +94,7 @@ export function MemberConfirmations({
         <ConfirmDialog
           title={m.settings_sso_remove_link_title()}
           confirmLabel={m.settings_sso_remove_link()}
-          message={m.settings_sso_remove_link_message({ member: readinessMemberLabel(unlinkRepair.member) })}
+          message={m.settings_sso_remove_link_message({ member: resolveReadinessMemberLabel(unlinkRepair.member) })}
           onConfirm={() => {
             const pending = unlinkRepair;
             setUnlinkRepair(null);

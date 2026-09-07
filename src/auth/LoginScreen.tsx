@@ -12,8 +12,8 @@ import type { AuthProviderInfo } from "./authContext";
 import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
 import {
   clearExternalSignInError,
-  externalSignInErrorCode,
-  externalSignInErrorMessage,
+  readExternalSignInErrorCode,
+  resolveExternalSignInErrorMessage,
   hasExternalSignInError,
 } from "./externalSignInError";
 import { LoginField } from "./LoginField";
@@ -52,7 +52,9 @@ export function LoginScreen({
 }) {
   const [returnedWithExternalError] = useState(() => hasExternalSignInError(window.location.href));
   const [error, setError] = useState<string | null>(() =>
-    returnedWithExternalError ? externalSignInErrorMessage(externalSignInErrorCode(window.location.href)) : null,
+    returnedWithExternalError
+      ? resolveExternalSignInErrorMessage(readExternalSignInErrorCode(window.location.href))
+      : null,
   );
   const [busy, setBusy] = useState(false);
   const {
@@ -114,10 +116,10 @@ export function LoginScreen({
         setError(m.login_sso_failed());
         setBusy(false);
       }
-    } catch (err) {
+    } catch (error) {
       // Same as the password path: a thrown (pre-redirect) network error would otherwise strand the
       // button disabled with no feedback. Surface it and reset busy.
-      console.error("LoginScreen: SSO sign-in request failed", err);
+      console.error("LoginScreen: SSO sign-in request failed", error);
       setError(m.login_network_error());
       setBusy(false);
     }

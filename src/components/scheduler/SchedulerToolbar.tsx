@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 import { ListFilter, Redo2, Trash2, Undo2 } from "lucide-react";
 import { m } from "@/i18n";
-import { redoShortcut, undoShortcut } from "../../lib/keyboardShortcuts";
+import { buildRedoShortcut, buildUndoShortcut } from "../../lib/keyboardShortcuts";
 import { hasActiveFilters, hasLensFilter, useStore } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
-import { disciplinesEnabledFor } from "../../store/selectors";
+import { hasDisciplinesEnabled } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { useSchedulerDensity } from "./layout";
 import { FilterSelect } from "./FilterSelect";
 import { buildFilterOptions } from "./toolbarFilterOptions";
@@ -25,24 +25,24 @@ export function SchedulerToolbar() {
   // and Undo/Redo are hidden. Navigation + filters (reads) stay. null/owner/admin/editor (incl.
   // OFF/local) → all affordances shown, byte-identical to today.
   const canEdit = useCanEdit();
-  const compactView = useStore((s) => s.compactView);
+  const compactView = useStore((state) => state.compactView);
   const density = useSchedulerDensity();
-  const zoom = useStore((s) => s.ui.zoom);
-  const setZoom = useStore((s) => s.setZoom);
-  const panDays = useStore((s) => s.panDays);
-  const goToToday = useStore((s) => s.goToToday);
-  const drawMode = useStore((s) => s.ui.drawMode);
-  const setDrawMode = useStore((s) => s.setDrawMode);
+  const zoom = useStore((state) => state.ui.zoom);
+  const setZoom = useStore((state) => state.setZoom);
+  const panDays = useStore((state) => state.panDays);
+  const goToToday = useStore((state) => state.goToToday);
+  const drawMode = useStore((state) => state.ui.drawMode);
+  const setDrawMode = useStore((state) => state.setDrawMode);
   // Undo/redo is global (the ⌘Z/⌘⇧Z handler lives in AppShell) but its visible affordance lives
   // here on the schedule toolbar — the main editing surface. Enabled off the history stacks.
-  const undo = useStore((s) => s.undo);
-  const redo = useStore((s) => s.redo);
-  const canUndo = useStore((s) => s.past.length > 0);
-  const canRedo = useStore((s) => s.future.length > 0);
-  const setNotice = useStore((s) => s.setNotice);
-  const filters = useStore((s) => s.ui.filters);
-  const setFilters = useStore((s) => s.setFilters);
-  const clearFilters = useStore((s) => s.clearFilters);
+  const undo = useStore((state) => state.undo);
+  const redo = useStore((state) => state.redo);
+  const canUndo = useStore((state) => state.past.length > 0);
+  const canRedo = useStore((state) => state.future.length > 0);
+  const setNotice = useStore((state) => state.setNotice);
+  const filters = useStore((state) => state.ui.filters);
+  const setFilters = useStore((state) => state.setFilters);
+  const clearFilters = useStore((state) => state.clearFilters);
   const filtersActive = hasActiveFilters(filters);
   const data = useActiveScopedData();
   // These are display-only projections: keep stored order untouched while making each menu follow
@@ -54,10 +54,10 @@ export function SchedulerToolbar() {
     [data],
   );
 
-  const activeAccountId = useStore((s) => s.activeAccountId);
+  const activeAccountId = useStore((state) => state.activeAccountId);
   // Hide the discipline filter when the account doesn't use disciplines (buildSchedulerModel
   // also ignores filters.disciplineId in that case, so a stale value can't hide anyone).
-  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
+  const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   const { searchInput, onSearchChange, onClear, filtersOpen, setFiltersOpen, setToolbarFilters } = useToolbarSearch(
     filters,
     activeAccountId,
@@ -68,7 +68,7 @@ export function SchedulerToolbar() {
     try {
       action();
     } catch (error) {
-      setNotice(errorMessage(error), "error");
+      setNotice(resolveErrorMessage(error), "error");
     }
   };
 
@@ -102,7 +102,7 @@ export function SchedulerToolbar() {
                   onClick={() => runHistoryAction(undo)}
                   disabled={!canUndo}
                   aria-label={m.scheduler_undo()}
-                  title={m.scheduler_undo_title({ shortcut: undoShortcut() })}
+                  title={m.scheduler_undo_title({ shortcut: buildUndoShortcut() })}
                   data-testid="undo-button"
                 >
                   <Undo2 />
@@ -113,7 +113,7 @@ export function SchedulerToolbar() {
                   onClick={() => runHistoryAction(redo)}
                   disabled={!canRedo}
                   aria-label={m.scheduler_redo()}
-                  title={m.scheduler_redo_title({ shortcut: redoShortcut() })}
+                  title={m.scheduler_redo_title({ shortcut: buildRedoShortcut() })}
                   data-testid="redo-button"
                 >
                   <Redo2 />

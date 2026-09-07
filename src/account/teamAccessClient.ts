@@ -1,10 +1,10 @@
 import type { InvitationRole, MembershipStatus } from "@capacitylens/shared/account/types";
 import { isAccountRole, isMembershipStatus } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { accountClient, accountCommandOutcomeUnknown } from "./accountClient";
-import { hasDuplicateIdentity } from "../lib/arrayIdentity";
+import { accountClient, readUnknownAccountCommandOutcome } from "./accountClient";
+import { hasDuplicateIdentity } from "../lib/hasDuplicateIdentity";
 import { isIsoInstant } from "@capacitylens/shared/account/types";
-import { apiErrorFromBody, readApiError } from "../lib/readApiError";
+import { extractApiErrorMessage, readApiError } from "../lib/readApiError";
 
 export interface TeamMember {
   userId: string;
@@ -61,7 +61,7 @@ export type TeamAccessResult<T> =
  * @param fallback - the caller's own operation-specific sentence, already localised.
  * @returns the message to surface; never empty as long as `fallback` isn't.
  */
-export function rejectionMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
+export function resolveRejectionMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
   return result.kind === "rejected" && result.message ? result.message : fallback;
 }
 
@@ -174,9 +174,9 @@ function parseToken(value: unknown): OneTimeToken | null {
   };
 }
 
-/** Shared by {@link commandResult} and {@link readResult}: both treat a decode failure on an ok
+/** Shared by {@link readCommandResult} and {@link readResult}: both treat a decode failure on an ok
  * response the same way, so the success-path decoding lives once. */
-async function decodeOkBody<T>(response: Response, decode: (body: unknown) => T | null): Promise<TeamAccessResult<T>> {
+async function parseOkBody<T>(response: Response, decode: (body: unknown) => T | null): Promise<TeamAccessResult<T>> {
   const body: unknown = await response.json().catch(() => null);
   const value = decode(body);
   return value === null
@@ -188,7 +188,7 @@ async function decodeOkBody<T>(response: Response, decode: (body: unknown) => T 
     : { kind: "ok", status: response.status, value };
 }
 
-async function commandResult<T>(
+async function readCommandResult<T>(
   response: Response,
   decode: (body: unknown) => T | null,
   expectedStatus?: number,
@@ -196,8 +196,8 @@ async function commandResult<T>(
   if (!response.ok) {
     const clonedMessage = typeof response.clone === "function" ? await readApiError(response) : undefined;
     const body: unknown = await response.json().catch(() => null);
-    const message = clonedMessage ?? apiErrorFromBody(body) ?? null;
-    return (await accountCommandOutcomeUnknown(response, body))
+    const message = clonedMessage ?? extractApiErrorMessage(body) ?? null;
+    return (await readUnknownAccountCommandOutcome(response, body))
       ? { kind: "unknown", status: response.status, message }
       : { kind: "rejected", status: response.status, message };
   }
@@ -206,7 +206,7 @@ async function commandResult<T>(
       `teamAccessClient: expected status ${expectedStatus} but received equivalent success ${response.status}; decoding the response body.`,
     );
   }
-  return decodeOkBody(response, decode);
+  return parseOkBody(response, decode);
 }
 
 async function readResult<T>(response: Response, decode: (body: unknown) => T | null): Promise<TeamAccessResult<T>> {
@@ -217,7 +217,7 @@ async function readResult<T>(response: Response, decode: (body: unknown) => T | 
       message: (await readApiError(response)) ?? null,
     };
   }
-  return decodeOkBody(response, decode);
+  return parseOkBody(response, decode);
 }
 
 const noContent = (): true => true;
@@ -240,7 +240,7 @@ export const teamAccessClient = {
   },
 
   async changeMemberRole(workspaceId: string, principalId: string, role: Role): Promise<TeamAccessResult<true>> {
-    return commandResult(await accountClient.changeMemberRole(workspaceId, principalId, role), noContent);
+    return readCommandResult(await accountClient.changeMemberRole(workspaceId, principalId, role), noContent);
   },
 
   async changeMemberStatus(
@@ -248,23 +248,23 @@ export const teamAccessClient = {
     principalId: string,
     status: MembershipStatus,
   ): Promise<TeamAccessResult<true>> {
-    return commandResult(await accountClient.changeMemberStatus(workspaceId, principalId, status), noContent);
+    return readCommandResult(await accountClient.changeMemberStatus(workspaceId, principalId, status), noContent);
   },
 
   async removeMember(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
-    return commandResult(await accountClient.removeMember(workspaceId, principalId), noContent);
+    return readCommandResult(await accountClient.removeMember(workspaceId, principalId), noContent);
   },
 
   async transferOwnership(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
-    return commandResult(await accountClient.transferOwnership(workspaceId, principalId), noContent);
+    return readCommandResult(await accountClient.transferOwnership(workspaceId, principalId), noContent);
   },
 
   async issuePasswordReset(workspaceId: string, principalId: string): Promise<TeamAccessResult<OneTimeToken>> {
-    return commandResult(await accountClient.issuePasswordReset(workspaceId, principalId), parseToken, 201);
+    return readCommandResult(await accountClient.issuePasswordReset(workspaceId, principalId), parseToken, 201);
   },
 
   async revokeMemberSessions(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
-    return commandResult(await accountClient.revokeMemberSessions(workspaceId, principalId), noContent, 204);
+    return readCommandResult(await accountClient.revokeMemberSessions(workspaceId, principalId), noContent, 204);
   },
 
   async createInvitation(input: {
@@ -272,10 +272,10 @@ export const teamAccessClient = {
     role: InvitationRole;
     preauthEmail?: string;
   }): Promise<TeamAccessResult<OneTimeToken>> {
-    return commandResult(await accountClient.createInvitation(input), parseToken, 201);
+    return readCommandResult(await accountClient.createInvitation(input), parseToken, 201);
   },
 
   async revokeInvitation(workspaceId: string, invitationId: string): Promise<TeamAccessResult<true>> {
-    return commandResult(await accountClient.revokeInvitation(workspaceId, invitationId), noContent);
+    return readCommandResult(await accountClient.revokeInvitation(workspaceId, invitationId), noContent);
   },
 };

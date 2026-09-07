@@ -46,21 +46,26 @@ export function ExternalResourceSection({ externals, onAdd, onEdit, onRequestArc
         </EmptyState>
       ) : (
         <ItemGroup className="rounded-md border bg-card">
-          {externals.map((r, index) => (
-            <Fragment key={r.id}>
+          {externals.map((resource, index) => (
+            <Fragment key={resource.id}>
               {index > 0 && <ItemSeparator />}
               <Item size="sm" role="listitem" data-testid="external-row" className="rounded-none">
                 <ItemContent className="flex-row flex-wrap items-center gap-2">
                   <ColorSwatch color={NEUTRAL_COLOR} />
-                  <span className="font-medium">{r.name ?? r.role}</span>
-                  {r.name && r.role && <span className="text-sm text-muted-foreground">· {r.role}</span>}
+                  <span className="font-medium">{resource.name ?? resource.role}</span>
+                  {resource.name && resource.role && (
+                    <span className="text-sm text-muted-foreground">· {resource.role}</span>
+                  )}
                 </ItemContent>
                 <ItemActions>
-                  <FavouriteButton resource={r} />
-                  <EditButton label={m.list_edit_aria({ name: r.name ?? r.role })} onClick={() => onEdit(r)} />
+                  <FavouriteButton resource={resource} />
+                  <EditButton
+                    label={m.list_edit_aria({ name: resource.name ?? resource.role })}
+                    onClick={() => onEdit(resource)}
+                  />
                   <DeleteButton
-                    label={m.list_resources_archive_aria({ name: r.name ?? r.role })}
-                    onClick={() => onRequestArchive(r)}
+                    label={m.list_resources_archive_aria({ name: resource.name ?? resource.role })}
+                    onClick={() => onRequestArchive(resource)}
                   />
                 </ItemActions>
               </Item>

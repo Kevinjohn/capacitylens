@@ -8,12 +8,12 @@ import {
   cacheAuthSnapshot,
   clearAllOfflineData,
   clearOfflineDataForCurrentUser,
-  offlineReadEnabled,
-  offlineStateSnapshot,
+  isOfflineReadEnabled,
+  readOfflineStateSnapshot,
   readCachedAccountSummaries,
   readCachedAuthSnapshot,
   readCachedAccountSlice,
-  offlineShellAvailable,
+  isOfflineShellAvailable,
   revalidateOfflineShell,
   setOfflineReadEnabled,
   setOfflineReadState,
@@ -31,9 +31,9 @@ function currentCacheNamespace(): string {
 
 describe("offline shell availability", () => {
   it("allows production and test builds but rejects on-demand development module graphs", () => {
-    expect(offlineShellAvailable({ PROD: true, MODE: "production" })).toBe(true);
-    expect(offlineShellAvailable({ PROD: false, MODE: "test" })).toBe(true);
-    expect(offlineShellAvailable({ PROD: false, MODE: "development" })).toBe(false);
+    expect(isOfflineShellAvailable({ PROD: true, MODE: "production" })).toBe(true);
+    expect(isOfflineShellAvailable({ PROD: false, MODE: "test" })).toBe(true);
+    expect(isOfflineShellAvailable({ PROD: false, MODE: "development" })).toBe(false);
   });
 });
 
@@ -234,7 +234,7 @@ describe("offline preference", () => {
   it("fails closed when this browser cannot install a service worker", async () => {
     vi.stubGlobal("navigator", {});
     await expect(setOfflineReadEnabled(true)).rejects.toThrow("not supported");
-    expect(offlineReadEnabled()).toBe(false);
+    expect(isOfflineReadEnabled()).toBe(false);
   });
 
   it("keeps a cached tenant read-only until the tenant boundary itself reloads or cleanup runs", () => {
@@ -243,10 +243,10 @@ describe("offline preference", () => {
     setOfflineReadState("identity", true, 456);
     setOfflineReadState("identity", false);
     setOfflineReadState("accounts", false);
-    expect(offlineStateSnapshot()).toMatchObject({ readOnly: true, lastUpdated: 123 });
+    expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: true, lastUpdated: 123 });
 
     setOfflineReadState("tenant", false);
-    expect(offlineStateSnapshot()).toMatchObject({ readOnly: false, lastUpdated: null });
+    expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: false, lastUpdated: null });
   });
 
   it("does not leave the preference enabled when worker registration fails", async () => {
@@ -256,7 +256,7 @@ describe("offline preference", () => {
       },
     });
     await expect(setOfflineReadEnabled(true)).rejects.toThrow("registration denied");
-    expect(offlineReadEnabled()).toBe(false);
+    expect(isOfflineReadEnabled()).toBe(false);
   });
 
   it("enables only after the registered worker finishes activating its shell", async () => {
@@ -270,11 +270,11 @@ describe("offline preference", () => {
     const enabling = setOfflineReadEnabled(true);
     await vi.waitFor(() => expect(register).toHaveBeenCalledOnce());
     expect(register).toHaveBeenCalledWith("/offline-worker.js", { scope: "/" });
-    expect(offlineReadEnabled()).toBe(false);
+    expect(isOfflineReadEnabled()).toBe(false);
 
     lifecycle.transition("activated");
     await enabling;
-    expect(offlineReadEnabled()).toBe(true);
+    expect(isOfflineReadEnabled()).toBe(true);
   });
 
   it("does not enable when shell installation makes the worker redundant", async () => {
@@ -291,7 +291,7 @@ describe("offline preference", () => {
     lifecycle.transition("redundant");
 
     await expect(enabling).rejects.toThrow(/installation failed/i);
-    expect(offlineReadEnabled()).toBe(false);
+    expect(isOfflineReadEnabled()).toBe(false);
   });
 
   it("keeps an enabled preference only while its worker and active shell cache still exist", async () => {
@@ -321,7 +321,7 @@ describe("offline preference", () => {
     });
 
     await expect(revalidateOfflineShell()).resolves.toBe(true);
-    expect(offlineReadEnabled()).toBe(true);
+    expect(isOfflineReadEnabled()).toBe(true);
   });
 
   it("disables a stale preference when browser site-data cleanup removed the offline shell", async () => {
@@ -335,7 +335,7 @@ describe("offline preference", () => {
     });
 
     await expect(revalidateOfflineShell()).resolves.toBe(false);
-    expect(offlineReadEnabled()).toBe(false);
+    expect(isOfflineReadEnabled()).toBe(false);
   });
 
   it("deletes shell metadata as well as release caches when offline access is disabled", async () => {
@@ -385,7 +385,7 @@ describe("offline preference", () => {
       "offlineCache: the promised offline shell could not be revalidated",
       expect.any(Error),
     );
-    expect(offlineReadEnabled()).toBe(false);
+    expect(isOfflineReadEnabled()).toBe(false);
 
     localStorage.setItem("capacitylens/offlineRead", "on");
     vi.stubGlobal("navigator", { serviceWorker: { getRegistrations: vi.fn().mockResolvedValue([]) } });
@@ -424,7 +424,7 @@ describe("offline preference", () => {
       },
     });
     await expect(setOfflineReadEnabled(true)).resolves.toBeUndefined();
-    expect(offlineReadEnabled()).toBe(true);
+    expect(isOfflineReadEnabled()).toBe(true);
   });
 
   it("rejects registrations without a worker and workers already made redundant", async () => {
@@ -484,7 +484,7 @@ describe("offline preference", () => {
     });
 
     await expect(setOfflineReadEnabled(false)).rejects.toThrow(/abort/i);
-    expect(offlineReadEnabled()).toBe(false);
+    expect(isOfflineReadEnabled()).toBe(false);
   });
 });
 
@@ -539,7 +539,7 @@ describe("offline tenant cache", () => {
       cause,
     });
     expect(warning).toHaveBeenCalledWith("capacitylens: offline encryption key persistence failed", cause);
-    expect(offlineStateSnapshot().cacheWriteFailed).toBe(true);
+    expect(readOfflineStateSnapshot().cacheWriteFailed).toBe(true);
   });
 
   it("uses the device key persisted by a competing tab after add fails", async () => {
@@ -659,7 +659,7 @@ describe("offline tenant cache", () => {
       throw cause;
     });
 
-    expect(offlineReadEnabled()).toBe(false);
+    expect(isOfflineReadEnabled()).toBe(false);
     expect(warning).toHaveBeenCalledWith(
       "offlineCache: the offline preference could not be read; disabling offline access",
       cause,
@@ -802,7 +802,7 @@ describe("offline tenant cache", () => {
         newValue: "other-tab-sign-out",
       }),
     );
-    expect(offlineStateSnapshot().readOnly).toBe(false);
+    expect(readOfflineStateSnapshot().readOnly).toBe(false);
     await cacheAccountSummaries([{ id: "a-studio", name: "Should not write", role: "owner" }]);
     await expect(getRaw(`accounts:${currentCacheNamespace()}:user-a`)).resolves.toBeUndefined();
 
@@ -933,7 +933,7 @@ describe("offline tenant cache", () => {
 
     await setOfflineReadEnabled(false);
 
-    expect(offlineReadEnabled()).toBe(false);
+    expect(isOfflineReadEnabled()).toBe(false);
     await expect(getRaw(`auth:${origin}`)).resolves.toBeUndefined();
     await expect(getRaw(`accounts:${origin}:user-a`)).resolves.toBeUndefined();
     await expect(getRaw(`slice:${origin}:user-a:a-studio`)).resolves.toBeUndefined();
@@ -1139,7 +1139,7 @@ describe("offline tenant cache", () => {
     // Mirrors AuthProvider's fail-closed fallback. Disabling must remove the preference even when
     // the records cannot currently be reached, and restoring IndexedDB must not make them eligible.
     await setOfflineReadEnabled(false);
-    expect(offlineReadEnabled()).toBe(false);
+    expect(isOfflineReadEnabled()).toBe(false);
     vi.stubGlobal("indexedDB", availableIndexedDb);
     await expect(readCachedAuthSnapshot()).resolves.toBeNull();
   });
@@ -1206,11 +1206,11 @@ describe("offline tenant cache", () => {
     });
 
     await expect(cacheAuthSnapshot(authSnapshot("user-a"))).rejects.toThrow();
-    expect(offlineStateSnapshot().cacheWriteFailed).toBe(true);
+    expect(readOfflineStateSnapshot().cacheWriteFailed).toBe(true);
     await clearAllOfflineData();
 
     await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ status: "written" });
-    expect(offlineStateSnapshot().cacheWriteFailed).toBe(false);
+    expect(readOfflineStateSnapshot().cacheWriteFailed).toBe(false);
     await expect(readCachedAuthSnapshot()).resolves.toMatchObject({
       value: { user: { id: "user-a" } },
     });

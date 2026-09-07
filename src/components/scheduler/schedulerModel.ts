@@ -1,9 +1,9 @@
-import { capacityAllocationsForMode, dayCapacity, utilizationFromCapacity } from "../../lib/capacity";
+import { applyCapacityMode, buildDayCapacity, resolveUtilizationFromCapacity } from "../../lib/capacity";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import { placeholderDisplayName, resourceDisplayName } from "../../lib/metadata";
-import { externalBand, resourcesByDiscipline } from "../../store/selectors";
+import { resolvePlaceholderDisplayName, resolveResourceDisplayName } from "../../lib/metadata";
+import { buildExternalBand, buildDisciplineGroups } from "../../store/selectors";
 import {
   isCapacityTracked,
   isExternalResource,
@@ -15,9 +15,9 @@ import {
 import { NEUTRAL_COLOR } from "../../lib/palette";
 import { laneLayout as compactLaneLayout } from "./layout";
 import {
-  displayNameComparator,
-  engagementFavouriteDisplayNameComparator,
-  favouriteDisplayNameComparator,
+  createDisplayNameComparator,
+  createEngagementFavouriteDisplayNameComparator,
+  createFavouriteDisplayNameComparator,
 } from "../../lib/displayOrder";
 import {
   bucketByCoveredDate,
@@ -50,7 +50,7 @@ export type {
 
 /** Recompute only the visible-window percentage while retaining the expensive bar, lane and
  * timeline-day model. Horizontal scrolling changes this projection, not the static schedule. */
-export function refreshVisibleUtilization(
+export function applyVisibleUtilization(
   model: GroupModel[],
   data: AppData,
   start: ISODate,
@@ -72,21 +72,21 @@ export function refreshVisibleUtilization(
         changed = true;
         return { ...row, utilization: 0 };
       }
-      const resourceAllocations = capacityAllocationsForMode(allocations.get(row.resource.id) ?? [], blocksMode);
+      const resourceAllocations = applyCapacityMode(allocations.get(row.resource.id) ?? [], blocksMode);
       const resourceTimeOff = personalTimeOff.get(row.resource.id) ?? [];
       const effectiveWeek = effectiveWorkingWeek(row.resource, accountWorkingDays);
       // Bucket this resource's load and time off by the days they cover ONCE, exactly as the full
       // build does, so a horizontal scroll costs O(days + coverage) per row instead of rescanning
       // every allocation on every day of the window. Bucket order follows the input, so the hours
       // are summed in the same order and the ratio is bit-identical to the rescan.
-      const allocsByDate = bucketByCoveredDate(resourceAllocations, days);
+      const allocationsByDate = bucketByCoveredDate(resourceAllocations, days);
       const personalTimeOffByDate = bucketByCoveredDate(resourceTimeOff, days);
-      const next = utilizationFromCapacity(
+      const next = resolveUtilizationFromCapacity(
         days.map((date) =>
-          dayCapacity(
+          buildDayCapacity(
             row.resource,
             date,
-            allocsByDate.get(date) ?? NO_ALLOCATIONS,
+            allocationsByDate.get(date) ?? NO_ALLOCATIONS,
             personalTimeOffByDate.get(date) ?? NO_TIME_OFF,
             effectiveWeek,
             closuresByDate.get(date) ?? NO_CLOSURES,
@@ -104,7 +104,7 @@ export function refreshVisibleUtilization(
 export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[] {
   const {
     data,
-    geom,
+    geom: geometry,
     days,
     visibleWindow,
     overSoonWindow,
@@ -121,18 +121,20 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
   // ONE i18n read per build for the placeholder label: the sort below calls the display name
   // O(n log n) times and every placeholder resolves the same word. Per BUILD CALL, never module
   // scope — a Paraglide message must be called at use time so it follows the active locale.
-  const placeholderLabel = placeholderDisplayName();
-  const displayNameOf = (r: Resource): string => (r.kind === "placeholder" ? placeholderLabel : resourceDisplayName(r));
-  const byFavouriteResourceDisplayName = favouriteDisplayNameComparator<Resource>(displayNameOf);
-  const byEngagementFavouriteResourceDisplayName = engagementFavouriteDisplayNameComparator<Resource>(displayNameOf);
-  const byResourceDisplayName = displayNameComparator<Resource>(displayNameOf);
+  const placeholderLabel = resolvePlaceholderDisplayName();
+  const resolveDisplayName = (resource: Resource): string =>
+    resource.kind === "placeholder" ? placeholderLabel : resolveResourceDisplayName(resource);
+  const byFavouriteResourceDisplayName = createFavouriteDisplayNameComparator<Resource>(resolveDisplayName);
+  const byEngagementFavouriteResourceDisplayName =
+    createEngagementFavouriteDisplayNameComparator<Resource>(resolveDisplayName);
+  const byResourceDisplayName = createDisplayNameComparator<Resource>(resolveDisplayName);
   const allocationFilters = createAllocationFilters(filters, preferences, data);
   const { resourceVisible } = allocationFilters;
   // Group allocations / time off by resource ONCE up front, so building each row
   // is a Map lookup instead of a full-array scan per resource (was O(resources ×
   // (allocations + timeOff)); now O(allocations + timeOff + resources)).
   const seriesEndByKey = new Map<string, ISODate>();
-  const allocsByResource = groupByResourceId(data.allocations, {
+  const allocationsByResource = groupByResourceId(data.allocations, {
     visit: (allocation) => {
       if (!allocation.seriesId || !isValidISODate(allocation.endDate)) return;
       const key = `${allocation.accountId}\u0000${allocation.seriesId}`;
@@ -148,18 +150,18 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
 
   const capacitySource = createCapacitySource(days, visibleWindow, overSoonWindow, closures, blocksMode);
   const buildRow = createRowBuilder(
-    { data, geom, days },
+    { data, geom: geometry, days },
     accountWorkingDays,
     blocksMode,
     laneLayout,
-    allocsByResource,
+    allocationsByResource,
     timeOffByResource,
     seriesEndByKey,
     allocationFilters,
     capacitySource,
   );
 
-  const fallbackGroups = (resources: Resource[]): SchedulerResourceGroup[] => {
+  const buildFallbackGroups = (resources: Resource[]): SchedulerResourceGroup[] => {
     if (!groupResourcesByEngagement) {
       return resources.length ? [{ key: "unassigned", title: "Unassigned", discipline: null, resources }] : [];
     }
@@ -184,7 +186,7 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
   // capacity grouping. External / 3rd party is deliberately appended last in both modes.
   const groups: SchedulerResourceGroup[] = [];
   if (disciplinesEnabled) {
-    const disciplineGroups = resourcesByDiscipline(data);
+    const disciplineGroups = buildDisciplineGroups(data);
     for (const group of disciplineGroups) {
       if (group.discipline) {
         groups.push({
@@ -196,11 +198,11 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
       }
     }
     const unassigned = disciplineGroups.find((group) => !group.discipline && !group.external)?.resources ?? [];
-    groups.push(...fallbackGroups(unassigned));
+    groups.push(...buildFallbackGroups(unassigned));
   } else {
-    groups.push(...fallbackGroups(data.resources.filter(isCapacityTracked)));
+    groups.push(...buildFallbackGroups(data.resources.filter(isCapacityTracked)));
   }
-  const external = externalBand(data.resources);
+  const external = buildExternalBand(data.resources);
   if (external) {
     groups.push({
       ...external,
@@ -234,5 +236,5 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
         // the dimmed staffing view back in.
         .filter((row) => filters.showUnmatched || !row.dimmed),
     }))
-    .filter((g) => g.rows.length > 0);
+    .filter((group) => group.rows.length > 0);
 }

@@ -10,7 +10,7 @@ const BOUNDARY_SEARCH_MS = 36 * 60 * 60 * 1000;
  * caches one formatter per zone), so the timer can never land on a boundary the displayed date
  * disagrees with — and a bad stored zone degrades to todayISO's LOCAL date, making this measure
  * the next LOCAL midnight instead of crashing or arming a runaway timer. */
-export function millisecondsUntilNextCalendarDate(timeZone: string, now = Date.now()): number {
+export function resolveMillisecondsUntilNextCalendarDate(timeZone: string, now = Date.now()): number {
   const dateAt = (instant: number): ISODate => todayISO(timeZone, instant);
   const currentDate = dateAt(now);
   let lower = now;
@@ -35,7 +35,7 @@ export function useCalendarToday(timeZone: string): ISODate {
       timer = window.setTimeout(() => {
         setRevision((revision) => revision + 1);
         schedule();
-      }, millisecondsUntilNextCalendarDate(timeZone));
+      }, resolveMillisecondsUntilNextCalendarDate(timeZone));
     };
     const refresh = () => {
       setRevision((revision) => revision + 1);

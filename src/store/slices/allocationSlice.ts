@@ -12,18 +12,19 @@ type AllocationSlice = Pick<
 
 export type AllocationSliceInternals = Pick<
   StoreInternals,
-  "guarded" | "addAllocationsImpl" | "updateOwned" | "assertAllocation" | "findOwned" | "mutate"
+  "createGuardedAction" | "createAllocations" | "updateOwned" | "assertAllocation" | "resolveOwnedRow" | "mutate"
 >;
 
 export function createAllocationSlice(
   internals: AllocationSliceInternals,
 ): StateCreator<StoreState, [], [], AllocationSlice> {
   return (_set, get) => {
-    const { guarded, addAllocationsImpl, updateOwned, assertAllocation, findOwned, mutate } = internals;
+    const { createGuardedAction, createAllocations, updateOwned, assertAllocation, resolveOwnedRow, mutate } =
+      internals;
     return {
-      addAllocation: (input) => addAllocationsImpl([input])[0],
-      addAllocations: addAllocationsImpl,
-      updateAllocation: guarded(
+      addAllocation: (input) => createAllocations([input])[0],
+      addAllocations: createAllocations,
+      updateAllocation: createGuardedAction(
         (id: ID, patch: Patch<Allocation>) =>
           updateOwned("allocations", id, patch, (merged, existing) => {
             // Clamp FIRST (same shared clamp as creation and import) so validation sees the value
@@ -56,23 +57,23 @@ export function createAllocationSlice(
           }),
         false,
       ),
-      deleteAllocation: guarded((id: ID) => {
-        if (!findOwned(get().data, "allocations", id)) return;
-        mutate((d) => ({
-          ...d,
-          allocations: d.allocations.filter((a) => a.id !== id),
+      deleteAllocation: createGuardedAction((id: ID) => {
+        if (!resolveOwnedRow(get().data, "allocations", id)) return;
+        mutate((data) => ({
+          ...data,
+          allocations: data.allocations.filter((allocation) => allocation.id !== id),
         }));
       }),
-      deleteAllocationSeriesFrom: guarded((id: ID) => {
-        const target = findOwned(get().data, "allocations", id);
+      deleteAllocationSeriesFrom: createGuardedAction((id: ID) => {
+        const target = resolveOwnedRow(get().data, "allocations", id);
         if (!target) return;
         if (!target.seriesId) throw new Error("This allocation is not part of a repeat series.");
         const { accountId, seriesId, startDate } = target;
         // One mutation produces one history snapshot and one persistence diff/batch: a single Undo
         // restores the whole tail, and server mode commits all DELETE operations transactionally.
-        mutate((d) => ({
-          ...d,
-          allocations: d.allocations.filter(
+        mutate((data) => ({
+          ...data,
+          allocations: data.allocations.filter(
             (allocation) =>
               allocation.accountId !== accountId ||
               allocation.seriesId !== seriesId ||

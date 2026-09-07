@@ -15,7 +15,7 @@ const SHOW_JUMP_TO_DATE: boolean = false;
 
 /** A visible span in words — "1 week" / "4 weeks". Shared by the dropdown's options and its
  *  accessible name so the two can't drift apart. */
-const zoomLabel = (weeks: number) =>
+const buildZoomLabel = (weeks: number) =>
   weeks > 1 ? m.scheduler_weeks_option_other({ count: weeks }) : m.scheduler_weeks_option_one({ count: weeks });
 
 export interface ToolbarDateNavigationProps {
@@ -59,7 +59,7 @@ export function ToolbarDateNavigation({ zoom, onZoomChange, onPanDays, onToday }
       <Select value={String(zoom)} onValueChange={(value) => onZoomChange(Number(value) as WeeksZoom)}>
         <SelectTrigger
           size="sm"
-          aria-label={m.scheduler_weeks_visible_aria({ span: zoomLabel(zoom) })}
+          aria-label={m.scheduler_weeks_visible_aria({ span: buildZoomLabel(zoom) })}
           className="ml-2 w-auto"
         >
           <SelectValue />
@@ -68,7 +68,7 @@ export function ToolbarDateNavigation({ zoom, onZoomChange, onPanDays, onToday }
           <SelectGroup>
             {ZOOM_LEVELS.map((w) => (
               <SelectItem key={w} value={String(w)}>
-                {zoomLabel(w)}
+                {buildZoomLabel(w)}
               </SelectItem>
             ))}
           </SelectGroup>

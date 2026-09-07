@@ -38,10 +38,11 @@ function Badge({
   ...props
 }: React.ComponentProps<"span"> &
   VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
-  const Comp = asChild ? Slot.Root : "span";
+  // Local convention: spell out the JSX binding while preserving the primitive props.
+  const Component = asChild ? Slot.Root : "span";
 
   return (
-    <Comp
+    <Component
       data-slot="badge"
       data-variant={variant}
       className={cn(badgeVariants({ variant }), className)}

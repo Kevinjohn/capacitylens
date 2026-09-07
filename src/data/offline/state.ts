@@ -26,7 +26,7 @@ const preferenceListeners = new Set<() => void>();
 export const recentSliceWrites = new WeakMap<IDBFactory, Map<string, { signature: string; writtenAt: number }>>();
 export const pendingWrites = new Map<string, Promise<void>>();
 
-function sliceSignature(data: AppData): string {
+function buildSliceSignature(data: AppData): string {
   // Server revisions are the persistence change marker. This signature is much smaller to build
   // than serialising the whole tenant and is exact under the server-owned updatedAt contract.
   return CACHED_SLICE_KEYS.map(
@@ -56,7 +56,7 @@ if (typeof window !== "undefined") {
 }
 
 /** Is read-only offline access enabled on this device? Preference failures fail closed. */
-export function offlineReadEnabled(): boolean {
+export function isOfflineReadEnabled(): boolean {
   try {
     return localStorage.getItem(OFFLINE_PREF_KEY) === "on";
   } catch (error) {
@@ -72,8 +72,8 @@ export function subscribeOfflinePreference(listener: () => void): () => void {
 
 /** Decline an unchanged tenant-slice rewrite. Encryption dominates the cost of a cache write and
  * live refreshes re-deliver identical data, so a signature match inside the interval skips. */
-export function sliceRewriteGate(key: string, data: AppData, now: number): OfflineCacheWriteResult | (() => void) {
-  const signature = sliceSignature(data);
+export function resolveSliceRewrite(key: string, data: AppData, now: number): OfflineCacheWriteResult | (() => void) {
+  const signature = buildSliceSignature(data);
   const factory = typeof indexedDB === "undefined" ? null : indexedDB;
   let recent = factory ? recentSliceWrites.get(factory) : undefined;
   if (factory && !recent) {
@@ -122,11 +122,11 @@ export function resetOfflineState(): void {
 }
 
 /** Current offline episode tag; reactive consumers read it after their offline-state subscription. */
-export function offlineStateEpisode(): number {
+export function readOfflineStateEpisode(): number {
   return offlineEpisode;
 }
 
-export function offlineStateSnapshot(): OfflineState {
+export function readOfflineStateSnapshot(): OfflineState {
   return state;
 }
 

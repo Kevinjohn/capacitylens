@@ -9,8 +9,8 @@ import { carriesHourlyLoad, FULL_DAY_HOURS } from "@capacitylens/shared/types/en
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { RepeatSelection } from "../../lib/repeatingAllocations";
 
-import type { AllocationModalSeed } from "./allocationModalSeed";
-import { effectiveAllocationValues, roundDays, usesWorkingSpanFor } from "./allocationModalSelection";
+import type { AllocationModalSeed } from "./buildAllocationModalSeed";
+import { buildEffectiveAllocationValues, roundDays, hasWorkingSpan } from "./allocationModalSelection";
 interface ScheduleInput {
   selectedResource: Resource | undefined;
   mode: SchedulingMode;
@@ -52,7 +52,7 @@ export function useAllocationScheduleState({
   );
   const effectiveValues = useMemo(
     () =>
-      effectiveAllocationValues({
+      buildEffectiveAllocationValues({
         resource: selectedResource,
         effectiveWeek: selectedEffectiveWeek,
         mode,
@@ -81,8 +81,8 @@ export function useAllocationScheduleState({
     spanFitsDateDomain,
     maximumDaysOver,
     spanLimitedByDateDomain,
-    endDate: effEndDate,
-    hoursPerDay: effHoursPerDay,
+    endDate: effectiveEndDate,
+    hoursPerDay: effectiveHoursPerDay,
   } = effectiveValues;
   // External and hourly allocations both collect a raw Start/End pair; blocks and days derive their
   // end from a (start, days-over) span instead. ONE predicate drives both the fields that render and
@@ -129,11 +129,11 @@ export function useAllocationScheduleState({
   };
 
   const daysOverDisabled =
-    usesWorkingSpanFor(selectedResource, mode) && lacksEffectiveWorkingDays(selectedEffectiveWeek, ignoreWeekends);
+    hasWorkingSpan(selectedResource, mode) && lacksEffectiveWorkingDays(selectedEffectiveWeek, ignoreWeekends);
 
   return {
     selectedEffectiveWeek,
-    effEndDate,
+    effEndDate: effectiveEndDate,
     validDaysOver,
     spanFitsDateDomain,
     spanLimitedByDateDomain,
@@ -150,7 +150,7 @@ export function useAllocationScheduleState({
       setEndDate,
       hoursPerDay,
       setHoursPerDay,
-      effHoursPerDay,
+      effHoursPerDay: effectiveHoursPerDay,
       daysOfWork,
       setDaysOfWork,
       daysOver,

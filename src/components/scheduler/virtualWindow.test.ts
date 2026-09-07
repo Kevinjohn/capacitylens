@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { buildLayout, windowFromLayout } from "./virtualWindow";
+import { buildLayout, resolveVirtualWindow } from "./virtualWindow";
 
 // The one-shot composition SchedulerGrid does NOT do (it memoises the layout across scroll
 // frames, so it holds the two calls apart). Production has no use for the pair, so it lives
 // here, where every case below wants a window straight from a heights array.
 const computeWindow = (heights: number[], scrollTop: number, viewportHeight: number, overscanPx = 300) =>
-  windowFromLayout(buildLayout(heights), heights, scrollTop, viewportHeight, overscanPx);
+  resolveVirtualWindow(buildLayout(heights), heights, scrollTop, viewportHeight, overscanPx);
 
 describe("computeWindow", () => {
   it("renders everything when the content fits the viewport", () => {
@@ -23,7 +23,7 @@ describe("computeWindow", () => {
   it("windows a large list to the visible slice (+overscan) at 200 rows", () => {
     const heights = Array.from({ length: 200 }, () => 50); // 10,000px total
     const layout = buildLayout(heights);
-    const w = windowFromLayout(layout, heights, 1000, 500, 300);
+    const w = resolveVirtualWindow(layout, heights, 1000, 500, 300);
     // Visible band [700, 1800): rows 14 (ends 750>700) … 35 (top 1750<1800).
     expect(w.first).toBe(14);
     expect(w.last).toBe(35);
@@ -50,7 +50,7 @@ describe("computeWindow", () => {
       },
     });
 
-    const w = windowFromLayout(layout, heights, 3_000_000, 500, 300);
+    const w = resolveVirtualWindow(layout, heights, 3_000_000, 500, 300);
 
     expect(w.first).toBe(59_994);
     expect(w.last).toBe(60_015);
@@ -60,7 +60,7 @@ describe("computeWindow", () => {
   it("clamps at the top of the list", () => {
     const heights = Array.from({ length: 200 }, () => 50);
     const layout = buildLayout(heights);
-    const w = windowFromLayout(layout, heights, 0, 500, 300);
+    const w = resolveVirtualWindow(layout, heights, 0, 500, 300);
     expect(w.first).toBe(0);
     expect(layout.tops[w.first]).toBe(0); // nothing to reserve above the first row
   });
@@ -68,7 +68,7 @@ describe("computeWindow", () => {
   it("handles variable row heights", () => {
     const heights = [100, 40, 40, 40, 200, 40, 40, 40, 40, 40]; // total 620
     const layout = buildLayout(heights);
-    const w = windowFromLayout(layout, heights, 0, 200, 0);
+    const w = resolveVirtualWindow(layout, heights, 0, 200, 0);
     // band [0,200): items 0(0-100),1(100-140),2(140-180),3(180-220) → last is 3
     expect(w.first).toBe(0);
     expect(w.last).toBe(3);
@@ -110,7 +110,7 @@ describe("computeWindow", () => {
     const layout = buildLayout(heights);
     // total 30, well past viewportHeight+overscanPx(10) so the fast path is skipped; a scrollTop of
     // 1000 pushes `top` far beyond every row's bottom edge.
-    const w = windowFromLayout(layout, heights, 1000, 10, 0);
+    const w = resolveVirtualWindow(layout, heights, 1000, 10, 0);
     expect(w).toEqual({ first: 2, last: 2 });
     expect(layout.tops[w.first]).toBe(20); // the two rows above are still reserved, not rendered
   });

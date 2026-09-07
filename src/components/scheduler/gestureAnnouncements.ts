@@ -3,29 +3,29 @@ import type { DateRange } from "../../lib/gestureMath";
 import type { BarLayout } from "./schedulerModel";
 import { m } from "@/i18n";
 import {
-  capacityAdvisory,
+  buildCapacityAdvisory,
   formatCapacityAdvisory,
-  capacityAllocationsForMode,
-  capacityForWindow,
-  timeOffApplyingTo,
+  applyCapacityMode,
+  buildCapacityWindow,
+  listTimeOffApplyingTo,
 } from "../../lib/capacity";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { carriesHourlyLoad, FULL_DAY_HOURS, isCapacityTracked, type ID } from "@capacitylens/shared/types/entities";
-import { resourceDisplayName } from "../../lib/metadata";
-import { accountWorkingDaysFor, schedulingModeFor, visibleRange } from "../../store/selectors";
+import { resolveResourceDisplayName } from "../../lib/metadata";
+import { listAccountWorkingDays, resolveSchedulingMode, buildVisibleRange } from "../../store/selectors";
 import { useStore } from "../../store/useStore";
-import { activeGestureData } from "./gestureLanes";
+import { buildActiveGestureData } from "./gestureLanes";
 
 /** Builds the screen-reader status from the same visible-range capacity signal as the grid. */
-export function capacityAnnouncement(resourceId: ID): string {
+export function readCapacityAnnouncement(resourceId: ID): string {
   const { data: storedData, ui, activeAccountId } = useStore.getState();
-  const data = activeGestureData(storedData, activeAccountId);
+  const data = buildActiveGestureData(storedData, activeAccountId);
   const resource = data.resources.find((candidate) => candidate.id === resourceId);
   if (!resource || !isCapacityTracked(resource)) return "";
 
-  const name = resourceDisplayName(resource);
-  const blocksMode = !carriesHourlyLoad(schedulingModeFor(storedData, activeAccountId));
-  const allocations = capacityAllocationsForMode(
+  const name = resolveResourceDisplayName(resource);
+  const blocksMode = !carriesHourlyLoad(resolveSchedulingMode(storedData, activeAccountId));
+  const allocations = applyCapacityMode(
     data.allocations.filter((allocation) => allocation.resourceId === resourceId),
     blocksMode,
   );
@@ -37,14 +37,14 @@ export function capacityAnnouncement(resourceId: ID): string {
     if (allocation.startDate < start) start = allocation.startDate;
     if (allocation.endDate > end) end = allocation.endDate;
   }
-  const visible = visibleRange(ui);
+  const visible = buildVisibleRange(ui);
   if (start < visible.start) start = visible.start;
   if (end > visible.end) end = visible.end;
   if (start > end) return m.scheduler_sr_announce_clear({ name });
 
-  const timeOff = timeOffApplyingTo(resourceId, data.timeOff);
-  const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDaysFor(storedData, activeAccountId));
-  const overDays = capacityForWindow(resource, allocations, timeOff, start, end, effectiveWeek, data.closures).filter(
+  const timeOff = listTimeOffApplyingTo(resourceId, data.timeOff);
+  const effectiveWeek = effectiveWorkingWeek(resource, listAccountWorkingDays(storedData, activeAccountId));
+  const overDays = buildCapacityWindow(resource, allocations, timeOff, start, end, effectiveWeek, data.closures).filter(
     (day) => day.over,
   ).length;
   if (overDays === 0) return m.scheduler_sr_announce_clear({ name });
@@ -53,7 +53,7 @@ export function capacityAnnouncement(resourceId: ID): string {
     : m.scheduler_sr_announce_over_other({ name, count: overDays });
 }
 
-export function capacityGestureAdvisory(
+export function readCapacityGestureAdvisory(
   bar: BarLayout,
   effectiveResourceId: ID,
   isBlocks: boolean,
@@ -61,18 +61,18 @@ export function capacityGestureAdvisory(
   reconciledHours: number,
 ) {
   const { data: storedData, activeAccountId } = useStore.getState();
-  const data = activeGestureData(storedData, activeAccountId);
+  const data = buildActiveGestureData(storedData, activeAccountId);
   const resource = data.resources.find((candidate) => candidate.id === effectiveResourceId);
   let advisory = "";
   if (resource && isCapacityTracked(resource)) {
-    const others = capacityAllocationsForMode(
+    const others = applyCapacityMode(
       data.allocations.filter(
         (allocation) => allocation.resourceId === effectiveResourceId && allocation.id !== bar.allocation.id,
       ),
       isBlocks,
     );
-    const timeOff = timeOffApplyingTo(effectiveResourceId, data.timeOff);
-    const result = capacityAdvisory(
+    const timeOff = listTimeOffApplyingTo(effectiveResourceId, data.timeOff);
+    const result = buildCapacityAdvisory(
       resource,
       {
         resourceId: effectiveResourceId,
@@ -86,7 +86,7 @@ export function capacityGestureAdvisory(
       },
       others,
       timeOff,
-      effectiveWorkingWeek(resource, accountWorkingDaysFor(storedData, activeAccountId)),
+      effectiveWorkingWeek(resource, listAccountWorkingDays(storedData, activeAccountId)),
       data.closures,
     );
     advisory = formatCapacityAdvisory(result, "toast");

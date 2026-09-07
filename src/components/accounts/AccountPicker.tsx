@@ -5,8 +5,8 @@ import { useId } from "react";
 import { transitionAccount } from "../../auth/accountTransition";
 import { useAuth } from "../../auth/authContext";
 import { useOfflineState } from "../../data/useOfflineState";
-import { accessLabelFor } from "../../lib/accessCopy";
-import { accessExperienceFor } from "../../lib/accessMode";
+import { resolveAccessLabel } from "../../lib/accessCopy";
+import { resolveAccessExperience } from "../../lib/resolveAccessExperience";
 import { FAKE_USER, useDemoAuthActive } from "../../lib/fakeAuth";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { useStore } from "../../store/useStore";
@@ -30,14 +30,14 @@ import { useDeleteAccount } from "./useDeleteAccount";
 // only the ACTIVE account's slice, so it can't list the login's OTHER tenants — `accountSummaries`
 // (server-sourced from GET /api/accounts; local-derived from data.accounts) is the only complete list.
 export function AccountPicker() {
-  const accounts = useStore((s) => s.accountSummaries);
-  const previousAccountId = useStore((s) => s.previousAccountId);
+  const accounts = useStore((state) => state.accountSummaries);
+  const previousAccountId = useStore((state) => state.previousAccountId);
   // If we got here via "Switch company" and that account is still in the list, offer a way back.
-  const previous = accounts.find((a) => a.id === previousAccountId) ?? null;
+  const previous = accounts.find((account) => account.id === previousAccountId) ?? null;
   // Cosmetic demo sign-in (see FakeSignIn): when the real auth seam is off, the picker is
   // the post-"login" screen, so show who's "signed in" + a Sign out back to the demo gate.
   const demoAuthActive = useDemoAuthActive();
-  const signOutDemo = useStore((s) => s.signOutDemo);
+  const signOutDemo = useStore((state) => state.signOutDemo);
   // Hide the create affordance whenever the server says a create would be refused
   // (canCreateAccount: false — the single-company cap, or auth-on with no owner/admin standing).
   // Fails open to `true` (see authContext.ts) whenever the fact is unavailable, so a
@@ -45,7 +45,7 @@ export function AccountPicker() {
   // an org create/delete — the server recomputes canCreateAccount per request, so those are exactly
   // the moments the boot-time snapshot goes stale (see the call sites below).
   const { authMode, canCreateAccount, refreshAuth } = useAuth();
-  const accessExperience = accessExperienceFor(authMode);
+  const accessExperience = resolveAccessExperience(authMode);
   const offline = useOfflineState();
   const activateAccount = (id: string) => {
     void transitionAccount(id);
@@ -67,7 +67,7 @@ export function AccountPicker() {
     errorField,
     errorId,
     clear,
-    tzSelectOptions,
+    tzSelectOptions: timeZoneSelectOptions,
     weekStartSelectOptions,
   } = form;
   const { deleting, confirming, setConfirming, confirmDelete } = useDeleteAccount({ refreshAuth });
@@ -138,29 +138,29 @@ export function AccountPicker() {
 
         {accounts.length > 0 && (
           <ItemGroup className="gap-2">
-            {accounts.map((a, index) => {
+            {accounts.map((account, index) => {
               const roleDescriptionId = `${roleDescriptionPrefix}-company-role-${index}`;
-              const accessLabel = accessLabelFor({
+              const accessLabel = resolveAccessLabel({
                 offlineReadOnly: offline.readOnly,
                 experience: accessExperience,
-                permissionStatus: a.roleStatus ?? "resolved",
-                role: a.role,
+                permissionStatus: account.roleStatus ?? "resolved",
+                role: account.role,
               });
               return (
-                <Item key={a.id} role="listitem" className="gap-2 p-0">
+                <Item key={account.id} role="listitem" className="gap-2 p-0">
                   <Button
                     variant="outline"
-                    aria-label={a.name}
+                    aria-label={account.name}
                     aria-describedby={roleDescriptionId}
-                    onClick={() => activateAccount(a.id)}
+                    onClick={() => activateAccount(account.id)}
                     className="h-auto flex-1 justify-start gap-3 px-3 py-2.5 text-left"
                   >
                     {/* AccountSummary carries no colour (it's the minimal server-sourced shape — P1.13), so
                       the picker swatch uses the default account colour. The real per-account colour shows
                       once the slice is loaded; the picker pre-loads only id/name/role. */}
-                    <Avatar name={a.name} color={DEFAULT_COLORS.account} />
+                    <Avatar name={account.name} color={DEFAULT_COLORS.account} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{a.name}</span>
+                      <span className="block truncate font-medium">{account.name}</span>
                       <Badge
                         id={roleDescriptionId}
                         data-testid="company-role"
@@ -174,8 +174,11 @@ export function AccountPicker() {
                   {/* Company deletion is owner-only server-side, so every non-owner summary gets no
                     Delete affordance at all — offering one would let them type-to-confirm an
                     irreversible-looking action that then just 403s. Demo summaries are always 'owner'. */}
-                  {a.roleStatus !== "unavailable" && can(a.role, "deleteAccount") && (
-                    <DeleteButton label={m.picker_delete_company({ name: a.name })} onClick={() => setConfirming(a)} />
+                  {account.roleStatus !== "unavailable" && can(account.role, "deleteAccount") && (
+                    <DeleteButton
+                      label={m.picker_delete_company({ name: account.name })}
+                      onClick={() => setConfirming(account)}
+                    />
                   )}
                 </Item>
               );
@@ -224,7 +227,7 @@ export function AccountPicker() {
                   label={m.picker_timezone()}
                   value={timezone}
                   onChange={setTimezone}
-                  options={tzSelectOptions}
+                  options={timeZoneSelectOptions}
                 />
                 <div>
                   {/* Language is English-only until P1.5.1 (Paraglide), so a fixed display, not a chooser. */}

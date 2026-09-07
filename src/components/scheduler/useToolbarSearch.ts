@@ -39,8 +39,8 @@ export function useToolbarSearch(
   // own debounce is what changed filters, the timer has already fired — cancelling is a
   // harmless no-op.)
   useEffect(() => cancelSearchTimer, [filters, activeAccountId]);
-  const onSearchChange = (v: string) => {
-    setSearchInput(v);
+  const changeSearch = (value: string) => {
+    setSearchInput(value);
     cancelSearchTimer();
     // The filters object the user was typing against. The effect-cleanup cancel above is
     // not enough on its own: effects flush after paint, and an external replacement (the
@@ -51,7 +51,7 @@ export function useToolbarSearch(
     const armedOn = useStore.getState().ui.filters;
     searchTimer.current = setTimeout(() => {
       if (useStore.getState().ui.filters !== armedOn) return;
-      setFilters({ search: v });
+      setFilters({ search: value });
     }, 180);
   };
   const setToolbarFilters = (patch: Parameters<typeof setFilters>[0]) => {
@@ -61,11 +61,18 @@ export function useToolbarSearch(
   // Clear must also kill any in-flight debounce + reset the local box — otherwise an
   // orphaned timer re-applies a just-cleared term (and the render reconcile can't catch
   // it when filters.search was already '').
-  const onClear = () => {
+  const clearSearch = () => {
     cancelSearchTimer();
     setSearchInput("");
     clearFilters();
   };
 
-  return { searchInput, onSearchChange, onClear, filtersOpen, setFiltersOpen, setToolbarFilters };
+  return {
+    searchInput,
+    onSearchChange: changeSearch,
+    onClear: clearSearch,
+    filtersOpen,
+    setFiltersOpen,
+    setToolbarFilters,
+  };
 }

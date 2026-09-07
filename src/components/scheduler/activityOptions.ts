@@ -5,22 +5,22 @@ import { compareDisplayNames } from "@/lib/displayOrder";
 
 export type ActivityGroupKey = "all-projects" | "project";
 
-export function groupKeyForKind(kind: Activity["kind"]): ActivityGroupKey {
+export function resolveGroupKeyForKind(kind: Activity["kind"]): ActivityGroupKey {
   return kind === "repeatable" ? "all-projects" : "project";
 }
 
-export function groupLabelForKind(kind: Activity["kind"]): string {
+export function resolveGroupLabelForKind(kind: Activity["kind"]): string {
   return kind === "repeatable" ? m.scheduler_filter_all_projects() : m.form_activity_kind_project();
 }
 
-function groupOrder(groupKey: Option["groupKey"]): number {
+function resolveGroupOrder(groupKey: Option["groupKey"]): number {
   return groupKey === "all-projects" ? 0 : 1;
 }
 
 export function sortGroupedOptions(options: readonly Option[]): Option[] {
   return options.toSorted((left, right) => {
     return (
-      groupOrder(left.groupKey) - groupOrder(right.groupKey) ||
+      resolveGroupOrder(left.groupKey) - resolveGroupOrder(right.groupKey) ||
       compareDisplayNames(left.label, left.value, right.label, right.value)
     );
   });
@@ -41,12 +41,12 @@ export function buildActivityOptions(
       : activity.kind === kind && (kind !== "project" || activity.projectId === projectId),
   );
   const phaseById = new Map(phases.map((phase) => [phase.id, phase.name]));
-  const projectById = new Map(projects.map((project) => [project.id, project.name]));
-  const nameCounts = new Map<string, number>();
-  for (const activity of eligible) nameCounts.set(activity.name, (nameCounts.get(activity.name) ?? 0) + 1);
+  const projectNamesById = new Map(projects.map((project) => [project.id, project.name]));
+  const nameCountsByName = new Map<string, number>();
+  for (const activity of eligible) nameCountsByName.set(activity.name, (nameCountsByName.get(activity.name) ?? 0) + 1);
 
   const resolved = eligible.map((activity) => {
-    if (nameCounts.get(activity.name) === 1) {
+    if (nameCountsByName.get(activity.name) === 1) {
       return { activity, kind: activity.kind, baseLabel: activity.name };
     }
     const context =
@@ -55,26 +55,27 @@ export function buildActivityOptions(
         ? m.form_activity_kind_internal()
         : activity.kind === "repeatable"
           ? m.form_activity_kind_repeatable()
-          : (projectById.get(activity.projectId ?? "") ?? "Project"));
+          : (projectNamesById.get(activity.projectId ?? "") ?? "Project"));
     return { activity, kind: activity.kind, baseLabel: `${activity.name} / ${context}` };
   });
 
-  const labelCounts = new Map<string, number>();
-  for (const { baseLabel } of resolved) labelCounts.set(baseLabel, (labelCounts.get(baseLabel) ?? 0) + 1);
-  const occurrences = new Map<string, number>();
+  const labelCountsByLabel = new Map<string, number>();
+  for (const { baseLabel } of resolved) labelCountsByLabel.set(baseLabel, (labelCountsByLabel.get(baseLabel) ?? 0) + 1);
+  const occurrenceCountsByLabel = new Map<string, number>();
   resolved.sort(
     (left, right) =>
-      (groupedProjectScope ? groupOrder(groupKeyForKind(left.kind)) - groupOrder(groupKeyForKind(right.kind)) : 0) ||
-      compareDisplayNames(left.baseLabel, left.activity.id, right.baseLabel, right.activity.id),
+      (groupedProjectScope
+        ? resolveGroupOrder(resolveGroupKeyForKind(left.kind)) - resolveGroupOrder(resolveGroupKeyForKind(right.kind))
+        : 0) || compareDisplayNames(left.baseLabel, left.activity.id, right.baseLabel, right.activity.id),
   );
   return resolved.map(({ activity, kind: resolvedKind, baseLabel }) => {
-    const occurrence = (occurrences.get(baseLabel) ?? 0) + 1;
-    occurrences.set(baseLabel, occurrence);
+    const occurrence = (occurrenceCountsByLabel.get(baseLabel) ?? 0) + 1;
+    occurrenceCountsByLabel.set(baseLabel, occurrence);
     return {
       value: activity.id,
-      label: (labelCounts.get(baseLabel) ?? 0) > 1 ? `${baseLabel} (${occurrence})` : baseLabel,
+      label: (labelCountsByLabel.get(baseLabel) ?? 0) > 1 ? `${baseLabel} (${occurrence})` : baseLabel,
       ...(groupedProjectScope
-        ? { groupKey: groupKeyForKind(resolvedKind), groupLabel: groupLabelForKind(resolvedKind) }
+        ? { groupKey: resolveGroupKeyForKind(resolvedKind), groupLabel: resolveGroupLabelForKind(resolvedKind) }
         : {}),
     };
   });

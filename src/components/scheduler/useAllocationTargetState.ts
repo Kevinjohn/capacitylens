@@ -4,20 +4,25 @@ import type { Activity, Resource } from "@capacitylens/shared/types/entities";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import { useMemo, useState } from "react";
 import { flushSync } from "react-dom";
-import { resourceDisplayName } from "../../lib/metadata";
+import { resolveResourceDisplayName } from "../../lib/metadata";
 import { validateText } from "../../lib/validation";
 import type { useStore } from "../../store/useStore";
 import type { Option } from "../common/ui";
-import { buildActivityOptions, groupKeyForKind, groupLabelForKind, sortGroupedOptions } from "./activityOptions";
+import {
+  buildActivityOptions,
+  resolveGroupKeyForKind,
+  resolveGroupLabelForKind,
+  sortGroupedOptions,
+} from "./activityOptions";
 
 import type { AppData } from "@capacitylens/shared/types/entities";
 import type { FieldError } from "../../hooks/useFieldError";
-import type { AllocationModalSeed } from "./allocationModalSeed";
+import type { AllocationModalSeed } from "./buildAllocationModalSeed";
 import {
-  activityBelongsToProjectSelection,
-  activityScopeForProjectSelection,
+  isActivityInProjectSelection,
+  buildActivityScope,
   ANY_PROJECT_SELECTION,
-  attributedProjectForSelection,
+  resolveAttributedProject,
   INTERNAL_PROJECT_SELECTION,
 } from "./allocationModalSelection";
 interface TargetInput {
@@ -37,7 +42,7 @@ interface TargetInput {
 export function useAllocationTargetState({
   data,
   seed,
-  resourceById,
+  resourceById: resourcesById,
   canEdit,
   placeholdersEnabled,
   externalEnabled,
@@ -62,12 +67,12 @@ export function useAllocationTargetState({
     () => data.activities.find((activity) => activity.id === activityId),
     [activityId, data.activities],
   );
-  const attributedProjectId = attributedProjectForSelection(selectedActivity, projectSelection);
+  const attributedProjectId = resolveAttributedProject(selectedActivity, projectSelection);
   const selectedEffectiveProjectId = useMemo(
     () => (selectedActivity ? effectiveProjectId({ projectId: attributedProjectId }, selectedActivity) : undefined),
     [attributedProjectId, selectedActivity],
   );
-  const selectedResource = resourceById.get(resourceId);
+  const selectedResource = resourcesById.get(resourceId);
   const isPlaceholder = selectedResource?.kind === "placeholder";
   const lockedProjectId = isPlaceholder ? selectedResource?.projectId : undefined;
   // Placeholders and externals are each gated behind a per-account pref (both default OFF). When
@@ -76,24 +81,24 @@ export function useAllocationTargetState({
   // so editing shows the correct value in the chooser instead of silently reassigning the work to
   // someone else on save.
   const resourceOptions: Option[] = data.resources
-    .filter((r) => placeholdersEnabled || r.kind !== "placeholder" || r.id === resourceId)
-    .filter((r) => externalEnabled || !isExternalResource(r) || r.id === resourceId)
-    .map((r) => ({
-      value: r.id,
-      label: `${resourceDisplayName(r)}${
-        r.kind === "placeholder"
+    .filter((resource) => placeholdersEnabled || resource.kind !== "placeholder" || resource.id === resourceId)
+    .filter((resource) => externalEnabled || !isExternalResource(resource) || resource.id === resourceId)
+    .map((resource) => ({
+      value: resource.id,
+      label: `${resolveResourceDisplayName(resource)}${
+        resource.kind === "placeholder"
           ? m.form_allocation_resource_slot_suffix()
-          : r.kind === "external"
+          : resource.kind === "external"
             ? m.form_allocation_resource_external_suffix()
             : ""
       }`,
     }));
-  const clientNameById = new Map(data.clients.map((client) => [client.id, client.name]));
+  const clientNamesById = new Map(data.clients.map((client) => [client.id, client.name]));
   const sortedProjects = data.projects
     .filter((project) => (lockedProjectId ? project.id === lockedProjectId : true))
     .toSorted((left, right) => {
-      const clientOrder = (clientNameById.get(left.clientId) ?? "").localeCompare(
-        clientNameById.get(right.clientId) ?? "",
+      const clientOrder = (clientNamesById.get(left.clientId) ?? "").localeCompare(
+        clientNamesById.get(right.clientId) ?? "",
         undefined,
         { sensitivity: "base" },
       );
@@ -115,7 +120,7 @@ export function useAllocationTargetState({
       disabled: lockedProjectId !== undefined,
     },
     ...sortedProjects.map((project, index) => {
-      const clientName = clientNameById.get(project.clientId);
+      const clientName = clientNamesById.get(project.clientId);
       return {
         value: project.id,
         label: clientName ? `${clientName} / ${project.name}` : project.name,
@@ -123,7 +128,7 @@ export function useAllocationTargetState({
       };
     }),
   ];
-  const activityScope = activityScopeForProjectSelection(projectSelection);
+  const activityScope = buildActivityScope(projectSelection);
   const baseActivityOptions = useMemo(
     () =>
       buildActivityOptions(data.activities, data.phases, data.projects, activityScope.kind, activityScope.projectId),
@@ -132,34 +137,34 @@ export function useAllocationTargetState({
   const activityOptions = useMemo(() => {
     if (
       inlineActivityOption &&
-      activityBelongsToProjectSelection(inlineActivityOption, projectSelection) &&
+      isActivityInProjectSelection(inlineActivityOption, projectSelection) &&
       !baseActivityOptions.some((option) => option.value === inlineActivityOption.value)
     ) {
       const option =
         projectSelection !== INTERNAL_PROJECT_SELECTION && projectSelection !== ANY_PROJECT_SELECTION
           ? {
               ...inlineActivityOption,
-              groupKey: groupKeyForKind(inlineActivityOption.kind),
-              groupLabel: groupLabelForKind(inlineActivityOption.kind),
+              groupKey: resolveGroupKeyForKind(inlineActivityOption.kind),
+              groupLabel: resolveGroupLabelForKind(inlineActivityOption.kind),
             }
           : inlineActivityOption;
       return sortGroupedOptions([...baseActivityOptions, option]);
     }
     return baseActivityOptions;
   }, [baseActivityOptions, inlineActivityOption, projectSelection]);
-  const onAssigneeChange = (v: string) => {
+  const onAssigneeChange = (value: string) => {
     clear();
-    setResourceId(v);
-    const r = resourceById.get(v);
-    if (r?.kind === "placeholder" && r.projectId) {
+    setResourceId(value);
+    const resource = resourcesById.get(value);
+    if (resource?.kind === "placeholder" && resource.projectId) {
       // A placeholder forces its bound project; reset downstream selections.
-      setProjectSelection(r.projectId);
+      setProjectSelection(resource.projectId);
       setActivityId("");
     }
   };
-  const onProjectChange = (v: string) => {
+  const changeProject = (value: string) => {
     clear();
-    setProjectSelection(v);
+    setProjectSelection(value);
     setActivityId("");
   };
   const onAddActivity = () => {
@@ -199,7 +204,7 @@ export function useAllocationTargetState({
       resourceOptions,
       isPlaceholder,
       projectSelection,
-      onProjectChange,
+      onProjectChange: changeProject,
       projectOptions,
       activityId,
       setActivityId,

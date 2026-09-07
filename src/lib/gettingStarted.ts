@@ -22,9 +22,9 @@ export interface GettingStartedSteps {
  * would otherwise tick a step. The built-in Internal client does not count because every account
  * has it and it is not “your first client”.
  */
-export function deriveGettingStartedSteps(data: AppData): GettingStartedSteps {
+export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
   return {
-    client: data.clients.some((c) => !isBuiltinClient(c)),
+    client: data.clients.some((client) => !isBuiltinClient(client)),
     project: data.projects.length > 0,
     person: data.resources.some((resource) => resource.kind === "person"),
     assign: data.allocations.length > 0,
@@ -35,6 +35,6 @@ export function deriveGettingStartedSteps(data: AppData): GettingStartedSteps {
  *  is exhaustive BY CONSTRUCTION over {@link GettingStartedSteps}' fields — unlike a hand-enumerated
  *  `steps.a && steps.b && ...`, adding a fifth step here can't silently compile against a stale
  *  list and hide the card too early. */
-export function allStepsDone(steps: GettingStartedSteps): boolean {
+export function hasCompletedAllSteps(steps: GettingStartedSteps): boolean {
   return Object.values(steps).every(Boolean);
 }

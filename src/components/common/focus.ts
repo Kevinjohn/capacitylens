@@ -6,9 +6,9 @@
  *  focus to <body>, stranding keyboard/SR users (WCAG 2.4.3) — an action like delete can
  *  unmount the row/button that opened the dialog. So fall back to the <main> landmark (made
  *  programmatically focusable) to keep focus in the content. */
-export function restoreFocus(prev: HTMLElement | null) {
-  if (prev?.isConnected) {
-    prev.focus?.();
+export function restoreFocus(previousValue: HTMLElement | null) {
+  if (previousValue?.isConnected) {
+    previousValue.focus?.();
   } else {
     const main = document.querySelector<HTMLElement>("main");
     if (main) {

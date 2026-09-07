@@ -10,21 +10,21 @@ import { isAccountEmail } from "@capacitylens/shared/account/validation";
 
 /** The muted Settings footer line, e.g. `build a1b2c3d · server`, or null when the build
  *  carries no sha (render nothing — today's Settings exactly). */
-export function buildStamp(): string | null {
-  const sha = (import.meta.env.VITE_CAPACITYLENS_BUILD_SHA ?? "").trim();
-  if (!sha) return null;
-  return `build ${sha} · ${isServerConfigured() ? "server" : "demo"}`;
+export function readBuildStamp(): string | null {
+  const revision = (import.meta.env.VITE_CAPACITYLENS_BUILD_SHA ?? "").trim();
+  if (!revision) return null;
+  return `build ${revision} · ${isServerConfigured() ? "server" : "demo"}`;
 }
 
 /** The Settings "Send feedback" mailto href (P5.2, flag VITE_CAPACITYLENS_FEEDBACK_MAILTO), or
  *  null when the build carries no address (render nothing). The subject carries the build
  *  stamp when there is one, so tester reports arrive pinned to a build. */
-export function feedbackMailto(): string | null {
+export function readFeedbackMailto(): string | null {
   const addr = (import.meta.env.VITE_CAPACITYLENS_FEEDBACK_MAILTO ?? "").trim();
   if (!isAccountEmail(addr)) return null;
-  const at = addr.indexOf("@");
-  const recipient = `${encodeURIComponent(addr.slice(0, at))}@${encodeURIComponent(addr.slice(at + 1))}`;
-  const stamp = buildStamp();
+  const atSignIndex = addr.indexOf("@");
+  const recipient = `${encodeURIComponent(addr.slice(0, atSignIndex))}@${encodeURIComponent(addr.slice(atSignIndex + 1))}`;
+  const stamp = readBuildStamp();
   const subject = stamp ? `${APP_NAME} feedback — ${stamp}` : `${APP_NAME} feedback`;
   return `mailto:${recipient}?subject=${encodeURIComponent(subject)}`;
 }

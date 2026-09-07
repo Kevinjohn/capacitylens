@@ -84,7 +84,7 @@ function isReadinessMember(value: unknown): value is ReadinessMember {
 /** How a readiness row names a member: the email an administrator would act on, falling back to the
  *  display name and finally to the raw principal id — never a blank cell. Single-sourced here
  *  because the panel's rows and the unlink confirmation must name the same person the same way. */
-export function readinessMemberLabel(member: ReadinessMember): string {
+export function resolveReadinessMemberLabel(member: ReadinessMember): string {
   return member.email ?? member.displayName ?? member.principalId;
 }
 

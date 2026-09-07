@@ -6,7 +6,7 @@ const PROVIDER_DESCRIPTION = "error_description";
 const PROVIDER_ERROR_URI = "error_uri";
 
 /** Return an application URL that an identity adapter may use for browser-visible callback errors. */
-export function externalSignInErrorUrl(currentUrl: string): string {
+export function buildExternalSignInErrorUrl(currentUrl: string): string {
   const url = new URL(currentUrl);
   url.searchParams.set(MARKER, "1");
   url.searchParams.delete(PROVIDER_ERROR);
@@ -25,7 +25,7 @@ export function hasExternalSignInError(url: string): boolean {
 export type ExternalSignInErrorCode = "oidc_verification_failed" | "account_link_conflict";
 
 /** Map only application-owned callback codes; provider-controlled values remain untrusted. */
-export function externalSignInErrorCode(url: string): ExternalSignInErrorCode | null {
+export function readExternalSignInErrorCode(url: string): ExternalSignInErrorCode | null {
   const parsed = new URL(url);
   if (parsed.searchParams.get(MARKER) !== "1") return null;
   const code = parsed.searchParams.get(PROVIDER_ERROR);
@@ -40,7 +40,7 @@ export function externalSignInErrorCode(url: string): ExternalSignInErrorCode | 
  *  to the user — the one mapping shared by AuthProvider's post-session failure host and LoginScreen's
  *  pre-session initial error state. Calls m.login_sso_*() at call time, same as both former inline
  *  copies — never cache the result across renders. */
-export function externalSignInErrorMessage(code: ExternalSignInErrorCode | null): string {
+export function resolveExternalSignInErrorMessage(code: ExternalSignInErrorCode | null): string {
   if (code === "oidc_verification_failed") return m.login_sso_verification_failed();
   if (code === "account_link_conflict") return m.login_sso_account_link_conflict();
   return m.login_sso_failed();

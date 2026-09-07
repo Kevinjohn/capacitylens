@@ -6,8 +6,8 @@ import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Account, ID } from "@capacitylens/shared/types/entities";
-import { clearedSession, resetSchedulerView, stamp, type StoreInternals } from "../storeInternal";
-import { weekAnchor } from "./schedulerSlice";
+import { buildClearedSession, resetSchedulerView, stamp, type StoreInternals } from "../storeInternal";
+import { readCurrentWeekAnchor } from "./schedulerSlice";
 import type { Draft, Patch, StoreState } from "../types";
 
 type AccountSlice = Pick<
@@ -28,7 +28,7 @@ type AccountSlice = Pick<
 
 export function createAccountSlice(internals: StoreInternals): StateCreator<StoreState, [], [], AccountSlice> {
   return (set, get) => {
-    const { guarded, assertWorkingDays, snapColor, mutate, updateById, withSnappedColor } = internals;
+    const { createGuardedAction, assertWorkingDays, snapColor, mutate, updateById, applySnappedColor } = internals;
     return {
       data: emptyAppData(),
       activeAccountId: null,
@@ -36,8 +36,8 @@ export function createAccountSlice(internals: StoreInternals): StateCreator<Stor
       accountSummaries: [],
       accountSummariesComplete: false,
       accountSummariesRequestId: 0,
-      addAccount: guarded((input: Draft<Account>): Account | null => {
-        const ts = stamp();
+      addAccount: createGuardedAction((input: Draft<Account>): Account | null => {
+        const timestamps = stamp();
         const weekStartsOn = input.weekStartsOn ?? 1;
         if (input.workingDays !== undefined) assertWorkingDays(input.workingDays);
         // New-company defaults for the per-account view settings: brand-new tenants start in 'days'
@@ -47,7 +47,7 @@ export function createAccountSlice(internals: StoreInternals): StateCreator<Stor
         // accounts that never pass through addAccount keep their absent-field defaults (read via the
         // selectors). placeholdersEnabled/externalEnabled were device-global prefs and are now
         // per-account, mirroring disciplinesEnabled.
-        const e: Account = {
+        const entity: Account = {
           schedulingMode: "days",
           disciplinesEnabled: false,
           placeholdersEnabled: false,
@@ -57,32 +57,32 @@ export function createAccountSlice(internals: StoreInternals): StateCreator<Stor
           workingDays: normalizeAccountWorkingDays(input.workingDays, weekStartsOn),
           color: snapColor(input.color),
           id: newId(),
-          ...ts,
+          ...timestamps,
         };
         // Every new account gets its built-in "Internal" client (one per account; see
         // internalClient.ts). Created atomically with the account so the one-per-account invariant
         // holds the instant the tenant exists — matching seed() and the v5→v6 migrate.
-        const internal = buildInternalClient(e.id, ts.createdAt);
-        mutate((d) => ({
-          ...d,
-          accounts: [...d.accounts, e],
-          clients: [...d.clients, internal],
+        const internal = buildInternalClient(entity.id, timestamps.createdAt);
+        mutate((data) => ({
+          ...data,
+          accounts: [...data.accounts, entity],
+          clients: [...data.clients, internal],
         }));
         // Keep the picker's list in lockstep (P1.13). This action now runs only in the DEMO build —
         // server-mode create goes through the AccountPicker's dedicated POST /api/orgs path, not here —
         // so this append is the demo bookkeeping that keeps the picker synchronously fresh before the
         // useAccountSummaries derive effect flushes. Append only if absent so a derive that already
         // added it can't duplicate.
-        set((s) => ({
-          accountSummariesRequestId: s.accountSummariesRequestId + 1,
+        set((state) => ({
+          accountSummariesRequestId: state.accountSummariesRequestId + 1,
           accountSummariesComplete: true,
-          accountSummaries: s.accountSummaries.some((a) => a.id === e.id)
-            ? s.accountSummaries
-            : [...s.accountSummaries, { id: e.id, name: e.name, role: "owner" as const }],
+          accountSummaries: state.accountSummaries.some((account) => account.id === entity.id)
+            ? state.accountSummaries
+            : [...state.accountSummaries, { id: entity.id, name: entity.name, role: "owner" as const }],
         }));
-        return e;
+        return entity;
       }, null),
-      updateAccount: guarded((id: ID, patch: Patch<Account>) => {
+      updateAccount: createGuardedAction((id: ID, patch: Patch<Account>) => {
         const state = get();
         const existing = state.data.accounts.find((account) => account.id === id);
         if (!existing) return;
@@ -97,33 +97,33 @@ export function createAccountSlice(internals: StoreInternals): StateCreator<Stor
                 ...patch,
                 workingDays: normalizeAccountWorkingDays(patch.workingDays, existing.weekStartsOn ?? 1),
               };
-        mutate((d) => ({
-          ...d,
-          accounts: updateById(d.accounts, id, withSnappedColor(safePatch)),
+        mutate((data) => ({
+          ...data,
+          accounts: updateById(data.accounts, id, applySnappedColor(safePatch)),
         }));
       }),
       // Cascade-drop every scoped entity belonging to this account; if it was the
       // active one, fall back to the picker.
-      deleteAccount: guarded((id: ID) => {
+      deleteAccount: createGuardedAction((id: ID) => {
         if (!get().data.accounts.some((account) => account.id === id)) return;
         if (get().activeAccountId !== null && get().activeAccountId !== id) {
           throw new Error("Cannot delete a company other than the active company.");
         }
-        set((s) => {
-          const data = deleteAccountCascade(s.data, id);
+        set((state) => {
+          const data = deleteAccountCascade(state.data, id);
           return {
             data,
             past: [],
             future: [],
-            activeAccountId: s.activeAccountId === id ? null : s.activeAccountId,
-            previousAccountId: s.activeAccountId === id ? id : s.previousAccountId,
-            accountSummaries: s.accountSummaries.filter((account) => account.id !== id),
+            activeAccountId: state.activeAccountId === id ? null : state.activeAccountId,
+            previousAccountId: state.activeAccountId === id ? id : state.previousAccountId,
+            accountSummaries: state.accountSummaries.filter((account) => account.id !== id),
             accountSummariesComplete: true,
-            accountSummariesRequestId: s.accountSummariesRequestId + 1,
+            accountSummariesRequestId: state.accountSummariesRequestId + 1,
             notice: null,
-            ...clearedSession(),
+            ...buildClearedSession(),
             // No tenant remains in view, so the week is re-anchored on the app-default calendar.
-            ui: resetSchedulerView(s.ui, weekAnchor(data, null)),
+            ui: resetSchedulerView(state.ui, readCurrentWeekAnchor(data, null)),
           };
         });
       }),
@@ -144,26 +144,27 @@ export function createAccountSlice(internals: StoreInternals): StateCreator<Stor
         let unknownAccount = false;
         if (
           id !== null &&
-          !get().data.accounts.some((a) => a.id === id) &&
-          !get().accountSummaries.some((a) => a.id === id)
+          !get().data.accounts.some((account) => account.id === id) &&
+          !get().accountSummaries.some((account) => account.id === id)
         ) {
           console.warn(`setActiveAccount: no company with id ${JSON.stringify(id)} — returning to the picker`);
           unknownAccount = true;
           id = null;
         }
-        set((s) => {
-          const switchingAccount = id !== s.activeAccountId;
+        set((state) => {
+          const switchingAccount = id !== state.activeAccountId;
           return {
             activeAccountId: id,
             // A concrete role means membership enforcement is active. Publish the new tenant with a
             // conservative Viewer role in this SAME store transition so no imperative subscriber can
             // observe it under the prior tenant's authority; PermissionProvider replaces it only
             // after resolving this account. null is the deliberate OFF/demo mode and stays editable.
-            activeRole: id !== s.activeAccountId && s.activeRole !== null ? "viewer" : s.activeRole,
-            activeRoleStatus: id !== s.activeAccountId && s.activeRole !== null ? "pending" : s.activeRoleStatus,
+            activeRole: id !== state.activeAccountId && state.activeRole !== null ? "viewer" : state.activeRole,
+            activeRoleStatus:
+              id !== state.activeAccountId && state.activeRole !== null ? "pending" : state.activeRoleStatus,
             // Remember where we came from when dropping to the picker (id === null) so it
             // can offer a "back" escape; clear it once a tenant is actually chosen.
-            previousAccountId: id === null ? s.activeAccountId : null,
+            previousAccountId: id === null ? state.activeAccountId : null,
             past: [],
             future: [],
             // These values describe work or UI owned by the account being left. Clear them in the
@@ -179,14 +180,14 @@ export function createAccountSlice(internals: StoreInternals): StateCreator<Stor
                   },
                 }
               : switchingAccount
-                ? { notice: null, ...clearedSession() }
+                ? { notice: null, ...buildClearedSession() }
                 : {}),
             // Open the switched-into company on the current week (mirrors defaultUI) rather
             // than inheriting the previous tenant's panned origin/focus. The account's tz/weekStartsOn
             // come from its slice when loaded; in server mode the slice loads a frame later (the switch
             // orchestrator awaits the fetch), so fall back to the existing defaults for that one frame
             // (an acceptable transient — the grid re-anchors when the slice arrives via replaceAll).
-            ui: resetSchedulerView(s.ui, weekAnchor(s.data, id)),
+            ui: resetSchedulerView(state.ui, readCurrentWeekAnchor(state.data, id)),
           };
         });
       },

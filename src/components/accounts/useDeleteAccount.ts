@@ -1,18 +1,18 @@
 import { m } from "@/i18n";
 import { useState } from "react";
-import { accountClient, accountCommandOutcomeWasUnknown } from "../../account/accountClient";
+import { accountClient, hasUnknownAccountCommandOutcome } from "../../account/accountClient";
 import { useAuth } from "../../auth/authContext";
 import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
 import { isServerConfigured } from "../../data/apiConfig";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { readApiError } from "../../lib/readApiError";
 import type { AccountSummary } from "../../store/useStore";
 import { useStore } from "../../store/useStore";
 
 export function useDeleteAccount({ refreshAuth }: { refreshAuth: ReturnType<typeof useAuth>["refreshAuth"] }) {
-  const deleteAccount = useStore((s) => s.deleteAccount);
-  const setAccountSummaries = useStore((s) => s.setAccountSummaries);
-  const setNotice = useStore((s) => s.setNotice);
+  const deleteAccount = useStore((state) => state.deleteAccount);
+  const setAccountSummaries = useStore((state) => state.setAccountSummaries);
+  const setNotice = useStore((state) => state.setNotice);
   // True while the server-mode DELETE is in flight — passed to the dialog as `busy` so the armed
   // Delete button disarms during the round-trip. Without it a double-click sends an overlapping
   // command that may still be in progress and raises a spurious retry error after a successful
@@ -36,7 +36,7 @@ export function useDeleteAccount({ refreshAuth }: { refreshAuth: ReturnType<type
       // outlive the interactive request bound while its transaction completes.
       const res = await accountClient.eraseWorkspace(id);
       if (!res.ok) {
-        if (accountCommandOutcomeWasUnknown(res)) {
+        if (hasUnknownAccountCommandOutcome(res)) {
           const fresh = await refreshAccountSummaries({ allowCachedFallback: false });
           await refreshAuth();
           setNotice(fresh !== null ? m.picker_delete_unknown_refreshed() : m.picker_delete_unknown_stale(), "warning");
@@ -47,7 +47,7 @@ export function useDeleteAccount({ refreshAuth }: { refreshAuth: ReturnType<type
       }
       const summaries = useStore.getState().accountSummaries;
       const removedName = summaries.find((summary) => summary.id === id)?.name;
-      setAccountSummaries(summaries.filter((s) => s.id !== id));
+      setAccountSummaries(summaries.filter((account) => account.id !== id));
       if (removedName) setNotice(m.picker_delete_success({ name: removedName }), "info");
       // The delete flipped the facts /me computes: on a single-company instance, dropping the only
       // company back to zero accounts makes canCreateAccount true again (the bootstrap exemption).
@@ -66,8 +66,8 @@ export function useDeleteAccount({ refreshAuth }: { refreshAuth: ReturnType<type
       await refreshAuth();
       setNotice(
         fresh !== null
-          ? `${m.picker_delete_unknown_refreshed()} ${errorMessage(e)}`
-          : `${m.picker_delete_unknown_stale()} ${errorMessage(e)}`,
+          ? `${m.picker_delete_unknown_refreshed()} ${resolveErrorMessage(e)}`
+          : `${m.picker_delete_unknown_stale()} ${resolveErrorMessage(e)}`,
         "warning",
       );
     } finally {
@@ -88,7 +88,7 @@ export function useDeleteAccount({ refreshAuth }: { refreshAuth: ReturnType<type
       if (removedName) setNotice(m.picker_delete_success({ name: removedName }), "info");
       setConfirming(null);
     } catch (error) {
-      setNotice(errorMessage(error), "error");
+      setNotice(resolveErrorMessage(error), "error");
     }
   };
 

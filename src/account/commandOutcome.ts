@@ -12,7 +12,7 @@ const TERMINAL_COMMAND_CONFLICT_CODES = new Set<string>([
 export const unknownCommandOutcomes = new WeakSet<Response>();
 
 /** Read the exact unknown-outcome decision made while retaining or closing the command identity. */
-export function accountCommandOutcomeWasUnknown(response: Response): boolean {
+export function hasUnknownAccountCommandOutcome(response: Response): boolean {
   return unknownCommandOutcomes.has(response);
 }
 
@@ -24,7 +24,7 @@ function compareCanonicalKeys(left: string, right: string): number {
  * semantic payloads. Without this binding, changing (for example) the workspace name after a 5xx
  * reuses the old command, receives IDEMPOTENCY_CONFLICT, clears the only recovery handle, and can
  * then submit a fresh duplicate while the original outcome is still unknown. */
-export async function payloadOperationKey(operation: string, body: unknown): Promise<string> {
+export async function buildPayloadOperationKey(operation: string, body: unknown): Promise<string> {
   const canonical =
     JSON.stringify(body, (_key, value: unknown) => {
       if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
@@ -39,7 +39,7 @@ export async function payloadOperationKey(operation: string, body: unknown): Pro
 }
 
 /** HTTP responses for which the client cannot prove whether a command committed. */
-export async function accountCommandOutcomeUnknown(response: Response, parsedBody?: unknown): Promise<boolean> {
+export async function readUnknownAccountCommandOutcome(response: Response, parsedBody?: unknown): Promise<boolean> {
   if (response.status === 408 || response.status >= 500) return true;
   if (response.status !== 409) return false;
   try {

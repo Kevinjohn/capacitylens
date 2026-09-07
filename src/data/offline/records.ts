@@ -1,10 +1,10 @@
 import { isAccountRole } from "@capacitylens/shared/account/types";
-import { validateAuthUser } from "../../auth/validateAuthUser";
+import { parseAuthUser } from "../../auth/validateAuthUser";
 import { isRecord } from "../validateAccountSlice";
 import { STORE_NAME, MAX_AGE_MS } from "./constants";
 import { awaitRequest, awaitTx, openOfflineDb } from "./idb";
-import { deviceKey, webCrypto, associatedData, writeEncryptedRecord } from "./crypto";
-import { pendingWrites, setOfflineCacheWriteFailed, scope, offlineReadEnabled } from "./state";
+import { readOrCreateDeviceKey, assertWebCrypto, buildAssociatedData, writeEncryptedRecord } from "./crypto";
+import { pendingWrites, setOfflineCacheWriteFailed, scope, isOfflineReadEnabled } from "./state";
 import type { CachedRecord, OfflineAuthSnapshot, OfflineAccountSummary, OfflineCacheWriteResult } from "./types";
 /** Keep same-key writes in acceptance order even when key lookup or encryption settles out of
  * order. Different cache records remain independent, and a rejected write does not poison the
@@ -49,12 +49,12 @@ async function get<T>(key: string): Promise<CachedRecord<T> | null> {
       isArrayBuffer(record.ciphertext)
     ) {
       try {
-        const encryptionKey = await deviceKey(db);
-        const plaintext = await webCrypto().subtle.decrypt(
+        const encryptionKey = await readOrCreateDeviceKey(db);
+        const plaintext = await assertWebCrypto().subtle.decrypt(
           {
             name: "AES-GCM",
             iv: record.iv,
-            additionalData: associatedData(key, savedAt),
+            additionalData: buildAssociatedData(key, savedAt),
             tagLength: 128,
           },
           encryptionKey,
@@ -95,14 +95,14 @@ async function getValidated<T>(key: string, validate: (value: unknown) => T | nu
   return { key: record.key, savedAt: record.savedAt, value };
 }
 
-export function validateAuthSnapshot(value: unknown): OfflineAuthSnapshot | null {
+export function parseAuthSnapshot(value: unknown): OfflineAuthSnapshot | null {
   if (!isRecord(value) || !["off", "password", "sso"].includes(String(value.authMode))) return null;
-  if (!validateAuthUser(value.user, value.authMode !== "off")) return null;
+  if (!parseAuthUser(value.user, value.authMode !== "off")) return null;
   if (typeof value.canCreateAccount !== "boolean" || typeof value.multiAccount !== "boolean") return null;
   return value as unknown as OfflineAuthSnapshot;
 }
 
-export function validateAccountSummaries(value: unknown): OfflineAccountSummary[] | null {
+export function parseAccountSummaries(value: unknown): OfflineAccountSummary[] | null {
   if (!Array.isArray(value)) return null;
   for (const row of value) {
     if (
@@ -131,9 +131,9 @@ async function deleteKey(key: string): Promise<void> {
 /** One cached record kind: the shared enable/scope guards and write envelope, plus the validated
  * read. `keyFor` and `validate` receive the public wrapper's own arguments, so a scoped key and a
  * per-account validation stay with the caller and every exported signature is unchanged. */
-export function cachedRecord<T, A extends unknown[] = []>(
-  keyFor: (...args: A) => string,
-  validate: (value: unknown, ...args: A) => T | null,
+export function createCachedRecord<T, A extends unknown[] = []>(
+  keyFor: (...parameters: A) => string,
+  validate: (value: unknown, ...parameters: A) => T | null,
   options: {
     /** Reads that require a verified scope. The identity snapshot deliberately does not: a cold
      * offline boot reads it BEFORE any scope exists. */
@@ -145,10 +145,10 @@ export function cachedRecord<T, A extends unknown[] = []>(
 ) {
   const { readNeedsScope = true, gate } = options;
   return {
-    async write(value: T, ...args: A): Promise<OfflineCacheWriteResult> {
-      if (!offlineReadEnabled()) return { status: "skipped", reason: "disabled" };
+    async write(value: T, ...parameters: A): Promise<OfflineCacheWriteResult> {
+      if (!isOfflineReadEnabled()) return { status: "skipped", reason: "disabled" };
       if (!scope) return { status: "skipped", reason: "unscoped" };
-      const key = keyFor(...args);
+      const key = keyFor(...parameters);
       const savedAt = Date.now();
       const written = gate?.(key, value, savedAt);
       if (written && typeof written !== "function") return written;
@@ -156,9 +156,9 @@ export function cachedRecord<T, A extends unknown[] = []>(
       written?.();
       return { status: "written" };
     },
-    async read(...args: A): Promise<CachedRecord<T> | null> {
-      if (!offlineReadEnabled() || (readNeedsScope && !scope)) return null;
-      return getValidated(keyFor(...args), (value) => validate(value, ...args));
+    async read(...parameters: A): Promise<CachedRecord<T> | null> {
+      if (!isOfflineReadEnabled() || (readNeedsScope && !scope)) return null;
+      return getValidated(keyFor(...parameters), (value) => validate(value, ...parameters));
     },
   };
 }

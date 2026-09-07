@@ -1,5 +1,5 @@
-import { applyGesture, type DateRange, type DragMode, type GestureOpts } from "../../lib/gestureMath";
-import { scheduledHoursOnDay } from "../../lib/capacity";
+import { applyGesture, type DateRange, type DragMode, type GestureOptions } from "../../lib/gestureMath";
+import { resolveScheduledHoursOnDay } from "../../lib/capacity";
 import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { spanDays } from "@capacitylens/shared/lib/schedulingDays";
 import { FULL_DAY_HOURS, isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
@@ -25,7 +25,7 @@ export function reconcileReassignedHours(
 ): number {
   if (isExternalResource(target)) return 0;
   if (current > 0 || zeroLoadMode) return current;
-  return scheduledHoursOnDay(target, startDate, effectiveWeek) || FULL_DAY_HOURS;
+  return resolveScheduledHoursOnDay(target, startDate, effectiveWeek) || FULL_DAY_HOURS;
 }
 
 /** Days-mode resize keeps the VOLUME (days of work) fixed while the span changes, so
@@ -36,14 +36,14 @@ export function reconcileReassignedHours(
  *  `clamped` is true ONLY when the raw derived hours exceeded MAX_HOURS_PER_DAY; a
  *  normal in-range resize, a move, the divide-by-zero guard, and the zero-old-span guard
  *  all report false. */
-export function volumePreservingHoursClamped(
-  prev: DateRange,
+export function resolveVolumePreservingHours(
+  previousDate: DateRange,
   next: DateRange,
-  opts: GestureOpts,
+  options: GestureOptions,
   hoursPerDay: number,
 ): { hours: number; clamped: boolean } {
-  const oldSpan = spanDays(prev.startDate, prev.endDate, opts);
-  const newSpan = spanDays(next.startDate, next.endDate, opts);
+  const oldSpan = spanDays(previousDate.startDate, previousDate.endDate, options);
+  const newSpan = spanDays(next.startDate, next.endDate, options);
   // A zero-working-day OLD span (e.g. a weekend-aware allocation currently covering only Sat–Sun)
   // has no volume to preserve — `hoursPerDay * 0 / newSpan` is 0, and committing that would
   // silently wipe the stored hours the moment the resize lands on a working day. Preserving the
@@ -61,19 +61,19 @@ export function volumePreservingHoursClamped(
  *  the source and reassign-target both go through one place. `clamped` reports whether a
  *  volume-preserving resize hit the 24h cap (truncating work volume), so the commit can
  *  surface it; it's false for a move and any non-rescaling path. */
-export function computeGesture(
+export function resolveGesture(
   mode: DragMode,
   current: DateRange,
   deltaDays: number,
-  opts: GestureOpts,
+  options: GestureOptions,
   hoursPerDay: number,
   isDays: boolean,
 ): { dates: DateRange; hours: number; clamped: boolean } {
   // A zero-column move can still be a cross-row reassign. Run move math so the unchanged start is
   // reinterpreted against the target resource's working week; resize no-ops keep their reference.
-  const dates = deltaDays !== 0 || mode === "move" ? applyGesture(mode, current, deltaDays, opts) : current;
+  const dates = deltaDays !== 0 || mode === "move" ? applyGesture(mode, current, deltaDays, options) : current;
   if (isDays && mode !== "move" && deltaDays !== 0) {
-    const { hours, clamped } = volumePreservingHoursClamped(current, dates, opts, hoursPerDay);
+    const { hours, clamped } = resolveVolumePreservingHours(current, dates, options, hoursPerDay);
     return { dates, hours, clamped };
   }
   return { dates, hours: hoursPerDay, clamped: false };
@@ -85,16 +85,16 @@ export function computeGesture(
  *  even when the snapped range crosses a narrowed weekend, the preview is pixel-identical to the
  *  committed bar. Callers apply this only when deltaDays !== 0 (an unchanged drag keeps bar.x /
  *  bar.width). */
-export function snappedBarGeometry(
+export function buildSnappedBarGeometry(
   mode: DragMode,
   current: DateRange,
   deltaDays: number,
-  opts: GestureOpts,
-  geom: ColumnGeometry,
+  options: GestureOptions,
+  geometry: ColumnGeometry,
 ): { left: number; width: number } {
-  const snapped = applyGesture(mode, current, deltaDays, opts);
+  const snapped = applyGesture(mode, current, deltaDays, options);
   return {
-    left: geom.xForDateInGeom(snapped.startDate),
-    width: geom.widthForDates(snapped.startDate, snapped.endDate),
+    left: geometry.xForDateInGeom(snapped.startDate),
+    width: geometry.widthForDates(snapped.startDate, snapped.endDate),
   };
 }

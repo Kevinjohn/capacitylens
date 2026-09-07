@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiFetchReauth } from "./apiFetchReauth";
-import { reauthPending, resolveReauth } from "./reauthCoordinator";
+import { isReauthPending, completeReauth } from "./reauthCoordinator";
 
 // DEFECT B — the step-up interception seam. apiFetchReauth wraps apiFetch and, on the server's
 // SESSION_NOT_FRESH 403, raises the shared re-auth request (the dialog is driven off reauthPending)
@@ -15,7 +15,7 @@ const json = (status: number, body: unknown) =>
 
 afterEach(() => {
   // Never leak a pending step-up into the next test (the coordinator is a module singleton).
-  if (reauthPending()) resolveReauth(false);
+  if (isReauthPending()) completeReauth(false);
   vi.unstubAllGlobals();
 });
 
@@ -34,13 +34,13 @@ describe("apiFetchReauth", () => {
 
     const first = apiFetchReauth("http://api.test/api/accounts/a1/members");
     const late = apiFetchReauth("http://api.test/api/accounts/a1/invitations");
-    await vi.waitFor(() => expect(reauthPending()).toBe(true));
-    resolveReauth(outcome);
+    await vi.waitFor(() => expect(isReauthPending()).toBe(true));
+    completeReauth(outcome);
     await expect(first).resolves.toMatchObject({ status: outcome ? 200 : 403 });
 
     releaseSecond(json(403, { code: "SESSION_NOT_FRESH" }));
     await expect(late).resolves.toMatchObject({ status: outcome ? 200 : 403 });
-    expect(reauthPending()).toBe(false);
+    expect(isReauthPending()).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(outcome ? 4 : 2);
   });
 
@@ -51,7 +51,7 @@ describe("apiFetchReauth", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(200);
-    expect(reauthPending()).toBe(false);
+    expect(isReauthPending()).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -62,7 +62,7 @@ describe("apiFetchReauth", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(403);
-    expect(reauthPending()).toBe(false);
+    expect(isReauthPending()).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -78,14 +78,14 @@ describe("apiFetchReauth", () => {
       headers: { "Idempotency-Key": "delete-a1" },
     });
     // The dialog trigger: a step-up becomes pending, and we have NOT retried yet.
-    await vi.waitFor(() => expect(reauthPending()).toBe(true));
+    await vi.waitFor(() => expect(isReauthPending()).toBe(true));
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    resolveReauth(true); // the dialog reports a fresh session
+    completeReauth(true); // the dialog reports a fresh session
     const res = await pending;
     expect(res.status).toBe(200); // the retried request's response, handed back transparently
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(reauthPending()).toBe(false);
+    expect(isReauthPending()).toBe(false);
   });
 
   it("distinguishes a retry that is still not fresh without opening a second prompt", async () => {
@@ -93,8 +93,8 @@ describe("apiFetchReauth", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const pending = apiFetchReauth("http://api.test/api/accounts/a1/members");
-    await vi.waitFor(() => expect(reauthPending()).toBe(true));
-    resolveReauth(true);
+    await vi.waitFor(() => expect(isReauthPending()).toBe(true));
+    completeReauth(true);
 
     const res = await pending;
     expect(res.status).toBe(403);
@@ -104,7 +104,7 @@ describe("apiFetchReauth", () => {
       error: expect.stringMatching(/did not refresh your session/i),
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(reauthPending()).toBe(false);
+    expect(isReauthPending()).toBe(false);
   });
 
   it("also retries a freshness-gated privileged directory GET", async () => {
@@ -115,8 +115,8 @@ describe("apiFetchReauth", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const pending = apiFetchReauth("http://api.test/api/accounts/a1/members");
-    await vi.waitFor(() => expect(reauthPending()).toBe(true));
-    resolveReauth(true);
+    await vi.waitFor(() => expect(isReauthPending()).toBe(true));
+    completeReauth(true);
 
     await expect(pending).resolves.toMatchObject({ status: 200 });
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -132,7 +132,7 @@ describe("apiFetchReauth", () => {
 
       expect(res.status).toBe(403);
       expect(await res.json()).toMatchObject({ code: "SESSION_NOT_FRESH" });
-      expect(reauthPending()).toBe(false);
+      expect(isReauthPending()).toBe(false);
       expect(fetchMock).toHaveBeenCalledTimes(1);
     },
   );
@@ -157,8 +157,8 @@ describe("apiFetchReauth", () => {
     });
 
     const pending = apiFetchReauth(request);
-    await vi.waitFor(() => expect(reauthPending()).toBe(true));
-    resolveReauth(true);
+    await vi.waitFor(() => expect(isReauthPending()).toBe(true));
+    completeReauth(true);
 
     await expect(pending).resolves.toMatchObject({ status: 200 });
     expect(bodies).toEqual(["payload", "payload"]);
@@ -192,9 +192,9 @@ describe("apiFetchReauth", () => {
       method: "DELETE",
       headers: { "Idempotency-Key": "delete-a1" },
     });
-    await vi.waitFor(() => expect(reauthPending()).toBe(true));
+    await vi.waitFor(() => expect(isReauthPending()).toBe(true));
 
-    resolveReauth(false); // the user cancels the dialog
+    completeReauth(false); // the user cancels the dialog
     const res = await pending;
     expect(res.status).toBe(403);
     // The body was only ever peeked at via clone(), so the caller can still read it (readApiError).

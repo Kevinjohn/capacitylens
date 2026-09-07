@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { PermissionContext } from "../../auth/permissionContext";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { SchedulerToolbar } from "./SchedulerToolbar";
-import { emptyFilters, useStore } from "../../store/useStore";
+import { buildEmptyFilters, useStore } from "../../store/useStore";
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "../../test/fixtures";
 import { chooseOption } from "./__tests__/schedulerTestKit";
 
@@ -360,7 +360,7 @@ describe("SchedulerToolbar Clear filter button", () => {
     const clear = screen.getByRole("button", { name: "Clear Filters" });
     await user.click(clear);
 
-    expect(useStore.getState().ui.filters).toEqual(emptyFilters());
+    expect(useStore.getState().ui.filters).toEqual(buildEmptyFilters());
     expect(clear).toBeDisabled();
     expect(clear).toHaveAttribute("data-variant", "outline");
     expect(clear.querySelector("svg")).toBeNull();
@@ -409,7 +409,7 @@ describe("SchedulerToolbar Clear filter button", () => {
     // e2e spec kept tripping (the timer resurrected the stale term over the replacement).
     fireEvent.change(box, { target: { value: "zzz-nobody-matches-zzz" } });
     // What CommandPalette's project selection does: REPLACE the filters wholesale.
-    useStore.getState().setFilters({ ...emptyFilters(), projectId: "p1" });
+    useStore.getState().setFilters({ ...buildEmptyFilters(), projectId: "p1" });
 
     await new Promise((r) => setTimeout(r, 250));
     expect(useStore.getState().ui.filters.search).toBe(""); // not resurrected

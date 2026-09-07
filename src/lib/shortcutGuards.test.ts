@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { hasOpenModal, textEntryOwnsShortcut } from "./shortcutGuards";
+import { hasOpenModal, isTextEntryShortcutOwner } from "./shortcutGuards";
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -7,25 +7,25 @@ afterEach(() => {
 
 describe("textEntryOwnsShortcut", () => {
   it("rejects missing targets, generic event targets, and non-element DOM nodes", () => {
-    expect(textEntryOwnsShortcut(null)).toBe(false);
-    expect(textEntryOwnsShortcut(new EventTarget())).toBe(false);
-    expect(textEntryOwnsShortcut(document.createTextNode("text"))).toBe(false);
+    expect(isTextEntryShortcutOwner(null)).toBe(false);
+    expect(isTextEntryShortcutOwner(new EventTarget())).toBe(false);
+    expect(isTextEntryShortcutOwner(document.createTextNode("text"))).toBe(false);
   });
 
   it.each(["input", "textarea", "select"])("lets a %s keep its native shortcut", (tagName) => {
-    expect(textEntryOwnsShortcut(document.createElement(tagName))).toBe(true);
+    expect(isTextEntryShortcutOwner(document.createElement(tagName))).toBe(true);
   });
 
   it("does not treat ordinary elements as text entry", () => {
-    expect(textEntryOwnsShortcut(document.createElement("button"))).toBe(false);
-    expect(textEntryOwnsShortcut(document.createElement("div"))).toBe(false);
+    expect(isTextEntryShortcutOwner(document.createElement("button"))).toBe(false);
+    expect(isTextEntryShortcutOwner(document.createElement("div"))).toBe(false);
   });
 
   it("recognises an element reported by the browser as content-editable", () => {
     const element = document.createElement("div");
     Object.defineProperty(element, "isContentEditable", { value: true });
 
-    expect(textEntryOwnsShortcut(element)).toBe(true);
+    expect(isTextEntryShortcutOwner(element)).toBe(true);
   });
 
   it("recognises descendants of enabled content-editable regions", () => {
@@ -35,7 +35,7 @@ describe("textEntryOwnsShortcut", () => {
     editor.append(child);
     document.body.append(editor);
 
-    expect(textEntryOwnsShortcut(child)).toBe(true);
+    expect(isTextEntryShortcutOwner(child)).toBe(true);
   });
 
   it.each(["", "TRUE", "plaintext-only"])("recognises the content-editable state %j", (state) => {
@@ -45,7 +45,7 @@ describe("textEntryOwnsShortcut", () => {
     editor.append(child);
     document.body.append(editor);
 
-    expect(textEntryOwnsShortcut(child)).toBe(true);
+    expect(isTextEntryShortcutOwner(child)).toBe(true);
   });
 
   it("does not claim a region that explicitly disables content editing", () => {
@@ -55,8 +55,8 @@ describe("textEntryOwnsShortcut", () => {
     editor.append(child);
     document.body.append(editor);
 
-    expect(textEntryOwnsShortcut(editor)).toBe(false);
-    expect(textEntryOwnsShortcut(child)).toBe(false);
+    expect(isTextEntryShortcutOwner(editor)).toBe(false);
+    expect(isTextEntryShortcutOwner(child)).toBe(false);
   });
 
   it("honours the nearest disabled content-editable boundary inside an editable parent", () => {
@@ -69,14 +69,14 @@ describe("textEntryOwnsShortcut", () => {
     editor.append(disabledRegion);
     document.body.append(editor);
 
-    expect(textEntryOwnsShortcut(child)).toBe(false);
+    expect(isTextEntryShortcutOwner(child)).toBe(false);
   });
 
   it("treats content-editable values case-insensitively", () => {
     const editor = document.createElement("div");
     editor.setAttribute("contenteditable", "FALSE");
 
-    expect(textEntryOwnsShortcut(editor)).toBe(false);
+    expect(isTextEntryShortcutOwner(editor)).toBe(false);
   });
 
   it("lets an invalid content-editable value inherit from the next valid ancestor", () => {
@@ -89,7 +89,7 @@ describe("textEntryOwnsShortcut", () => {
     editor.append(invalidRegion);
     document.body.append(editor);
 
-    expect(textEntryOwnsShortcut(child)).toBe(true);
+    expect(isTextEntryShortcutOwner(child)).toBe(true);
   });
 });
 

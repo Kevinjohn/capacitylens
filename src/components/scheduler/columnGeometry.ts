@@ -50,7 +50,7 @@ export interface ColumnGeometry {
   /** Width px of column `index` (0 when out of range). */
   widthOf(index: number): number;
   /** Px width spanning columns [startIdx, endIdx] inclusive (≥ 0; 0 when reversed). */
-  spanWidth(startIdx: number, endIdx: number): number;
+  spanWidth(startIndex: number, endIndex: number): number;
   /** Inverse of {@link x}: a lane-relative pointer x → day index, clamped to [0, n-1].
    *  The EXACT inverse at boundaries — a click at offsets[i] → i, at offsets[i]-ε → i-1. */
   indexAt(px: number): number;
@@ -68,7 +68,7 @@ export interface ColumnGeometry {
   widthForDates(start: ISODate, end: ISODate): number;
 }
 
-export interface BuildGeometryOpts {
+export interface ColumnGeometryOptions {
   /** The device-global "Minimise weekends" pref. */
   minimiseWeekends: boolean;
   /** Resolved px width for a narrowed weekend column (e.g. WEEKEND_COLUMN_REM × root font px). */
@@ -87,20 +87,20 @@ export interface BuildGeometryOpts {
  * A non-finite / non-positive `weekendWidth` degrades to no narrowing (full-width weekends), so
  * an unmeasured font size can never inject a NaN width into the prefix sum.
  */
-export function buildColumnGeometry(days: ISODate[], dayWidth: number, opts: BuildGeometryOpts): ColumnGeometry {
-  const n = days.length;
+export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: ColumnGeometryOptions): ColumnGeometry {
+  const dayCount = days.length;
   const perDayColumns = dayWidth >= DAY_COLUMN_MIN_WIDTH;
-  const minimiseActive = opts.minimiseWeekends && perDayColumns;
+  const minimiseActive = options.minimiseWeekends && perDayColumns;
   // A narrowed weekend is never wider than a normal day; an unmeasured/garbage width (NaN, 0)
   // degrades to dayWidth so the prefix sum stays finite and strictly increasing. ROUNDED to a
   // whole pixel so every offset is an integer: a fractional weekend width (e.g. 22.39) makes
   // fractional offsets, but the browser stores scrollLeft as a whole number — the mismatch made
   // the zoom scroll-anchor's indexAt() floor to the previous (weekend) column, drifting the
   // left-edge date back a day on every zoom flip. dayWidth is already integer (resolveColumnFit).
-  const rawNarrow = Math.round(Math.min(opts.weekendWidth, dayWidth));
+  const rawNarrow = Math.round(Math.min(options.weekendWidth, dayWidth));
   const narrowWidth = Number.isFinite(rawNarrow) && rawNarrow > 0 ? rawNarrow : dayWidth;
   const baseWeekWidth = minimiseActive ? 5 * dayWidth + 2 * narrowWidth : 7 * dayWidth;
-  const requestedWeekWidth = Math.round(opts.targetWeekWidth ?? baseWeekWidth);
+  const requestedWeekWidth = Math.round(options.targetWeekWidth ?? baseWeekWidth);
   // resolveColumnFit floors the base width, so this is normally 0..4 (minimised) or 0..6
   // (uniform). Clamp defensive callers to the available columns: distributing more than one extra
   // pixel per column would obscure what `dayWidth` means and is never needed by the real fit.
@@ -109,44 +109,44 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, opts: Bui
     Math.max(0, Number.isFinite(requestedWeekWidth) ? requestedWeekWidth - baseWeekWidth : 0),
   );
 
-  const widths: number[] = new Array(n);
-  const offsets: number[] = new Array(n + 1);
-  const weekdays: number[] = new Array(n);
+  const widths: number[] = new Array(dayCount);
+  const offsets: number[] = new Array(dayCount + 1);
+  const weekdays: number[] = new Array(dayCount);
   offsets[0] = 0;
-  for (let i = 0; i < n; i++) {
-    const wd = weekdayOf(days[i]);
-    weekdays[i] = wd;
-    const isWeekend = wd === 0 || wd === 6;
-    const extra = minimiseActive ? !isWeekend && wd - 1 < extraPixels : wd < extraPixels;
+  for (let i = 0; i < dayCount; i++) {
+    const weekday = weekdayOf(days[i]);
+    weekdays[i] = weekday;
+    const isWeekend = weekday === 0 || weekday === 6;
+    const extra = minimiseActive ? !isWeekend && weekday - 1 < extraPixels : weekday < extraPixels;
     widths[i] = minimiseActive && isWeekend ? narrowWidth : dayWidth + (extra ? 1 : 0);
     offsets[i + 1] = offsets[i] + widths[i];
   }
-  const totalWidth = offsets[n];
+  const totalWidth = offsets[dayCount];
   const origin = days[0]; // undefined only when n === 0 (an empty window)
 
-  const clampEdge = (i: number): number => (i < 0 ? 0 : i > n ? n : i);
+  const clampEdge = (i: number): number => (i < 0 ? 0 : i > dayCount ? dayCount : i);
 
   // Date → px allowing extrapolation outside [0, n]. In-window it's a prefix-sum lookup;
   // outside it continues at full `dayWidth` so off-window bars keep the old overflow geometry.
   const xForDayIndex = (i: number): number => {
     if (i < 0) return i * dayWidth;
-    if (i > n) return totalWidth + (i - n) * dayWidth;
+    if (i > dayCount) return totalWidth + (i - dayCount) * dayWidth;
     return offsets[i];
   };
 
   const indexAt = (px: number): number => {
-    if (n === 0 || px <= 0) return 0;
-    if (px >= totalWidth) return n - 1;
+    if (dayCount === 0 || px <= 0) return 0;
+    if (px >= totalWidth) return dayCount - 1;
     // Largest i in [0, n-1] with offsets[i] <= px. offsets is strictly increasing (every
     // width > 0), so this is the exact inverse of x(): px === offsets[i] resolves to i.
-    let lo = 0;
-    let hi = n - 1;
-    while (lo < hi) {
-      const mid = (lo + hi + 1) >> 1;
-      if (offsets[mid] <= px) lo = mid;
-      else hi = mid - 1;
+    let lowerIndex = 0;
+    let upperIndex = dayCount - 1;
+    while (lowerIndex < upperIndex) {
+      const middleIndex = (lowerIndex + upperIndex + 1) >> 1;
+      if (offsets[middleIndex] <= px) lowerIndex = middleIndex;
+      else upperIndex = middleIndex - 1;
     }
-    return lo;
+    return lowerIndex;
   };
 
   return {
@@ -158,8 +158,8 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, opts: Bui
     showWeekdayLabels: dayWidth >= WEEKDAY_LABEL_MIN_WIDTH,
     minimiseActive,
     x: (index) => offsets[clampEdge(index)],
-    widthOf: (index) => (index >= 0 && index < n ? widths[index] : 0),
-    spanWidth: (startIdx, endIdx) => Math.max(0, offsets[clampEdge(endIdx + 1)] - offsets[clampEdge(startIdx)]),
+    widthOf: (index) => (index >= 0 && index < dayCount ? widths[index] : 0),
+    spanWidth: (startIndex, endIndex) => Math.max(0, offsets[clampEdge(endIndex + 1)] - offsets[clampEdge(startIndex)]),
     indexAt,
     indexAtScroll: (scrollLeft) => indexAt(Math.round(scrollLeft)),
     xForDateInGeom: (date) => {
@@ -169,12 +169,12 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, opts: Bui
     },
     widthForDates: (start, end) => {
       if (!origin) return 0;
-      const s = dayIndex(start, origin);
-      const e = dayIndex(end, origin);
+      const section = dayIndex(start, origin);
+      const endIndex = dayIndex(end, origin);
       // Reversed or unparseable range → 0 (a harmless zero-width bar), never negative / NaN —
       // mirrors the old widthForRange contract.
-      if (!Number.isFinite(s) || !Number.isFinite(e)) return 0;
-      return Math.max(0, xForDayIndex(e + 1) - xForDayIndex(s));
+      if (!Number.isFinite(section) || !Number.isFinite(endIndex)) return 0;
+      return Math.max(0, xForDayIndex(endIndex + 1) - xForDayIndex(section));
     },
   };
 }
@@ -191,6 +191,6 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, opts: Bui
  * window there is no such date and the result is undefined at runtime (callers that can be handed
  * one — `visibleStartDate` — keep their own final fallback).
  */
-export function leftEdgeDate(geom: ColumnGeometry, days: ISODate[], scrollLeft: number): ISODate {
-  return days[geom.indexAtScroll(scrollLeft)] ?? days[0];
+export function resolveLeftEdgeDate(geometry: ColumnGeometry, days: ISODate[], scrollLeft: number): ISODate {
+  return days[geometry.indexAtScroll(scrollLeft)] ?? days[0];
 }

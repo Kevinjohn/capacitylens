@@ -4,7 +4,7 @@ import { isExternalResource } from "@capacitylens/shared/types/entities";
 import { DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, PAST_BUFFER_DAYS } from "../../lib/schedulerConfig";
 import type { AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
 import type { Filters, SchedulerUI, StoreState } from "../types";
-import { timeZoneFor, weekStartsOnFor } from "../selectors";
+import { resolveTimeZone, resolveWeekStart } from "../selectors";
 
 type SchedulerSliceKeys =
   | "ui"
@@ -24,18 +24,21 @@ type SchedulerSliceKeys =
 type SchedulerSlice = Pick<StoreState, SchedulerSliceKeys>;
 
 /** The grid's origin/focus pair for a week: the buffered left edge plus the week itself. */
-export function weekAnchorOn(weekStart: ISODate): { originDate: ISODate; focusDate: ISODate } {
+export function buildWeekAnchor(weekStart: ISODate): { originDate: ISODate; focusDate: ISODate } {
   return { originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS), focusDate: weekStart };
 }
 
 /** The same pair for an account's CURRENT week, read through its own calendar settings. Used both
  *  by "go to today" and by the tenant-boundary resets in useStore, so a company always opens on the
  *  week its own time zone / week start says it is. */
-export function weekAnchor(data: AppData, accountId: ID | null): { originDate: ISODate; focusDate: ISODate } {
-  return weekAnchorOn(startOfWeekISO(todayISO(timeZoneFor(data, accountId)), weekStartsOnFor(data, accountId)));
+export function readCurrentWeekAnchor(
+  data: AppData,
+  accountId: ID | null,
+): { originDate: ISODate; focusDate: ISODate } {
+  return buildWeekAnchor(startOfWeekISO(todayISO(resolveTimeZone(data, accountId)), resolveWeekStart(data, accountId)));
 }
 
-function defaultSchedulerUI(emptyFilters: () => Filters): SchedulerUI {
+function createDefaultSchedulerUi(emptyFilters: () => Filters): SchedulerUI {
   const weekStart = startOfWeekISO(todayISO());
   return {
     zoom: DEFAULT_ZOOM,
@@ -57,7 +60,7 @@ function recenterOn(state: StoreState, weekStart: ISODate): { ui: SchedulerUI } 
   return {
     ui: {
       ...state.ui,
-      ...weekAnchorOn(weekStart),
+      ...buildWeekAnchor(weekStart),
       recenterToken: state.ui.recenterToken + 1,
     },
   };
@@ -66,7 +69,7 @@ function recenterOn(state: StoreState, weekStart: ISODate): { ui: SchedulerUI } 
 /** Scheduler navigation and filter state, isolated from domain persistence mutations. */
 export function createSchedulerSlice(emptyFilters: () => Filters): StateCreator<StoreState, [], [], SchedulerSlice> {
   return (set) => ({
-    ui: defaultSchedulerUI(emptyFilters),
+    ui: createDefaultSchedulerUi(emptyFilters),
     setZoom: (zoom) => set((state) => ({ ui: { ...state.ui, zoom } })),
     setOriginDate: (date) => set((state) => ({ ui: { ...state.ui, originDate: date } })),
     panDays: (delta) =>
@@ -78,13 +81,13 @@ export function createSchedulerSlice(emptyFilters: () => Filters): StateCreator<
         recenterOn(
           state,
           startOfWeekISO(
-            todayISO(timeZoneFor(state.data, state.activeAccountId)),
-            weekStartsOnFor(state.data, state.activeAccountId),
+            todayISO(resolveTimeZone(state.data, state.activeAccountId)),
+            resolveWeekStart(state.data, state.activeAccountId),
           ),
         ),
       ),
     goToDate: (date) =>
-      set((state) => recenterOn(state, startOfWeekISO(date, weekStartsOnFor(state.data, state.activeAccountId)))),
+      set((state) => recenterOn(state, startOfWeekISO(date, resolveWeekStart(state.data, state.activeAccountId)))),
     setDrawMode: (drawMode) => set((state) => ({ ui: { ...state.ui, drawMode } })),
     selectAllocation: (selectedAllocationId) => set((state) => ({ ui: { ...state.ui, selectedAllocationId } })),
     setFilters: (patch) =>

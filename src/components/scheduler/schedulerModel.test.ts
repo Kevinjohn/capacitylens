@@ -1,10 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildSchedulerModel, refreshVisibleUtilization, type GroupModel } from "./schedulerModel";
+import { buildSchedulerModel, applyVisibleUtilization, type GroupModel } from "./schedulerModel";
 import { buildColumnGeometry } from "./columnGeometry";
 import { eachDayISO, addDaysISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { capacityForWindow as capacityForWindowWithWeek, utilization as utilizationWithWeek } from "../../lib/capacity";
+import {
+  buildCapacityWindow as capacityForWindowWithWeek,
+  resolveUtilization as utilizationWithWeek,
+} from "../../lib/capacity";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { emptyFilters } from "../../store/useStore";
+import { buildEmptyFilters } from "../../store/useStore";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData, ISODate, Resource, Weekday } from "@capacitylens/shared/types/entities";
@@ -196,7 +199,7 @@ function dataset(): AppData {
 // Default both windows to the full [start, end] week so existing assertions keep their numbers; the
 // visible-window vs fixed-window split is exercised by dedicated blocks (visStart/visEnd ≠ overStart/overEnd).
 const build = (
-  filters = emptyFilters(),
+  filters = buildEmptyFilters(),
   disciplinesEnabled = true,
   placeholdersEnabled = true,
   externalEnabled = true,
@@ -231,7 +234,7 @@ describe("#257 characterization: company-off tint/capacity agreement", () => {
       days,
       visibleWindow: { start, end },
       overSoonWindow: { start, end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -262,7 +265,7 @@ describe("#257 characterization: company-off tint/capacity agreement", () => {
       days,
       visibleWindow: { start, end },
       overSoonWindow: { start, end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -288,7 +291,7 @@ describe("#257 characterization: company-off tint/capacity agreement", () => {
       days,
       visibleWindow: { start, end },
       overSoonWindow: { start, end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -348,7 +351,7 @@ it("keeps discipline groups while ordering engagement partitions and externals d
     days,
     visibleWindow: { start, end },
     overSoonWindow: { start, end },
-    filters: emptyFilters(),
+    filters: buildEmptyFilters(),
     preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
   });
 
@@ -362,7 +365,7 @@ it("keeps discipline groups while ordering engagement partitions and externals d
     days,
     visibleWindow: { start, end },
     overSoonWindow: { start, end },
-    filters: emptyFilters(),
+    filters: buildEmptyFilters(),
     preferences: {
       disciplinesEnabled: true,
       placeholdersEnabled: true,
@@ -442,7 +445,7 @@ describe("buildSchedulerModel", () => {
       days,
       visibleWindow: { start, end },
       overSoonWindow: { start, end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     });
 
@@ -471,7 +474,7 @@ describe("buildSchedulerModel", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -522,7 +525,7 @@ describe("buildSchedulerModel", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: false,
@@ -542,7 +545,7 @@ describe("buildSchedulerModel", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -564,7 +567,7 @@ describe("buildSchedulerModel", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: false,
@@ -577,7 +580,7 @@ describe("buildSchedulerModel", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -595,7 +598,7 @@ describe("buildSchedulerModel", () => {
   });
 
   it("hideTentative removes tentative bars, but capacity/utilisation still count them", () => {
-    const model = build({ ...emptyFilters(), hideTentative: true });
+    const model = build({ ...buildEmptyFilters(), hideTentative: true });
     expect(barIds(model)).toEqual(["a1", "a3"]);
     const r1 = model.flatMap((g) => g.rows).find((r) => r.resource.id === "r1")!;
     // a1 (8h×2) + a2 (4h×2, tentative) = 24h over 40 available -> 0.6, unaffected by the filter
@@ -613,7 +616,7 @@ describe("buildSchedulerModel", () => {
       days: days,
       visibleWindow: { start: "2026-06-03", end: "2026-06-04" },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -649,7 +652,7 @@ describe("buildSchedulerModel", () => {
       days: days,
       visibleWindow: { start: "2026-06-03", end: "2026-06-04" },
       overSoonWindow: { start: "2026-06-01", end: "2026-06-02" },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -661,7 +664,7 @@ describe("buildSchedulerModel", () => {
   });
 
   it("project filter limits bars to that project (resources still listed)", () => {
-    expect(barIds(build({ ...emptyFilters(), projectId: "p2" }))).toEqual(["a2", "a3"]);
+    expect(barIds(build({ ...buildEmptyFilters(), projectId: "p2" }))).toEqual(["a2", "a3"]);
   });
 
   it("refreshes visible utilisation without rebuilding static schedule rows", () => {
@@ -681,21 +684,21 @@ describe("buildSchedulerModel", () => {
       days,
       visibleWindow: { start: "2026-06-01", end: "2026-06-02" },
       overSoonWindow: { start, end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
         externalEnabled: true,
       },
     });
-    const refreshed = refreshVisibleUtilization(base, data, "2026-06-03", "2026-06-05", DEFAULT_ACCOUNT_WORKING_DAYS);
+    const refreshed = applyVisibleUtilization(base, data, "2026-06-03", "2026-06-05", DEFAULT_ACCOUNT_WORKING_DAYS);
     const rebuilt = buildSchedulerModel({
       data,
       geom,
       days,
       visibleWindow: { start: "2026-06-03", end: "2026-06-05" },
       overSoonWindow: { start, end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -764,7 +767,7 @@ describe("buildSchedulerModel", () => {
     );
     return d;
   }
-  const buildLens = (filters = emptyFilters()) =>
+  const buildLens = (filters = buildEmptyFilters()) =>
     buildSchedulerModel({
       data: withLensActivities(),
       geom: geom,
@@ -782,7 +785,7 @@ describe("buildSchedulerModel", () => {
   it("activity lens: a specific activity id limits bars to that activity", () => {
     // Default (showUnmatched off): non-matching rows collapse out and matching rows show ONLY
     // their matching bars. (With showUnmatched on, dimmed rows show full real load by design.)
-    const bars = buildLens({ ...emptyFilters(), activityId: "t-rep" })
+    const bars = buildLens({ ...buildEmptyFilters(), activityId: "t-rep" })
       .flatMap((g) => g.rows)
       .flatMap((r) => r.bars)
       .map((b) => b.allocation.id)
@@ -791,7 +794,7 @@ describe("buildSchedulerModel", () => {
   });
 
   it('activity lens: "All projects — All" (activityKind) shows only all-projects activity allocations', () => {
-    const bars = buildLens({ ...emptyFilters(), activityKind: "repeatable" })
+    const bars = buildLens({ ...buildEmptyFilters(), activityKind: "repeatable" })
       .flatMap((g) => g.rows)
       .flatMap((r) => r.bars)
       .map((b) => b.allocation.id)
@@ -800,7 +803,7 @@ describe("buildSchedulerModel", () => {
   });
 
   it('activity lens: "Internal — All" (activityKind) shows only internal-activity allocations', () => {
-    const bars = buildLens({ ...emptyFilters(), activityKind: "internal" })
+    const bars = buildLens({ ...buildEmptyFilters(), activityKind: "internal" })
       .flatMap((g) => g.rows)
       .flatMap((r) => r.bars)
       .map((b) => b.allocation.id)
@@ -811,7 +814,7 @@ describe("buildSchedulerModel", () => {
   it("activity lens: dims (and by default hides) rows with no work on the filtered activity", () => {
     // activityKind 'repeatable' matches only r2's a-rep. By default (showUnmatched off) r1 collapses out.
     const rows = buildLens({
-      ...emptyFilters(),
+      ...buildEmptyFilters(),
       activityKind: "repeatable",
     }).flatMap((g) => g.rows);
     expect(rows.map((r) => r.resource.id)).toEqual(["r2"]);
@@ -821,7 +824,7 @@ describe("buildSchedulerModel", () => {
     // r1 works on p1; r2 has only p2 work → with showUnmatched on, r2 is dimmed but
     // still shown (its a3 bar) so you can see it's available to staff onto p1.
     const rows = build({
-      ...emptyFilters(),
+      ...buildEmptyFilters(),
       projectId: "p1",
       showUnmatched: true,
     }).flatMap((g) => g.rows);
@@ -833,7 +836,7 @@ describe("buildSchedulerModel", () => {
 
   it("hides the unmatched (unallocated) rows by default", () => {
     // emptyFilters() ships showUnmatched: false — filtering collapses to matching rows.
-    const rows = build({ ...emptyFilters(), projectId: "p1" }).flatMap((g) => g.rows);
+    const rows = build({ ...buildEmptyFilters(), projectId: "p1" }).flatMap((g) => g.rows);
     expect(rows.map((r) => r.resource.id)).toEqual(["r1"]);
   });
 
@@ -842,7 +845,7 @@ describe("buildSchedulerModel", () => {
     // VISIBLE match. It must be treated as unmatched (dimmed) — and filtered out when
     // showUnmatched is off — not rendered as a full-opacity row with zero bars.
     const filters = {
-      ...emptyFilters(),
+      ...buildEmptyFilters(),
       projectId: "p2",
       hideTentative: true,
       showUnmatched: false,
@@ -863,7 +866,7 @@ describe("buildSchedulerModel", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: { ...emptyFilters(), projectId: "p1", showUnmatched: false },
+      filters: { ...buildEmptyFilters(), projectId: "p1", showUnmatched: false },
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -879,7 +882,7 @@ describe("buildSchedulerModel", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: { ...emptyFilters(), projectId: "p1", showUnmatched: true },
+      filters: { ...buildEmptyFilters(), projectId: "p1", showUnmatched: true },
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -893,7 +896,7 @@ describe("buildSchedulerModel", () => {
 
   it("dims (showing real load) a tentative-only-match row when showUnmatched is on", () => {
     const filters = {
-      ...emptyFilters(),
+      ...buildEmptyFilters(),
       projectId: "p2",
       hideTentative: true,
       showUnmatched: true,
@@ -906,13 +909,13 @@ describe("buildSchedulerModel", () => {
   });
 
   it("discipline filter drops other groups", () => {
-    const model = build({ ...emptyFilters(), disciplineId: "d-dev" });
+    const model = build({ ...buildEmptyFilters(), disciplineId: "d-dev" });
     expect(model.map((g) => g.title)).toEqual(["Development"]);
     expect(barIds(model)).toEqual(["a3"]);
   });
 
   it("search narrows to matching resources and drops now-empty groups", () => {
-    const model = build({ ...emptyFilters(), search: "dev sam" });
+    const model = build({ ...buildEmptyFilters(), search: "dev sam" });
     expect(model.map((g) => g.title)).toEqual(["Development"]);
   });
 
@@ -939,7 +942,7 @@ describe("buildSchedulerModel", () => {
         days,
         visibleWindow: { start, end },
         overSoonWindow: { start, end },
-        filters: emptyFilters(),
+        filters: buildEmptyFilters(),
         preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
       });
 
@@ -967,7 +970,7 @@ describe("buildSchedulerModel", () => {
         days,
         visibleWindow: { start, end },
         overSoonWindow: { start, end },
-        filters: { ...emptyFilters(), search: query },
+        filters: { ...buildEmptyFilters(), search: query },
         preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
       })
         .flatMap((group) => group.rows)
@@ -978,7 +981,7 @@ describe("buildSchedulerModel", () => {
   });
 
   it("disciplines off → one Studio band holds the all-Studio fixture", () => {
-    const model = build(emptyFilters(), false);
+    const model = build(buildEmptyFilters(), false);
     expect(model).toHaveLength(1);
     expect(model[0]).toMatchObject({ key: "engagement-studio", title: "Studio" });
     expect(model[0].rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
@@ -987,7 +990,7 @@ describe("buildSchedulerModel", () => {
   });
 
   it("disciplines off → the discipline filter is ignored (everyone still shown)", () => {
-    const model = build({ ...emptyFilters(), disciplineId: "d-dev" }, false);
+    const model = build({ ...buildEmptyFilters(), disciplineId: "d-dev" }, false);
     expect(model).toHaveLength(1);
     expect(model[0].title).toBe("Studio");
     expect(model[0].rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
@@ -1097,7 +1100,7 @@ describe("displayed utilisation % over the visible window (1/2/4/8 weeks)", () =
       days: winDays,
       visibleWindow: { start: winStart, end: visEnd },
       overSoonWindow: { start: winStart, end: winStart },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: false,
         placeholdersEnabled: true,
@@ -1167,7 +1170,7 @@ describe("displayed utilisation % over the visible window (1/2/4/8 weeks)", () =
       days: winDays,
       visibleWindow: { start: winStart, end: visEnd },
       overSoonWindow: { start: winStart, end: winStart },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: false,
         placeholdersEnabled: true,
@@ -1199,7 +1202,7 @@ describe("displayed utilisation % over the visible window (1/2/4/8 weeks)", () =
       days: winDays,
       visibleWindow: { start: winStart, end: visEnd },
       overSoonWindow: { start: winStart, end: winStart },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: false,
         placeholdersEnabled: true,
@@ -1211,7 +1214,7 @@ describe("displayed utilisation % over the visible window (1/2/4/8 weeks)", () =
 });
 
 describe("external / 3rd-party band", () => {
-  const buildExt = (filters = emptyFilters(), disciplinesEnabled = true, externalEnabled = true) =>
+  const buildExt = (filters = buildEmptyFilters(), disciplinesEnabled = true, externalEnabled = true) =>
     buildSchedulerModel({
       data: withExternal(),
       geom: geom,
@@ -1252,7 +1255,7 @@ describe("external / 3rd-party band", () => {
   });
 
   it("disciplines off → external STILL forms its own trailing band after engagement", () => {
-    const model = buildExt(emptyFilters(), false);
+    const model = buildExt(buildEmptyFilters(), false);
     expect(model).toHaveLength(2); // Studio + external
     expect(model[0].title).toBe("Studio");
     expect(model[0].rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
@@ -1261,7 +1264,7 @@ describe("external / 3rd-party band", () => {
   });
 
   it("externalEnabled OFF hides external rows + their bars across the model", () => {
-    const off = buildExt(emptyFilters(), true, false);
+    const off = buildExt(buildEmptyFilters(), true, false);
     const ids = off.flatMap((g) => g.rows).map((r) => r.resource.id);
     expect(ids).not.toContain("ext1");
     // The external's allocation is unreferenced, not errored — no bar for it anywhere.
@@ -1276,16 +1279,16 @@ describe("external / 3rd-party band", () => {
   it("externalEnabled OFF drops the (now-empty) External band header entirely (risk #2)", () => {
     // The trailing external band must NOT render as an empty header when externals are hidden — the
     // model's `rows.length > 0` filter drops the whole group, so no 'external' key survives.
-    const off = buildExt(emptyFilters(), true, false);
+    const off = buildExt(buildEmptyFilters(), true, false);
     expect(off.map((g) => g.key)).not.toContain("external");
     // And with disciplines off too, only the Studio group remains (no empty external band).
-    const offFlat = buildExt(emptyFilters(), false, false);
+    const offFlat = buildExt(buildEmptyFilters(), false, false);
     expect(offFlat.map((g) => g.key)).not.toContain("external");
     expect(offFlat).toHaveLength(1);
   });
 
   it("externalEnabled ON shows the external row with its bar", () => {
-    const on = buildExt(emptyFilters(), true, true);
+    const on = buildExt(buildEmptyFilters(), true, true);
     expect(on.map((g) => g.key)).toContain("external");
     const ext = on.at(-1)!.rows[0];
     expect(ext.resource.id).toBe("ext1");
@@ -1404,7 +1407,7 @@ function withAttributedRepeatable(): AppData {
 }
 
 describe("repeatable allocation effective project", () => {
-  const buildAttributed = (filters = emptyFilters()) =>
+  const buildAttributed = (filters = buildEmptyFilters()) =>
     buildSchedulerModel({
       data: withAttributedRepeatable(),
       geom,
@@ -1430,9 +1433,9 @@ describe("repeatable allocation effective project", () => {
   });
 
   it("matches attributed work through either project/client lenses or its activity lens", () => {
-    const projectBars = barIds(buildAttributed({ ...emptyFilters(), projectId: "p1" }));
-    const clientBars = barIds(buildAttributed({ ...emptyFilters(), clientId: "c1" }));
-    const activityBars = barIds(buildAttributed({ ...emptyFilters(), activityId: "tRep" }));
+    const projectBars = barIds(buildAttributed({ ...buildEmptyFilters(), projectId: "p1" }));
+    const clientBars = barIds(buildAttributed({ ...buildEmptyFilters(), clientId: "c1" }));
+    const activityBars = barIds(buildAttributed({ ...buildEmptyFilters(), activityId: "tRep" }));
 
     expect(projectBars).toContain("aRepAttributed");
     expect(clientBars).toContain("aRepAttributed");
@@ -1444,7 +1447,7 @@ describe("repeatable allocation effective project", () => {
 
 describe("built-in Internal client bucketing + filter", () => {
   const internalId = "c-internal";
-  const buildInternal = (filters = emptyFilters()) =>
+  const buildInternal = (filters = buildEmptyFilters()) =>
     buildSchedulerModel({
       data: withInternal(),
       geom: geom,
@@ -1466,14 +1469,14 @@ describe("built-in Internal client bucketing + filter", () => {
       .sort();
 
   it("filtering by the Internal client shows BOTH the project-less activity AND the Internal-owned project activity", () => {
-    const model = buildInternal({ ...emptyFilters(), clientId: internalId });
+    const model = buildInternal({ ...buildEmptyFilters(), clientId: internalId });
     // aIntProj (under the Internal-owned project pInt) + aIntNoProj (project-less, derived Internal);
     // a3 (under Acme's p1) and the other Acme work are excluded.
     expect(internalBarIds(model)).toEqual(["aIntNoProj", "aIntProj"]);
   });
 
   it("a project-less activity is NOT shown when filtering by a different (non-Internal) client", () => {
-    const model = buildInternal({ ...emptyFilters(), clientId: "c1" });
+    const model = buildInternal({ ...buildEmptyFilters(), clientId: "c1" });
     // Only Acme (c1) work — never the project-less internal activity.
     expect(internalBarIds(model)).not.toContain("aIntNoProj");
     expect(internalBarIds(model)).not.toContain("aIntProj");
@@ -1488,7 +1491,7 @@ describe("built-in Internal client bucketing + filter", () => {
       days,
       visibleWindow: { start, end },
       overSoonWindow: { start, end },
-      filters: { ...emptyFilters(), clientId: internalId },
+      filters: { ...buildEmptyFilters(), clientId: internalId },
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     });
 
@@ -1524,7 +1527,7 @@ describe("built-in Internal client bucketing + filter", () => {
         status: "confirmed",
       },
     );
-    const buildDangling = (filters = emptyFilters(), showInternalProjects = true) =>
+    const buildDangling = (filters = buildEmptyFilters(), showInternalProjects = true) =>
       buildSchedulerModel({
         data,
         geom,
@@ -1540,12 +1543,14 @@ describe("built-in Internal client bucketing + filter", () => {
         },
       });
 
-    expect(barIds(buildDangling({ ...emptyFilters(), clientId: internalId }))).not.toContain("dangling-unattributed");
-    expect(barIds(buildDangling({ ...emptyFilters(), clientId: "c1" }))).not.toContain("dangling-unattributed");
-    expect(barIds(buildDangling({ ...emptyFilters(), projectId: "p1" }))).not.toContain("dangling-unattributed");
-    expect(barIds(buildDangling(emptyFilters(), false))).toContain("dangling-unattributed");
-    expect(barIds(buildDangling({ ...emptyFilters(), clientId: "c1" }))).toContain("dangling-attributed");
-    expect(barIds(buildDangling({ ...emptyFilters(), projectId: "p1" }))).toContain("dangling-attributed");
+    expect(barIds(buildDangling({ ...buildEmptyFilters(), clientId: internalId }))).not.toContain(
+      "dangling-unattributed",
+    );
+    expect(barIds(buildDangling({ ...buildEmptyFilters(), clientId: "c1" }))).not.toContain("dangling-unattributed");
+    expect(barIds(buildDangling({ ...buildEmptyFilters(), projectId: "p1" }))).not.toContain("dangling-unattributed");
+    expect(barIds(buildDangling(buildEmptyFilters(), false))).toContain("dangling-unattributed");
+    expect(barIds(buildDangling({ ...buildEmptyFilters(), clientId: "c1" }))).toContain("dangling-attributed");
+    expect(barIds(buildDangling({ ...buildEmptyFilters(), projectId: "p1" }))).toContain("dangling-attributed");
   });
 });
 
@@ -1603,7 +1608,7 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -1625,7 +1630,7 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -1671,7 +1676,7 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: { ...emptyFilters(), activityKind: "internal", showUnmatched: false },
+      filters: { ...buildEmptyFilters(), activityKind: "internal", showUnmatched: false },
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -1825,7 +1830,7 @@ describe("buildSchedulerModel(activeOnly(data), …) — non-active resources va
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -1842,7 +1847,7 @@ describe("buildSchedulerModel(activeOnly(data), …) — non-active resources va
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -1941,7 +1946,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: { ...emptyFilters(), search: "zed " },
+      filters: { ...buildEmptyFilters(), search: "zed " },
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -1962,7 +1967,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: { ...emptyFilters(), search: "stryker" },
+      filters: { ...buildEmptyFilters(), search: "stryker" },
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -1991,7 +1996,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: { ...emptyFilters(), search: "zibblequork" },
+      filters: { ...buildEmptyFilters(), search: "zibblequork" },
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -2036,7 +2041,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -2051,7 +2056,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -2072,7 +2077,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         days: days,
         visibleWindow: { start: start, end: end },
         overSoonWindow: { start: start, end: end },
-        filters: emptyFilters(),
+        filters: buildEmptyFilters(),
         preferences: {
           disciplinesEnabled: true,
           placeholdersEnabled: true,
@@ -2115,7 +2120,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -2157,7 +2162,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days,
       visibleWindow: { start, end },
       overSoonWindow: { start, end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -2218,7 +2223,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days,
       visibleWindow: { start, end },
       overSoonWindow: { start, end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     });
     const rows = model.flatMap((group) => group.rows);
@@ -2278,7 +2283,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days,
       visibleWindow: { start, end },
       overSoonWindow: { start, end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -2374,7 +2379,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         days,
         visibleWindow: { start, end },
         overSoonWindow: { start, end },
-        filters: emptyFilters(),
+        filters: buildEmptyFilters(),
         preferences: {
           disciplinesEnabled: true,
           placeholdersEnabled: true,
@@ -2455,7 +2460,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -2496,7 +2501,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         days: days,
         visibleWindow: { start: start, end: end },
         overSoonWindow: { start: start, end: end },
-        filters: emptyFilters(),
+        filters: buildEmptyFilters(),
         preferences: {
           disciplinesEnabled: true,
           placeholdersEnabled: true,
@@ -2531,7 +2536,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         days: days,
         visibleWindow: { start: start, end: end },
         overSoonWindow: { start: start, end: end },
-        filters: { ...emptyFilters(), projectId: "p1" },
+        filters: { ...buildEmptyFilters(), projectId: "p1" },
         preferences: {
           disciplinesEnabled: true,
           placeholdersEnabled: true,
@@ -2546,7 +2551,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         days: days,
         visibleWindow: { start: start, end: end },
         overSoonWindow: { start: start, end: end },
-        filters: { ...emptyFilters(), clientId: "c1" },
+        filters: { ...buildEmptyFilters(), clientId: "c1" },
         preferences: {
           disciplinesEnabled: true,
           placeholdersEnabled: true,
@@ -2561,7 +2566,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         days: days,
         visibleWindow: { start: start, end: end },
         overSoonWindow: { start: start, end: end },
-        filters: { ...emptyFilters(), activityKind: "internal" },
+        filters: { ...buildEmptyFilters(), activityKind: "internal" },
         preferences: {
           disciplinesEnabled: true,
           placeholdersEnabled: true,
@@ -2575,7 +2580,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: { ...emptyFilters(), projectId: "p1" },
+      filters: { ...buildEmptyFilters(), projectId: "p1" },
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -2606,7 +2611,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days,
       visibleWindow: { start, end },
       overSoonWindow: { start, end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     });
 
@@ -2643,7 +2648,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days,
       visibleWindow: { start, end },
       overSoonWindow: { start, end },
-      filters: { ...emptyFilters(), disciplineId: "deleted-discipline" },
+      filters: { ...buildEmptyFilters(), disciplineId: "deleted-discipline" },
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     });
 
@@ -2670,7 +2675,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days,
       visibleWindow: { start, end },
       overSoonWindow: { start, end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     });
 
@@ -2693,7 +2698,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         days,
         visibleWindow: { start, end },
         overSoonWindow: { start, end },
-        filters: emptyFilters(),
+        filters: buildEmptyFilters(),
         preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
       }).map((group) => group.title),
     ).toEqual(["Studio"]);
@@ -2708,7 +2713,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         days,
         visibleWindow: { start, end },
         overSoonWindow: { start, end },
-        filters: emptyFilters(),
+        filters: buildEmptyFilters(),
         preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
       }).map((group) => group.title),
     ).toEqual(["External / 3rd party"]);
@@ -2723,7 +2728,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days,
       visibleWindow: { start, end },
       overSoonWindow: { start, end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -2739,7 +2744,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days,
       visibleWindow: { start, end },
       overSoonWindow: { start, end },
-      filters: { ...emptyFilters(), disciplineId: "d-dev" },
+      filters: { ...buildEmptyFilters(), disciplineId: "d-dev" },
       preferences: {
         disciplinesEnabled: false,
         placeholdersEnabled: true,
@@ -2758,7 +2763,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -2813,7 +2818,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -2845,7 +2850,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -2881,7 +2886,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -2915,7 +2920,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: days,
       visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -2949,7 +2954,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: oneDay,
       visibleWindow: { start: oneDay[0]!, end: oneDay[0]! },
       overSoonWindow: { start: oneDay[0]!, end: oneDay[0]! },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -3002,7 +3007,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: days,
       visibleWindow: { start: visStart, end: visEnd },
       overSoonWindow: { start: overStart, end: overEnd },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -3105,7 +3110,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       days: days,
       visibleWindow: { start: visStart, end: visEnd },
       overSoonWindow: { start: start, end: end },
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,

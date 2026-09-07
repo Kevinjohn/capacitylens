@@ -1,17 +1,17 @@
 import { useMemo, useState } from "react";
 import { useStore } from "../../store/useStore";
-import { placeholdersEnabledFor, timeZoneFor } from "../../store/selectors";
+import { hasPlaceholdersEnabled, resolveTimeZone } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
 import { todayISO } from "@capacitylens/shared/lib/dateMath";
 import { MAX_NOTE_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { validateText } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/staleEdit";
-import { errorMessage } from "../../lib/errorMessage";
+import { isStaleEdit } from "../../lib/isStaleEdit";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { m } from "@/i18n";
 import { DateField, FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
 import { FieldError } from "../ui/field";
-import { timeOffTypeOptions, resourceDisplayName } from "../../lib/metadata";
+import { buildTimeOffTypeOptions, resolveResourceDisplayName } from "../../lib/metadata";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import type { ISODate, TimeOff, TimeOffType } from "@capacitylens/shared/types/entities";
 import { canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
@@ -27,10 +27,10 @@ export function TimeOffForm({
   defaults?: { resourceId?: string; startDate?: ISODate; endDate?: ISODate };
   onClose: () => void;
 }) {
-  const add = useStore((s) => s.addTimeOff);
-  const update = useStore((s) => s.updateTimeOff);
-  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId));
-  const calendarTimeZone = useStore((s) => timeZoneFor(s.data, s.activeAccountId));
+  const add = useStore((state) => state.addTimeOff);
+  const update = useStore((state) => state.updateTimeOff);
+  const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
+  const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
   const resources = useActiveScopedData().resources;
   const role = useRole();
   // Null is the OFF/demo/no-provider mode, where there is no server field projection to enforce.
@@ -59,17 +59,20 @@ export function TimeOffForm({
   const filteredResources = useMemo(
     () =>
       resources
-        .filter((r) => !isExternalResource(r))
-        .filter((r) => placeholdersEnabled || r.kind !== "placeholder" || r.id === resourceId),
+        .filter((resource) => !isExternalResource(resource))
+        .filter((resource) => placeholdersEnabled || resource.kind !== "placeholder" || resource.id === resourceId),
     [resources, placeholdersEnabled, resourceId],
   );
-  const resourceOptions: Option[] = filteredResources.map((r) => ({ value: r.id, label: resourceDisplayName(r) }));
+  const resourceOptions: Option[] = filteredResources.map((resource) => ({
+    value: resource.id,
+    label: resolveResourceDisplayName(resource),
+  }));
 
   const submit = () => {
     // Reject an empty pick AND a resource that isn't a valid time-off target: externals have no
     // capacity (the picker omits them, but a draw on an external lane could seed one), so guard
     // the write boundary too rather than persist an orphan time-off the schedule never renders.
-    const chosen = resources.find((r) => r.id === resourceId);
+    const chosen = resources.find((resource) => resource.id === resourceId);
     if (!chosen || isExternalResource(chosen)) {
       fail("resource", m.form_timeoff_err_choose_resource());
       return;
@@ -104,7 +107,7 @@ export function TimeOffForm({
       } else add(patch);
       onClose();
     } catch (e) {
-      fail(null, e instanceof Error ? errorMessage(e) : m.form_timeoff_err_save_failed());
+      fail(null, e instanceof Error ? resolveErrorMessage(e) : m.form_timeoff_err_save_failed());
     }
   };
 
@@ -149,8 +152,8 @@ export function TimeOffForm({
       <SelectField
         label={m.form_timeoff_type_label()}
         value={type}
-        onChange={(v) => setType(v as TimeOffType)}
-        options={timeOffTypeOptions()}
+        onChange={(value) => setType(value as TimeOffType)}
+        options={buildTimeOffTypeOptions()}
         layout="label-control"
       />
       {canEditNote && (

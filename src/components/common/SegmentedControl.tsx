@@ -9,7 +9,7 @@ export type SegmentedGeometry = "gapped" | "connected";
 export type SegmentedSize = "sm" | "md" | "lg";
 export type SegmentedDensity = "default" | "compact";
 
-function encodedValue(value: string | number): string {
+function encodeValue(value: string | number): string {
   return `${typeof value === "number" ? "n" : "s"}:${String(value)}`;
 }
 
@@ -104,21 +104,21 @@ export function SegmentedControl<T extends string | number>({
         fullWidth && "flex w-full",
         className,
       )}
-      value={encodedValue(value)}
+      value={encodeValue(value)}
       disabled={disabled}
       onValueChange={(next) => {
         if (!next) return;
-        const option = options.find((candidate) => encodedValue(candidate.value) === next);
+        const option = options.find((candidate) => encodeValue(candidate.value) === next);
         if (!option) return;
         if (value !== option.value) markDirty();
         onChange(option.value);
       }}
     >
-      {options.map((opt) => (
+      {options.map((option) => (
         <ToggleGroupItem
-          key={encodedValue(opt.value)}
-          value={encodedValue(opt.value)}
-          title={opt.title}
+          key={encodeValue(option.value)}
+          value={encodeValue(option.value)}
+          title={option.title}
           data-form-dirty-managed
           className={cn(
             "min-w-0 shrink-0 rounded-(--segment-radius) border border-transparent leading-none shadow-none",
@@ -129,7 +129,7 @@ export function SegmentedControl<T extends string | number>({
             fullWidth && "flex-1 basis-0 min-w-0 justify-center truncate",
           )}
         >
-          {opt.label}
+          {option.label}
         </ToggleGroupItem>
       ))}
     </ToggleGroup>

@@ -1,10 +1,10 @@
 import { m } from "@/i18n";
-import { rejectionMessage, teamAccessClient, type TeamMember as Member } from "../../account/teamAccessClient";
-import { errorMessage } from "../../lib/errorMessage";
-import { labelFor } from "./memberConfirmationCopy";
-import type { MemberMutationDependencies } from "./memberMutations";
+import { resolveRejectionMessage, teamAccessClient, type TeamMember as Member } from "../../account/teamAccessClient";
+import { resolveErrorMessage } from "../../lib/errorMessage";
+import { resolveMemberLabel } from "./memberConfirmationCopy";
+import type { MemberMutationDependencies } from "./createMemberMutations";
 
-export function memberCredentialMutations({
+export function createMemberCredentialMutations({
   withMemberAction,
   isActiveAccount,
   fail,
@@ -25,11 +25,11 @@ export function memberCredentialMutations({
   // Mint a single-use password-reset link for `mem` (P1.18). Password mode only (the button is
   // hidden otherwise; the server 400s regardless). No email is ever sent — the admin copies the
   // link out of the write-once block below and hands it over directly. `mem` is NOT `m` (i18n).
-  const resetPassword = (mem: Member) =>
-    withMemberAction(`reset:${mem.userId}`, async (accountId) => {
+  const resetPassword = (member: Member) =>
+    withMemberAction(`reset:${member.userId}`, async (accountId) => {
       setResetLink(null);
       try {
-        const result = await teamAccessClient.issuePasswordReset(accountId, mem.userId);
+        const result = await teamAccessClient.issuePasswordReset(accountId, member.userId);
         if (!isActiveAccount(accountId)) return;
         if (result.kind !== "ok") {
           if (result.kind === "unknown") {
@@ -52,9 +52,9 @@ export function memberCredentialMutations({
         // carried so a later membership write on this member can clear the stale block (see the
         // clearResetLinkFor calls above).
         setResetLink({
-          userId: mem.userId,
+          userId: member.userId,
           link: `${window.location.origin}/reset-password/${encodeURIComponent(body.token)}`,
-          member: labelFor(mem),
+          member: resolveMemberLabel(member),
           expiresAt: body.expiresAt,
         });
         setNotice(m.settings_members_reset_created());
@@ -66,20 +66,20 @@ export function memberCredentialMutations({
       } catch (e) {
         await reconcileUnknownMutation(
           m.settings_members_unknown_reset_request_failed({
-            error: errorMessage(e),
+            error: resolveErrorMessage(e),
           }),
         );
       }
     });
 
-  const revokeSessions = (mem: Member) =>
-    withMemberAction(`sessions:${mem.userId}`, async (accountId) => {
+  const revokeSessions = (member: Member) =>
+    withMemberAction(`sessions:${member.userId}`, async (accountId) => {
       try {
-        const result = await teamAccessClient.revokeMemberSessions(accountId, mem.userId);
+        const result = await teamAccessClient.revokeMemberSessions(accountId, member.userId);
         if (!isActiveAccount(accountId)) return;
         if (result.kind !== "ok") {
           if (result.kind === "unknown") {
-            if (mem.isSelf) {
+            if (member.isSelf) {
               // The command may have invalidated this browser's own session. Re-enter through the
               // auth wall; sessionStorage retains the command identity if an operator retries.
               window.location.reload();
@@ -88,13 +88,16 @@ export function memberCredentialMutations({
             await reconcileUnknownMutation(m.settings_members_unknown_session_revocation());
             return;
           }
-          fail(null, rejectionMessage(result, m.settings_members_err_revoke_sessions({ status: result.status })));
+          fail(
+            null,
+            resolveRejectionMessage(result, m.settings_members_err_revoke_sessions({ status: result.status })),
+          );
           return;
         }
         setNotice(m.settings_members_sessions_revoked());
-        if (mem.isSelf) window.location.reload();
+        if (member.isSelf) window.location.reload();
       } catch (e) {
-        if (mem.isSelf) {
+        if (member.isSelf) {
           // A rejected transport promise can still follow a committed server-side revocation. Do not
           // leave tenant data rendered under a session whose validity is now unknown.
           window.location.reload();
@@ -103,7 +106,7 @@ export function memberCredentialMutations({
         await reconcileUnknownMutation(
           m.settings_members_error_detail({
             message: m.settings_members_unknown_session_revocation(),
-            error: errorMessage(e),
+            error: resolveErrorMessage(e),
           }),
         );
       }

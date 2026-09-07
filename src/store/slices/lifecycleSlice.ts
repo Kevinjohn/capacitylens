@@ -16,7 +16,7 @@ type LifecycleSlice = Pick<StoreState, "archiveEntity" | "unarchiveEntity" | "so
 
 export function createLifecycleSlice(internals: StoreInternals): StateCreator<StoreState, [], [], LifecycleSlice> {
   return (_set, get) => {
-    const { guarded, findOwned, assertNotBuiltinClient, mutate, mutateIrreversible } = internals;
+    const { createGuardedAction, resolveOwnedRow, assertNotBuiltinClient, mutate, mutateIrreversible } = internals;
     return {
       // --- Data-lifecycle actions (P2.5b DEMO-build path). See the StoreState block above for the
       // shared contract. Active → Archived → Soft-deleted → Purged is the ONLY removal path for the three
@@ -26,67 +26,69 @@ export function createLifecycleSlice(internals: StoreInternals): StateCreator<St
       // resource's allocations/time-off; a client's projects/activities/allocations; a project's
       // phases/activities/allocations). Single-sourced from shared/lib/integrity.ts so the purge cascade
       // can't drift from the cascade the other tables' delete* actions use.
-      archiveEntity: guarded((entity: LifecycleEntity, id: ID) => {
-        if (!findOwned(get().data, entity, id)) return;
+      archiveEntity: createGuardedAction((entity: LifecycleEntity, id: ID) => {
+        if (!resolveOwnedRow(get().data, entity, id)) return;
         assertNotBuiltinClient(entity, id, "archived");
         // archive() THROWS if the row isn't 'active' (defense-in-depth — the UI gates via canArchive
         // first). Surface-not-swallow: let it throw, exactly like the builtin guards above.
-        mutate((d) => ({
-          ...d,
-          [entity]: d[entity].map((e) => {
-            if (e.id !== id) return e;
-            const now = touchAfter(e.updatedAt);
-            return { ...archive(e, now), updatedAt: now };
+        mutate((data) => ({
+          ...data,
+          [entity]: data[entity].map((entity) => {
+            if (entity.id !== id) return entity;
+            const now = touchAfter(entity.updatedAt);
+            return { ...archive(entity, now), updatedAt: now };
           }),
         }));
       }),
-      unarchiveEntity: guarded((entity: LifecycleEntity, id: ID) => {
-        if (!findOwned(get().data, entity, id)) return;
+      unarchiveEntity: createGuardedAction((entity: LifecycleEntity, id: ID) => {
+        if (!resolveOwnedRow(get().data, entity, id)) return;
         // No builtin guard: the Internal client can never reach 'archived' (archiveEntity rejects it), so
         // unarchive() would throw 'not archived' anyway. unarchive() THROWS if the row isn't archived.
-        mutate((d) => ({
-          ...d,
-          [entity]: d[entity].map((e) => (e.id === id ? { ...unarchive(e), updatedAt: touchAfter(e.updatedAt) } : e)),
+        mutate((data) => ({
+          ...data,
+          [entity]: data[entity].map((entity) =>
+            entity.id === id ? { ...unarchive(entity), updatedAt: touchAfter(entity.updatedAt) } : entity,
+          ),
         }));
       }),
-      softDeleteEntity: guarded((entity: LifecycleEntity, id: ID) => {
-        if (!findOwned(get().data, entity, id)) return;
+      softDeleteEntity: createGuardedAction((entity: LifecycleEntity, id: ID) => {
+        if (!resolveOwnedRow(get().data, entity, id)) return;
         // The Internal client can never be 'archived' (so softDelete would throw), but guard explicitly
         // for a display-safe message and parity with the delete path.
         assertNotBuiltinClient(entity, id, "deleted");
         // softDelete() THROWS unless the row is 'archived' (prior-archival rule). For a resource, COMPOSE
         // the shared obfuscateResource so the local tombstone carries NO original PII (the obfuscation
         // string is single-sourced from lifecycle.ts — never hand-written here).
-        const applyDelete = (d: AppData): AppData => ({
-          ...d,
-          [entity]: d[entity].map((e) => {
-            if (e.id !== id) return e;
-            const now = touchAfter(e.updatedAt);
-            const t = softDelete(e, now);
-            const revision = t.deletedAt ?? now;
+        const applyDelete = (data: AppData): AppData => ({
+          ...data,
+          [entity]: data[entity].map((lifecycleRow) => {
+            if (lifecycleRow.id !== id) return lifecycleRow;
+            const now = touchAfter(lifecycleRow.updatedAt);
+            const deletedEntity = softDelete(lifecycleRow, now);
+            const revision = deletedEntity.deletedAt ?? now;
             return entity === "resources"
-              ? { ...obfuscateResource(t as Resource), updatedAt: revision }
-              : { ...t, updatedAt: revision };
+              ? { ...obfuscateResource(deletedEntity as Resource), updatedAt: revision }
+              : { ...deletedEntity, updatedAt: revision };
           }),
           ...(entity === "resources"
             ? {
-                allocations: d.allocations.map((a) =>
-                  a.resourceId === id && a.note != null
+                allocations: data.allocations.map((allocation) =>
+                  allocation.resourceId === id && allocation.note != null
                     ? {
-                        ...a,
+                        ...allocation,
                         note: undefined,
-                        updatedAt: touchAfter(a.updatedAt),
+                        updatedAt: touchAfter(allocation.updatedAt),
                       }
-                    : a,
+                    : allocation,
                 ),
-                timeOff: d.timeOff.map((t) =>
-                  t.resourceId === id && t.note != null
+                timeOff: data.timeOff.map((timeOff) =>
+                  timeOff.resourceId === id && timeOff.note != null
                     ? {
-                        ...t,
+                        ...timeOff,
                         note: undefined,
-                        updatedAt: touchAfter(t.updatedAt),
+                        updatedAt: touchAfter(timeOff.updatedAt),
                       }
-                    : t,
+                    : timeOff,
                 ),
               }
             : {}),
@@ -96,8 +98,8 @@ export function createLifecycleSlice(internals: StoreInternals): StateCreator<St
         // archive → soft-delete lifecycle contract or resurrect a deliberately removed record.
         mutateIrreversible(applyDelete);
       }),
-      purgeEntity: guarded((entity: LifecycleEntity, id: ID) => {
-        const existing = findOwned(get().data, entity, id);
+      purgeEntity: createGuardedAction((entity: LifecycleEntity, id: ID) => {
+        const existing = resolveOwnedRow(get().data, entity, id);
         if (!existing) return;
         // The built-in Internal client cannot be purged — every account must keep exactly one.
         assertNotBuiltinClient(entity, id, "deleted");
@@ -111,7 +113,7 @@ export function createLifecycleSlice(internals: StoreInternals): StateCreator<St
           return;
         }
         // Hard purge: physically remove the row AND cascade its children (see PURGE_CASCADES).
-        mutateIrreversible((d) => PURGE_CASCADES[entity](d, id));
+        mutateIrreversible((data) => PURGE_CASCADES[entity](data, id));
       }),
     };
   };

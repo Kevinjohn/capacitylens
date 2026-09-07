@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Closure, Resource, TimeOff } from "@capacitylens/shared/types/entities";
-import { buildClosureList, buildTimeOffGroups, currentTimeOffWeekStart } from "./timeOffView";
+import { buildClosureList, buildTimeOffGroups, readCurrentTimeOffWeekStart } from "./timeOffView";
 
 const timestamp = "2026-05-01T00:00:00.000Z";
 
@@ -44,16 +44,16 @@ describe("currentTimeOffWeekStart", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-06-10T12:00:00.000Z"));
 
-    expect(currentTimeOffWeekStart("Etc/GMT", 1)).toBe("2026-06-08");
-    expect(currentTimeOffWeekStart("Etc/GMT", 0)).toBe("2026-06-07");
+    expect(readCurrentTimeOffWeekStart("Etc/GMT", 1)).toBe("2026-06-08");
+    expect(readCurrentTimeOffWeekStart("Etc/GMT", 0)).toBe("2026-06-07");
   });
 
   it("derives today in the company timezone before finding the week boundary", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-06-08T00:30:00.000Z"));
 
-    expect(currentTimeOffWeekStart("Etc/GMT", 1)).toBe("2026-06-08");
-    expect(currentTimeOffWeekStart("Pacific/Honolulu", 1)).toBe("2026-06-01");
+    expect(readCurrentTimeOffWeekStart("Etc/GMT", 1)).toBe("2026-06-08");
+    expect(readCurrentTimeOffWeekStart("Pacific/Honolulu", 1)).toBe("2026-06-01");
   });
 });
 

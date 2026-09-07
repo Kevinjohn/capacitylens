@@ -1,6 +1,6 @@
 import { startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import { leftEdgeDate } from "./columnGeometry";
+import { resolveLeftEdgeDate } from "./columnGeometry";
 import type { ColumnGeometry } from "./columnGeometry";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 
@@ -57,7 +57,7 @@ export function weekStartSnapTarget(
   // pure helper keeps its total-function contract even outside the guarded SchedulerGrid caller.
   if (days.length === 0) return null;
 
-  const leftDay = leftEdgeDate(geom, days, scrollLeft);
+  const leftDay = resolveLeftEdgeDate(geom, days, scrollLeft);
   if (!isValidISODate(leftDay)) return 0;
   const target = Math.max(0, geom.xForDateInGeom(startOfWeekISO(leftDay, weekStartsOn)));
   // Already aligned (within the sub-pixel band) → null so the caller no-ops. Math.abs, not a signed

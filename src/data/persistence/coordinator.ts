@@ -2,7 +2,7 @@ import type { RefreshOutcome } from "./facades";
 export interface PersistenceRegistration {
   refreshActive?: (id: string) => Promise<"reloaded" | "skipped" | "failed">;
   flushPending?: () => Promise<boolean>;
-  suspendWrites?: () => (opts?: { dropParkedEdits?: boolean }) => void;
+  suspendWrites?: () => (options?: { dropParkedEdits?: boolean }) => void;
   switchAndAwaitHydration?: (id: string | null) => Promise<RefreshOutcome>;
   hasUnsavedWrites: () => boolean;
 }
@@ -28,7 +28,7 @@ class PersistenceCoordinator {
     return this.registration?.hasUnsavedWrites() ?? false;
   }
 
-  suspendWrites(): (opts?: { dropParkedEdits?: boolean }) => void {
+  suspendWrites(): (options?: { dropParkedEdits?: boolean }) => void {
     return this.registration?.suspendWrites?.() ?? (() => {});
   }
 

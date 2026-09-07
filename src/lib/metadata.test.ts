@@ -1,17 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { m } from "@/i18n";
 import {
-  allocationStatusLabel,
-  allocationStatusLabels,
-  allocationStatusOptions,
-  resourceEngagementOptions,
-  timeOffTypeLabel,
-  timeOffTypeLabels,
-  timeOffTypeOptions,
-  resourceDisplayName,
-  placeholderDisplayName,
-  labelsFrom,
-  toOptions,
+  resolveAllocationStatusLabel,
+  buildAllocationStatusLabels,
+  buildAllocationStatusOptions,
+  buildResourceEngagementOptions,
+  resolveTimeOffTypeLabel,
+  buildTimeOffTypeLabels,
+  buildTimeOffTypeOptions,
+  resolveResourceDisplayName,
+  resolvePlaceholderDisplayName,
+  buildLabels,
+  buildLabelOptions,
   type LabelMessages,
 } from "./metadata";
 import type { AllocationStatus, Resource, TimeOffType } from "@capacitylens/shared/types/entities";
@@ -34,7 +34,7 @@ const makeResource = (over: Partial<Resource> = {}): Resource => ({
 
 describe("timeOffTypeLabels", () => {
   it("maps every TimeOffType to its resolved message", () => {
-    expect(timeOffTypeLabels()).toEqual({
+    expect(buildTimeOffTypeLabels()).toEqual({
       holiday: m.enum_time_off_type_holiday(),
       sick: m.enum_time_off_type_sick(),
       unpaid: m.enum_time_off_type_unpaid(),
@@ -45,7 +45,7 @@ describe("timeOffTypeLabels", () => {
 
 describe("allocationStatusLabels", () => {
   it("maps every AllocationStatus to its resolved message", () => {
-    expect(allocationStatusLabels()).toEqual({
+    expect(buildAllocationStatusLabels()).toEqual({
       confirmed: m.enum_allocation_status_confirmed(),
       tentative: m.enum_allocation_status_tentative(),
       completed: m.enum_allocation_status_completed(),
@@ -55,26 +55,26 @@ describe("allocationStatusLabels", () => {
 
 describe("single-value label getters", () => {
   it("allocationStatusLabel agrees with the map for every status", () => {
-    for (const [status, label] of Object.entries(allocationStatusLabels())) {
-      expect(allocationStatusLabel(status as "confirmed" | "tentative" | "completed")).toBe(label);
+    for (const [status, label] of Object.entries(buildAllocationStatusLabels())) {
+      expect(resolveAllocationStatusLabel(status as "confirmed" | "tentative" | "completed")).toBe(label);
     }
   });
 
   it("timeOffTypeLabel agrees with the map for every type", () => {
-    for (const [type, label] of Object.entries(timeOffTypeLabels())) {
-      expect(timeOffTypeLabel(type as "holiday" | "sick" | "unpaid" | "other")).toBe(label);
+    for (const [type, label] of Object.entries(buildTimeOffTypeLabels())) {
+      expect(resolveTimeOffTypeLabel(type as "holiday" | "sick" | "unpaid" | "other")).toBe(label);
     }
   });
 
   it("returns a blank label for values outside the runtime unions", () => {
-    expect(allocationStatusLabel("legacy-status" as AllocationStatus)).toBe("");
-    expect(timeOffTypeLabel("legacy-type" as TimeOffType)).toBe("");
+    expect(resolveAllocationStatusLabel("legacy-status" as AllocationStatus)).toBe("");
+    expect(resolveTimeOffTypeLabel("legacy-type" as TimeOffType)).toBe("");
   });
 });
 
 describe("toOptions-derived option lists", () => {
   it("turns a label map into ordered {value,label} pairs", () => {
-    expect(allocationStatusOptions()).toEqual([
+    expect(buildAllocationStatusOptions()).toEqual([
       { value: "confirmed", label: m.enum_allocation_status_confirmed() },
       { value: "tentative", label: m.enum_allocation_status_tentative() },
       { value: "completed", label: m.enum_allocation_status_completed() },
@@ -82,18 +82,18 @@ describe("toOptions-derived option lists", () => {
   });
 
   it("resourceEngagementOptions covers every ResourceEngagement", () => {
-    expect(resourceEngagementOptions()).toEqual([
+    expect(buildResourceEngagementOptions()).toEqual([
       { value: "studio", label: m.enum_resource_engagement_studio() },
       { value: "supplementary", label: m.enum_resource_engagement_supplementary() },
     ]);
   });
 
   it("enum option lists each round-trip their label map", () => {
-    for (const [value, label] of Object.entries(allocationStatusLabels())) {
-      expect(allocationStatusOptions()).toContainEqual({ value, label });
+    for (const [value, label] of Object.entries(buildAllocationStatusLabels())) {
+      expect(buildAllocationStatusOptions()).toContainEqual({ value, label });
     }
-    for (const [value, label] of Object.entries(timeOffTypeLabels())) {
-      expect(timeOffTypeOptions()).toContainEqual({ value, label });
+    for (const [value, label] of Object.entries(buildTimeOffTypeLabels())) {
+      expect(buildTimeOffTypeOptions()).toContainEqual({ value, label });
     }
   });
 });
@@ -101,13 +101,13 @@ describe("toOptions-derived option lists", () => {
 describe("resourceDisplayName / placeholderDisplayName", () => {
   it('shows the literal "Placeholder" name for a placeholder resource', () => {
     const r = makeResource({ kind: "placeholder", name: "Slot 1" });
-    expect(resourceDisplayName(r)).toBe(placeholderDisplayName());
-    expect(resourceDisplayName(r)).not.toBe("Slot 1");
+    expect(resolveResourceDisplayName(r)).toBe(resolvePlaceholderDisplayName());
+    expect(resolveResourceDisplayName(r)).not.toBe("Slot 1");
   });
 
   it("shows the resource's own name for a non-placeholder resource", () => {
     const r = makeResource({ kind: "person", name: "Bruce Wayne" });
-    expect(resourceDisplayName(r)).toBe("Bruce Wayne");
+    expect(resolveResourceDisplayName(r)).toBe("Bruce Wayne");
   });
 
   it("falls back to role when a non-placeholder resource is unnamed", () => {
@@ -116,12 +116,12 @@ describe("resourceDisplayName / placeholderDisplayName", () => {
       name: undefined,
       role: "Consultant",
     });
-    expect(resourceDisplayName(r)).toBe("Consultant");
+    expect(resolveResourceDisplayName(r)).toBe("Consultant");
   });
 
   it.each(["", "   "])("falls back to role when a non-placeholder name is blank: %j", (name) => {
     const r = makeResource({ kind: "external", name, role: "Consultant" });
-    expect(resourceDisplayName(r)).toBe("Consultant");
+    expect(resolveResourceDisplayName(r)).toBe("Consultant");
   });
 });
 
@@ -136,9 +136,9 @@ describe("labelsFrom / toOptions", () => {
       beta: () => `beta:${locale}`,
     };
 
-    expect(labelsFrom(table)).toEqual({ alpha: "alpha:en", beta: "beta:en" });
+    expect(buildLabels(table)).toEqual({ alpha: "alpha:en", beta: "beta:en" });
     locale = "fr";
-    expect(labelsFrom(table)).toEqual({ alpha: "alpha:fr", beta: "beta:fr" });
+    expect(buildLabels(table)).toEqual({ alpha: "alpha:fr", beta: "beta:fr" });
   });
 
   it("preserves the table's declaration order through to the option list", () => {
@@ -148,7 +148,7 @@ describe("labelsFrom / toOptions", () => {
       second: () => "Second",
     };
 
-    expect(toOptions(labelsFrom(table))).toEqual([
+    expect(buildLabelOptions(buildLabels(table))).toEqual([
       { value: "third", label: "Third" },
       { value: "first", label: "First" },
       { value: "second", label: "Second" },
@@ -157,7 +157,7 @@ describe("labelsFrom / toOptions", () => {
 
   it("degrades to an empty map/list for an empty table rather than throwing", () => {
     const empty: LabelMessages<never> = {};
-    expect(labelsFrom(empty)).toEqual({});
-    expect(toOptions(labelsFrom(empty))).toEqual([]);
+    expect(buildLabels(empty)).toEqual({});
+    expect(buildLabelOptions(buildLabels(empty))).toEqual([]);
   });
 });

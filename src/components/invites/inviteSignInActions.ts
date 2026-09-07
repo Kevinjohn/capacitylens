@@ -7,7 +7,7 @@ import { reloadPage } from "../../lib/reloadPage";
 import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
 import { useStore } from "../../store/useStore";
 import { replaceWithAccountPicker, replaceWithJoinedAccount } from "../../lib/joinedAccountHandoff";
-import { externalSignInErrorUrl } from "../../auth/externalSignInError";
+import { buildExternalSignInErrorUrl } from "../../auth/externalSignInError";
 import { runExternalSignIn } from "./externalSignIn";
 import type { FormEvent } from "react";
 
@@ -79,7 +79,7 @@ export function createInviteSignInActions({ email, password, refreshAuth, setSta
           ? authClient.signIn.oauth2({
               providerId: provider.id,
               callbackURL: window.location.href,
-              errorCallbackURL: externalSignInErrorUrl(window.location.href),
+              errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
               // Keep redirect ownership in runExternalSignIn: Better Auth returns the provider URL
               // without running its internal navigation hook, and a timed-out request is aborted
               // before retry controls become available.
@@ -89,7 +89,7 @@ export function createInviteSignInActions({ email, password, refreshAuth, setSta
           : authClient.signIn.social({
               provider: provider.id as "google" | "microsoft" | "github",
               callbackURL: window.location.href,
-              errorCallbackURL: externalSignInErrorUrl(window.location.href),
+              errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
               disableRedirect: true,
               fetchOptions: { signal },
             }),

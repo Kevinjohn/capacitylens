@@ -7,7 +7,7 @@ import {
   isExternalResource,
 } from "@capacitylens/shared/types/entities";
 import type { Allocation, Closure, ID, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
-import { allocationLoadsOnDay, devAssertFinite } from "./primitives";
+import { hasAllocationLoadOnDay, warnOnNonFiniteCapacity } from "./primitives";
 
 export function isWorkingDay(effectiveWeek: EffectiveWorkingWeek, date: ISODate): boolean {
   return effectiveWeekIncludes(effectiveWeek, weekdayOf(date));
@@ -19,7 +19,7 @@ export function isHalfDay(resource: Resource, weekday: Weekday): boolean {
   return hasPersonalWorkingPattern(resource) && resource.halfDays.includes(weekday);
 }
 
-export function scheduledHoursForWeekday(
+export function resolveScheduledHoursForWeekday(
   resource: Resource,
   weekday: Weekday,
   effectiveWeek: EffectiveWorkingWeek,
@@ -29,22 +29,29 @@ export function scheduledHoursForWeekday(
 }
 
 /** Fixed capacity before time off: 8h full day, 4h half day, or 0 when not working. */
-export function scheduledHoursOnDay(resource: Resource, date: ISODate, effectiveWeek: EffectiveWorkingWeek): number {
-  return scheduledHoursForWeekday(resource, weekdayOf(date), effectiveWeek);
+export function resolveScheduledHoursOnDay(
+  resource: Resource,
+  date: ISODate,
+  effectiveWeek: EffectiveWorkingWeek,
+): number {
+  return resolveScheduledHoursForWeekday(resource, weekdayOf(date), effectiveWeek);
 }
 
 /** THE applies-to-this-resource rule for personal time off. */
-function appliesTo(resourceId: ID, t: TimeOff): boolean {
-  return t.resourceId === resourceId;
+function isApplicableToResource(resourceId: ID, timeOffEntry: TimeOff): boolean {
+  return timeOffEntry.resourceId === resourceId;
 }
 
 /** The personal time-off entries that apply to this resource. */
-export function timeOffApplyingTo(resourceId: ID, timeOff: TimeOff[]): TimeOff[] {
-  return timeOff.filter((t) => appliesTo(resourceId, t));
+export function listTimeOffApplyingTo(resourceId: ID, timeOff: TimeOff[]): TimeOff[] {
+  return timeOff.filter((timeOffEntry) => isApplicableToResource(resourceId, timeOffEntry));
 }
 
 export function isOnTimeOff(resourceId: ID, date: ISODate, timeOff: TimeOff[]): boolean {
-  return timeOff.some((t) => appliesTo(resourceId, t) && isWithin(date, t.startDate, t.endDate));
+  return timeOff.some(
+    (timeOffEntry) =>
+      isApplicableToResource(resourceId, timeOffEntry) && isWithin(date, timeOffEntry.startDate, timeOffEntry.endDate),
+  );
 }
 
 /** Whether a company closure covers this resource and date. The literal span includes weekends. */
@@ -59,7 +66,7 @@ export function isUnavailable(resource: Resource, date: ISODate, timeOff: TimeOf
   return isOnTimeOff(resource.id, date, timeOff) || isOnClosure(resource, date, closures);
 }
 
-export function availableHoursForWeekday(
+export function resolveAvailableHoursForWeekday(
   resource: Resource,
   date: ISODate,
   timeOff: TimeOff[],
@@ -69,19 +76,19 @@ export function availableHoursForWeekday(
 ): number {
   if (!effectiveWeekIncludes(effectiveWeek, weekday)) return 0;
   if (isUnavailable(resource, date, timeOff, closures)) return 0;
-  return scheduledHoursForWeekday(resource, weekday, effectiveWeek);
+  return resolveScheduledHoursForWeekday(resource, weekday, effectiveWeek);
 }
 
 /** Available working hours for `resource` on `date`: 0 on a non-working weekday or time off,
  *  fixed 4h on a half day, otherwise fixed 8h. */
-export function availableHoursOnDay(
+export function resolveAvailableHoursOnDay(
   resource: Resource,
   date: ISODate,
   timeOff: TimeOff[],
   effectiveWeek: EffectiveWorkingWeek,
   closures: Closure[],
 ): number {
-  return availableHoursForWeekday(resource, date, timeOff, closures, weekdayOf(date), effectiveWeek);
+  return resolveAvailableHoursForWeekday(resource, date, timeOff, closures, weekdayOf(date), effectiveWeek);
 }
 
 /** Sum of allocated hours for `resource` on `date` across every overlapping allocation.
@@ -93,16 +100,16 @@ export function availableHoursOnDay(
  *  that remain effective weekdays still load, preserving the real over-capacity conflict.
  *  @remarks Assumes each `hoursPerDay` is finite (see the top-of-file precondition) — a NaN would
  *    poison the sum and make every over/utilisation comparison read as "never over". */
-export function allocatedHoursOnDay(
+export function resolveAllocatedHoursOnDay(
   resource: Resource,
   date: ISODate,
   allocations: Allocation[],
   effectiveWeek: EffectiveWorkingWeek,
 ): number {
-  return allocatedHoursForWeekday(resource, date, allocations, weekdayOf(date), effectiveWeek);
+  return resolveAllocatedHoursForWeekday(resource, date, allocations, weekdayOf(date), effectiveWeek);
 }
 
-export function allocatedHoursForWeekday(
+export function resolveAllocatedHoursForWeekday(
   resource: Resource,
   date: ISODate,
   allocations: Allocation[],
@@ -114,14 +121,14 @@ export function allocatedHoursForWeekday(
   // render-time over-marker hot path off a per-allocation parseISO.
   const dayIsWorking = effectiveWeekIncludes(effectiveWeek, weekday);
   let sum = 0;
-  for (const a of allocations) {
-    if (a.resourceId !== resource.id || !isWithin(date, a.startDate, a.endDate)) continue;
+  for (const allocation of allocations) {
+    if (allocation.resourceId !== resource.id || !isWithin(date, allocation.startDate, allocation.endDate)) continue;
     // `none` must stay explicit: passing [] to allocationWorksOnDay would mean calendar-day load.
     // Ignore working days bypasses both calendars; a normal allocation with no effective days
     // loads nothing anywhere.
-    if (!allocationLoadsOnDay(effectiveWeek, a.ignoreWeekends, dayIsWorking)) continue;
-    sum += a.hoursPerDay;
+    if (!hasAllocationLoadOnDay(effectiveWeek, allocation.ignoreWeekends, dayIsWorking)) continue;
+    sum += allocation.hoursPerDay;
   }
-  devAssertFinite(sum);
+  warnOnNonFiniteCapacity(sum);
   return sum;
 }

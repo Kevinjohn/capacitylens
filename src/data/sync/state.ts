@@ -1,7 +1,7 @@
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { type AllocationRewriteRevision } from "../PersistenceAdapter";
-import { API_REQUEST_TIMEOUT_MS, requestSignal } from "../requestTimeout";
+import { API_REQUEST_TIMEOUT_MS, createRequestSignal } from "../requestTimeout";
 import { type AcknowledgedRevision } from "./revisions";
 
 // One live owner per adapter. Async operations always read this object after awaits;
@@ -63,7 +63,7 @@ export class SyncState {
 
   request(
     input: RequestInfo | URL,
-    init: RequestInit = {},
+    requestOptions: RequestInit = {},
     timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
   ): Promise<Response> {
     // Share the one request-timeout/abort seam (requestSignal) with the rest of the API surface —
@@ -71,8 +71,8 @@ export class SyncState {
     // that could drift. `timeoutMs` picks the tier: interactive 15s by default, the longer bulk
     // bound for whole-slice load/batch, or `null` (no deadline) for the keepalive unload flush.
     return this.fetchImpl(input, {
-      ...init,
-      signal: requestSignal(init.signal, timeoutMs),
+      ...requestOptions,
+      signal: createRequestSignal(requestOptions.signal, timeoutMs),
     });
   }
 }

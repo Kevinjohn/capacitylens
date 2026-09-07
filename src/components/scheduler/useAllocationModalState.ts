@@ -6,20 +6,20 @@ import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { useCanEdit } from "../../auth/permissionContext";
 import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
-import { resourceDisplayName } from "../../lib/metadata";
+import { resolveResourceDisplayName } from "../../lib/metadata";
 import {
-  externalEnabledFor,
-  inlineActivityCreateEnabledFor,
-  placeholdersEnabledFor,
-  schedulingModeFor,
-  timeZoneFor,
+  hasExternalResourcesEnabled,
+  canCreateInlineActivity,
+  hasPlaceholdersEnabled,
+  resolveSchedulingMode,
+  resolveTimeZone,
 } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useStore } from "../../store/useStore";
-import { advisoryFor } from "./allocationAdvisory";
-import { allocationModalSeed } from "./allocationModalSeed";
+import { buildAllocationAdvisory } from "./buildAllocationAdvisory";
+import { buildAllocationModalSeed } from "./buildAllocationModalSeed";
 import type { AllocationModalProps } from "./allocationModalTypes";
-import { projectRepeat } from "./allocationRepeatProjection";
+import { buildRepeatProjection } from "./buildRepeatProjection";
 import { createAllocationCommands } from "./allocationSubmit";
 import { useAllocationScheduleState } from "./useAllocationScheduleState";
 import { useAllocationTargetState } from "./useAllocationTargetState";
@@ -28,13 +28,13 @@ export function useAllocationModalState(props: AllocationModalProps) {
   const canEdit = useCanEdit();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const data = useActiveScopedData();
-  const addAllocation = useStore((s) => s.addAllocation);
-  const addAllocations = useStore((s) => s.addAllocations);
-  const updateAllocation = useStore((s) => s.updateAllocation);
-  const deleteAllocation = useStore((s) => s.deleteAllocation);
-  const deleteAllocationSeriesFrom = useStore((s) => s.deleteAllocationSeriesFrom);
-  const addActivity = useStore((s) => s.addActivity);
-  const mode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId));
+  const addAllocation = useStore((state) => state.addAllocation);
+  const addAllocations = useStore((state) => state.addAllocations);
+  const updateAllocation = useStore((state) => state.updateAllocation);
+  const deleteAllocation = useStore((state) => state.deleteAllocation);
+  const deleteAllocationSeriesFrom = useStore((state) => state.deleteAllocationSeriesFrom);
+  const addActivity = useStore((state) => state.addActivity);
+  const mode = useStore((state) => resolveSchedulingMode(state.data, state.activeAccountId));
   const activeAccount = useStore((state) =>
     state.data.accounts.find((account) => account.id === state.activeAccountId),
   );
@@ -44,19 +44,30 @@ export function useAllocationModalState(props: AllocationModalProps) {
     () => normalizeAccountWorkingDays(activeAccount?.workingDays, activeAccount?.weekStartsOn ?? 1),
     [activeAccount],
   );
-  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId));
-  const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId));
-  const inlineActivityCreateEnabled = useStore((s) => inlineActivityCreateEnabledFor(s.data, s.activeAccountId));
-  const calendarTimeZone = useStore((s) => timeZoneFor(s.data, s.activeAccountId));
+  const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
+  const externalEnabled = useStore((state) => hasExternalResourcesEnabled(state.data, state.activeAccountId));
+  const inlineActivityCreateEnabled = useStore((state) => canCreateInlineActivity(state.data, state.activeAccountId));
+  const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
   const isDays = mode === "days";
   const isBlocks = !carriesHourlyLoad(mode);
 
   const editId = "allocationId" in props ? props.allocationId : undefined;
   const create = "create" in props ? props.create : undefined;
-  const editing = editId ? data.allocations.find((a) => a.id === editId) : undefined;
+  const editing = editId ? data.allocations.find((allocation) => allocation.id === editId) : undefined;
 
-  const resourceById = useMemo(() => new Map(data.resources.map((r) => [r.id, r])), [data.resources]);
-  const seed = allocationModalSeed({ editing, create, data, mode, resourceById, accountWorkingDays, calendarTimeZone });
+  const resourcesById = useMemo(
+    () => new Map(data.resources.map((resource) => [resource.id, resource])),
+    [data.resources],
+  );
+  const seed = buildAllocationModalSeed({
+    editing,
+    create,
+    data,
+    mode,
+    resourceById: resourcesById,
+    accountWorkingDays,
+    calendarTimeZone,
+  });
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;
   // Register focus before the schedule hook registers its repeat-adjustment effect.
@@ -71,7 +82,7 @@ export function useAllocationModalState(props: AllocationModalProps) {
   const target = useAllocationTargetState({
     data,
     seed,
-    resourceById,
+    resourceById: resourcesById,
     canEdit,
     placeholdersEnabled,
     externalEnabled,
@@ -82,11 +93,11 @@ export function useAllocationModalState(props: AllocationModalProps) {
   const { selectedResource, selectedActivity, attributedProjectId, selectedEffectiveProjectId } = target;
   const { resourceId, activityId } = target.fields;
   const schedule = useAllocationScheduleState({ selectedResource, mode, accountWorkingDays, calendarTimeZone, seed });
-  const { selectedEffectiveWeek, effEndDate, validDaysOver, spanFitsDateDomain } = schedule;
+  const { selectedEffectiveWeek, effEndDate: effectiveEndDate, validDaysOver, spanFitsDateDomain } = schedule;
   const {
     daysOfWork,
     daysOver,
-    effHoursPerDay,
+    effHoursPerDay: effectiveHoursPerDay,
     ignoreWeekends,
     isExternal,
     note,
@@ -99,14 +110,14 @@ export function useAllocationModalState(props: AllocationModalProps) {
   } = schedule.fields;
   const repeatProjection = useMemo(
     () =>
-      projectRepeat({
+      buildRepeatProjection({
         activityId,
         create,
         attributedProjectId,
         daysOfWork,
         daysOver,
-        effEndDate,
-        effHoursPerDay,
+        effEndDate: effectiveEndDate,
+        effHoursPerDay: effectiveHoursPerDay,
         ignoreWeekends,
         isBlocks,
         isDays,
@@ -133,8 +144,8 @@ export function useAllocationModalState(props: AllocationModalProps) {
       attributedProjectId,
       daysOfWork,
       daysOver,
-      effEndDate,
-      effHoursPerDay,
+      effectiveEndDate,
+      effectiveHoursPerDay,
       ignoreWeekends,
       isBlocks,
       isDays,
@@ -158,12 +169,12 @@ export function useAllocationModalState(props: AllocationModalProps) {
   );
   const advisory = useMemo(
     () =>
-      advisoryFor({
+      buildAllocationAdvisory({
         attributedProjectId,
         create,
         editId,
-        effEndDate,
-        effHoursPerDay,
+        effEndDate: effectiveEndDate,
+        effHoursPerDay: effectiveHoursPerDay,
         ignoreWeekends,
         isBlocks,
         isExternal,
@@ -182,8 +193,8 @@ export function useAllocationModalState(props: AllocationModalProps) {
       data.closures,
       data.timeOff,
       editId,
-      effEndDate,
-      effHoursPerDay,
+      effectiveEndDate,
+      effectiveHoursPerDay,
       ignoreWeekends,
       isBlocks,
       isExternal,
@@ -196,7 +207,7 @@ export function useAllocationModalState(props: AllocationModalProps) {
     ],
   );
   // A typed span can produce an invalid date; guard format() to avoid crashing the modal.
-  const parsedEndDate = parseDate(effEndDate);
+  const parsedEndDate = parseDate(effectiveEndDate);
   const endDateHint = Number.isNaN(parsedEndDate.getTime()) ? null : format(parsedEndDate, "EEE d MMM yyyy");
 
   const { submit, onDuplicate, onDelete } = createAllocationCommands({
@@ -225,7 +236,7 @@ export function useAllocationModalState(props: AllocationModalProps) {
   // their row), so we drop the Assignee select and name them in the title instead.
   const createName = create
     ? seed.initialResource
-      ? resourceDisplayName(seed.initialResource)
+      ? resolveResourceDisplayName(seed.initialResource)
       : m.form_allocation_advisory_resource_name()
     : undefined;
   const repeatLastStart = repeatProjection?.startDates.at(-1);

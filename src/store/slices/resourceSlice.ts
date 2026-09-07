@@ -32,18 +32,18 @@ type ResourceSlice = Pick<
 export function createResourceSlice(internals: StoreInternals): StateCreator<StoreState, [], [], ResourceSlice> {
   return (_set, get) => {
     const {
-      guarded,
-      guardedAdd,
+      createGuardedAction,
+      createGuardedAddAction,
       requireAccount,
       assertWorkingDays,
       assertHalfDays,
-      withSnappedColor,
+      applySnappedColor,
       mutate,
       updateOwned,
-      findOwned,
+      resolveOwnedRow,
     } = internals;
     return {
-      addResource: guardedAdd(
+      addResource: createGuardedAddAction(
         (input: Draft<Resource>): Resource => {
           // Placeholder drafts carry inert defaults for a complete entity contract; normalise them
           // again here so the store remains the authoritative last line for persisted values.
@@ -65,18 +65,18 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
             ...stamp(),
           };
         },
-        (e, input) => {
-          assertScopedRefs(get().data, e.accountId, "resources", input);
-          assertWorkingDays(e.workingDays);
-          assertHalfDays(e.halfDays, e.workingDays);
+        (entity, input) => {
+          assertScopedRefs(get().data, entity.accountId, "resources", input);
+          assertWorkingDays(entity.workingDays);
+          assertHalfDays(entity.halfDays, entity.workingDays);
           // Colour snap runs LAST, right before persisting — never before the asserts above, so a
           // rejected (throwing) add never substitutes a colour onto an entity that was never saved.
-          const safe = withSnappedColor(e, e.kind === "external");
-          mutate((d) => ({ ...d, resources: [...d.resources, safe] }));
+          const safe = applySnappedColor(entity, entity.kind === "external");
+          mutate((data) => ({ ...data, resources: [...data.resources, safe] }));
           return safe;
         },
       ),
-      updateResource: guarded((id: ID, patch: Patch<Resource>) => {
+      updateResource: createGuardedAction((id: ID, patch: Patch<Resource>) => {
         updateOwned("resources", id, patch, (merged, existing) => {
           patch = isPlaceholderResource(merged) ? { ...patch, ...placeholderCapacityDefaults() } : patch;
           merged = { ...existing, ...patch };
@@ -94,23 +94,23 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
             assertHalfDays(merged.halfDays, merged.workingDays);
           }
           const engagementPatch = merged.kind !== "person" ? { ...patch, engagement: "studio" as const } : patch;
-          const colorPatch = withSnappedColor(engagementPatch, merged.kind === "external");
+          const colorPatch = applySnappedColor(engagementPatch, merged.kind === "external");
           return patch.workingHoursPerDay !== undefined
             ? { ...colorPatch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) }
             : colorPatch;
         });
       }),
 
-      addTimeOff: guardedAdd(
+      addTimeOff: createGuardedAddAction(
         (input: Draft<TimeOff>): TimeOff => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
-        (e, input) => {
-          assertResourceExists(get().data, e.accountId, input.resourceId);
+        (entity, input) => {
+          assertResourceExists(get().data, entity.accountId, input.resourceId);
           assertDateRange(input.startDate, input.endDate);
-          mutate((d) => ({ ...d, timeOff: [...d.timeOff, e] }));
-          return e;
+          mutate((data) => ({ ...data, timeOff: [...data.timeOff, entity] }));
+          return entity;
         },
       ),
-      updateTimeOff: guarded((id: ID, patch: Patch<TimeOff>) => {
+      updateTimeOff: createGuardedAction((id: ID, patch: Patch<TimeOff>) => {
         updateOwned("timeOff", id, patch, (merged, existing) => {
           // Same merged-row rule as updateAllocation: the server re-runs assertResourceExists on the
           // full merged row, so a type/date/note-only edit of time-off on a now-EXTERNAL resource
@@ -120,12 +120,12 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
           return patch;
         });
       }),
-      deleteTimeOff: guarded((id: ID) => {
-        if (!findOwned(get().data, "timeOff", id)) return;
-        mutate((d) => ({ ...d, timeOff: d.timeOff.filter((t) => t.id !== id) }));
+      deleteTimeOff: createGuardedAction((id: ID) => {
+        if (!resolveOwnedRow(get().data, "timeOff", id)) return;
+        mutate((data) => ({ ...data, timeOff: data.timeOff.filter((activity) => activity.id !== id) }));
       }),
 
-      addClosure: guardedAdd(
+      addClosure: createGuardedAddAction(
         (input: Draft<Closure>): Closure => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
         (closure) => {
           if (closure.name.trim().length === 0) domainError("closure_name_required", "Closure name is required.");
@@ -134,15 +134,15 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
           return closure;
         },
       ),
-      updateClosure: guarded((id: ID, patch: Patch<Closure>) => {
+      updateClosure: createGuardedAction((id: ID, patch: Patch<Closure>) => {
         updateOwned("closures", id, patch, (merged) => {
           if (merged.name.trim().length === 0) domainError("closure_name_required", "Closure name is required.");
           assertDateRange(merged.startDate, merged.endDate);
           return patch;
         });
       }),
-      deleteClosure: guarded((id: ID) => {
-        if (!findOwned(get().data, "closures", id)) return;
+      deleteClosure: createGuardedAction((id: ID) => {
+        if (!resolveOwnedRow(get().data, "closures", id)) return;
         mutate((data) => ({ ...data, closures: data.closures.filter((closure) => closure.id !== id) }));
       }),
     };
