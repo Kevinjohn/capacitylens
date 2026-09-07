@@ -2,17 +2,17 @@ import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { BackupConfig, Backups } from "../backup";
 import type { Db } from "../db";
-import { stampMs, stampName, TMP_RE } from "./names";
+import { parseSnapshotTimestamp, buildSnapshotName, TMP_RE } from "./names";
 import {
   claimBackupTemp,
   cleanupSnapshotTemp,
-  databaseVersion,
+  readDatabaseVersion,
   durableSnapshotPublisher,
   ensurePrivateBackupDirectory,
   writeVerifiedSnapshot,
   type DurableSnapshotPublisher,
 } from "./publish";
-import { isProtectedDatabasePath, listSnapshots, mainDatabaseIdentity, prune } from "./retention";
+import { isProtectedDatabasePath, listSnapshots, readMainDatabaseIdentity, prune } from "./retention";
 // Only sweep temp files at least this old at start-up. A snapshot takes seconds, so one hour is
 // generous headroom for "abandoned by a crashed process" without racing a *live* writer during a
 // rolling restart (two instances briefly sharing a dir is unsupported, but the sweep must not be
@@ -32,7 +32,7 @@ export function startBackups(
   ensurePrivateBackupDirectory(config.dir);
   // Establish the exclusion before any sweep or retention enumeration. Failure is fatal: once
   // backups are configured, running retention without knowing which inode is live is unsafe.
-  const liveDatabase = mainDatabaseIdentity(db);
+  const liveDatabase = readMainDatabaseIdentity(db);
 
   // Sweep torn temp files from a previous crash mid-snapshot: they never match SNAPSHOT_RE,
   // so prune() would otherwise leave them on disk forever. Age-gated (real wall clock vs the
@@ -44,9 +44,9 @@ export function startBackups(
   let sweepEntries: string[];
   try {
     sweepEntries = readdirSync(config.dir);
-  } catch (err) {
+  } catch (error) {
     log(
-      `capacitylens-server: backup start-up sweep skipped — cannot read ${config.dir} — ${err instanceof Error ? err.message : String(err)}`,
+      `capacitylens-server: backup start-up sweep skipped — cannot read ${config.dir} — ${error instanceof Error ? error.message : String(error)}`,
     );
     sweepEntries = [];
   }
@@ -56,11 +56,11 @@ export function startBackups(
     if (isProtectedDatabasePath(p, liveDatabase)) continue;
     try {
       if (Date.now() - statSync(p).mtimeMs > TMP_SWEEP_AGE_MS) rmSync(p);
-    } catch (err) {
+    } catch (error) {
       // Per-file, so one bad entry (vanished between readdir and stat, unremovable) can't stop
       // the rest of the sweep — it's retried on the next boot.
       log(
-        `capacitylens-server: backup start-up sweep skipped ${p} — ${err instanceof Error ? err.message : String(err)}`,
+        `capacitylens-server: backup start-up sweep skipped ${p} — ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -87,21 +87,21 @@ export function startBackups(
   let lastStampMs = 0;
   try {
     const newest = listSnapshots(config.dir, liveDatabase).at(-1);
-    if (newest) lastStampMs = stampMs(newest);
-  } catch (err) {
+    if (newest) lastStampMs = parseSnapshotTimestamp(newest);
+  } catch (error) {
     // Boot-time housekeeping again (see the sweep above): a failed seed scan degrades the
     // floor to 0, which is SAFE against clobbers — layer 4 (the existsSync loop) never reuses
     // a name on disk regardless of where the floor sits. Not worth killing the daemon over.
     log(
-      `capacitylens-server: backup stamp seeding skipped — cannot list ${config.dir} — ${err instanceof Error ? err.message : String(err)}`,
+      `capacitylens-server: backup stamp seeding skipped — cannot list ${config.dir} — ${error instanceof Error ? error.message : String(error)}`,
     );
   }
-  const uniqueStamp = (): string => {
+  const createUniqueSnapshotName = (): string => {
     lastStampMs = Math.max(now().getTime(), lastStampMs + 1);
-    let name = stampName(new Date(lastStampMs));
+    let name = buildSnapshotName(new Date(lastStampMs));
     while (existsSync(join(config.dir, name))) {
       lastStampMs += 1;
-      name = stampName(new Date(lastStampMs));
+      name = buildSnapshotName(new Date(lastStampMs));
     }
     return name;
   };
@@ -127,20 +127,20 @@ export function startBackups(
     // exclusive create is what stops a sibling instance from writing into the same temp file.
     // EEXIST just means the name is taken — bump to the next stamp and retry (terminates:
     // uniqueStamp strictly advances past one of finitely many files per iteration).
-    const { file, tmp } = claimBackupTemp(() => join(config.dir, uniqueStamp()));
+    const { file, tmp } = claimBackupTemp(() => join(config.dir, createUniqueSnapshotName()));
     try {
       // Write to the temp name and rename on success: rename is atomic on the same filesystem,
       // so a torn write (crash, full disk) never sits behind a valid snapshot name. Read the
       // source version for this attempt rather than caching it.
-      await writeVerifiedSnapshot(db, tmp, file, config.dir, "scheduled snapshot", databaseVersion(db), publisher);
-    } catch (err) {
+      await writeVerifiedSnapshot(db, tmp, file, config.dir, "scheduled snapshot", readDatabaseVersion(db), publisher);
+    } catch (error) {
       health.degraded = true;
       // A failed write must not orphan its temp file: prune() and the start-up sweep both
       // ignore fresh `.tmp`s, so under a persistent fault (e.g. ENOSPC) each retry's partial
       // file would otherwise pile up and WORSEN the very disk-full condition that caused it.
       // Surface cleanup failures separately, but preserve the ORIGINAL error for the caller.
       cleanupSnapshotTemp(tmp, "backup", log);
-      throw err;
+      throw error;
     }
     // The just-published file is an explicit retention exclusion as a final fail-safe: a successful
     // snapshotNow() must never return a path that its own retention pass removed.
@@ -187,19 +187,19 @@ export function startBackups(
   };
 
   // A failed snapshot must never crash the daemon — log and try again next tick.
-  const safeSnapshot = () => {
+  const writeSnapshotSafely = () => {
     if (current) {
       // Surface, don't silently drop: an operator watching the logs sees WHY a stamp is missing.
       log("capacitylens-server: backup skipped — previous snapshot still in flight");
       return;
     }
-    void snapshotNow().catch((err: unknown) =>
-      log(`capacitylens-server: backup FAILED — ${err instanceof Error ? err.message : String(err)}`),
+    void snapshotNow().catch((error: unknown) =>
+      log(`capacitylens-server: backup FAILED — ${error instanceof Error ? error.message : String(error)}`),
     );
   };
 
-  safeSnapshot(); // one immediately on start, so a fresh deploy is covered before the first hour
-  const timer = setInterval(safeSnapshot, config.intervalMin * 60_000);
+  writeSnapshotSafely(); // one immediately on start, so a fresh deploy is covered before the first hour
+  const timer = setInterval(writeSnapshotSafely, config.intervalMin * 60_000);
   timer.unref(); // the timer must not keep a draining process alive
 
   const stop = async (): Promise<void> => {

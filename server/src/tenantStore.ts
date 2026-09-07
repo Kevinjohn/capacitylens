@@ -19,7 +19,7 @@ import {
   readSlice,
   upsertRow,
 } from "./db";
-import { nextServerRevision } from "./revision";
+import { createServerRevision } from "./revision";
 import { fromRow, type Row } from "./rowCodec";
 import { TABLES } from "./tables";
 
@@ -30,7 +30,7 @@ export interface ResourceNoteScrubResult {
   timeOffNotes: boolean;
 }
 
-function ownedLifecycleRow(
+function getOwnedLifecycleRow(
   db: Db,
   accountId: string,
   entity: LifecycleEntityKey,
@@ -47,7 +47,7 @@ function restampRows(
   clearedColumn: "projectId" | "phaseId",
 ): void {
   const update = db.prepare(`UPDATE ${table} SET ${clearedColumn} = NULL, updatedAt = ? WHERE id = ?`);
-  for (const row of rows) update.run(nextServerRevision(row.updatedAt), row.id);
+  for (const row of rows) update.run(createServerRevision(row.updatedAt), row.id);
 }
 
 export interface PurgeLifecycleResult {
@@ -60,7 +60,7 @@ const SCOPED_ROW_COUNTS_SQL = SCOPED_KEYS.map(
   (table) => `SELECT '${table}' AS tableName, COUNT(*) AS count FROM ${table} WHERE accountId = ?`,
 ).join("\n  UNION ALL\n  ");
 
-function scopedRowCounts(db: Db, accountId: string): Record<ScopedEntityKey, number> {
+function readScopedRowCounts(db: Db, accountId: string): Record<ScopedEntityKey, number> {
   const rows = db.prepare(SCOPED_ROW_COUNTS_SQL).all(...SCOPED_KEYS.map(() => accountId)) as Array<{
     tableName: ScopedEntityKey;
     count: number;
@@ -78,8 +78,8 @@ function purgeLifecycleRow(
   entity: LifecycleEntityKey,
   id: string,
 ): PurgeLifecycleResult | null {
-  if (!ownedLifecycleRow(db, accountId, entity, id)) return null;
-  const before = scopedRowCounts(db, accountId);
+  if (!getOwnedLifecycleRow(db, accountId, entity, id)) return null;
+  const before = readScopedRowCounts(db, accountId);
 
   if (entity === "projects") {
     const allocations = db
@@ -136,7 +136,7 @@ function purgeLifecycleRow(
   }
 
   deleteRow(db, entity, id);
-  const after = scopedRowCounts(db, accountId);
+  const after = readScopedRowCounts(db, accountId);
   const removedCounts: Partial<Record<ScopedEntityKey, number>> = {};
   for (const table of SCOPED_KEYS) {
     const removed = before[table] - after[table];
@@ -180,7 +180,7 @@ export interface TenantStore {
    */
   readSlice(
     accountId: string,
-    opts: {
+    options: {
       includeTimeOffNote: boolean;
       includeInactive: boolean;
       includePrivateNames: boolean;
@@ -211,20 +211,20 @@ export interface TenantStore {
  * @param db  The open SQLite handle this store reads from / writes to.
  * @returns A {@link TenantStore} bound to `db`.
  */
-export function sqliteTenantStore(db: Db): TenantStore {
+export function createSqliteTenantStore(db: Db): TenantStore {
   // Single query + fromRow, replacing an id-only SELECT followed by one getRow point lookup per
   // id (N+1). Same WHERE predicate as before, so it hits the same idx_allocations_{field} index and
   // returns rows in the same order the old id-loop preserved — verified empirically, since neither
   // form carries an ORDER BY of its own.
-  const relatedAllocations = (field: "resourceId" | "activityId", accountId: string, id: string): Allocation[] =>
+  const listRelatedAllocations = (field: "resourceId" | "activityId", accountId: string, id: string): Allocation[] =>
     (db.prepare(`SELECT * FROM allocations WHERE accountId = ? AND ${field} = ?`).all(accountId, id) as Row[]).map(
       (row) => fromRow(TABLES.allocations, row) as unknown as Allocation,
     );
   const validationLookup: ValidationDataLookup = {
     row: (table: AppDataKey, id: string) =>
       getRow(db, table, id) as (Record<string, unknown> & { id: string }) | undefined,
-    allocationsForResource: (accountId, resourceId) => relatedAllocations("resourceId", accountId, resourceId),
-    allocationsForActivity: (accountId, activityId) => relatedAllocations("activityId", accountId, activityId),
+    allocationsForResource: (accountId, resourceId) => listRelatedAllocations("resourceId", accountId, resourceId),
+    allocationsForActivity: (accountId, activityId) => listRelatedAllocations("activityId", accountId, activityId),
     resourceHasLoadedAllocation: (accountId, resourceId) =>
       db
         .prepare(`SELECT 1 FROM allocations WHERE accountId = ? AND resourceId = ? AND hoursPerDay != 0 LIMIT 1`)
@@ -234,18 +234,18 @@ export function sqliteTenantStore(db: Db): TenantStore {
       undefined,
   };
   return {
-    readSlice: (accountId, opts) => readSlice(db, accountId, opts),
+    readSlice: (accountId, options) => readSlice(db, accountId, options),
     readFullSlice: (accountId) => readFullSlice(db, accountId),
     validationLookup: () => validationLookup,
-    readLifecycleRow: (accountId, entity, id) => ownedLifecycleRow(db, accountId, entity, id),
+    readLifecycleRow: (accountId, entity, id) => getOwnedLifecycleRow(db, accountId, entity, id),
     writeLifecycleRow: (accountId, entity, row) => {
-      if (row.accountId !== accountId || !ownedLifecycleRow(db, accountId, entity, row.id)) {
+      if (row.accountId !== accountId || !getOwnedLifecycleRow(db, accountId, entity, row.id)) {
         throw new Error("Lifecycle row does not belong to the requested company.");
       }
       upsertRow(db, entity, row as unknown as Record<string, unknown>);
     },
     scrubResourceNotes: (accountId, resourceId) => {
-      if (!ownedLifecycleRow(db, accountId, "resources", resourceId)) {
+      if (!getOwnedLifecycleRow(db, accountId, "resources", resourceId)) {
         throw new Error("Lifecycle row does not belong to the requested company.");
       }
       const scrub = (table: "allocations" | "timeOff") => {
@@ -259,7 +259,7 @@ export function sqliteTenantStore(db: Db): TenantStore {
           updatedAt: unknown;
         }>;
         const update = db.prepare(`UPDATE ${table} SET note = NULL, updatedAt = ? WHERE id = ?`);
-        for (const row of rows) update.run(nextServerRevision(row.updatedAt), row.id);
+        for (const row of rows) update.run(createServerRevision(row.updatedAt), row.id);
         return rows.length > 0;
       };
       return {

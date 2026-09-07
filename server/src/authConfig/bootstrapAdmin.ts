@@ -22,7 +22,7 @@ interface CredentialUserContext {
  * what lets invitation onboarding cross its provider/coordinator boundary without a crash gap.
  */
 export async function createCredentialUserWith(
-  ctx: CredentialUserContext,
+  context: CredentialUserContext,
   db: Db,
   email: string,
   name: string,
@@ -30,7 +30,7 @@ export async function createCredentialUserWith(
   emailVerified = false,
   correlateInTransaction?: (principalId: string) => void,
 ): Promise<{ id: string }> {
-  const hash = await ctx.password.hash(password);
+  const hash = await context.password.hash(password);
   const cleanedName = cleanText(name);
   return tx(
     db,
@@ -107,7 +107,7 @@ const BOOTSTRAP_ADMIN_NAME = "admin";
 export const BOOTSTRAP_ADMIN_EMAIL = "admin@admin.admin";
 
 // Bind facade-owned policy without importing the facade at runtime.
-export function buildCreateBootstrapAdmin({
+export function createBootstrapAdminFactory({
   AuthConfigError,
   countUsers,
   isSqliteConstraintCollision,

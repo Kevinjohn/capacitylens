@@ -5,7 +5,7 @@ import { BatchStateProjection } from "../../batchProjection";
 import { getRow, upsertRow } from "../../db";
 import { isSupersededSyncBatch, recordAppliedSyncBatch } from "../../syncOrdering";
 import { tx } from "../../txn";
-import { acceptedFieldNames } from "../../validate";
+import { listAcceptedFieldNames } from "../../validate";
 import { FULL_SLICE_READ } from "../../writePipeline";
 
 import { appendAppDataSlice } from "./appData";
@@ -95,7 +95,7 @@ export async function runBatch(parameters: RunBatchParameters) {
               action,
               entity: op.table,
               id: op.id,
-              changedFields: acceptedFieldNames(op.table, op.row),
+              changedFields: listAcceptedFieldNames(op.table, op.row),
             }
           : op.method === "ARCHIVE"
             ? {

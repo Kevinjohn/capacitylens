@@ -17,7 +17,7 @@
  *
  * Deliberately carries NO `maxResources` / `plan` / `billing` fields: adding them now would invite
  * dead, untested limit code. A future tier/quota model extends THIS interface (and the lookup in
- * {@link entitlementsFor}) when enforcement is actually wired.
+ * {@link resolveEntitlements}) when enforcement is actually wired.
  */
 export interface Entitlements {
   unlimited: true;
@@ -35,7 +35,7 @@ export interface Entitlements {
  *   per-account lookup).
  * @returns The account's entitlements — always `{ unlimited: true }` until a plan model is wired.
  */
-export function entitlementsFor(accountId: string): Entitlements {
+export function resolveEntitlements(accountId: string): Entitlements {
   void accountId; // reserved for the future per-account lookup (the documented swap point); unused today
   return { unlimited: true };
 }

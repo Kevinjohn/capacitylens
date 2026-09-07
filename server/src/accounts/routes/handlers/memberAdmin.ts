@@ -3,7 +3,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
 import type { AccountRouteContext } from "../replyHelpers";
 
-export async function listMembers(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
+export async function listMembers(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     authMode,
     flows: accountFlows,
@@ -11,7 +11,7 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, ctx:
     authorize,
     fail: accountFail,
     memberReadProjection,
-  } = ctx;
+  } = context;
 
   const { accountId } = req.params as { accountId: string };
   if (!authorize(req, reply, accountId, "manageMembers")) return;
@@ -46,13 +46,13 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, ctx:
       };
     });
     return { members, signInTrackingEnabled: tracking.enabled };
-  } catch (err) {
-    return accountFail(reply, err);
+  } catch (error) {
+    return accountFail(reply, error);
   }
 }
 
-export async function setMemberSignInTracking(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
-  const { memberSignInTracking, authorize, audit, fail: accountFail } = ctx;
+export async function setMemberSignInTracking(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+  const { memberSignInTracking, authorize, audit, fail: accountFail } = context;
 
   const { accountId } = req.params as { accountId: string };
   if (!authorize(req, reply, accountId, "manageMemberSignInTracking")) return;
@@ -74,12 +74,12 @@ export async function setMemberSignInTracking(req: FastifyRequest, reply: Fastif
       });
     }
     return reply.code(200).send({ enabled: result.enabled });
-  } catch (err) {
-    return accountFail(reply, err);
+  } catch (error) {
+    return accountFail(reply, error);
   }
 }
 
-export async function changeMemberRole(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
+export async function changeMemberRole(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     administration: accountAdminPort,
     command: accountCommand,
@@ -87,7 +87,7 @@ export async function changeMemberRole(req: FastifyRequest, reply: FastifyReply,
     isKnownRole,
     auditUnlessReplayed,
     authorizeMemberMutation,
-  } = ctx;
+  } = context;
 
   const { accountId, userId } = req.params as {
     accountId: string;
@@ -117,19 +117,19 @@ export async function changeMemberRole(req: FastifyRequest, reply: FastifyReply,
       changedFields: ["role"],
     });
     return reply.code(200).send({ userId: changed.principalId, role: changed.role });
-  } catch (err) {
-    return accountFail(reply, err);
+  } catch (error) {
+    return accountFail(reply, error);
   }
 }
 
-export async function changeMemberStatus(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
+export async function changeMemberStatus(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     administration: accountAdminPort,
     command: accountCommand,
     fail: accountFail,
     auditUnlessReplayed,
     authorizeMemberMutation,
-  } = ctx;
+  } = context;
 
   const { accountId, userId } = req.params as {
     accountId: string;
@@ -161,19 +161,19 @@ export async function changeMemberStatus(req: FastifyRequest, reply: FastifyRepl
       changedFields: ["status"],
     });
     return reply.code(200).send({ userId: changed.principalId, status: changed.status });
-  } catch (err) {
-    return accountFail(reply, err);
+  } catch (error) {
+    return accountFail(reply, error);
   }
 }
 
-export async function removeMember(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
+export async function removeMember(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     administration: accountAdminPort,
     command: accountCommand,
     fail: accountFail,
     auditUnlessReplayed,
     authorizeMemberMutation,
-  } = ctx;
+  } = context;
 
   const { accountId, userId } = req.params as {
     accountId: string;
@@ -197,19 +197,19 @@ export async function removeMember(req: FastifyRequest, reply: FastifyReply, ctx
       changedFields: [],
     });
     return reply.code(204).send();
-  } catch (err) {
-    return accountFail(reply, err);
+  } catch (error) {
+    return accountFail(reply, error);
   }
 }
 
-export async function transferOwnership(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
+export async function transferOwnership(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     administration: accountAdminPort,
     command: accountCommand,
     fail: accountFail,
     auditUnlessReplayed,
     authorizeMemberMutation,
-  } = ctx;
+  } = context;
 
   const { accountId } = req.params as { accountId: string };
   const body = (req.body ?? {}) as { toUserId?: unknown };
@@ -236,7 +236,7 @@ export async function transferOwnership(req: FastifyRequest, reply: FastifyReply
       changedFields: ["role"],
     });
     return reply.code(200).send({ toUserId, role: "owner" });
-  } catch (err) {
-    return accountFail(reply, err);
+  } catch (error) {
+    return accountFail(reply, error);
   }
 }

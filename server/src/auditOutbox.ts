@@ -56,28 +56,28 @@ type PreparedStatement = ReturnType<Db["prepare"]>;
  * an entry is collected with its handle and the many short-lived `:memory:` handles tests open never
  * leak. SQL text is unchanged; only the repeated `prepare()` call is elided.
  */
-function cachedStatement(sql: string): (db: Db) => PreparedStatement {
+function createCachedStatement(sql: string): (db: Db) => PreparedStatement {
   const cache = new WeakMap<Db, PreparedStatement>();
   return (db: Db): PreparedStatement => {
-    let stmt = cache.get(db);
-    if (!stmt) {
-      stmt = db.prepare(sql);
-      cache.set(db, stmt);
+    let statement = cache.get(db);
+    if (!statement) {
+      statement = db.prepare(sql);
+      cache.set(db, statement);
     }
-    return stmt;
+    return statement;
   };
 }
 
-const insertAuditOutboxStatement = cachedStatement(
+const insertAuditOutboxStatement = createCachedStatement(
   `INSERT INTO capacitylens_audit_outbox (id, payload, createdAt) VALUES (?, ?, ?)`,
 );
-const selectAuditOutboxPageStatement = cachedStatement(
+const selectAuditOutboxPageStatement = createCachedStatement(
   `SELECT sequence, id, payload FROM capacitylens_audit_outbox ORDER BY sequence LIMIT ${AUDIT_DRAIN_PAGE_SIZE}`,
 );
-const removeAuditOutboxRowStatement = cachedStatement(
+const removeAuditOutboxRowStatement = createCachedStatement(
   `DELETE FROM capacitylens_audit_outbox WHERE sequence = ? AND id = ?`,
 );
-const pendingAuditCountStatement = cachedStatement(`SELECT COUNT(*) AS count FROM capacitylens_audit_outbox`);
+const pendingAuditCountStatement = createCachedStatement(`SELECT COUNT(*) AS count FROM capacitylens_audit_outbox`);
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(isNonEmptyString);
@@ -256,6 +256,6 @@ export function drainAuditOutbox(db: Db, sink: AuditSink): boolean {
   return true;
 }
 
-export function pendingAuditCount(db: Db): number {
+export function readPendingAuditCount(db: Db): number {
   return Number((pendingAuditCountStatement(db).get() as { count: number }).count);
 }

@@ -1,7 +1,7 @@
 export {
   ACCOUNT_BOUNDARY_STATE_V15_SQL,
   ensureAccountBoundaryState,
-  normalizedTableCreateSql,
+  readNormalizedTableCreateSql,
   assertAccountBoundaryStateCurrent,
 } from "./state/schema";
 export {
@@ -12,8 +12,8 @@ export {
   removeSessionAssurance,
   removePrincipalSessionAssurance,
 } from "./state/sessionAssurance";
-export { bindFederatedProvider, providerIdForIssuer } from "./state/federatedProviders";
-export { getSecurityRevision, bumpSecurityRevision, removeSecurityRevision } from "./state/securityRevision";
+export { bindFederatedProvider, getProviderIdForIssuer } from "./state/federatedProviders";
+export { readSecurityRevision, bumpSecurityRevision, removeSecurityRevision } from "./state/securityRevision";
 export {
   type AccountCommandStatus,
   type AccountCommandRecord,

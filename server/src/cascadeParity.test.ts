@@ -9,8 +9,8 @@ import {
   deleteResourceCascade,
 } from "@capacitylens/shared/lib/integrity";
 import { deleteAccountCascade } from "@capacitylens/shared/domain/mutations";
-import { deleteRow, insertAll, loadState, openDb, type Db } from "./db";
-import { sqliteTenantStore } from "./tenantStore";
+import { deleteRow, insertAll, readState, openDb, type Db } from "./db";
+import { createSqliteTenantStore } from "./tenantStore";
 
 // CASCADE PARITY (differential test).
 //
@@ -189,13 +189,13 @@ function expectParity(
 ): void {
   const fromDatabase = withSeededDb((db) => {
     sql(db);
-    return survivors(loadState(db), withRestamps);
+    return survivors(readState(db), withRestamps);
   });
   expect(fromDatabase).toEqual(survivors(transform(seed()), withRestamps));
 }
 
 const purge = (entity: "resources" | "clients" | "projects", id: string) => (db: Db) => {
-  const result = sqliteTenantStore(db).purgeLifecycleRow(ACCOUNT, entity, id);
+  const result = createSqliteTenantStore(db).purgeLifecycleRow(ACCOUNT, entity, id);
   // A null result means the row was not found/owned — the parity assertion would then trivially
   // "pass" against an untouched database, so fail loudly here instead.
   expect(result).not.toBeNull();

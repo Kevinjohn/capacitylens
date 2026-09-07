@@ -15,7 +15,7 @@ import {
   MasqueradeRegistry,
   type MasqueradeRecord,
   type StoredMasqueradeRecord,
-} from "../masqueradeRegistry";
+} from "../MasqueradeRegistry";
 
 /** Dependencies required by the session-scoped masquerade HTTP adapter. */
 export interface MasqueradeRouteDependencies {
@@ -52,7 +52,7 @@ export function enqueueMasqueradeEndAudit(
   });
 }
 
-async function stateForRecord(
+async function readMasqueradeState(
   record: Readonly<MasqueradeRecord>,
   identity: IdentityPort,
   effectiveRole: Role,
@@ -131,7 +131,7 @@ export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: Mas
       }
       throw error;
     }
-    return reply.code(200).send(await stateForRecord(record, identity, effectiveRole));
+    return reply.code(200).send(await readMasqueradeState(record, identity, effectiveRole));
   });
 
   app.get("/api/masquerade", async (request, reply) => {
@@ -145,7 +145,7 @@ export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: Mas
       return reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
     }
     if (resolved.role === null) return reply.code(403).send({ error: "Forbidden." });
-    return { active: true, ...(await stateForRecord(record, identity, resolved.role)) };
+    return { active: true, ...(await readMasqueradeState(record, identity, resolved.role)) };
   });
 
   app.delete("/api/masquerade", async (request, reply) => {

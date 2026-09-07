@@ -22,13 +22,13 @@ import {
 } from "./authConstants";
 import { authHandlerErrorCapture, passwordResetSessionCapture, captureResetToken } from "./captureContexts";
 import { hashPasswordWithBackpressure, verifyPasswordWithBackpressure } from "./passwordBackpressure";
-import { enforceSessionActivity, twoFactorEnabledLookupStatement } from "./sessionActivity";
-import type { buildAuthAdapter } from "./authAdapter";
+import { enforceSessionActivity, createTwoFactorEnabledLookupStatement } from "./sessionActivity";
+import type { createAuthAdapterFactory } from "./authAdapter";
 
 type Env = Record<string, string | undefined>;
 
 // Retain one facade-owned error class and policy surface without a runtime cycle.
-export function buildAuthFromEnv({
+export function createAuthFromEnvironmentFactory({
   AuthConfigError,
   parseAuthMode,
   required,
@@ -43,15 +43,15 @@ export function buildAuthFromEnv({
 }: {
   AuthConfigError: typeof AuthFacade.AuthConfigError;
   parseAuthMode: typeof AuthFacade.parseAuthMode;
-  required: (env: Env, key: string, context: string) => string;
+  required: (environment: Env, key: string, context: string) => string;
   assertStrictOidcEmailAdmission: typeof AuthFacade.assertStrictOidcEmailAdmission;
   isSqliteConstraintCollision: (sqlite: { code?: unknown; errcode?: unknown }) => boolean;
-  providerIdFromExternalContext: typeof AuthFacade.providerIdFromExternalContext;
+  providerIdFromExternalContext: typeof AuthFacade.parseProviderIdFromExternalContext;
   countUsers: typeof AuthFacade.countUsers;
   externalIdentityPath: (path: string | undefined) => boolean;
-  secretTokenMatches: typeof AuthFacade.secretTokenMatches;
+  secretTokenMatches: typeof AuthFacade.isMatchingSecretToken;
   ensureAuthControlTables: typeof AuthFacade.ensureAuthControlTables;
-  createAuthAdapter: ReturnType<typeof buildAuthAdapter>;
+  createAuthAdapter: ReturnType<typeof createAuthAdapterFactory>;
 }) {
   /** Build the Better Auth instance for the parsed mode — or null in 'off' mode, where no
    *  env beyond CAPACITYLENS_AUTH itself is read. `trustedOrigins` should be the same browser
@@ -63,8 +63,8 @@ export function buildAuthFromEnv({
    *  HTTPS in the browser and HTTP between nginx and Node. */
   function authFromEnv(
     db: Db,
-    env: Env,
-    opts: {
+    environment: Env,
+    options: {
       trustedOrigins?: string[];
       deferDatabaseSetup?: boolean;
       application?: BoundApplication;
@@ -76,18 +76,18 @@ export function buildAuthFromEnv({
       }) => boolean | Promise<boolean>;
     } = {},
   ): { mode: AuthMode; auth: Auth | null } {
-    const runtimeEnvironment = env.NODE_ENV ?? process.env.NODE_ENV;
-    env = resolveAccountEnvironment(env, {
+    const runtimeEnvironment = environment.NODE_ENV ?? process.env.NODE_ENV;
+    environment = resolveAccountEnvironment(environment, {
       ...(runtimeEnvironment === "test" ? { warn: () => {} } : {}),
     }).env;
-    const mode = parseAuthMode(env.CAPACITYLENS_AUTH);
+    const mode = parseAuthMode(environment.CAPACITYLENS_AUTH);
     if (mode === "off") return { mode, auth: null };
-    const requirePasswordMfa = mode === "password" && env.CAPACITYLENS_REQUIRE_MFA === "1";
-    const application = opts.application ?? DEFAULT_ACCOUNT_APPLICATION;
+    const requirePasswordMfa = mode === "password" && environment.CAPACITYLENS_REQUIRE_MFA === "1";
+    const application = options.application ?? DEFAULT_ACCOUNT_APPLICATION;
     const applicationFailure = boundApplicationFailure(application);
     if (applicationFailure) throw new AuthConfigError(applicationFailure);
 
-    const secret = required(env, "BETTER_AUTH_SECRET", `SMALLSASS_ACCOUNT_MODE=${mode}`);
+    const secret = required(environment, "BETTER_AUTH_SECRET", `SMALLSASS_ACCOUNT_MODE=${mode}`);
     // Fail closed + loud on a weak secret (message states the requirement + actual length,
     // never the secret value itself — no leak into logs/exit output).
     if (secret.length < MIN_BETTER_AUTH_SECRET_LENGTH) {
@@ -95,7 +95,7 @@ export function buildAuthFromEnv({
         `SMALLSASS_ACCOUNT_SECRET must be at least ${MIN_BETTER_AUTH_SECRET_LENGTH} characters when SMALLSASS_ACCOUNT_MODE=${mode} (got ${secret.length}).`,
       );
     }
-    const baseURL = required(env, "BETTER_AUTH_URL", `SMALLSASS_ACCOUNT_MODE=${mode}`);
+    const baseURL = required(environment, "BETTER_AUTH_URL", `SMALLSASS_ACCOUNT_MODE=${mode}`);
 
     let publicUrl: URL;
     try {
@@ -131,7 +131,7 @@ export function buildAuthFromEnv({
 
     const preparedProviderConfig = prepareProviders({
       db,
-      env,
+      env: environment,
       mode,
       publicUrl,
       authHandlerErrorCapture,
@@ -155,15 +155,15 @@ export function buildAuthFromEnv({
     // (a hole). CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 keeps its meaning — an INTERIM trusted-instance/dev
     // escape that re-opens signup unconditionally. With neither condition, POST
     // /api/auth/sign-up/email returns the same 400 EMAIL_PASSWORD_SIGN_UP_DISABLED as before.
-    const allowOpenSignup = env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1";
-    const setupToken = env.CAPACITYLENS_SETUP_TOKEN || undefined;
+    const allowOpenSignup = environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1";
+    const setupToken = environment.CAPACITYLENS_SETUP_TOKEN || undefined;
     if (mode === "password" && setupToken && Buffer.byteLength(setupToken, "utf8") < 32) {
       throw new AuthConfigError("SMALLSASS_ACCOUNT_SETUP_TOKEN must be at least 32 bytes.");
     }
     const providerConfig = buildProviders({
-      env,
+      env: environment,
       defaultProviderLabel: application.branding.defaultProviderLabel,
-      trustedOrigins: opts.trustedOrigins,
+      trustedOrigins: options.trustedOrigins,
       prepared: preparedProviderConfig,
       AuthConfigError,
     });
@@ -202,7 +202,7 @@ export function buildAuthFromEnv({
     };
 
     const passwordPolicy = buildPasswordPolicy({
-      env,
+      env: environment,
       mode,
       runtimeEnvironment,
       passwordContextWords: application.branding.passwordContextWords,
@@ -235,10 +235,10 @@ export function buildAuthFromEnv({
       configuredFederatedIssuers,
       allowOpenSignup,
       requirePasswordMfa,
-      externalIdentityAdmission: opts.externalIdentityAdmission,
+      externalIdentityAdmission: options.externalIdentityAdmission,
       providerIdFromExternalContext,
       countUsers,
-      twoFactorEnabledLookupStatement,
+      twoFactorEnabledLookupStatement: createTwoFactorEnabledLookupStatement,
       externalIdentityPath,
     });
     const requestHookOptions = buildRequestHooks({
@@ -278,7 +278,7 @@ export function buildAuthFromEnv({
     });
     // betterAuth construction validates its resolved options but does not own this app-specific
     // table. Verify and expire its leases only after configuration and app migrations have succeeded.
-    if (!opts.deferDatabaseSetup) ensureAuthControlTables(db, env);
+    if (!options.deferDatabaseSetup) ensureAuthControlTables(db, environment);
     const auth = createAuthAdapter({
       db,
       application,
@@ -292,7 +292,7 @@ export function buildAuthFromEnv({
       strictOidcAuthorizationProxyPath,
       sessionDeletionLifecycleRef,
     });
-    if (!opts.deferDatabaseSetup) auth.ensureProviderBindings();
+    if (!options.deferDatabaseSetup) auth.ensureProviderBindings();
     return { mode, auth };
   }
 

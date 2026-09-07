@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance, InjectOptions } from "fastify";
-import { buildApp } from "./app";
+import { createApp } from "./app";
 import { openDb } from "./db";
 import { call } from "./testHelpers";
 
@@ -18,7 +18,7 @@ import { call } from "./testHelpers";
 const TS = "2026-01-01T00:00:00.000Z";
 
 function freshApp(): FastifyInstance {
-  return buildApp(openDb(":memory:"), { optimisticConcurrency: false });
+  return createApp(openDb(":memory:"), { optimisticConcurrency: false });
 }
 
 /** Trusted-local (OFF mode) create through the dedicated POST /api/accounts route. */

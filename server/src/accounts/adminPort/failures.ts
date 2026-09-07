@@ -1,7 +1,11 @@
 import { AccountContractError, retryAfterSeconds, type AccountErrorCode } from "@capacitylens/shared/account/errors";
 import type { InvitationRole, Role } from "@capacitylens/shared/account/types";
 
-export function failure(code: AccountErrorCode, message: string, commandId?: string): AccountContractError {
+export function createAccountFailure(
+  code: AccountErrorCode,
+  message: string,
+  commandId?: string,
+): AccountContractError {
   return new AccountContractError({
     code,
     message,
@@ -10,7 +14,7 @@ export function failure(code: AccountErrorCode, message: string, commandId?: str
   });
 }
 
-export function replayCapacityFailure(commandId: string, retryAfterMs: number): AccountContractError {
+export function createReplayCapacityFailure(commandId: string, retryAfterMs: number): AccountContractError {
   return new AccountContractError({
     code: "RATE_LIMITED",
     message: "One-time link issuance is temporarily busy. Retry after the indicated interval.",
@@ -22,7 +26,7 @@ export function replayCapacityFailure(commandId: string, retryAfterMs: number): 
 
 export function assertInvitationRole(role: Role, commandId?: string): asserts role is InvitationRole {
   if (role === "owner") {
-    throw failure(
+    throw createAccountFailure(
       "OWNER_TRANSFER_REQUIRED",
       "Owner access cannot be assigned directly. Transfer ownership to an existing member instead.",
       commandId,
@@ -32,7 +36,7 @@ export function assertInvitationRole(role: Role, commandId?: string): asserts ro
 
 export function assertRedeemableInvitationRole(role: Role, commandId?: string): asserts role is InvitationRole {
   if (role === "owner") {
-    throw failure(
+    throw createAccountFailure(
       "INVITATION_EXPIRED",
       "This Owner invite is no longer valid. Ownership must be transferred.",
       commandId,

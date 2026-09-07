@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AuditRecord, AuditSink } from "./audit";
-import { drainAuditOutbox, enqueueAudit, pendingAuditCount } from "./auditOutbox";
+import { drainAuditOutbox, enqueueAudit, readPendingAuditCount } from "./auditOutbox";
 import {
   inspectAuditOutboxHead,
   quarantineMalformedAuditOutboxHead,
@@ -65,7 +65,7 @@ describe("offline audit outbox recovery", () => {
     });
     expect(statSync(evidencePath).mode & 0o777).toBe(0o600);
     expect(() => writeAuditOutboxEvidence(evidencePath, inspected!)).toThrow();
-    expect(pendingAuditCount(db)).toBe(1);
+    expect(readPendingAuditCount(db)).toBe(1);
     expect(drainAuditOutbox(db, sink)).toBe(true);
     expect(delivered).toEqual(["valid-suffix"]);
     db.close();
@@ -79,7 +79,7 @@ describe("offline audit outbox recovery", () => {
     expect(() => quarantineMalformedAuditOutboxHead(db, "stale-id", preserve)).toThrow(/changed/);
     expect(() => quarantineMalformedAuditOutboxHead(db, "valid-head", preserve)).toThrow(/is valid/);
     expect(preserve).not.toHaveBeenCalled();
-    expect(pendingAuditCount(db)).toBe(1);
+    expect(readPendingAuditCount(db)).toBe(1);
     db.close();
   });
 

@@ -3,9 +3,9 @@ import { type IdentityAdminAction, type IdentityAdminAuthorityDecision } from "@
 import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
 import { ALL_FIELDS_VISIBLE } from "./routeShared";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
-import { redactGatedEcho, tableHasGatedFields, visibilityForRole, type SanitizeWriteOptions } from "../fieldPolicy";
+import { redactGatedEcho, hasGatedFields, resolveVisibilityForRole, type SanitizeWriteOptions } from "../fieldPolicy";
 import { can, type Action } from "@capacitylens/shared/domain/access";
-import { resolveCorsOrigin, requestOriginIsSameOrigin } from "./appOriginPolicy";
+import { resolveCorsOrigin, isSameRequestOrigin } from "./appOriginPolicy";
 import type { resolveAppConfig } from "./appConfig";
 import type { createAppRuntime } from "./appRuntime";
 import type { installRootHooks } from "./appRootHooks";
@@ -15,7 +15,7 @@ export function createAuthorization(
   app: FastifyInstance,
   runtime: ReturnType<typeof createAppRuntime>,
   config: ReturnType<typeof resolveAppConfig>,
-  opts: AppOptions,
+  options: AppOptions,
   rootHelpers: ReturnType<typeof installRootHooks>,
 ) {
   const { accountAdminPort, endMasquerade, masquerades } = runtime;
@@ -41,7 +41,7 @@ export function createAuthorization(
     return { role: targetRole, ended: false };
   }
 
-  function memberReadProjection(
+  function readMemberProjection(
     req: FastifyRequest,
     accountId: string,
     targetPrincipalIds: readonly string[],
@@ -166,13 +166,13 @@ export function createAuthorization(
 
   /** Writer visibility for the two field-level confidentiality policies. Only time off and
    * client/project writes pay the membership lookup; a non-string account id fails closed. */
-  function fieldVisibilityFor(req: FastifyRequest, table: string, accountId: unknown): SanitizeWriteOptions {
+  function readFieldVisibility(req: FastifyRequest, table: string, accountId: unknown): SanitizeWriteOptions {
     // No gated fields on this table (or trusted-local OFF) ⇒ fully visible, no membership lookup.
-    if (!tableHasGatedFields(table) || authMode === "off") {
+    if (!hasGatedFields(table) || authMode === "off") {
       return ALL_FIELDS_VISIBLE;
     }
     const role = typeof accountId === "string" ? resolveEffectiveRole(req, accountId).role : null; // a non-string account id fails closed (every gated field hidden)
-    return visibilityForRole(role);
+    return resolveVisibilityForRole(role);
   }
 
   /** Apply every field-level confidentiality projection (GATED_FIELD_POLICIES) to write/conflict/
@@ -181,9 +181,9 @@ export function createAuthorization(
   function redactWriteEcho(
     table: string,
     row: Record<string, unknown>,
-    vis: SanitizeWriteOptions,
+    visibility: SanitizeWriteOptions,
   ): Record<string, unknown> {
-    return redactGatedEcho(table, row, vis);
+    return redactGatedEcho(table, row, visibility);
   }
 
   // CORS response headers are not a CSRF control: browsers can still SEND a simple form request
@@ -206,7 +206,7 @@ export function createAuthorization(
     const sameOrigin =
       fetchSite === "same-origin" ||
       (req.headers.origin !== undefined &&
-        requestOriginIsSameOrigin(req, req.headers.origin, opts.trustProxyHeaders === true));
+        isSameRequestOrigin(req, req.headers.origin, options.trustProxyHeaders === true));
     const origin = listedOrigin ?? (sameOrigin ? req.headers.origin! : null);
     const unsafe = !["GET", "HEAD", "OPTIONS"].includes(req.method);
     // An Origin exactly on the credentialed CORS allow-list (listedOrigin, folded into `origin`
@@ -245,10 +245,10 @@ export function createAuthorization(
 
   return {
     resolveEffectiveRole,
-    memberReadProjection,
+    memberReadProjection: readMemberProjection,
     authorize,
     authorizeAllowed,
-    fieldVisibilityFor,
+    fieldVisibilityFor: readFieldVisibility,
     redactWriteEcho,
   };
 }

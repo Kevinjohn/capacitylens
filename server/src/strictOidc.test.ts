@@ -6,7 +6,7 @@ import {
   createStrictOidcClient,
   StrictOidcProviderUnavailableError,
   StrictOidcVerificationError,
-  strictOidcUserInfo,
+  createStrictOidcUserInfoResolver,
 } from "./strictOidc";
 
 // Off-issuer endpoint containment resolves hostnames through DNS; the loopback issuer used across
@@ -120,7 +120,7 @@ describe("strictOidcUserInfo", () => {
   });
 
   it("verifies the signed ID token and maps a subject-bound verified profile", async () => {
-    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
     const profile = await resolve({
       idToken: await idToken(currentKeys[0]),
       accessToken: "access-token",
@@ -138,7 +138,7 @@ describe("strictOidcUserInfo", () => {
 
   it("preserves a missing or false email verification claim for the stateful admission boundary", async () => {
     delete userInfo.email_verified;
-    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
     await expect(
       resolve({
         idToken: await idToken(currentKeys[0]),
@@ -156,7 +156,7 @@ describe("strictOidcUserInfo", () => {
 
   it("normalizes a valid email and rejects malformed identity attributes", async () => {
     userInfo.email = " OWNER@Example.com ";
-    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
     await expect(
       resolve({
         idToken: await idToken(currentKeys[0]),
@@ -183,7 +183,7 @@ describe("strictOidcUserInfo", () => {
     ["issuer", { issuer: "http://127.0.0.1:5556/other" }, /unexpected "iss" claim value/],
     ["audience", { audience: "other-client" }, /unexpected "aud" claim value/],
   ])("rejects an ID token with the wrong %s", async (_label, overrides, message) => {
-    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
     await expect(
       resolve({
         idToken: await idToken(currentKeys[0], overrides),
@@ -194,7 +194,7 @@ describe("strictOidcUserInfo", () => {
 
   it("rejects an ID token signed by an untrusted key", async () => {
     const attacker = await signingKey("attacker");
-    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
     await expect(
       resolve({
         idToken: await idToken(attacker),
@@ -207,7 +207,7 @@ describe("strictOidcUserInfo", () => {
 
   it("rejects stale and implausibly future-issued ID tokens", async () => {
     const now = Math.floor(Date.now() / 1000);
-    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
     await expect(
       resolve({
         idToken: await idToken(currentKeys[0], {
@@ -230,7 +230,7 @@ describe("strictOidcUserInfo", () => {
 
   it("drops unsafe profile image URLs and rejects an oversized display name", async () => {
     userInfo.picture = "javascript:alert(1)";
-    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
     await expect(
       resolve({
         idToken: await idToken(currentKeys[0]),
@@ -250,7 +250,7 @@ describe("strictOidcUserInfo", () => {
     "drops a profile image outside the HTTPS and length policy: %s",
     async (picture) => {
       userInfo.picture = picture;
-      const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+      const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
       await expect(
         resolve({
           idToken: await idToken(currentKeys[0]),
@@ -262,7 +262,7 @@ describe("strictOidcUserInfo", () => {
 
   it("rejects a user-info response for a different subject", async () => {
     userInfo.sub = "subject-2";
-    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
     await expect(
       resolve({
         idToken: await idToken(currentKeys[0]),
@@ -272,7 +272,7 @@ describe("strictOidcUserInfo", () => {
   });
 
   it("requires this client as authorized party for multi-audience tokens", async () => {
-    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
     await expect(
       resolve({
         idToken: await idToken(currentKeys[0], {
@@ -293,7 +293,7 @@ describe("strictOidcUserInfo", () => {
   });
 
   it("rejects a mismatched authorized party even with one valid audience", async () => {
-    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
     await expect(
       resolve({
         idToken: await idToken(currentKeys[0], { azp: "another-client" }),
@@ -309,7 +309,7 @@ describe("strictOidcUserInfo", () => {
   });
 
   it("refreshes JWKS immediately when the IdP rotates to an unknown key id", async () => {
-    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
     await expect(
       resolve({
         idToken: await idToken(currentKeys[0]),
@@ -341,7 +341,7 @@ describe("strictOidcUserInfo", () => {
         }),
       ),
     );
-    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
     await expect(
       resolve({
         idToken: await idToken(currentKeys[0]),
@@ -817,7 +817,7 @@ describe("strictOidcUserInfo", () => {
       "fetch",
       vi.fn(async () => new Response(null, { status: 503 })),
     );
-    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
     await expect(
       resolve({
         idToken: await idToken(currentKeys[0]),
@@ -842,7 +842,7 @@ describe("strictOidcUserInfo", () => {
         return healthyFetch(input, init);
       }),
     );
-    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
 
     await expect(
       resolve({
@@ -865,7 +865,7 @@ describe("strictOidcUserInfo", () => {
         return healthyFetch(input, init);
       }),
     );
-    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
     const tokens = {
       idToken: await idToken(currentKeys[0]),
       accessToken: "access-token",

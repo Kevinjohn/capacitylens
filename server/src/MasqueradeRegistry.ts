@@ -47,7 +47,7 @@ export class MasqueradeRegistry {
   }
 
   /** Snapshot the handles owned by a principal for a surrounding session-deletion transaction. */
-  sessionHandlesForUser(userId: string): readonly string[] {
+  listSessionHandlesForUser(userId: string): readonly string[] {
     return [...(this.#byUser.get(userId) ?? [])];
   }
 

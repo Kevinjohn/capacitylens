@@ -1,6 +1,6 @@
 import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { BoundedWorkQueue } from "./workQueue";
-import { currentRequestAbortSignal, reportCurrentRequestQueueSaturation } from "./requestAbort";
+import { readCurrentRequestAbortSignal, reportCurrentRequestQueueSaturation } from "./requestAbort";
 
 // OWASP Password Storage Cheat Sheet minimum scrypt profile: N=2^17, r=8, p=1.
 // The format is versioned so parameters can be raised and legacy Better Auth hashes can be
@@ -41,7 +41,7 @@ export interface PasswordHasher {
 }
 
 function derive(password: string, salt: Buffer, n: number, r: number, p: number): Promise<Buffer> {
-  const signal = currentRequestAbortSignal();
+  const signal = readCurrentRequestAbortSignal();
   return scryptQueue.run(
     () =>
       new Promise((resolve, reject) => {
@@ -55,7 +55,7 @@ function derive(password: string, salt: Buffer, n: number, r: number, p: number)
 }
 
 /** Strong new hashes plus read-only compatibility with Better Auth's former `salt:key` format. */
-export function scryptPasswordHasher(n = SCRYPT_N): PasswordHasher {
+export function createScryptPasswordHasher(n = SCRYPT_N): PasswordHasher {
   if (!Number.isSafeInteger(n) || n < 2 || (n & (n - 1)) !== 0) {
     throw new RangeError("scrypt N must be a power of two greater than one.");
   }
@@ -130,7 +130,7 @@ export class PasswordPolicyDependencyError extends Error {
   readonly code = "PASSWORD_CHECK_UNAVAILABLE";
 }
 
-async function boundedResponseText(response: Response): Promise<string> {
+async function readBoundedResponseText(response: Response): Promise<string> {
   const declared = Number(response.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > MAX_HIBP_RESPONSE_BYTES) {
     await response.body?.cancel();
@@ -177,7 +177,7 @@ export async function assertPasswordNotBreached(password: string, fetcher: typeo
   const suffix = digest.slice(5);
   let responseText: string;
   try {
-    const requestSignal = currentRequestAbortSignal();
+    const requestSignal = readCurrentRequestAbortSignal();
     responseText = await hibpQueue.run(async () => {
       const timeoutSignal = AbortSignal.timeout(5_000);
       const response = await fetcher(`https://api.pwnedpasswords.com/range/${prefix}`, {
@@ -197,7 +197,7 @@ export async function assertPasswordNotBreached(password: string, fetcher: typeo
         );
       }
       try {
-        return await boundedResponseText(response);
+        return await readBoundedResponseText(response);
       } catch (cause) {
         throw new PasswordPolicyDependencyError("The breached-password response was invalid; try again later.", {
           cause,

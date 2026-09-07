@@ -17,14 +17,14 @@ import { assertMigrationValuesPreserved, captureMigrationValues } from "../src/m
 
 import { anonymise } from "./rehearse/anonymise";
 import {
-  rowCounts,
-  databaseDigest,
+  readRowCountsByTable,
+  readDatabaseDigest,
   checkIntegrity,
-  expectedPostMigrationRowCounts,
+  readExpectedPostMigrationRowCounts,
   assertPreserved,
 } from "./rehearse/rehearsalChecks";
 
-async function onlineCopy(sourcePath: string, destinationPath: string): Promise<void> {
+async function copyDatabaseOnline(sourcePath: string, destinationPath: string): Promise<void> {
   const source = new DatabaseSync(sourcePath, {
     readOnly: true,
     enableForeignKeyConstraints: false,
@@ -93,7 +93,7 @@ async function expectKilledMigrationRollsBack(path: string, targetVersion: numbe
   }
 }
 
-async function workerKill(path: string, targetVersion: number): Promise<never> {
+async function runKilledMigrationWorker(path: string, targetVersion: number): Promise<never> {
   const db = openDbConnection(path);
   try {
     initializeOpenDb(db, path, {
@@ -143,7 +143,7 @@ async function main(): Promise<void> {
   const directory = mkdtempSync(join(tmpdir(), "capacitylens-migration-rehearsal-"));
   try {
     const base = join(directory, "anonymised-source.db");
-    await onlineCopy(options.source, base);
+    await copyDatabaseOnline(options.source, base);
     const sanitising = new DatabaseSync(base, {
       enableForeignKeyConstraints: false,
     });
@@ -161,7 +161,7 @@ async function main(): Promise<void> {
           }
         ).user_version,
       );
-      expectedCounts = expectedPostMigrationRowCounts(sanitising, sourceVersion);
+      expectedCounts = readExpectedPostMigrationRowCounts(sanitising, sourceVersion);
       anonymise(sanitising);
       checkIntegrity(sanitising, "anonymised source");
       beforeVersion = Number(
@@ -171,9 +171,9 @@ async function main(): Promise<void> {
           }
         ).user_version,
       );
-      beforeCounts = rowCounts(sanitising);
+      beforeCounts = readRowCountsByTable(sanitising);
       beforeValues = captureMigrationValues(sanitising);
-      beforeDigest = databaseDigest(sanitising);
+      beforeDigest = readDatabaseDigest(sanitising);
       plan = planDatabaseMigrations(sanitising as Db);
     } finally {
       sanitising.close();
@@ -201,7 +201,7 @@ async function main(): Promise<void> {
       );
       initializeOpenDb(happy, happyPath);
       checkIntegrity(happy, "happy path");
-      assertPreserved(beforeCounts, rowCounts(happy), expectedCounts);
+      assertPreserved(beforeCounts, readRowCountsByTable(happy), expectedCounts);
       assertMigrationValuesPreserved(beforeValues, captureMigrationValues(happy), beforeVersion);
     } finally {
       happy.close();
@@ -214,7 +214,7 @@ async function main(): Promise<void> {
     });
     try {
       checkIntegrity(rollbackDb, "rollback snapshot");
-      if (databaseDigest(rollbackDb) !== beforeDigest)
+      if (readDatabaseDigest(rollbackDb) !== beforeDigest)
         throw new Error("rollback snapshot differs from anonymised source");
     } finally {
       rollbackDb.close();
@@ -245,7 +245,7 @@ async function main(): Promise<void> {
       }
       if (!failedAsExpected) throw new Error("simulated disk exhaustion unexpectedly committed");
       checkIntegrity(diskFull, "disk-exhaustion rollback");
-      if (databaseDigest(diskFull) !== beforeDigest)
+      if (readDatabaseDigest(diskFull) !== beforeDigest)
         throw new Error("disk exhaustion left a partially applied migration");
     } finally {
       diskFull.close();
@@ -276,7 +276,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (!Number.isSafeInteger(targetVersion) || targetVersion <= 0) {
       throw new Error("--worker-kill requires a positive target migration version");
     }
-    await workerKill(resolve(process.argv[3]), targetVersion);
+    await runKilledMigrationWorker(resolve(process.argv[3]), targetVersion);
   } else {
     await main();
   }

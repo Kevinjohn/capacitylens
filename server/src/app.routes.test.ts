@@ -1,6 +1,6 @@
 import type { FastifyInstance, HTTPMethods, InjectOptions, RouteOptions } from "fastify";
 import { describe, expect, it, vi } from "vitest";
-import { buildApp } from "./app";
+import { createApp } from "./app";
 import type { Auth } from "./auth";
 import { openDb } from "./db";
 
@@ -180,7 +180,7 @@ function stubAuth(): Auth {
 
 function buildTrackedApp(auth: Auth | null = null): { app: FastifyInstance; registeredRoutes: string[] } {
   const registeredRoutes: string[] = [];
-  const app = buildApp(openDb(":memory:"), {
+  const app = createApp(openDb(":memory:"), {
     allowReset: true,
     optimisticConcurrency: false,
     rateLimit: 2,
@@ -253,7 +253,7 @@ describe("buildApp route registration", () => {
     ["batchRoutes", { method: "POST", url: "/api/batch" }],
     ["importRoutes", { method: "POST", url: "/api/import" }],
   ])("keeps %s inside the rate-limited child scope", async (_module, request) => {
-    const app = buildApp(openDb(":memory:"), {
+    const app = createApp(openDb(":memory:"), {
       allowReset: true,
       optimisticConcurrency: false,
       rateLimit: 2,

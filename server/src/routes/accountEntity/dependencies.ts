@@ -28,7 +28,7 @@ export interface AccountEntityRouteDependencies {
   /** The strict variant: a complete, well-formed header pair or null (never throws). */
   replayCommand: (req: FastifyRequest) => CommandIdentity | null;
   fieldVisibility: (req: FastifyRequest, table: string, accountId: unknown) => SanitizeWriteOptions;
-  redact: (table: string, row: Record<string, unknown>, vis: SanitizeWriteOptions) => Record<string, unknown>;
+  redact: (table: string, row: Record<string, unknown>, visibility: SanitizeWriteOptions) => Record<string, unknown>;
   commitProductAudit: (reply: FastifyReply, record: AuditRecord, mutation: () => void) => boolean;
   drainProductAudit: (reply: FastifyReply) => boolean;
   /** Tenant-ownership predicate shared with every other mutating route (app.ts owns it). */

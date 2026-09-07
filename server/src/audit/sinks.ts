@@ -4,7 +4,7 @@ import { MAX_RECOVERY_DELIVERY_IDS, type AuditSink } from "./types";
  * the factory default (buildApp) so the default local/no-server deploy and the whole test suite are
  * byte-identical unless a real sink is explicitly injected.
  */
-export function noopAuditSink(): AuditSink {
+export function createNoopAuditSink(): AuditSink {
   return {
     append: () => true,
     appendMany: () => true,
@@ -19,7 +19,7 @@ export function noopAuditSink(): AuditSink {
  * already emitted, amplifying stdout copies. A bounded set of recently emitted auditIds makes
  * redelivery a no-op; beyond the window, at-worst-duplicate delivery resumes (stdout is the
  * best-effort copy — the durable JSONL file is the evidence of record). */
-export function streamAuditSink(write: (line: string) => void): AuditSink {
+export function createStreamAuditSink(write: (line: string) => void): AuditSink {
   let degraded = false;
   const recentlyEmitted = new Set<string>();
   const remember = (auditId: string | undefined) => {
@@ -59,7 +59,7 @@ export function streamAuditSink(write: (line: string) => void): AuditSink {
 }
 
 /** Require all configured destinations to accept a record; degradation is the union of sinks. */
-export function compositeAuditSink(...sinks: AuditSink[]): AuditSink {
+export function createCompositeAuditSink(...sinks: AuditSink[]): AuditSink {
   return {
     append(record) {
       return sinks.map((sink) => sink.append(record)).every(Boolean);

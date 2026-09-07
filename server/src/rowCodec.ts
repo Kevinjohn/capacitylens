@@ -16,8 +16,8 @@ function toCell(c: TableSpec["columns"][number], v: unknown): SQLInputValue {
 }
 
 /** Object → SQL row: the cell array in the spec's column order, ready to spread into run(). */
-export function toRow(spec: TableSpec, obj: Row): SQLInputValue[] {
-  return spec.columns.map((c) => toCell(c, obj[c.name]));
+export function toRow(spec: TableSpec, row: Row): SQLInputValue[] {
+  return spec.columns.map((c) => toCell(c, row[c.name]));
 }
 
 /** SQL row → object: JSON-decode json columns, drop NULL optionals so the result
@@ -30,16 +30,16 @@ export function toRow(spec: TableSpec, obj: Row): SQLInputValue[] {
  *    (the data-corruption anti-goal), and a bare JSON.parse throw would surface only as
  *    an opaque 500 with no clue WHICH row is bad. Naming table.column.id makes it diagnosable. */
 export function fromRow(spec: TableSpec, row: Row): Row {
-  const obj: Row = {};
+  const decodedRow: Row = {};
   for (const c of spec.columns) {
     const v = row[c.name];
     if (v === null || v === undefined) {
-      if (!c.optional || (v === null && c.preserveNull)) obj[c.name] = v;
+      if (!c.optional || (v === null && c.preserveNull)) decodedRow[c.name] = v;
       continue;
     }
     if (c.json) {
       try {
-        obj[c.name] = JSON.parse(v as string);
+        decodedRow[c.name] = JSON.parse(v as string);
       } catch (e) {
         const id = typeof row.id === "string" ? row.id : "?";
         throw new Error(
@@ -48,8 +48,8 @@ export function fromRow(spec: TableSpec, row: Row): Row {
         );
       }
     } else {
-      obj[c.name] = v;
+      decodedRow[c.name] = v;
     }
   }
-  return obj;
+  return decodedRow;
 }

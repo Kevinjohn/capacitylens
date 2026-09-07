@@ -1,7 +1,7 @@
 import { Worker } from "node:worker_threads";
 import type { ImportWorkerRequest, ImportWorkerResult } from "./importWorker";
-import { currentRequestAbortSignal, reportCurrentRequestQueueSaturation } from "./requestAbort";
-import { abortReason, BoundedWorkQueue } from "./workQueue";
+import { readCurrentRequestAbortSignal, reportCurrentRequestQueueSaturation } from "./requestAbort";
+import { readAbortReason, BoundedWorkQueue } from "./workQueue";
 
 export const MAX_CONCURRENT_IMPORT_WORKERS = 2;
 export const MAX_QUEUED_IMPORT_WORKERS = 8;
@@ -29,7 +29,7 @@ export interface ImportWorkerRunnerOptions {
   createWorker?: () => ImportWorkerThread;
 }
 
-function defaultWorker(): Worker {
+function createDefaultWorker(): Worker {
   const sourceRuntime = import.meta.url.endsWith(".ts");
   return new Worker(new URL(sourceRuntime ? "./importWorker.ts" : "./importWorker.mjs", import.meta.url), {
     execArgv: sourceRuntime ? ["--import", "tsx"] : [],
@@ -42,7 +42,7 @@ function executeImportWorker(
   createWorker: () => ImportWorkerThread,
 ): Promise<ImportWorkerResult> {
   return new Promise((resolve, reject) => {
-    if (signal?.aborted) return reject(abortReason(signal));
+    if (signal?.aborted) return reject(readAbortReason(signal));
     const worker = createWorker();
     let settled = false;
     const finish = (error?: Error, result?: ImportWorkerResult) => {
@@ -60,7 +60,7 @@ function executeImportWorker(
       // Do not release the bounded queue slot until the thread has actually stopped. Otherwise a
       // burst of disconnected requests could exceed the configured active-worker ceiling.
       void worker.terminate().then(
-        () => reject(abortReason(signal!)),
+        () => reject(readAbortReason(signal!)),
         (error: unknown) => reject(error),
       );
     };
@@ -92,8 +92,8 @@ export function createImportWorkerRunner(options: ImportWorkerRunnerOptions = {}
       onSaturated: (reason) => reportCurrentRequestQueueSaturation("import", reason),
     },
   );
-  const createWorker = options.createWorker ?? defaultWorker;
-  return (request: ImportWorkerRequest, signal: AbortSignal | undefined = currentRequestAbortSignal()) =>
+  const createWorker = options.createWorker ?? createDefaultWorker;
+  return (request: ImportWorkerRequest, signal: AbortSignal | undefined = readCurrentRequestAbortSignal()) =>
     queue.run(() => executeImportWorker(request, signal, createWorker), signal);
 }
 

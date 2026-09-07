@@ -2,7 +2,7 @@ import type { Db } from "../../db";
 import { removePrincipalSessionAssurance, removeSecurityRevision } from "../state";
 import type { IdentityTableProbes } from "./contracts";
 import type { MasqueradeSessionLifecycle } from "./contracts";
-import { accountLinkUserId } from "./verificationState";
+import { parseAccountLinkUserId } from "./verificationState";
 
 export function createErasure(
   tables: Pick<
@@ -49,7 +49,7 @@ export function createErasure(
           verificationIds.push(row.id);
           continue;
         }
-        const linkedPrincipalId = accountLinkUserId(row.value);
+        const linkedPrincipalId = parseAccountLinkUserId(row.value);
         if (linkedPrincipalId !== null && principals.has(linkedPrincipalId)) {
           verificationIds.push(row.id);
         }

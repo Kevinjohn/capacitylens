@@ -8,7 +8,7 @@ import {
 import type { ValidationDataLookup } from "@capacitylens/shared/domain/mutations";
 import type { RewrittenAllocationRevision } from "./db";
 import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
-import { nextServerRevision } from "./revision";
+import { createServerRevision } from "./revision";
 
 type ProjectionRow = Record<string, unknown> & { id: string };
 type DeleteAction = "cascade" | "set-null";
@@ -47,7 +47,7 @@ const RELATIONSHIPS: Relationship[] = [
   { parent: "activities", child: "allocations", field: "activityId", onDelete: "cascade" },
 ];
 
-const rowsFor = (data: AppData, table: AppDataKey): ProjectionRow[] => data[table] as unknown as ProjectionRow[];
+const resolveRows = (data: AppData, table: AppDataKey): ProjectionRow[] => data[table] as unknown as ProjectionRow[];
 
 /**
  * Mutable, transaction-local AppData projection for POST /api/batch.
@@ -69,7 +69,7 @@ export class BatchStateProjection implements ValidationDataLookup {
     this.rowIndexes = Object.fromEntries(
       APP_DATA_KEYS.map((table) => [
         table,
-        new Map(rowsFor(data, table).map((row, index) => [row.id, index] as const)),
+        new Map(resolveRows(data, table).map((row, index) => [row.id, index] as const)),
       ]),
     ) as Record<AppDataKey, Map<string, number>>;
     this.relationshipIndexes = RELATIONSHIPS.map((relationship) => ({
@@ -77,7 +77,7 @@ export class BatchStateProjection implements ValidationDataLookup {
       childrenByParent: new Map(),
     }));
     for (const relationshipIndex of this.relationshipIndexes) {
-      for (const row of rowsFor(data, relationshipIndex.relationship.child)) {
+      for (const row of resolveRows(data, relationshipIndex.relationship.child)) {
         this.addRelationship(relationshipIndex, row);
       }
     }
@@ -114,11 +114,11 @@ export class BatchStateProjection implements ValidationDataLookup {
     }
 
     this.attributionClearedActivityIds.add(activityId);
-    const relationship = this.findRelationshipIndex("activities", "allocations", "activityId");
+    const relationship = this.resolveRelationshipIndex("activities", "allocations", "activityId");
     for (const allocationId of relationship?.childrenByParent.get(activityId) ?? []) {
       const allocation = this.row("allocations", allocationId);
       if (!allocation || allocation.projectId === undefined) continue;
-      const updatedAt = nextServerRevision(allocation.updatedAt);
+      const updatedAt = createServerRevision(allocation.updatedAt);
       this.upsertProjectedRow("allocations", withoutAllocationAttribution(allocation, updatedAt));
       this.attributionRewrites.set(allocationId, {
         id: allocationId,
@@ -156,7 +156,7 @@ export class BatchStateProjection implements ValidationDataLookup {
     // Defensive re-check: see the matching comment in upsert() — sanitizeWrite's assertIdPresent
     // already guarantees this upstream of every caller.
     if (typeof row.id !== "string") throw new Error("Batch projection rows require a string id.");
-    const projectRelationship = this.findRelationshipIndex("clients", "projects", "clientId");
+    const projectRelationship = this.resolveRelationshipIndex("clients", "projects", "clientId");
     const projectIds = [...(projectRelationship?.childrenByParent.get(generatedId) ?? [])];
     for (const projectId of projectIds) {
       const project = this.row("projects", projectId);
@@ -168,7 +168,7 @@ export class BatchStateProjection implements ValidationDataLookup {
 
   row(table: AppDataKey, id: string): ProjectionRow | undefined {
     const index = this.rowIndexes[table].get(id);
-    return index === undefined ? undefined : rowsFor(this.data, table)[index];
+    return index === undefined ? undefined : resolveRows(this.data, table)[index];
   }
 
   resourceHasLoadedAllocation(accountId: string, resourceId: string): boolean {
@@ -194,7 +194,7 @@ export class BatchStateProjection implements ValidationDataLookup {
   }
 
   private relatedRows(parent: AppDataKey, child: AppDataKey, field: string, parentId: string): ProjectionRow[] {
-    const relationship = this.findRelationshipIndex(parent, child, field);
+    const relationship = this.resolveRelationshipIndex(parent, child, field);
     if (!relationship) return [];
     return [...(relationship.childrenByParent.get(parentId) ?? [])].flatMap((id) => {
       const row = this.row(child, id);
@@ -203,7 +203,11 @@ export class BatchStateProjection implements ValidationDataLookup {
   }
 
   /** Shared by relatedRows and replaceGeneratedBuiltin's reparent lookup. */
-  private findRelationshipIndex(parent: AppDataKey, child: AppDataKey, field: string): RelationshipIndex | undefined {
+  private resolveRelationshipIndex(
+    parent: AppDataKey,
+    child: AppDataKey,
+    field: string,
+  ): RelationshipIndex | undefined {
     return this.relationshipIndexes.find(
       ({ relationship }) =>
         relationship.parent === parent && relationship.child === child && relationship.field === field,
@@ -222,7 +226,7 @@ export class BatchStateProjection implements ValidationDataLookup {
     const indexes = this.rowIndexes[table];
     const index = indexes.get(id);
     if (index === undefined) return;
-    const rows = rowsFor(this.data, table);
+    const rows = resolveRows(this.data, table);
     const removed = rows[index];
     if (table === "allocations") this.attributionRewrites.delete(id);
     this.removeChildRelationships(table, removed);
@@ -243,7 +247,7 @@ export class BatchStateProjection implements ValidationDataLookup {
   }
 
   private upsertProjectedRow(table: AppDataKey, row: Record<string, unknown>): void {
-    const rows = rowsFor(this.data, table);
+    const rows = resolveRows(this.data, table);
     const next = row as ProjectionRow;
     const index = this.rowIndexes[table].get(next.id);
     if (index === undefined) {

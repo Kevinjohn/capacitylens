@@ -6,8 +6,8 @@ import { openDbConnection, planDatabaseMigrations, type Db } from "./db";
 import {
   DEFAULT_ACCOUNT_APPLICATION,
   RESET_LINK_TTL_SECONDS,
-  authFromEnv,
-  findUserIdsByEmail,
+  createAuthFromEnvironment,
+  listUserIdsByEmail,
   mintPasswordResetToken,
   planAuthSchemaMigrations,
   revokeResetTokensForUser,
@@ -92,7 +92,7 @@ export async function resetOwnerPassword(input: OwnerRecoveryInput): Promise<Own
     // The Auth instance rides the tool's exclusively-locked connection; a second connection would
     // deadlock against our own interlock. deferDatabaseSetup: this tool performs no schema or
     // provider-binding writes.
-    const { auth } = authFromEnv(db, env, { deferDatabaseSetup: true });
+    const { auth } = createAuthFromEnvironment(db, env, { deferDatabaseSetup: true });
     if (!auth) throw new Error("Better Auth did not initialize for password mode.");
     const authPlan = await planAuthSchemaMigrations(auth);
     if (authPlan.pending) {
@@ -102,7 +102,7 @@ export async function resetOwnerPassword(input: OwnerRecoveryInput): Promise<Own
       );
     }
 
-    const matches = findUserIdsByEmail(db, email, 2);
+    const matches = listUserIdsByEmail(db, email, 2);
     if (matches.length !== 1) {
       throw new Error(
         matches.length === 0

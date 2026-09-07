@@ -17,7 +17,7 @@ import { assertWorkspaceProvisioningAllowedInTx, withMembershipSnapshotRetry } f
 import type { LocalAccountFlowContext } from "./context";
 import { isAuthorityDenial } from "./failures";
 
-export function workspaceLifecycle(
+export function createWorkspaceLifecycleFlows(
   context: LocalAccountFlowContext,
 ): Pick<
   LocalAccountFlows,

@@ -15,7 +15,7 @@ export function replyHelpers(dependencies: AccountRouteDependencies) {
   const validationFailed = (message: string) =>
     new AccountContractError({ code: "VALIDATION_FAILED", message, retryable: false });
 
-  const memberNotFound = (command: CommandIdentity) =>
+  const createMemberNotFoundError = (command: CommandIdentity) =>
     new AccountContractError({
       code: "NOT_FOUND",
       message: "Not a member of this account.",
@@ -78,13 +78,13 @@ export function replyHelpers(dependencies: AccountRouteDependencies) {
       workspaceId: accountId,
       includeInactive: true,
     });
-    if (!membership) accountFail(reply, memberNotFound(command));
+    if (!membership) accountFail(reply, createMemberNotFoundError(command));
     return membership;
   };
   return {
     isKnownRole,
     validationFailed,
-    memberNotFound,
+    memberNotFound: createMemberNotFoundError,
     auditUnlessReplayed,
     rejectTrustedLocalMemberMutation,
     authorizeMemberMutation,

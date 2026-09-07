@@ -10,7 +10,7 @@ export interface ExternalIdentityCandidate {
  * principal. Identity storage owns the "first principal" fact; the account adapter owns the
  * invitation fact. Email authorizes admission but is never the durable link key.
  */
-export function localExternalIdentityAdmission(input: {
+export function canAdmitLocalExternalIdentity(input: {
   bootstrapEmails: string | undefined;
   candidate: ExternalIdentityCandidate;
   identityHasAnyPrincipal: () => boolean;

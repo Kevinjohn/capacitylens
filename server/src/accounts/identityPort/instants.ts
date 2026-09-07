@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { invalidProviderSession } from "./vendorErrors";
+import { createInvalidProviderSessionError } from "./vendorErrors";
 
-export function stableFallbackSessionId(applicationId: string, principalId: string, createdAt: string): string {
+export function buildStableFallbackSessionId(applicationId: string, principalId: string, createdAt: string): string {
   return createHash("sha256")
     .update(`${applicationId}-session-id\0`)
     .update(principalId)
@@ -10,19 +10,19 @@ export function stableFallbackSessionId(applicationId: string, principalId: stri
     .digest("base64url");
 }
 
-export function iso(value: string | number): string {
-  return new Date(timestampMs(value)).toISOString();
+export function buildIsoInstant(value: string | number): string {
+  return new Date(parseTimestampMilliseconds(value)).toISOString();
 }
 
-export function timestampMs(value: string | number): number {
+export function parseTimestampMilliseconds(value: string | number): number {
   const numeric = typeof value === "string" && /^\d+$/.test(value) ? Number(value) : value;
   return typeof numeric === "number" && numeric < 10_000_000_000 ? numeric * 1000 : new Date(numeric).getTime();
 }
 
-export function providerInstant(value: string | number, field: "createdAt" | "expiresAt"): string {
-  const milliseconds = timestampMs(value);
+export function parseProviderInstant(value: string | number, field: "createdAt" | "expiresAt"): string {
+  const milliseconds = parseTimestampMilliseconds(value);
   if (!Number.isFinite(milliseconds)) {
-    throw invalidProviderSession(`The provider session has an invalid ${field} timestamp.`);
+    throw createInvalidProviderSessionError(`The provider session has an invalid ${field} timestamp.`);
   }
   return new Date(milliseconds).toISOString();
 }

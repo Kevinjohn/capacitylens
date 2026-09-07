@@ -8,15 +8,15 @@ import {
   openDb as openDbRaw,
   insertAll,
   insertRow,
-  loadState,
+  readState,
   readFullSlice,
   readSlice,
   replaceAccountSlice,
   type CompleteAccountSlice,
   type Db,
-  validatedCompleteAccountSlice,
+  buildCompleteAccountSlice,
 } from "./db";
-import { sqliteTenantStore } from "./tenantStore";
+import { createSqliteTenantStore } from "./tenantStore";
 import { tx } from "./txn";
 
 const openDatabases = new Set<Db>();
@@ -278,7 +278,7 @@ describe("replaceAccountSlice", () => {
     next.resources = [person("r1", "a1", "d1")];
     next.activities = [activity("act1", "a1", "p1")];
     next.allocations = [allocation("al1b", "a1", "r1", "act1")];
-    replaceAccountSlice(db, "a1", validatedCompleteAccountSlice(next as unknown as AppData));
+    replaceAccountSlice(db, "a1", buildCompleteAccountSlice(next as unknown as AppData));
 
     const a1 = readSlice(db, "a1", FULL);
     expect(a1.allocations.map((row) => row.id)).toEqual(["al1b"]);
@@ -291,7 +291,7 @@ describe("replaceAccountSlice", () => {
       expect((a2[key][0] as { accountId: string }).accountId).toBe("a2");
     }
     expect(
-      loadState(db)
+      readState(db)
         .accounts.map((accountRow) => accountRow.id)
         .sort(),
     ).toEqual(["a1", "a2"]);
@@ -301,7 +301,7 @@ describe("replaceAccountSlice", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
     const before = readFullSlice(db, "a1");
-    const invalid = validatedCompleteAccountSlice({
+    const invalid = buildCompleteAccountSlice({
       ...before,
       allocations: before.allocations.map((row) => ({
         ...row,
@@ -319,7 +319,7 @@ describe("sqliteTenantStore", () => {
   it("keeps projected reads type-incompatible with complete replacement input", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
-    const store = sqliteTenantStore(db);
+    const store = createSqliteTenantStore(db);
 
     expectTypeOf(store.readSlice("a1", FULL)).not.toMatchTypeOf<CompleteAccountSlice>();
     expectTypeOf(store.readFullSlice("a1")).toMatchTypeOf<CompleteAccountSlice>();
@@ -329,7 +329,7 @@ describe("sqliteTenantStore", () => {
   it("readSlice(id) equals the standalone readSlice(db, id)", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
-    const storeSlice = sqliteTenantStore(db).readSlice("a1", FULL);
+    const storeSlice = createSqliteTenantStore(db).readSlice("a1", FULL);
     expect(storeSlice).toEqual(readSlice(db, "a1", FULL));
   });
 
@@ -349,7 +349,7 @@ describe("sqliteTenantStore", () => {
         BEGIN INSERT INTO lifecycle_writes VALUES ('delete', '${table}', OLD.id); END;
       `);
     }
-    const store = sqliteTenantStore(db);
+    const store = createSqliteTenantStore(db);
     const row = store.readLifecycleRow("a1", "resources", "r1");
     expect(row).toBeDefined();
 
@@ -368,7 +368,7 @@ describe("sqliteTenantStore", () => {
   it("serves indexed mutation-validation lookups without crossing tenant boundaries", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
-    const lookup = sqliteTenantStore(db).validationLookup?.();
+    const lookup = createSqliteTenantStore(db).validationLookup?.();
 
     expect(lookup?.row("resources", "r1")).toMatchObject({ id: "r1", accountId: "a1" });
     expect(lookup?.allocationsForResource("a1", "r1").map((row) => row.id)).toEqual(["al1"]);
@@ -387,7 +387,7 @@ describe("sqliteTenantStore", () => {
     const data = seedTwoAccounts() as unknown as Record<string, unknown[]>;
     data.timeOff = [timeOff("to1", "a1", "r1", "private-a1"), timeOff("to2", "a2", "r2", "private-a2")];
     insertAll(db, data as unknown as AppData);
-    const store = sqliteTenantStore(db);
+    const store = createSqliteTenantStore(db);
 
     expect(store.scrubResourceNotes("a1", "r1")).toEqual({ allocationNotes: true, timeOffNotes: true });
     const a1 = store.readSlice("a1", FULL);
@@ -407,7 +407,7 @@ describe("sqliteTenantStore", () => {
     const data = seedTwoAccounts() as unknown as Record<string, unknown[]>;
     data.resources = [{ ...person("r1", "a1", "d1"), projectId: "p1" }, person("r2", "a2", "d2")];
     insertAll(db, data as unknown as AppData);
-    const store = sqliteTenantStore(db);
+    const store = createSqliteTenantStore(db);
 
     expect(store.purgeLifecycleRow("a1", entity, id)).toEqual({ removedCounts: counts });
     const survivor = store.readLifecycleRow("a1", "resources", "r1");
@@ -577,7 +577,7 @@ describe("readSlice — P2.4 lifecycle projection (includeInactive)", () => {
   it("the rows remain in the DB (retained) — the WHOLE-tree loadState still sees every row", () => {
     const db = seedLifecycleMix();
     // The projection narrows the READ only; nothing is deleted. loadState (export/OFF whole read) keeps all.
-    const all = loadState(db);
+    const all = readState(db);
     expect(all.resources.filter((r) => r.accountId === "a1").length).toBe(2);
     expect(all.clients.filter((c) => c.accountId === "a1").length).toBe(2);
     expect(all.projects.filter((p) => p.accountId === "a1").length).toBe(2);

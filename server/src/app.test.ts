@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
-import { buildApp, statusFor, MAX_BATCH_OPS, type AppOptions } from "./app";
+import { createApp, resolveErrorStatus, MAX_BATCH_OPS, type AppOptions } from "./app";
 import { ValidationError } from "./validate";
 import { getRow, insertRow, openDb, upsertRow, type Db } from "./db";
 import { tx } from "./txn";
@@ -54,7 +54,7 @@ function deferred() {
 function freshApp(allowReset = true, extra: Partial<AppOptions> = {}) {
   const db = openDb(":memory:");
   return {
-    app: buildApp(db, { allowReset, optimisticConcurrency: false, ...extra }),
+    app: createApp(db, { allowReset, optimisticConcurrency: false, ...extra }),
     db,
   };
 }
@@ -1856,7 +1856,7 @@ describe("tenant-scoped mutation projections", () => {
 
   it("does not materialize unrelated tables for empty/single-account batches or import", async () => {
     const { db, raw, fullTableSelects } = dbTrackingFullTableSelects();
-    const app = buildApp(db, {
+    const app = createApp(db, {
       multiAccount: true,
       optimisticConcurrency: false,
     });
@@ -1924,7 +1924,7 @@ describe("guards", () => {
   });
 
   it("reset is 403 unless allowed, then wipes + re-seeds", async () => {
-    const locked = buildApp(openDb(":memory:"), { allowReset: false });
+    const locked = createApp(openDb(":memory:"), { allowReset: false });
     expect(
       (
         await call(locked, {
@@ -2349,9 +2349,9 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
 
 describe("error status mapping (statusFor)", () => {
   it("maps validation + constraint errors to 400 and unexpected errors to 500", () => {
-    expect(statusFor(new ValidationError("bad ref"))).toBe(400);
+    expect(resolveErrorStatus(new ValidationError("bad ref"))).toBe(400);
     expect(
-      statusFor(
+      resolveErrorStatus(
         Object.assign(new Error("FOREIGN KEY constraint failed"), {
           code: "ERR_SQLITE_ERROR",
           errcode: 787,
@@ -2359,7 +2359,7 @@ describe("error status mapping (statusFor)", () => {
       ),
     ).toBe(400);
     expect(
-      statusFor(
+      resolveErrorStatus(
         Object.assign(new Error("NOT NULL constraint failed: resources.role"), {
           code: "ERR_SQLITE_ERROR",
           errcode: 1299,
@@ -2367,16 +2367,16 @@ describe("error status mapping (statusFor)", () => {
       ),
     ).toBe(400);
     expect(
-      statusFor(
+      resolveErrorStatus(
         Object.assign(new Error("forced erasure failure"), {
           code: "ERR_SQLITE_ERROR",
           errcode: 1811,
         }),
       ),
     ).toBe(500);
-    expect(statusFor(new Error("upstream constraint failed unexpectedly"))).toBe(500);
-    expect(statusFor(new Error("something unexpected blew up"))).toBe(500);
-    expect(statusFor("a string")).toBe(500);
+    expect(resolveErrorStatus(new Error("upstream constraint failed unexpectedly"))).toBe(500);
+    expect(resolveErrorStatus(new Error("something unexpected blew up"))).toBe(500);
+    expect(resolveErrorStatus("a string")).toBe(500);
   });
 
   // PINNING TEST: these trigger real node:sqlite violations so the classifier stays tied to the
@@ -2394,7 +2394,7 @@ describe("error status mapping (statusFor)", () => {
     const expectConstraint = (error: Error): void => {
       expect(error).toMatchObject({ code: "ERR_SQLITE_ERROR" });
       expect((error as Error & { errcode: number }).errcode & 0xff).toBe(19);
-      expect(statusFor(error)).toBe(400);
+      expect(resolveErrorStatus(error)).toBe(400);
     };
 
     it("maps a real NOT NULL violation to 400", () => {
@@ -2428,7 +2428,7 @@ describe("error status mapping (statusFor)", () => {
 
 describe("global error redaction", () => {
   it("does not trust an arbitrary sub-500 statusCode as proof that its message is public", async () => {
-    const app = buildApp(openDb(":memory:"));
+    const app = createApp(openDb(":memory:"));
     const sentinel = "PRIVATE schema path /srv/capacitylens.db clients.color";
     const cause = Object.assign(new Error(sentinel), { statusCode: 400 });
     const constraintPhraseCause = new Error("upstream constraint failed unexpectedly");
@@ -2501,11 +2501,11 @@ describe("CORS allow-list", () => {
   });
 
   it("rejects '*' because credentialed CORS requires explicit origins", () => {
-    expect(() => buildApp(openDb(":memory:"), { corsOrigin: "*" })).toThrow(/explicit/i);
+    expect(() => createApp(openDb(":memory:"), { corsOrigin: "*" })).toThrow(/explicit/i);
   });
 
   it("normalizes harmless origin spellings and rejects non-origin URLs at startup", async () => {
-    const app = buildApp(openDb(":memory:"), {
+    const app = createApp(openDb(":memory:"), {
       corsOrigin: "HTTPS://APP.EXAMPLE.COM:443/,http://localhost:80",
     });
 
@@ -2530,12 +2530,12 @@ describe("CORS allow-list", () => {
       "https://app.example.com?query=1",
       "https://app.example.com#fragment",
     ]) {
-      expect(() => buildApp(openDb(":memory:"), { corsOrigin })).toThrow(/bare HTTP\(S\) origin/i);
+      expect(() => createApp(openDb(":memory:"), { corsOrigin })).toThrow(/bare HTTP\(S\) origin/i);
     }
   });
 
   it("reflects an allowed origin and omits the header for a disallowed one", async () => {
-    const app = buildApp(openDb(":memory:"), {
+    const app = createApp(openDb(":memory:"), {
       corsOrigin: "http://good.test,http://also.test",
     });
     const ok = await call(app, {
@@ -2629,7 +2629,7 @@ describe("CORS allow-list", () => {
   });
 
   it("accepts the packaged same-origin proxy path without requiring a redundant CORS allow-list", async () => {
-    const app = buildApp(openDb(":memory:"), {
+    const app = createApp(openDb(":memory:"), {
       allowReset: true,
       corsOrigin: "",
       trustProxyHeaders: true,
@@ -2649,7 +2649,7 @@ describe("CORS allow-list", () => {
   });
 
   it("falls back to exact trusted-proxy scheme and Host comparison without Fetch Metadata", async () => {
-    const app = buildApp(openDb(":memory:"), {
+    const app = createApp(openDb(":memory:"), {
       allowReset: true,
       corsOrigin: "",
       trustProxyHeaders: true,
@@ -2671,7 +2671,7 @@ describe("CORS allow-list", () => {
     // so it must pass the gate even when the browser labels the request Sec-Fetch-Site: cross-site
     // (the legitimate configured cross-origin call). The old gate 403'd it on the fetchSite clause
     // despite the allow-list match; now the allow-listed Origin is reflected and the write proceeds.
-    const app = buildApp(openDb(":memory:"), {
+    const app = createApp(openDb(":memory:"), {
       allowReset: true,
       corsOrigin: "https://app.example.com",
     });
@@ -2690,7 +2690,7 @@ describe("CORS allow-list", () => {
   it("still 403s a genuinely cross-site write from a NON-listed Origin", async () => {
     // The allow-list exemption is exact-match only; an Origin that is neither allow-listed nor
     // same-origin, carrying a cross-site signal, remains a hard 403.
-    const app = buildApp(openDb(":memory:"), {
+    const app = createApp(openDb(":memory:"), {
       allowReset: true,
       corsOrigin: "https://app.example.com",
     });
@@ -2712,7 +2712,7 @@ describe("CORS allow-list", () => {
     // behind the proxy). When the Origin's host:port matches our Host and the ONLY difference is
     // that scheme upgrade, it is same-origin — the browser sets the Origin host, so it can't be
     // forged from another site. No allow-list entry and no trustProxyHeaders here.
-    const app = buildApp(openDb(":memory:"), {
+    const app = createApp(openDb(":memory:"), {
       allowReset: true,
       corsOrigin: "",
     });
@@ -2729,7 +2729,7 @@ describe("CORS allow-list", () => {
 
   it("still 403s when the https Origin host does NOT match the request Host", async () => {
     // The scheme-upgrade exemption is host-pinned: a mismatched host stays a cross-site 403.
-    const app = buildApp(openDb(":memory:"), {
+    const app = createApp(openDb(":memory:"), {
       allowReset: true,
       corsOrigin: "",
     });
@@ -2750,7 +2750,7 @@ describe("CORS allow-list", () => {
     // `new URL` rejects — here 'exa mple.com' (embedded space). That reconstruct MUST be guarded: an
     // unparseable Host is "cannot prove same-origin" → fail closed → clean cross-site 403. A refactor
     // once moved the reconstruct out of the try/catch, turning this into an uncaught TypeError → 500.
-    const app = buildApp(openDb(":memory:"), {
+    const app = createApp(openDb(":memory:"), {
       allowReset: true,
       corsOrigin: "",
     });
@@ -2766,7 +2766,7 @@ describe("CORS allow-list", () => {
   it("returns a clean 403 for other unparseable Host shapes from a broken proxy", async () => {
     // Same total-function guarantee across the other Host shapes a broken proxy can emit: a lone '['
     // (unterminated IPv6 bracket) and a double-port 'host:port:port'. Every one fails closed to 403.
-    const app = buildApp(openDb(":memory:"), {
+    const app = createApp(openDb(":memory:"), {
       allowReset: true,
       corsOrigin: "",
     });
@@ -2819,7 +2819,7 @@ describe("sensitive response caching", () => {
 
 describe("optimistic concurrency (default-on)", () => {
   it("rejects a stale PUT with 409 when enabled; allows same/newer", async () => {
-    const app = buildApp(openDb(":memory:"), { optimisticConcurrency: true });
+    const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
     // Store a client at T2.
     const created = await put(app, "clients", "c1", {
@@ -2845,7 +2845,7 @@ describe("optimistic concurrency (default-on)", () => {
   });
 
   it("rejects a stale PATCH and accepts one carrying the current server revision", async () => {
-    const app = buildApp(openDb(":memory:"), { optimisticConcurrency: true });
+    const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
     const created = await put(app, "clients", "c1", client("c1", "a1"));
     const stale = await patch(app, "clients", "c1", {
@@ -2863,7 +2863,7 @@ describe("optimistic concurrency (default-on)", () => {
   });
 
   it("can be explicitly disabled for a trusted single-writer deployment", async () => {
-    const app = buildApp(openDb(":memory:"), { optimisticConcurrency: false });
+    const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
     await put(app, "clients", "c1", {
       ...client("c1", "a1"),
@@ -2883,7 +2883,7 @@ describe("optimistic concurrency (default-on)", () => {
   // on). The 409 carries the stored row as `current`, and — the batch being one tx — rolls the
   // WHOLE batch back, sibling ops included.
   it("batch: rejects a stale PUT op with 409 + current when enabled, rolling back the WHOLE batch", async () => {
-    const app = buildApp(openDb(":memory:"), { optimisticConcurrency: true });
+    const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
     const created = await put(app, "clients", "c1", {
       ...client("c1", "a1"),
@@ -2923,7 +2923,7 @@ describe("optimistic concurrency (default-on)", () => {
   });
 
   it("batch: a fresh (same/newer updatedAt) PUT op passes with the flag on", async () => {
-    const app = buildApp(openDb(":memory:"), { optimisticConcurrency: true });
+    const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
     const created = await put(app, "clients", "c1", {
       ...client("c1", "a1"),
@@ -2954,7 +2954,7 @@ describe("optimistic concurrency (default-on)", () => {
   });
 
   it("rejects existing-row PUTs that omit the required revision precondition", async () => {
-    const app = buildApp(openDb(":memory:"), { optimisticConcurrency: true });
+    const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
     await put(app, "clients", "c1", {
       ...client("c1", "a1"),
@@ -2980,7 +2980,7 @@ describe("optimistic concurrency (default-on)", () => {
   });
 
   it("rejects a future-authored revision instead of treating it as fresher than the server", async () => {
-    const app = buildApp(openDb(":memory:"), { optimisticConcurrency: true });
+    const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
     await put(app, "clients", "c1", client("c1", "a1"));
 
@@ -2998,7 +2998,7 @@ describe("optimistic concurrency (default-on)", () => {
     // The PATCH route calls isStaleWrite unconditionally; a partial PATCH legitimately omits
     // updatedAt, so it must NOT be treated as a stale conflict — otherwise every ordinary partial
     // edit 409s. Restored documented semantics: no incoming updatedAt ⇒ no basis for a conflict.
-    const app = buildApp(openDb(":memory:"), { optimisticConcurrency: true });
+    const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
     await put(app, "clients", "c1", client("c1", "a1"));
     const res = await patch(app, "clients", "c1", { name: "Renamed" });
@@ -3008,7 +3008,7 @@ describe("optimistic concurrency (default-on)", () => {
   });
 
   it("rejects null for a required PATCH field without rewriting the stored value", async () => {
-    const app = buildApp(openDb(":memory:"));
+    const app = createApp(openDb(":memory:"));
     await post(app, "accounts", account("a1"));
     await put(app, "clients", "c1", client("c1", "a1"));
 
@@ -3025,7 +3025,7 @@ describe("optimistic concurrency (default-on)", () => {
     // With the fix an unparseable stored side is simply "no basis for a conflict", so the write
     // proceeds and the server re-stamps a fresh valid updatedAt.
     const db = openDb(":memory:");
-    const app = buildApp(db, { optimisticConcurrency: true });
+    const app = createApp(db, { optimisticConcurrency: true });
     insertRow(db, "accounts", account("a1"));
     insertRow(db, "clients", {
       ...client("c1", "a1"),
@@ -3044,7 +3044,7 @@ describe("optimistic concurrency (default-on)", () => {
     "repairs an unincrementable or expanded stored revision through the API: %s",
     async (storedRevision) => {
       const db = openDb(":memory:");
-      const app = buildApp(db, { optimisticConcurrency: false });
+      const app = createApp(db, { optimisticConcurrency: false });
       insertRow(db, "accounts", account("a1"));
       insertRow(db, "clients", { ...client("c1", "a1"), updatedAt: storedRevision });
 
@@ -3057,7 +3057,7 @@ describe("optimistic concurrency (default-on)", () => {
   );
 
   it("batch: explicit opt-out restores last-writer-wins semantics", async () => {
-    const app = buildApp(openDb(":memory:"), { optimisticConcurrency: false });
+    const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
     await put(app, "clients", "c1", {
       ...client("c1", "a1"),
@@ -3082,7 +3082,7 @@ describe("optimistic concurrency (default-on)", () => {
   it.each([true, false])(
     "ordered browser batches preserve the newer edit when sequence 1 commits before sequence 2 (optimistic=%s)",
     async (optimisticConcurrency) => {
-      const app = buildApp(openDb(":memory:"), { optimisticConcurrency });
+      const app = createApp(openDb(":memory:"), { optimisticConcurrency });
       await post(app, "accounts", account("a1"));
       const created = await put(app, "clients", "c1", client("c1", "a1"));
       const baseRevision = created.json().updatedAt as string;
@@ -3122,7 +3122,7 @@ describe("optimistic concurrency (default-on)", () => {
   it.each([true, false])(
     "ordered browser batches preserve the newer edit when sequence 2 arrives before sequence 1 (optimistic=%s)",
     async (optimisticConcurrency) => {
-      const app = buildApp(openDb(":memory:"), { optimisticConcurrency });
+      const app = createApp(openDb(":memory:"), { optimisticConcurrency });
       await post(app, "accounts", account("a1"));
       const created = await put(app, "clients", "c1", client("c1", "a1"));
       const baseRevision = created.json().updatedAt as string;
@@ -3166,7 +3166,7 @@ describe("optimistic concurrency (default-on)", () => {
   it.each([true, false])(
     "an ordered teardown archive fences an older in-flight lifecycle creation (optimistic=%s)",
     async (optimisticConcurrency) => {
-      const app = buildApp(openDb(":memory:"), { optimisticConcurrency });
+      const app = createApp(openDb(":memory:"), { optimisticConcurrency });
       await post(app, "accounts", account("a1"));
       const pendingClient = client("c1", "a1");
       const sessionId = "browser-session-lifecycle-0001";
@@ -3199,7 +3199,7 @@ describe("optimistic concurrency (default-on)", () => {
 
   it("applies an ordered lifecycle archive atomically and retains its inactive row", async () => {
     const db = openDb(":memory:");
-    const app = buildApp(db);
+    const app = createApp(db);
     await post(app, "accounts", account("a1"));
     const created = await put(app, "clients", "c1", client("c1", "a1"));
 
@@ -3219,7 +3219,7 @@ describe("optimistic concurrency (default-on)", () => {
   });
 
   it("ordered successor still rejects a stale write after an intervening external edit", async () => {
-    const app = buildApp(openDb(":memory:"), { optimisticConcurrency: false });
+    const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
     const created = await put(app, "clients", "c1", client("c1", "a1"));
     const baseRevision = created.json().updatedAt as string;
@@ -3248,7 +3248,7 @@ describe("optimistic concurrency (default-on)", () => {
   });
 
   it("ordered stale DELETE rolls back its batch and preserves an externally edited row", async () => {
-    const app = buildApp(openDb(":memory:"), { optimisticConcurrency: false });
+    const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await scaffold(app);
     const created = await post(app, "allocations", allocation("al1", "a1", "r1", "t1"));
     const createdRow = created.json() as Record<string, unknown>;
@@ -3304,7 +3304,7 @@ describe("optimistic concurrency (default-on)", () => {
   });
 
   it("ordered stale ARCHIVE rolls back its batch when it is not a same-session successor", async () => {
-    const app = buildApp(openDb(":memory:"), { optimisticConcurrency: false });
+    const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
     const created = await post(app, "clients", client("c1", "a1"));
     const createdRow = created.json() as Record<string, unknown>;
@@ -3337,7 +3337,7 @@ describe("optimistic concurrency (default-on)", () => {
   it.each(["first-before-undo", "undo-before-first"])(
     "ordered creation followed by a non-lifecycle deletion cannot be resurrected (%s)",
     async (arrivalOrder) => {
-      const app = buildApp(openDb(":memory:"), {
+      const app = createApp(openDb(":memory:"), {
         optimisticConcurrency: false,
       });
       await post(app, "accounts", account("a1"));

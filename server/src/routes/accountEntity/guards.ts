@@ -3,11 +3,11 @@ import type { FastifyReply } from "fastify";
 import type { SanitizeWriteOptions } from "../../fieldPolicy";
 
 import type { AccountEntityRouteDependencies } from "./dependencies";
-import { ACCOUNT_FROZEN_FIELDS_MESSAGE, accountFieldsFrozen } from "./policy";
+import { ACCOUNT_FROZEN_FIELDS_MESSAGE, hasFrozenAccountFieldChanges } from "./policy";
 
 /** Both account write paths turn an AccountContractError into the account failure shape and
  *  anything else into the generic redacted failure — one funnel, as the generic routes had. */
-export function accountRouteFailure(
+export function sendAccountRouteFailure(
   reply: FastifyReply,
   error: unknown,
   dependencies: AccountEntityRouteDependencies,
@@ -33,7 +33,7 @@ export function accountRouteFailure(
  * `existing!` once isStaleWrite's own type guard has confirmed a stored row exists — same
  * non-null assertion the inline PUT check used.
  */
-export function accountWriteGuards(params: {
+export function enforceAccountWriteGuards(input: {
   reply: FastifyReply;
   existing: Record<string, unknown> | undefined;
   ownsRow: AccountEntityRouteDependencies["ownsRow"];
@@ -48,12 +48,12 @@ export function accountWriteGuards(params: {
     vis: SanitizeWriteOptions;
   };
 }): boolean {
-  const { reply, existing, ownsRow, isStaleWrite, redact, checkOwnsRow, checkFrozen, checkStale } = params;
+  const { reply, existing, ownsRow, isStaleWrite, redact, checkOwnsRow, checkFrozen, checkStale } = input;
   if (checkOwnsRow && !ownsRow(existing, checkOwnsRow.accountId)) {
     reply.code(404).send({ error: "Not found" });
     return true;
   }
-  if (checkFrozen && accountFieldsFrozen(existing, checkFrozen.candidate)) {
+  if (checkFrozen && hasFrozenAccountFieldChanges(existing, checkFrozen.candidate)) {
     reply.code(409).send({ error: ACCOUNT_FROZEN_FIELDS_MESSAGE });
     return true;
   }

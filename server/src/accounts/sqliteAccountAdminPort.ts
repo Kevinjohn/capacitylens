@@ -4,7 +4,7 @@ import type { AccountAuditPort } from "@capacitylens/shared/account/ports";
 import type { CommandIdentity, CreatedInvitation } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 import { tx, type SynchronousCallback } from "../txn";
-import { accountAuditWriter, recordTerminalOutcome } from "./accountFlowRuntime";
+import { createAccountAuditWriter, recordTerminalOutcome } from "./accountFlowRuntime";
 import { createAuthority } from "./adminPort/authority";
 import type { SsoCutoverAccountAdminPort } from "./adminPort/contracts";
 import { createCutover } from "./adminPort/cutover";
@@ -12,8 +12,8 @@ import { createInvitationClaims } from "./adminPort/invitationClaims";
 import { createInvitations } from "./adminPort/invitations";
 import { createMembership } from "./adminPort/membership";
 import { beginCommand, completeCommand, markAccountCommandReplay, terminateCommand } from "./commands";
-import { KeyedOperationLock } from "./operationLock";
-import { WriteOnceSecretReplay } from "./writeOnceSecretReplay";
+import { KeyedOperationLock } from "./KeyedOperationLock";
+import { WriteOnceSecretReplay } from "./WriteOnceSecretReplay";
 export { ACCOUNT_POLICY_VERSION, MAX_INVITATION_TTL_MS } from "./adminPort/contracts";
 
 export type { LocalAccountAdminPort, SsoCutoverAccountAdminPort, SsoCutoverWorkspaceFact } from "./adminPort/contracts";
@@ -26,7 +26,7 @@ export { hasLivePreauthorizedInvitation } from "./adminPort/invitations";
 
 const MAX_SECRET_REPLAYS = 256;
 
-export function sqliteAccountAdminPort(input: {
+export function createSqliteAccountAdminPort(input: {
   applicationId: string;
   db: Db;
   lock: KeyedOperationLock;
@@ -37,7 +37,7 @@ export function sqliteAccountAdminPort(input: {
   writeOnceReplayCapacity?: number;
 }): SsoCutoverAccountAdminPort {
   const { applicationId, db, lock, trustedLocal = false, requireMfa = false } = input;
-  const audit = accountAuditWriter(applicationId, input.audit);
+  const audit = createAccountAuditWriter(applicationId, input.audit);
   const invitationSecretReplay = new WriteOnceSecretReplay<CreatedInvitation>(
     input.writeOnceReplayCapacity ?? MAX_SECRET_REPLAYS,
   );

@@ -1,7 +1,7 @@
 import { readdirSync, rmSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { Db } from "../db";
-import { SNAPSHOT_RE, stampMs, UTC_SNAPSHOT_RE } from "./names";
+import { SNAPSHOT_RE, parseSnapshotTimestamp, UTC_SNAPSHOT_RE } from "./names";
 interface FileIdentity {
   path: string;
   device: bigint;
@@ -10,7 +10,7 @@ interface FileIdentity {
 /** Capture the open main database rather than trusting configuration text: PRAGMA supplies the
  * path SQLite actually opened, and device/inode equality also protects symlink or hard-link aliases
  * that happen to carry a retention-shaped name. An in-memory main database has no filesystem path. */
-export function mainDatabaseIdentity(db: Db): FileIdentity | null {
+export function readMainDatabaseIdentity(db: Db): FileIdentity | null {
   const main = (
     db.prepare("PRAGMA database_list").all() as Array<{
       name?: unknown;
@@ -46,15 +46,17 @@ export function listSnapshots(dir: string, database: FileIdentity | null): strin
   const files = readdirSync(dir).filter(
     (file) => SNAPSHOT_RE.test(file) && !isProtectedDatabasePath(join(dir, file), database),
   );
-  const chronology = (file: string): number => {
-    if (UTC_SNAPSHOT_RE.test(file)) return stampMs(file);
+  const readSnapshotTimestamp = (file: string): number => {
+    if (UTC_SNAPSHOT_RE.test(file)) return parseSnapshotTimestamp(file);
     try {
       return statSync(join(dir, file)).mtimeMs;
     } catch {
-      return stampMs(file);
+      return parseSnapshotTimestamp(file);
     }
   };
-  return files.sort((left, right) => chronology(left) - chronology(right) || left.localeCompare(right));
+  return files.sort(
+    (left, right) => readSnapshotTimestamp(left) - readSnapshotTimestamp(right) || left.localeCompare(right),
+  );
 }
 
 /** Delete the oldest snapshots beyond `keep`; returns how many were pruned. Only files
@@ -72,11 +74,11 @@ export function prune(
   let files: string[];
   try {
     files = listSnapshots(dir, database);
-  } catch (err) {
+  } catch (error) {
     // Can't even list the dir (stale NFS handle, EACCES): retention is skipped this round for
     // the same reason as below — it must not turn a successful snapshot into a rejection.
     log(
-      `capacitylens-server: backup retention skipped — cannot list ${dir} — ${err instanceof Error ? err.message : String(err)}`,
+      `capacitylens-server: backup retention skipped — cannot list ${dir} — ${error instanceof Error ? error.message : String(error)}`,
     );
     return 0;
   }
@@ -90,11 +92,11 @@ export function prune(
       // between the readdir and this rm) is gone either way — that IS the retention outcome.
       rmSync(p, { force: true });
       pruned++;
-    } catch (err) {
+    } catch (error) {
       // Anything else (EACCES after a container uid change, a directory squatting on a
       // snapshot name): surface and skip — the next snapshot's prune retries it.
       log(
-        `capacitylens-server: backup retention failed to remove ${p} — ${err instanceof Error ? err.message : String(err)}`,
+        `capacitylens-server: backup retention failed to remove ${p} — ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

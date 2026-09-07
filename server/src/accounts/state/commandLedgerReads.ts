@@ -27,7 +27,7 @@ const ACCOUNT_COMMAND_COLUMNS = `applicationId, operation, idempotencyKey, comma
            workspaceId, payloadHash,
            status, resultJson, failureCode, createdAt, updatedAt`;
 
-function commandRow(row: Record<string, unknown>): AccountCommandRecord {
+function parseAccountCommandRow(row: Record<string, unknown>): AccountCommandRecord {
   return {
     applicationId: String(row.applicationId),
     operation: String(row.operation),
@@ -60,7 +60,7 @@ export function getAccountCommand(
   `,
     )
     .get(applicationId, operation, idempotencyKey) as Record<string, unknown> | undefined;
-  return row ? commandRow(row) : null;
+  return row ? parseAccountCommandRow(row) : null;
 }
 
 export function getAccountCommandById(
@@ -77,7 +77,7 @@ export function getAccountCommandById(
   `,
     )
     .get(applicationId, commandId) as Record<string, unknown> | undefined;
-  return row ? commandRow(row) : null;
+  return row ? parseAccountCommandRow(row) : null;
 }
 
 export function getAccountCommandByGlobalId(db: Db, commandId: CommandId): AccountCommandRecord | null {
@@ -90,5 +90,5 @@ export function getAccountCommandByGlobalId(db: Db, commandId: CommandId): Accou
   `,
     )
     .get(commandId) as Record<string, unknown> | undefined;
-  return row ? commandRow(row) : null;
+  return row ? parseAccountCommandRow(row) : null;
 }

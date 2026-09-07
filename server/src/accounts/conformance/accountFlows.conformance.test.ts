@@ -12,10 +12,10 @@ import type {
 import { openDb, type Db } from "../../db";
 import type { LocalIdentityPort } from "../betterAuthIdentityPort";
 import { localAccountFlows } from "../localAccountFlows";
-import { KeyedOperationLock } from "../operationLock";
+import { KeyedOperationLock } from "../KeyedOperationLock";
 import type { LocalAccountAdminPort } from "../sqliteAccountAdminPort";
 import { finishAccountCommand, reserveAccountCommand } from "../state";
-import { WRITE_ONCE_SECRET_REPLAY_WINDOW_MS } from "../writeOnceSecretReplay";
+import { WRITE_ONCE_SECRET_REPLAY_WINDOW_MS } from "../WriteOnceSecretReplay";
 
 const command = { commandId: "command-1", idempotencyKey: "idempotency-1" };
 const actor: ActorContext = {

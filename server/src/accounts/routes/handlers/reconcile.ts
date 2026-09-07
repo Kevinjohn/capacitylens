@@ -3,8 +3,8 @@ import { isAccountCommandId, isAccountIdempotencyKey } from "@capacitylens/share
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AccountRouteContext } from "../replyHelpers";
 
-export async function reconcile(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
-  const { flows: accountFlows, fail: accountFail } = ctx;
+export async function reconcile(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+  const { flows: accountFlows, fail: accountFail } = context;
 
   const body = (req.body ?? {}) as {
     commandId?: unknown;

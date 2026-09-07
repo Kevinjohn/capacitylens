@@ -19,7 +19,7 @@ export function auditRecovery(
 ) {
   const readBoundedTail = (path: string): Buffer | null => {
     if (!existsSync(path)) return null;
-    const size = existingSize(path);
+    const size = readExistingSize(path);
     if (size === 0) return Buffer.alloc(0);
     const length = Math.min(size, recoveryScanBytes);
     const offset = size - length;
@@ -41,7 +41,7 @@ export function auditRecovery(
   const collectDeliveryIds = (path: string) => {
     const tail = readBoundedTail(path);
     if (tail === null || tail.length === 0) return;
-    const size = existingSize(path);
+    const size = readExistingSize(path);
     let start = 0;
     if (size > tail.length) {
       const firstNewline = tail.indexOf(0x0a);
@@ -84,7 +84,7 @@ export function auditRecovery(
     }
   };
 
-  const existingSize = (path: string): number => {
+  const readExistingSize = (path: string): number => {
     try {
       return statSync(path).size;
     } catch (statErr) {
@@ -102,12 +102,12 @@ export function auditRecovery(
       const bytes = readBoundedTail(file)!;
       if (bytes.length > 0 && bytes[bytes.length - 1] !== 0x0a) {
         const newline = bytes.lastIndexOf(0x0a);
-        if (newline < 0 && existingSize(file) > bytes.length) {
+        if (newline < 0 && readExistingSize(file) > bytes.length) {
           throw new RangeError(`Audit unterminated tail exceeds the ${recoveryScanBytes}-byte recovery window.`);
         }
         const fd = openSync(file, "r+");
         try {
-          ftruncateSync(fd, existingSize(file) - bytes.length + newline + 1);
+          ftruncateSync(fd, readExistingSize(file) - bytes.length + newline + 1);
           syncFile(fd);
         } finally {
           closeSync(fd);
@@ -119,8 +119,8 @@ export function auditRecovery(
     collectDeliveryIds(`${file}.1`);
     collectDeliveryIds(file);
     state.activeFileExists = existsSync(file);
-    state.activeSize = existingSize(file);
-    state.priorSize = existingSize(`${file}.1`);
+    state.activeSize = readExistingSize(file);
+    state.priorSize = readExistingSize(`${file}.1`);
     state.deliveryStateLoaded = true;
   };
 

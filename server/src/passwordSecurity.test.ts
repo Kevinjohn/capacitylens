@@ -10,7 +10,7 @@ import {
   MAX_QUEUED_SCRYPT,
   assertNoContextSpecificPassword,
   assertPasswordNotBreached,
-  scryptPasswordHasher,
+  createScryptPasswordHasher,
 } from "./passwordSecurity";
 import { WorkQueueFullError } from "./workQueue";
 import { runWithRequestAbortSignal } from "./requestAbort";
@@ -27,7 +27,7 @@ describe("OWASP password storage profile", () => {
   });
 
   it("round-trips exact password bytes with a fast test work factor", async () => {
-    const hasher = scryptPasswordHasher(2 ** 10);
+    const hasher = createScryptPasswordHasher(2 ** 10);
     const password = "correct horse battery staple 🦄";
     const hash = await hasher.hash(password);
     expect(hash).toMatch(/^scrypt-v1\$1024\$8\$1\$/);
@@ -38,7 +38,7 @@ describe("OWASP password storage profile", () => {
   });
 
   it("surfaces scrypt queue pressure instead of returning a false credential verdict", async () => {
-    const hasher = scryptPasswordHasher(2 ** 10);
+    const hasher = createScryptPasswordHasher(2 ** 10);
     const password = "correct horse battery staple 🦄";
     const versionedHash = await hasher.hash(password);
     const legacyShape = `${"ab".repeat(16)}:${"cd".repeat(64)}`;

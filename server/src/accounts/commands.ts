@@ -29,22 +29,22 @@ function compareCanonicalKeys(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function canonicalJson(value: unknown): string {
+function buildCanonicalJson(value: unknown): string {
   if (value === null) return "null";
   if (typeof value === "number" && !Number.isFinite(value)) return "null";
   if (typeof value !== "object") {
     const encoded = JSON.stringify(value);
     return encoded === undefined ? "null" : encoded;
   }
-  if (Array.isArray(value)) return `[${value.map((child) => canonicalJson(child)).join(",")}]`;
+  if (Array.isArray(value)) return `[${value.map((child) => buildCanonicalJson(child)).join(",")}]`;
   const toJSON = (value as { toJSON?: unknown }).toJSON;
-  if (typeof toJSON === "function") return canonicalJson(toJSON.call(value));
+  if (typeof toJSON === "function") return buildCanonicalJson(toJSON.call(value));
   const entries = Object.entries(value as Record<string, unknown>)
     .filter(([, child]) => child !== undefined)
     // Command hashes cross browser/server/process boundaries. Locale-aware ordering can vary with
     // the host locale, so canonical JSON must use ECMAScript code-unit ordering only.
     .sort(([left], [right]) => compareCanonicalKeys(left, right));
-  return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`).join(",")}}`;
+  return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${buildCanonicalJson(child)}`).join(",")}}`;
 }
 
 /** Mark a successful result as an idempotent replay without leaking transport-only metadata into
@@ -64,11 +64,11 @@ export function wasAccountCommandReplayed(result: unknown): boolean {
   );
 }
 
-export function accountPayloadHash(payload: unknown): string {
-  return createHash("sha256").update(canonicalJson(payload)).digest("hex");
+export function buildAccountPayloadHash(payload: unknown): string {
+  return createHash("sha256").update(buildCanonicalJson(payload)).digest("hex");
 }
 
-export function secretDigest(purpose: string, secret: string): string {
+export function buildSecretDigest(purpose: string, secret: string): string {
   return createHash("sha256").update(`smallsass-account:${purpose}\0`).update(secret).digest("hex");
 }
 
@@ -80,12 +80,12 @@ export interface CommandScope {
   workspaceId?: string | null;
 }
 
-export type BegunCommand<T> =
+export type BeginCommandResult<T> =
   { kind: "execute"; record: AccountCommandRecord } | { kind: "replay"; record: AccountCommandRecord; result: T };
 
-type ReplayedCommand<T> = Extract<BegunCommand<T>, { kind: "replay" }>;
+type ReplayedCommand<T> = Extract<BeginCommandResult<T>, { kind: "replay" }>;
 
-function commandConflict(
+function throwCommandConflict(
   record: AccountCommandRecord,
   scope: Pick<CommandScope, "applicationId" | "operation" | "actorPrincipalId">,
   command: CommandIdentity,
@@ -150,9 +150,9 @@ export function resumeExistingCommand<T>(
   if (
     existing.commandId !== command.commandId ||
     existing.actorPrincipalId !== scope.actorPrincipalId ||
-    existing.payloadHash !== accountPayloadHash(canonicalPayload)
+    existing.payloadHash !== buildAccountPayloadHash(canonicalPayload)
   ) {
-    return commandConflict(existing, scope, command);
+    return throwCommandConflict(existing, scope, command);
   }
   return replayOrRejectExistingCommand<T>(existing);
 }
@@ -162,7 +162,7 @@ export function beginCommand<T>(
   scope: CommandScope,
   command: CommandIdentity,
   canonicalPayload: unknown,
-): BegunCommand<T> {
+): BeginCommandResult<T> {
   const reserved = reserveAccountCommand(db, {
     applicationId: scope.applicationId,
     operation: scope.operation,
@@ -171,10 +171,10 @@ export function beginCommand<T>(
     actorPrincipalId: scope.actorPrincipalId,
     targetPrincipalId: scope.targetPrincipalId ?? null,
     workspaceId: scope.workspaceId ?? null,
-    payloadHash: accountPayloadHash(canonicalPayload),
+    payloadHash: buildAccountPayloadHash(canonicalPayload),
   });
   if (reserved.kind === "conflict") {
-    return commandConflict(reserved.record, scope, command);
+    return throwCommandConflict(reserved.record, scope, command);
   }
   if (reserved.kind === "reserved") return { kind: "execute", record: reserved.record };
   return replayOrRejectExistingCommand<T>(reserved.record);
@@ -191,7 +191,7 @@ export function completeCommand(
     operation: scope.operation,
     idempotencyKey: command.idempotencyKey,
     status: "completed",
-    resultJson: canonicalJson(result),
+    resultJson: buildCanonicalJson(result),
   });
 }
 
@@ -210,7 +210,7 @@ function buildFinishInput(
     idempotencyKey: command.idempotencyKey,
     status,
     failureCode,
-    resultJson: result === undefined ? null : canonicalJson(result),
+    resultJson: result === undefined ? null : buildCanonicalJson(result),
   };
 }
 
@@ -236,7 +236,7 @@ export function terminatePendingCommand(
   return finishAccountCommandIfPending(db, buildFinishInput(scope, command, status, failureCode, result));
 }
 
-export function operationReceipt(record: AccountCommandRecord): OperationReceipt {
+export function buildOperationReceipt(record: AccountCommandRecord): OperationReceipt {
   return { commandId: record.commandId, completedAt: record.updatedAt };
 }
 

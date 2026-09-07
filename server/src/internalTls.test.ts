@@ -8,7 +8,7 @@ import { spawnSync } from "node:child_process";
 import {
   INTERNAL_TLS_RENEW_BEFORE_SECONDS,
   InternalTlsConfigError,
-  internalTlsHealth,
+  buildInternalTlsHealth,
   loadInternalTls,
 } from "./internalTls";
 
@@ -142,22 +142,22 @@ describe("loadInternalTls", () => {
     const now = Date.parse("2026-01-01T00:00:00.000Z");
     const expiry = (seconds: number) => new Date(now + seconds * 1_000).toISOString();
 
-    expect(internalTlsHealth(expiry(INTERNAL_TLS_RENEW_BEFORE_SECONDS + 1), now)).toMatchObject({
+    expect(buildInternalTlsHealth(expiry(INTERNAL_TLS_RENEW_BEFORE_SECONDS + 1), now)).toMatchObject({
       status: "ok",
       daysRemaining: 31,
     });
-    expect(internalTlsHealth(expiry(INTERNAL_TLS_RENEW_BEFORE_SECONDS), now)).toMatchObject({
+    expect(buildInternalTlsHealth(expiry(INTERNAL_TLS_RENEW_BEFORE_SECONDS), now)).toMatchObject({
       status: "expiring",
       daysRemaining: 30,
     });
-    expect(internalTlsHealth(expiry(0), now)).toMatchObject({
+    expect(buildInternalTlsHealth(expiry(0), now)).toMatchObject({
       status: "expired",
       daysRemaining: 0,
     });
   });
 
   it("fails a malformed projected expiry closed instead of reporting healthy", () => {
-    expect(internalTlsHealth("not-a-certificate-expiry", Date.parse("2026-01-01T00:00:00.000Z"))).toEqual({
+    expect(buildInternalTlsHealth("not-a-certificate-expiry", Date.parse("2026-01-01T00:00:00.000Z"))).toEqual({
       status: "expired",
       expiresAt: "not-a-certificate-expiry",
       daysRemaining: 0,

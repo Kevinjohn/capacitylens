@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { sanitizeWrite, validateWrite } from "./validate";
+import { sanitizeWrite, assertValidWrite } from "./validate";
 
 const meta = {
   id: "row1",
@@ -20,7 +20,7 @@ describe("time-off and closure validation", () => {
   it("accepts a closure without a resource reference", () => {
     const sanitized = sanitizeWrite("closures", { ...meta, name: "Christmas shutdown" });
     expect(sanitized).not.toHaveProperty("resourceId");
-    expect(() => validateWrite(emptyAppData(), "closures", sanitized)).not.toThrow();
+    expect(() => assertValidWrite(emptyAppData(), "closures", sanitized)).not.toThrow();
   });
 
   it("rejects a closure carrying a resource reference", () => {
@@ -35,7 +35,7 @@ describe("time-off and closure validation", () => {
 
   it("rejects reversed closure dates", () => {
     expect(() =>
-      validateWrite(emptyAppData(), "closures", {
+      assertValidWrite(emptyAppData(), "closures", {
         ...meta,
         name: "Christmas shutdown",
         endDate: "2026-12-23",

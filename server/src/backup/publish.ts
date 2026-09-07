@@ -18,7 +18,7 @@ export function claimBackupTemp(nextFile: () => string): {
   }
 }
 
-export function databaseVersion(db: Db): number {
+export function readDatabaseVersion(db: Db): number {
   return Number((db.prepare("PRAGMA user_version").get() as { user_version?: number }).user_version ?? 0);
 }
 
@@ -40,7 +40,7 @@ function verifyStandaloneSnapshot(path: string, label: string, expectedVersion: 
     if (foreignKeyViolations.length > 0) {
       throw new Error(`${label} failed SQLite foreign_key_check (${foreignKeyViolations.length} violation(s))`);
     }
-    const copiedVersion = databaseVersion(verification);
+    const copiedVersion = readDatabaseVersion(verification);
     if (copiedVersion !== expectedVersion) {
       throw new Error(`${label} version mismatch (expected ${expectedVersion}, copied ${copiedVersion})`);
     }

@@ -24,13 +24,17 @@ import {
  *
  * @param file the JSONL file to append to (created on first write)
  * @param log  where the single redacted failure line goes (index.ts passes console.error)
- * @param opts `maxBytes` — see FileAuditSinkOptions
+ * @param options `maxBytes` — see FileAuditSinkOptions
  */
-export function fileAuditSink(file: string, log: (msg: string) => void, opts: FileAuditSinkOptions = {}): AuditSink {
-  const maxBytes = opts.maxBytes ?? DEFAULT_MAX_BYTES;
-  const pinPermissions = opts.pinPermissions ?? chmodSync;
-  const syncFile = opts.syncFile ?? fsyncSync;
-  const recoveryScanBytes = opts.recoveryScanBytes ?? Math.min(AUDIT_RECOVERY_SCAN_BYTES, maxBytes);
+export function createFileAuditSink(
+  file: string,
+  log: (msg: string) => void,
+  options: FileAuditSinkOptions = {},
+): AuditSink {
+  const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
+  const pinPermissions = options.pinPermissions ?? chmodSync;
+  const syncFile = options.syncFile ?? fsyncSync;
+  const recoveryScanBytes = options.recoveryScanBytes ?? Math.min(AUDIT_RECOVERY_SCAN_BYTES, maxBytes);
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_AUDIT_BYTES) {
     throw new RangeError(`maxBytes must be a safe integer from 1 to ${MAX_AUDIT_BYTES}.`);
   }
@@ -135,14 +139,14 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
       if (created) syncParentDirectory();
       for (const record of pending) if (record.auditId) state.deliveredAuditIds.add(record.auditId);
       return true;
-    } catch (err) {
+    } catch (error) {
       state.degraded = true;
       state.deliveryStateLoaded = false;
       state.activeSize = null;
       state.priorSize = null;
       if (!loggedOnce) {
         loggedOnce = true;
-        log(`capacitylens-server: audit write FAILED — ${err instanceof Error ? err.message : String(err)}`);
+        log(`capacitylens-server: audit write FAILED — ${error instanceof Error ? error.message : String(error)}`);
       }
       return false;
     }

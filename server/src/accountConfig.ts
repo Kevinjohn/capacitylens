@@ -46,7 +46,7 @@ const CANONICAL_BY_COMPATIBILITY_KEY = new Map<string, string>(
 );
 
 /** Operator-facing name for an account setting consumed through the compatibility adapter. */
-export function accountConfigKey(key: string): string {
+export function resolveAccountConfigKey(key: string): string {
   return CANONICAL_BY_COMPATIBILITY_KEY.get(key) ?? key;
 }
 
@@ -73,14 +73,14 @@ function warnLegacyAlias(source: object, legacy: string, canonical: string, warn
   warnedAliases.add(legacy);
 }
 
-function normalizedForComparison(key: string, value: string): string {
+function normalizeSettingForComparison(key: string, value: string): string {
   if (SECRET_KEYS.has(key)) return value;
   if (key === "SMALLSASS_ACCOUNT_MODE") return value.trim().toLowerCase();
   if (key === "SMALLSASS_ACCOUNT_OIDC_SCOPES") return value.trim().split(/\s+/).join(" ");
   return value.trim();
 }
 
-function configured(key: string, value: string | undefined): string | undefined {
+function parseConfiguredValue(key: string, value: string | undefined): string | undefined {
   if (value === undefined || value === "") return undefined;
   if (value.trim() === "") {
     if (key === "SMALLSASS_ACCOUNT_MODE" || key === "CAPACITYLENS_AUTH") {
@@ -108,7 +108,7 @@ export function resolveAccountEnvironment(
   if (resolvedAccountEnvironments.has(source)) {
     return { env: source, profile: resolvedAccountEnvironments.get(source) ?? null };
   }
-  const env = { ...source };
+  const environment = { ...source };
   const warn =
     options.warn ??
     ((message: string) => {
@@ -118,27 +118,30 @@ export function resolveAccountEnvironment(
     // Compose commonly materializes unset interpolation as an empty string. Treat that as absent
     // so an empty canonical placeholder cannot conflict with (or erase) a real compatibility
     // alias supplied by an existing deployment.
-    const canonicalValue = configured(canonical, source[canonical]);
-    const legacyValue = configured(legacy, source[legacy]);
+    const canonicalValue = parseConfiguredValue(canonical, source[canonical]);
+    const legacyValue = parseConfiguredValue(legacy, source[legacy]);
     if (canonicalValue !== undefined && legacyValue !== undefined) {
-      if (normalizedForComparison(canonical, canonicalValue) !== normalizedForComparison(canonical, legacyValue)) {
+      if (
+        normalizeSettingForComparison(canonical, canonicalValue) !==
+        normalizeSettingForComparison(canonical, legacyValue)
+      ) {
         throw new AccountConfigError(
           `${canonical} conflicts with its legacy alias ${legacy}; refusing to choose a security posture.`,
         );
       }
       warnLegacyAlias(source, legacy, canonical, warn);
-      env[canonical] = normalizedForComparison(canonical, canonicalValue);
-      env[legacy] = env[canonical];
+      environment[canonical] = normalizeSettingForComparison(canonical, canonicalValue);
+      environment[legacy] = environment[canonical];
     } else if (canonicalValue !== undefined) {
-      env[canonical] = normalizedForComparison(canonical, canonicalValue);
-      env[legacy] = env[canonical];
+      environment[canonical] = normalizeSettingForComparison(canonical, canonicalValue);
+      environment[legacy] = environment[canonical];
     } else if (legacyValue !== undefined) {
       warnLegacyAlias(source, legacy, canonical, warn);
-      env[canonical] = normalizedForComparison(canonical, legacyValue);
-      env[legacy] = env[canonical];
+      environment[canonical] = normalizeSettingForComparison(canonical, legacyValue);
+      environment[legacy] = environment[canonical];
     } else {
-      delete env[canonical];
-      delete env[legacy];
+      delete environment[canonical];
+      delete environment[legacy];
     }
   }
 
@@ -153,7 +156,7 @@ export function resolveAccountEnvironment(
   const capabilities = profile === null ? null : ACCOUNT_PROFILE_CAPABILITIES[profile];
   if (capabilities) {
     const requiredMode = capabilities.passwordSignIn ? "password" : "sso";
-    if (env.CAPACITYLENS_AUTH !== requiredMode) {
+    if (environment.CAPACITYLENS_AUTH !== requiredMode) {
       throw new AccountConfigError(
         capabilities.hosted
           ? "The hosted-oidc-only deployment profile requires SMALLSASS_ACCOUNT_MODE=sso; hosted password accounts are prohibited."
@@ -163,15 +166,15 @@ export function resolveAccountEnvironment(
   }
 
   if (capabilities?.hosted) {
-    if (!env.CAPACITYLENS_SSO_CLIENT_ID || !env.CAPACITYLENS_SSO_CLIENT_SECRET) {
+    if (!environment.CAPACITYLENS_SSO_CLIENT_ID || !environment.CAPACITYLENS_SSO_CLIENT_SECRET) {
       throw new AccountConfigError("The hosted-oidc-only deployment profile requires an OIDC client id and secret.");
     }
-    if (!env.CAPACITYLENS_SSO_DISCOVERY_URL || !env.CAPACITYLENS_SSO_ISSUER) {
+    if (!environment.CAPACITYLENS_SSO_DISCOVERY_URL || !environment.CAPACITYLENS_SSO_ISSUER) {
       throw new AccountConfigError(
         "The hosted-oidc-only deployment profile requires an explicit OIDC issuer and discovery metadata.",
       );
     }
-    const scopes = (env.CAPACITYLENS_SSO_SCOPES ?? "openid profile email").split(/\s+/);
+    const scopes = (environment.CAPACITYLENS_SSO_SCOPES ?? "openid profile email").split(/\s+/);
     const missingScopes = ["openid", "profile", "email"].filter((scope) => !scopes.includes(scope));
     if (missingScopes.length > 0) {
       throw new AccountConfigError(
@@ -179,25 +182,25 @@ export function resolveAccountEnvironment(
       );
     }
     if (
-      env.CAPACITYLENS_GOOGLE_CLIENT_ID ||
-      env.CAPACITYLENS_GOOGLE_CLIENT_SECRET ||
-      env.CAPACITYLENS_MICROSOFT_CLIENT_ID ||
-      env.CAPACITYLENS_MICROSOFT_CLIENT_SECRET ||
-      env.CAPACITYLENS_MICROSOFT_TENANT_ID ||
-      env.CAPACITYLENS_GITHUB_CLIENT_ID ||
-      env.CAPACITYLENS_GITHUB_CLIENT_SECRET
+      environment.CAPACITYLENS_GOOGLE_CLIENT_ID ||
+      environment.CAPACITYLENS_GOOGLE_CLIENT_SECRET ||
+      environment.CAPACITYLENS_MICROSOFT_CLIENT_ID ||
+      environment.CAPACITYLENS_MICROSOFT_CLIENT_SECRET ||
+      environment.CAPACITYLENS_MICROSOFT_TENANT_ID ||
+      environment.CAPACITYLENS_GITHUB_CLIENT_ID ||
+      environment.CAPACITYLENS_GITHUB_CLIENT_SECRET
     ) {
       throw new AccountConfigError(
         "The hosted-oidc-only deployment profile accepts only the configured strict OIDC provider.",
       );
     }
-    if (env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1") {
+    if (environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1") {
       throw new AccountConfigError("The hosted-oidc-only deployment profile forbids open signup.");
     }
     if (
-      env.CAPACITYLENS_SETUP_TOKEN ||
-      env.CAPACITYLENS_REQUIRE_MFA ||
-      env.CAPACITYLENS_PASSWORD_BREACH_CHECK ||
+      environment.CAPACITYLENS_SETUP_TOKEN ||
+      environment.CAPACITYLENS_REQUIRE_MFA ||
+      environment.CAPACITYLENS_PASSWORD_BREACH_CHECK ||
       source.CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD ||
       source.CAPACITYLENS_CREATE_ADMIN_ADMIN === "1"
     ) {
@@ -207,49 +210,49 @@ export function resolveAccountEnvironment(
   if (
     capabilities !== null &&
     !capabilities.strictOidc &&
-    (env.CAPACITYLENS_SSO_CLIENT_ID ||
-      env.CAPACITYLENS_SSO_CLIENT_SECRET ||
-      env.CAPACITYLENS_SSO_DISCOVERY_URL ||
-      env.CAPACITYLENS_SSO_ISSUER ||
-      env.CAPACITYLENS_SSO_AUTHORIZATION_URL ||
-      env.CAPACITYLENS_SSO_TOKEN_URL ||
-      env.CAPACITYLENS_SSO_SCOPES ||
-      env.CAPACITYLENS_SSO_PROVIDER_ID ||
-      env.CAPACITYLENS_SSO_LABEL ||
-      env.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS ||
-      env.CAPACITYLENS_GOOGLE_CLIENT_ID ||
-      env.CAPACITYLENS_GOOGLE_CLIENT_SECRET ||
-      env.CAPACITYLENS_MICROSOFT_CLIENT_ID ||
-      env.CAPACITYLENS_MICROSOFT_CLIENT_SECRET ||
-      env.CAPACITYLENS_MICROSOFT_TENANT_ID ||
-      env.CAPACITYLENS_GITHUB_CLIENT_ID ||
-      env.CAPACITYLENS_GITHUB_CLIENT_SECRET)
+    (environment.CAPACITYLENS_SSO_CLIENT_ID ||
+      environment.CAPACITYLENS_SSO_CLIENT_SECRET ||
+      environment.CAPACITYLENS_SSO_DISCOVERY_URL ||
+      environment.CAPACITYLENS_SSO_ISSUER ||
+      environment.CAPACITYLENS_SSO_AUTHORIZATION_URL ||
+      environment.CAPACITYLENS_SSO_TOKEN_URL ||
+      environment.CAPACITYLENS_SSO_SCOPES ||
+      environment.CAPACITYLENS_SSO_PROVIDER_ID ||
+      environment.CAPACITYLENS_SSO_LABEL ||
+      environment.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS ||
+      environment.CAPACITYLENS_GOOGLE_CLIENT_ID ||
+      environment.CAPACITYLENS_GOOGLE_CLIENT_SECRET ||
+      environment.CAPACITYLENS_MICROSOFT_CLIENT_ID ||
+      environment.CAPACITYLENS_MICROSOFT_CLIENT_SECRET ||
+      environment.CAPACITYLENS_MICROSOFT_TENANT_ID ||
+      environment.CAPACITYLENS_GITHUB_CLIENT_ID ||
+      environment.CAPACITYLENS_GITHUB_CLIENT_SECRET)
   ) {
     throw new AccountConfigError("The self-hosted-password profile does not permit external identity providers.");
   }
   if (capabilities?.strictOidc && !capabilities.hosted) {
     if (
-      !env.CAPACITYLENS_SSO_CLIENT_ID ||
-      !env.CAPACITYLENS_SSO_CLIENT_SECRET ||
-      !env.CAPACITYLENS_SSO_DISCOVERY_URL ||
-      !env.CAPACITYLENS_SSO_ISSUER
+      !environment.CAPACITYLENS_SSO_CLIENT_ID ||
+      !environment.CAPACITYLENS_SSO_CLIENT_SECRET ||
+      !environment.CAPACITYLENS_SSO_DISCOVERY_URL ||
+      !environment.CAPACITYLENS_SSO_ISSUER
     ) {
       throw new AccountConfigError(`${profile} requires a strict OIDC client, issuer, and discovery document.`);
     }
     if (!capabilities.passwordSignIn) {
-      if (env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1") {
+      if (environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1") {
         throw new AccountConfigError("The SSO-only deployment profile forbids open signup.");
       }
     }
   }
-  if (profile !== null && (env.CAPACITYLENS_SSO_AUTHORIZATION_URL || env.CAPACITYLENS_SSO_TOKEN_URL)) {
+  if (profile !== null && (environment.CAPACITYLENS_SSO_AUTHORIZATION_URL || environment.CAPACITYLENS_SSO_TOKEN_URL)) {
     throw new AccountConfigError(
       "Named account profiles require discovery; explicit OIDC endpoint overrides are not accepted.",
     );
   }
 
-  resolvedAccountEnvironments.set(env, profile);
-  return { env, profile };
+  resolvedAccountEnvironments.set(environment, profile);
+  return { env: environment, profile };
 }
 
 export function resetAccountConfigWarningStateForTests(): void {

@@ -9,7 +9,7 @@ export function resolveCorsOrigin(reqOrigin: string | undefined, allow: Readonly
   return reqOrigin && allow.has(reqOrigin) ? reqOrigin : null;
 }
 
-export function requestOriginIsSameOrigin(req: FastifyRequest, reqOrigin: string, trustForwarded: boolean): boolean {
+export function isSameRequestOrigin(req: FastifyRequest, reqOrigin: string, trustForwarded: boolean): boolean {
   const host = req.headers.host;
   if (!host) return false;
   const forwardedProto = req.headers["x-forwarded-proto"];

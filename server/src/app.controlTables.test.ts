@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildApp } from "./app";
-import { openDb, loadState } from "./db";
+import { createApp } from "./app";
+import { openDb, readState } from "./db";
 import { upsertMember } from "./controlTables";
 
 // P1.1 EXCLUSION proof: the `account_members` server-control table must be UNREACHABLE through the
@@ -11,7 +11,7 @@ import { upsertMember } from "./controlTables";
 
 describe("account_members is excluded from the AppData path", () => {
   it("is not a known entity for generic CRUD (GET + POST → 4xx, not 200)", async () => {
-    const app = buildApp(openDb(":memory:"));
+    const app = createApp(openDb(":memory:"));
 
     // No GET /api/:entity route exists at all → Fastify 404 (never a 200 listing the table).
     const get = await app.inject({ method: "GET", url: "/api/account_members" });
@@ -29,7 +29,7 @@ describe("account_members is excluded from the AppData path", () => {
 
   it("never appears in GET /api/state or loadState, even with a member row present", async () => {
     const db = openDb(":memory:");
-    const app = buildApp(db);
+    const app = createApp(db);
 
     // Insert a real membership row directly through the control-table helper (the only path that
     // touches it). It must STILL not surface in the AppData read/export.
@@ -51,6 +51,6 @@ describe("account_members is excluded from the AppData path", () => {
     expect(JSON.stringify(state)).not.toContain("user-1");
 
     // And loadState (the function GET /api/state and export both call) has no such key either.
-    expect(loadState(db) as unknown as Record<string, unknown>).not.toHaveProperty("account_members");
+    expect(readState(db) as unknown as Record<string, unknown>).not.toHaveProperty("account_members");
   });
 });

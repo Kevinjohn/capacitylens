@@ -4,6 +4,6 @@
 // e2e (where NODE_ENV is never 'production') are untouched. Deliberately NOT behind a flag:
 // defaulting a guard to off defeats it (plan exception 3).
 
-export function resetForbidden(env: { CAPACITYLENS_ALLOW_RESET?: string; NODE_ENV?: string }): boolean {
-  return env.CAPACITYLENS_ALLOW_RESET === "1" && env.NODE_ENV === "production";
+export function isResetForbidden(environment: { CAPACITYLENS_ALLOW_RESET?: string; NODE_ENV?: string }): boolean {
+  return environment.CAPACITYLENS_ALLOW_RESET === "1" && environment.NODE_ENV === "production";
 }

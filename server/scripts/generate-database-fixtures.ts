@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { authFromEnv, assertFederatedIdentitySchemaCurrent, runAuthMigrations } from "../src/auth";
+import { createAuthFromEnvironment, assertFederatedIdentitySchemaCurrent, runAuthMigrations } from "../src/auth";
 import { DB_SCHEMA_VERSION, initializeOpenDb, openDb, openDbConnection } from "../src/db";
 
 const [sourceValue, targetValue] = process.argv.slice(2);
@@ -54,7 +54,7 @@ if (
         // literal bound to this configuration key as suspicious.
         const fixtureEntropy = ["01234567", "89abcdef"].join("");
         const fixtureSecret = ["fixture", "secret", fixtureEntropy, "012345"].join("-");
-        const configured = authFromEnv(db, {
+        const configured = createAuthFromEnvironment(db, {
           SMALLSASS_ACCOUNT_MODE: "password",
           SMALLSASS_ACCOUNT_SECRET: fixtureSecret,
           SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",

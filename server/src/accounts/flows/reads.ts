@@ -1,9 +1,9 @@
 import type { MemberDirectoryEntry } from "@capacitylens/shared/account/ports";
 import type { LocalAccountFlows } from "../localAccountFlows";
-import { directorySortName } from "./actorContext";
+import { resolveDirectorySortName } from "./actorContext";
 import type { LocalAccountFlowContext } from "./context";
 
-export function reads(
+export function createAccountReadFlows(
   context: LocalAccountFlowContext,
 ): Pick<LocalAccountFlows, "resolveRequestAccess" | "listMemberDirectory"> {
   const { identity, administration } = context;
@@ -46,7 +46,9 @@ export function reads(
           .sort(
             (left, right) =>
               left.membership.joinedAt.localeCompare(right.membership.joinedAt) ||
-              directorySortName(left).localeCompare(directorySortName(right), undefined, { sensitivity: "base" }) ||
+              resolveDirectorySortName(left).localeCompare(resolveDirectorySortName(right), undefined, {
+                sensitivity: "base",
+              }) ||
               left.membership.principalId.localeCompare(right.membership.principalId),
           )
       );

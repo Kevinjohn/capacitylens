@@ -1,7 +1,7 @@
 import { ACCOUNT_SESSION_ABSOLUTE_TTL_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
 import type { PrincipalId } from "@capacitylens/shared/account/types";
 import type { Db } from "../../db";
-import { cachedStatement, HOUSEKEEPING_INTERVAL_MS, lastAssuranceSweep, stableNowIso } from "./runtime";
+import { createCachedStatement, HOUSEKEEPING_INTERVAL_MS, lastAssuranceSweep, readStableNowIso } from "./runtime";
 
 export type RecordedSessionAssurance = "password" | "mfa" | "federated";
 
@@ -16,7 +16,7 @@ export function recordSessionAssurance(
   principalId: PrincipalId,
   assurance: RecordedSessionAssurance,
   providerId: string | null = null,
-  now = stableNowIso(),
+  now = readStableNowIso(),
 ): void {
   if ((assurance === "federated" && !providerId) || (assurance !== "federated" && providerId !== null)) {
     throw new Error("Federated session assurance requires exactly one provider id.");
@@ -47,7 +47,7 @@ export function recordSessionAssurance(
 // set at prepare time, so caching is safe here precisely because this SELECT never uses `*`. Cached
 // per-Db via the module-local cachedStatement (this read runs on every authenticated request via
 // verifyApplicationSession); the RESULT is never cached, only the prepared statement.
-const sessionAuthenticationStatement = cachedStatement(
+const sessionAuthenticationStatement = createCachedStatement(
   `SELECT assurance, providerId FROM account_session_assurance WHERE sessionId = ?`,
 );
 

@@ -70,12 +70,12 @@ export interface ProductionPostureResult {
  * means everywhere else in the server. Its invalid-value error is converted into a fatal posture
  * refusal so this evaluator remains total and index.ts emits its standard framed startup message.
  *
- * @param env - The environment to evaluate. Only the listed keys are read; pass a plain object
+ * @param environment - The environment to evaluate. Only the listed keys are read; pass a plain object
  *   literal (the entrypoint passes `process.env`).
  * @returns A {@link ProductionPostureResult} with the refusals (fatal) and warnings (soft).
  *   Both arrays are empty unless `env.NODE_ENV === 'production'`.
  */
-export function evaluateProductionPosture(env: {
+export function evaluateProductionPosture(environment: {
   NODE_ENV?: string;
   CAPACITYLENS_AUTH?: string;
   CAPACITYLENS_HTTPS?: string;
@@ -99,19 +99,19 @@ export function evaluateProductionPosture(env: {
 
   // No-op outside production. Dev / e2e / self-host keep the open posture as a supported mode —
   // this guard only engages once an operator declares NODE_ENV=production (same gate as bootGuard).
-  if (env.NODE_ENV !== "production") return { refusals, warnings };
+  if (environment.NODE_ENV !== "production") return { refusals, warnings };
 
   // Reuse parseAuthMode so 'off' (incl. unset/'') is canonical. Convert its configuration throw
   // into result data: index evaluates posture before opening storage and owns the framed refusal.
   let mode: ReturnType<typeof parseAuthMode> | null = null;
   try {
-    mode = parseAuthMode(env.CAPACITYLENS_AUTH);
+    mode = parseAuthMode(environment.CAPACITYLENS_AUTH);
   } catch (error) {
     refusals.push(error instanceof Error ? error.message : String(error));
   }
 
   if (mode === "off") {
-    if (env.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === "1") {
+    if (environment.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === "1") {
       // Operator opted in: run the open/demo posture in production ON PURPOSE. Downgrade to a
       // warning so it is still visible, but let the daemon boot.
       warnings.push(
@@ -126,17 +126,17 @@ export function evaluateProductionPosture(env: {
     }
   }
 
-  if (mode === "password" && env.CAPACITYLENS_REQUIRE_MFA !== "1") {
+  if (mode === "password" && environment.CAPACITYLENS_REQUIRE_MFA !== "1") {
     warnings.push(
       "SMALLSASS_ACCOUNT_REQUIRE_MFA is not 1, so password users are not required to enroll TOTP MFA. MFA is optional for self-hosting but strongly recommended for internet-facing deployments.",
     );
   }
-  if (mode === "sso" && env.CAPACITYLENS_SSO_MFA_ENFORCED !== "1") {
+  if (mode === "sso" && environment.CAPACITYLENS_SSO_MFA_ENFORCED !== "1") {
     warnings.push(
       "SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED is not 1, so CapacityLens has no operator assurance that the configured identity provider requires MFA. This is optional for self-hosting but strongly recommended.",
     );
   }
-  if (mode === "password" && env.CAPACITYLENS_PASSWORD_BREACH_CHECK === "off") {
+  if (mode === "password" && environment.CAPACITYLENS_PASSWORD_BREACH_CHECK === "off") {
     warnings.push(
       "SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK=off disables breached-password screening. This is supported for isolated/offline deployments but weakens password protection.",
     );
@@ -146,31 +146,31 @@ export function evaluateProductionPosture(env: {
   // them to 0 (off) — so production could boot claiming a hardened posture with rate limiting silently
   // disabled. Any value the parser resolves to 0 (unset, '0', a sign/decimal/whitespace/exponent, or a
   // value over the cap) is a refusal; the message states the exact accepted shape so the operator can fix it.
-  if (parseRateLimit(env.CAPACITYLENS_RATE_LIMIT) === 0) {
+  if (parseRateLimit(environment.CAPACITYLENS_RATE_LIMIT) === 0) {
     refusals.push(
       `CAPACITYLENS_RATE_LIMIT must be digits only (no sign, decimal point, whitespace or exponent) in the range 1..${MAX_RATE_LIMIT.toLocaleString("en-US")} under NODE_ENV=production. The configured value parses to 0 (rate limiting disabled), which would leave production unlimited while reporting a hardened posture.`,
     );
   }
-  if (env.CAPACITYLENS_AUDIT === "off") {
+  if (environment.CAPACITYLENS_AUDIT === "off") {
     refusals.push("CAPACITYLENS_AUDIT=off is not permitted under NODE_ENV=production.");
   }
-  if (env.CAPACITYLENS_AUDIT_STDOUT !== "1") {
+  if (environment.CAPACITYLENS_AUDIT_STDOUT !== "1") {
     warnings.push(
       "CAPACITYLENS_AUDIT_STDOUT is not 1, so mutation audit records remain only in the local audit file and are unavailable to a process-log collector.",
     );
   }
-  if (env.CAPACITYLENS_STORAGE_ENCRYPTED !== "1") {
+  if (environment.CAPACITYLENS_STORAGE_ENCRYPTED !== "1") {
     warnings.push(
       "CAPACITYLENS_STORAGE_ENCRYPTED is not 1, so encrypted-at-rest storage for the database, audit log and backups has not been attested. Startup continues for simple self-hosting; protect the host and storage appropriately.",
     );
   }
-  if (env.CAPACITYLENS_SECURITY_LOG_FORWARDING !== "1") {
+  if (environment.CAPACITYLENS_SECURITY_LOG_FORWARDING !== "1") {
     warnings.push(
       "CAPACITYLENS_SECURITY_LOG_FORWARDING is not 1, so security/audit logs have not been attested as forwarded to a separate monitoring system. Local logs remain supported.",
     );
   }
-  const internalTlsCert = env.CAPACITYLENS_INTERNAL_TLS_CERT?.trim();
-  const internalTlsKey = env.CAPACITYLENS_INTERNAL_TLS_KEY?.trim();
+  const internalTlsCert = environment.CAPACITYLENS_INTERNAL_TLS_CERT?.trim();
+  const internalTlsKey = environment.CAPACITYLENS_INTERNAL_TLS_KEY?.trim();
   if (!internalTlsCert && !internalTlsKey) {
     warnings.push(
       "CAPACITYLENS_INTERNAL_TLS_CERT and CAPACITYLENS_INTERNAL_TLS_KEY are not configured, so the API uses HTTP. This is supported only behind a trusted same-host loopback reverse proxy; configure both paths to encrypt the internal hop.",
@@ -178,22 +178,22 @@ export function evaluateProductionPosture(env: {
   }
 
   // Production concerns evaluated regardless of auth mode.
-  if (env.CAPACITYLENS_HTTPS !== "1") {
+  if (environment.CAPACITYLENS_HTTPS !== "1") {
     warnings.push(
       "CAPACITYLENS_HTTPS is not 1 under NODE_ENV=production, so HSTS is not enabled. If TLS terminates at a reverse proxy this is expected; if this process serves HTTPS directly, set CAPACITYLENS_HTTPS=1.",
     );
   }
-  if (env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1") {
+  if (environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1") {
     warnings.push(
       "SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP=1 under NODE_ENV=production enables open self-registration. Self-service signup should normally be closed/invite-only in production; unset SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP unless you intend open registration.",
     );
   }
-  if (env.CAPACITYLENS_CREATE_ADMIN_ADMIN === "1") {
+  if (environment.CAPACITYLENS_CREATE_ADMIN_ADMIN === "1") {
     refusals.push(
       `CAPACITYLENS_CREATE_ADMIN_ADMIN=1 (or --create-owner-admin-admin) is development-only under NODE_ENV=production because its initial credential cannot be forced to expire after first use. Create the first owner through the setup-token flow instead (${BOOTSTRAP_ADMIN_EMAIL} is not created).`,
     );
   }
-  if (env.CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD) {
+  if (environment.CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD) {
     refusals.push(
       `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD is not permitted under NODE_ENV=production because an operator-selected initial credential cannot be forced to expire after first use. Use the setup-token owner flow instead (${BOOTSTRAP_ADMIN_EMAIL} is not created).`,
     );

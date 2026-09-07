@@ -1,4 +1,4 @@
-import { authFromEnv, runAuthMigrations } from "../src/auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "../src/auth";
 import { existsSync } from "node:fs";
 import { upsertMember } from "../src/controlTables";
 import { insertAll, openDb } from "../src/db";
@@ -31,7 +31,7 @@ try {
   ).count;
   if (existingAccounts !== 0) throw new Error("Access-lab database is not empty; the launcher must reset it first.");
 
-  const { mode, auth } = authFromEnv(db, labEnv, {
+  const { mode, auth } = createAuthFromEnvironment(db, labEnv, {
     trustedOrigins: ["http://localhost:5473", "http://127.0.0.1:5473"],
   });
   if (mode !== "password" || !auth) throw new Error("Access lab requires password authentication.");

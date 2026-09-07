@@ -11,11 +11,11 @@ import {
 } from "../../controlTables";
 import type { Db } from "../../db";
 import { getRow } from "../../db";
-import { assertAccountAuthority, assertAdministrativeAssurance, roleMap } from "./authority";
+import { assertAccountAuthority, assertAdministrativeAssurance, readActorRolesByWorkspaceId } from "./authority";
 import type { AdminPortContext } from "./contracts";
 import type { SsoCutoverAccountAdminPort, SsoCutoverWorkspaceFact } from "./contracts";
-import { failure } from "./failures";
-import { membership } from "./mappers";
+import { createAccountFailure } from "./failures";
+import { readMembership } from "./mappers";
 
 /** Account-adapter-owned facts for the sole-Owner recovery tool, so it needs no direct control
  * table access. The single-active-owner index makes "active Owner" identical to "sole active
@@ -94,7 +94,7 @@ export function createCutover(
         return { allowed: false, reason: "single-workspace-cap" };
       }
       if (count === 0 || trustedLocal || bootstrapAuthorized) return { allowed: true };
-      const allowed = [...roleMap(db, actor.principalId).values()].some((role) =>
+      const allowed = [...readActorRolesByWorkspaceId(db, actor.principalId).values()].some((role) =>
         canAdministerAccount(role, "manage-members"),
       );
       if (!allowed) return { allowed: false, reason: "insufficient-authority" };
@@ -114,12 +114,12 @@ export function createCutover(
       });
       const row = listMembershipsForUser(db, principalId).find((candidate) => candidate.accountId === workspaceId);
       if (!row) throw new Error("Workspace provisioning did not create its Owner membership.");
-      return membership(db, row);
+      return readMembership(db, row);
     },
     assertWorkspaceErasureAuthorityInTx(actor, workspaceId): void {
       assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
       const role = assertAccountAuthority(db, actor, workspaceId, "erase-workspace", trustedLocal);
-      if (role !== "owner") throw failure("FORBIDDEN", "Only the workspace owner may erase it.");
+      if (role !== "owner") throw createAccountFailure("FORBIDDEN", "Only the workspace owner may erase it.");
     },
     eraseWorkspaceAdministrationInTx(workspaceId) {
       const principalIds = [...new Set(listMembersForAccount(db, workspaceId).map((row) => row.userId))];

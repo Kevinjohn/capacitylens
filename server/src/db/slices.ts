@@ -1,24 +1,24 @@
 import type { Db } from "../db";
 import { type AppData, emptyAppData } from "@capacitylens/shared/types/entities";
 import { type Row, fromRow } from "../rowCodec";
-import { statementCache, cachedTableStatement } from "./statementCache";
+import { createStatementCache, createCachedTableStatement } from "./statementCache";
 import { CREATE_ORDER, TABLES, SCOPED_ORDER } from "../tables";
 import { tableExists } from "./introspection";
 import { tx } from "../txn";
-import { type SanitizeWriteOptions, tableHasGatedFields, redactGatedEcho } from "../fieldPolicy";
+import { type SanitizeWriteOptions, hasGatedFields, redactGatedEcho } from "../fieldPolicy";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 /** Assemble the whole AppData tree from the tables. */
-export function loadState(db: Db): AppData {
+export function readState(db: Db): AppData {
   const data = emptyAppData() as unknown as Record<string, Row[]>;
-  const cache = statementCache(db).loadStateSelectAll;
+  const cache = createStatementCache(db).loadStateSelectAll;
   for (const table of CREATE_ORDER) {
     // During historical migration replay, newer AppData tables do not exist yet. They are empty
     // until their explicit migration creates them; the post-migration schema assertion still
     // rejects a missing table at the current version.
     if (!tableExists(db, table)) continue;
     const spec = TABLES[table];
-    const stmt = cachedTableStatement(cache, table, db, `SELECT * FROM ${table}`);
-    data[table] = stmt.all().map((r) => fromRow(spec, r));
+    const statement = createCachedTableStatement(cache, table, db, `SELECT * FROM ${table}`);
+    data[table] = statement.all().map((r) => fromRow(spec, r));
   }
   return data as unknown as AppData;
 }
@@ -28,7 +28,7 @@ export function loadState(db: Db): AppData {
  *  the app.ts route this encapsulates — the caller still maps each row onto the wire AccountSummary
  *  shape (adding the OFF sentinel `role: "owner"`); this only owns the query and its cached statement. */
 export function listAccountSummaries(db: Db): Array<{ id: string; name: string }> {
-  const cache = statementCache(db);
+  const cache = createStatementCache(db);
   if (!cache.accountSummariesSelect) {
     cache.accountSummariesSelect = db.prepare(`SELECT id, name FROM accounts ORDER BY id`);
   }
@@ -51,7 +51,7 @@ export function listAccountSummaries(db: Db): Array<{ id: string; name: string }
  * UNKNOWN accountId: not an error. An id with no matching account yields `accounts: []` plus an empty
  * array for every scoped table — degrade to "empty slice", never throw (a stale/typo'd id from a
  * client is a 0-row read, not a corruption signal). Rows are mapped through the SAME `fromRow` codec
- * {@link loadState} uses, so optional/json columns round-trip identically.
+ * {@link readState} uses, so optional/json columns round-trip identically.
  *
  * FIELD-LEVEL REDACTION (P1.6): `opts.includeTimeOffNote` is REQUIRED — there is no silent default, so
  * every caller must DECIDE the visibility of the owner/admin-only time-off `note` (the access rule
@@ -96,14 +96,14 @@ export type CompleteAccountSlice = AppData & { readonly [completeAccountSliceBra
 
 /** Mark an independently validated import/remap result as complete replacement input. This is the
  * only escape hatch for data that did not originate from {@link readFullSlice}. */
-export function validatedCompleteAccountSlice(data: AppData): CompleteAccountSlice {
+export function buildCompleteAccountSlice(data: AppData): CompleteAccountSlice {
   return data as CompleteAccountSlice;
 }
 
 export function readSlice(
   db: Db,
   accountId: string,
-  opts: {
+  options: {
     includeTimeOffNote: boolean;
     includeInactive: boolean;
     includePrivateNames: boolean;
@@ -111,7 +111,7 @@ export function readSlice(
 ): ProjectedAccountSlice {
   // A slice is one logical read. Under WAL another handle may commit between table SELECTs; BEGIN
   // pins all of them to one snapshot. tx() uses a savepoint when the caller already owns a write.
-  return tx(db, () => readSliceFromSnapshot(db, accountId, opts)) as ProjectedAccountSlice;
+  return tx(db, () => readSliceFromSnapshot(db, accountId, options)) as ProjectedAccountSlice;
 }
 
 /** Read an unredacted, tombstone-retaining slice for atomic transformation and replacement. */
@@ -128,14 +128,14 @@ export function readFullSlice(db: Db, accountId: string): CompleteAccountSlice {
 function readSliceFromSnapshot(
   db: Db,
   accountId: string,
-  opts: {
+  options: {
     includeTimeOffNote: boolean;
     includeInactive: boolean;
     includePrivateNames: boolean;
   },
 ): AppData {
   const data = emptyAppData() as unknown as Record<string, Row[]>;
-  const cache = statementCache(db);
+  const cache = createStatementCache(db);
   // The single global table: read the ONE account by id (0 or 1 row), via the same codec loadState uses.
   const accountsSpec = TABLES["accounts"];
   if (!cache.accountByIdSelect) cache.accountByIdSelect = db.prepare(`SELECT * FROM accounts WHERE id = ?`);
@@ -143,8 +143,13 @@ function readSliceFromSnapshot(
   // Every scoped table: WHERE accountId = ? — never an unpredicated read (the no-cross-tenant invariant).
   for (const table of SCOPED_ORDER) {
     const spec = TABLES[table];
-    const stmt = cachedTableStatement(cache.scopedSelect, table, db, `SELECT * FROM ${table} WHERE accountId = ?`);
-    data[table] = stmt.all(accountId).map((r) => fromRow(spec, r));
+    const statement = createCachedTableStatement(
+      cache.scopedSelect,
+      table,
+      db,
+      `SELECT * FROM ${table} WHERE accountId = ?`,
+    );
+    data[table] = statement.all(accountId).map((r) => fromRow(spec, r));
   }
   // P1.6 / private-name field-level redaction: derive BOTH gated-field redactions from the SAME
   // fieldPolicy.ts GATED_FIELD_POLICIES catalogue the write-pin (pinGatedFields) and export-include
@@ -158,13 +163,13 @@ function readSliceFromSnapshot(
   // each policy only ever touches its own table(s), so the net result of this loop is unchanged
   // regardless of order — the one ordering that DOES matter, gated redaction before activeOnly, is
   // preserved).
-  const vis: SanitizeWriteOptions = {
-    canSeeTimeOffNote: opts.includeTimeOffNote,
-    canSeePrivateNames: opts.includePrivateNames,
+  const visibility: SanitizeWriteOptions = {
+    canSeeTimeOffNote: options.includeTimeOffNote,
+    canSeePrivateNames: options.includePrivateNames,
   };
   for (const table of Object.keys(data)) {
-    if (!tableHasGatedFields(table)) continue;
-    data[table] = data[table].map((row) => redactGatedEcho(table, row as Record<string, unknown>, vis) as Row);
+    if (!hasGatedFields(table)) continue;
+    data[table] = data[table].map((row) => redactGatedEcho(table, row as Record<string, unknown>, visibility) as Row);
   }
   const visibleData = data as unknown as AppData;
   // P2.4 lifecycle projection: for the NORMAL app read (includeInactive:false), drop every NON-active
@@ -172,6 +177,6 @@ function readSliceFromSnapshot(
   // the client views use (useActiveScopedData), so the two halves can't drift. Applied AFTER the gated
   // redaction above so the projection runs over the already-redacted slice. includeInactive:true (P2.5's
   // admin read) returns the full slice untouched. The dropped rows stay in the DB + export.
-  if (!opts.includeInactive) return activeOnly(visibleData);
+  if (!options.includeInactive) return activeOnly(visibleData);
   return visibleData;
 }

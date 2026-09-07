@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { buildApp } from "./app";
+import { createApp } from "./app";
 import { openDb, insertAll, type Db } from "./db";
 import { upsertMember, getMemberRole, getInvite } from "./controlTables";
-import { authFromEnv, runAuthMigrations, type Auth } from "./auth";
-import { PASSWORD_ENV, call, cookiesOf, signUp } from "./testHelpers";
+import { createAuthFromEnvironment, runAuthMigrations, type Auth } from "./auth";
+import { PASSWORD_ENV, call, readCookies, signUp } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { recordSessionAssurance } from "./accounts/state";
 
@@ -34,9 +34,9 @@ function seedTwo(db: Db): void {
 
 async function appWithAuth(options: { rateLimit?: number } = {}): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
-  const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
   await runAuthMigrations(auth!);
-  return { app: buildApp(db, { authMode: mode, auth, ...options }), db };
+  return { app: createApp(db, { authMode: mode, auth, ...options }), db };
 }
 
 const membersReq = (app: FastifyInstance, accountId: string, headers: Record<string, string> = {}) =>
@@ -489,7 +489,7 @@ describe("step-up freshness gate — missing sessionCreatedAt fails closed", () 
       createdAt: TS,
     });
     recordSessionAssurance(db, "undated-session", "undated-owner", "password");
-    const app = buildApp(db, {
+    const app = createApp(db, {
       authMode: "password",
       auth: timestamplessAuth("undated-owner"),
     });
@@ -512,7 +512,7 @@ describe("step-up freshness gate — missing sessionCreatedAt fails closed", () 
       createdAt: TS,
     });
     recordSessionAssurance(db, "undated-session", "undated-owner", "password");
-    const app = buildApp(db, {
+    const app = createApp(db, {
       authMode: "password",
       auth: timestamplessAuth("undated-owner"),
     });
@@ -963,7 +963,7 @@ describe("POST /api/invites — Owner is never invitational", () => {
 describe("member endpoints — OFF mode (trusted-local)", () => {
   it("GET members / invites return empty; mutate routes report the unavailable capability", async () => {
     const db = openDb(":memory:");
-    const app = buildApp(db); // authMode defaults to 'off'
+    const app = createApp(db); // authMode defaults to 'off'
     seedTwo(db);
     const unavailable = {
       error: "Member management is unavailable in trusted-local mode.",
@@ -1364,7 +1364,7 @@ describe("member sign-in confirmation", () => {
       payload: { email: "editor-sign-in-confirmation@capacitylens.dev", password: "password-123456" },
     });
     expect(signedIn.statusCode).toBe(200);
-    expect(cookiesOf(signedIn)).not.toBe("");
+    expect(readCookies(signedIn)).not.toBe("");
     directory = (await membersReq(app, "a1", { cookie: owner.cookie })).json();
     expect(directory.members.find((member) => member.userId === ed.userId)?.signInConfirmed).toBe(true);
 

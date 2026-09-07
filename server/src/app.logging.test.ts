@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { buildApp, requestLoggerOptions } from "./app";
+import { createApp, createRequestLoggerOptions } from "./app";
 import { openDb } from "./db";
-import { authFromEnv, runAuthMigrations } from "./auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { call, PASSWORD_ENV, signUp } from "./testHelpers";
 
 // P1.3 (flag CAPACITYLENS_LOG → opts.log): ON gives structured per-request JSON via Fastify's
@@ -19,7 +19,7 @@ afterEach(() => vi.restoreAllMocks());
 describe("CAPACITYLENS_LOG on", () => {
   it("emits method/path/status request-completion JSON lines", async () => {
     const { lines, stream } = capture();
-    const app = buildApp(openDb(":memory:"), { log: true, logStream: stream });
+    const app = createApp(openDb(":memory:"), { log: true, logStream: stream });
     await app.inject({ method: "GET", url: "/api/health" });
     const out = lines.join("");
     expect(out).toContain('"url":"/api/health"');
@@ -32,7 +32,7 @@ describe("CAPACITYLENS_LOG on", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const { lines, stream } = capture();
     const db = openDb(":memory:");
-    const app = buildApp(db, { log: true, logStream: stream });
+    const app = createApp(db, { log: true, logStream: stream });
     db.close(); // /api/state now throws → the 500 redaction funnel
     const res = await app.inject({ method: "GET", url: "/api/state" });
     expect(res.statusCode).toBe(500);
@@ -46,7 +46,7 @@ describe("server error containment", () => {
   it("records an unexpected 5xx security event and returns no exception internals", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const events: Array<Record<string, unknown>> = [];
-    const app = buildApp(openDb(":memory:"), { securityLog: (event) => events.push(event) });
+    const app = createApp(openDb(":memory:"), { securityLog: (event) => events.push(event) });
     app.get("/test/unexpected-error", async () => {
       throw Object.assign(new Error("SENTINEL_PRIVATE_EXCEPTION"), { statusCode: 503 });
     });
@@ -72,10 +72,10 @@ describe("server error containment", () => {
     "distinguishes an auth backend failure from no session on %s",
     async (url) => {
       const db = openDb(":memory:");
-      const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+      const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
       await runAuthMigrations(auth!);
       vi.spyOn(auth!.api, "getSession").mockRejectedValue(new Error("identity backend unavailable"));
-      const app = buildApp(db, { authMode: mode, auth });
+      const app = createApp(db, { authMode: mode, auth });
 
       const response = await call(app, { method: "GET", url });
 
@@ -89,7 +89,7 @@ describe("server error containment", () => {
 
 describe("CAPACITYLENS_LOG redaction (P0.5.5)", () => {
   it("wires remove:true to every secret header path before serializers run", () => {
-    expect(requestLoggerOptions().redact).toEqual({
+    expect(createRequestLoggerOptions().redact).toEqual({
       paths: ["req.headers.authorization", "req.headers.cookie", 'res.headers["set-cookie"]'],
       remove: true,
     });
@@ -99,7 +99,7 @@ describe("CAPACITYLENS_LOG redaction (P0.5.5)", () => {
   // serializers don't log headers — this guards against a future serializer change leaking them.
   it("keeps authorization/cookie headers off the request log lines", async () => {
     const { lines, stream } = capture();
-    const app = buildApp(openDb(":memory:"), { log: true, logStream: stream });
+    const app = createApp(openDb(":memory:"), { log: true, logStream: stream });
     await app.inject({
       method: "GET",
       url: "/api/health",
@@ -120,7 +120,7 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
   // serializer must mask the :token segment before it reaches stdout. Other URLs stay intact.
   it("rewrites /api/invites/<token>/accept to /api/invites/[redacted]/accept", async () => {
     const { lines, stream } = capture();
-    const app = buildApp(openDb(":memory:"), { log: true, logStream: stream });
+    const app = createApp(openDb(":memory:"), { log: true, logStream: stream });
     const TOKEN = "SENTINEL_LIVE_INVITE_TOKEN";
     // The token is unknown → the route 404s, but the request IS logged with the URL we care about.
     const res = await app.inject({
@@ -136,7 +136,7 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
 
   it.each(["preview", "signup"])("also redacts the token from the %s URL", async (operation) => {
     const { lines, stream } = capture();
-    const app = buildApp(openDb(":memory:"), {
+    const app = createApp(openDb(":memory:"), {
       log: true,
       logStream: stream,
     });
@@ -153,10 +153,10 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
 
   it("also redacts token paths in structured security events", async () => {
     const db = openDb(":memory:");
-    const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+    const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
     await runAuthMigrations(auth!);
     const events: Array<Record<string, unknown>> = [];
-    const app = buildApp(db, {
+    const app = createApp(db, {
       authMode: mode,
       auth,
       securityLog: (event) => events.push(event),
@@ -179,7 +179,7 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
 
   it("redacts secret query parameters while preserving ordinary query state", async () => {
     const { lines, stream } = capture();
-    const app = buildApp(openDb(":memory:"), { log: true, logStream: stream });
+    const app = createApp(openDb(":memory:"), { log: true, logStream: stream });
     const CODE = "SENTINEL_CALLBACK_CODE";
     const STATE = "SENTINEL_CALLBACK_STATE";
 
@@ -196,7 +196,7 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
 
   it("leaves every other URL intact", async () => {
     const { lines, stream } = capture();
-    const app = buildApp(openDb(":memory:"), { log: true, logStream: stream });
+    const app = createApp(openDb(":memory:"), { log: true, logStream: stream });
     await app.inject({ method: "GET", url: "/api/health" });
     expect(lines.join("")).toContain('"url":"/api/health"');
   });
@@ -208,10 +208,10 @@ describe("security-event client identity", () => {
     [false, "127.0.0.1"],
   ])("uses the forwarded client only when proxy headers are trusted (%s)", async (trustProxyHeaders, expectedIp) => {
     const db = openDb(":memory:");
-    const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+    const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
     await runAuthMigrations(auth!);
     const events: Array<Record<string, unknown>> = [];
-    const app = buildApp(db, {
+    const app = createApp(db, {
       authMode: mode,
       auth,
       trustProxyHeaders,
@@ -237,7 +237,7 @@ describe("security-event client identity", () => {
 describe("CAPACITYLENS_LOG off (default)", () => {
   it("emits no request logs at all", async () => {
     const { lines, stream } = capture();
-    const app = buildApp(openDb(":memory:"), { logStream: stream }); // stream ignored when off
+    const app = createApp(openDb(":memory:"), { logStream: stream }); // stream ignored when off
     await app.inject({ method: "GET", url: "/api/health" });
     expect(lines).toEqual([]);
   });
@@ -246,7 +246,7 @@ describe("CAPACITYLENS_LOG off (default)", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const { lines, stream } = capture();
     const db = openDb(":memory:");
-    const app = buildApp(db, { logStream: stream });
+    const app = createApp(db, { logStream: stream });
     db.close();
     const res = await app.inject({ method: "GET", url: "/api/state" });
     expect(res.statusCode).toBe(500);
@@ -258,10 +258,10 @@ describe("CAPACITYLENS_LOG off (default)", () => {
 describe("authentication security events", () => {
   it("attributes verified sign-in and sign-out sessions without trusting failed credentials", async () => {
     const db = openDb(":memory:");
-    const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+    const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
     await runAuthMigrations(auth!);
     const events: Array<Record<string, unknown>> = [];
-    const app = buildApp(db, {
+    const app = createApp(db, {
       authMode: mode,
       auth,
       securityLog: (event) => events.push(event),

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { buildApp, MAX_RATE_LIMIT, parseRateLimit } from "./app";
+import { createApp, MAX_RATE_LIMIT, parseRateLimit } from "./app";
 import { openDb } from "./db";
 
 // P1.5 (flag CAPACITYLENS_RATE_LIMIT → opts.rateLimit): a guard against accidental client
@@ -32,14 +32,14 @@ describe("CAPACITYLENS_RATE_LIMIT on", () => {
   it.each([MAX_RATE_LIMIT + 1, 12.5, Number.POSITIVE_INFINITY, -1])(
     "refuses invalid programmatic rateLimit %s instead of silently disabling the limiter",
     (rateLimit) => {
-      expect(() => buildApp(openDb(":memory:"), { rateLimit })).toThrow(
+      expect(() => createApp(openDb(":memory:"), { rateLimit })).toThrow(
         `rateLimit must be 0 (disabled) or a positive integer no greater than ${MAX_RATE_LIMIT.toLocaleString("en-US")}`,
       );
     },
   );
 
   it("429s the third request inside a minute with a JSON error", async () => {
-    const app = buildApp(openDb(":memory:"), { rateLimit: 2 });
+    const app = createApp(openDb(":memory:"), { rateLimit: 2 });
     expect((await stateReq(app)).statusCode).toBe(200);
     expect((await stateReq(app)).statusCode).toBe(200);
     const third = await stateReq(app);
@@ -52,18 +52,18 @@ describe("CAPACITYLENS_RATE_LIMIT on", () => {
     // shares one socket-IP bucket with all other traffic, so a limited health route would 429 the
     // monitor (or let it starve real traffic). config.rateLimit:false opts this ONE route out while
     // /api/state (above) stays limited — so this must survive far more than the limit of 2 requests.
-    const app = buildApp(openDb(":memory:"), { rateLimit: 2 });
+    const app = createApp(openDb(":memory:"), { rateLimit: 2 });
     for (let i = 0; i < 5; i++) expect((await health(app)).statusCode).toBe(200);
   });
 
   it("keys on X-Forwarded-For only when told the host is behind the proxy", async () => {
     // Behind the proxy: distinct forwarded clients get their own buckets.
-    const proxied = buildApp(openDb(":memory:"), { rateLimit: 2, trustProxyHeaders: true });
+    const proxied = createApp(openDb(":memory:"), { rateLimit: 2, trustProxyHeaders: true });
     for (const ip of ["10.0.0.1", "10.0.0.2", "10.0.0.3"]) {
       expect((await stateReq(proxied, { "x-forwarded-for": ip })).statusCode).toBe(200);
     }
     // Directly exposed: the spoofable header is ignored — all three share the socket's key.
-    const exposed = buildApp(openDb(":memory:"), { rateLimit: 2 });
+    const exposed = createApp(openDb(":memory:"), { rateLimit: 2 });
     expect((await stateReq(exposed, { "x-forwarded-for": "10.0.0.1" })).statusCode).toBe(200);
     expect((await stateReq(exposed, { "x-forwarded-for": "10.0.0.2" })).statusCode).toBe(200);
     expect((await stateReq(exposed, { "x-forwarded-for": "10.0.0.3" })).statusCode).toBe(429);
@@ -72,7 +72,7 @@ describe("CAPACITYLENS_RATE_LIMIT on", () => {
 
 describe("CAPACITYLENS_RATE_LIMIT off (default)", () => {
   it("no 429 under burst — the plugin is not registered", async () => {
-    const app = buildApp(openDb(":memory:"));
+    const app = createApp(openDb(":memory:"));
     for (let i = 0; i < 10; i++) expect((await stateReq(app)).statusCode).toBe(200);
   });
 });

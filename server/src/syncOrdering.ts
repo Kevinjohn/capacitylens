@@ -58,7 +58,7 @@ interface SyncOrderingStatementCache {
 
 const syncOrderingStatementCaches = new WeakMap<Db, SyncOrderingStatementCache>();
 
-function syncOrderingStatementCache(db: Db): SyncOrderingStatementCache {
+function createSyncOrderingStatementCache(db: Db): SyncOrderingStatementCache {
   let cache = syncOrderingStatementCaches.get(db);
   if (!cache) {
     cache = {};
@@ -67,7 +67,7 @@ function syncOrderingStatementCache(db: Db): SyncOrderingStatementCache {
   return cache;
 }
 
-const columnShape = (db: Db, table: string) =>
+const readColumnShape = (db: Db, table: string) =>
   (
     db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
       name: string;
@@ -78,13 +78,13 @@ const columnShape = (db: Db, table: string) =>
   ).map(({ name, type, notnull, pk }) => ({ name, type, notnull, pk }));
 
 export function assertSyncOrderingCurrent(db: Db): void {
-  const sessions = columnShape(db, "capacitylens_sync_sessions");
+  const sessions = readColumnShape(db, "capacitylens_sync_sessions");
   const expectedSessions = [
     { name: "sessionId", type: "TEXT", notnull: 1, pk: 1 },
     { name: "lastSequence", type: "INTEGER", notnull: 1, pk: 0 },
     { name: "updatedAt", type: "TEXT", notnull: 1, pk: 0 },
   ];
-  const provenance = columnShape(db, "capacitylens_sync_row_provenance");
+  const provenance = readColumnShape(db, "capacitylens_sync_row_provenance");
   const expectedProvenance = [
     { name: "tableName", type: "TEXT", notnull: 1, pk: 1 },
     { name: "rowId", type: "TEXT", notnull: 1, pk: 2 },
@@ -113,11 +113,11 @@ export function assertSyncOrderingCurrent(db: Db): void {
 }
 
 export function isSupersededSyncBatch(db: Db, order: SyncOrder): boolean {
-  const cache = syncOrderingStatementCache(db);
-  const stmt = (cache.isSupersededSyncBatch ??= db.prepare(
+  const cache = createSyncOrderingStatementCache(db);
+  const statement = (cache.isSupersededSyncBatch ??= db.prepare(
     `SELECT lastSequence FROM capacitylens_sync_sessions WHERE sessionId = ?`,
   ));
-  const row = stmt.get(order.sessionId) as { lastSequence: number } | undefined;
+  const row = statement.get(order.sessionId) as { lastSequence: number } | undefined;
   return row !== undefined && row.lastSequence >= order.sequence;
 }
 
@@ -134,15 +134,15 @@ export function isSameSessionSuccessor(
   id: string,
   current: Record<string, unknown>,
 ): boolean {
-  const cache = syncOrderingStatementCache(db);
-  const stmt = (cache.isSameSessionSuccessor ??= db.prepare(
+  const cache = createSyncOrderingStatementCache(db);
+  const statement = (cache.isSameSessionSuccessor ??= db.prepare(
     `
     SELECT sessionId, sequence, rowHash
       FROM capacitylens_sync_row_provenance
      WHERE tableName = ? AND rowId = ?
   `,
   ));
-  const provenance = stmt.get(table, id) as { sessionId: string; sequence: number; rowHash: string } | undefined;
+  const provenance = statement.get(table, id) as { sessionId: string; sequence: number; rowHash: string } | undefined;
   return (
     provenance !== undefined &&
     provenance.sessionId === order.sessionId &&
