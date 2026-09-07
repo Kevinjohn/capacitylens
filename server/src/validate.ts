@@ -34,7 +34,7 @@ export type { SanitizeWriteOptions } from "./fieldPolicy";
 //   1. sanitizeWrite — repair value-level fields (enums / colour / hours /
 //      workingDays) exactly as the import path does, so a hand-crafted request can't
 //      persist a junk enum, non-hex colour, or NaN/negative hours.
-//   2. validateWrite — referential integrity + date ranges, throwing ValidationError
+//   2. assertValidWrite — referential integrity + date ranges, throwing ValidationError
 //      (mapped to HTTP 400 by the caller; an unexpected throw becomes 500).
 const SCOPED_REF_TABLES: ScopedEntityKey[] = ["projects", "phases", "activities", "resources"];
 
