@@ -771,8 +771,7 @@ describe("MembersSection — owner affordances", () => {
     expect(screen.queryByRole("option", { name: "Owner" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
 
-    const rows = await screen.findAllByTestId("member-row");
-    const editorRow = rows.find((r) => within(r).queryByText(/ed@x\.io/))!;
+    const editorRow = await findMemberRow(/ed@x\.io/);
     await user.click(within(editorRow).getByTestId("member-edit"));
     const dialog = await screen.findByRole("dialog");
     fireEvent.keyDown(within(dialog).getByRole("combobox"), { key: "ArrowDown" });
@@ -788,8 +787,7 @@ describe("MembersSection — owner affordances", () => {
     renderSection();
     await screen.findByTestId("members-section");
 
-    const rows = await screen.findAllByTestId("member-row");
-    const soleOwnerRow = rows.find((r) => within(r).queryByText(/me@x\.io/))!;
+    const soleOwnerRow = await findMemberRow(/me@x\.io/);
     expect(within(soleOwnerRow).getByTestId("member-role")).toHaveTextContent(m.settings_member_sole_owner_protected());
     // No pencil (the role is not editable) and no gear: nothing in it would be permitted.
     expect(within(soleOwnerRow).queryByTestId("member-edit")).not.toBeInTheDocument();
@@ -811,7 +809,7 @@ describe("MembersSection — member lifecycle", () => {
     renderSection();
     await screen.findByTestId("members-section");
 
-    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+    const edRow = await findMemberRow(/ed@x\.io/);
     await openMemberMenu(userEvent.setup(), edRow);
     expect(screen.queryByTestId("member-make-owner")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /transfer ownership/i })).not.toBeInTheDocument();
@@ -825,7 +823,7 @@ describe("MembersSection — member lifecycle", () => {
     const fetchMock = mockApi(lifecycleMembers);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+    const edRow = await findMemberRow(/ed@x\.io/);
 
     await chooseMemberAction(user, edRow, testId);
     const dialog = screen.getByRole("alertdialog");
@@ -854,7 +852,7 @@ describe("MembersSection — member lifecycle", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     await openInactiveGroup(user);
-    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+    const edRow = await findMemberRow(/ed@x\.io/);
     // A non-active member must stay REACHABLE and legible, or the state is unreversible.
     expect(within(edRow).getByTestId("member-status")).toHaveTextContent(m.settings_member_status_disabled());
 
@@ -883,7 +881,7 @@ describe("MembersSection — member lifecycle", () => {
     );
     renderSection();
     await openInactiveGroup(user);
-    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+    const edRow = await findMemberRow(/ed@x\.io/);
 
     // A role change writes status: "active", so offering the pencil here would turn "edit their role"
     // into a silent reinstatement. Restore is the only way back, and it is its own audited action.
@@ -957,7 +955,7 @@ describe("MembersSection — member lifecycle", () => {
       ]),
     );
     renderSection();
-    const selfRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/me@x\.io/))!;
+    const selfRow = await findMemberRow(/me@x\.io/);
 
     // Self-suspension would be an unrecoverable in-app lockout; the Owner is protected because the
     // single-active-Owner invariant keys on role='owner' AND status='active'.
@@ -966,7 +964,7 @@ describe("MembersSection — member lifecycle", () => {
     expect(screen.queryByTestId("member-archive")).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
 
-    const ownerRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/owner@x\.io/))!;
+    const ownerRow = await findMemberRow(/owner@x\.io/);
     expect(within(ownerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
   });
 
@@ -979,7 +977,7 @@ describe("MembersSection — member lifecycle", () => {
       }),
     );
     renderSection();
-    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+    const edRow = await findMemberRow(/ed@x\.io/);
 
     await chooseMemberAction(user, edRow, "member-disable");
     await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: /disable/i }));
@@ -997,9 +995,8 @@ describe("MembersSection — member lifecycle", () => {
       ]),
     );
     renderSection();
-    const rows = await screen.findAllByTestId("member-row");
-    const selfRow = rows.find((r) => within(r).queryByText(/me@x\.io/))!;
-    const edRow = rows.find((r) => within(r).queryByText(/ed@x\.io/))!;
+    const selfRow = await findMemberRow(/me@x\.io/);
+    const edRow = await findMemberRow(/ed@x\.io/);
 
     expect(within(selfRow).getByTestId("member-sign-in-confirmed")).toHaveTextContent(
       m.settings_member_sign_in_confirmed(),
