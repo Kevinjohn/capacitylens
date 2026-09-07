@@ -139,8 +139,9 @@ it. Omit an absent optional property instead of passing `undefined`; reserve exp
 for contracts that include it as a value. Do not add assertions, placeholder defaults or wider
 types merely to satisfy either check.
 
-The mechanical part of this page is enforced by `pnpm run lint`, in the typed packages (`src`,
-`shared/src`, `server/src`, `server/scripts`):
+The mechanical part of this page is enforced by `pnpm run lint` in the typed packages (`src`,
+`shared/src`, `server/src`, `server/scripts`). The structural rules also cover `e2e`; that separate
+Playwright project does not enable the typed project-service rules:
 
 - casing, through `@typescript-eslint/naming-convention`: camelCase for `let` variables,
   camelCase, UPPER_CASE or PascalCase for `const`, camelCase or PascalCase for functions and
@@ -154,8 +155,10 @@ The mechanical part of this page is enforced by `pnpm run lint`, in the typed pa
 
 Existing violations, including the reviewed initial baseline for a newly adopted rule, are
 recorded as a count per file and rule in `eslint-suppressions.json` at the repository root. The
-corresponding task inventory records each declaration and its disposition. A count that rises
-fails lint. A count that falls also fails, until the entry is pruned with
+[#645 enforcement baseline](https://github.com/Kevinjohn/capacitylens/blob/main/tasks/conventions-enforcement-baseline.md)
+and [#647 structural baseline](https://github.com/Kevinjohn/capacitylens/blob/main/tasks/strictness-structure-baseline.md)
+record each declaration and its disposition. A count that rises fails lint. A count that falls
+also fails, until the entry is pruned with
 
 ```
 pnpm exec eslint . --prune-suppressions
