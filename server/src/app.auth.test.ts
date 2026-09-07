@@ -112,6 +112,27 @@ function parseErrorMessage(res: LightMyRequestResponse): string {
   return value.error;
 }
 
+function parseBackupCodes(res: LightMyRequestResponse): string[] {
+  const value = parseJsonObject(res);
+  if (!("backupCodes" in value) || !Array.isArray(value.backupCodes)) {
+    throw new Error("Expected response body to include backup codes.");
+  }
+  return Array.from(value.backupCodes, (code: unknown) => {
+    if (typeof code !== "string") throw new Error("Expected every backup code to be a string.");
+    return code;
+  });
+}
+
+function parseTotpSecret(res: LightMyRequestResponse): string {
+  const value = parseJsonObject(res);
+  if (!("totpURI" in value) || typeof value.totpURI !== "string") {
+    throw new Error("Expected response body to include a TOTP URI.");
+  }
+  const secret = new URL(value.totpURI).searchParams.get("secret");
+  if (secret === null) throw new Error("Expected TOTP URI to include a secret.");
+  return secret;
+}
+
 function totpCode(secret: string, at = Date.now()): string {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   let bits = "";
@@ -800,7 +821,7 @@ describe("CAPACITYLENS_AUTH password", () => {
       headers: { cookie: signupCookie },
     });
     expect(blocked.statusCode).toBe(403);
-    expect(blocked.json().code).toBe("MFA_ENROLLMENT_REQUIRED");
+    expect(parseErrorCode(blocked)).toBe("MFA_ENROLLMENT_REQUIRED");
 
     const before = await call(app, {
       method: "GET",
@@ -820,15 +841,15 @@ describe("CAPACITYLENS_AUTH password", () => {
       payload: { password },
     });
     expect(enabled.statusCode).toBe(200);
-    expect(enabled.json().backupCodes).toHaveLength(10);
-    const secret = new URL(enabled.json().totpURI as string).searchParams.get("secret");
+    expect(parseBackupCodes(enabled)).toHaveLength(10);
+    const secret = parseTotpSecret(enabled);
     expect(secret).toBeTruthy();
 
     const verified = await call(app, {
       method: "POST",
       url: "/api/auth/two-factor/verify-totp",
       headers: { cookie: signupCookie },
-      payload: { code: totpCode(secret!), trustDevice: false },
+      payload: { code: totpCode(secret), trustDevice: false },
     });
     expect(verified.statusCode).toBe(200);
     const enrolledCookie = cookiesOf(verified);
@@ -883,7 +904,7 @@ describe("CAPACITYLENS_AUTH password", () => {
       method: "POST",
       url: "/api/auth/two-factor/verify-totp",
       headers: { cookie: challengeCookie },
-      payload: { code: totpCode(secret!), trustDevice: false },
+      payload: { code: totpCode(secret), trustDevice: false },
     });
     expect(completed.statusCode).toBe(200);
     const finalCookie = cookiesOf(completed);
