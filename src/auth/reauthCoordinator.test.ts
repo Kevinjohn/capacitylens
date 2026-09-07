@@ -4,6 +4,7 @@ import {
   REAUTH_REQUEST_TIMEOUT_MS,
   requestReauth,
   completeReauth,
+  readReauthResolution,
   subscribeReauth,
 } from "./reauthCoordinator";
 
@@ -16,6 +17,7 @@ describe("reauthCoordinator", () => {
   it.each([true, false])("deduplicates concurrent requests and resolves every waiter with %s", async (outcome) => {
     const listener = vi.fn();
     const unsubscribe = subscribeReauth(listener);
+    const beforeResolution = readReauthResolution();
 
     const first = requestReauth();
     const second = requestReauth();
@@ -29,6 +31,12 @@ describe("reauthCoordinator", () => {
     const [firstResult, secondResult] = await Promise.all([first, second]);
     expect(firstResult).toEqual(outcome ? { kind: "authenticated" } : { kind: "cancelled" });
     expect(secondResult).toBe(firstResult);
+    const afterResolution = readReauthResolution();
+    expect(afterResolution.epoch).toBe(beforeResolution.epoch + 1);
+    expect(afterResolution.outcome).toBe(firstResult);
+    completeReauth(!outcome);
+    expect(readReauthResolution()).toBe(afterResolution);
+    expect(readReauthResolution().epoch).toBe(afterResolution.epoch);
     expect(isReauthPending()).toBe(false);
     expect(listener).toHaveBeenCalledTimes(2);
     unsubscribe();

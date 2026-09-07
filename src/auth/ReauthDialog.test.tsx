@@ -107,7 +107,7 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     await waitFor(() =>
       expect(signInEmail).toHaveBeenCalledWith({ email: "owner@acme.test", password: "correct horse" }),
     );
-    // Dialog gone (pending cleared) and the coordinator resolved authenticated (the wrapper will retry).
+    // Dialog gone (pending cleared) and the coordinator resolved an authenticated result (the wrapper will retry).
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Confirm it's you" })).not.toBeInTheDocument());
     await waitFor(() => expect(settled).toEqual({ kind: "authenticated" }));
     expect(isReauthPending()).toBe(false);
