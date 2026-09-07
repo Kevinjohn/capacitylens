@@ -379,91 +379,6 @@
       "count": 1
     }
   },
-  "src/components/scheduler/AllocationModal.test.tsx": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/activityOptions.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/allocationDrag.test.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/allocationDrag.ts": {
-    "max-params": {
-      "count": 4
-    }
-  },
-  "src/components/scheduler/creationAvailability.ts": {
-    "max-params": {
-      "count": 6
-    }
-  },
-  "src/components/scheduler/gestureAnnouncements.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/gestureGeometry.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/schedulerModel.test.ts": {
-    "max-params": {
-      "count": 4
-    }
-  },
-  "src/components/scheduler/schedulerModel.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/schedulerRowCapacity.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "src/components/scheduler/schedulerRowModel.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/useAllocationGesture.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/useSchedulerGridVirtualization.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/useToolbarSearch.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/virtualWindow.test.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/virtualWindow.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/visibleSpan.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "src/components/settings/MembersSection.test.tsx": {
     "max-params": {
       "count": 6
@@ -505,16 +420,6 @@
     }
   },
   "src/data/sync/snapshot.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/hooks/useDragResize.test.tsx": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/hooks/useDragResize.ts": {
     "max-params": {
       "count": 1
     }
