@@ -616,7 +616,7 @@
   },
   "server/src/app.authz.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
-      "count": 6
+      "count": 1
     },
     "@typescript-eslint/no-unsafe-member-access": {
       "count": 5
@@ -857,7 +857,7 @@
   },
   "server/src/auth.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
-      "count": 29
+      "count": 9
     },
     "@typescript-eslint/no-unsafe-assignment": {
       "count": 7
@@ -2923,7 +2923,7 @@
   },
   "src/components/settings/MembersSection.test.tsx": {
     "max-lines-per-function": {
-      "count": 9
+      "count": 8
     }
   },
   "src/components/settings/MembersSection.tsx": {
