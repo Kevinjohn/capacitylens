@@ -1213,7 +1213,7 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
     );
     const selfTransfer = await transfer({ app, accountId: "a1", toUserId: owner.userId, cookie: owner.cookie });
     expect(selfTransfer.statusCode).toBe(400);
-    expect(selfTransfer.json().code).toBe("VALIDATION_FAILED");
+    expect(parseErrorCode(selfTransfer.json())).toBe("VALIDATION_FAILED");
     expect(getMemberRole(db, "a1", owner.userId)).toBe("owner"); // still the owner
   });
 
