@@ -230,7 +230,7 @@ export function createAuthAdapterFactory({
       strictProvider,
       ensureProviderBindings: () => {
         for (const [providerId, issuer] of configuredFederatedIssuers) {
-          bindFederatedProvider(db, application.applicationId, issuer, providerId);
+          bindFederatedProvider({ db, applicationId: application.applicationId, issuer, providerId });
         }
       },
       assertProviderBindings: () => {

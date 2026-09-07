@@ -8,7 +8,7 @@ import type {
 import type { Action } from "@capacitylens/shared/domain/access";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AuditRecord } from "../../audit";
-import type { MemberSignInTrackingSnapshot } from "../memberSignInTracking";
+import type { SetMemberSignInTrackingInput, MemberSignInTrackingSnapshot } from "../memberSignInTracking";
 
 // Shared by the two role-validation response paths below (AccountContractError and a direct 400) —
 // same wording, deliberately different response shapes, so only the string is deduplicated.
@@ -19,6 +19,10 @@ export const MEMBER_SIGN_IN_TRACKING_RATE_LIMIT = {
   timeWindow: "1 minute",
   groupId: "member-sign-in-tracking",
 } as const;
+
+type SetMemberSignInTrackingRequestInput = Omit<SetMemberSignInTrackingInput, "db" | "accountId"> & {
+  workspaceId: string;
+};
 
 export interface AccountRouteDependencies {
   authMode: AccountMode;
@@ -31,7 +35,7 @@ export interface AccountRouteDependencies {
   flows: AccountFlows;
   memberSignInTracking: {
     snapshot(workspaceId: string): MemberSignInTrackingSnapshot;
-    set(workspaceId: string, actorPrincipalId: string, enabled: boolean): { enabled: boolean; changed: boolean };
+    set(input: SetMemberSignInTrackingRequestInput): { enabled: boolean; changed: boolean };
   };
   authorize(request: FastifyRequest, reply: FastifyReply, workspaceId: string, action: Action): boolean;
   command(request: FastifyRequest): CommandIdentity;

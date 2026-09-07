@@ -61,7 +61,11 @@ export async function setMemberSignInTracking(req: FastifyRequest, reply: Fastif
     return reply.code(400).send({ error: "enabled must be a boolean." });
   }
   try {
-    const result = memberSignInTracking.set(accountId, req.accountActor!.principalId, body.enabled);
+    const result = memberSignInTracking.set({
+      workspaceId: accountId,
+      actorPrincipalId: req.accountActor!.principalId,
+      enabled: body.enabled,
+    });
     if (result.changed) {
       audit(reply, {
         ts: new Date().toISOString(),

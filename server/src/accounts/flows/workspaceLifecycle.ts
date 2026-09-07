@@ -53,13 +53,13 @@ export function createWorkspaceLifecycleFlows(
     }) {
       return lock.withKeys([buildCommandExecutionKey(command), actor.principalId], () => {
         const operation = `workspace-provisioning:actor:${actor.principalId}`;
-        if (!readCommand(db, applicationId, operation, command)) return null;
+        if (!readCommand({ db, applicationId, operation, command })) return null;
         const begun = beginCommand<{
           product: unknown;
           membership: Awaited<ReturnType<AccountAdminPort["getMembership"]>>;
-        }>(
+        }>({
           db,
-          {
+          scope: {
             applicationId,
             operation,
             actorPrincipalId: actor.principalId,
@@ -67,8 +67,8 @@ export function createWorkspaceLifecycleFlows(
             workspaceId,
           },
           command,
-          { workspaceId, product: canonicalProductPayload },
-        );
+          canonicalPayload: { workspaceId, product: canonicalProductPayload },
+        });
         if (begun.kind !== "replay") {
           throw new AccountContractError({
             code: "COMMAND_IN_PROGRESS",
@@ -88,16 +88,16 @@ export function createWorkspaceLifecycleFlows(
     async replayWorkspaceErasure({ actor, workspaceId, command }) {
       return lock.withKeys([buildCommandExecutionKey(command), actor.principalId], () => {
         const operation = "workspace-erasure";
-        const existing = readCommand(db, applicationId, operation, command);
+        const existing = readCommand({ db, applicationId, operation, command });
         // Only a committed success may bypass live workspace authorization. New, pending and
         // failed commands continue through the ordinary Owner/fresh-session checks below.
         if (!existing || existing.status !== "completed") return null;
         const replay = resumeExistingCommand<{
           commandId: string;
           completedAt: string;
-        }>(
+        }>({
           db,
-          {
+          scope: {
             applicationId,
             operation,
             // A successful erasure deliberately anonymises its retained receipt. Accept that
@@ -107,8 +107,8 @@ export function createWorkspaceLifecycleFlows(
             workspaceId,
           },
           command,
-          { workspaceId },
-        );
+          canonicalPayload: { workspaceId },
+        });
         return replay ? markAccountCommandReplay(replay.result) : null;
       });
     },
@@ -142,9 +142,14 @@ export function createWorkspaceLifecycleFlows(
           const begun = beginCommand<{
             product: unknown;
             membership: Awaited<ReturnType<AccountAdminPort["getMembership"]>>;
-          }>(db, scope, command, {
-            workspaceId,
-            product: canonicalProductPayload,
+          }>({
+            db,
+            scope,
+            command,
+            canonicalPayload: {
+              workspaceId,
+              product: canonicalProductPayload,
+            },
           });
           if (begun.kind === "replay") {
             return {
@@ -172,7 +177,7 @@ export function createWorkspaceLifecycleFlows(
                   joinedAt,
                 });
                 const result = { product, membership };
-                completeCommand(db, scope, command, result);
+                completeCommand({ db, scope, command, result });
                 audit({
                   action: "workspace.provisioned",
                   outcome: "success",
@@ -192,13 +197,13 @@ export function createWorkspaceLifecycleFlows(
             recordTerminalOutcome(error, () =>
               persistTerminalOutcome(
                 () =>
-                  terminateCommand(
+                  terminateCommand({
                     db,
                     scope,
                     command,
-                    "compensated",
-                    error instanceof AccountContractError ? error.failure.code : "CONFLICT",
-                  ),
+                    status: "compensated",
+                    failureCode: error instanceof AccountContractError ? error.failure.code : "CONFLICT",
+                  }),
                 {
                   action: deniedOutcome ? "workspace.provisioned" : "flow.compensated",
                   outcome: deniedOutcome ? "denied" : "compensated",
@@ -215,16 +220,16 @@ export function createWorkspaceLifecycleFlows(
     },
 
     async eraseWorkspace({ actor, workspaceId, command, auditProductMutationInTx }) {
-      return withMembershipSnapshotRetry(
+      return withMembershipSnapshotRetry({
         lock,
-        () => administration.workspacePrincipalIds(workspaceId),
-        (principalIds) => [
+        currentPrincipalIds: () => administration.workspacePrincipalIds(workspaceId),
+        lockKeysFor: (principalIds) => [
           buildCommandExecutionKey(command),
           actor.principalId,
           `workspace:${workspaceId}`,
           ...principalIds,
         ],
-        async () => {
+        run: async () => {
           // Do not embed the soon-to-be-erased actor id in the durable operation key. The row is
           // retained briefly for safe client replay after erasure, with principal/workspace
           // columns anonymized in the same transaction.
@@ -238,7 +243,7 @@ export function createWorkspaceLifecycleFlows(
           const begun = beginCommand<{
             commandId: string;
             completedAt: string;
-          }>(db, scope, command, { workspaceId });
+          }>({ db, scope, command, canonicalPayload: { workspaceId } });
           if (begun.kind === "replay") {
             return markAccountCommandReplay(begun.result);
           }
@@ -257,7 +262,7 @@ export function createWorkspaceLifecycleFlows(
                   completedAt: new Date().toISOString(),
                 };
                 eraseWorkspaceCommandHistoryInTx(db, workspaceId, command.commandId);
-                completeCommand(db, scope, command, receipt);
+                completeCommand({ db, scope, command, result: receipt });
                 for (const principalId of orphaned) {
                   audit({
                     action: "identity.local_deprovisioned",
@@ -287,13 +292,13 @@ export function createWorkspaceLifecycleFlows(
             recordTerminalOutcome(error, () =>
               persistTerminalOutcome(
                 () =>
-                  terminateCommand(
+                  terminateCommand({
                     db,
                     scope,
                     command,
-                    "compensated",
-                    error instanceof AccountContractError ? error.failure.code : "CONFLICT",
-                  ),
+                    status: "compensated",
+                    failureCode: error instanceof AccountContractError ? error.failure.code : "CONFLICT",
+                  }),
                 {
                   action: "flow.compensated",
                   outcome: "compensated",
@@ -306,7 +311,7 @@ export function createWorkspaceLifecycleFlows(
             throw error;
           }
         },
-        () => {
+        onAttemptsExhausted: () => {
           throw new AccountContractError({
             code: "CONFLICT",
             message: "Company membership changed repeatedly during erasure. Retry the request.",
@@ -314,7 +319,7 @@ export function createWorkspaceLifecycleFlows(
             commandId: command.commandId,
           });
         },
-      );
+      });
     },
 
     provisionWorkspaceInExistingTransaction({
@@ -349,23 +354,24 @@ export function createWorkspaceLifecycleFlows(
       options: { serializeWorkspaceProvisioning?: boolean } = {},
     ): Promise<T> {
       const uniqueWorkspaceIds = [...new Set(workspaceIds)];
-      return withMembershipSnapshotRetry(
+      return withMembershipSnapshotRetry({
         lock,
-        () => uniqueWorkspaceIds.flatMap((workspaceId) => administration.workspacePrincipalIds(workspaceId)),
-        (principalIds) => [
+        currentPrincipalIds: () =>
+          uniqueWorkspaceIds.flatMap((workspaceId) => administration.workspacePrincipalIds(workspaceId)),
+        lockKeysFor: (principalIds) => [
           ...(options.serializeWorkspaceProvisioning ? [`application:${applicationId}:workspace-provisioning`] : []),
           ...uniqueWorkspaceIds.map((workspaceId) => `workspace:${workspaceId}`),
           ...principalIds,
         ],
-        async () => operation(),
-        () => {
+        run: async () => operation(),
+        onAttemptsExhausted: () => {
           throw new AccountContractError({
             code: "CONFLICT",
             message: "Company membership changed repeatedly during erasure. Retry the request.",
             retryable: true,
           });
         },
-      );
+      });
     },
   };
 }

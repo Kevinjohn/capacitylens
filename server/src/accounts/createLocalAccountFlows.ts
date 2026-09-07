@@ -116,7 +116,13 @@ export function createLocalAccountFlows(input: {
   }: DenyIdentityAdminCommandInput): never => {
     persistTerminalOutcome(
       () =>
-        terminateCommand(db, scope, command, "compensated", reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN"),
+        terminateCommand({
+          db,
+          scope,
+          command,
+          status: "compensated",
+          failureCode: reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN",
+        }),
       {
         action: auditAction,
         outcome: "denied",
@@ -165,7 +171,7 @@ export function createLocalAccountFlows(input: {
       // stale pending row has no surviving executor in this supported single-process topology.
       if (!matchesRequest(getAccountCommandById(db, applicationId, command.commandId))) return null;
       return lock.withKeys([buildCommandExecutionKey(command)], () => {
-        const row = getAccountCommandByIdForReconciliation(db, applicationId, command.commandId);
+        const row = getAccountCommandByIdForReconciliation({ db, applicationId, commandId: command.commandId });
         if (!matchesRequest(row) || row === null) return null;
         const receipt = {
           commandId: row.commandId,

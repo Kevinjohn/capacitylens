@@ -10,14 +10,23 @@ export interface RecordedSessionAuthentication {
   providerId: string | null;
 }
 
-export function recordSessionAssurance(
-  db: Db,
-  sessionId: string,
-  principalId: PrincipalId,
-  assurance: RecordedSessionAssurance,
-  providerId: string | null = null,
+interface RecordSessionAssuranceInput {
+  db: Db;
+  sessionId: string;
+  principalId: PrincipalId;
+  assurance: RecordedSessionAssurance;
+  providerId?: string | null | undefined;
+  now?: string | undefined;
+}
+
+export function recordSessionAssurance({
+  db,
+  sessionId,
+  principalId,
+  assurance,
+  providerId = null,
   now = readStableNowIso(),
-): void {
+}: RecordSessionAssuranceInput): void {
   if ((assurance === "federated" && !providerId) || (assurance !== "federated" && providerId !== null)) {
     throw new Error("Federated session assurance requires exactly one provider id.");
   }

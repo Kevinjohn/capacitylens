@@ -81,14 +81,19 @@ export function readMemberSignInTrackingSnapshot(db: Db, accountId: string): Mem
   };
 }
 
+export interface SetMemberSignInTrackingInput {
+  db: Db;
+  accountId: string;
+  actorPrincipalId: string;
+  enabled: boolean;
+}
+
 /** Owner-controlled privacy switch. Enabling begins a fresh observation window and truthfully
  * confirms the authenticated owner who turned it on. Disabling deletes every stored confirmation. */
-export function setMemberSignInTracking(
-  db: Db,
-  accountId: string,
-  actorPrincipalId: string,
-  enabled: boolean,
-): { enabled: boolean; changed: boolean } {
+export function setMemberSignInTracking({ db, accountId, actorPrincipalId, enabled }: SetMemberSignInTrackingInput): {
+  enabled: boolean;
+  changed: boolean;
+} {
   return tx(
     db,
     () => {
