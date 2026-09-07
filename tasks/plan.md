@@ -275,7 +275,7 @@ deferral to `DEFENSIVE-CODING.md`, and retain nonviolating observations with rea
 - [x] Revised programme independently reviewed; dependency, baseline, export and compiler scope corrections incorporated.
 - [x] Exact audit coverage reconciled: 602 typed files, four operator context files and all 267 original suppression declarations. Independent consumer/classification reviews incorporated.
 - [x] Audit delivery checks: independent assembly review accepted; ten randomly chosen source citations resolve at the base; Prettier and documentation build pass with generated docs unchanged.
-- [ ] #638 audit merged: 2,016 rows (R 1,102; E 361; P 276; S 34; X 101; D 142), with 72 triaged groups requiring bounded implementation briefs.
+- [x] #638 audit merged in PR #648 (`66eb8a9b`); issue closed and branch cleanup verified: 2,016 rows (R 1,102; E 361; P 276; S 34; X 101; D 142), with 72 triaged groups requiring bounded implementation briefs.
 - [ ] #639 original actionable rows retired or justified D/X; closure evidence reviewed.
 - [ ] First separate patch release merged and verified.
 - [ ] #643 upkeep decision merged and closed.
@@ -286,3 +286,17 @@ deferral to `DEFENSIVE-CODING.md`, and retain nonviolating observations with rea
 - [ ] Complete final review and required local gates pass on the accepted tree.
 - [ ] Separate minor release passes necessary GitHub CI and is verified after merge.
 - [ ] Actual finish, residual debt and any unmet criteria recorded.
+
+## Selected retirement batches
+
+### Shared package names — #639
+
+Status: independently reviewed, implementation in progress. Audit group C4-02; 137 R/E rows.
+
+Fixed decisions: names only; public X contracts, persisted keys, positional signatures, result shapes and released migrations remain unchanged. Use `parseSchemaVersion` and `resolveArray` for A096/A098. Existing local comment references follow renamed bindings. All aliases preserve original object keys.
+
+Files: `shared/src/data/internalClient.ts`, `shared/src/data/migrate.ts`, `shared/src/data/migrate/detect.ts`, `shared/src/data/seed/activities.ts`, `shared/src/data/seed/allocations.ts`, `shared/src/data/seed/constants.ts`, `shared/src/data/seed/orgTables.ts`, `shared/src/data/seed/resources.ts`, `shared/src/data/seed/schedule.ts`, `shared/src/data/transfer.ts`, `shared/src/domain/assertions/dependents.ts`, `shared/src/domain/assertions/refs.ts`, `shared/src/domain/importFold.ts`, `shared/src/domain/lifecycle/ancestry.ts`, `shared/src/domain/lifecycle/projection.ts`, `shared/src/domain/lifecycle/types.ts`, `shared/src/domain/mutations.ts`, `shared/src/domain/validationLookup.ts`, `shared/src/lib/color.test.ts`, `shared/src/lib/color.ts`, `shared/src/lib/dateMath.ts`, `shared/src/lib/integrity.ts`, `shared/src/lib/repeatingDates.ts`, `shared/src/lib/sanitize/account.ts`, `shared/src/lib/sanitize/coerce.ts`, `shared/src/lib/sanitize/importedFields.ts`, `shared/src/lib/sanitizeImport.ts`, `shared/src/lib/schedulingDays.ts`, `shared/src/lib/strings.ts`, `shared/src/types/entityHelpers.ts`.
+
+Existing focused tests: `shared/src/data/internalClient.test.ts`, `shared/src/data/migrate.test.ts`, `shared/src/data/seed.test.ts`, `shared/src/data/transfer.test.ts`, `shared/src/domain/mutations.test.ts`, `shared/src/domain/lifecycle.test.ts`, `shared/src/domain/tenancy.test.ts`, `shared/src/lib/color.test.ts`, `shared/src/lib/dateMath.test.ts`, `shared/src/lib/integrity.test.ts`, `shared/src/lib/repeatingDates.test.ts`, `shared/src/lib/sanitizeImport.test.ts`, `shared/src/lib/schedulingDays.test.ts`, `shared/src/lib/strings.test.ts`, `shared/src/types/entityHelpers.test.ts`, `shared/src/packageExports.test.ts`.
+
+Owner checks: shared production/test typecheck, lint over `shared/src`, and formatter over the explicit footprint. The coordinator owns integrated app/server gates and E2E. No new or weakened assertions are needed for names-only changes.
