@@ -394,11 +394,6 @@
       "count": 1
     }
   },
-  "src/components/resources/ResourceList.tsx": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "src/components/scheduler/AllocationModal.test.tsx": {
     "max-params": {
       "count": 1
