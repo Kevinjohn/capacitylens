@@ -6,12 +6,19 @@ import {
 } from "./accountCommands";
 import { readUnknownAccountCommandOutcome, unknownCommandOutcomes } from "./commandOutcome";
 
-export async function runCommand(
-  operationKey: string | null,
-  explicit: BrowserAccountCommand | undefined,
-  request: (command: BrowserAccountCommand) => Promise<Response>,
-  ambiguousStatus?: number,
-): Promise<Response> {
+interface RunCommandInput {
+  operationKey: string | null;
+  explicit: BrowserAccountCommand | undefined;
+  request: (command: BrowserAccountCommand) => Promise<Response>;
+  ambiguousStatus?: number | undefined;
+}
+
+export async function runCommand({
+  operationKey,
+  explicit,
+  request,
+  ambiguousStatus,
+}: RunCommandInput): Promise<Response> {
   const command =
     explicit ?? (operationKey === null ? createBrowserAccountCommand() : readOrCreateStoredCommand(operationKey));
   const response = await request(command);
