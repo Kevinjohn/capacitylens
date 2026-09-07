@@ -13,24 +13,30 @@ const meta = {
 
 describe("time-off and closure validation", () => {
   it("requires a personal time-off resource", () => {
-    expect(() => sanitizeWrite("timeOff", { ...meta, type: "holiday" })).toThrow(/missing required field.*resourceId/i);
-    expect(() => sanitizeWrite("timeOff", { ...meta, resourceId: null, type: "holiday" })).toThrow(/resourceId/i);
+    expect(() => sanitizeWrite({ table: "timeOff", row: { ...meta, type: "holiday" } })).toThrow(
+      /missing required field.*resourceId/i,
+    );
+    expect(() => sanitizeWrite({ table: "timeOff", row: { ...meta, resourceId: null, type: "holiday" } })).toThrow(
+      /resourceId/i,
+    );
   });
 
   it("accepts a closure without a resource reference", () => {
-    const sanitized = sanitizeWrite("closures", { ...meta, name: "Christmas shutdown" });
+    const sanitized = sanitizeWrite({ table: "closures", row: { ...meta, name: "Christmas shutdown" } });
     expect(sanitized).not.toHaveProperty("resourceId");
     expect(() => assertValidWrite({ state: emptyAppData(), table: "closures", row: sanitized })).not.toThrow();
   });
 
   it("rejects a closure carrying a resource reference", () => {
-    expect(() => sanitizeWrite("closures", { ...meta, name: "Christmas shutdown", resourceId: "r1" })).toThrow(
-      /closure.*resource/i,
-    );
+    expect(() =>
+      sanitizeWrite({ table: "closures", row: { ...meta, name: "Christmas shutdown", resourceId: "r1" } }),
+    ).toThrow(/closure.*resource/i);
   });
 
   it("rejects a blank closure name", () => {
-    expect(() => sanitizeWrite("closures", { ...meta, name: "   " })).toThrow(/closure name is required/i);
+    expect(() => sanitizeWrite({ table: "closures", row: { ...meta, name: "   " } })).toThrow(
+      /closure name is required/i,
+    );
   });
 
   it("rejects reversed closure dates", () => {

@@ -90,12 +90,12 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
         retryable: false,
       });
     }
-    const sanitizedRow = sanitizeWrite(
+    const sanitizedRow = sanitizeWrite({
       table,
-      row as Record<string, unknown>,
+      row: row as Record<string, unknown>,
       existing,
-      fieldVisFor(table, (row as { accountId?: unknown }).accountId),
-    );
+      options: fieldVisFor(table, (row as { accountId?: unknown }).accountId),
+    });
     // language/weekStartsOn/timezone are FROZEN after creation (P1.14). Match the
     // direct routes' 409 so the sync client takes its authoritative-reload path
     // instead of retrying the same state-dependent conflict indefinitely.
@@ -135,7 +135,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
     const clean = stampServerRevision(sanitizedRow, existing);
     const auditRecord = auditRecords[opIndex];
     if (auditRecord) {
-      auditRecord.changedFields = listAppliedRequestedFieldNames(table, row, existing, clean);
+      auditRecord.changedFields = listAppliedRequestedFieldNames({ table, requested: row, existing, applied: clean });
     }
     const generatedReplacement = resolveGeneratedBuiltinReplacement(state, table, clean);
     if (table === "accounts" && !existing) {
