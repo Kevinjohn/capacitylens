@@ -1072,8 +1072,9 @@ describe("P2.5a lifecycle — built-in Internal client cannot be archived/delete
 
     const res = await lifecycleAction({ app, entity: "clients", id: INTERNAL.id, action, accountId: "a1", cookie });
     expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe("protected_entity");
-    expect(res.json().error).toMatch(/built-in Internal client/);
+    const body = readErrorResponseBody(res);
+    expect(body.code).toBe("protected_entity");
+    expect(body.error).toMatch(/built-in Internal client/);
   });
 });
 
