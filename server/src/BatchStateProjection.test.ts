@@ -9,7 +9,7 @@ import {
 } from "@capacitylens/shared/lib/integrity";
 import { deleteAccountCascade } from "@capacitylens/shared/domain/mutations";
 import { APP_DATA_KEYS, emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
-import { BatchStateProjection } from "./batchProjection";
+import { BatchStateProjection } from "./BatchStateProjection";
 import { assertValidWrite } from "./validate";
 
 const TS = "2026-01-01T00:00:00.000Z";

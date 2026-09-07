@@ -149,11 +149,6 @@
       "count": 1
     }
   },
-  "server/src/batchProjection.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "server/src/cascadeParity.test.ts": {
     "max-params": {
       "count": 1
