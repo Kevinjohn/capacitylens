@@ -94,6 +94,46 @@ function seedTwo(db: Db): void {
 const REAL_CLIENT_NAME = "SENTINEL_REAL_CLIENT_NAME";
 const REAL_PROJECT_NAME = "SENTINEL_REAL_PROJECT_NAME";
 
+function readJsonObject(response: LightMyRequestResponse): object {
+  const value: unknown = response.json();
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new TypeError("Expected a JSON object response.");
+  }
+  return value;
+}
+
+function readImportedCount(response: LightMyRequestResponse): number {
+  const body = readJsonObject(response);
+  if (!("imported" in body) || typeof body.imported !== "number") {
+    throw new TypeError("Expected the import response to contain a numeric imported count.");
+  }
+  return body.imported;
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+function expectPrivateClientExport(response: LightMyRequestResponse): object {
+  const body = readJsonObject(response);
+  if (!("clients" in body) || !isUnknownArray(body.clients)) {
+    throw new TypeError("Expected the exported state to contain a clients array.");
+  }
+  const matchingClient = body.clients.find(
+    (row) => typeof row === "object" && row !== null && "id" in row && row.id === "c1",
+  );
+  expect(matchingClient).toMatchObject({ name: '"Nightwing"', isPrivate: true });
+  return body;
+}
+
+function readErrorMessage(response: LightMyRequestResponse): string {
+  const body = readJsonObject(response);
+  if (!("error" in body) || typeof body.error !== "string") {
+    throw new TypeError("Expected the rejected response to contain an error message.");
+  }
+  return body.error;
+}
+
 /** Add owner-only names to the a1 client/project without changing the broad authz fixture shape. */
 function seedPrivateNames(db: Db): void {
   seedTwo(db);
@@ -1093,7 +1133,7 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
 
     const res = await importSlice(app, "a1", cookie);
     expect(res.statusCode).toBe(200);
-    expect(res.json().imported).toBeGreaterThan(0);
+    expect(readImportedCount(res)).toBeGreaterThan(0);
   });
 
   it("refuses an admin re-import of their redacted export without changing private database names", async () => {
@@ -1104,19 +1144,16 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
 
     const exported = await getState(app, "a1", cookie);
     expect(exported.statusCode).toBe(200);
-    expect(exported.json().clients.find((row: { id: string }) => row.id === "c1")).toMatchObject({
-      name: '"Nightwing"',
-      isPrivate: true,
-    });
+    const exportedBody = expectPrivateClientExport(exported);
 
     const res = await call(app, {
       method: "POST",
       url: "/api/import",
-      payload: { accountId: "a1", data: exported.json() },
+      payload: { accountId: "a1", data: exportedBody },
       headers: { cookie },
     });
     expect(res.statusCode).toBe(403);
-    expect(res.json().error).toMatch(/account owner/i);
+    expect(readErrorMessage(res)).toMatch(/account owner/i);
     expect(getRow(db, "clients", "c1")).toMatchObject({
       name: REAL_CLIENT_NAME,
       codeName: "Nightwing",
