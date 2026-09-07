@@ -228,6 +228,30 @@ const readInactive = (app: FastifyInstance, accountId: string, cookie?: string) 
     headers: cookie ? { cookie } : {},
   });
 
+interface ErrorResponseBody {
+  code: string | undefined;
+  error: string;
+}
+
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function readErrorResponseBody(response: unknown): ErrorResponseBody {
+  if (!isUnknownRecord(response) || typeof response.body !== "string") {
+    throw new Error("Expected a lifecycle response.");
+  }
+  const body: unknown = JSON.parse(response.body);
+  if (
+    !isUnknownRecord(body) ||
+    typeof body.error !== "string" ||
+    (body.code !== undefined && typeof body.code !== "string")
+  ) {
+    throw new Error("Expected a lifecycle error response body.");
+  }
+  return { code: body.code, error: body.error };
+}
+
 // One built-in Internal client whose id is captured so the built-in-guard test can target it (its id is
 // random per buildInternalClient call, so it MUST be built once and reused — not rebuilt at assert time).
 const INTERNAL = buildInternalClient("a1", TS);
@@ -473,8 +497,9 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       cookie,
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe("invalid_transition");
-    expect(res.json().error).toMatch(/must be archived first/);
+    const body = readErrorResponseBody(res);
+    expect(body.code).toBe("invalid_transition");
+    expect(body.error).toMatch(/must be archived first/);
   });
 
   it("archive on an already-archived row → 409", async () => {
@@ -498,8 +523,9 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       cookie,
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe("already_inactive");
-    expect(res.json().error).toMatch(/already archived/);
+    const body = readErrorResponseBody(res);
+    expect(body.code).toBe("already_inactive");
+    expect(body.error).toMatch(/already archived/);
   });
 
   it("unarchive on an ACTIVE row → 409 (nothing to undo)", async () => {
@@ -523,8 +549,9 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       cookie,
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe("invalid_transition");
-    expect(res.json().error).toMatch(/not archived/);
+    const body = readErrorResponseBody(res);
+    expect(body.code).toBe("invalid_transition");
+    expect(body.error).toMatch(/not archived/);
   });
 
   it("purge on a tombstone aged < 30 days → 409", async () => {
@@ -548,7 +575,7 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       cookie,
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().error).toMatch(/at least 30 days old/);
+    expect(readErrorResponseBody(res).error).toMatch(/at least 30 days old/);
   });
 
   it("purge on a NON-tombstone (archived) row → 409", async () => {
@@ -572,7 +599,7 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       cookie,
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().error).toMatch(/soft-deleted tombstone/);
+    expect(readErrorResponseBody(res).error).toMatch(/soft-deleted tombstone/);
   });
 
   it("unarchive on a soft-deleted tombstone → 409 (a tombstone must not resurrect to active)", async () => {
@@ -598,7 +625,7 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       cookie,
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().error).toMatch(/not archived/);
+    expect(readErrorResponseBody(res).error).toMatch(/not archived/);
   });
 
   it("unarchives and repairs an archived legacy row with a malformed deletion tombstone", async () => {
@@ -654,7 +681,7 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       cookie,
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().error).toMatch(/must be archived first/);
+    expect(readErrorResponseBody(res).error).toMatch(/must be archived first/);
   });
 
   it("unknown lifecycle entity → 404; missing accountId → 400; missing row → 404", async () => {
