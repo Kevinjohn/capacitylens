@@ -146,6 +146,42 @@ function mockApi(members: RawMember[] | { status: number } = [], overrides: Reco
   });
 }
 
+function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
+  let trackingEnabled = false;
+  const members: RawMember[] = [
+    { userId: "me", role: "owner", isSelf: true },
+    { userId: "ed", name: "Clark Kent", email: "clark@example.test", role: "editor" },
+  ];
+  return vi.fn(async (url: string, init?: RequestInit) => {
+    const endpoint = String(url);
+    if (endpoint.endsWith("/member-sign-in-tracking") && init?.method === "PUT") {
+      trackingEnabled = (JSON.parse(String(init.body)) as { enabled: boolean }).enabled;
+      return jsonResponse({ enabled: trackingEnabled });
+    }
+    if (endpoint.endsWith("/members") && (!init || init.method === undefined || init.method === "GET")) {
+      // Not routed through rawMember: mayRevokeSessions defaults to true here (not rawMember's
+      // false), and signInConfirmed is computed from the live trackingEnabled toggle rather than
+      // being a static per-member default.
+      return jsonResponse({
+        signInTrackingEnabled: trackingEnabled,
+        members: members.map((member) => ({
+          status: "active",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          name: null,
+          email: `${member.userId}@x.io`,
+          isSelf: false,
+          mayResetPassword: false,
+          mayRevokeSessions: true,
+          ...member,
+          signInConfirmed: trackingEnabled ? member.isSelf === true : null,
+        })),
+      });
+    }
+    if (endpoint.endsWith("/invites")) return jsonResponse({ invites: [] });
+    return new Response(null, { status: 204 });
+  });
+}
+
 const authValue = (over: Partial<AuthContextValue> = {}): AuthContextValue => ({
   authMode: "password",
   user: { id: "me", email: "me@x.io" },
@@ -1021,44 +1057,7 @@ describe("MembersSection — member lifecycle", () => {
 
   it("lets only the owner opt in and keeps edit then settings in separate right-hand columns", async () => {
     const user = userEvent.setup();
-    let trackingEnabled = false;
-    const members: RawMember[] = [
-      { userId: "me", role: "owner", isSelf: true },
-      { userId: "ed", name: "Clark Kent", email: "clark@example.test", role: "editor" },
-    ];
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        const endpoint = String(url);
-        if (endpoint.endsWith("/member-sign-in-tracking") && init?.method === "PUT") {
-          trackingEnabled = (JSON.parse(String(init.body)) as { enabled: boolean }).enabled;
-          return jsonResponse({ enabled: trackingEnabled });
-        }
-        if (endpoint.endsWith("/members") && (!init || init.method === undefined || init.method === "GET")) {
-          // Not routed through rawMember: mayRevokeSessions defaults to true here (not rawMember's
-          // false), and signInConfirmed is computed from the live trackingEnabled toggle rather than
-          // being a static per-member default.
-          return jsonResponse({
-            signInTrackingEnabled: trackingEnabled,
-            members: members.map((member) => ({
-              status: "active",
-              createdAt: "2026-01-01T00:00:00.000Z",
-              name: null,
-              email: `${member.userId}@x.io`,
-              isSelf: false,
-              mayResetPassword: false,
-              mayRevokeSessions: true,
-              ...member,
-              signInConfirmed: trackingEnabled ? member.isSelf === true : null,
-            })),
-          });
-        }
-        if (endpoint.endsWith("/invites")) {
-          return jsonResponse({ invites: [] });
-        }
-        return new Response(null, { status: 204 });
-      }),
-    );
+    vi.stubGlobal("fetch", makeSignInTrackingApi());
     renderSection();
 
     const tracking = await screen.findByTestId("member-sign-in-tracking");
