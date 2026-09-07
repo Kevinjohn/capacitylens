@@ -1,7 +1,7 @@
 import { isAccountFlowOperation } from "@capacitylens/shared/account/ports";
 import { isAccountCommandId, isAccountIdempotencyKey } from "@capacitylens/shared/account/validation";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { AccountRouteContext } from "../replyHelpers";
+import type { AccountRouteContext } from "../createReplyHelpers";
 
 export async function reconcile(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const { flows: accountFlows, fail: accountFail } = context;

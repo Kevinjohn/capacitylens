@@ -1,7 +1,7 @@
 import { isMembershipStatus } from "@capacitylens/shared/account/types";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
-import type { AccountRouteContext } from "../replyHelpers";
+import type { AccountRouteContext } from "../createReplyHelpers";
 
 export async function listMembers(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
@@ -98,7 +98,7 @@ export async function changeMemberRole(req: FastifyRequest, reply: FastifyReply,
     return reply.code(400).send({ error: INVALID_ROLE_MESSAGE });
   }
   const nextRole = body.role;
-  if (!authorizeMemberMutation(req, reply, accountId, "manageMembers")) return;
+  if (!authorizeMemberMutation({ req, reply, accountId, action: "manageMembers" })) return;
   try {
     const changed = await accountAdminPort.changeMemberRole({
       actor: req.accountActor!,
@@ -107,14 +107,18 @@ export async function changeMemberRole(req: FastifyRequest, reply: FastifyReply,
       nextRole,
       command: accountCommand(req),
     });
-    auditUnlessReplayed(reply, changed, {
-      ts: new Date().toISOString(),
-      userId: req.user!.id,
-      accountId,
-      action: "memberRole",
-      entity: "membership",
-      id: userId,
-      changedFields: ["role"],
+    auditUnlessReplayed({
+      reply,
+      result: changed,
+      record: {
+        ts: new Date().toISOString(),
+        userId: req.user!.id,
+        accountId,
+        action: "memberRole",
+        entity: "membership",
+        id: userId,
+        changedFields: ["role"],
+      },
     });
     return reply.code(200).send({ userId: changed.principalId, role: changed.role });
   } catch (error) {
@@ -142,7 +146,7 @@ export async function changeMemberStatus(req: FastifyRequest, reply: FastifyRepl
     });
   }
   const nextStatus = body.status;
-  if (!authorizeMemberMutation(req, reply, accountId, "manageMembers")) return;
+  if (!authorizeMemberMutation({ req, reply, accountId, action: "manageMembers" })) return;
   try {
     const changed = await accountAdminPort.changeMemberStatus({
       actor: req.accountActor!,
@@ -151,14 +155,18 @@ export async function changeMemberStatus(req: FastifyRequest, reply: FastifyRepl
       nextStatus,
       command: accountCommand(req),
     });
-    auditUnlessReplayed(reply, changed, {
-      ts: new Date().toISOString(),
-      userId: req.user!.id,
-      accountId,
-      action: "memberStatus",
-      entity: "membership",
-      id: userId,
-      changedFields: ["status"],
+    auditUnlessReplayed({
+      reply,
+      result: changed,
+      record: {
+        ts: new Date().toISOString(),
+        userId: req.user!.id,
+        accountId,
+        action: "memberStatus",
+        entity: "membership",
+        id: userId,
+        changedFields: ["status"],
+      },
     });
     return reply.code(200).send({ userId: changed.principalId, status: changed.status });
   } catch (error) {
@@ -179,7 +187,7 @@ export async function removeMember(req: FastifyRequest, reply: FastifyReply, con
     accountId: string;
     userId: string;
   };
-  if (!authorizeMemberMutation(req, reply, accountId, "manageMembers")) return;
+  if (!authorizeMemberMutation({ req, reply, accountId, action: "manageMembers" })) return;
   try {
     const removed = await accountAdminPort.removeMember({
       actor: req.accountActor!,
@@ -187,14 +195,18 @@ export async function removeMember(req: FastifyRequest, reply: FastifyReply, con
       targetPrincipalId: userId,
       command: accountCommand(req),
     });
-    auditUnlessReplayed(reply, removed, {
-      ts: new Date().toISOString(),
-      userId: req.user!.id,
-      accountId,
-      action: "memberRemove",
-      entity: "membership",
-      id: userId,
-      changedFields: [],
+    auditUnlessReplayed({
+      reply,
+      result: removed,
+      record: {
+        ts: new Date().toISOString(),
+        userId: req.user!.id,
+        accountId,
+        action: "memberRemove",
+        entity: "membership",
+        id: userId,
+        changedFields: [],
+      },
     });
     return reply.code(204).send();
   } catch (error) {
@@ -217,7 +229,7 @@ export async function transferOwnership(req: FastifyRequest, reply: FastifyReply
     return reply.code(400).send({ error: "toUserId must be a non-empty string." });
   }
   const toUserId = body.toUserId;
-  if (!authorizeMemberMutation(req, reply, accountId, "transferOwnership")) return;
+  if (!authorizeMemberMutation({ req, reply, accountId, action: "transferOwnership" })) return;
   try {
     const now = new Date().toISOString();
     const transferred = await accountAdminPort.transferOwnership({
@@ -226,14 +238,18 @@ export async function transferOwnership(req: FastifyRequest, reply: FastifyReply
       targetPrincipalId: toUserId,
       command: accountCommand(req),
     });
-    auditUnlessReplayed(reply, transferred, {
-      ts: now,
-      userId: req.user!.id,
-      accountId,
-      action: "ownershipTransfer",
-      entity: "membership",
-      id: toUserId,
-      changedFields: ["role"],
+    auditUnlessReplayed({
+      reply,
+      result: transferred,
+      record: {
+        ts: now,
+        userId: req.user!.id,
+        accountId,
+        action: "ownershipTransfer",
+        entity: "membership",
+        id: toUserId,
+        changedFields: ["role"],
+      },
     });
     return reply.code(200).send({ toUserId, role: "owner" });
   } catch (error) {
