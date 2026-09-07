@@ -74,36 +74,36 @@ export function createAllocationCommands(input: CommandInput) {
   // Save and Duplicate operate on the same visible draft. Keeping validation and effective-value
   // derivation here prevents Duplicate from silently discarding edits or persisting a shape that
   // Save would reject (for example, a historical zero-hour block viewed in Hours mode). The rules
-  // themselves live in allocationDraft.ts; this routes the first problem to the offending field and
-  // adds the two checks that need the modal's own machinery (the note sanitiser owns `fail`, and the
-  // assignment check needs the activity list).
+  // themselves live in allocationDraft.ts; this routes the first problem through the callback and
+  // boolean result, then adds the two checks that need the modal's own machinery (the note sanitiser
+  // owns `fail`, and the assignment check needs the activity list).
   const validateDraft = () => {
-    const problem = validateAllocationDraft({
-      resourceId,
-      activityId,
-      startDate,
-      endDate,
-      usesTypedDateRange,
-      typedDateSpanTooLong,
-      isBlocks,
-      isDays,
-      isExternal,
-      validDaysOver,
-      spanFitsDateDomain,
-      spanLimitedByDateDomain,
-      maximumDaysOver,
-      daysOfWork,
-      hoursPerDay,
-      effHoursPerDay: effectiveHoursPerDay,
-      repeat:
-        create && repeat !== "none"
-          ? { selection: repeat, until: repeatUntil, today: repeatToday, maximum: repeatUntilMaximum }
-          : null,
-    });
-    if (problem) {
-      fail(problem.field, problem.message);
-      return null;
-    }
+    const valid = validateAllocationDraft(
+      {
+        resourceId,
+        activityId,
+        startDate,
+        endDate,
+        usesTypedDateRange,
+        typedDateSpanTooLong,
+        isBlocks,
+        isDays,
+        isExternal,
+        validDaysOver,
+        spanFitsDateDomain,
+        spanLimitedByDateDomain,
+        maximumDaysOver,
+        daysOfWork,
+        hoursPerDay,
+        effHoursPerDay: effectiveHoursPerDay,
+        repeat:
+          create && repeat !== "none"
+            ? { selection: repeat, until: repeatUntil, today: repeatToday, maximum: repeatUntilMaximum }
+            : null,
+      },
+      fail,
+    );
+    if (!valid) return null;
     const cleanNote = validateText(note, fail, {
       field: "note",
       required: false,
