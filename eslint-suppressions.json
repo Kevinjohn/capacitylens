@@ -489,16 +489,6 @@
       "count": 6
     }
   },
-  "src/components/timeoff/timeOffView.test.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/components/timeoff/timeOffView.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "src/data/persist.test.ts": {
     "max-params": {
       "count": 1
