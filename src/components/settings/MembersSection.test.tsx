@@ -166,6 +166,11 @@ function renderSection(authOverrides: Partial<AuthContextValue> = {}) {
 
 type User = ReturnType<typeof userEvent.setup>;
 
+function requireValue<T>(value: T | undefined, context: string): T {
+  if (value === undefined) throw new Error(`Expected ${context}`);
+  return value;
+}
+
 /** Row actions moved behind the row's gear popover (#175). Open it; the popover renders in a
  *  PORTAL, so its items are reachable from `screen`, never from `within(row)`. */
 async function openMemberMenu(user: User, row: HTMLElement): Promise<void> {
@@ -197,9 +202,10 @@ async function saveRoleVia(user: User, row: HTMLElement, option: string): Promis
 }
 
 async function findMemberRow(email: RegExp): Promise<HTMLElement> {
-  const row = (await screen.findAllByTestId("member-row")).find((candidate) => within(candidate).queryByText(email));
-  if (!row) throw new Error(`Expected a member row matching ${email}`);
-  return row;
+  return requireValue(
+    (await screen.findAllByTestId("member-row")).find((candidate) => within(candidate).queryByText(email)),
+    `a member row matching ${email}`,
+  );
 }
 
 async function confirmMemberAction({ user, row, testId, confirmationName }: ConfirmMemberActionInput): Promise<void> {
@@ -1070,13 +1076,11 @@ describe("MembersSection — member lifecycle", () => {
       m.settings_member_col_edit(),
       m.settings_member_col_settings(),
     ]);
-    const editorRow = within(table)
-      .getAllByTestId("member-row")
-      .find((row) => within(row).queryByText("Clark Kent"))!;
+    const editorRow = await findMemberRow(/Clark Kent/);
     const cells = within(editorRow).getAllByRole("cell");
     expect(cells).toHaveLength(5);
-    expect(within(cells[3]!).getByTestId("member-edit")).toBeInTheDocument();
-    expect(within(cells[4]!).getByTestId("member-menu")).toBeInTheDocument();
+    expect(within(requireValue(cells[3], "the edit cell")).getByTestId("member-edit")).toBeInTheDocument();
+    expect(within(requireValue(cells[4], "the settings cell")).getByTestId("member-menu")).toBeInTheDocument();
   });
 
   it("reconciles an unknown self-demotion even after member reads become forbidden", async () => {
@@ -1114,7 +1118,7 @@ describe("MembersSection — member lifecycle", () => {
     renderSection({ refreshAuth });
     await screen.findByTestId("members-section");
 
-    const self = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
+    const self = await findMemberRow(/me@x\.io/);
     await saveRoleVia(user, self, "Editor");
 
     await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
@@ -1141,7 +1145,7 @@ describe("MembersSection — member lifecycle", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const editorRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/ed@x\.io/))!;
+    const editorRow = await findMemberRow(/ed@x\.io/);
 
     const user = userEvent.setup();
     await chooseMemberAction(user, editorRow, "member-disable");
@@ -1558,9 +1562,7 @@ describe("MembersSection — invite mint", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
 
-    const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/editor@x\.io/),
-    )!;
+    const editorRow = await findMemberRow(/editor@x\.io/);
     await chooseMemberAction(user, editorRow, "member-reset-password");
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
@@ -2225,9 +2227,7 @@ describe("MembersSection — SSO cutover repair", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderSection({ providers });
 
-    const targetRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/target@x\.io/),
-    )!;
+    const targetRow = await findMemberRow(/target@x\.io/);
     await waitFor(() => expect(readinessReads).toBe(1));
     await saveRoleVia(user, targetRow, "Viewer");
 
