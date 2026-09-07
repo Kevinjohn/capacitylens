@@ -1,7 +1,7 @@
 import { emptyAppData, EXPORT_SCHEMA_VERSION } from "../types/entities";
 import { ensureInternalClients } from "./internalClient";
 import type { AppData } from "../types/entities";
-import { importCandidate, normalize, schemaVersion, UnsupportedSchemaVersionError } from "./migrate/detect";
+import { importCandidate, normalize, parseSchemaVersion, UnsupportedSchemaVersionError } from "./migrate/detect";
 import { migrateV1toV2, migrateV3toV4, migrateV4toV5, migrateV5toV6 } from "./migrate/steps/v1-v6";
 import {
   migrateV6toV7,
@@ -85,12 +85,12 @@ export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
     const empty = emptyAppData();
     return { data: empty, repairBase: empty };
   }
-  const obj = raw as Record<string, unknown>;
-  const version = schemaVersion(obj);
+  const record = raw as Record<string, unknown>;
+  const version = parseSchemaVersion(record);
   if (version > EXPORT_SCHEMA_VERSION) throw new UnsupportedSchemaVersionError(version);
 
   // Accept either a { schemaVersion, data } wrapper or a bare AppData (legacy).
-  let data = importCandidate(obj) ?? undefined;
+  let data = importCandidate(record) ?? undefined;
 
   // The `typeof data === "object"` re-check is deliberate at every step: a migration returns a raw
   // blob, so the guard re-proves the shape rather than trusting the previous step's output.

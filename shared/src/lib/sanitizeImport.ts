@@ -25,8 +25,8 @@ import {
   safeHalfDays,
   cleanField,
   cleanRequiredField,
-  normalizePrivateNameFields,
-  normalizeLifecycleFields,
+  repairPrivateNameFieldsInPlace,
+  repairLifecycleFieldsInPlace,
 } from "./sanitize/coerce";
 import { stripUnknownFields } from "./sanitize/importedFields";
 
@@ -40,84 +40,86 @@ export { sanitizeAccount } from "./sanitize/account";
 
 /** Project one imported scoped record onto its declared schema, then repair constrained values in
  * place. The record has already had its id remapped + accountId stamped. */
-export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string, unknown>): Record<string, unknown> {
-  stripUnknownFields(key, rec);
+export function sanitizeImportedRecord(key: ScopedEntityKey, record: Record<string, unknown>): Record<string, unknown> {
+  stripUnknownFields(key, record);
   switch (key) {
     case "resources": {
-      const kind = oneOf(rec.kind, VALID_KIND, "person");
-      rec.kind = kind;
-      if (rec.kind === "external") {
-        Object.assign(rec, externalCapacityDefaults());
-        rec.color = NEUTRAL_COLOR;
-        delete rec.disciplineId;
-        delete rec.projectId;
+      const kind = oneOf(record.kind, VALID_KIND, "person");
+      record.kind = kind;
+      if (record.kind === "external") {
+        Object.assign(record, externalCapacityDefaults());
+        record.color = NEUTRAL_COLOR;
+        delete record.disciplineId;
+        delete record.projectId;
       } else {
-        rec.employmentType = oneOf(rec.employmentType, VALID_EMPLOYMENT, "permanent");
-        rec.engagement = isPlaceholderResource({ kind }) ? "studio" : oneOf(rec.engagement, VALID_ENGAGEMENT, "studio");
-        rec.workingHoursPerDay = clampHours(rec.workingHoursPerDay);
+        record.employmentType = oneOf(record.employmentType, VALID_EMPLOYMENT, "permanent");
+        record.engagement = isPlaceholderResource({ kind })
+          ? "studio"
+          : oneOf(record.engagement, VALID_ENGAGEMENT, "studio");
+        record.workingHoursPerDay = clampHours(record.workingHoursPerDay);
         if (isPlaceholderResource({ kind })) {
-          Object.assign(rec, placeholderCapacityDefaults());
+          Object.assign(record, placeholderCapacityDefaults());
         } else {
-          rec.workingDays = safeWorkingDays(rec.workingDays);
-          rec.halfDays = safeHalfDays(rec.halfDays, rec.workingDays as Weekday[]);
+          record.workingDays = safeWorkingDays(record.workingDays);
+          record.halfDays = safeHalfDays(record.halfDays, record.workingDays as Weekday[]);
         }
-        rec.color = snapToPresetColor(rec.color);
-        if (!isPlaceholderResource({ kind })) delete rec.projectId;
+        record.color = snapToPresetColor(record.color);
+        if (!isPlaceholderResource({ kind })) delete record.projectId;
       }
       if (isPlaceholderResource({ kind })) {
-        cleanField(rec, "name");
+        cleanField(record, "name");
       } else {
-        cleanRequiredField(rec, "name", rec.kind === "external" ? "Unnamed company" : "Unnamed person");
+        cleanRequiredField(record, "name", record.kind === "external" ? "Unnamed company" : "Unnamed person");
       }
       // Role is optional in both resource forms, but the storage column is NOT NULL. Preserve an
       // intentionally blank (or cleaning-to-blank) string; only synthesize a value when no string
       // was supplied at all.
-      if (typeof rec.role === "string") cleanField(rec, "role");
-      else rec.role = "Team member";
+      if (typeof record.role === "string") cleanField(record, "role");
+      else record.role = "Team member";
       // Favourites are an optional binary flag. Preserve explicit true/false; absence is the
       // default-off representation and malformed hand-edited values must not become truthy.
-      if (rec.isFavourite !== undefined && typeof rec.isFavourite !== "boolean") delete rec.isFavourite;
-      normalizeLifecycleFields(rec);
+      if (record.isFavourite !== undefined && typeof record.isFavourite !== "boolean") delete record.isFavourite;
+      repairLifecycleFieldsInPlace(record);
       break;
     }
     case "allocations":
-      rec.status = oneOf(rec.status, VALID_STATUS, "confirmed");
-      rec.hoursPerDay = clampAllocHours(rec.hoursPerDay, FULL_DAY_HOURS);
-      if (rec.projectId !== undefined) {
-        const projectId = typeof rec.projectId === "string" ? cleanText(rec.projectId) : "";
-        if (projectId) rec.projectId = projectId;
-        else delete rec.projectId;
+      record.status = oneOf(record.status, VALID_STATUS, "confirmed");
+      record.hoursPerDay = clampAllocHours(record.hoursPerDay, FULL_DAY_HOURS);
+      if (record.projectId !== undefined) {
+        const projectId = typeof record.projectId === "string" ? cleanText(record.projectId) : "";
+        if (projectId) record.projectId = projectId;
+        else delete record.projectId;
       }
-      if (typeof rec.ignoreWeekends !== "boolean") delete rec.ignoreWeekends;
-      if (rec.seriesId !== undefined) {
-        const seriesId = typeof rec.seriesId === "string" ? cleanText(rec.seriesId) : "";
-        if (seriesId) rec.seriesId = seriesId;
-        else delete rec.seriesId;
+      if (typeof record.ignoreWeekends !== "boolean") delete record.ignoreWeekends;
+      if (record.seriesId !== undefined) {
+        const seriesId = typeof record.seriesId === "string" ? cleanText(record.seriesId) : "";
+        if (seriesId) record.seriesId = seriesId;
+        else delete record.seriesId;
       }
-      rec.startDate = normalizeISODate(rec.startDate);
-      rec.endDate = normalizeISODate(rec.endDate);
-      cleanField(rec, "note", true);
+      record.startDate = normalizeISODate(record.startDate);
+      record.endDate = normalizeISODate(record.endDate);
+      cleanField(record, "note", true);
       break;
     case "timeOff":
-      rec.type = oneOf(rec.type, VALID_TIMEOFF, "other");
-      rec.startDate = normalizeISODate(rec.startDate);
-      rec.endDate = normalizeISODate(rec.endDate);
-      cleanField(rec, "note", true);
+      record.type = oneOf(record.type, VALID_TIMEOFF, "other");
+      record.startDate = normalizeISODate(record.startDate);
+      record.endDate = normalizeISODate(record.endDate);
+      cleanField(record, "note", true);
       break;
     case "closures":
-      cleanRequiredField(rec, "name", "Untitled closure");
-      rec.startDate = normalizeISODate(rec.startDate);
-      rec.endDate = normalizeISODate(rec.endDate);
+      cleanRequiredField(record, "name", "Untitled closure");
+      record.startDate = normalizeISODate(record.startDate);
+      record.endDate = normalizeISODate(record.endDate);
       break;
     case "disciplines":
-      rec.sortOrder = safeInt(rec.sortOrder, 0);
-      if (rec.color === null) delete rec.color;
-      else if (rec.color !== undefined) rec.color = snapToPresetColor(rec.color);
-      cleanRequiredField(rec, "name", "Untitled"); // name is NOT NULL
+      record.sortOrder = safeInt(record.sortOrder, 0);
+      if (record.color === null) delete record.color;
+      else if (record.color !== undefined) record.color = snapToPresetColor(record.color);
+      cleanRequiredField(record, "name", "Untitled"); // name is NOT NULL
       break;
     case "clients":
-      rec.color = rec.builtin === true ? INTERNAL_CLIENT_COLOR : snapToPresetColor(rec.color);
-      cleanRequiredField(rec, "name", "Untitled"); // name is NOT NULL
+      record.color = record.builtin === true ? INTERNAL_CLIENT_COLOR : snapToPresetColor(record.color);
+      cleanRequiredField(record, "name", "Untitled"); // name is NOT NULL
       // `builtin` is an OPTIONAL boolean (true only for the Internal pseudo-client). This is
       // DEFENSIVE NORMALISATION for a hand-edited / legacy file: drop anything that isn't strictly
       // `true` so junk (a string, 0, or an explicit `false`) can't persist — its absence reads back
@@ -126,37 +128,37 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
       // (remapAndValidateImport) does NOT remove imported builtins — it normalises them to exactly
       // one per account (keeps the FIRST, re-stamping its name/colour, and folds any duplicates into
       // it). This sanitiser still runs per-record there, so a kept builtin's flag survives untouched.
-      if (rec.builtin !== true) delete rec.builtin;
+      if (record.builtin !== true) delete record.builtin;
       // The built-in Internal bucket is never embargoed. A normal client keeps a coherent optional
       // privacy pair (isPrivate:true + non-empty codeName), defaulting to public when absent/junk.
-      if (rec.builtin === true) {
-        delete rec.isPrivate;
-        delete rec.codeName;
+      if (record.builtin === true) {
+        delete record.isPrivate;
+        delete record.codeName;
         // Supported mutation paths never allow the protected singleton to enter the lifecycle
         // state machine. Imports repair hand-edited or legacy tombstones back to active.
-        delete rec.archivedAt;
-        delete rec.deletedAt;
+        delete record.archivedAt;
+        delete record.deletedAt;
       } else {
-        normalizePrivateNameFields(rec);
-        normalizeLifecycleFields(rec);
+        repairPrivateNameFieldsInPlace(record);
+        repairLifecycleFieldsInPlace(record);
       }
       break;
     case "projects":
-      rec.color = snapToPresetColor(rec.color);
-      cleanRequiredField(rec, "name", "Untitled"); // name is NOT NULL
-      normalizePrivateNameFields(rec);
-      normalizeLifecycleFields(rec);
+      record.color = snapToPresetColor(record.color);
+      cleanRequiredField(record, "name", "Untitled"); // name is NOT NULL
+      repairPrivateNameFieldsInPlace(record);
+      repairLifecycleFieldsInPlace(record);
       break;
     case "phases":
-      cleanRequiredField(rec, "name", "Untitled"); // name is NOT NULL
+      cleanRequiredField(record, "name", "Untitled"); // name is NOT NULL
       break;
     case "activities":
-      cleanRequiredField(rec, "name", "Untitled"); // name is NOT NULL
+      cleanRequiredField(record, "name", "Untitled"); // name is NOT NULL
       // kind is NOT NULL. Default a missing/junk value from the only signal a legacy (pre-kind)
       // record carried: a project-bound activity is 'project', a project-less one is 'repeatable'
       // (the rename of "general"). The referential repair pass then strips any project/phase an
       // internal/repeatable activity carries, keeping kind ⇆ projectId coherent.
-      rec.kind = oneOf(rec.kind, VALID_ACTIVITY_KIND, rec.projectId !== undefined ? "project" : "repeatable");
+      record.kind = oneOf(record.kind, VALID_ACTIVITY_KIND, record.projectId !== undefined ? "project" : "repeatable");
       break;
     default: {
       // Exhaustiveness check: if a new ScopedEntityKey is added to the union without
@@ -166,5 +168,5 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
       break;
     }
   }
-  return rec;
+  return record;
 }

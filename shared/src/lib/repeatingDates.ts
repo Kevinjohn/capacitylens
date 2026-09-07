@@ -43,7 +43,7 @@ export class RepeatingDateError extends RangeError {
  *  and month table live ONCE, in integrity.ts (shared with `isValidISODate`); the guards here are
  *  this module's own contract — the month arithmetic below can compute an out-of-domain year, and
  *  these typed RangeErrors are what the callers catch to clamp instead of emitting a pseudo-date. */
-function daysInMonth(year: number, month: number): number {
+function countDaysInMonth(year: number, month: number): number {
   if (!Number.isSafeInteger(year) || year < FIRST_SUPPORTED_YEAR || year > LAST_SUPPORTED_YEAR) {
     throw new RangeError("Date falls outside the supported four-digit ISO year range.");
   }
@@ -53,11 +53,11 @@ function daysInMonth(year: number, month: number): number {
   return daysInGregorianMonth(year, month);
 }
 
-function isoDate(year: number, month: number, day: number): ISODate {
+function buildIsoDate(year: number, month: number, day: number): ISODate {
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` as ISODate;
 }
 
-function dateParts(date: ISODate): { year: number; month: number; day: number } {
+function parseDateParts(date: ISODate): { year: number; month: number; day: number } {
   if (!isValidISODate(date)) {
     throw new RepeatingDateError("invalid-date", "Repeat dates must be valid zero-padded ISO dates.");
   }
@@ -70,7 +70,7 @@ function dateParts(date: ISODate): { year: number; month: number; day: number } 
 
 /** Latest valid user cutoff: six calendar months after start, capped by the ISO date domain. */
 export function maximumRepeatUntilDate(startDate: ISODate): ISODate {
-  dateParts(startDate);
+  parseDateParts(startDate);
   try {
     return addCalendarMonthsClamped(startDate, MAX_REPEAT_MONTHS);
   } catch (error) {
@@ -88,8 +88,8 @@ export function defaultRepeatUntilDate(startDate: ISODate): ISODate {
   try {
     // Reuse the ONE absolute-month implementation to land in the target month, then take that
     // month's last day (the day-of-month the clamped add lands on is irrelevant here).
-    const { year, month } = dateParts(addCalendarMonthsClamped(startDate, DEFAULT_REPEAT_MONTHS));
-    suggested = isoDate(year, month, daysInMonth(year, month));
+    const { year, month } = parseDateParts(addCalendarMonthsClamped(startDate, DEFAULT_REPEAT_MONTHS));
+    suggested = buildIsoDate(year, month, countDaysInMonth(year, month));
   } catch (error) {
     // Past the domain ceiling there is no "two months on" month left to end on, so the last
     // supported date IS the bounded suggestion — the same value the maximum clamps to. Clamping
@@ -102,7 +102,7 @@ export function defaultRepeatUntilDate(startDate: ISODate): ISODate {
 
 function addCalendarMonthsClamped(date: ISODate, months: number): ISODate {
   if (!Number.isSafeInteger(months)) throw new RangeError("Calendar-month offset must be a safe integer.");
-  const { year, month, day } = dateParts(date);
+  const { year, month, day } = parseDateParts(date);
   const absoluteMonth = (year - 1) * MONTHS_PER_YEAR + (month - 1) + months;
   const lastAbsoluteMonth = LAST_SUPPORTED_YEAR * MONTHS_PER_YEAR - 1;
   if (absoluteMonth < 0 || absoluteMonth > lastAbsoluteMonth) {
@@ -110,7 +110,7 @@ function addCalendarMonthsClamped(date: ISODate, months: number): ISODate {
   }
   const targetYear = Math.floor(absoluteMonth / MONTHS_PER_YEAR) + 1;
   const targetMonth = (absoluteMonth % MONTHS_PER_YEAR) + 1;
-  return isoDate(targetYear, targetMonth, Math.min(day, daysInMonth(targetYear, targetMonth)));
+  return buildIsoDate(targetYear, targetMonth, Math.min(day, countDaysInMonth(targetYear, targetMonth)));
 }
 
 /**
@@ -128,8 +128,8 @@ export function generateRepeatingStartDates(
   repeatUntil: ISODate,
   pattern: RepeatPattern,
 ): RepeatingDateResult {
-  dateParts(startDate);
-  dateParts(repeatUntil);
+  parseDateParts(startDate);
+  parseDateParts(repeatUntil);
   if (repeatUntil < startDate) {
     throw new RepeatingDateError("cutoff-before-start", "Repeat until cannot be before the allocation start.");
   }

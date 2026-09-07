@@ -22,7 +22,7 @@ export interface ValidationDataLookup {
   resourceHasTimeOff(accountId: ID, resourceId: ID): boolean;
 }
 
-export const validationRow = (
+export const resolveValidationRow = (
   data: AppData,
   table: AppDataKey,
   id: ID,
@@ -34,20 +34,20 @@ export const validationRow = (
 
 /** Fetch a row and narrow it to THIS account in one step. An ABSENT row and a CROSS-ACCOUNT row both
  * read as `undefined`, so every caller keeps its own domain-specific rejection message. */
-export const ownedRow = <T extends ScopedEntity>(
+export const resolveOwnedRow = <T extends ScopedEntity>(
   data: AppData,
   table: AppDataKey,
   id: ID,
   accountId: ID,
   lookup?: ValidationDataLookup,
 ): T | undefined => {
-  const row = validationRow(data, table, id, lookup) as T | undefined;
+  const row = resolveValidationRow(data, table, id, lookup) as T | undefined;
   return row && belongsToAccount(row, accountId) ? row : undefined;
 };
 
-/** The account's allocations on ONE end of the pair, beside {@link validationRow}: the indexed
+/** The account's allocations on ONE end of the pair, beside {@link resolveValidationRow}: the indexed
  * server-batch lookup when a large transaction supplies one, otherwise a scan of the local array. */
-export const validationAllocationsFor = (
+export const listValidationAllocations = (
   data: AppData,
   accountId: ID,
   side: "resource" | "activity",
@@ -67,10 +67,10 @@ export const validationAllocationsFor = (
 };
 
 /** `codes[0]`/`errors[0]` are guaranteed present: every validator sets ok=false and pushes a message
- * in the same step, so `!v.ok` always implies non-empty arrays. (Documented coupling between
+ * in the same step, so `!validation.ok` always implies non-empty arrays. (Documented coupling between
  * ValidationResult.ok and errors — don't split the two without revisiting this read.) */
-export const throwIfInvalid = (v: ValidationResult): void => {
-  if (!v.ok) domainError(v.codes[0], v.errors[0]);
+export const assertValid = (validation: ValidationResult): void => {
+  if (!validation.ok) domainError(validation.codes[0], validation.errors[0]);
 };
 
 /** Match normal-read lifecycle closure at the shared active-write boundary. Indexed server batch
@@ -91,5 +91,5 @@ export const isEffectivelyActive = (
     // LifecycleAncestryRow the walk reads by field name. Every field the walk touches
     // (id / accountId / tombstones / FK ids) is present on these rows.
     row as unknown as LifecycleAncestryRow,
-    (parentTable, id) => validationRow(data, parentTable, id, lookup) as LifecycleAncestryRow | undefined,
+    (parentTable, id) => resolveValidationRow(data, parentTable, id, lookup) as LifecycleAncestryRow | undefined,
   ).visible;

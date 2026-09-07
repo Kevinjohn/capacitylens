@@ -134,7 +134,7 @@ let warnedInvalidTimeZoneLimit = false;
  *  account's stored IANA zone, drawn from the ICU zone database. */
 const calendarFormatters = new Map<string, Intl.DateTimeFormat | null>();
 
-function calendarFormatter(timeZone: string): Intl.DateTimeFormat | null {
+function createCalendarFormatter(timeZone: string): Intl.DateTimeFormat | null {
   const cached = calendarFormatters.get(timeZone);
   if (cached !== undefined) return cached;
   let formatter: Intl.DateTimeFormat | null;
@@ -188,10 +188,10 @@ function calendarFormatter(timeZone: string): Intl.DateTimeFormat | null {
  *  probes future instants through this same one resolver rather than a second copy of it. */
 export function todayISO(timeZone?: string, now: number = Date.now()): ISODate {
   if (!timeZone) return toISODate(new Date(now));
-  const formatter = calendarFormatter(timeZone);
+  const formatter = createCalendarFormatter(timeZone);
   if (!formatter) return toISODate(new Date(now));
   const parts = formatter.formatToParts(new Date(now));
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  const get = (partType: string) => parts.find((part) => part.type === partType)?.value ?? "00";
   // Validate the assembled string the same way `toISODate` validates its Date-based output:
   // Intl gives `year: "numeric"` (NOT zero-padded/four-digit) parts, so a system clock outside
   // years 1000-9999 would otherwise silently produce a pseudo-ISODate like "999-06-15" or
@@ -280,10 +280,10 @@ export function endDateForWorkingDays(start: ISODate, count: number, workingDays
   if (count <= 0 || working.size === 0 || working.size >= 7) {
     return addDaysISO(start, Math.max(0, count - 1));
   }
-  const d = working.size; // distinct working weekdays, 1..6 in this branch
+  const workingDayCount = working.size; // distinct working weekdays, 1..6 in this branch
   const startWd = weekdayOf(start);
-  const fullWeeks = Math.floor((count - 1) / d);
-  const remaining = count - fullWeeks * d; // 1..d — always found within the week below
+  const fullWeeks = Math.floor((count - 1) / workingDayCount);
+  const remaining = count - fullWeeks * workingDayCount; // 1..workingDayCount — always found within the week below
   let seen = 0;
   let offsetInWeek = 0;
   for (let j = 0; j < 7; j++) {

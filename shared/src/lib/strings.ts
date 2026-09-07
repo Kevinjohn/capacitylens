@@ -49,34 +49,34 @@ const DISALLOWED =
 
 const GRAPHEME_SEGMENTER = new Intl.Segmenter("en", { granularity: "grapheme" });
 
-/** True if `s` contains any disallowed character. In multiline mode, newlines and tabs
+/** True if `value` contains any disallowed character. In multiline mode, newlines and tabs
  *  (both Cc) are exempt so a note can wrap. */
-export function hasDisallowedChars(s: string, opts: { multiline?: boolean } = {}): boolean {
-  const subject = opts.multiline ? s.replace(/[\n\t]/g, "") : s;
+export function hasDisallowedChars(value: string, options: { multiline?: boolean } = {}): boolean {
+  const subject = options.multiline ? value.replace(/[\n\t]/g, "") : value;
   return DISALLOWED.test(subject);
 }
 
 /** Strip disallowed characters, collapse whitespace runs, trim, and cap length. Used on
  *  the import + server write paths where rejecting isn't an option. Iterates by code
  *  point so surrogate pairs / emoji are dropped as whole characters. */
-export function cleanText(value: string, opts: { multiline?: boolean; maxLength?: number } = {}): string {
-  const multiline = opts.multiline ?? false;
+export function cleanText(value: string, options: { multiline?: boolean; maxLength?: number } = {}): string {
+  const multiline = options.multiline ?? false;
   let out = "";
-  for (const ch of value.normalize("NFC")) {
+  for (const character of value.normalize("NFC")) {
     // Newlines and tabs are whitespace, not junk — keep them through the strip pass and
     // let the normalisation step below decide (→ a space in single-line, preserved in
     // multiline). Everything else in a disallowed category is dropped.
-    if (ch === "\n" || ch === "\t") {
-      out += ch;
+    if (character === "\n" || character === "\t") {
+      out += character;
       continue;
     }
-    if (!DISALLOWED.test(ch)) out += ch;
+    if (!DISALLOWED.test(character)) out += character;
   }
   // Normalise whitespace: collapse horizontal runs to a single space. In multiline keep
   // newlines (but cap blank-line runs); single-line collapses everything to one space.
   out = multiline ? out.replace(/[^\S\n]+/g, " ").replace(/\n{3,}/g, "\n\n") : out.replace(/\s+/g, " ");
   out = out.trim();
-  const max = opts.maxLength ?? (multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH);
+  const max = options.maxLength ?? (multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH);
   if (unicodeCharacterCount(out) <= max) return out;
   // Keep the existing code-point budget, but never spend only part of a grapheme cluster. This
   // avoids changing a visible character by dropping its combining tail at the boundary.

@@ -104,7 +104,7 @@ export function inspectAncestry(
         };
       }
     }
-    const upstream = memoisedAncestry(relation.parent, parent, lookup, memo);
+    const upstream = resolveMemoisedAncestry(relation.parent, parent, lookup, memo);
     if (!upstream.visible) return upstream;
   }
   return { visible: true };
@@ -112,7 +112,7 @@ export function inspectAncestry(
 
 /** One resolved parent's verdict, reused across every child that reaches it (see
  *  {@link LifecycleAncestryMemo}). Without a memo this is a plain recursive call. */
-function memoisedAncestry(
+function resolveMemoisedAncestry(
   table: AppDataKey,
   row: LifecycleAncestryRow,
   lookup: LifecycleAncestryLookup,

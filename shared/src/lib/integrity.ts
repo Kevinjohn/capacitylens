@@ -24,9 +24,9 @@ export function daysInMonth(year: number, month: number): number {
  * order is fine, but the date is nonsense and breaks later formatting/geometry),
  * so Gregorian month-length arithmetic validates it without consulting the host timezone.
  */
-export function isValidISODate(s: unknown): s is ISODate {
-  if (typeof s !== "string") return false;
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+export function isValidISODate(value: unknown): value is ISODate {
+  if (typeof value !== "string") return false;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return false;
   const year = Number(match[1]);
   const month = Number(match[2]);
@@ -208,9 +208,9 @@ export function validateAllocationAssignment(resource: Resource, projectId: ID |
 export function deleteResourceCascade(data: AppData, resourceId: ID): AppData {
   return {
     ...data,
-    resources: data.resources.filter((r) => r.id !== resourceId),
-    allocations: data.allocations.filter((a) => a.resourceId !== resourceId),
-    timeOff: data.timeOff.filter((t) => t.resourceId !== resourceId),
+    resources: data.resources.filter((resource) => resource.id !== resourceId),
+    allocations: data.allocations.filter((allocation) => allocation.resourceId !== resourceId),
+    timeOff: data.timeOff.filter((timeOff) => timeOff.resourceId !== resourceId),
   };
 }
 
@@ -218,8 +218,8 @@ export function deleteResourceCascade(data: AppData, resourceId: ID): AppData {
 export function deleteActivityCascade(data: AppData, activityId: ID): AppData {
   return {
     ...data,
-    activities: data.activities.filter((t) => t.id !== activityId),
-    allocations: data.allocations.filter((a) => a.activityId !== activityId),
+    activities: data.activities.filter((activity) => activity.id !== activityId),
+    allocations: data.allocations.filter((allocation) => allocation.activityId !== activityId),
   };
 }
 
@@ -227,8 +227,10 @@ export function deleteActivityCascade(data: AppData, activityId: ID): AppData {
 export function deletePhaseCascade(data: AppData, phaseId: ID, updatedAt: string): AppData {
   return {
     ...data,
-    phases: data.phases.filter((p) => p.id !== phaseId),
-    activities: data.activities.map((t) => (t.phaseId === phaseId ? { ...t, phaseId: undefined, updatedAt } : t)),
+    phases: data.phases.filter((phase) => phase.id !== phaseId),
+    activities: data.activities.map((activity) =>
+      activity.phaseId === phaseId ? { ...activity, phaseId: undefined, updatedAt } : activity,
+    ),
   };
 }
 
@@ -247,26 +249,36 @@ export function deletePhaseCascade(data: AppData, phaseId: ID, updatedAt: string
  * is likewise unbound, not deleted.
  */
 function dropProjectSubtree(data: AppData, removedProjectIds: Set<ID>, updatedAt: string): AppData {
-  const removedPhaseIds = new Set(data.phases.filter((p) => removedProjectIds.has(p.projectId)).map((p) => p.id));
+  const removedPhaseIds = new Set(
+    data.phases.filter((phase) => removedProjectIds.has(phase.projectId)).map((phase) => phase.id),
+  );
   const removedActivityIds = new Set(
-    data.activities.filter((t) => t.projectId !== undefined && removedProjectIds.has(t.projectId)).map((t) => t.id),
+    data.activities
+      .filter((activity) => activity.projectId !== undefined && removedProjectIds.has(activity.projectId))
+      .map((activity) => activity.id),
   );
   return {
     ...data,
-    projects: data.projects.filter((p) => !removedProjectIds.has(p.id)),
-    phases: data.phases.filter((p) => !removedPhaseIds.has(p.id)),
+    projects: data.projects.filter((project) => !removedProjectIds.has(project.id)),
+    phases: data.phases.filter((phase) => !removedPhaseIds.has(phase.id)),
     activities: data.activities
-      .filter((t) => !removedActivityIds.has(t.id))
-      .map((t) =>
-        t.phaseId !== undefined && removedPhaseIds.has(t.phaseId) ? { ...t, phaseId: undefined, updatedAt } : t,
+      .filter((activity) => !removedActivityIds.has(activity.id))
+      .map((activity) =>
+        activity.phaseId !== undefined && removedPhaseIds.has(activity.phaseId)
+          ? { ...activity, phaseId: undefined, updatedAt }
+          : activity,
       ),
     allocations: data.allocations
-      .filter((a) => !removedActivityIds.has(a.activityId))
-      .map((a) =>
-        a.projectId !== undefined && removedProjectIds.has(a.projectId) ? { ...a, projectId: undefined, updatedAt } : a,
+      .filter((allocation) => !removedActivityIds.has(allocation.activityId))
+      .map((allocation) =>
+        allocation.projectId !== undefined && removedProjectIds.has(allocation.projectId)
+          ? { ...allocation, projectId: undefined, updatedAt }
+          : allocation,
       ),
-    resources: data.resources.map((r) =>
-      r.projectId !== undefined && removedProjectIds.has(r.projectId) ? { ...r, projectId: undefined, updatedAt } : r,
+    resources: data.resources.map((resource) =>
+      resource.projectId !== undefined && removedProjectIds.has(resource.projectId)
+        ? { ...resource, projectId: undefined, updatedAt }
+        : resource,
     ),
   };
 }
@@ -279,10 +291,12 @@ export function deleteProjectCascade(data: AppData, projectId: ID, updatedAt: st
 /** Delete a client and everything beneath it (projects → phases → activities → allocations), unbinding
  *  surviving phases/placeholders as needed. PURE — returns a new AppData. */
 export function deleteClientCascade(data: AppData, clientId: ID, updatedAt: string): AppData {
-  const removedProjectIds = new Set(data.projects.filter((p) => p.clientId === clientId).map((p) => p.id));
+  const removedProjectIds = new Set(
+    data.projects.filter((project) => project.clientId === clientId).map((project) => project.id),
+  );
   return {
     ...dropProjectSubtree(data, removedProjectIds, updatedAt),
-    clients: data.clients.filter((c) => c.id !== clientId),
+    clients: data.clients.filter((client) => client.id !== clientId),
   };
 }
 
@@ -290,9 +304,9 @@ export function deleteClientCascade(data: AppData, clientId: ID, updatedAt: stri
 export function deleteDisciplineCascade(data: AppData, disciplineId: ID, updatedAt: string): AppData {
   return {
     ...data,
-    disciplines: data.disciplines.filter((d) => d.id !== disciplineId),
-    resources: data.resources.map((r) =>
-      r.disciplineId === disciplineId ? { ...r, disciplineId: undefined, updatedAt } : r,
+    disciplines: data.disciplines.filter((discipline) => discipline.id !== disciplineId),
+    resources: data.resources.map((resource) =>
+      resource.disciplineId === disciplineId ? { ...resource, disciplineId: undefined, updatedAt } : resource,
     ),
   };
 }

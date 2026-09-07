@@ -88,7 +88,9 @@ export function buildInternalClient(accountId: ID, now: ISOTimestamp, id: ID = i
  *  `builtin` flag (id-independent so it survives import-remap). First match wins — the seed /
  *  addAccount / migrate paths guarantee at most one per account. */
 export function internalClientFor(clients: Client[], accountId: ID): Client | undefined {
-  return clients.find((c) => !!c && typeof c === "object" && isBuiltinClient(c) && c.accountId === accountId);
+  return clients.find(
+    (client) => !!client && typeof client === "object" && isBuiltinClient(client) && client.accountId === accountId,
+  );
 }
 
 /** True when this client is the protected built-in (cannot be renamed or deleted). */

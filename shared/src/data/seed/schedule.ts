@@ -1,5 +1,5 @@
 import type { AppData } from "../../types/entities";
-import { TS, STUDIO } from "./constants";
+import { SEED_TIMESTAMP, STUDIO } from "./constants";
 
 export function createSchedule(): Pick<AppData, "timeOff" | "closures"> {
   return {
@@ -7,8 +7,8 @@ export function createSchedule(): Pick<AppData, "timeOff" | "closures"> {
       {
         id: "to-tyler",
         accountId: STUDIO,
-        createdAt: TS,
-        updatedAt: TS,
+        createdAt: SEED_TIMESTAMP,
+        updatedAt: SEED_TIMESTAMP,
         resourceId: "r-tyler",
         startDate: "2026-06-10",
         endDate: "2026-06-12",

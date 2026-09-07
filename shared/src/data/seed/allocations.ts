@@ -1,5 +1,5 @@
 import type { AppData } from "../../types/entities";
-import { TS, STUDIO, LOFT } from "./constants";
+import { SEED_TIMESTAMP, STUDIO, LOFT } from "./constants";
 
 export function createAllocations(): AppData["allocations"] {
   return [
@@ -7,8 +7,8 @@ export function createAllocations(): AppData["allocations"] {
     {
       id: "a-tyler-1",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       resourceId: "r-tyler",
       activityId: "t-wires",
       startDate: "2026-06-01",
@@ -19,8 +19,8 @@ export function createAllocations(): AppData["allocations"] {
     {
       id: "a-tyler-2",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       resourceId: "r-tyler",
       activityId: "t-visual",
       startDate: "2026-06-03",
@@ -31,8 +31,8 @@ export function createAllocations(): AppData["allocations"] {
     {
       id: "a-nike-1",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       resourceId: "r-nike",
       activityId: "t-cms",
       startDate: "2026-06-01",
@@ -43,8 +43,8 @@ export function createAllocations(): AppData["allocations"] {
     {
       id: "a-alex-1",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       resourceId: "r-alex",
       activityId: "t-cms",
       startDate: "2026-06-01",
@@ -55,8 +55,8 @@ export function createAllocations(): AppData["allocations"] {
     {
       id: "a-ph-1",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       resourceId: "r-ph-designer",
       activityId: "t-visual",
       startDate: "2026-06-02",
@@ -68,8 +68,8 @@ export function createAllocations(): AppData["allocations"] {
     {
       id: "a-ext-1",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       resourceId: "r-ext-northstar",
       activityId: "t-visual",
       startDate: "2026-06-02",
@@ -81,8 +81,8 @@ export function createAllocations(): AppData["allocations"] {
     {
       id: "a-pam-1",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       resourceId: "r-pam",
       activityId: "t-brand",
       startDate: "2026-06-01",
@@ -95,8 +95,8 @@ export function createAllocations(): AppData["allocations"] {
     {
       id: "a-alex-design",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       resourceId: "r-alex",
       activityId: "t-design",
       startDate: "2026-06-08",
@@ -107,8 +107,8 @@ export function createAllocations(): AppData["allocations"] {
     {
       id: "a-jo-1",
       accountId: LOFT,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       resourceId: "r-jo",
       activityId: "t-loft-screens",
       startDate: "2026-06-01",
