@@ -298,15 +298,37 @@ interface ProjectBinding {
 }
 
 interface ResourceSnapshot extends ProjectBinding {
+  accountId: string;
   color: string;
+  createdAt: string;
   disciplineId?: string;
+  engagement: string;
   employmentType?: string;
   halfDays: number[];
   isFavourite?: boolean;
   kind: string;
+  name?: string;
   role: string;
+  updatedAt: string;
   workingDays: number[];
   workingHoursPerDay: number;
+}
+
+interface AllocationSnapshot {
+  accountId: string;
+  activityId: string;
+  createdAt: string;
+  endDate: string;
+  hoursPerDay: number;
+  id: string;
+  ignoreWeekends?: boolean;
+  note?: string;
+  projectId?: string;
+  resourceId: string;
+  seriesId?: string;
+  startDate: string;
+  status: string;
+  updatedAt: string;
 }
 
 interface ClientSnapshot {
@@ -323,7 +345,7 @@ type ClientResponse = ClientSnapshot;
 interface ValidatedStateResponse {
   accounts: unknown[];
   activities: ProjectBinding[];
-  allocations: unknown[];
+  allocations: AllocationSnapshot[];
   clients: ClientSnapshot[];
   disciplines: unknown[];
   phases: unknown[];
@@ -395,19 +417,58 @@ function readResourceSnapshot(source: Record<string, unknown>, binding: ProjectB
   const disciplineId = readOptionalString(source, "disciplineId", "resource row");
   const employmentType = readOptionalString(source, "employmentType", "resource row");
   const isFavourite = readOptionalBoolean(source, "isFavourite", "resource row");
+  const name = readOptionalString(source, "name", "resource row");
   const snapshot: ResourceSnapshot = {
     ...binding,
+    accountId: readRequiredString(source, "accountId", "resource row"),
     color: readRequiredString(source, "color", "resource row"),
+    createdAt: readRequiredString(source, "createdAt", "resource row"),
+    engagement: readRequiredString(source, "engagement", "resource row"),
     halfDays: readNumberArray(source, "halfDays", "resource row"),
     kind: readRequiredString(source, "kind", "resource row"),
     role: readRequiredString(source, "role", "resource row"),
+    updatedAt: readRequiredString(source, "updatedAt", "resource row"),
     workingDays: readNumberArray(source, "workingDays", "resource row"),
     workingHoursPerDay: readRequiredNumber(source, "workingHoursPerDay", "resource row"),
   };
   if (disciplineId !== undefined) snapshot.disciplineId = disciplineId;
   if (employmentType !== undefined) snapshot.employmentType = employmentType;
   if (isFavourite !== undefined) snapshot.isFavourite = isFavourite;
+  if (name !== undefined) snapshot.name = name;
   return snapshot;
+}
+
+function readAllocationSnapshots(rows: unknown[]): AllocationSnapshot[] {
+  return rows.map((row) => {
+    if (!isUnknownRecord(row)) throw new Error("Expected every allocation row to be an object.");
+    const ignoreWeekends = readOptionalBoolean(row, "ignoreWeekends", "allocation row");
+    const note = readOptionalString(row, "note", "allocation row");
+    const projectId = readOptionalString(row, "projectId", "allocation row");
+    const seriesId = readOptionalString(row, "seriesId", "allocation row");
+    const snapshot: AllocationSnapshot = {
+      accountId: readRequiredString(row, "accountId", "allocation row"),
+      activityId: readRequiredString(row, "activityId", "allocation row"),
+      createdAt: readRequiredString(row, "createdAt", "allocation row"),
+      endDate: readRequiredString(row, "endDate", "allocation row"),
+      hoursPerDay: readRequiredNumber(row, "hoursPerDay", "allocation row"),
+      id: readRequiredString(row, "id", "allocation row"),
+      resourceId: readRequiredString(row, "resourceId", "allocation row"),
+      startDate: readRequiredString(row, "startDate", "allocation row"),
+      status: readRequiredString(row, "status", "allocation row"),
+      updatedAt: readRequiredString(row, "updatedAt", "allocation row"),
+    };
+    if (ignoreWeekends !== undefined) snapshot.ignoreWeekends = ignoreWeekends;
+    if (note !== undefined) snapshot.note = note;
+    if (projectId !== undefined) snapshot.projectId = projectId;
+    if (seriesId !== undefined) snapshot.seriesId = seriesId;
+    return snapshot;
+  });
+}
+
+function readFirstAllocation(allocations: AllocationSnapshot[]): AllocationSnapshot {
+  const allocationRow = allocations[0];
+  if (!allocationRow) throw new Error("Expected the state response to contain an allocation.");
+  return allocationRow;
 }
 
 function readResourceSnapshots(rows: unknown[]): ResourceSnapshot[] {
@@ -527,7 +588,7 @@ async function readValidatedState(app: FastifyInstance): Promise<ValidatedStateR
   return {
     accounts: readStateArray(value, "accounts"),
     activities: readProjectBindings(readStateArray(value, "activities"), "activity"),
-    allocations: readStateArray(value, "allocations"),
+    allocations: readAllocationSnapshots(readStateArray(value, "allocations")),
     clients: readClientSnapshots(readStateArray(value, "clients")),
     disciplines: readStateArray(value, "disciplines"),
     phases: readStateArray(value, "phases"),
@@ -554,7 +615,7 @@ describe("health + state", () => {
   it("reports health and starts empty", async () => {
     const { app } = freshApp();
     expect((await call(app, { method: "GET", url: "/api/health" })).json()).toEqual({ ok: true });
-    const s = await state(app);
+    const s = await readValidatedState(app);
     expect(s.accounts).toEqual([]);
     expect((await call(app, { method: "GET", url: "/api/meta" })).json()).toEqual({ hasData: false });
   });
@@ -581,7 +642,7 @@ describe("CRUD round-trip", () => {
       (await post(app, "allocations", allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "t1" })))
         .statusCode,
     ).toBe(201);
-    const s = await state(app);
+    const s = await readValidatedState(app);
     expect(s.accounts).toHaveLength(1);
     expect(s.clients).toHaveLength(1);
     expect(s.projects).toHaveLength(1);
@@ -589,13 +650,13 @@ describe("CRUD round-trip", () => {
     expect(s.resources).toHaveLength(1);
     expect(s.allocations).toHaveLength(1);
     // Round-trips exactly: both weekday JSON arrays + omitted optionals survive.
-    expect(withoutRevision(s.resources[0])).toEqual(
+    expect(withoutRevision(readFirstResource(s.resources))).toEqual(
       withoutRevision({
         ...person("r1", "a1"),
         name: "Unnamed person",
       }),
     );
-    expect(withoutRevision(s.allocations[0])).toEqual(
+    expect(withoutRevision(readFirstAllocation(s.allocations))).toEqual(
       withoutRevision(allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "t1" })),
     );
   });
