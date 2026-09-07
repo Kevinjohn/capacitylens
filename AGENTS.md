@@ -213,6 +213,15 @@ validation failures.
 
 ## Green gate
 
+Programme-specific exception (agreed 7 September 2026): conventions work governed by
+`tasks/plan.md` uses its risk-based validation policy, including for submission. Owners run focused
+tests and applicable type, touched-directory lint, formatting and size/baseline checks. Add server
+or browser checks for affected guarantees. The coordinator runs the three full suites at a recorded
+integrated milestone before its release, not every small batch or PR. This supersedes the blanket
+pre-submission requirement above for this programme. Prose-only changes require formatting and
+the documentation build, not application suites. Stryker/mutation suites and Docker checks are
+excluded. Other work retains the default below.
+
 Run `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e`. Cross-browser and mutation suites
 are documented in `docs-src/reference/development.md`. Keep E2E specs browser-agnostic.
 

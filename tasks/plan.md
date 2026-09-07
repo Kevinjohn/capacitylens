@@ -1,6 +1,6 @@
 # Code conventions: audit, debt retirement and upkeep
 
-Status: authorised 2026-09-07 (revision 6). Audit base: `d9824dfd3d7df3006a810e7368795fda08f9bd7f`, version 0.60.1-alpha.1.
+Status: authorised 2026-09-07 (revision 7). Audit base: `d9824dfd3d7df3006a810e7368795fda08f9bd7f`, version 0.60.1-alpha.1.
 Issues: #638 (audit), #639 (debt retirement), #643 (upkeep), #645 (enforcement),
 #647 (strictness and structure), #646 (boundary and error dispositions).
 Previous batch (conventions page and lint baseline, PRs #640–#642) is complete; its plan is in git
@@ -54,11 +54,8 @@ and a standing decision says how the page and its lint baseline are kept current
 - **Stop rule.** After two failed focused fix attempts, stop that owner's attempts and obtain an
   independent diagnosis. A boundary unable to preserve a listed guarantee is reported with the
   obstacle, changed files and smallest remaining step; independent work continues.
-- **Validation.** Prose: focused Prettier and citation checks, plus documentation build where
-  applicable. Code owners run focused tests, applicable typecheck, touched-directory lint and
-  formatting. The coordinator runs `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e`
-  under Node >=24 on the accepted integration tree. Disjoint batches may share that evidence;
-  changed trees need refreshed checks. Keep one full-validation owner and one E2E process.
+- **Validation.** Apply the risk-based programme policy below. Focused checks accompany each
+  change; full suites run at a recorded integrated milestone, not every batch or PR.
 - **GitHub CI.** Every non-minor-release PR carries `[skip ci]`, including functional PRs.
   The minor release dispatches `gate.yml` and waits for success; no other pre-merge CI is
   required for this programme. Do not dispatch mutation or
@@ -93,6 +90,31 @@ flowchart TD
   Final --> Minor[Separate minor release and necessary GitHub CI]
 ```
 
+## Programme validation policy — agreed 7 September 2026
+
+This policy supersedes historical blanket full-suite instructions for this programme, including
+accepted briefs and checkpoint checklists. Scope and preserved guarantees are unchanged.
+
+| Change risk                                                              | Required local evidence                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mechanical naming, extraction or settled signature/result transformation | Existing affected behavior tests, applicable project typechecks, touched-directory lint, formatting and relevant size/baseline checks. Result transformations must cover absence/default and control-flow guarantees; they are not necessarily names-only. |
+| Server behavior or integration                                           | The above plus relevant server checks covering affected authorization, transaction, persistence or API guarantees. Use the server gate when the affected boundary warrants that breadth.                                                                   |
+| Browser behavior or frontend integration                                 | The above plus relevant browser scenarios. A frontend file change alone does not require full E2E.                                                                                                                                                         |
+| Prose only                                                               | Formatting, relevant links/citations and documentation build; verify generated output. No application suites.                                                                                                                                              |
+| Meaningful integrated milestone                                          | Coordinator runs `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e` once on the accepted combined tree before the milestone release, not after every small batch or PR.                                                                            |
+
+Each packet records its risk, covered guarantees and exact commands. The stage record names the
+next full-validation milestone. Reviewers inspect evidence without rerunning passed checks by
+default. Broaden checks only for an uncovered guarantee, relevant change, failure or unresolved
+integration risk. After corrections, refresh affected evidence rather than automatically restarting
+all suites. Record the tested commit/tree: a full pass does not certify later changes. After a full
+milestone pass, changed code needs affected checks and a recorded assessment of whether to repeat
+full validation. Do not add tests that merely mirror mechanical edits.
+
+Use pnpm and Node >=24; only one E2E process at a time. No Stryker/mutation suites, Docker checks
+or routine cross-browser runs. GitHub CI and merge spacing are separate; non-minor PRs retain
+`[skip ci]`. Implementation remains paused until a stage is selected.
+
 ## Independent execution of accepted batches
 
 The implementation programme remains paused at the saved checkpoint until the next bounded
@@ -123,7 +145,7 @@ three release boundaries, exclusions and validation requirements above.
   condition. Owners perform only their assigned work and checks. Stop at that checkpoint for
   stage selection; a completed owner does not start the next task automatically. During the
   stage, routine permitted implementation choices need no additional approval.
-- **Keep verification proportional.** Preserve required checks. Use symbol/reference checks and
+- **Keep verification proportional.** Apply the programme validation policy above. Use symbol/reference checks and
   verified transformation comparisons for repetitive mappings; neither syntax equality nor
   typechecking replaces meaningful behavior checks. Do not add tests that merely mirror a
   mechanical edit. Fix a genuine coverage gap within a reviewed footprint. Report the specific
@@ -137,7 +159,7 @@ three release boundaries, exclusions and validation requirements above.
 - **Return a compact result.** Report DONE or BLOCKED, the signed commit and base, changed files,
   checks and outcomes, new versus moved tests, deviations, and central handoff items. Keep detailed
   logs as artifacts. The coordinator reviews the exact committed head, integrates accepted work,
-  applies central changes and runs the required shared gates. Failed or unreviewed work is never
+  applies central changes and runs risk-selected checks; full gates belong to the recorded milestone. Failed or unreviewed work is never
   labelled ready for merge.
 
 ```mermaid
@@ -153,7 +175,7 @@ flowchart TD
   Review -->|specific unresolved finding| Resolve[Resolve the bounded question]
   Resolve --> Recheck[Owner applies correction and focused checks]
   Recheck --> Review
-  Integrate --> Gates[One accepted integration validation]
+  Integrate --> Gates[Risk-selected checks; full suites at milestone]
   Gates --> Delivery[Authorised delivery and exact state verification]
   Delivery --> Stop[Record checkpoint and stop before next stage]
 ```
@@ -273,8 +295,7 @@ local helper placement where an options type is introduced.
 
 **Files.** Per batch, listed in its brief. The selected batch packet records its exact base and consumer footprint; completed historical blocks are not instructions to repeat work.
 
-**Focused tests.** Per batch, listed in its brief; every batch runs `pnpm run lint` with the
-pruned baseline.
+**Focused tests.** Per batch, listed in its brief; each packet names touched-directory lint and required baseline verification.
 
 **Done.** Every `R`, `E`, `P` and `S` row is either landed or reclassified `D` or `X` with a
 reason; the baseline holds only the entries of `D` and `X` rows; #639 closed with the merge links.
@@ -356,7 +377,7 @@ deferral to `DEFENSIVE-CODING.md`, and retain nonviolating observations with rea
 
 ### Shared package names — #639
 
-Status: implementation committed at `d0de79d8`; independent complete diff review accepted. Audit group C4-02; 137 R/E rows. Full integrated validation remains required before submission.
+Status: implementation committed at `d0de79d8`; independent complete diff review accepted. Audit group C4-02; 137 R/E rows. Full integrated validation belongs to the recorded milestone under the current policy.
 
 Fixed decisions: names only; public X contracts, persisted keys, positional signatures, result shapes and released migrations remain unchanged. Use `parseSchemaVersion` and `resolveArray` for A096/A098. Existing local comment references follow renamed bindings. All aliases preserve original object keys.
 
