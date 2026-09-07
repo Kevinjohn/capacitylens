@@ -252,6 +252,46 @@ function readErrorResponseBody(response: unknown): ErrorResponseBody {
   return { code: body.code, error: body.error };
 }
 
+interface LifecycleStateIds {
+  clients: string[];
+  projects: string[];
+  phases: string[];
+  activities: string[];
+  allocations: string[];
+  resources: string[];
+}
+
+function readEntityIds(body: Record<string, unknown>, entity: keyof LifecycleStateIds): string[] {
+  const rows = body[entity];
+  if (!Array.isArray(rows)) {
+    throw new Error(`Expected lifecycle state ${entity} rows.`);
+  }
+  return rows.map((row) => {
+    if (!isUnknownRecord(row) || typeof row.id !== "string") {
+      throw new Error(`Expected lifecycle state ${entity} rows with string ids.`);
+    }
+    return row.id;
+  });
+}
+
+function readLifecycleStateIds(response: unknown): LifecycleStateIds {
+  if (!isUnknownRecord(response) || typeof response.body !== "string") {
+    throw new Error("Expected a lifecycle response.");
+  }
+  const body: unknown = JSON.parse(response.body);
+  if (!isUnknownRecord(body)) {
+    throw new Error("Expected a lifecycle state response body.");
+  }
+  return {
+    clients: readEntityIds(body, "clients"),
+    projects: readEntityIds(body, "projects"),
+    phases: readEntityIds(body, "phases"),
+    activities: readEntityIds(body, "activities"),
+    allocations: readEntityIds(body, "allocations"),
+    resources: readEntityIds(body, "resources"),
+  };
+}
+
 // One built-in Internal client whose id is captured so the built-in-guard test can target it (its id is
 // random per buildInternalClient call, so it MUST be built once and reused — not rebuilt at assert time).
 const INTERNAL = buildInternalClient("a1", TS);
@@ -749,14 +789,14 @@ describe("P2.5a lifecycle — purge cascade removes the row + its descendants", 
     // Read the FULL (admin) slice and confirm the client AND its whole subtree are GONE.
     const after = await readInactive(app, "a1", cookie);
     expect(after.statusCode).toBe(200);
-    const body = after.json();
-    expect(body.clients.map((c: { id: string }) => c.id)).not.toContain("cTree");
-    expect(body.projects.map((p: { id: string }) => p.id)).not.toContain("pTree");
-    expect(body.phases.map((p: { id: string }) => p.id)).not.toContain("phTree");
-    expect(body.activities.map((a: { id: string }) => a.id)).not.toContain("actTree");
-    expect(body.allocations.map((a: { id: string }) => a.id)).not.toContain("alTree");
+    const ids = readLifecycleStateIds(after);
+    expect(ids.clients).not.toContain("cTree");
+    expect(ids.projects).not.toContain("pTree");
+    expect(ids.phases).not.toContain("phTree");
+    expect(ids.activities).not.toContain("actTree");
+    expect(ids.allocations).not.toContain("alTree");
     // The resource itself is unbound, not deleted (the cascade only drops the activity's allocations).
-    expect(body.resources.map((r: { id: string }) => r.id)).toContain("rTree");
+    expect(ids.resources).toContain("rTree");
   });
 });
 
