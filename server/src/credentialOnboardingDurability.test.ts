@@ -57,15 +57,15 @@ describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
     });
 
     await expect(
-      configured.auth!.createCredentialUser(
-        "correlation@example.com",
-        "Correlation Failure",
-        "a-valid-correlation-test-password",
-        true,
-        () => {
+      configured.auth!.createCredentialUser({
+        email: "correlation@example.com",
+        name: "Correlation Failure",
+        password: "a-valid-correlation-test-password",
+        emailVerified: true,
+        correlateInTransaction: () => {
           throw new Error("simulated correlation failure");
         },
-      ),
+      }),
     ).rejects.toThrow("simulated correlation failure");
     expect(db.prepare(`SELECT id FROM user`).all()).toEqual([]);
     expect(db.prepare(`SELECT id FROM account`).all()).toEqual([]);

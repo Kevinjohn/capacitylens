@@ -1846,10 +1846,18 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
   it("enforces the code-point policy on direct identity creation that bypasses HTTP routes", async () => {
     const { auth } = await bootstrapFixture();
     await expect(
-      auth!.createCredentialUser("direct-short@capacitylens.dev", "Direct Short", "🔐".repeat(14)),
+      auth!.createCredentialUser({
+        email: "direct-short@capacitylens.dev",
+        name: "Direct Short",
+        password: "🔐".repeat(14),
+      }),
     ).rejects.toThrow(`at least ${MIN_PASSWORD_LENGTH} characters`);
     await expect(
-      auth!.createCredentialUser("direct-max@capacitylens.dev", "Direct Max", "🔐".repeat(128)),
+      auth!.createCredentialUser({
+        email: "direct-max@capacitylens.dev",
+        name: "Direct Max",
+        password: "🔐".repeat(128),
+      }),
     ).resolves.toEqual({ id: expect.any(String) });
   });
 
