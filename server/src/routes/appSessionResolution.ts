@@ -77,7 +77,7 @@ export function installSessionResolution({
     req.authenticationProviderId = session.assurance === "federated" ? session.providerId : null;
   };
   app.addHook("preHandler", async (req: FastifyRequest, reply: FastifyReply) => {
-    const path = req.url.split("?", 1)[0];
+    const path = req.url.split("?", 1)[0] ?? req.url;
     if (!path.startsWith("/api/") || path === "/api/health" || path === "/api/security/csp-report") return;
     let resolution = await resolveIncomingSession({ req });
     if (resolution.kind === "verified") attachVerifiedSession(req, resolution.session);

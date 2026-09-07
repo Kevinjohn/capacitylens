@@ -196,7 +196,7 @@ const closure = (id: string, accountId: string, name = "Christmas shutdown") => 
 // pins the single Promise-returning shape so call sites stay terse.
 const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
   app.inject(opts) as unknown as Promise<LightMyRequestResponse>;
-const body = (payload: unknown) => payload as InjectOptions["payload"];
+const body = (payload: unknown) => payload as NonNullable<InjectOptions["payload"]>;
 
 const post = (app: FastifyInstance, entity: string, payload: unknown) =>
   call(app, { method: "POST", url: `/api/${entity}`, payload: body(payload) });

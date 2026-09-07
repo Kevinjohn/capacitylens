@@ -92,8 +92,10 @@ describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
     const db = openDb(runCrash("after-correlation-commit"));
     const users = db.prepare(`SELECT id FROM user`).all() as Array<{ id: string }>;
     expect(users).toHaveLength(1);
+    const user = users[0];
+    if (!user) throw new Error("Expected one recovered credential principal.");
     expect(db.prepare(`SELECT accountId, providerId, userId FROM account`).all()).toEqual([
-      { accountId: users[0].id, providerId: "credential", userId: users[0].id },
+      { accountId: user.id, providerId: "credential", userId: user.id },
     ]);
 
     const reconciled = getAccountCommandByIdForReconciliation({
@@ -105,7 +107,7 @@ describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
     expect(reconciled).toMatchObject({
       status: "reconciliation_required",
       workspaceId: "workspace-1",
-      targetPrincipalId: users[0].id,
+      targetPrincipalId: user.id,
     });
     expect((db.prepare(`PRAGMA quick_check`).get() as { quick_check: string }).quick_check).toBe("ok");
     db.close();

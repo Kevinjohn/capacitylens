@@ -249,6 +249,7 @@ export class BatchStateProjection implements ValidationDataLookup {
     if (index === undefined) return;
     const rows = resolveRows(this.data, table);
     const removed = rows[index];
+    if (!removed) return;
     if (table === "allocations") this.attributionRewrites.delete(id);
     this.removeChildRelationships(table, removed);
     const last = rows.pop()!;
@@ -275,7 +276,9 @@ export class BatchStateProjection implements ValidationDataLookup {
       this.rowIndexes[table].set(next.id, rows.length);
       rows.push(next);
     } else {
-      this.removeChildRelationships(table, rows[index]);
+      const existing = rows[index];
+      if (!existing) throw new Error(`Missing indexed ${table} row ${next.id}.`);
+      this.removeChildRelationships(table, existing);
       rows[index] = next;
     }
     this.addChildRelationships(table, next);

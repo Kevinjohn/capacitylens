@@ -88,7 +88,7 @@ export async function runBatch(parameters: RunBatchParameters): Promise<BatchRun
       const auditTs = new Date().toISOString();
       auditRecords = ops.map((op, opIndex): AuditRecord | null => {
         const action = auditActions[opIndex];
-        if (action === null) return null;
+        if (action == null) return null;
         return op.method === "PUT"
           ? {
               ts: auditTs,
@@ -174,13 +174,20 @@ export async function runBatch(parameters: RunBatchParameters): Promise<BatchRun
             recordAppliedSyncBatch(
               db,
               syncOrder,
-              ops.map((op) => ({
-                table: op.table,
-                id: op.id,
-                accountId:
-                  op.table === "accounts" ? op.id : op.method === "PUT" ? (op.row!.accountId as string) : op.accountId!,
-                row: getRow(db, op.table, op.id) ?? undefined,
-              })),
+              ops.map((op) => {
+                const row = getRow(db, op.table, op.id);
+                return {
+                  table: op.table,
+                  id: op.id,
+                  accountId:
+                    op.table === "accounts"
+                      ? op.id
+                      : op.method === "PUT"
+                        ? (op.row!.accountId as string)
+                        : op.accountId!,
+                  ...(row === null ? {} : { row }),
+                };
+              }),
             );
           }
         },

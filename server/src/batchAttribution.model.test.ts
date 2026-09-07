@@ -146,7 +146,7 @@ function enumerateSequences(): ModelOperation[][] {
 }
 
 const batch = (app: FastifyInstance, ops: unknown[]) =>
-  call(app, { method: "POST", url: "/api/batch", payload: { ops } as InjectOptions["payload"] });
+  call(app, { method: "POST", url: "/api/batch", payload: { ops } as NonNullable<InjectOptions["payload"]> });
 
 const requestOperation = (operation: ModelOperation) => {
   if (operation.type === "kind") {

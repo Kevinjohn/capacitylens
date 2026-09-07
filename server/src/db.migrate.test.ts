@@ -2604,6 +2604,7 @@ describe("schema migration of an existing on-disk DB", () => {
   it("keeps the v8 migration independent from later additions to the live table model", () => {
     const copied = copyFixture("v7-off.db");
     const originalAccounts = TABLES.accounts;
+    if (!originalAccounts) throw new Error("Expected the live accounts table specification.");
     let db: Db | undefined;
     try {
       TABLES.accounts = {
@@ -2636,6 +2637,7 @@ describe("schema migration of an existing on-disk DB", () => {
   it("keeps migration v16 independent from a future required live-model column", () => {
     const copied = copyFixture("v15-off.db");
     const originalPhases = TABLES.phases;
+    if (!originalPhases) throw new Error("Expected the live phases table specification.");
     let db: Db | undefined;
     try {
       TABLES.phases = {

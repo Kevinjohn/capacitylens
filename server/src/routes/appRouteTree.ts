@@ -87,9 +87,11 @@ export function registerApiRoutes({
       healthStatement: healthStmt,
       auditDrainer,
       auditSink,
-      backupHealth: options.backupHealth,
-      internalTlsExpiresAt: options.internalTlsExpiresAt,
-      internalTlsFingerprintSha256: options.internalTlsFingerprintSha256,
+      ...(options.backupHealth === undefined ? {} : { backupHealth: options.backupHealth }),
+      ...(options.internalTlsExpiresAt === undefined ? {} : { internalTlsExpiresAt: options.internalTlsExpiresAt }),
+      ...(options.internalTlsFingerprintSha256 === undefined
+        ? {}
+        : { internalTlsFingerprintSha256: options.internalTlsFingerprintSha256 }),
       isInitialized: () => isInitialized(db),
     };
     const authProxyRouteDependencies = {
@@ -112,7 +114,7 @@ export function registerApiRoutes({
       authMode,
       auth,
       multiAccount: options.multiAccount === true,
-      bootstrapToken: options.bootstrapToken,
+      ...(options.bootstrapToken === undefined ? {} : { bootstrapToken: options.bootstrapToken }),
       accountAdminPort,
       accountFlows,
       masquerades,

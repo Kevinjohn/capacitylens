@@ -4,7 +4,10 @@ import { describe, it, expect } from "vitest";
 import { evaluateProductionPosture } from "./productionGuard";
 import { BOOTSTRAP_ADMIN_EMAIL } from "./auth";
 
-type ProductionEnv = Parameters<typeof evaluateProductionPosture>[0];
+type ProductionEnv = {
+  [Key in keyof Parameters<typeof evaluateProductionPosture>[0]]?:
+    Parameters<typeof evaluateProductionPosture>[0][Key] | undefined;
+};
 
 const FULLY_HARDENED_PRODUCTION_CONTROLS: ProductionEnv = {
   NODE_ENV: "production",
@@ -22,8 +25,23 @@ const FULLY_HARDENED_PRODUCTION_CONTROLS: ProductionEnv = {
 
 const envExample = readFileSync(fileURLToPath(new URL("../../.env.example", import.meta.url)), "utf8");
 
+function environmentWith(
+  base: ProductionEnv,
+  overrides: ProductionEnv,
+): Parameters<typeof evaluateProductionPosture>[0] {
+  const environment: Parameters<typeof evaluateProductionPosture>[0] = {};
+  for (const source of [base, overrides]) {
+    for (const key of Object.keys(source) as Array<keyof ProductionEnv>) {
+      const value = source[key];
+      if (value === undefined) delete environment[key];
+      else environment[key] = value;
+    }
+  }
+  return environment;
+}
+
 function productionPosture(overrides: ProductionEnv) {
-  return evaluateProductionPosture({ ...FULLY_HARDENED_PRODUCTION_CONTROLS, ...overrides });
+  return evaluateProductionPosture(environmentWith(FULLY_HARDENED_PRODUCTION_CONTROLS, overrides));
 }
 
 // P3.1: once NODE_ENV=production, the dev/open posture is retired — the entrypoint refuses to
@@ -41,7 +59,7 @@ describe("evaluateProductionPosture", () => {
       CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
     };
     for (const NODE_ENV of [undefined, "development", "test"]) {
-      const result = evaluateProductionPosture({ ...worst, NODE_ENV });
+      const result = evaluateProductionPosture(environmentWith({}, { ...worst, NODE_ENV }));
       expect(result.refusals).toEqual([]);
       expect(result.warnings).toEqual([]);
     }

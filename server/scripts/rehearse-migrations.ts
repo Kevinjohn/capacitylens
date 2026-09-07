@@ -265,11 +265,12 @@ async function main(): Promise<void> {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv[2] === "--worker-kill") {
+    const sourcePath = process.argv[3];
     const targetVersion = Number(process.argv[4]);
-    if (!Number.isSafeInteger(targetVersion) || targetVersion <= 0) {
+    if (!sourcePath || !Number.isSafeInteger(targetVersion) || targetVersion <= 0) {
       throw new Error("--worker-kill requires a positive target migration version");
     }
-    await runKilledMigrationWorker(resolve(process.argv[3]), targetVersion);
+    await runKilledMigrationWorker(resolve(sourcePath), targetVersion);
   } else {
     await main();
   }

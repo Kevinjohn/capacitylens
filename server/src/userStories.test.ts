@@ -20,7 +20,10 @@ describe("user-story catalogue", () => {
     const declared = Number(readme.match(/\n(\d+) stories across/)?.[1]);
     const indexed = [...readme.matchAll(/\]\(([^)]+\/US-[^)]+\.md)\)/g)].map((match) => match[1]);
     const files = storyFiles();
-    const indexedFiles = indexed.map((relative) => resolve(STORIES, relative));
+    const indexedFiles = indexed.map((relative) => {
+      if (!relative) throw new Error("Expected an indexed story path.");
+      return resolve(STORIES, relative);
+    });
 
     expect(declared).toBe(files.length);
     expect(indexed).toHaveLength(files.length);

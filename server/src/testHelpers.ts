@@ -72,11 +72,13 @@ export function readCookies(res: LightMyRequestResponse): string {
   const cookies = new Map<string, string>();
   for (const header of list) {
     const [pair, ...attributes] = String(header).split(";");
+    if (!pair) continue;
     const separator = pair.indexOf("=");
     if (separator < 1) continue;
     const name = pair.slice(0, separator).trim();
     const expired = attributes.some((attribute) => {
       const [rawName, ...rawValue] = attribute.trim().split("=");
+      if (!rawName) return false;
       const attributeName = rawName.toLowerCase();
       const value = rawValue.join("=").trim();
       if (attributeName === "max-age") return Number(value) <= 0;

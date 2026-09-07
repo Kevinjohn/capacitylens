@@ -72,6 +72,7 @@ export function assertMigrationHistory(db: Db, databaseVersion: number): void {
   for (let index = 0; index < expected.length; index += 1) {
     const migration = expected[index];
     const row = rows[index];
+    if (!migration || !row) throw new Error(`Database migration history is incomplete at index ${index}.`);
     if (row.version !== migration.version) {
       throw new Error(`Database migration history is missing or out of order at version ${migration.version}.`);
     }

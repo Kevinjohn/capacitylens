@@ -97,9 +97,9 @@ export function createSqliteAccountAdminPort(input: {
             audit({
               action: options.audit.action,
               outcome: "success",
-              workspaceId: options.workspaceId,
+              ...(options.workspaceId === undefined ? {} : { workspaceId: options.workspaceId }),
               actorPrincipalId: options.actorPrincipalId,
-              targetPrincipalId: options.targetPrincipalId,
+              ...(options.targetPrincipalId === undefined ? {} : { targetPrincipalId: options.targetPrincipalId }),
               command: options.command,
               changedFields: options.audit.changedFields,
             });
@@ -134,9 +134,11 @@ export function createSqliteAccountAdminPort(input: {
                   audit({
                     action: options.audit.action,
                     outcome: denied ? "denied" : "failed",
-                    workspaceId: options.workspaceId,
+                    ...(options.workspaceId === undefined ? {} : { workspaceId: options.workspaceId }),
                     actorPrincipalId: options.actorPrincipalId,
-                    targetPrincipalId: options.targetPrincipalId,
+                    ...(options.targetPrincipalId === undefined
+                      ? {}
+                      : { targetPrincipalId: options.targetPrincipalId }),
                     command: options.command,
                   });
                 }

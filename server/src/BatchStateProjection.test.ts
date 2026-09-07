@@ -200,8 +200,11 @@ describe("BatchStateProjection", () => {
 
   it("reparents projects before replacing the generated Internal client", () => {
     const data = relationshipFixture();
-    data.clients[0] = { ...data.clients[0], id: "internal:a1", builtin: true };
-    data.projects[0] = { ...data.projects[0], clientId: "internal:a1" };
+    const client = data.clients[0];
+    const project = data.projects[0];
+    if (!client || !project) throw new Error("Expected the relationship fixture rows.");
+    data.clients[0] = { ...client, id: "internal:a1", builtin: true };
+    data.projects[0] = { ...project, clientId: "internal:a1" };
     const projection = new BatchStateProjection(data);
 
     projection.replaceGeneratedBuiltin("internal:a1", {
@@ -214,7 +217,7 @@ describe("BatchStateProjection", () => {
     });
 
     expect(projection.data.clients.map((client) => client.id)).toEqual(["imported-internal"]);
-    expect(projection.data.projects[0].clientId).toBe("imported-internal");
+    expect(projection.data.projects[0]?.clientId).toBe("imported-internal");
   });
 
   it("keeps reverse allocation lookups current across resource and activity edits", () => {

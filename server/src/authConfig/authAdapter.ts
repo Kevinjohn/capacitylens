@@ -242,7 +242,8 @@ export function createAuthAdapterFactory({
               WHERE applicationId = ? AND (issuer = ? OR providerId = ?)`,
             )
             .all(application.applicationId, issuer, providerId) as Array<{ issuer: string; providerId: string }>;
-          if (row.length !== 1 || row[0].issuer !== issuer || row[0].providerId !== providerId) {
+          const binding = row[0];
+          if (!binding || row.length !== 1 || binding.issuer !== issuer || binding.providerId !== providerId) {
             throw new Error(`Persisted provider binding does not match configured provider ${providerId}.`);
           }
         }

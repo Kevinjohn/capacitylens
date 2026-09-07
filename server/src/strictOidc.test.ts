@@ -71,7 +71,7 @@ async function idToken(
 }
 
 describe("strictOidcUserInfo", () => {
-  let currentKeys: SigningKey[];
+  let currentKeys: [SigningKey, ...SigningKey[]];
   let userInfo: Record<string, unknown>;
 
   beforeEach(async () => {

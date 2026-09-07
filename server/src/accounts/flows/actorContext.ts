@@ -28,14 +28,14 @@ export function assertWorkspaceProvisioningAllowedInTx(
     actor: input.actor,
     multiWorkspace: input.multiWorkspace,
     bootstrapAuthorized: input.bootstrapAuthorized,
-    projectedWorkspaceCount: input.projectedWorkspaceCount,
+    ...(input.projectedWorkspaceCount === undefined ? {} : { projectedWorkspaceCount: input.projectedWorkspaceCount }),
   });
   if (!decision.allowed) {
     throw new AccountContractError({
       code: "FORBIDDEN",
       message: decision.reason === "single-workspace-cap" ? SINGLE_COMPANY_CAP_MESSAGE : "Forbidden.",
       retryable: false,
-      commandId: input.commandId,
+      ...(input.commandId === undefined ? {} : { commandId: input.commandId }),
     });
   }
 }

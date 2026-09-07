@@ -111,6 +111,7 @@ export async function resetOwnerPassword(input: OwnerRecoveryInput): Promise<Own
       );
     }
     const userId = matches[0];
+    if (!userId) throw new Error("No identity matches that address.");
 
     // Authority condition: only the state no in-product actor can recover. Anyone else has an
     // in-product reset path, and this tool must not become a general backdoor.

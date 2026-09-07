@@ -40,12 +40,14 @@ export function createRequestLoggerOptions(stream?: AppOptions["logStream"]) {
     redact: { paths: LOG_REDACT_PATHS, remove: true as const },
     serializers: {
       req(req: FastifyRequest) {
+        const url = redactSecretUrl(req.url);
+        const remotePort = req.socket?.remotePort;
         return {
           method: req.method,
-          url: redactSecretUrl(req.url),
+          ...(url === undefined ? {} : { url }),
           hostname: req.hostname,
           remoteAddress: req.ip,
-          remotePort: req.socket?.remotePort,
+          ...(remotePort === undefined ? {} : { remotePort }),
         };
       },
     },
