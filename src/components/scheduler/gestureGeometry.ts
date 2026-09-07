@@ -10,26 +10,33 @@ interface BuildGesturePreviewDatesInput {
   previewDays: Weekday[] | undefined;
 }
 
-export function buildGesturePreviewDates({ bar, mode, deltaDays, previewDays }: BuildGesturePreviewDatesInput) {
+type GesturePreviewResult = { kind: "blocked" } | { kind: "unchanged" } | { kind: "ready"; dates: DateRange };
+
+export function buildGesturePreviewDates({
+  bar,
+  mode,
+  deltaDays,
+  previewDays,
+}: BuildGesturePreviewDatesInput): GesturePreviewResult {
   // Snap ONCE per frame, against the lane the pointer is actually over — the drop-target gate
   // below and the bar's own preview pixels then read the same range instead of each deriving it.
   // A zero-column resize moves nothing, so it keeps the view-model's placement (dates: null).
   // An empty memoized week ([]) is the collapsed "none" state: the commit below refuses the
   // gesture, so the preview shows no movement rather than calendar-day math the save rejects.
-  const previewImpossible = previewDays?.length === 0 && !bar.allocation.ignoreWeekends;
-  const dates =
-    !previewImpossible && (deltaDays !== 0 || mode === "move")
-      ? applyGesture({
-          mode: mode,
-          range: { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate },
-          deltaDays: deltaDays,
-          options: {
-            workingDays: previewDays,
-            ignoreWeekends: bar.allocation.ignoreWeekends,
-          },
-        })
-      : null;
-  return { previewImpossible, dates };
+  if (previewDays?.length === 0 && !bar.allocation.ignoreWeekends) return { kind: "blocked" };
+  if (deltaDays === 0 && mode !== "move") return { kind: "unchanged" };
+  return {
+    kind: "ready",
+    dates: applyGesture({
+      mode: mode,
+      range: { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate },
+      deltaDays: deltaDays,
+      options: {
+        workingDays: previewDays,
+        ignoreWeekends: bar.allocation.ignoreWeekends,
+      },
+    }),
+  };
 }
 
 export function buildGesturePreviewGeometry(
