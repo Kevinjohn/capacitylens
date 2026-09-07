@@ -292,6 +292,90 @@ const state = async (app: FastifyInstance) => {
   return data;
 };
 
+interface ProjectBinding {
+  id: string;
+  projectId?: string;
+}
+
+interface ValidatedStateResponse {
+  activities: ProjectBinding[];
+  allocations: unknown[];
+  clients: { name: string }[];
+  resources: ProjectBinding[];
+  timeOff: unknown[];
+}
+
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readStateArray(value: Record<string, unknown>, key: string): unknown[] {
+  if (!(key in value) || !Array.isArray(value[key])) {
+    throw new Error(`Expected the state response to contain a ${key} array.`);
+  }
+  return value[key];
+}
+
+function readProjectBindings(rows: unknown[], table: string): ProjectBinding[] {
+  return rows.map((row) => {
+    if (typeof row !== "object" || row === null || !("id" in row) || typeof row.id !== "string") {
+      throw new Error(`Expected every ${table} row to contain a string id.`);
+    }
+    if ("projectId" in row) {
+      if (typeof row.projectId !== "string") {
+        throw new Error(`Expected every present ${table} projectId to be a string.`);
+      }
+      return { id: row.id, projectId: row.projectId };
+    }
+    return { id: row.id };
+  });
+}
+
+function readClientNames(rows: unknown[]): { name: string }[] {
+  return rows
+    .map((row) => {
+      if (
+        typeof row !== "object" ||
+        row === null ||
+        !("id" in row) ||
+        typeof row.id !== "string" ||
+        !("name" in row) ||
+        typeof row.name !== "string"
+      ) {
+        throw new Error("Expected every client row to contain string id and name fields.");
+      }
+      return { id: row.id, name: row.name };
+    })
+    .filter((clientRow) => !clientRow.id.startsWith("internal:"))
+    .map(({ name }) => ({ name }));
+}
+
+function readFirstClientName(clients: { name: string }[]): string {
+  const clientRow = clients[0];
+  if (!clientRow) throw new Error("Expected the state response to contain a client.");
+  return clientRow.name;
+}
+
+function readProjectId(rows: ProjectBinding[], id: string): string | undefined {
+  const row = rows.find((candidate) => candidate.id === id);
+  if (!row) throw new Error(`Expected the state response to contain row ${id}.`);
+  return row.projectId;
+}
+
+async function readValidatedState(app: FastifyInstance): Promise<ValidatedStateResponse> {
+  const value: unknown = (await call(app, { method: "GET", url: "/api/state" })).json();
+  if (!isUnknownRecord(value)) {
+    throw new Error("Expected the state response to be an object.");
+  }
+  return {
+    activities: readProjectBindings(readStateArray(value, "activities"), "activity"),
+    allocations: readStateArray(value, "allocations"),
+    clients: readClientNames(readStateArray(value, "clients")),
+    resources: readProjectBindings(readStateArray(value, "resources"), "resource"),
+    timeOff: readStateArray(value, "timeOff"),
+  };
+}
+
 /** Seed a minimal account → client → project → activity → person chain. */
 async function scaffold(app: FastifyInstance) {
   await post(app, "accounts", account("a1"));
@@ -1095,7 +1179,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       },
     ]);
     expect(res.statusCode).toBe(400);
-    expect((await state(app)).allocations).toHaveLength(0);
+    expect((await readValidatedState(app)).allocations).toHaveLength(0);
   });
 
   it("rolls back earlier operations when a placeholder rebind would invalidate existing work", async () => {
@@ -1121,10 +1205,10 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     ]);
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/placeholder’s work/i);
-    const snapshot = await state(app);
-    expect(snapshot.clients[0].name).toBe("Acme");
-    expect(snapshot.resources.find((resource: { id: string }) => resource.id === "ph").projectId).toBe("p1");
+    expect(readErrorResponse(res).error).toMatch(/placeholder’s work/i);
+    const snapshot = await readValidatedState(app);
+    expect(readFirstClientName(snapshot.clients)).toBe("Acme");
+    expect(readProjectId(snapshot.resources, "ph")).toBe("p1");
   });
 
   it("refuses a cross-account delete inside a batch and rolls back", async () => {
@@ -1133,7 +1217,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     await post(app, "accounts", account("a2"));
     const res = await batch(app, [{ method: "DELETE", table: "clients", id: "c1", accountId: "a2" }]);
     expect(res.statusCode).toBe(400);
-    expect((await state(app)).clients).toHaveLength(1); // c1 untouched
+    expect((await readValidatedState(app)).clients).toHaveLength(1); // c1 untouched
   });
 
   it("rejects a scoped delete op that omits accountId", async () => {
@@ -1141,7 +1225,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     await scaffold(app);
     const res = await batch(app, [{ method: "DELETE", table: "clients", id: "c1" }]);
     expect(res.statusCode).toBe(400);
-    expect((await state(app)).clients).toHaveLength(1);
+    expect((await readValidatedState(app)).clients).toHaveLength(1);
   });
 
   it("rejects an unknown table / bad op shape", async () => {
@@ -1229,7 +1313,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expect((await state(app)).timeOff).toEqual([]);
+    expect((await readValidatedState(app)).timeOff).toEqual([]);
   });
 
   it("rejects direct writes that omit values only the import path may repair", async () => {
@@ -1243,7 +1327,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     });
     expect(res.statusCode).toBe(400);
     expect(readErrorResponse(res).error).toMatch(/missing required field.*kind/i);
-    expect((await state(app)).resources).toEqual([]);
+    expect((await readValidatedState(app)).resources).toEqual([]);
   });
 
   it("rejects missing required project and phase parents at the shared boundary", async () => {
@@ -1406,9 +1490,9 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     expect(reproject.statusCode).toBe(400);
     expect(readErrorResponse(reproject).error).toMatch(/placeholder work/i);
 
-    const snapshot = await state(app);
-    expect(snapshot.resources.find((resource: { id: string }) => resource.id === "ph").projectId).toBe("p1");
-    expect(snapshot.activities.find((activityRow: { id: string }) => activityRow.id === "t1").projectId).toBe("p1");
+    const snapshot = await readValidatedState(app);
+    expect(readProjectId(snapshot.resources, "ph")).toBe("p1");
+    expect(readProjectId(snapshot.activities, "t1")).toBe("p1");
   });
 
   it("rejects an allocation referencing a missing resource/activity", async () => {
