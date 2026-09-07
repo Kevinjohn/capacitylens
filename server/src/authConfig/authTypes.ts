@@ -16,6 +16,14 @@ export interface AuthProviderInfo {
   experimental: boolean;
 }
 
+export interface CreateCredentialUserInput {
+  email: string;
+  name: string;
+  password: string;
+  emailVerified?: boolean | undefined;
+  correlateInTransaction?: ((principalId: string) => void) | undefined;
+}
+
 /** The narrow Better Auth surface the server actually uses. betterAuth()'s concrete
  *  return type is invariant in its options generic (a plugin-parametrised instantiation
  *  won't assign to Auth<BetterAuthOptions>), so authFromEnv collapses it to this
@@ -70,13 +78,7 @@ export interface Auth {
    *  @throws when hashing or any transaction participant fails; SQLite rolls every credential and
    *  correlation write back before the failure escapes.
    */
-  createCredentialUser: (
-    email: string,
-    name: string,
-    password: string,
-    emailVerified?: boolean,
-    correlateInTransaction?: (principalId: string) => void,
-  ) => Promise<{ id: string }>;
+  createCredentialUser: (input: CreateCredentialUserInput) => Promise<{ id: string }>;
   /** Remove a just-created credential identity when a later invite claim cannot commit. */
   deleteCredentialUser: (userId: string) => Promise<void>;
   /** Revoke every active session for a user (administrator offboarding/compromise response). */

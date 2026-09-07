@@ -1,7 +1,7 @@
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AuditRecord } from "../../audit";
 import { enqueueAudit } from "../../auditOutbox";
-import { BatchStateProjection } from "../../batchProjection";
+import { BatchStateProjection } from "../../BatchStateProjection";
 import { getRow, upsertRow } from "../../db";
 import { isSupersededSyncBatch, recordAppliedSyncBatch } from "../../syncOrdering";
 import { tx } from "../../txn";
@@ -159,7 +159,7 @@ export async function runBatch(parameters: RunBatchParameters) {
               redactWriteEcho,
             });
           }
-          for (const revision of projection.rewrittenAllocationRevisions()) {
+          for (const revision of projection.listRewrittenAllocationRevisions()) {
             const allocation = projection.row("allocations", revision.id);
             if (!allocation) throw new Error("Projected allocation rewrite is missing its final row.");
             upsertRow(db, "allocations", allocation);

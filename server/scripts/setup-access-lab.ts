@@ -40,7 +40,12 @@ try {
 
   const createdAt = new Date().toISOString();
   for (const persona of ACCESS_LAB_PERSONAS) {
-    const user = await auth.createCredentialUser(persona.email, persona.name, ACCESS_LAB_PASSWORD, true);
+    const user = await auth.createCredentialUser({
+      email: persona.email,
+      name: persona.name,
+      password: ACCESS_LAB_PASSWORD,
+      emailVerified: true,
+    });
     upsertMember(db, {
       accountId: ACCESS_LAB_ACCOUNT_ID,
       userId: user.id,

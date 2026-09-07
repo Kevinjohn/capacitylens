@@ -10,13 +10,15 @@ export interface AuditRecoveryState {
   deliveredAuditIds: Set<string>;
 }
 
-export function auditRecovery(
-  file: string,
-  log: (msg: string) => void,
-  syncFile: (fd: number) => void,
-  recoveryScanBytes: number,
-  state: AuditRecoveryState,
-) {
+interface AuditRecoveryInput {
+  file: string;
+  log: (msg: string) => void;
+  syncFile: (fd: number) => void;
+  recoveryScanBytes: number;
+  state: AuditRecoveryState;
+}
+
+export function createAuditRecovery({ file, log, syncFile, recoveryScanBytes, state }: AuditRecoveryInput) {
   const readBoundedTail = (path: string): Buffer | null => {
     if (!existsSync(path)) return null;
     const size = readExistingSize(path);
