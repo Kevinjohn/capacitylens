@@ -76,11 +76,11 @@ export async function apiFetchReauth(
   if (method !== "GET" && method !== "HEAD" && !headers.has("Idempotency-Key")) return res;
   const resolutionAfterResponse = readReauthResolution();
   if (resolutionAfterResponse.epoch !== resolutionAtDispatch.epoch) {
-    return resolutionAfterResponse.outcome
+    return resolutionAfterResponse.outcome?.kind === "authenticated"
       ? distinguishFailedStepUp(await apiFetch(retryInput, requestOptions, timeoutMs))
       : res;
   }
-  const reauthenticated = await requestReauth();
-  if (!reauthenticated) return res;
+  const reauthResult = await requestReauth();
+  if (reauthResult.kind !== "authenticated") return res;
   return distinguishFailedStepUp(await apiFetch(retryInput, requestOptions, timeoutMs));
 }

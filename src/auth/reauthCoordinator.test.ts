@@ -26,7 +26,9 @@ describe("reauthCoordinator", () => {
 
     completeReauth(outcome);
 
-    await expect(Promise.all([first, second])).resolves.toEqual([outcome, outcome]);
+    const [firstResult, secondResult] = await Promise.all([first, second]);
+    expect(firstResult).toEqual(outcome ? { kind: "authenticated" } : { kind: "cancelled" });
+    expect(secondResult).toBe(firstResult);
     expect(isReauthPending()).toBe(false);
     expect(listener).toHaveBeenCalledTimes(2);
     unsubscribe();
@@ -51,7 +53,7 @@ describe("reauthCoordinator", () => {
     const pending = requestReauth();
     completeReauth(false);
 
-    await expect(pending).resolves.toBe(false);
+    await expect(pending).resolves.toEqual({ kind: "cancelled" });
     expect(listener).not.toHaveBeenCalled();
   });
 
@@ -61,7 +63,7 @@ describe("reauthCoordinator", () => {
 
     await vi.advanceTimersByTimeAsync(REAUTH_REQUEST_TIMEOUT_MS);
 
-    await expect(outcome).resolves.toBe(false);
+    await expect(outcome).resolves.toEqual({ kind: "cancelled" });
     expect(isReauthPending()).toBe(false);
   });
 });

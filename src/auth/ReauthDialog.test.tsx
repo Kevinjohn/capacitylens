@@ -3,6 +3,7 @@ import { useSyncExternalStore } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ReauthDialog } from "./ReauthDialog";
 import { isReauthPending, requestReauth, completeReauth, subscribeReauth } from "./reauthCoordinator";
+import type { ReauthResult } from "./reauthCoordinator";
 import type { AuthProviderInfo, AuthUser } from "./authContext";
 import { m } from "@/i18n";
 
@@ -94,7 +95,7 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     signInEmail.mockResolvedValue({ data: {}, error: null });
     render(<Harness user={user} />);
     const outcome = requestReauth();
-    let settled: boolean | null = null;
+    let settled: ReauthResult | null = null;
     void outcome.then((v) => {
       settled = v;
     });
@@ -106,9 +107,9 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     await waitFor(() =>
       expect(signInEmail).toHaveBeenCalledWith({ email: "owner@acme.test", password: "correct horse" }),
     );
-    // Dialog gone (pending cleared) and the coordinator resolved TRUE (the wrapper will retry).
+    // Dialog gone (pending cleared) and the coordinator resolved authenticated (the wrapper will retry).
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Confirm it's you" })).not.toBeInTheDocument());
-    await waitFor(() => expect(settled).toBe(true));
+    await waitFor(() => expect(settled).toEqual({ kind: "authenticated" }));
     expect(isReauthPending()).toBe(false);
   });
 
@@ -133,7 +134,7 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     expect(screen.getByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
 
     release({ data: {}, error: null });
-    await expect(outcome).resolves.toBe(true);
+    await expect(outcome).resolves.toEqual({ kind: "authenticated" });
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Confirm it's you" })).toBeNull());
   });
 
@@ -243,7 +244,7 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     fireEvent.change(recoveryCode, { target: { value: "backup-code-1" } });
     fireEvent.click(screen.getByTestId("reauth-2fa-submit"));
 
-    await expect(outcome).resolves.toBe(true);
+    await expect(outcome).resolves.toEqual({ kind: "authenticated" });
     expect(verifyBackupCode).toHaveBeenCalledWith({ code: "backup-code-1", trustDevice: false });
     expect(verifyTotp).not.toHaveBeenCalled();
     expect(screen.queryByRole("heading", { name: "Confirm it's you" })).not.toBeInTheDocument();
@@ -398,7 +399,7 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     const second = requestReauth();
     await screen.findByRole("heading", { name: "Confirm it's you" });
     fireEvent.keyDown(document, { key: "Escape" });
-    await expect(second).resolves.toBe(false);
+    await expect(second).resolves.toEqual({ kind: "cancelled" });
   });
 
   it("guards the 2FA modal dismissal while busy", async () => {
@@ -416,7 +417,7 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
   it("cancels the 2FA modal with Escape while idle", async () => {
     const { outcome } = await enterSecondFactor();
     fireEvent.keyDown(document, { key: "Escape" });
-    await expect(outcome).resolves.toBe(false);
+    await expect(outcome).resolves.toEqual({ kind: "cancelled" });
   });
 });
 

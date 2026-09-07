@@ -10,7 +10,9 @@
 // several security actions failing with SESSION_NOT_FRESH at once DE-DUPE onto ONE dialog (they all
 // share the same promise and all retry once it resolves), rather than stacking N identical dialogs.
 
-type Resolver = (reauthenticated: boolean) => void;
+export type ReauthResult = { kind: "authenticated" } | { kind: "cancelled" };
+
+type Resolver = (result: ReauthResult) => void;
 
 /** Final liveness backstop when no React host survives to cancel the request immediately. */
 export const REAUTH_REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
@@ -18,11 +20,11 @@ export const REAUTH_REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 // The ONE in-flight re-auth request, or null. Holds the promise every concurrent caller awaits plus
 // the resolver the dialog fulfils. Never two at once — see the de-dupe in requestReauth.
 let pending: {
-  promise: Promise<boolean>;
+  promise: Promise<ReauthResult>;
   resolve: Resolver;
   timeout: ReturnType<typeof setTimeout>;
 } | null = null;
-let resolution = { epoch: 0, outcome: null as boolean | null };
+let resolution = { epoch: 0, outcome: null as ReauthResult | null };
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -30,15 +32,15 @@ function emit(): void {
 }
 
 /**
- * Ask the user to re-authenticate (step-up). Returns a promise that resolves `true` once they have a
- * fresh session, or `false` if they cancel. Concurrent calls while a request is already pending SHARE
+ * Ask the user to re-authenticate (step-up). Returns a promise that resolves with an `authenticated`
+ * result once they have a fresh session, or a `cancelled` result if they cancel. Concurrent calls while a request is already pending SHARE
  * that one promise (and thus one dialog) — so a burst of SESSION_NOT_FRESH failures raises a single
  * step-up, and every caller retries together once it resolves. Total: never rejects.
  */
-export function requestReauth(): Promise<boolean> {
+export function requestReauth(): Promise<ReauthResult> {
   if (pending) return pending.promise;
   let resolve!: Resolver;
-  const promise = new Promise<boolean>((resolvePromise) => {
+  const promise = new Promise<ReauthResult>((resolvePromise) => {
     resolve = resolvePromise;
   });
   const timeout = setTimeout(() => completeReauth(false), REAUTH_REQUEST_TIMEOUT_MS);
@@ -47,20 +49,21 @@ export function requestReauth(): Promise<boolean> {
   return promise;
 }
 
-/** Fulfil the pending re-auth request. `true` = the session was refreshed (callers retry); `false` =
- *  cancelled (callers surface the original error). No-op when nothing is pending. */
+/** Fulfil the pending re-auth request. `true` maps to an `authenticated` result (callers retry);
+ * `false` maps to `cancelled` (callers surface the original error). No-op when nothing is pending. */
 export function completeReauth(reauthenticated: boolean): void {
   const current = pending;
   if (!current) return;
   pending = null;
-  resolution = { epoch: resolution.epoch + 1, outcome: reauthenticated };
+  const result: ReauthResult = reauthenticated ? { kind: "authenticated" } : { kind: "cancelled" };
+  resolution = { epoch: resolution.epoch + 1, outcome: result };
   clearTimeout(current.timeout);
   emit();
-  current.resolve(reauthenticated);
+  current.resolve(result);
 }
 
 /** Last completed step-up, used to collapse late responses from the same request burst. */
-export function readReauthResolution(): Readonly<{ epoch: number; outcome: boolean | null }> {
+export function readReauthResolution(): Readonly<{ epoch: number; outcome: ReauthResult | null }> {
   return resolution;
 }
 
