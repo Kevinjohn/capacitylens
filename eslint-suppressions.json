@@ -376,7 +376,7 @@
   },
   "shared/src/domain/assertions/dependents.ts": {
     "max-params": {
-      "count": 5
+      "count": 4
     }
   },
   "shared/src/domain/assertions/refs.ts": {
@@ -389,24 +389,9 @@
       "count": 1
     }
   },
-  "shared/src/domain/lifecycle/ancestry.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "shared/src/domain/mutations.test.ts": {
-    "max-params": {
-      "count": 3
-    }
-  },
   "shared/src/domain/tenancy.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 1
-    }
-  },
-  "shared/src/domain/validationLookup.ts": {
-    "max-params": {
-      "count": 4
     }
   },
   "shared/src/lib/dateMath.ts": {
