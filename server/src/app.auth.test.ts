@@ -86,6 +86,22 @@ function parseAuthUser(value: object) {
   return { email: value.email, emailVerified: value.emailVerified };
 }
 
+function parseAuthUserResponse(res: LightMyRequestResponse) {
+  const value = parseJsonObject(res);
+  if (!("user" in value) || typeof value.user !== "object" || value.user === null || Array.isArray(value.user)) {
+    throw new Error("Expected response body to include a user.");
+  }
+  return parseAuthUser(value.user);
+}
+
+function parseResponseAuthMode(res: LightMyRequestResponse): string {
+  const value = parseJsonObject(res);
+  if (!("authMode" in value) || typeof value.authMode !== "string") {
+    throw new Error("Expected response body to include an authentication mode.");
+  }
+  return value.authMode;
+}
+
 function parseAuthMeResponse(res: LightMyRequestResponse) {
   const value = parseJsonObject(res);
   if (!("authMode" in value) || typeof value.authMode !== "string") {
@@ -203,7 +219,7 @@ describe("CAPACITYLENS_AUTH off (default)", () => {
       canCreateAccount: true,
     });
     // P1.7a: off is trusted-local, so the demo principal is verified with a clearly-local email.
-    expect(me.json().user).toMatchObject({
+    expect(parseAuthUserResponse(me)).toMatchObject({
       email: "demo@capacitylens.local",
       emailVerified: true,
     });
@@ -492,7 +508,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect((await call(app, { method: "GET", url: "/api/health" })).statusCode).toBe(200);
     const me = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(me.statusCode).toBe(401);
-    expect(me.json().authMode).toBe("password"); // the login screen needs the mode
+    expect(parseResponseAuthMode(me)).toBe("password"); // the login screen needs the mode
   });
 
   it("allowlists the Better Auth proxy surface so unclassified account mutations stay closed", async () => {
