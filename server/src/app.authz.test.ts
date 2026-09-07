@@ -414,6 +414,23 @@ function expectedClosureWriteStatus(role: Role, batched: boolean): number {
   return 201;
 }
 
+const deleteAccount = (app: FastifyInstance, id: string, cookie?: string) =>
+  call(app, { method: "DELETE", url: `/api/accounts/${id}`, headers: cookie ? { cookie } : {} });
+
+const batchDeleteAccount = (app: FastifyInstance, id: string, cookie?: string) =>
+  call(app, {
+    method: "POST",
+    url: "/api/batch",
+    payload: { ops: [{ method: "DELETE", table: "accounts", id }] },
+    headers: cookie ? { cookie } : {},
+  });
+
+/** Does the accounts row still exist? Read it back through an authorized member session. */
+async function accountExists(app: FastifyInstance, id: string, cookie: string): Promise<boolean> {
+  const res = await getState(app, id, cookie);
+  return res.statusCode === 200 ? readAccountRows(res).length === 1 : false;
+}
+
 describe("P1.5 authorize — auth-on 403 matrix", () => {
   it.each([false, true])("keeps closures at the editor+ write tier (batched=%s)", async (batched) => {
     const { app, db } = await appWithAuth();
@@ -1096,23 +1113,6 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
   // DELETE /api/accounts/:id route may invoke it; generic sync rejects account DELETE operations
   // before authorization. The route gates the owner-only `deleteAccount` capability against the
   // account's own id; admin-tier record purge remains a separate action.
-
-  const deleteAccount = (app: FastifyInstance, id: string, cookie?: string) =>
-    call(app, { method: "DELETE", url: `/api/accounts/${id}`, headers: cookie ? { cookie } : {} });
-
-  const batchDeleteAccount = (app: FastifyInstance, id: string, cookie?: string) =>
-    call(app, {
-      method: "POST",
-      url: "/api/batch",
-      payload: { ops: [{ method: "DELETE", table: "accounts", id }] },
-      headers: cookie ? { cookie } : {},
-    });
-
-  /** Does the accounts row still exist? Read it back through an authorized member session. */
-  const accountExists = async (app: FastifyInstance, id: string, cookie: string): Promise<boolean> => {
-    const res = await getState(app, id, cookie);
-    return res.statusCode === 200 ? readAccountRows(res).length === 1 : false;
-  };
 
   it("non-member: direct DELETE is 403 and generic batch DELETE is 400; a1 survives", async () => {
     const { app, db } = await appWithAuth();
