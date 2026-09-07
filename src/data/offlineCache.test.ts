@@ -523,6 +523,20 @@ describe("offline tenant cache", () => {
     await expect(cacheAccountSlice("a-studio", slice)).resolves.toEqual({ kind: "written" });
   });
 
+  it("does not suppress a retry after a failed slice write", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const slice = accountSlice("a-studio");
+    const cause = new Error("slice encryption failed");
+    vi.spyOn(crypto.subtle, "encrypt").mockRejectedValueOnce(cause);
+
+    await expect(cacheAccountSlice("a-studio", slice)).rejects.toBe(cause);
+    await expect(cacheAccountSlice("a-studio", structuredClone(slice))).resolves.toEqual({ kind: "written" });
+    await expect(cacheAccountSlice("a-studio", structuredClone(slice))).resolves.toEqual({
+      kind: "skipped",
+      reason: "unchanged",
+    });
+  });
+
   it("preserves and reports the cause when a generated device key cannot be persisted", async () => {
     const cause = new Error("CryptoKey storage unavailable");
     const originalAdd = FakeIDBObjectStore.prototype.add;

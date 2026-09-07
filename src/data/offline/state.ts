@@ -1,5 +1,5 @@
 import type { AppData } from "@capacitylens/shared/types/entities";
-import type { OfflineState, OfflineReadOwner, OfflineCacheWriteResult } from "./types";
+import type { OfflineState, OfflineReadOwner } from "./types";
 import {
   CACHED_SLICE_KEYS,
   SLICE_REWRITE_INTERVAL_MS,
@@ -72,7 +72,11 @@ export function subscribeOfflinePreference(listener: () => void): () => void {
 
 /** Decline an unchanged tenant-slice rewrite. Encryption dominates the cost of a cache write and
  * live refreshes re-deliver identical data, so a signature match inside the interval skips. */
-export function resolveSliceRewrite(key: string, data: AppData, now: number): OfflineCacheWriteResult | (() => void) {
+export type SliceRewriteResult =
+  | { kind: "skipped"; reason: "unchanged" }
+  | { kind: "write-required"; complete: () => void };
+
+export function resolveSliceRewrite(key: string, data: AppData, now: number): SliceRewriteResult {
   const signature = buildSliceSignature(data);
   const factory = typeof indexedDB === "undefined" ? null : indexedDB;
   let recent = factory ? recentSliceWrites.get(factory) : undefined;
@@ -84,7 +88,7 @@ export function resolveSliceRewrite(key: string, data: AppData, now: number): Of
   if (prior?.signature === signature && now - prior.writtenAt < SLICE_REWRITE_INTERVAL_MS) {
     return { kind: "skipped", reason: "unchanged" };
   }
-  return () => recent?.set(key, { signature, writtenAt: now });
+  return { kind: "write-required", complete: () => recent?.set(key, { signature, writtenAt: now }) };
 }
 
 /**
