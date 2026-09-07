@@ -1,6 +1,6 @@
 # Code conventions: audit, debt retirement and upkeep
 
-Status: authorised 2026-09-07 (revision 4). Audit base: `d9824dfd3d7df3006a810e7368795fda08f9bd7f`, version 0.60.1-alpha.1.
+Status: authorised 2026-09-07 (revision 5). Audit base: `d9824dfd3d7df3006a810e7368795fda08f9bd7f`, version 0.60.1-alpha.1.
 Issues: #638 (audit), #639 (debt retirement), #643 (upkeep), #645 (enforcement),
 #647 (strictness and structure), #646 (boundary and error dispositions).
 Previous batch (conventions page and lint baseline, PRs #640–#642) is complete; its plan is in git
@@ -291,7 +291,7 @@ deferral to `DEFENSIVE-CODING.md`, and retain nonviolating observations with rea
 
 ### Shared package names — #639
 
-Status: independently reviewed, implementation in progress. Audit group C4-02; 137 R/E rows.
+Status: implementation committed at `d0de79d8`; independent complete diff review accepted. Audit group C4-02; 137 R/E rows. Full integrated validation remains required before submission.
 
 Fixed decisions: names only; public X contracts, persisted keys, positional signatures, result shapes and released migrations remain unchanged. Use `parseSchemaVersion` and `resolveArray` for A096/A098. Existing local comment references follow renamed bindings. All aliases preserve original object keys.
 
@@ -300,3 +300,21 @@ Files: `shared/src/data/internalClient.ts`, `shared/src/data/migrate.ts`, `share
 Existing focused tests: `shared/src/data/internalClient.test.ts`, `shared/src/data/migrate.test.ts`, `shared/src/data/seed.test.ts`, `shared/src/data/transfer.test.ts`, `shared/src/domain/mutations.test.ts`, `shared/src/domain/lifecycle.test.ts`, `shared/src/domain/tenancy.test.ts`, `shared/src/lib/color.test.ts`, `shared/src/lib/dateMath.test.ts`, `shared/src/lib/integrity.test.ts`, `shared/src/lib/repeatingDates.test.ts`, `shared/src/lib/sanitizeImport.test.ts`, `shared/src/lib/schedulingDays.test.ts`, `shared/src/lib/strings.test.ts`, `shared/src/types/entityHelpers.test.ts`, `shared/src/packageExports.test.ts`.
 
 Owner checks: shared production/test typecheck, lint over `shared/src`, and formatter over the explicit footprint. The coordinator owns integrated app/server gates and E2E. No new or weakened assertions are needed for names-only changes.
+
+### Server package names — #639
+
+Status: implementation committed at `7233323e`; independent review found no runtime changes and two live documentation-link corrections, now included. Audit group C4-01: 346 R/E rows, excluding the four E+P groups. The commit fixes the exact source/test footprint; two additional comment-only paths are `server/src/authConfig/authTypes.ts` and `server/src/db/lifecycle.ts`.
+
+Seven source moves align principal names: `KeyedOperationLock.ts`, `WriteOnceSecretReplay.ts`, `buildApplicationSessionHandle.ts`, `createTrustedLocalIdentityPort.ts`, `MasqueradeRegistry.ts`, `createFileAuditSink.ts` and `resolveEntitlements.ts`. Internal re-export aliases follow their owned names; stable object keys, SQL, HTTP shapes, signatures, result shapes and released migrations stay unchanged. C514 uses `decodedRow` to avoid the existing `row` parameter.
+
+Central footprint: `docs-src/security/crypto-inventory.json`, `docs-src/sso-cutover-design.md`, regenerated `docs/security/crypto-inventory.json`, suppression pruning and this plan. Historical audit/changelog citations retain the base spelling.
+
+Owner evidence: Node 24.19.0; 1,394 tests across 70 focused files passed in 72.59 seconds; server typecheck and formatter pass. Scoped lint passes with only unused suppressions deferred for central pruning; final integration requires ordinary unflagged lint. Three tests moved with their principal files; no tests were added or assertions weakened.
+
+### Additional connected filename retirement
+
+App brief review identified one more baseline-bearing principal move: B036/B152/B333 in `src/components/scheduler/weekSnap.ts`. Keep all three rows in one E+P group, retire the existing parameter suppression before moving to `resolveWeekStartSnapTarget.ts`, and create no new-path suppression. They are excluded from the app rename batch. This is the same reviewed baseline rule used by the four server groups.
+
+### Coherent parameter groups
+
+Independent packaging review selects 22 P groups from the original 36 leaf-directory groups. Account administration, HTTP route boundaries, shared domain validation, scheduler grid inputs and persistence have concrete overlapping consumers under common parent directories. The other 17 groups remain separate. `tasks/conventions-audit.md` records exact replacement groups and all row IDs. No rows are omitted or reclassified by this consolidation; five E+P groups and 29 result modules remain separate. The revised 59-group count is triage, not a claim that every implementation brief is approved.
