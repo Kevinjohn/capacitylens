@@ -25,10 +25,10 @@ export function readCapacityAnnouncement(resourceId: ID): string {
 
   const name = resolveResourceDisplayName(resource);
   const blocksMode = !carriesHourlyLoad(resolveSchedulingMode(storedData, activeAccountId));
-  const allocations = applyCapacityMode(
-    data.allocations.filter((allocation) => allocation.resourceId === resourceId),
-    blocksMode,
-  );
+  const allocations = applyCapacityMode({
+    allocations: data.allocations.filter((allocation) => allocation.resourceId === resourceId),
+    blocksMode: blocksMode,
+  });
   if (allocations.length === 0) return m.scheduler_sr_announce_clear({ name });
 
   let start = allocations[0]!.startDate;
@@ -65,16 +65,16 @@ export function readCapacityGestureAdvisory(
   const resource = data.resources.find((candidate) => candidate.id === effectiveResourceId);
   let advisory = "";
   if (resource && isCapacityTracked(resource)) {
-    const others = applyCapacityMode(
-      data.allocations.filter(
+    const others = applyCapacityMode({
+      allocations: data.allocations.filter(
         (allocation) => allocation.resourceId === effectiveResourceId && allocation.id !== bar.allocation.id,
       ),
-      isBlocks,
-    );
+      blocksMode: isBlocks,
+    });
     const timeOff = listTimeOffApplyingTo(effectiveResourceId, data.timeOff);
-    const result = buildCapacityAdvisory(
-      resource,
-      {
+    const result = buildCapacityAdvisory({
+      resource: resource,
+      proposal: {
         resourceId: effectiveResourceId,
         startDate: dates.startDate,
         endDate: dates.endDate,
@@ -84,11 +84,11 @@ export function readCapacityGestureAdvisory(
         hoursPerDay: isBlocks ? blockHoursPerDay(FULL_DAY_HOURS) : reconciledHours,
         ignoreWeekends: bar.allocation.ignoreWeekends,
       },
-      others,
-      timeOff,
-      effectiveWorkingWeek(resource, listAccountWorkingDays(storedData, activeAccountId)),
-      data.closures,
-    );
+      otherAllocations: others,
+      timeOff: timeOff,
+      effectiveWeek: effectiveWorkingWeek(resource, listAccountWorkingDays(storedData, activeAccountId)),
+      closures: data.closures,
+    });
     advisory = formatCapacityAdvisory(result, "toast");
   }
   return advisory;
