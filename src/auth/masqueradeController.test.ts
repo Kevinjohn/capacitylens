@@ -37,6 +37,18 @@ beforeEach(() => {
 });
 
 describe("MasqueradeController", () => {
+  it("succeeds while inactive without navigating or touching masquerade dependencies", async () => {
+    const { controller, dependencies, resume } = harness();
+    const navigate = vi.fn();
+
+    await expect(controller.end("explicit", navigate)).resolves.toBe(true);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(dependencies.suspend).not.toHaveBeenCalled();
+    expect(dependencies.api.end).not.toHaveBeenCalled();
+    expect(dependencies.api.status).not.toHaveBeenCalled();
+    expect(resume).not.toHaveBeenCalled();
+  });
+
   it("acquires one suspension across start and end, then releases it once after the real reload", async () => {
     const { controller, dependencies, resume } = harness();
     const navigate = vi.fn(() => {
@@ -138,6 +150,27 @@ describe("MasqueradeController", () => {
     expect(useStore.getState().masquerade).toMatchObject({ phase: "active", state: newer });
     expect(navigate).not.toHaveBeenCalled();
     expect(resume).not.toHaveBeenCalled();
+  });
+
+  it("refuses an account switch when DELETE is superseded by a newer masquerade", async () => {
+    const newer = { ...state, targetUserId: "u-editor", targetName: "Dick Grayson", token: "token-2" };
+    const { controller, dependencies, resume } = harness({
+      api: {
+        status: vi.fn(async () => ({ active: true, ...newer })),
+        start: vi.fn(async () => state),
+        end: vi.fn(async () => {}),
+      },
+    });
+    controller.adoptStatus({ active: true, ...state });
+
+    await expect(controller.transitionAccount("a-loft")).resolves.toBe(false);
+    expect(useStore.getState().notice).toMatchObject({
+      message: "A newer masquerade is active. End it before switching companies.",
+      tone: "error",
+    });
+    expect(dependencies.switchAccount).not.toHaveBeenCalled();
+    expect(resume).not.toHaveBeenCalled();
+    expect(useStore.getState().masquerade).toMatchObject({ phase: "active", state: newer });
   });
 
   it("refuses an account switch when DELETE fails and keeps writes suspended", async () => {
