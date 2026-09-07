@@ -73,8 +73,7 @@ export function subscribeOfflinePreference(listener: () => void): () => void {
 /** Decline an unchanged tenant-slice rewrite. Encryption dominates the cost of a cache write and
  * live refreshes re-deliver identical data, so a signature match inside the interval skips. */
 export type SliceRewriteResult =
-  | { kind: "skipped"; reason: "unchanged" }
-  | { kind: "write-required"; complete: () => void };
+  { kind: "skipped"; reason: "unchanged" } | { kind: "write-required"; complete: () => void };
 
 export function resolveSliceRewrite(key: string, data: AppData, now: number): SliceRewriteResult {
   const signature = buildSliceSignature(data);
