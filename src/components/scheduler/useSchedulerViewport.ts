@@ -185,6 +185,7 @@ export function useSchedulerViewport({
     if (ui.recenterToken !== previousRecenter) return;
 
     const leftDate = resolveLeftEdgeDate(previousGeom, days, el.scrollLeft);
+    if (leftDate === undefined) return;
     const navigationChanged = ui.zoom !== previousZoom || days !== previousDays;
     const targetDate = navigationChanged ? startOfWeekISO(leftDate, calendarWeekStartsOn) : leftDate;
     setScrollLeft(el, Math.max(0, geometry.xForDateInGeom(targetDate)));

@@ -191,6 +191,10 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: 
  * window there is no such date and the result is undefined at runtime (callers that can be handed
  * one — `visibleStartDate` — keep their own final fallback).
  */
-export function resolveLeftEdgeDate(geometry: ColumnGeometry, days: ISODate[], scrollLeft: number): ISODate {
+export function resolveLeftEdgeDate(
+  geometry: ColumnGeometry,
+  days: ISODate[],
+  scrollLeft: number,
+): ISODate | undefined {
   return days[geometry.indexAtScroll(scrollLeft)] ?? days[0];
 }
