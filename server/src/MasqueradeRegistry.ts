@@ -42,8 +42,8 @@ export class MasqueradeRegistry {
   }
 
   /** Read without pruning. Reserved for lifecycle coordination and tests. */
-  peek(sessionHandle: string): Readonly<StoredMasqueradeRecord> | null {
-    return this.#bySession.get(sessionHandle) ?? null;
+  peek(sessionHandle: string): Readonly<StoredMasqueradeRecord> | undefined {
+    return this.#bySession.get(sessionHandle);
   }
 
   /** Snapshot the handles owned by a principal for a surrounding session-deletion transaction. */
@@ -52,7 +52,7 @@ export class MasqueradeRegistry {
   }
 
   /** Read one session after a bounded expiry prune. An audit failure retains the record. */
-  lookup(sessionHandle: string): Readonly<StoredMasqueradeRecord> | null {
+  lookup(sessionHandle: string): Readonly<StoredMasqueradeRecord> | undefined {
     this.pruneExpired();
     return this.peek(sessionHandle);
   }
