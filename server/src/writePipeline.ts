@@ -38,6 +38,14 @@ export const FULL_SLICE_READ = Object.freeze({
   includePrivateNames: true,
 });
 
+interface CheckEntityWriteBodyInput {
+  verb: WriteVerb;
+  entity: string;
+  body: unknown;
+  urlId: string | undefined;
+  scoped: boolean;
+}
+
 /**
  * Unified body-shape + id + accountId checks for the three generic entity routes (Finding 7 folds
  * the four drifted copies into one). Returns `null` when the body is acceptable, else the
@@ -48,13 +56,13 @@ export const FULL_SLICE_READ = Object.freeze({
  * as optional (only a PRESENT non-string accountId is rejected). `create`/`replace` require a string
  * accountId on scoped tables.
  */
-export function checkEntityWriteBody(
-  verb: WriteVerb,
-  entity: string,
-  body: unknown,
-  urlId: string | undefined,
-  scoped: boolean,
-): WriteRejection | null {
+export function checkEntityWriteBody({
+  verb,
+  entity,
+  body,
+  urlId,
+  scoped,
+}: CheckEntityWriteBodyInput): WriteRejection | null {
   // Array bodies are rejected for EVERY verb (PUT already did; POST/PATCH now match — a spread of an
   // array into a merge/write is never a valid entity body).
   if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -80,6 +88,13 @@ export function checkEntityWriteBody(
   return null;
 }
 
+interface ResolveBuiltinWriteRejectionInput {
+  verb: WriteVerb;
+  entity: string;
+  existing: Record<string, unknown> | undefined;
+  incoming: Record<string, unknown>;
+}
+
 /**
  * The ONE built-in Internal client write guard (Finding 7 — was inlined four times with divergent
  * messages). Two symmetric protections:
@@ -93,12 +108,12 @@ export function checkEntityWriteBody(
  * minted-Internal exception against the canonical generated row (an account's freshly-minted
  * Internal can be echoed in the same batch), then defers to this single message for other writes.
  */
-export function resolveBuiltinWriteRejection(
-  verb: WriteVerb,
-  entity: string,
-  existing: Record<string, unknown> | undefined,
-  incoming: Record<string, unknown>,
-): WriteRejection | null {
+export function resolveBuiltinWriteRejection({
+  verb,
+  entity,
+  existing,
+  incoming,
+}: ResolveBuiltinWriteRejectionInput): WriteRejection | null {
   if (entity !== "clients") return null;
   if (existing?.builtin === true) {
     return { status: 400, error: "The built-in Internal client cannot be modified." };
@@ -115,7 +130,7 @@ export interface PreparedWrite {
   /** The generated Internal-client id this write REPLACES (PUT legacy-id adoption path), or
    *  null. When non-null the caller runs replaceGeneratedBuiltin inside its transaction. */
   generatedReplacement: string | null;
-  /** The account-scoped slice validateWrite ran against — reused by the builtin-replacement path
+  /** The account-scoped slice assertValidWrite ran against — reused by the builtin-replacement path
    *  and (for accounts) the provisioning closure, so no site re-reads the DB. */
   scopedState: AppData;
 }
@@ -160,7 +175,7 @@ export function prepareScopedWrite(input: {
   // UPDATE, and every scoped write, validates here.
   const deferAccountsCreate = entity === "accounts" && existing === undefined;
   if (!deferAccountsCreate && !generatedReplacement) {
-    assertValidWrite(scopedState, entity, row, existing, lookup);
+    assertValidWrite({ state: scopedState, table: entity, row, existing, lookup });
   }
   return { row, generatedReplacement, scopedState };
 }
@@ -194,16 +209,18 @@ export function resolveGeneratedBuiltinReplacement(
   return row.id !== generatedId && state.clients.some((c) => c.id === generatedId) ? generatedId : null;
 }
 
+interface ReplaceGeneratedBuiltinInput {
+  db: Db;
+  state: AppData;
+  generatedId: string;
+  row: Record<string, unknown>;
+}
+
 /** Replace the deterministic auto-created Internal client with a legacy/client-supplied id
  * without firing its ON DELETE CASCADE. Must run inside the caller's transaction.
  * `state` is the caller's already-loaded AppData projection (see generatedBuiltinReplacement) —
  * reused here instead of a fresh loadState(db), so a batch of many such ops stays O(1) DB scans. */
-export function replaceGeneratedBuiltin(
-  db: Db,
-  state: AppData,
-  generatedId: string,
-  row: Record<string, unknown>,
-): void {
+export function replaceGeneratedBuiltin({ db, state, generatedId, row }: ReplaceGeneratedBuiltinInput): void {
   if (!db.isTransaction) {
     throw new Error("Internal-client replacement must run inside an existing transaction.");
   }
@@ -219,7 +236,12 @@ export function replaceGeneratedBuiltin(
     ),
   };
   const existing = typeof row.id === "string" ? state.clients.find((client) => client.id === row.id) : undefined;
-  assertValidWrite(projected, "clients", row, existing as unknown as Record<string, unknown> | undefined);
+  assertValidWrite({
+    state: projected,
+    table: "clients",
+    row,
+    existing: existing as unknown as Record<string, unknown> | undefined,
+  });
 
   // Temporarily unflag the old row before inserting the replacement so the partial unique index is
   // never violated. The old FK target remains present until every dependent project has moved.

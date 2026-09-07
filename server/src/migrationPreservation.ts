@@ -94,13 +94,21 @@ function foldedInternalClientIds(snapshot: MigrationValueSnapshot, fromVersion: 
   return folded;
 }
 
-function approvedDeletion(
-  table: string,
-  row: SnapshotRow,
-  fromVersion: number,
-  activeMembers: ReadonlySet<string>,
-  foldedInternalClients: ReadonlyMap<string, string>,
-): boolean {
+interface ApprovedDeletionInput {
+  table: string;
+  row: SnapshotRow;
+  fromVersion: number;
+  activeMembers: ReadonlySet<string>;
+  foldedInternalClients: ReadonlyMap<string, string>;
+}
+
+function approvedDeletion({
+  table,
+  row,
+  fromVersion,
+  activeMembers,
+  foldedInternalClients,
+}: ApprovedDeletionInput): boolean {
   if (table === "invites" && fromVersion < 10) return row.role === "owner" && row.usedAt === null;
   if (table === "verification" && fromVersion < 14) return activeMembers.has(String(row.value));
   if (table === "clients" && fromVersion < 8) return foldedInternalClients.has(String(row.id));
@@ -126,14 +134,23 @@ function approvedColumnRemoval(): boolean {
   return false;
 }
 
-function approvedCellChange(
-  table: string,
-  column: string,
-  before: SnapshotRow,
-  after: SnapshotRow,
-  fromVersion: number,
-  foldedInternalClients: ReadonlyMap<string, string>,
-): boolean {
+interface ApprovedCellChangeInput {
+  table: string;
+  column: string;
+  before: SnapshotRow;
+  after: SnapshotRow;
+  fromVersion: number;
+  foldedInternalClients: ReadonlyMap<string, string>;
+}
+
+function approvedCellChange({
+  table,
+  column,
+  before,
+  after,
+  fromVersion,
+  foldedInternalClients,
+}: ApprovedCellChangeInput): boolean {
   if (table === "accounts" && column === "color" && fromVersion < 13) return true;
   if (table === "account_members" && column === "role" && fromVersion < 12) return true;
   if (
@@ -184,7 +201,8 @@ export function assertMigrationValuesPreserved(
       beforeKeys.add(key);
       const afterRow = afterByKey.get(key);
       if (!afterRow) {
-        if (approvedDeletion(tableName, beforeRow, fromVersion, activeMembers, foldedInternalClients)) continue;
+        if (approvedDeletion({ table: tableName, row: beforeRow, fromVersion, activeMembers, foldedInternalClients }))
+          continue;
         throw new Error(`migration removed unapproved ${tableName} row ${key}`);
       }
       for (const [column, beforeValue] of Object.entries(beforeRow)) {
@@ -201,7 +219,17 @@ export function assertMigrationValuesPreserved(
         }
         const afterValue = afterRow[column];
         if (canonicalCell(beforeValue) === canonicalCell(afterValue)) continue;
-        if (approvedCellChange(tableName, column, beforeRow, afterRow, fromVersion, foldedInternalClients)) continue;
+        if (
+          approvedCellChange({
+            table: tableName,
+            column,
+            before: beforeRow,
+            after: afterRow,
+            fromVersion,
+            foldedInternalClients,
+          })
+        )
+          continue;
         throw new Error(
           `migration changed unapproved ${tableName}.${column} in row ${key}: ` +
             `${canonicalCell(beforeValue)} → ${canonicalCell(afterValue)}`,

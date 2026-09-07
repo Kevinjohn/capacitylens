@@ -105,7 +105,15 @@ const project = (id: string, accountId: string, clientId: string) => ({
   color: "#5c34d4",
   ...meta(),
 });
-const activity = (id: string, accountId: string, projectId: string, phaseId?: string) => ({
+
+interface ActivityInput {
+  id: string;
+  accountId: string;
+  projectId: string;
+  phaseId?: string | undefined;
+}
+
+const activity = ({ id, accountId, projectId, phaseId }: ActivityInput) => ({
   id,
   accountId,
   name: "Activity",
@@ -132,13 +140,16 @@ const placeholder = (id: string, accountId: string, projectId?: string) => ({
   kind: "placeholder",
   projectId,
 });
-const allocation = (
-  id: string,
-  accountId: string,
-  resourceId: string,
-  activityId: string,
-  o: Record<string, unknown> = {},
-) =>
+
+interface AllocationInput {
+  id: string;
+  accountId: string;
+  resourceId: string;
+  activityId: string;
+  o?: Record<string, unknown> | undefined;
+}
+
+const allocation = ({ id, accountId, resourceId, activityId, o = {} }: AllocationInput) =>
   // Object.assign (rather than `{ ...base, ...o }`) so overriding well-known keys via
   // `o` doesn't trip TS2783 on the literal's explicit startDate/endDate/etc.
   Object.assign(
@@ -155,7 +166,15 @@ const allocation = (
     },
     o,
   );
-const timeOff = (id: string, accountId: string, resourceId: string, type = "holiday") => ({
+
+interface TimeOffInput {
+  id: string;
+  accountId: string;
+  resourceId: string;
+  type?: string | undefined;
+}
+
+const timeOff = ({ id, accountId, resourceId, type = "holiday" }: TimeOffInput) => ({
   id,
   accountId,
   resourceId,
@@ -181,28 +200,60 @@ const body = (payload: unknown) => payload as InjectOptions["payload"];
 
 const post = (app: FastifyInstance, entity: string, payload: unknown) =>
   call(app, { method: "POST", url: `/api/${entity}`, payload: body(payload) });
-const put = (app: FastifyInstance, entity: string, id: string, payload: unknown) =>
+
+interface PutInput {
+  app: FastifyInstance;
+  entity: string;
+  id: string;
+  payload: unknown;
+}
+
+const put = ({ app, entity, id, payload }: PutInput) =>
   call(app, {
     method: "PUT",
     url: `/api/${entity}/${id}`,
     payload: body(payload),
   });
-const patch = (app: FastifyInstance, entity: string, id: string, payload: unknown) =>
+
+interface PatchInput {
+  app: FastifyInstance;
+  entity: string;
+  id: string;
+  payload: unknown;
+}
+
+const patch = ({ app, entity, id, payload }: PatchInput) =>
   call(app, {
     method: "PATCH",
     url: `/api/${entity}/${id}`,
     payload: body(payload),
   });
+
+interface DelInput {
+  app: FastifyInstance;
+  entity: string;
+  id: string;
+  accountId?: string | undefined;
+}
+
 // Scoped tables now REQUIRE an asserted owning account on DELETE; pass accountId for them.
 // accounts (top-level) carry none, so accountId is omitted there.
-const del = (app: FastifyInstance, entity: string, id: string, accountId?: string) =>
+const del = ({ app, entity, id, accountId }: DelInput) =>
   call(app, {
     method: "DELETE",
     url: accountId ? `/api/${entity}/${id}?accountId=${accountId}` : `/api/${entity}/${id}`,
   });
 const batch = (app: FastifyInstance, ops: unknown[]) =>
   call(app, { method: "POST", url: "/api/batch", payload: body({ ops }) });
-const orderedBatch = (app: FastifyInstance, sessionId: string, sequence: number, ops: unknown[]) =>
+
+interface OrderedBatchInput {
+  app: FastifyInstance;
+  sessionId: string;
+  sequence: number;
+  ops: unknown[];
+}
+
+const orderedBatch = ({ app, sessionId, sequence, ops }: OrderedBatchInput) =>
   call(app, {
     method: "POST",
     url: "/api/batch",
@@ -225,7 +276,7 @@ async function scaffold(app: FastifyInstance) {
   await post(app, "accounts", account("a1"));
   await post(app, "clients", client("c1", "a1"));
   await post(app, "projects", project("p1", "a1", "c1"));
-  await post(app, "activities", activity("t1", "a1", "p1"));
+  await post(app, "activities", activity({ id: "t1", accountId: "a1", projectId: "p1" }));
   await post(app, "resources", person("r1", "a1"));
 }
 
@@ -256,7 +307,10 @@ describe("CRUD round-trip", () => {
   it("creates every entity type and reads them back via /api/state", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    expect((await post(app, "allocations", allocation("al1", "a1", "r1", "t1"))).statusCode).toBe(201);
+    expect(
+      (await post(app, "allocations", allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "t1" })))
+        .statusCode,
+    ).toBe(201);
     const s = await state(app);
     expect(s.accounts).toHaveLength(1);
     expect(s.clients).toHaveLength(1);
@@ -271,7 +325,9 @@ describe("CRUD round-trip", () => {
         name: "Unnamed person",
       }),
     );
-    expect(withoutRevision(s.allocations[0])).toEqual(withoutRevision(allocation("al1", "a1", "r1", "t1")));
+    expect(withoutRevision(s.allocations[0])).toEqual(
+      withoutRevision(allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "t1" })),
+    );
   });
 
   it("persists an explicit mixed full and half-day resource pattern", async () => {
@@ -297,7 +353,7 @@ describe("CRUD round-trip", () => {
 
     expect(created.statusCode).toBe(201);
     expect(created.json()).toMatchObject({ workingDays: [1, 2, 3, 4, 5], halfDays: [] });
-    const updated = await patch(app, "resources", "ph", { workingDays: [2], halfDays: [2] });
+    const updated = await patch({ app, entity: "resources", id: "ph", payload: { workingDays: [2], halfDays: [2] } });
     expect(updated.statusCode).toBe(200);
     expect(updated.json()).toMatchObject({ workingDays: [1, 2, 3, 4, 5], halfDays: [] });
   });
@@ -305,9 +361,14 @@ describe("CRUD round-trip", () => {
   it("PATCH updates fields; DELETE removes a non-lifecycle row", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    const res = await patch(app, "clients", "c1", {
-      ...client("c1", "a1"),
-      name: "Renamed",
+    const res = await patch({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        ...client("c1", "a1"),
+        name: "Renamed",
+      },
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().name).toBe("Renamed");
@@ -319,14 +380,14 @@ describe("CRUD round-trip", () => {
       sortOrder: 0,
       ...meta(),
     });
-    expect((await del(app, "disciplines", "d1", "a1")).statusCode).toBe(204);
+    expect((await del({ app, entity: "disciplines", id: "d1", accountId: "a1" })).statusCode).toBe(204);
     expect((await state(app)).disciplines).toHaveLength(0);
   });
 
   it("PATCH on a missing id is 404; unknown entity is 404", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    expect((await patch(app, "clients", "nope", client("nope", "a1"))).statusCode).toBe(404);
+    expect((await patch({ app, entity: "clients", id: "nope", payload: client("nope", "a1") })).statusCode).toBe(404);
     expect((await post(app, "widgets", { id: "x" })).statusCode).toBe(404);
   });
 
@@ -335,7 +396,7 @@ describe("CRUD round-trip", () => {
     await scaffold(app);
     // A real partial patch — only `role`. kind/employmentType/workingDays/etc. must
     // survive (a blind column-wise UPDATE would null the NOT NULL columns → 500/400).
-    const res = await patch(app, "resources", "r1", { role: "Lead Designer" });
+    const res = await patch({ app, entity: "resources", id: "r1", payload: { role: "Lead Designer" } });
     expect(res.statusCode).toBe(200);
     const s = await state(app);
     const r = s.resources[0];
@@ -351,10 +412,14 @@ describe("CRUD round-trip", () => {
     const { app, db } = freshApp();
     await scaffold(app);
 
-    expect((await patch(app, "resources", "r1", { isFavourite: true })).json().isFavourite).toBe(true);
+    expect(
+      (await patch({ app, entity: "resources", id: "r1", payload: { isFavourite: true } })).json().isFavourite,
+    ).toBe(true);
     expect(getRow(db, "resources", "r1")?.isFavourite).toBe(true);
 
-    expect((await patch(app, "resources", "r1", { isFavourite: false })).json().isFavourite).toBe(false);
+    expect(
+      (await patch({ app, entity: "resources", id: "r1", payload: { isFavourite: false } })).json().isFavourite,
+    ).toBe(false);
     expect(getRow(db, "resources", "r1")?.isFavourite).toBe(false);
   });
 
@@ -363,8 +428,8 @@ describe("CRUD round-trip", () => {
     await scaffold(app); // c1 in a1
     await post(app, "accounts", account("a2"));
     // PATCH and PUT that try to move c1 into a2 are indistinguishable from an absent row.
-    expect((await patch(app, "clients", "c1", { accountId: "a2" })).statusCode).toBe(404);
-    expect((await put(app, "clients", "c1", { ...client("c1", "a2") })).statusCode).toBe(404);
+    expect((await patch({ app, entity: "clients", id: "c1", payload: { accountId: "a2" } })).statusCode).toBe(404);
+    expect((await put({ app, entity: "clients", id: "c1", payload: { ...client("c1", "a2") } })).statusCode).toBe(404);
     // …and c1 stays in a1.
     expect((await state(app)).clients[0].accountId).toBe("a1");
   });
@@ -416,10 +481,15 @@ describe("CRUD round-trip", () => {
     const { app } = freshApp();
     await scaffold(app);
     const original = (await state(app)).clients[0].createdAt;
-    await put(app, "clients", "c1", {
-      ...client("c1", "a1"),
-      name: "Renamed",
-      createdAt: "2099-01-01T00:00:00.000Z",
+    await put({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        ...client("c1", "a1"),
+        name: "Renamed",
+        createdAt: "2099-01-01T00:00:00.000Z",
+      },
     });
     const after = (await state(app)).clients[0];
     expect(after.name).toBe("Renamed"); // everything else updates
@@ -430,7 +500,7 @@ describe("CRUD round-trip", () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
     expect((await call(app, { method: "GET", url: "/api/meta" })).json()).toEqual({ hasData: true });
-    await del(app, "accounts", "a1"); // user empties everything
+    await del({ app, entity: "accounts", id: "a1" }); // user empties everything
     expect((await state(app)).accounts).toHaveLength(0);
     // Still "initialised" — a reload must NOT mistake an emptied dataset for a fresh one.
     expect((await call(app, { method: "GET", url: "/api/meta" })).json()).toEqual({ hasData: true });
@@ -439,25 +509,30 @@ describe("CRUD round-trip", () => {
   it("DELETE is idempotent for non-lifecycle tables (missing id still 204 when the owner is asserted)", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
-    expect((await del(app, "phases", "ghost", "a1")).statusCode).toBe(204);
+    expect((await del({ app, entity: "phases", id: "ghost", accountId: "a1" })).statusCode).toBe(204);
   });
 
   it("PUT upserts idempotently: first call creates, second overwrites (no conflict)", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
     const c = client("c1", "a1");
-    expect((await put(app, "clients", "c1", c)).statusCode).toBe(200);
+    expect((await put({ app, entity: "clients", id: "c1", payload: c })).statusCode).toBe(200);
     // Replay the SAME create — must not error (the sync adapter relies on this when
     // replaying a batch after a partial failure).
-    const replay = await put(app, "clients", "c1", c);
+    const replay = await put({ app, entity: "clients", id: "c1", payload: c });
     expect(replay.statusCode).toBe(200);
     // A changed body overwrites.
     expect(
       (
-        await put(app, "clients", "c1", {
-          ...c,
-          updatedAt: replay.json().updatedAt,
-          name: "Renamed",
+        await put({
+          app,
+          entity: "clients",
+          id: "c1",
+          payload: {
+            ...c,
+            updatedAt: replay.json().updatedAt,
+            name: "Renamed",
+          },
         })
       ).statusCode,
     ).toBe(200);
@@ -469,13 +544,15 @@ describe("CRUD round-trip", () => {
   it("PUT rejects a body id that disagrees with the URL id", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
-    expect((await put(app, "clients", "c1", client("OTHER", "a1"))).statusCode).toBe(400);
+    expect((await put({ app, entity: "clients", id: "c1", payload: client("OTHER", "a1") })).statusCode).toBe(400);
   });
 
   it("PUT runs shared-core validation (rejects a dangling FK)", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
-    expect((await put(app, "projects", "p1", project("p1", "a1", "no-client"))).statusCode).toBe(400);
+    expect(
+      (await put({ app, entity: "projects", id: "p1", payload: project("p1", "a1", "no-client") })).statusCode,
+    ).toBe(400);
   });
 });
 
@@ -483,8 +560,8 @@ describe("generic lifecycle deletion guard", () => {
   it("rejects deleting a client and leaves its full subtree intact", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    await post(app, "allocations", allocation("al1", "a1", "r1", "t1"));
-    expect((await del(app, "clients", "c1", "a1")).statusCode).toBe(400);
+    await post(app, "allocations", allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "t1" }));
+    expect((await del({ app, entity: "clients", id: "c1", accountId: "a1" })).statusCode).toBe(400);
     const s = await state(app);
     expect(s.clients).toHaveLength(1);
     expect(s.projects).toHaveLength(1);
@@ -504,7 +581,7 @@ describe("generic lifecycle deletion guard", () => {
       ...meta(),
     });
     await post(app, "resources", { ...person("r1", "a1"), disciplineId: "d1" });
-    await del(app, "disciplines", "d1", "a1");
+    await del({ app, entity: "disciplines", id: "d1", accountId: "a1" });
     const s = await state(app);
     expect(s.disciplines).toHaveLength(0);
     expect(s.resources).toHaveLength(1);
@@ -524,14 +601,20 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     const resource = resourceKind === "placeholder" ? placeholder("ph", "a1", "p1") : person("r1", "a1");
     await post(fixture.app, "resources", resource);
     await post(fixture.app, "activities", {
-      ...activity("repeatable", "a1", "p1"),
+      ...activity({ id: "repeatable", accountId: "a1", projectId: "p1" }),
       kind: "repeatable",
       projectId: undefined,
     });
     await post(
       fixture.app,
       "allocations",
-      allocation("allocation", "a1", resource.id, "repeatable", { projectId: "p1" }),
+      allocation({
+        id: "allocation",
+        accountId: "a1",
+        resourceId: resource.id,
+        activityId: "repeatable",
+        o: { projectId: "p1" },
+      }),
     );
     return fixture;
   };
@@ -545,15 +628,20 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     const allocationFirstAllocation = allocationFirstBefore.allocations.find(
       (row: { id: string }) => row.id === "allocation",
     );
-    const allocationFirstResponse = await orderedBatch(allocationFirst.app, "browser-session-kind-change-0001", 1, [
-      { method: "PUT", table: "allocations", id: "allocation", row: allocationFirstAllocation },
-      {
-        method: "PUT",
-        table: "activities",
-        id: "repeatable",
-        row: { ...allocationFirstActivity, kind: "project", projectId: "p1" },
-      },
-    ]);
+    const allocationFirstResponse = await orderedBatch({
+      app: allocationFirst.app,
+      sessionId: "browser-session-kind-change-0001",
+      sequence: 1,
+      ops: [
+        { method: "PUT", table: "allocations", id: "allocation", row: allocationFirstAllocation },
+        {
+          method: "PUT",
+          table: "activities",
+          id: "repeatable",
+          row: { ...allocationFirstActivity, kind: "project", projectId: "p1" },
+        },
+      ],
+    });
     expect(allocationFirstResponse.statusCode).toBe(200);
     const allocationFirstState = await state(allocationFirst.app);
     const rewrittenAllocation = allocationFirstState.allocations[0];
@@ -572,29 +660,39 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     const explicitAllocation = explicitBefore.allocations.find((row: { id: string }) => row.id === "allocation");
     const clearedAllocation = { ...explicitAllocation };
     delete clearedAllocation.projectId;
-    const explicitResponse = await orderedBatch(explicit.app, "browser-session-kind-change-0002", 1, [
-      {
-        method: "PUT",
-        table: "activities",
-        id: "repeatable",
-        row: { ...explicitActivity, kind: "project", projectId: "p1" },
-      },
-      { method: "PUT", table: "allocations", id: "allocation", row: clearedAllocation },
-    ]);
+    const explicitResponse = await orderedBatch({
+      app: explicit.app,
+      sessionId: "browser-session-kind-change-0002",
+      sequence: 1,
+      ops: [
+        {
+          method: "PUT",
+          table: "activities",
+          id: "repeatable",
+          row: { ...explicitActivity, kind: "project", projectId: "p1" },
+        },
+        { method: "PUT", table: "allocations", id: "allocation", row: clearedAllocation },
+      ],
+    });
     expect(explicitResponse.statusCode).toBe(200);
     expect((await state(explicit.app)).allocations[0]).not.toHaveProperty("projectId");
 
     const implicit = await seedAttributedActivity();
     const implicitBefore = await state(implicit.app);
     const implicitActivity = implicitBefore.activities.find((row: { id: string }) => row.id === "repeatable");
-    const implicitResponse = await orderedBatch(implicit.app, "browser-session-kind-change-0003", 1, [
-      {
-        method: "PUT",
-        table: "activities",
-        id: "repeatable",
-        row: { ...implicitActivity, kind: "project", projectId: "p1" },
-      },
-    ]);
+    const implicitResponse = await orderedBatch({
+      app: implicit.app,
+      sessionId: "browser-session-kind-change-0003",
+      sequence: 1,
+      ops: [
+        {
+          method: "PUT",
+          table: "activities",
+          id: "repeatable",
+          row: { ...implicitActivity, kind: "project", projectId: "p1" },
+        },
+      ],
+    });
     expect(implicitResponse.statusCode).toBe(200);
     const implicitAllocation = (await state(implicit.app)).allocations[0];
     expect(implicitAllocation).not.toHaveProperty("projectId");
@@ -610,15 +708,20 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     const forbiddenBefore = await state(forbidden.app);
     const forbiddenActivity = forbiddenBefore.activities.find((row: { id: string }) => row.id === "repeatable");
     const forbiddenAllocation = forbiddenBefore.allocations.find((row: { id: string }) => row.id === "allocation");
-    const forbiddenResponse = await orderedBatch(forbidden.app, "browser-session-kind-change-0004", 1, [
-      {
-        method: "PUT",
-        table: "activities",
-        id: "repeatable",
-        row: { ...forbiddenActivity, kind: "project", projectId: "p1" },
-      },
-      { method: "PUT", table: "allocations", id: "allocation", row: forbiddenAllocation },
-    ]);
+    const forbiddenResponse = await orderedBatch({
+      app: forbidden.app,
+      sessionId: "browser-session-kind-change-0004",
+      sequence: 1,
+      ops: [
+        {
+          method: "PUT",
+          table: "activities",
+          id: "repeatable",
+          row: { ...forbiddenActivity, kind: "project", projectId: "p1" },
+        },
+        { method: "PUT", table: "allocations", id: "allocation", row: forbiddenAllocation },
+      ],
+    });
     expect(forbiddenResponse.statusCode).toBe(400);
     expect(forbiddenResponse.json()).toMatchObject({ code: "allocation_project_forbidden" });
     expect((await state(forbidden.app)).activities[0]).toMatchObject({ kind: "repeatable" });
@@ -685,10 +788,15 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     const before = await state(fixture.app);
     const existingActivity = before.activities.find((row: { id: string }) => row.id === "repeatable");
 
-    const response = await put(fixture.app, "activities", "repeatable", {
-      ...existingActivity,
-      kind: "internal",
-      projectId: undefined,
+    const response = await put({
+      app: fixture.app,
+      entity: "activities",
+      id: "repeatable",
+      payload: {
+        ...existingActivity,
+        kind: "internal",
+        projectId: undefined,
+      },
     });
 
     expect(response.statusCode).toBe(200);
@@ -706,9 +814,14 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     const fixture = await seedAttributedActivity();
     const before = await state(fixture.app);
 
-    const response = await patch(fixture.app, "activities", "repeatable", {
-      kind: "internal",
-      projectId: undefined,
+    const response = await patch({
+      app: fixture.app,
+      entity: "activities",
+      id: "repeatable",
+      payload: {
+        kind: "internal",
+        projectId: undefined,
+      },
     });
 
     expect(response.statusCode).toBe(200);
@@ -727,16 +840,26 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     await post(fixture.app, "projects", project("p1", "a1", "c1"));
     await post(fixture.app, "resources", person("r1", "a1"));
     await post(fixture.app, "activities", {
-      ...activity("internal", "a1", "p1"),
+      ...activity({ id: "internal", accountId: "a1", projectId: "p1" }),
       kind: "internal",
       projectId: undefined,
     });
     await post(fixture.app, "activities", {
-      ...activity("repeatable", "a1", "p1"),
+      ...activity({ id: "repeatable", accountId: "a1", projectId: "p1" }),
       kind: "repeatable",
       projectId: undefined,
     });
-    await post(fixture.app, "allocations", allocation("allocation", "a1", "r1", "repeatable", { projectId: "p1" }));
+    await post(
+      fixture.app,
+      "allocations",
+      allocation({
+        id: "allocation",
+        accountId: "a1",
+        resourceId: "r1",
+        activityId: "repeatable",
+        o: { projectId: "p1" },
+      }),
+    );
     fixture.db.prepare("UPDATE allocations SET activityId = 'internal' WHERE id = 'allocation'").run();
     const current = (await state(fixture.app)).activities.find((row: { id: string }) => row.id === "internal");
 
@@ -762,11 +885,21 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     await post(fixture.app, "projects", project("p2", "a1", "c1"));
     await post(fixture.app, "resources", placeholder("ph", "a1", "p1"));
     await post(fixture.app, "activities", {
-      ...activity("repeatable", "a1", "p1"),
+      ...activity({ id: "repeatable", accountId: "a1", projectId: "p1" }),
       kind: "repeatable",
       projectId: undefined,
     });
-    await post(fixture.app, "allocations", allocation("allocation", "a1", "ph", "repeatable", { projectId: "p1" }));
+    await post(
+      fixture.app,
+      "allocations",
+      allocation({
+        id: "allocation",
+        accountId: "a1",
+        resourceId: "ph",
+        activityId: "repeatable",
+        o: { projectId: "p1" },
+      }),
+    );
     const before = await state(fixture.app);
 
     const response = await batch(fixture.app, [
@@ -795,11 +928,21 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     await post(fixture.app, "projects", project("p1", "a1", "c1"));
     await post(fixture.app, "resources", person("r1", "a1"));
     await post(fixture.app, "activities", {
-      ...activity("repeatable", "a1", "p1"),
+      ...activity({ id: "repeatable", accountId: "a1", projectId: "p1" }),
       kind: "repeatable",
       projectId: undefined,
     });
-    await post(fixture.app, "allocations", allocation("allocation", "a1", "r1", "repeatable", { projectId: "p1" }));
+    await post(
+      fixture.app,
+      "allocations",
+      allocation({
+        id: "allocation",
+        accountId: "a1",
+        resourceId: "r1",
+        activityId: "repeatable",
+        o: { projectId: "p1" },
+      }),
+    );
     const before = await state(fixture.app);
 
     const response = await batch(fixture.app, [
@@ -856,7 +999,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
   it("rejects an omitted time-off resourceId through direct and batch writes", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
-    const missing = timeOff("missing-resource", "a1", "r1") as Record<string, unknown>;
+    const missing = timeOff({ id: "missing-resource", accountId: "a1", resourceId: "r1" }) as Record<string, unknown>;
     delete missing.resourceId;
 
     expect((await post(app, "timeOff", missing)).statusCode).toBe(400);
@@ -872,7 +1015,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     await post(app, "clients", client("c1", "a1"));
     await post(app, "clients", client("c2", "a1"));
     await post(app, "projects", project("p1", "a1", "c1")); // p1 under c1
-    await post(app, "activities", activity("t1", "a1", "p1"));
+    await post(app, "activities", activity({ id: "t1", accountId: "a1", projectId: "p1" }));
     // The forbidden lifecycle DELETE rejects the whole request before the preceding reparent runs.
     const res = await batch(app, [
       {
@@ -917,8 +1060,18 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     const { app } = freshApp();
     await scaffold(app);
     const res = await batch(app, [
-      { method: "PUT", table: "allocations", id: "repeat-good", row: allocation("repeat-good", "a1", "r1", "t1") },
-      { method: "PUT", table: "allocations", id: "repeat-bad", row: allocation("repeat-bad", "a1", "missing", "t1") },
+      {
+        method: "PUT",
+        table: "allocations",
+        id: "repeat-good",
+        row: allocation({ id: "repeat-good", accountId: "a1", resourceId: "r1", activityId: "t1" }),
+      },
+      {
+        method: "PUT",
+        table: "allocations",
+        id: "repeat-bad",
+        row: allocation({ id: "repeat-bad", accountId: "a1", resourceId: "missing", activityId: "t1" }),
+      },
     ]);
     expect(res.statusCode).toBe(400);
     expect((await state(app)).allocations).toHaveLength(0);
@@ -929,7 +1082,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     await scaffold(app);
     await post(app, "projects", project("p2", "a1", "c1"));
     await post(app, "resources", placeholder("ph", "a1", "p1"));
-    await post(app, "allocations", allocation("al", "a1", "ph", "t1"));
+    await post(app, "allocations", allocation({ id: "al", accountId: "a1", resourceId: "ph", activityId: "t1" }));
 
     const res = await batch(app, [
       {
@@ -1022,7 +1175,7 @@ describe("batch pre-scan validation", () => {
     ["ARCHIVE", { method: "ARCHIVE", table: "clients", id: "c1", accountId: "a1", updatedAt: false }],
   ])("requires a string updatedAt for ordered %s operations", async (verb, op) => {
     const { app } = freshApp();
-    const response = await orderedBatch(app, "browser-session-valid-0002", 1, [op]);
+    const response = await orderedBatch({ app, sessionId: "browser-session-valid-0002", sequence: 1, ops: [op] });
     expect(response.statusCode).toBe(400);
     expect(response.json().error).toContain(`ordered ${verb} op needs a string updatedAt`);
   });
@@ -1049,7 +1202,10 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
 
-    const response = await post(app, "timeOff", { ...timeOff("invalid-time-off", "a1", "r1"), resourceId: null });
+    const response = await post(app, "timeOff", {
+      ...timeOff({ id: "invalid-time-off", accountId: "a1", resourceId: "r1" }),
+      resourceId: null,
+    });
 
     expect(response.statusCode).toBe(400);
     expect((await state(app)).timeOff).toEqual([]);
@@ -1086,16 +1242,23 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     expect(missingClient.json().code).toBe("reference_wrong_account");
 
     await post(app, "projects", project("p2", "a1", "c1"));
-    const missingClientOnReplace = await put(app, "projects", "p2", {
+    const missingClientOnReplace = await put({
+      app,
+      entity: "projects",
       id: "p2",
-      accountId: "a1",
-      name: "Replacement",
-      color: "#5c34d4",
-      ...meta(),
+      payload: {
+        id: "p2",
+        accountId: "a1",
+        name: "Replacement",
+        color: "#5c34d4",
+        ...meta(),
+      },
     });
     expect(missingClientOnReplace.statusCode).toBe(400);
     expect(missingClientOnReplace.json().error).toBe("Project must reference a client in this company.");
-    expect((await patch(app, "projects", "p2", { name: "Partial rename" })).statusCode).toBe(200);
+    expect((await patch({ app, entity: "projects", id: "p2", payload: { name: "Partial rename" } })).statusCode).toBe(
+      200,
+    );
 
     const missingProject = await post(app, "phases", {
       id: "ph1",
@@ -1121,9 +1284,15 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     const res = await post(
       app,
       "allocations",
-      allocation("bad", "a1", "r1", "t1", {
-        startDate: "2026-02-10",
-        endDate: "2026-02-01",
+      allocation({
+        id: "bad",
+        accountId: "a1",
+        resourceId: "r1",
+        activityId: "t1",
+        o: {
+          startDate: "2026-02-10",
+          endDate: "2026-02-01",
+        },
       }),
     );
     expect(res.statusCode).toBe(400);
@@ -1142,9 +1311,15 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
         await post(
           app,
           "allocations",
-          allocation("at-limit", "a1", "r1", "t1", {
-            startDate,
-            endDate: atLimit,
+          allocation({
+            id: "at-limit",
+            accountId: "a1",
+            resourceId: "r1",
+            activityId: "t1",
+            o: {
+              startDate,
+              endDate: atLimit,
+            },
           }),
         )
       ).statusCode,
@@ -1153,9 +1328,15 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     const allocationResponse = await post(
       app,
       "allocations",
-      allocation("over-limit", "a1", "r1", "t1", {
-        startDate,
-        endDate: overLimit,
+      allocation({
+        id: "over-limit",
+        accountId: "a1",
+        resourceId: "r1",
+        activityId: "t1",
+        o: {
+          startDate,
+          endDate: overLimit,
+        },
       }),
     );
     expect(allocationResponse.statusCode).toBe(400);
@@ -1178,9 +1359,13 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     const { app } = freshApp();
     await scaffold(app);
     await post(app, "projects", project("p2", "a1", "c1"));
-    await post(app, "activities", activity("t2", "a1", "p2"));
+    await post(app, "activities", activity({ id: "t2", accountId: "a1", projectId: "p2" }));
     await post(app, "resources", placeholder("ph", "a1", "p1")); // bound to p1
-    const res = await post(app, "allocations", allocation("al", "a1", "ph", "t2")); // t2 is in p2
+    const res = await post(
+      app,
+      "allocations",
+      allocation({ id: "al", accountId: "a1", resourceId: "ph", activityId: "t2" }),
+    ); // t2 is in p2
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/placeholder/i);
   });
@@ -1190,13 +1375,13 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     await scaffold(app);
     await post(app, "projects", project("p2", "a1", "c1"));
     await post(app, "resources", placeholder("ph", "a1", "p1"));
-    await post(app, "allocations", allocation("al", "a1", "ph", "t1"));
+    await post(app, "allocations", allocation({ id: "al", accountId: "a1", resourceId: "ph", activityId: "t1" }));
 
-    const rebind = await patch(app, "resources", "ph", { projectId: "p2" });
+    const rebind = await patch({ app, entity: "resources", id: "ph", payload: { projectId: "p2" } });
     expect(rebind.statusCode).toBe(400);
     expect(rebind.json().error).toMatch(/placeholder’s work/i);
 
-    const reproject = await patch(app, "activities", "t1", { projectId: "p2" });
+    const reproject = await patch({ app, entity: "activities", id: "t1", payload: { projectId: "p2" } });
     expect(reproject.statusCode).toBe(400);
     expect(reproject.json().error).toMatch(/placeholder work/i);
 
@@ -1208,7 +1393,11 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
   it("rejects an allocation referencing a missing resource/activity", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    const res = await post(app, "allocations", allocation("al", "a1", "ghost", "t1"));
+    const res = await post(
+      app,
+      "allocations",
+      allocation({ id: "al", accountId: "a1", resourceId: "ghost", activityId: "t1" }),
+    );
     expect(res.statusCode).toBe(400);
   });
 
@@ -1224,9 +1413,13 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     // one insert trigger to model post-start operator tampering and prove the allocation write
     // boundary independently re-checks the project tenant.
     db.exec("DROP TRIGGER capacitylens_tenant_activities_projectId_insert");
-    insertRow(db, "activities", activity("cross-project", "a1", "p2"));
+    insertRow(db, "activities", activity({ id: "cross-project", accountId: "a1", projectId: "p2" }));
 
-    const res = await post(app, "allocations", allocation("al", "a1", "r1", "cross-project"));
+    const res = await post(
+      app,
+      "allocations",
+      allocation({ id: "al", accountId: "a1", resourceId: "r1", activityId: "cross-project" }),
+    );
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toBe("Allocation must reference an activity under an active project in this company.");
   });
@@ -1235,7 +1428,11 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     const { app } = freshApp();
     await scaffold(app);
     await post(app, "resources", { ...person("ext", "a1"), kind: "external" });
-    const res = await post(app, "allocations", allocation("al", "a1", "ext", "t1", { hoursPerDay: 8 }));
+    const res = await post(
+      app,
+      "allocations",
+      allocation({ id: "al", accountId: "a1", resourceId: "ext", activityId: "t1", o: { hoursPerDay: 8 } }),
+    );
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/external/i);
   });
@@ -1244,7 +1441,11 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     const { app } = freshApp();
     await scaffold(app);
     await post(app, "resources", { ...person("ext", "a1"), kind: "external" });
-    const res = await post(app, "allocations", allocation("al", "a1", "ext", "t1", { hoursPerDay: 0 }));
+    const res = await post(
+      app,
+      "allocations",
+      allocation({ id: "al", accountId: "a1", resourceId: "ext", activityId: "t1", o: { hoursPerDay: 0 } }),
+    );
     expect(res.statusCode).toBe(201);
   });
 
@@ -1271,8 +1472,12 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
   it("rejects PATCH setting kind:external on a resource that has a loaded allocation", async () => {
     const { app } = freshApp();
     await scaffold(app); // r1 is a person
-    await post(app, "allocations", allocation("al", "a1", "r1", "t1", { hoursPerDay: 8 }));
-    const res = await patch(app, "resources", "r1", { kind: "external" });
+    await post(
+      app,
+      "allocations",
+      allocation({ id: "al", accountId: "a1", resourceId: "r1", activityId: "t1", o: { hoursPerDay: 8 } }),
+    );
+    const res = await patch({ app, entity: "resources", id: "r1", payload: { kind: "external" } });
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/work and time off/i);
   });
@@ -1289,9 +1494,14 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       type: "holiday",
       ...meta(),
     });
-    const res = await put(app, "resources", "r1", {
-      ...person("r1", "a1"),
-      kind: "external",
+    const res = await put({
+      app,
+      entity: "resources",
+      id: "r1",
+      payload: {
+        ...person("r1", "a1"),
+        kind: "external",
+      },
     });
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/work and time off/i);
@@ -1301,8 +1511,12 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     const { app } = freshApp();
     await scaffold(app);
     // A zero-load allocation is already valid for an external, so it must NOT block the flip.
-    await post(app, "allocations", allocation("al", "a1", "r1", "t1", { hoursPerDay: 0 }));
-    expect((await patch(app, "resources", "r1", { kind: "external" })).statusCode).toBe(200);
+    await post(
+      app,
+      "allocations",
+      allocation({ id: "al", accountId: "a1", resourceId: "r1", activityId: "t1", o: { hoursPerDay: 0 } }),
+    );
+    expect((await patch({ app, entity: "resources", id: "r1", payload: { kind: "external" } })).statusCode).toBe(200);
     expect((await state(app)).resources.find((r: { id: string }) => r.id === "r1").kind).toBe("external");
   });
 
@@ -1317,7 +1531,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
         })
       ).statusCode,
     ).toBe(201);
-    expect((await patch(app, "resources", "ext", { role: "Overflow" })).statusCode).toBe(200);
+    expect((await patch({ app, entity: "resources", id: "ext", payload: { role: "Overflow" } })).statusCode).toBe(200);
   });
 });
 
@@ -1326,9 +1540,13 @@ describe("built-in Internal client is a per-account singleton on direct writes",
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
     await post(app, "projects", project("p-internal", "a1", "internal:a1"));
-    await post(app, "activities", activity("t-internal", "a1", "p-internal"));
+    await post(app, "activities", activity({ id: "t-internal", accountId: "a1", projectId: "p-internal" }));
     await post(app, "resources", person("r1", "a1"));
-    await post(app, "allocations", allocation("al1", "a1", "r1", "t-internal"));
+    await post(
+      app,
+      "allocations",
+      allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "t-internal" }),
+    );
 
     const replacement = await post(app, "clients", {
       ...client("legacy-internal", "a1"),
@@ -1356,10 +1574,15 @@ describe("built-in Internal client is a per-account singleton on direct writes",
   it("rejects generic updates to the generated builtin client", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
-    const res = await put(app, "clients", "internal:a1", {
-      ...client("internal:a1", "a1"),
-      name: "Renamed",
-      builtin: true,
+    const res = await put({
+      app,
+      entity: "clients",
+      id: "internal:a1",
+      payload: {
+        ...client("internal:a1", "a1"),
+        name: "Renamed",
+        builtin: true,
+      },
     });
     expect(res.statusCode).toBe(400);
   });
@@ -1485,10 +1708,10 @@ describe("import", () => {
       projects: [project("src-p", accountId, "src-c")],
       phases: [],
       resources: [person("src-r", accountId)],
-      activities: [activity("src-t", accountId, "src-p")],
+      activities: [activity({ id: "src-t", accountId, projectId: "src-p" })],
       allocations: [
-        allocation("src-al", accountId, "src-r", "src-t"),
-        allocation("bad", accountId, "src-r", "no-activity"), // dropped: dangling activity
+        allocation({ id: "src-al", accountId, resourceId: "src-r", activityId: "src-t" }),
+        allocation({ id: "bad", accountId, resourceId: "src-r", activityId: "no-activity" }), // dropped: dangling activity
       ],
       timeOff: [],
     },
@@ -1498,14 +1721,18 @@ describe("import", () => {
     const { app } = freshApp(true, { multiAccount: true });
     await post(app, "accounts", account("a1"));
     await post(app, "accounts", account("a2"));
-    const missingResource = timeOff("missing-resource", "source", "source-person") as Record<string, unknown>;
+    const missingResource = timeOff({
+      id: "missing-resource",
+      accountId: "source",
+      resourceId: "source-person",
+    }) as Record<string, unknown>;
     delete missingResource.resourceId;
     const file = {
       schemaVersion: EXPORT_SCHEMA_VERSION,
       data: {
         ...emptyAppData(),
         resources: [person("source-person", "source")],
-        timeOff: [timeOff("personal", "source", "source-person"), missingResource],
+        timeOff: [timeOff({ id: "personal", accountId: "source", resourceId: "source-person" }), missingResource],
         closures: [closure("company", "source")],
       },
     };
@@ -1655,11 +1882,17 @@ describe("import", () => {
         disciplines: [],
         projects: [project("src-p", "source", "src-c")],
         phases: [],
-        activities: [activity("src-t", "source", "src-p")],
+        activities: [activity({ id: "src-t", accountId: "source", projectId: "src-p" })],
         resources: [deleted],
         allocations: [
-          allocation("src-al", "source", "src-r", "src-t", {
-            note: "Private project context",
+          allocation({
+            id: "src-al",
+            accountId: "source",
+            resourceId: "src-r",
+            activityId: "src-t",
+            o: {
+              note: "Private project context",
+            },
           }),
         ],
         timeOff: [
@@ -1718,7 +1951,7 @@ describe("import", () => {
           },
         ], // dropped
         resources: [{ ...person("dr", "x"), disciplineId: "ghost-disc" }], // kept, discipline unbound
-        activities: [activity("dt", "x", "ghost-project")], // kept, unbound to a general activity
+        activities: [activity({ id: "dt", accountId: "x", projectId: "ghost-project" })], // kept, unbound to a general activity
         allocations: [],
         timeOff: [],
       },
@@ -1841,7 +2074,7 @@ describe("tenant-scoped mutation projections", () => {
   it("excludes a same-batch re-archive of an already-archived row from changed", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
-    await put(app, "clients", "c1", client("c1", "a1"));
+    await put({ app, entity: "clients", id: "c1", payload: client("c1", "a1") });
 
     const result = await batch(app, [
       { method: "ARCHIVE", table: "clients", id: "c1", accountId: "a1" },
@@ -2056,12 +2289,18 @@ describe("value-level sanitization on direct writes (server is the integrity bou
   it("repairs a bad allocation status / hours on PUT", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    const res = await put(
+    const res = await put({
       app,
-      "allocations",
-      "al1",
-      allocation("al1", "a1", "r1", "t1", { status: "maybe", hoursPerDay: -3 }),
-    );
+      entity: "allocations",
+      id: "al1",
+      payload: allocation({
+        id: "al1",
+        accountId: "a1",
+        resourceId: "r1",
+        activityId: "t1",
+        o: { status: "maybe", hoursPerDay: -3 },
+      }),
+    });
     expect(res.statusCode).toBe(200);
     const a = (await state(app)).allocations[0] as Record<string, unknown>;
     expect(a.status).toBe("confirmed");
@@ -2077,7 +2316,7 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     expect(
       (
         await post(app, "allocations", {
-          ...allocation("al-series", "a1", "r1", "t1"),
+          ...allocation({ id: "al-series", accountId: "a1", resourceId: "r1", activityId: "t1" }),
           seriesId: "  weekly-series  ",
         })
       ).statusCode,
@@ -2088,9 +2327,14 @@ describe("value-level sanitization on direct writes (server is the integrity bou
 
     expect(
       (
-        await put(app, "allocations", "al-series", {
-          ...allocation("al-series", "a1", "r1", "t1"),
-          note: "Legacy full replacement",
+        await put({
+          app,
+          entity: "allocations",
+          id: "al-series",
+          payload: {
+            ...allocation({ id: "al-series", accountId: "a1", resourceId: "r1", activityId: "t1" }),
+            note: "Legacy full replacement",
+          },
         })
       ).statusCode,
     ).toBe(200);
@@ -2098,7 +2342,10 @@ describe("value-level sanitization on direct writes (server is the integrity bou
       (await state(app)).allocations.find((row: Record<string, unknown>) => row.id === "al-series")?.seriesId,
     ).toBe("weekly-series");
 
-    expect((await patch(app, "allocations", "al-series", { seriesId: "another-series" })).statusCode).toBe(200);
+    expect(
+      (await patch({ app, entity: "allocations", id: "al-series", payload: { seriesId: "another-series" } }))
+        .statusCode,
+    ).toBe(200);
     expect(
       (await state(app)).allocations.find((row: Record<string, unknown>) => row.id === "al-series")?.seriesId,
     ).toBe("weekly-series");
@@ -2106,7 +2353,7 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     expect(
       (
         await post(app, "allocations", {
-          ...allocation("al-blank-series", "a1", "r1", "t1"),
+          ...allocation({ id: "al-blank-series", accountId: "a1", resourceId: "r1", activityId: "t1" }),
           seriesId: "   ",
         })
       ).statusCode,
@@ -2129,7 +2376,7 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     ).toBe(201);
     expect((await state(app)).accounts[0].schedulingMode).toBeUndefined(); // junk dropped → 'hourly'
     // A valid mode persists unchanged.
-    await patch(app, "accounts", "a1", { schedulingMode: "blocks" });
+    await patch({ app, entity: "accounts", id: "a1", payload: { schedulingMode: "blocks" } });
     expect((await state(app)).accounts[0].schedulingMode).toBe("blocks");
   });
 
@@ -2138,18 +2385,20 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     expect((await post(app, "accounts", { ...account("a1"), weekStartsOn: 0 })).statusCode).toBe(201);
     expect((await state(app)).accounts[0].workingDays).toEqual([0, 1, 2, 3, 4]);
 
-    expect((await patch(app, "accounts", "a1", { workingDays: [1, 3, 5] })).statusCode).toBe(200);
+    expect((await patch({ app, entity: "accounts", id: "a1", payload: { workingDays: [1, 3, 5] } })).statusCode).toBe(
+      200,
+    );
     expect((await state(app)).accounts[0].workingDays).toEqual([1, 3, 5]);
 
     // A pre-v31 full-replacement client does not know this field. Omission preserves the
     // configured selection instead of resetting it to the week-start default.
-    expect((await put(app, "accounts", "a1", account("a1"))).statusCode).toBe(200);
+    expect((await put({ app, entity: "accounts", id: "a1", payload: account("a1") })).statusCode).toBe(200);
     expect((await state(app)).accounts[0].workingDays).toEqual([1, 3, 5]);
 
-    expect((await patch(app, "accounts", "a1", { workingDays: [1, 9] })).statusCode).toBe(200);
+    expect((await patch({ app, entity: "accounts", id: "a1", payload: { workingDays: [1, 9] } })).statusCode).toBe(200);
     expect((await state(app)).accounts[0].workingDays).toEqual([0, 1, 2, 3, 4]);
 
-    expect((await patch(app, "accounts", "a1", { workingDays: [] })).statusCode).toBe(200);
+    expect((await patch({ app, entity: "accounts", id: "a1", payload: { workingDays: [] } })).statusCode).toBe(200);
     expect((await state(app)).accounts[0].workingDays).toEqual([0, 1, 2, 3, 4]);
   });
 });
@@ -2159,15 +2408,23 @@ describe("scheduling-mode fields round-trip through the DB", () => {
     const { app } = freshApp();
     await scaffold(app);
     // Switch the company into blocks mode.
-    expect((await patch(app, "accounts", "a1", { schedulingMode: "blocks" })).statusCode).toBe(200);
+    expect((await patch({ app, entity: "accounts", id: "a1", payload: { schedulingMode: "blocks" } })).statusCode).toBe(
+      200,
+    );
     // A block booking persists hoursPerDay 0 (load ignored) + ignoreWeekends true. The
     // 0 must NOT be sanitized up to a full day, and the boolean must round-trip.
     const res = await post(
       app,
       "allocations",
-      allocation("al1", "a1", "r1", "t1", {
-        hoursPerDay: 0,
-        ignoreWeekends: true,
+      allocation({
+        id: "al1",
+        accountId: "a1",
+        resourceId: "r1",
+        activityId: "t1",
+        o: {
+          hoursPerDay: 0,
+          ignoreWeekends: true,
+        },
       }),
     );
     expect(res.statusCode).toBe(201);
@@ -2192,7 +2449,7 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
   it("PATCH changing weekStartsOn → 409", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
-    const res = await patch(app, "accounts", "a1", { weekStartsOn: 0 });
+    const res = await patch({ app, entity: "accounts", id: "a1", payload: { weekStartsOn: 0 } });
     expect(res.statusCode).toBe(409);
     expect((await state(app)).accounts[0].weekStartsOn).toBe(1); // unchanged
   });
@@ -2200,24 +2457,31 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
   it("PATCH changing timezone → 409", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
-    expect((await patch(app, "accounts", "a1", { timezone: "Europe/London" })).statusCode).toBe(409);
+    expect(
+      (await patch({ app, entity: "accounts", id: "a1", payload: { timezone: "Europe/London" } })).statusCode,
+    ).toBe(409);
     expect((await state(app)).accounts[0].timezone).toBe("Etc/GMT");
   });
 
   it("PATCH with an unsupported language is sanitised to an unchanged no-op", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
-    expect((await patch(app, "accounts", "a1", { language: "fr" })).statusCode).toBe(200);
+    expect((await patch({ app, entity: "accounts", id: "a1", payload: { language: "fr" } })).statusCode).toBe(200);
     expect((await state(app)).accounts[0].language).toBe("en");
   });
 
   it("PUT resending the row with a CHANGED frozen field → 409", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
-    const res = await put(app, "accounts", "a1", {
-      ...account("a1"),
-      ...FROZEN,
-      weekStartsOn: 0,
+    const res = await put({
+      app,
+      entity: "accounts",
+      id: "a1",
+      payload: {
+        ...account("a1"),
+        ...FROZEN,
+        weekStartsOn: 0,
+      },
     });
     expect(res.statusCode).toBe(409);
     expect((await state(app)).accounts[0].weekStartsOn).toBe(1);
@@ -2228,10 +2492,15 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
     await seedFrozen(app);
     // The sync adapter re-sends the WHOLE row on any edit (e.g. a rename) — an unchanged
     // frozen value present in the body must PASS.
-    const res = await put(app, "accounts", "a1", {
-      ...account("a1"),
-      ...FROZEN,
-      name: "Renamed",
+    const res = await put({
+      app,
+      entity: "accounts",
+      id: "a1",
+      payload: {
+        ...account("a1"),
+        ...FROZEN,
+        name: "Renamed",
+      },
     });
     expect(res.statusCode).toBe(200);
     expect((await state(app)).accounts[0].name).toBe("Renamed");
@@ -2240,7 +2509,7 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
   it("an UNCHANGED PATCH of a frozen field → 200", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
-    expect((await patch(app, "accounts", "a1", { weekStartsOn: 1 })).statusCode).toBe(200);
+    expect((await patch({ app, entity: "accounts", id: "a1", payload: { weekStartsOn: 1 } })).statusCode).toBe(200);
   });
 
   it("lets a minimal /api/orgs account set each missing frozen field once", async () => {
@@ -2257,14 +2526,19 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
 
     expect(
       (
-        await patch(app, "accounts", "a1", {
-          weekStartsOn: 0,
-          timezone: "Europe/London",
-          language: "en",
+        await patch({
+          app,
+          entity: "accounts",
+          id: "a1",
+          payload: {
+            weekStartsOn: 0,
+            timezone: "Europe/London",
+            language: "en",
+          },
         })
       ).statusCode,
     ).toBe(200);
-    expect((await patch(app, "accounts", "a1", { timezone: "Etc/GMT" })).statusCode).toBe(409);
+    expect((await patch({ app, entity: "accounts", id: "a1", payload: { timezone: "Etc/GMT" } })).statusCode).toBe(409);
 
     const stored = (await state(app)).accounts[0];
     expect(stored).toMatchObject({
@@ -2280,21 +2554,31 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
 
     expect(
       (
-        await patch(app, "accounts", "a1", {
-          language: "fr",
-          timezone: "Mars/Olympus",
-          weekStartsOn: 2,
+        await patch({
+          app,
+          entity: "accounts",
+          id: "a1",
+          payload: {
+            language: "fr",
+            timezone: "Mars/Olympus",
+            weekStartsOn: 2,
+          },
         })
       ).statusCode,
     ).toBe(200);
     expect(
       (
-        await put(app, "accounts", "a1", {
-          ...account("a1"),
-          ...FROZEN,
-          language: 123,
-          timezone: null,
-          weekStartsOn: -1,
+        await put({
+          app,
+          entity: "accounts",
+          id: "a1",
+          payload: {
+            ...account("a1"),
+            ...FROZEN,
+            language: 123,
+            timezone: null,
+            weekStartsOn: -1,
+          },
         })
       ).statusCode,
     ).toBe(200);
@@ -2323,10 +2607,16 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
   it("PATCH mutable account preferences, including engagement grouping", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
-    expect((await patch(app, "accounts", "a1", { name: "New Name" })).statusCode).toBe(200);
-    expect((await patch(app, "accounts", "a1", { disciplinesEnabled: true })).statusCode).toBe(200);
-    expect((await patch(app, "accounts", "a1", { groupResourcesByEngagement: false })).statusCode).toBe(200);
-    expect((await patch(app, "accounts", "a1", { schedulingMode: "blocks" })).statusCode).toBe(200);
+    expect((await patch({ app, entity: "accounts", id: "a1", payload: { name: "New Name" } })).statusCode).toBe(200);
+    expect((await patch({ app, entity: "accounts", id: "a1", payload: { disciplinesEnabled: true } })).statusCode).toBe(
+      200,
+    );
+    expect(
+      (await patch({ app, entity: "accounts", id: "a1", payload: { groupResourcesByEngagement: false } })).statusCode,
+    ).toBe(200);
+    expect((await patch({ app, entity: "accounts", id: "a1", payload: { schedulingMode: "blocks" } })).statusCode).toBe(
+      200,
+    );
     expect((await state(app)).accounts[0].groupResourcesByEngagement).toBe(false);
   });
 
@@ -2822,23 +3112,38 @@ describe("optimistic concurrency (default-on)", () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
     // Store a client at T2.
-    const created = await put(app, "clients", "c1", {
-      ...client("c1", "a1"),
-      updatedAt: "2026-02-02T00:00:00.000Z",
+    const created = await put({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        ...client("c1", "a1"),
+        updatedAt: "2026-02-02T00:00:00.000Z",
+      },
     });
     // A PUT carrying an OLDER updatedAt (T1) is a stale overwrite → 409.
-    const stale = await put(app, "clients", "c1", {
-      ...client("c1", "a1"),
-      name: "Stale",
-      updatedAt: "2026-02-01T00:00:00.000Z",
+    const stale = await put({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        ...client("c1", "a1"),
+        name: "Stale",
+        updatedAt: "2026-02-01T00:00:00.000Z",
+      },
     });
     expect(stale.statusCode).toBe(409);
     expect((await state(app)).clients[0].name).toBe("Acme"); // not overwritten
     // A PUT at a newer time succeeds.
-    const fresh = await put(app, "clients", "c1", {
-      ...client("c1", "a1"),
-      name: "Fresh",
-      updatedAt: created.json().updatedAt,
+    const fresh = await put({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        ...client("c1", "a1"),
+        name: "Fresh",
+        updatedAt: created.json().updatedAt,
+      },
     });
     expect(fresh.statusCode).toBe(200);
     expect((await state(app)).clients[0].name).toBe("Fresh");
@@ -2847,15 +3152,25 @@ describe("optimistic concurrency (default-on)", () => {
   it("rejects a stale PATCH and accepts one carrying the current server revision", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
-    const created = await put(app, "clients", "c1", client("c1", "a1"));
-    const stale = await patch(app, "clients", "c1", {
-      name: "Stale",
-      updatedAt: "2000-01-01T00:00:00.000Z",
+    const created = await put({ app, entity: "clients", id: "c1", payload: client("c1", "a1") });
+    const stale = await patch({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        name: "Stale",
+        updatedAt: "2000-01-01T00:00:00.000Z",
+      },
     });
     expect(stale.statusCode).toBe(409);
-    const fresh = await patch(app, "clients", "c1", {
-      name: "Fresh",
-      updatedAt: created.json().updatedAt,
+    const fresh = await patch({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        name: "Fresh",
+        updatedAt: created.json().updatedAt,
+      },
     });
     expect(fresh.statusCode).toBe(200);
     expect(fresh.json().name).toBe("Fresh");
@@ -2865,14 +3180,24 @@ describe("optimistic concurrency (default-on)", () => {
   it("can be explicitly disabled for a trusted single-writer deployment", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
-    await put(app, "clients", "c1", {
-      ...client("c1", "a1"),
-      updatedAt: "2026-02-02T00:00:00.000Z",
+    await put({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        ...client("c1", "a1"),
+        updatedAt: "2026-02-02T00:00:00.000Z",
+      },
     });
-    const stale = await put(app, "clients", "c1", {
-      ...client("c1", "a1"),
-      name: "Stale",
-      updatedAt: "2026-02-01T00:00:00.000Z",
+    const stale = await put({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        ...client("c1", "a1"),
+        name: "Stale",
+        updatedAt: "2026-02-01T00:00:00.000Z",
+      },
     });
     expect(stale.statusCode).toBe(200);
     expect((await state(app)).clients[0].name).toBe("Stale");
@@ -2885,9 +3210,14 @@ describe("optimistic concurrency (default-on)", () => {
   it("batch: rejects a stale PUT op with 409 + current when enabled, rolling back the WHOLE batch", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
-    const created = await put(app, "clients", "c1", {
-      ...client("c1", "a1"),
-      updatedAt: "2026-02-02T00:00:00.000Z",
+    const created = await put({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        ...client("c1", "a1"),
+        updatedAt: "2026-02-02T00:00:00.000Z",
+      },
     });
     const res = await batch(app, [
       // A fresh sibling op that would succeed alone — it must NOT survive the rollback.
@@ -2925,9 +3255,14 @@ describe("optimistic concurrency (default-on)", () => {
   it("batch: a fresh (same/newer updatedAt) PUT op passes with the flag on", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
-    const created = await put(app, "clients", "c1", {
-      ...client("c1", "a1"),
-      updatedAt: "2026-02-02T00:00:00.000Z",
+    const created = await put({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        ...client("c1", "a1"),
+        updatedAt: "2026-02-02T00:00:00.000Z",
+      },
     });
     const res = await batch(app, [
       {
@@ -2956,9 +3291,14 @@ describe("optimistic concurrency (default-on)", () => {
   it("rejects existing-row PUTs that omit the required revision precondition", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
-    await put(app, "clients", "c1", {
-      ...client("c1", "a1"),
-      updatedAt: "2026-02-02T00:00:00.000Z",
+    await put({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        ...client("c1", "a1"),
+        updatedAt: "2026-02-02T00:00:00.000Z",
+      },
     });
     const noStamp: Record<string, unknown> = { ...client("c1", "a1") };
     delete noStamp.updatedAt;
@@ -2970,9 +3310,14 @@ describe("optimistic concurrency (default-on)", () => {
         row: { ...noStamp, name: "NoStamp" },
       },
     ]);
-    const viaPut = await put(app, "clients", "c1", {
-      ...noStamp,
-      name: "NoStamp",
+    const viaPut = await put({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        ...noStamp,
+        name: "NoStamp",
+      },
     });
     expect(viaBatch.statusCode).toBe(viaPut.statusCode);
     expect(viaBatch.statusCode).toBe(409);
@@ -2982,12 +3327,17 @@ describe("optimistic concurrency (default-on)", () => {
   it("rejects a future-authored revision instead of treating it as fresher than the server", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
-    await put(app, "clients", "c1", client("c1", "a1"));
+    await put({ app, entity: "clients", id: "c1", payload: client("c1", "a1") });
 
-    const res = await put(app, "clients", "c1", {
-      ...client("c1", "a1"),
-      name: "Future overwrite",
-      updatedAt: "9999-12-31T23:59:59.999Z",
+    const res = await put({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        ...client("c1", "a1"),
+        name: "Future overwrite",
+        updatedAt: "9999-12-31T23:59:59.999Z",
+      },
     });
 
     expect(res.statusCode).toBe(409);
@@ -3000,8 +3350,8 @@ describe("optimistic concurrency (default-on)", () => {
     // edit 409s. Restored documented semantics: no incoming updatedAt ⇒ no basis for a conflict.
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
-    await put(app, "clients", "c1", client("c1", "a1"));
-    const res = await patch(app, "clients", "c1", { name: "Renamed" });
+    await put({ app, entity: "clients", id: "c1", payload: client("c1", "a1") });
+    const res = await patch({ app, entity: "clients", id: "c1", payload: { name: "Renamed" } });
     expect(res.statusCode).toBe(200);
     expect(res.json().name).toBe("Renamed");
     expect(Date.parse(res.json().updatedAt)).not.toBeNaN();
@@ -3010,9 +3360,9 @@ describe("optimistic concurrency (default-on)", () => {
   it("rejects null for a required PATCH field without rewriting the stored value", async () => {
     const app = createApp(openDb(":memory:"));
     await post(app, "accounts", account("a1"));
-    await put(app, "clients", "c1", client("c1", "a1"));
+    await put({ app, entity: "clients", id: "c1", payload: client("c1", "a1") });
 
-    const res = await patch(app, "clients", "c1", { name: null });
+    const res = await patch({ app, entity: "clients", id: "c1", payload: { name: null } });
 
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/required field.*cannot be null/i);
@@ -3031,9 +3381,14 @@ describe("optimistic concurrency (default-on)", () => {
       ...client("c1", "a1"),
       updatedAt: "not-a-real-timestamp",
     });
-    const res = await patch(app, "clients", "c1", {
-      name: "Recovered",
-      updatedAt: "2026-03-01T00:00:00.000Z",
+    const res = await patch({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        name: "Recovered",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().name).toBe("Recovered");
@@ -3048,7 +3403,7 @@ describe("optimistic concurrency (default-on)", () => {
       insertRow(db, "accounts", account("a1"));
       insertRow(db, "clients", { ...client("c1", "a1"), updatedAt: storedRevision });
 
-      const res = await patch(app, "clients", "c1", { name: "Recovered boundary" });
+      const res = await patch({ app, entity: "clients", id: "c1", payload: { name: "Recovered boundary" } });
 
       expect(res.statusCode).toBe(200);
       expect(isIsoInstant(res.json().updatedAt)).toBe(true);
@@ -3059,9 +3414,14 @@ describe("optimistic concurrency (default-on)", () => {
   it("batch: explicit opt-out restores last-writer-wins semantics", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
-    await put(app, "clients", "c1", {
-      ...client("c1", "a1"),
-      updatedAt: "2026-02-02T00:00:00.000Z",
+    await put({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        ...client("c1", "a1"),
+        updatedAt: "2026-02-02T00:00:00.000Z",
+      },
     });
     const res = await batch(app, [
       {
@@ -3084,33 +3444,43 @@ describe("optimistic concurrency (default-on)", () => {
     async (optimisticConcurrency) => {
       const app = createApp(openDb(":memory:"), { optimisticConcurrency });
       await post(app, "accounts", account("a1"));
-      const created = await put(app, "clients", "c1", client("c1", "a1"));
+      const created = await put({ app, entity: "clients", id: "c1", payload: client("c1", "a1") });
       const baseRevision = created.json().updatedAt as string;
       const sessionId = "browser-session-0001";
-      const first = await orderedBatch(app, sessionId, 1, [
-        {
-          method: "PUT",
-          table: "clients",
-          id: "c1",
-          row: {
-            ...client("c1", "a1"),
-            name: "First",
-            updatedAt: baseRevision,
+      const first = await orderedBatch({
+        app,
+        sessionId,
+        sequence: 1,
+        ops: [
+          {
+            method: "PUT",
+            table: "clients",
+            id: "c1",
+            row: {
+              ...client("c1", "a1"),
+              name: "First",
+              updatedAt: baseRevision,
+            },
           },
-        },
-      ]);
-      const second = await orderedBatch(app, sessionId, 2, [
-        {
-          method: "PUT",
-          table: "clients",
-          id: "c1",
-          row: {
-            ...client("c1", "a1"),
-            name: "Newest",
-            updatedAt: baseRevision,
+        ],
+      });
+      const second = await orderedBatch({
+        app,
+        sessionId,
+        sequence: 2,
+        ops: [
+          {
+            method: "PUT",
+            table: "clients",
+            id: "c1",
+            row: {
+              ...client("c1", "a1"),
+              name: "Newest",
+              updatedAt: baseRevision,
+            },
           },
-        },
-      ]);
+        ],
+      });
 
       expect(first.statusCode).toBe(200);
       expect(second.statusCode).toBe(200);
@@ -3124,33 +3494,43 @@ describe("optimistic concurrency (default-on)", () => {
     async (optimisticConcurrency) => {
       const app = createApp(openDb(":memory:"), { optimisticConcurrency });
       await post(app, "accounts", account("a1"));
-      const created = await put(app, "clients", "c1", client("c1", "a1"));
+      const created = await put({ app, entity: "clients", id: "c1", payload: client("c1", "a1") });
       const baseRevision = created.json().updatedAt as string;
       const sessionId = "browser-session-0002";
-      const second = await orderedBatch(app, sessionId, 2, [
-        {
-          method: "PUT",
-          table: "clients",
-          id: "c1",
-          row: {
-            ...client("c1", "a1"),
-            name: "Newest",
-            updatedAt: baseRevision,
+      const second = await orderedBatch({
+        app,
+        sessionId,
+        sequence: 2,
+        ops: [
+          {
+            method: "PUT",
+            table: "clients",
+            id: "c1",
+            row: {
+              ...client("c1", "a1"),
+              name: "Newest",
+              updatedAt: baseRevision,
+            },
           },
-        },
-      ]);
-      const first = await orderedBatch(app, sessionId, 1, [
-        {
-          method: "PUT",
-          table: "clients",
-          id: "c1",
-          row: {
-            ...client("c1", "a1"),
-            name: "First",
-            updatedAt: baseRevision,
+        ],
+      });
+      const first = await orderedBatch({
+        app,
+        sessionId,
+        sequence: 1,
+        ops: [
+          {
+            method: "PUT",
+            table: "clients",
+            id: "c1",
+            row: {
+              ...client("c1", "a1"),
+              name: "First",
+              updatedAt: baseRevision,
+            },
           },
-        },
-      ]);
+        ],
+      });
 
       expect(second.statusCode).toBe(200);
       expect(first.statusCode).toBe(200);
@@ -3171,23 +3551,33 @@ describe("optimistic concurrency (default-on)", () => {
       const pendingClient = client("c1", "a1");
       const sessionId = "browser-session-lifecycle-0001";
 
-      const teardown = await orderedBatch(app, sessionId, 2, [
-        {
-          method: "ARCHIVE",
-          table: "clients",
-          id: "c1",
-          accountId: "a1",
-          updatedAt: pendingClient.updatedAt,
-        },
-      ]);
-      const olderCreation = await orderedBatch(app, sessionId, 1, [
-        {
-          method: "PUT",
-          table: "clients",
-          id: "c1",
-          row: pendingClient,
-        },
-      ]);
+      const teardown = await orderedBatch({
+        app,
+        sessionId,
+        sequence: 2,
+        ops: [
+          {
+            method: "ARCHIVE",
+            table: "clients",
+            id: "c1",
+            accountId: "a1",
+            updatedAt: pendingClient.updatedAt,
+          },
+        ],
+      });
+      const olderCreation = await orderedBatch({
+        app,
+        sessionId,
+        sequence: 1,
+        ops: [
+          {
+            method: "PUT",
+            table: "clients",
+            id: "c1",
+            row: pendingClient,
+          },
+        ],
+      });
 
       expect(teardown.statusCode).toBe(200);
       expect(teardown.json()).toMatchObject({ ok: true, applied: 1, changed: 0 });
@@ -3201,17 +3591,22 @@ describe("optimistic concurrency (default-on)", () => {
     const db = openDb(":memory:");
     const app = createApp(db);
     await post(app, "accounts", account("a1"));
-    const created = await put(app, "clients", "c1", client("c1", "a1"));
+    const created = await put({ app, entity: "clients", id: "c1", payload: client("c1", "a1") });
 
-    const response = await orderedBatch(app, "browser-session-lifecycle-0002", 1, [
-      {
-        method: "ARCHIVE",
-        table: "clients",
-        id: "c1",
-        accountId: "a1",
-        updatedAt: created.json().updatedAt,
-      },
-    ]);
+    const response = await orderedBatch({
+      app,
+      sessionId: "browser-session-lifecycle-0002",
+      sequence: 1,
+      ops: [
+        {
+          method: "ARCHIVE",
+          table: "clients",
+          id: "c1",
+          accountId: "a1",
+          updatedAt: created.json().updatedAt,
+        },
+      ],
+    });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ ok: true, applied: 1, changed: 1 });
@@ -3221,27 +3616,37 @@ describe("optimistic concurrency (default-on)", () => {
   it("ordered successor still rejects a stale write after an intervening external edit", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
-    const created = await put(app, "clients", "c1", client("c1", "a1"));
+    const created = await put({ app, entity: "clients", id: "c1", payload: client("c1", "a1") });
     const baseRevision = created.json().updatedAt as string;
     const sessionId = "browser-session-0003";
-    await orderedBatch(app, sessionId, 1, [
-      {
-        method: "PUT",
-        table: "clients",
-        id: "c1",
-        row: { ...client("c1", "a1"), name: "First", updatedAt: baseRevision },
-      },
-    ]);
+    await orderedBatch({
+      app,
+      sessionId,
+      sequence: 1,
+      ops: [
+        {
+          method: "PUT",
+          table: "clients",
+          id: "c1",
+          row: { ...client("c1", "a1"), name: "First", updatedAt: baseRevision },
+        },
+      ],
+    });
     const afterFirst = (await state(app)).clients[0];
-    await put(app, "clients", "c1", { ...afterFirst, name: "External" });
-    const successor = await orderedBatch(app, sessionId, 2, [
-      {
-        method: "PUT",
-        table: "clients",
-        id: "c1",
-        row: { ...client("c1", "a1"), name: "Newest", updatedAt: baseRevision },
-      },
-    ]);
+    await put({ app, entity: "clients", id: "c1", payload: { ...afterFirst, name: "External" } });
+    const successor = await orderedBatch({
+      app,
+      sessionId,
+      sequence: 2,
+      ops: [
+        {
+          method: "PUT",
+          table: "clients",
+          id: "c1",
+          row: { ...client("c1", "a1"), name: "Newest", updatedAt: baseRevision },
+        },
+      ],
+    });
 
     expect(successor.statusCode).toBe(409);
     expect((await state(app)).clients[0].name).toBe("External");
@@ -3250,39 +3655,53 @@ describe("optimistic concurrency (default-on)", () => {
   it("ordered stale DELETE rolls back its batch and preserves an externally edited row", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await scaffold(app);
-    const created = await post(app, "allocations", allocation("al1", "a1", "r1", "t1"));
+    const created = await post(
+      app,
+      "allocations",
+      allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "t1" }),
+    );
     const createdRow = created.json() as Record<string, unknown>;
     const baseRevision = createdRow.updatedAt as string;
-    const external = await put(app, "allocations", "al1", {
-      ...createdRow,
-      note: "Committed by another browser",
-      updatedAt: baseRevision,
+    const external = await put({
+      app,
+      entity: "allocations",
+      id: "al1",
+      payload: {
+        ...createdRow,
+        note: "Committed by another browser",
+        updatedAt: baseRevision,
+      },
     });
     expect(external.statusCode).toBe(200);
     expect(external.json().updatedAt).not.toBe(baseRevision);
 
-    const staleDelete = await orderedBatch(app, "stale-delete-browser-1", 1, [
-      {
-        method: "PUT",
-        table: "disciplines",
-        id: "rolled-back",
-        row: {
+    const staleDelete = await orderedBatch({
+      app,
+      sessionId: "stale-delete-browser-1",
+      sequence: 1,
+      ops: [
+        {
+          method: "PUT",
+          table: "disciplines",
           id: "rolled-back",
-          accountId: "a1",
-          name: "Must not persist",
-          color: "#5c34d4",
-          sortOrder: 0,
-          ...meta(),
+          row: {
+            id: "rolled-back",
+            accountId: "a1",
+            name: "Must not persist",
+            color: "#5c34d4",
+            sortOrder: 0,
+            ...meta(),
+          },
         },
-      },
-      {
-        method: "DELETE",
-        table: "allocations",
-        id: "al1",
-        accountId: "a1",
-        updatedAt: baseRevision,
-      },
-    ]);
+        {
+          method: "DELETE",
+          table: "allocations",
+          id: "al1",
+          accountId: "a1",
+          updatedAt: baseRevision,
+        },
+      ],
+    });
 
     expect(staleDelete.statusCode).toBe(409);
     expect(staleDelete.json()).toMatchObject({
@@ -3309,22 +3728,32 @@ describe("optimistic concurrency (default-on)", () => {
     const created = await post(app, "clients", client("c1", "a1"));
     const createdRow = created.json() as Record<string, unknown>;
     const baseRevision = createdRow.updatedAt as string;
-    const external = await put(app, "clients", "c1", {
-      ...createdRow,
-      name: "Externally edited",
-      updatedAt: baseRevision,
+    const external = await put({
+      app,
+      entity: "clients",
+      id: "c1",
+      payload: {
+        ...createdRow,
+        name: "Externally edited",
+        updatedAt: baseRevision,
+      },
     });
     expect(external.statusCode).toBe(200);
 
-    const response = await orderedBatch(app, "stale-archive-browser-1", 1, [
-      {
-        method: "ARCHIVE",
-        table: "clients",
-        id: "c1",
-        accountId: "a1",
-        updatedAt: baseRevision,
-      },
-    ]);
+    const response = await orderedBatch({
+      app,
+      sessionId: "stale-archive-browser-1",
+      sequence: 1,
+      ops: [
+        {
+          method: "ARCHIVE",
+          table: "clients",
+          id: "c1",
+          accountId: "a1",
+          updatedAt: baseRevision,
+        },
+      ],
+    });
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({
@@ -3351,17 +3780,23 @@ describe("optimistic concurrency (default-on)", () => {
         createdAt: TS,
         updatedAt: TS,
       };
-      const create = () => orderedBatch(app, sessionId, 1, [{ method: "PUT", table: "disciplines", id: "d1", row }]);
+      const create = () =>
+        orderedBatch({ app, sessionId, sequence: 1, ops: [{ method: "PUT", table: "disciplines", id: "d1", row }] });
       const undo = () =>
-        orderedBatch(app, sessionId, 2, [
-          {
-            method: "DELETE",
-            table: "disciplines",
-            id: "d1",
-            accountId: "a1",
-            updatedAt: TS,
-          },
-        ]);
+        orderedBatch({
+          app,
+          sessionId,
+          sequence: 2,
+          ops: [
+            {
+              method: "DELETE",
+              table: "disciplines",
+              id: "d1",
+              accountId: "a1",
+              updatedAt: TS,
+            },
+          ],
+        });
 
       const responses =
         arrivalOrder === "first-before-undo" ? [await create(), await undo()] : [await undo(), await create()];

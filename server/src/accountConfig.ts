@@ -62,7 +62,14 @@ const SECRET_KEYS = new Set<string>([
 let warnedAliasesBySource = new WeakMap<object, Set<string>>();
 const resolvedAccountEnvironments = new WeakMap<object, AccountDeploymentProfile | null>();
 
-function warnLegacyAlias(source: object, legacy: string, canonical: string, warn: (message: string) => void): void {
+interface WarnLegacyAliasInput {
+  source: object;
+  legacy: string;
+  canonical: string;
+  warn: (message: string) => void;
+}
+
+function warnLegacyAlias({ source, legacy, canonical, warn }: WarnLegacyAliasInput): void {
   let warnedAliases = warnedAliasesBySource.get(source);
   if (!warnedAliases) {
     warnedAliases = new Set();
@@ -129,14 +136,14 @@ export function resolveAccountEnvironment(
           `${canonical} conflicts with its legacy alias ${legacy}; refusing to choose a security posture.`,
         );
       }
-      warnLegacyAlias(source, legacy, canonical, warn);
+      warnLegacyAlias({ source, legacy, canonical, warn });
       environment[canonical] = normalizeSettingForComparison(canonical, canonicalValue);
       environment[legacy] = environment[canonical];
     } else if (canonicalValue !== undefined) {
       environment[canonical] = normalizeSettingForComparison(canonical, canonicalValue);
       environment[legacy] = environment[canonical];
     } else if (legacyValue !== undefined) {
-      warnLegacyAlias(source, legacy, canonical, warn);
+      warnLegacyAlias({ source, legacy, canonical, warn });
       environment[canonical] = normalizeSettingForComparison(canonical, legacyValue);
       environment[legacy] = environment[canonical];
     } else {

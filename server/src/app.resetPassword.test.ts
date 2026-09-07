@@ -65,14 +65,16 @@ async function appWith(
   };
 }
 
+interface MemberInput {
+  app: FastifyInstance;
+  db: Db;
+  accountId: string;
+  email: string;
+  role: Role;
+}
+
 /** Sign-up + membership in one step: the (email, role) principal this suite's matrix drives. */
-async function member(
-  app: FastifyInstance,
-  db: Db,
-  accountId: string,
-  email: string,
-  role: Role,
-): Promise<{ cookie: string; userId: string }> {
+async function member({ app, db, accountId, email, role }: MemberInput): Promise<{ cookie: string; userId: string }> {
   const user = await signUp(app, email);
   upsertMember(db, {
     accountId,
@@ -84,7 +86,14 @@ async function member(
   return user;
 }
 
-const mint = (app: FastifyInstance, accountId: string, userId: string, cookie?: string) =>
+interface MintInput {
+  app: FastifyInstance;
+  accountId: string;
+  userId: string;
+  cookie?: string | undefined;
+}
+
+const mint = ({ app, accountId, userId, cookie }: MintInput) =>
   call(app, {
     method: "POST",
     url: `/api/accounts/${accountId}/members/${userId}/reset-password`,
@@ -109,10 +118,10 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
   it("owner mints a link for an editor; redeem sets the new password (old dead, new works), token is single-use", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
-    const owner = await member(app, db, "a1", "owner@capacitylens.dev", "owner");
-    const editor = await member(app, db, "a1", "editor@capacitylens.dev", "editor");
+    const owner = await member({ app, db, accountId: "a1", email: "owner@capacitylens.dev", role: "owner" });
+    const editor = await member({ app, db, accountId: "a1", email: "editor@capacitylens.dev", role: "editor" });
 
-    const res = await mint(app, "a1", editor.userId, owner.cookie);
+    const res = await mint({ app, accountId: "a1", userId: editor.userId, cookie: owner.cookie });
     expect(res.statusCode).toBe(201);
     const body = res.json() as { token: string; expiresAt: string };
     expect(body.token.length).toBeGreaterThan(0);
@@ -136,8 +145,8 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
   it("revokes the target user's existing sessions on redeem (revokeSessionsOnPasswordReset)", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
-    const owner = await member(app, db, "a1", "owner@capacitylens.dev", "owner");
-    const editor = await member(app, db, "a1", "editor@capacitylens.dev", "editor");
+    const owner = await member({ app, db, accountId: "a1", email: "owner@capacitylens.dev", role: "owner" });
+    const editor = await member({ app, db, accountId: "a1", email: "editor@capacitylens.dev", role: "editor" });
 
     // The editor's sign-up session is live before the reset…
     const before = await call(app, {
@@ -147,7 +156,7 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     });
     expect(before.statusCode).toBe(200);
 
-    const res = await mint(app, "a1", editor.userId, owner.cookie);
+    const res = await mint({ app, accountId: "a1", userId: editor.userId, cookie: owner.cookie });
     expect(res.statusCode).toBe(201);
     expect((await redeem(app, (res.json() as { token: string }).token, "brand-new-password-456")).statusCode).toBe(200);
 
@@ -163,33 +172,33 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
   it("authz matrix: editor/viewer 403; admin→editor 201; admin→OWNER 403 (takeover path); owner→owner 201", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
-    const owner = await member(app, db, "a1", "owner@capacitylens.dev", "owner");
-    const admin = await member(app, db, "a1", "admin@capacitylens.dev", "admin");
-    const editor = await member(app, db, "a1", "editor@capacitylens.dev", "editor");
-    const viewer = await member(app, db, "a1", "viewer@capacitylens.dev", "viewer");
+    const owner = await member({ app, db, accountId: "a1", email: "owner@capacitylens.dev", role: "owner" });
+    const admin = await member({ app, db, accountId: "a1", email: "admin@capacitylens.dev", role: "admin" });
+    const editor = await member({ app, db, accountId: "a1", email: "editor@capacitylens.dev", role: "editor" });
+    const viewer = await member({ app, db, accountId: "a1", email: "viewer@capacitylens.dev", role: "viewer" });
 
     // Below admin tier: no reset minting at all (the authorize 'manageMembers' gate).
-    expect((await mint(app, "a1", viewer.userId, editor.cookie)).statusCode).toBe(403);
-    expect((await mint(app, "a1", editor.userId, viewer.cookie)).statusCode).toBe(403);
+    expect((await mint({ app, accountId: "a1", userId: viewer.userId, cookie: editor.cookie })).statusCode).toBe(403);
+    expect((await mint({ app, accountId: "a1", userId: editor.userId, cookie: viewer.cookie })).statusCode).toBe(403);
     // Admin may reset a non-owner…
-    expect((await mint(app, "a1", editor.userId, admin.cookie)).statusCode).toBe(201);
+    expect((await mint({ app, accountId: "a1", userId: editor.userId, cookie: admin.cookie })).statusCode).toBe(201);
     // …but NEVER an owner — a reset link is an account-takeover capability (pure guard, 403).
-    expect((await mint(app, "a1", owner.userId, admin.cookie)).statusCode).toBe(403);
+    expect((await mint({ app, accountId: "a1", userId: owner.userId, cookie: admin.cookie })).statusCode).toBe(403);
     // An owner may reset anyone, including an owner (self here — useful for social-only sign-ins).
-    expect((await mint(app, "a1", owner.userId, owner.cookie)).statusCode).toBe(201);
+    expect((await mint({ app, accountId: "a1", userId: owner.userId, cookie: owner.cookie })).statusCode).toBe(201);
   });
 
   it("cross-tenant and unknown targets: non-member caller 403; non-member target 404; no session 401", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
     seedAccount(db, "a2");
-    const owner1 = await member(app, db, "a1", "owner1@capacitylens.dev", "owner");
-    const owner2 = await member(app, db, "a2", "owner2@capacitylens.dev", "owner");
+    const owner1 = await member({ app, db, accountId: "a1", email: "owner1@capacitylens.dev", role: "owner" });
+    const owner2 = await member({ app, db, accountId: "a2", email: "owner2@capacitylens.dev", role: "owner" });
 
     // a2's owner holds no membership in a1 → the authorize gate 403s before anything else runs.
-    expect((await mint(app, "a1", owner1.userId, owner2.cookie)).statusCode).toBe(403);
+    expect((await mint({ app, accountId: "a1", userId: owner1.userId, cookie: owner2.cookie })).statusCode).toBe(403);
     // A userId that is not a member of a1 (owner2 targeted in a1's URL-space) → 404.
-    const unknownTarget = await mint(app, "a1", owner2.userId, owner1.cookie);
+    const unknownTarget = await mint({ app, accountId: "a1", userId: owner2.userId, cookie: owner1.cookie });
     expect(unknownTarget.statusCode).toBe(404);
     expect(unknownTarget.json()).toMatchObject({
       code: "NOT_FOUND",
@@ -197,7 +206,7 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     });
     expect(unknownTarget.json().commandId).toEqual(expect.any(String));
     // No session at all → the requireUser preHandler 401s upstream of the route.
-    expect((await mint(app, "a1", owner1.userId)).statusCode).toBe(401);
+    expect((await mint({ app, accountId: "a1", userId: owner1.userId })).statusCode).toBe(401);
   });
 
   it("mode gates: 'sso' → 400 (IdP owns credentials); 'off' → 400 (no credential model); neither crashes", async () => {
@@ -207,19 +216,19 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     // impossible — but the mode gate sits AFTER authorize, which needs a session. Instead assert at
     // the OFF app (allow-all authorize) that the mode gate answers 400, and for sso assert the
     // sessionless 401 still holds (the route exists; nothing crashed at registration).
-    expect((await mint(sso.app, "a1", "nobody")).statusCode).toBe(401);
+    expect((await mint({ app: sso.app, accountId: "a1", userId: "nobody" })).statusCode).toBe(401);
 
     const off = buildApp(openDb(":memory:"));
-    expect((await mint(off, "a1", "nobody")).statusCode).toBe(400);
+    expect((await mint({ app: off, accountId: "a1", userId: "nobody" })).statusCode).toBe(400);
   });
 
   it("cross-account: an admin of X cannot reset a user who is an owner of another account Y (global takeover closed)", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "x");
     seedAccount(db, "y");
-    const adminX = await member(app, db, "x", "admin-x@capacitylens.dev", "admin");
+    const adminX = await member({ app, db, accountId: "x", email: "admin-x@capacitylens.dev", role: "admin" });
     // Bob is a mere editor in X but the OWNER of Y (one identity, two memberships).
-    const bob = await member(app, db, "x", "bob@capacitylens.dev", "editor");
+    const bob = await member({ app, db, accountId: "x", email: "bob@capacitylens.dev", role: "editor" });
     upsertMember(db, {
       accountId: "y",
       userId: bob.userId,
@@ -231,15 +240,15 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     // The per-account view says Bob is 'editor' in X, but the reset controls his GLOBAL identity —
     // which owns Y — so X's admin (with no standing in Y) is refused. The 403 body EXPLAINS why
     // (surface-not-swallow): it names the cross-account reason without leaking which account.
-    const denied = await mint(app, "x", bob.userId, adminX.cookie);
+    const denied = await mint({ app, accountId: "x", userId: bob.userId, cookie: adminX.cookie });
     expect(denied.statusCode).toBe(403);
     expect((denied.json() as { error: string }).error).toBe(
       "This member belongs to another account where you lack password-reset authority.",
     );
 
     // Even the OWNER of X is refused — an owner of X has no authority over account Y.
-    const ownerX = await member(app, db, "x", "owner-x@capacitylens.dev", "owner");
-    expect((await mint(app, "x", bob.userId, ownerX.cookie)).statusCode).toBe(403);
+    const ownerX = await member({ app, db, accountId: "x", email: "owner-x@capacitylens.dev", role: "owner" });
+    expect((await mint({ app, accountId: "x", userId: bob.userId, cookie: ownerX.cookie })).statusCode).toBe(403);
   });
 
   it("SELF-RESET across accounts: a user who is owner of X but a mere editor of Y may reset their OWN password", async () => {
@@ -249,7 +258,7 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     const { app, db } = await appWith(PASSWORD_ENV, { multiAccount: true });
     seedAccount(db, "x");
     seedAccount(db, "y");
-    const self = await member(app, db, "x", "self-multi@capacitylens.dev", "owner");
+    const self = await member({ app, db, accountId: "x", email: "self-multi@capacitylens.dev", role: "owner" });
     upsertMember(db, {
       accountId: "y",
       userId: self.userId,
@@ -259,7 +268,7 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     });
 
     // Resetting their OWN credential succeeds (201) — self-reset needs no cross-account standing.
-    const res = await mint(app, "x", self.userId, self.cookie);
+    const res = await mint({ app, accountId: "x", userId: self.userId, cookie: self.cookie });
     expect(res.statusCode).toBe(201);
     // And the link redeems, proving it is a real, usable reset (not a hollow 201).
     const token = (res.json() as { token: string }).token;
@@ -273,10 +282,22 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
   // messaging. (These are library contracts, not our route's — hence asserted against the redeem path.)
   describe("Better Auth reset-password failure body shape (pinned for the client sniffer)", () => {
     const freshToken = async (app: FastifyInstance, db: Db): Promise<string> => {
-      const owner = await member(app, db, "a1", `owner-${Math.random()}@capacitylens.dev`, "owner");
-      const editor = await member(app, db, "a1", `editor-${Math.random()}@capacitylens.dev`, "editor");
+      const owner = await member({
+        app,
+        db,
+        accountId: "a1",
+        email: `owner-${Math.random()}@capacitylens.dev`,
+        role: "owner",
+      });
+      const editor = await member({
+        app,
+        db,
+        accountId: "a1",
+        email: `editor-${Math.random()}@capacitylens.dev`,
+        role: "editor",
+      });
       return (
-        (await mint(app, "a1", editor.userId, owner.cookie)).json() as {
+        (await mint({ app, accountId: "a1", userId: editor.userId, cookie: owner.cookie })).json() as {
           token: string;
         }
       ).token;
@@ -314,10 +335,16 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
       const { app, db } = await appWith(PASSWORD_ENV);
       seedAccount(db, "a1");
       const email = `astral-${Math.random()}@capacitylens.dev`;
-      const owner = await member(app, db, "a1", `owner-${Math.random()}@capacitylens.dev`, "owner");
-      const editor = await member(app, db, "a1", email, "editor");
+      const owner = await member({
+        app,
+        db,
+        accountId: "a1",
+        email: `owner-${Math.random()}@capacitylens.dev`,
+        role: "owner",
+      });
+      const editor = await member({ app, db, accountId: "a1", email, role: "editor" });
       const token = (
-        (await mint(app, "a1", editor.userId, owner.cookie)).json() as {
+        (await mint({ app, accountId: "a1", userId: editor.userId, cookie: owner.cookie })).json() as {
           token: string;
         }
       ).token;
@@ -349,11 +376,11 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
   it("TOCTOU: a reset link is burned when the target is promoted, so it cannot redeem into the new owner identity", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
-    const owner = await member(app, db, "a1", "owner@capacitylens.dev", "owner");
-    const editor = await member(app, db, "a1", "editor@capacitylens.dev", "editor");
+    const owner = await member({ app, db, accountId: "a1", email: "owner@capacitylens.dev", role: "owner" });
+    const editor = await member({ app, db, accountId: "a1", email: "editor@capacitylens.dev", role: "editor" });
 
     // Admin-issued link minted while the target is an editor (allowed)…
-    const res = await mint(app, "a1", editor.userId, owner.cookie);
+    const res = await mint({ app, accountId: "a1", userId: editor.userId, cookie: owner.cookie });
     expect(res.statusCode).toBe(201);
     const token = (res.json() as { token: string }).token;
 
@@ -375,11 +402,11 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
   it("the same burn happens on transfer-ownership (the promoted target's outstanding link dies)", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
-    const owner = await member(app, db, "a1", "owner@capacitylens.dev", "owner");
-    const editor = await member(app, db, "a1", "editor@capacitylens.dev", "editor");
+    const owner = await member({ app, db, accountId: "a1", email: "owner@capacitylens.dev", role: "owner" });
+    const editor = await member({ app, db, accountId: "a1", email: "editor@capacitylens.dev", role: "editor" });
 
     const token = (
-      (await mint(app, "a1", editor.userId, owner.cookie)).json() as {
+      (await mint({ app, accountId: "a1", userId: editor.userId, cookie: owner.cookie })).json() as {
         token: string;
       }
     ).token;
@@ -396,12 +423,12 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
   it("accepting an admin invite preserves an existing editor role and its outstanding reset link", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
-    const owner = await member(app, db, "a1", "owner@capacitylens.dev", "owner");
-    const editor = await member(app, db, "a1", "editor@capacitylens.dev", "editor");
+    const owner = await member({ app, db, accountId: "a1", email: "owner@capacitylens.dev", role: "owner" });
+    const editor = await member({ app, db, accountId: "a1", email: "editor@capacitylens.dev", role: "editor" });
 
     // Admin-issued link minted while the target is an editor (allowed).
     const token = (
-      (await mint(app, "a1", editor.userId, owner.cookie)).json() as {
+      (await mint({ app, accountId: "a1", userId: editor.userId, cookie: owner.cookie })).json() as {
         token: string;
       }
     ).token;
@@ -433,12 +460,12 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     // Multi-account instance so POST /api/orgs is not capped to one company.
     const { app, db } = await appWith(PASSWORD_ENV, { multiAccount: true });
     seedAccount(db, "a1");
-    const owner = await member(app, db, "a1", "owner@capacitylens.dev", "owner");
-    const adminM = await member(app, db, "a1", "admin@capacitylens.dev", "admin");
+    const owner = await member({ app, db, accountId: "a1", email: "owner@capacitylens.dev", role: "owner" });
+    const adminM = await member({ app, db, accountId: "a1", email: "admin@capacitylens.dev", role: "admin" });
 
     // An owner may reset an admin (mint-time guard passes: admin is only {a1: admin}).
     const token = (
-      (await mint(app, "a1", adminM.userId, owner.cookie)).json() as {
+      (await mint({ app, accountId: "a1", userId: adminM.userId, cookie: owner.cookie })).json() as {
         token: string;
       }
     ).token;
@@ -460,7 +487,7 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
   it("the public /api/auth/request-password-reset endpoint is SHADOWED (404) — no unauthenticated reset path", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
-    await member(app, db, "a1", "someone@capacitylens.dev", "editor");
+    await member({ app, db, accountId: "a1", email: "someone@capacitylens.dev", role: "editor" });
 
     // Configuring sendResetPassword would otherwise expose Better Auth's public request endpoint; we
     // shadow it with a 404 so there is no unauthenticated, rate-limit-off-by-default token-minting

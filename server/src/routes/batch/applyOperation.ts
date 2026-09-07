@@ -76,7 +76,12 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
       }
       return;
     }
-    const builtinRejection = resolveBuiltinWriteRejection("replace", table, existing, row as Record<string, unknown>);
+    const builtinRejection = resolveBuiltinWriteRejection({
+      verb: "replace",
+      entity: table,
+      existing,
+      incoming: row as Record<string, unknown>,
+    });
     if (builtinRejection) throw new ValidationError(builtinRejection.error);
     if (!ownsRow(existing, (row as { accountId?: unknown }).accountId)) {
       throw new AccountContractError({
@@ -110,7 +115,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
     if (
       (optimisticConcurrency || syncOrder !== null) &&
       isStaleWrite(persistedExisting, row as Record<string, unknown>) &&
-      !(syncOrder && isSameSessionSuccessor(db, syncOrder, table, id, persistedExisting))
+      !(syncOrder && isSameSessionSuccessor({ db, order: syncOrder, table, id, current: persistedExisting }))
     ) {
       // The 409's `current` payload is a READ of the stored row: redact the time-off
       // note for a note-blind writer, exactly like the write echo (P1.6) — the conflict
@@ -140,10 +145,10 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
       });
     }
     if (generatedReplacement) {
-      replaceGeneratedBuiltin(db, state, generatedReplacement, clean);
+      replaceGeneratedBuiltin({ db, state, generatedId: generatedReplacement, row: clean });
       projection.replaceGeneratedBuiltin(generatedReplacement, clean);
     } else {
-      assertValidWrite(state, table, clean, existing, projection);
+      assertValidWrite({ state, table, row: clean, existing, lookup: projection });
       if (table === "activities") {
         writeActivityRow(db, projection, clean, existing);
       } else {
@@ -185,7 +190,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
     if (
       syncOrder &&
       isStaleWrite(existing, { updatedAt: op.updatedAt }) &&
-      !isSameSessionSuccessor(db, syncOrder, table, id, existing)
+      !isSameSessionSuccessor({ db, order: syncOrder, table, id, current: existing })
     ) {
       throw new StaleWriteError(redactWriteEcho(table, existing, fieldVisFor(table, op.accountId ?? id)));
     }
@@ -225,7 +230,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
     if (
       syncOrder &&
       isStaleWrite(existing, { updatedAt: op.updatedAt }) &&
-      !isSameSessionSuccessor(db, syncOrder, table, id, existing)
+      !isSameSessionSuccessor({ db, order: syncOrder, table, id, current: existing })
     ) {
       throw new StaleWriteError(redactWriteEcho(table, existing, fieldVisFor(table, op.accountId ?? id)));
     }
