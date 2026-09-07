@@ -36,7 +36,11 @@ describe("reset-token capture across the auth facade", () => {
     const db = fixtures.trackDb(openDb(":memory:"));
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
     await runAuthMigrations(auth!);
-    await auth!.createCredentialUser("bruce@example.com", "Bruce Wayne", "unique-passphrase-2026");
+    await auth!.createCredentialUser({
+      email: "bruce@example.com",
+      name: "Bruce Wayne",
+      password: "unique-passphrase-2026",
+    });
 
     expect(await mintPasswordResetToken(auth!, "bruce@example.com")).toEqual(expect.any(String));
     expect(await mintPasswordResetToken(auth!, "missing@example.com")).toBeNull();

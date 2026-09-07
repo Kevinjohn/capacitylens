@@ -542,7 +542,12 @@ describe("first-owner database-hook races", () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
     await runAuthMigrations(auth!);
-    await auth!.createCredentialUser("winner@example.com", "Winner", "winner-password-123456", true);
+    await auth!.createCredentialUser({
+      email: "winner@example.com",
+      name: "Winner",
+      password: "winner-password-123456",
+      emailVerified: true,
+    });
     const before = auth!.options.databaseHooks?.user?.create?.before;
 
     await expect(
@@ -857,7 +862,12 @@ describe("external identity creation gate", () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
     await runAuthMigrations(auth!);
-    await auth!.createCredentialUser("existing-owner@example.com", "Existing Owner", "Unrelated-phrase-4827!", true);
+    await auth!.createCredentialUser({
+      email: "existing-owner@example.com",
+      name: "Existing Owner",
+      password: "Unrelated-phrase-4827!",
+      emailVerified: true,
+    });
     db.prepare(
       `INSERT INTO accounts (id, name, color, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?)`,
@@ -929,7 +939,12 @@ describe("external identity creation gate", () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
     await runAuthMigrations(auth!);
-    await auth!.createCredentialUser("existing-owner@example.com", "Existing Owner", "Unrelated-phrase-4827!", true);
+    await auth!.createCredentialUser({
+      email: "existing-owner@example.com",
+      name: "Existing Owner",
+      password: "Unrelated-phrase-4827!",
+      emailVerified: true,
+    });
     const insert = db.prepare(`INSERT INTO invites
       (tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
