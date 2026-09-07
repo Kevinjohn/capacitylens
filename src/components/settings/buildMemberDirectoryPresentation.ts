@@ -6,7 +6,7 @@ import { resolveRoleLabel } from "../../lib/accessCopy";
 // The roles a member can be given here, in the shared vocabulary's own order. Owner is deliberately
 // absent: ownership can change only through the explicit atomic transfer. Values only — no labels at
 // module scope, because resolving `m.key()` here would freeze the wording to the load-time locale
-// (P1.5.2); the labels come from `roleLabel` at render time instead.
+// (P1.5.2); the labels come from `resolveRoleLabel` at render time instead.
 const ASSIGNABLE_ROLES: readonly Role[] = ACCOUNT_ROLES.filter((role) => role !== "owner");
 
 export function buildMemberDirectoryPresentation(members: Member[] | null) {

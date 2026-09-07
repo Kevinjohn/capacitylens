@@ -27,7 +27,7 @@ vi.mock("../../account/accountClient", async (importOriginal) => {
 });
 
 vi.mock("../../account/sessionClient", () => ({
-  listSessions: () => listSessions(),
+  readSessions: () => listSessions(),
 }));
 
 import { SecuritySection } from "./SecuritySection";

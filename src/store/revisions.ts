@@ -6,7 +6,7 @@ export const stamp = () => {
 };
 export const touch = () => new Date().toISOString();
 const MAX_DATE_MS = 8_640_000_000_000_000;
-// Take an ARRAY, not rest args: the whole-tenant callers (nextDataRevision, prepareHistoryTarget)
+// Take an ARRAY, not rest args: the whole-tenant callers (readNextDataRevision, prepareHistoryTarget)
 // pass one timestamp per row, and spreading tens of thousands of rows as function arguments can
 // overflow the engine's argument limit (RangeError), failing an undo/redo or cascade-delete
 // outright. Iterating an array is unbounded-safe. `touchAfter` keeps the ergonomic variadic shape

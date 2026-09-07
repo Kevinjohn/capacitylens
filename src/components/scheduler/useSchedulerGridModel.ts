@@ -116,11 +116,11 @@ export function useSchedulerGridModel(
   const overStart = today;
   const overEnd = addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1);
 
-  // VISIBLE window [visStart, visEnd]: drives the DISPLAYED utilisation % (per-person, per-discipline
+  // VISIBLE window [visibleStart, visibleEnd]: drives the DISPLAYED utilisation % (per-person, per-discipline
   // avg, overall). The visible span is `ui.zoom * 7` calendar days anchored at the scroll left-edge
   // day; the inclusive end is `+ (zoom*7 - 1)` — a 1-week view is the 7 inclusive days [L, L+6], not
   // +7 (8 days). The end is CLAMPED to the last timeline day so the window never reads past `days[]`.
-  // Day-quantized via leftEdgeIdx so a scroll within a column doesn't rebuild the model.
+  // Day-quantized via leftEdgeIndex so a scroll within a column doesn't rebuild the model.
   const { start: visibleStart, end: visibleEnd } = useMemo(
     () => resolveVisibleWindow(days, leftEdgeIndex, ui.zoom, ui.focusDate),
     [days, leftEdgeIndex, ui.zoom, ui.focusDate],

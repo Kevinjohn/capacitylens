@@ -25,7 +25,7 @@ export type CapacityAllocationInput = Pick<
 export type CapacityLoadByDay = Map<ISODate, number>;
 
 /** Add `allocation`'s hours to `byDay` on every day of [start, end] that it actually works.
- *  Allocations belonging to another resource are ignored, mirroring `allocatedHoursOnDay`:
+ *  Allocations belonging to another resource are ignored, mirroring `resolveAllocatedHoursOnDay`:
  *  correctness must not depend on every caller remembering to pre-filter, or an unfiltered list
  *  would count other people's hours against this resource and advise "over capacity" for days that
  *  are perfectly fine. */
@@ -84,7 +84,7 @@ function tallyAdvisory(
   let overDays = 0;
   let timeOffDays = 0;
   for (const day of days) {
-    // Derive the weekday + time-off ONCE per day and reuse for both tallies — availableHoursOnDay
+    // Derive the weekday + time-off ONCE per day and reuse for both tallies — resolveAvailableHoursOnDay
     // would otherwise re-run isWorkingDay (and isOnTimeOff) a second time on this hot path.
     const weekday = weekdayOf(day);
     const working = effectiveWeekIncludes(effectiveWeek, weekday);
@@ -98,7 +98,7 @@ function tallyAdvisory(
     }
     // The proposal does no work on a day it doesn't cover (a weekend-aware bar over Sat/Sun) — skip.
     if (!hasAllocationLoadOnDay(effectiveWeek, proposal.ignoreWeekends, working)) continue;
-    // Mirrors availableHoursOnDay: a non-working weekday the proposal opts into (ignoreWeekends) has
+    // Mirrors resolveAvailableHoursOnDay: a non-working weekday the proposal opts into (ignoreWeekends) has
     // 0 capacity, so any proposed hours there read as over — exactly like the per-day over-marker.
     const available = working ? resolveScheduledHoursForWeekday(resource, weekday, effectiveWeek) : 0;
     if (hasOverCapacity((loadByDay.get(day) ?? 0) + proposal.hoursPerDay, available)) overDays++;
@@ -113,7 +113,7 @@ function tallyAdvisory(
  *  `otherAllocations` is the existing load to count against (caller excludes the allocation being
  *  edited); it need NOT be pre-filtered by resource (see `addCapacityLoad`).
  *  Shared by the modal and the drag-commit path so the rule
- *  lives in one place. Mirrors the per-day over-marker (`allocatedHoursOnDay`): it counts a day only
+ *  lives in one place. Mirrors the per-day over-marker (`resolveAllocatedHoursOnDay`): it counts a day only
  *  when the proposed allocation actually WORKS it (so a weekend-aware bar merely spanning Sat/Sun
  *  isn't "over"), and an `ignoreWeekends` weekend — 0 capacity — reads as over exactly like the red
  *  cell does. Time off stays its OWN category, never folded into overDays (a holiday a working
@@ -133,7 +133,7 @@ export function buildCapacityAdvisory(
   return tallyAdvisory(resource, proposal, days, loadByDay, timeOff, effectiveWeek, closures);
 }
 
-/** `capacityAdvisory` against a load bucket the caller already holds — for a BATCH of proposals on
+/** `buildCapacityAdvisory` against a load bucket the caller already holds — for a BATCH of proposals on
  *  one resource, where rebuilding the bucket per proposal is the dominant cost. The bucket must
  *  cover at least the proposal's window (see `bucketCapacityLoad`). */
 export function buildCapacityAdvisoryFromLoad(

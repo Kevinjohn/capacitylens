@@ -57,7 +57,7 @@ export function applyThemeToDom(preference: ThemePreference): void {
 }
 
 /** Re-paint when the OS scheme flips, but only while the user is on 'system'.
- *  `getPref` is read live so the listener tracks the current preference without
+ *  `getPreference` is read live so the listener tracks the current preference without
  *  being re-registered on each change. Returns an unsubscribe fn (no-op if there's
  *  no matchMedia). */
 export function watchSystemTheme(getPreference: () => ThemePreference): () => void {

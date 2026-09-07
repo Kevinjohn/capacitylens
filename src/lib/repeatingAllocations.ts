@@ -129,7 +129,7 @@ export function buildRepeatingAllocationAdvisory(
     return { overCapacityAllocations: 0, timeOffAllocations: 0, nonEffectiveStartAllocations: 0 };
   }
   // Bucket the existing load by day ONCE for the whole batch and add each checked draft to that
-  // SAME map, instead of handing capacityAdvisory a comparison list that grows by one allocation
+  // SAME map, instead of handing buildCapacityAdvisory a comparison list that grows by one allocation
   // per draft — which re-bucketed everything already seen, making a k-occurrence repeat O(k²) in
   // day-string work. Hours still land existing-load-first, then draft 0, 1, …, so every per-day sum
   // is bit-identical to the per-draft rebuild (float addition is not associative).
@@ -163,7 +163,7 @@ export function buildRepeatingAllocationAdvisory(
 }
 
 /** The one window every draft in the batch falls inside, or `null` when it is too wide to
- *  materialise (the ceiling `capacityAdvisory` already refuses a single window at). */
+ *  materialise (the ceiling `buildCapacityAdvisory` already refuses a single window at). */
 function resolveSharedLoadWindow(drafts: readonly Draft<Allocation>[]): { start: ISODate; end: ISODate } | null {
   const first = drafts[0];
   if (!first) return null;

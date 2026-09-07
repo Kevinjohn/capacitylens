@@ -55,7 +55,7 @@ export function AuthProvider({
 }) {
   const serverMode = isServerConfigured();
   const [status, setStatus] = useState<AuthStatusResult>(
-    // Demo build: no server, no cap — canCreateAccount/multiAccount fail open to true (passOpen).
+    // Demo build: no server, no cap — canCreateAccount/multiAccount fail open to true (buildOpenAuthResult).
     serverMode ? { kind: "checking" } : buildOpenAuthResult("off", null),
   );
   const persistError = useStore((state) => state.persistError);

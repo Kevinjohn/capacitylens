@@ -22,12 +22,12 @@ const preference = vi.hoisted(() => {
 });
 
 vi.mock("./offlineCache", () => ({
-  offlineReadEnabled: () => preference.enabled,
+  isOfflineReadEnabled: () => preference.enabled,
   subscribeOfflinePreference: (listener: () => void) => {
     preference.listeners.add(listener);
     return () => preference.listeners.delete(listener);
   },
-  offlineStateSnapshot: () => preference.offlineState,
+  readOfflineStateSnapshot: () => preference.offlineState,
   subscribeOfflineState: () => () => {},
 }));
 

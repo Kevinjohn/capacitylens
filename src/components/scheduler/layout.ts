@@ -70,7 +70,7 @@ export interface SchedulerDensity {
   groupHeaderHeight: number;
   /** Height of the left column's identity band — exactly one lane band, so the name/avatar stays
    *  aligned with the first bar however tall a multi-allocation row grows. Mirrors the single-lane
-   *  case of `rowHeightForLanes`; the two must move together. */
+   *  case of `resolveRowHeightForLanes`; the two must move together. */
   identityBandHeight: number;
   /** Toolbar block padding and wrap-row gap, in px. Y axis only: the toolbar's horizontal gap is
    *  fixed, because widening it would make the row wrap sooner and fight the Reflow behaviour
@@ -113,7 +113,7 @@ export function useSchedulerDensity(): SchedulerDensity {
   return useMemo(() => buildSchedulerDensity(compact), [compact]);
 }
 
-/** The lane-packing projection of `schedulerDensity`, handed to buildSchedulerModel. */
+/** The lane-packing projection of `buildSchedulerDensity`, handed to buildSchedulerModel. */
 export function buildLaneLayout(compact: boolean): LaneLayout {
   const density = buildSchedulerDensity(compact);
   return { barHeight: LAYOUT.barHeight, laneGap: density.laneGap, rowPadding: density.rowPadding };

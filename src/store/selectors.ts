@@ -41,14 +41,14 @@ export const hasResourceEngagementGrouping = createAccountFieldSelector("groupRe
 
 /** Whether the active company shows placeholder ("slot") rows. Absent on the account reads as
  *  FALSE (hidden) — the documented default-off behaviour. NOTE the `?? false` (contrast
- *  disciplinesEnabledFor's `?? true`): a new/seed/imported account with no field stays hidden.
+ *  hasDisciplinesEnabled's `?? true`): a new/seed/imported account with no field stays hidden.
  *  Single source so every placeholder surface (schedule, assignee picker, Resources + Time off
  *  lists, command palette) gates on the same per-account value. */
 export const hasPlaceholdersEnabled = createAccountFieldSelector("placeholdersEnabled", false);
 
 /** Whether the active company shows external / 3rd-party rows. Absent on the account reads as
- *  FALSE (hidden) — the documented default-off behaviour (`?? false`, like placeholdersEnabledFor,
- *  NOT disciplinesEnabledFor's `?? true`). Single source so every external surface gates on the
+ *  FALSE (hidden) — the documented default-off behaviour (`?? false`, like hasPlaceholdersEnabled,
+ *  NOT hasDisciplinesEnabled's `?? true`). Single source so every external surface gates on the
  *  same per-account value. */
 export const hasExternalResourcesEnabled = createAccountFieldSelector("externalEnabled", false);
 
@@ -57,12 +57,12 @@ export const hasExternalResourcesEnabled = createAccountFieldSelector("externalE
 export const resolveInternalColourMode = createAccountFieldSelector("internalColourMode", "grey");
 
 /** Whether the schedule shows INTERNAL-PROJECT allocation bars (activities under the built-in Internal
- *  client). Absent reads as TRUE (shown) — note the `?? true` (like disciplinesEnabledFor, NOT the
+ *  client). Absent reads as TRUE (shown) — note the `?? true` (like hasDisciplinesEnabled, NOT the
  *  placeholders/external `?? false`). A pure VIEW pref: it hides only bars, never capacity/utilisation. */
 export const hasVisibleInternalProjects = createAccountFieldSelector("showInternalProjects", true);
 
 /** Whether the schedule shows INTERNAL-ACTIVITY allocation bars (kind 'internal'). Absent reads as
- *  TRUE (shown), the exact analog of showInternalProjectsFor. Hides bars only, never capacity. */
+ *  TRUE (shown), the exact analog of hasVisibleInternalProjects. Hides bars only, never capacity. */
 export const hasVisibleInternalActivities = createAccountFieldSelector("showInternalActivities", true);
 
 /** Whether the Allocation modal offers the inline "Add activity" input + button. Absent reads as

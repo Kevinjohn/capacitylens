@@ -77,7 +77,7 @@ export function createRowBuilder(
           .filter(passesTentativeFilter)
           .filter(hasTimelineIntersection)
           // BAR-ONLY internal-work hide (see barVisibleByInternalPref). Applied here, after the
-          // capacity path has already taken `allAllocs`, so hiding an internal bar never changes
+          // capacity path has already taken `allAllocations`, so hiding an internal bar never changes
           // the resource's utilisation/capacity — only which bars render.
           .filter(barVisibleByInternalPreference)
       : matchingVisibleAllocations;

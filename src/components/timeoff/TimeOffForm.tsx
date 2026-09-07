@@ -52,7 +52,7 @@ export function TimeOffForm({
   // instead of silently reassigning the time off to someone else on save.
   // The two filter passes are the only non-trivial cost here; memoised on their actual inputs so
   // they aren't redone on every keystroke elsewhere in the form (e.g. the note field). The label map
-  // stays OUTSIDE the memo: `resourceDisplayName` resolves a placeholder's name through `m.*()`,
+  // stays OUTSIDE the memo: `resolveResourceDisplayName` resolves a placeholder's name through `m.*()`,
   // which must keep resolving fresh every render (a stale locale/account switch is otherwise
   // possible — see validation.ts's "getter, not module-scope const" note), so it's rebuilt un-cached
   // each render.

@@ -29,7 +29,7 @@ export const buildClearedSession = () => ({
   draggingAllocationId: null,
 });
 
-/** The scheduler view blanked for the incoming tenant. Pass an `anchor` ({@link weekAnchor}) to ALSO
+/** The scheduler view blanked for the incoming tenant. Pass an `anchor` ({@link readCurrentWeekAnchor}) to ALSO
  *  open on that account's current week; omit it where the week in view must be preserved. */
 export const resetSchedulerView = (
   schedulerUi: SchedulerUI,

@@ -116,15 +116,10 @@ export const ResourceLane = memo(function ResourceLane({
   const teardownRef = useRef<(() => void) | null>(null);
   useEffect(() => () => teardownRef.current?.(), []);
 
-  // Wrapped in useCallback (keyed on geom) so the identity is STABLE across a re-render that
-  // isn't a real geometry change. `indexAt` is handed down (as `indexAtClientX`) to BarsLayer →
-  // every AllocationBar; a fresh inline closure each render would fail their React.memo whenever
-  // ResourceLane re-renders. This is defense-in-depth, not the reason the draw-mode toggle is
-  // render-free: a toggle doesn't re-render ResourceLane at all (its props are stable, so its memo
-  // bails), so indexAt isn't recreated either way. It matters only if some future change makes a
-  // lane prop unstable across a toggle and forces ResourceLane to re-render. Keyed on geom alone:
-  // laneRef is a stable ref, and geom is the only value the math reads, so the identity changes
-  // only when the columns genuinely change.
+  // Keep indexAtClientX stable for memoised bars whenever geometry is unchanged; laneRef is stable.
+  // A draw-mode toggle already skips ResourceLane because its model-derived props are stable.
+  // This callback also protects each bar if a future change makes a lane prop unstable on toggle.
+  // geometry is the only changing input, so recreate the callback only when columns change.
   const indexAt = useCallback(
     (clientX: number): number => {
       const rect = laneRef.current?.getBoundingClientRect();
@@ -166,8 +161,8 @@ export const ResourceLane = memo(function ResourceLane({
       // This fires on EVERY pointermove, but the ghost only changes when the pointer crosses a
       // day boundary. Bail on an unchanged span (`a` is always `start` here) so a move within one
       // column doesn't re-render the lane — the same idiom as the hover-day setState below.
-      setDraw((previousIndex) =>
-        previousIndex && previousIndex.b === endIndex ? previousIndex : { a: start, b: endIndex },
+      setDraw((previousSpan) =>
+        previousSpan && previousSpan.b === endIndex ? previousSpan : { a: start, b: endIndex },
       );
     };
     const detach = () => {

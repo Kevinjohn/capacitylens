@@ -177,7 +177,7 @@ export async function archiveLifecycleRow(
   // Announced SYNCHRONOUSLY (no `defer`) for the same reason as unarchive.
   noteAuditWarning(res);
   // A response body can only be read ONCE, and every failure arm below wants the same two views of
-  // it: the raw text (safeResponseError attaches it as the diagnostic cause) and its best-effort
+  // it: the raw text (createSafeResponseError attaches it as the diagnostic cause) and its best-effort
   // JSON envelope. Read and parse each exactly once, here, before branching on status.
   //
   // The parse is deliberately allowed to fail without surfacing: an unreadable CONFLICT body cannot

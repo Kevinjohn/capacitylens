@@ -49,7 +49,7 @@ export function buildAllocationAdvisory({
   // External parties have no capacity — never show an over-capacity / time-off advisory.
   if (isExternal) return null;
   // A malformed/reversed span and a range beyond the form's finite work bound get no advisory.
-  // This check is O(1) and runs before capacityAdvisory can materialise one ISO string per day.
+  // This check is O(1) and runs before buildCapacityAdvisory can materialise one ISO string per day.
   const span = startDate && effectiveEndDate ? daysInclusive(startDate, effectiveEndDate) : 0;
   if (
     !selectedResource ||

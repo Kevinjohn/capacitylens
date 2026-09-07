@@ -25,7 +25,7 @@ const roundDisplayHours = (hours: number) => Math.round(hours * 100) / 100;
  * - **Armed on pointerdown.** The gesture controller only sets up side effects once its drag hook
  *   confirms the gesture is armed (left button, not re-entrant) — otherwise the scroll-watch and
  *   lane snapshot would leak with no commit/cancel/click to tear them down.
- * - **Side effects + teardown.** Arming takes a one-time `snapshotLanes()` (cached lane rects, to
+ * - **Side effects + teardown.** Arming takes a one-time `readLaneSnapshots()` (cached lane rects, to
  *   avoid per-move layout thrash) and starts a capture-phase scroll watcher that re-snapshots on
  *   scroll (a drop after a scroll would otherwise hit-test stale rects and reassign to the wrong
  *   row). Both are torn down on commit/cancel/click AND on unmount (the cleanup effect), so a bar

@@ -1,6 +1,6 @@
 import { m } from "@/i18n";
 
-/** The account default, and the only zone with bespoke display copy (see timeZoneOptionLabel). */
+/** The account default, and the only zone with bespoke display copy (see resolveTimeZoneOptionLabel). */
 export const DEFAULT_TIME_ZONE = "Etc/GMT";
 
 // The engine's zone list is fixed for the lifetime of the page, so it is built once on first use
@@ -71,7 +71,7 @@ export function resolveTimeZoneOffsetLabel(timeZone: string, date = new Date()):
     const [, sign, hours, minutes = "00"] = match;
     return `UTC${sign}${hours.padStart(2, "0")}:${minutes}`;
   } catch {
-    // The zone list itself is validated by supportedTimeZones(); this is only a defensive
+    // The zone list itself is validated by listSupportedTimeZones(); this is only a defensive
     // fallback for an older Intl implementation or an unexpected persisted value.
     return "UTC+00:00";
   }

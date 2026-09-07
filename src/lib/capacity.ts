@@ -44,7 +44,7 @@ export function buildDayCapacity(
 /** Whole-window capacity, one entry per calendar day, derived straight from the inputs.
  *  The render path does NOT come through here: buildSchedulerModel walks the SAME window for every
  *  resource, so it builds the day array once, buckets each resource's allocations and time off by
- *  covered date (`bucketByCoveredDate`), and memoises `dayCapacity` per date. This stays the
+ *  covered date (`bucketByCoveredDate`), and memoises `buildDayCapacity` per date. This stays the
  *  straight-line definition those optimisations are checked against. */
 export function buildCapacityWindow(
   resource: Resource,
@@ -76,8 +76,8 @@ export function resolveUtilizationFromCapacity(days: Iterable<DayCapacity>): num
  *  Returns 0 when there is no availability. Non-working days (weekends / time off)
  *  are skipped entirely — counting their allocated hours against zero availability
  *  would push a normal allocation that merely spans a weekend past 100%.
- *  Like `capacityForWindow`, this is the straight-line definition; the render path reaches the same
- *  number through `utilizationFromCapacity` over its memoised per-date capacity. */
+ *  Like `buildCapacityWindow`, this is the straight-line definition; the render path reaches the same
+ *  number through `resolveUtilizationFromCapacity` over its memoised per-date capacity. */
 export function resolveUtilization(
   resource: Resource,
   allocations: Allocation[],

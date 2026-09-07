@@ -12,7 +12,7 @@ import type { useSchedulerViewport } from "./useSchedulerViewport";
  *
  * **1. Vertical virtualization.** The model (groups → rows) is flattened into one ordered
  * `items` list (group headers + the rows of expanded groups), then each item's height is
- * measured (`heights`), prefix-summed by `buildLayout`, and `windowFromLayout` picks the
+ * measured (`heights`), prefix-summed by `buildLayout`, and `resolveVirtualWindow` picks the
  * on-screen slice (`{first, last}`) for the current `scrollTop`/viewport height. Only that slice
  * is in the DOM; the vertical space of every skipped item is RESERVED by an aria-hidden spacer
  * div sized to the gap between consecutive rendered items, so the scrollbar geometry stays
@@ -58,7 +58,7 @@ export function useSchedulerGridVirtualization(
   }, [model, ui.collapsedGroups]);
 
   // Heights + their prefix-sum depend only on the item set (model/collapse), NOT on
-  // scroll — memoise so a scroll frame only runs the cheap edge-scan in windowFromLayout.
+  // scroll — memoise so a scroll frame only runs the cheap edge-scan in resolveVirtualWindow.
   const heights = useMemo(
     () => items.map((interval) => (interval.kind === "group" ? density.groupHeaderHeight : interval.row.rowHeight)),
     [items, density],
