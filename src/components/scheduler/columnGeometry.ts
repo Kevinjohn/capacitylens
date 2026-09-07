@@ -84,6 +84,133 @@ function requireDenseValue<T>(values: T[], index: number, invariant: string): T 
   return value;
 }
 
+interface ColumnMeasurements {
+  widths: number[];
+  offsets: number[];
+  weekdays: number[];
+  totalWidth: number;
+}
+
+interface ColumnWidthInput {
+  weekday: number;
+  dayWidth: number;
+  narrowWidth: number;
+  extraPixels: number;
+  minimiseActive: boolean;
+}
+
+function resolveExtraPixels(dayWidth: number, narrowWidth: number, options: ColumnGeometryOptions): number {
+  const minimiseActive = options.minimiseWeekends && dayWidth >= DAY_COLUMN_MIN_WIDTH;
+  const baseWeekWidth = minimiseActive ? 5 * dayWidth + 2 * narrowWidth : 7 * dayWidth;
+  const requestedWeekWidth = Math.round(options.targetWeekWidth ?? baseWeekWidth);
+  const availableExtra = Number.isFinite(requestedWeekWidth) ? requestedWeekWidth - baseWeekWidth : 0;
+  const maximumExtra = minimiseActive ? 5 : 7;
+  return Math.min(maximumExtra, Math.max(0, availableExtra));
+}
+
+function resolveColumnWidth(input: ColumnWidthInput): number {
+  const isWeekend = input.weekday === 0 || input.weekday === 6;
+  if (input.minimiseActive && isWeekend) return input.narrowWidth;
+  let receivesExtra = input.weekday < input.extraPixels;
+  if (input.minimiseActive) receivesExtra = input.weekday > 0 && input.weekday - 1 < input.extraPixels;
+  return input.dayWidth + (receivesExtra ? 1 : 0);
+}
+
+function buildColumnMeasurements(
+  days: ISODate[],
+  dayWidth: number,
+  options: ColumnGeometryOptions,
+): ColumnMeasurements {
+  const dayCount = days.length;
+  const minimiseActive = options.minimiseWeekends && dayWidth >= DAY_COLUMN_MIN_WIDTH;
+  const rawNarrow = Math.round(Math.min(options.weekendWidth, dayWidth));
+  const narrowWidth = Number.isFinite(rawNarrow) && rawNarrow > 0 ? rawNarrow : dayWidth;
+  const extraPixels = resolveExtraPixels(dayWidth, narrowWidth, options);
+  const widths = new Array<number>(dayCount);
+  const offsets = new Array<number>(dayCount + 1);
+  const weekdays = new Array<number>(dayCount);
+  offsets[0] = 0;
+
+  for (let index = 0; index < dayCount; index++) {
+    const day = requireDenseValue(days, index, "Column geometry day window must be dense.");
+    const weekday = weekdayOf(day);
+    const width = resolveColumnWidth({ weekday, dayWidth, narrowWidth, extraPixels, minimiseActive });
+    weekdays[index] = weekday;
+    widths[index] = width;
+    offsets[index + 1] = requireDenseValue(offsets, index, "Column geometry offsets must be dense.") + width;
+  }
+
+  const totalWidth = requireDenseValue(offsets, dayCount, "Column geometry offsets must align with the day window.");
+  return { widths, offsets, weekdays, totalWidth };
+}
+
+interface GeometryAccessorsInput extends ColumnMeasurements {
+  dayCount: number;
+  dayWidth: number;
+  origin: ISODate | undefined;
+}
+
+function createGeometryAccessors(
+  input: GeometryAccessorsInput,
+): Pick<
+  ColumnGeometry,
+  "indexAt" | "indexAtScroll" | "spanWidth" | "widthForDates" | "widthOf" | "x" | "xForDateInGeom"
+> {
+  const clampEdge = (index: number): number => {
+    if (index < 0) return 0;
+    if (index > input.dayCount) return input.dayCount;
+    return index;
+  };
+  const xForDayIndex = (index: number): number => {
+    if (index < 0) return index * input.dayWidth;
+    if (index > input.dayCount) return input.totalWidth + (index - input.dayCount) * input.dayWidth;
+    return requireDenseValue(input.offsets, index, "Column geometry offsets must align with the day window.");
+  };
+  const indexAt = (px: number): number => {
+    if (input.dayCount === 0 || px <= 0) return 0;
+    if (px >= input.totalWidth) return input.dayCount - 1;
+    let lowerIndex = 0;
+    let upperIndex = input.dayCount - 1;
+    while (lowerIndex < upperIndex) {
+      const middleIndex = (lowerIndex + upperIndex + 1) >> 1;
+      if (requireDenseValue(input.offsets, middleIndex, "Column geometry offsets must be dense.") <= px)
+        lowerIndex = middleIndex;
+      else upperIndex = middleIndex - 1;
+    }
+    return lowerIndex;
+  };
+  const xForDateInGeom = (date: ISODate): number => {
+    if (!input.origin) return 0;
+    const index = dayIndex(date, input.origin);
+    return Number.isFinite(index) ? xForDayIndex(index) : 0;
+  };
+  const widthForDates = (start: ISODate, end: ISODate): number => {
+    if (!input.origin) return 0;
+    const startIndex = dayIndex(start, input.origin);
+    const endIndex = dayIndex(end, input.origin);
+    if (!Number.isFinite(startIndex) || !Number.isFinite(endIndex)) return 0;
+    return Math.max(0, xForDayIndex(endIndex + 1) - xForDayIndex(startIndex));
+  };
+
+  return {
+    x: (index) => requireDenseValue(input.offsets, clampEdge(index), "Column geometry offsets must be dense."),
+    widthOf: (index) => {
+      if (index < 0 || index >= input.dayCount) return 0;
+      return requireDenseValue(input.widths, index, "Column geometry widths must align with the day window.");
+    },
+    spanWidth: (startIndex, endIndex) =>
+      Math.max(
+        0,
+        requireDenseValue(input.offsets, clampEdge(endIndex + 1), "Column geometry offsets must be dense.") -
+          requireDenseValue(input.offsets, clampEdge(startIndex), "Column geometry offsets must be dense."),
+      ),
+    indexAt,
+    indexAtScroll: (scrollLeft) => indexAt(Math.round(scrollLeft)),
+    xForDateInGeom,
+    widthForDates,
+  };
+}
+
 /**
  * Build the column geometry for `days` at `dayWidth`.
  *
@@ -103,96 +230,16 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: 
   // fractional offsets, but the browser stores scrollLeft as a whole number — the mismatch made
   // the zoom scroll-anchor's indexAt() floor to the previous (weekend) column, drifting the
   // left-edge date back a day on every zoom flip. dayWidth is already integer (resolveColumnFit).
-  const rawNarrow = Math.round(Math.min(options.weekendWidth, dayWidth));
-  const narrowWidth = Number.isFinite(rawNarrow) && rawNarrow > 0 ? rawNarrow : dayWidth;
-  const baseWeekWidth = minimiseActive ? 5 * dayWidth + 2 * narrowWidth : 7 * dayWidth;
-  const requestedWeekWidth = Math.round(options.targetWeekWidth ?? baseWeekWidth);
-  // resolveColumnFit floors the base width, so this is normally 0..4 (minimised) or 0..6
-  // (uniform). Clamp defensive callers to the available columns: distributing more than one extra
-  // pixel per column would obscure what `dayWidth` means and is never needed by the real fit.
-  const extraPixels = Math.min(
-    minimiseActive ? 5 : 7,
-    Math.max(0, Number.isFinite(requestedWeekWidth) ? requestedWeekWidth - baseWeekWidth : 0),
-  );
-
-  const widths: number[] = new Array(dayCount);
-  const offsets: number[] = new Array(dayCount + 1);
-  const weekdays: number[] = new Array(dayCount);
-  offsets[0] = 0;
-  for (let index = 0; index < dayCount; index++) {
-    const day = requireDenseValue(days, index, "Column geometry day window must be dense.");
-    const weekday = weekdayOf(day);
-    weekdays[index] = weekday;
-    const isWeekend = weekday === 0 || weekday === 6;
-    const extra = minimiseActive ? !isWeekend && weekday - 1 < extraPixels : weekday < extraPixels;
-    const width = minimiseActive && isWeekend ? narrowWidth : dayWidth + (extra ? 1 : 0);
-    widths[index] = width;
-    offsets[index + 1] = requireDenseValue(offsets, index, "Column geometry offsets must be dense.") + width;
-  }
-  const totalWidth = requireDenseValue(offsets, dayCount, "Column geometry offsets must align with the day window.");
+  const measurements = buildColumnMeasurements(days, dayWidth, options);
   const origin = days[0]; // undefined only when n === 0 (an empty window)
-
-  const clampEdge = (i: number): number => (i < 0 ? 0 : i > dayCount ? dayCount : i);
-
-  // Date → px allowing extrapolation outside [0, n]. In-window it's a prefix-sum lookup;
-  // outside it continues at full `dayWidth` so off-window bars keep the old overflow geometry.
-  const xForDayIndex = (i: number): number => {
-    if (i < 0) return i * dayWidth;
-    if (i > dayCount) return totalWidth + (i - dayCount) * dayWidth;
-    return requireDenseValue(offsets, i, "Column geometry offsets must align with the day window.");
-  };
-
-  const indexAt = (px: number): number => {
-    if (dayCount === 0 || px <= 0) return 0;
-    if (px >= totalWidth) return dayCount - 1;
-    // Largest i in [0, n-1] with offsets[i] <= px. offsets is strictly increasing (every
-    // width > 0), so this is the exact inverse of x(): px === offsets[i] resolves to i.
-    let lowerIndex = 0;
-    let upperIndex = dayCount - 1;
-    while (lowerIndex < upperIndex) {
-      const middleIndex = (lowerIndex + upperIndex + 1) >> 1;
-      if (requireDenseValue(offsets, middleIndex, "Column geometry offsets must be dense.") <= px)
-        lowerIndex = middleIndex;
-      else upperIndex = middleIndex - 1;
-    }
-    return lowerIndex;
-  };
+  const accessors = createGeometryAccessors({ ...measurements, dayCount, dayWidth, origin });
 
   return {
-    widths,
-    offsets,
-    totalWidth,
-    weekdays,
+    ...measurements,
     perDayColumns,
     showWeekdayLabels: dayWidth >= WEEKDAY_LABEL_MIN_WIDTH,
     minimiseActive,
-    x: (index) => requireDenseValue(offsets, clampEdge(index), "Column geometry offsets must be dense."),
-    widthOf: (index) =>
-      index >= 0 && index < dayCount
-        ? requireDenseValue(widths, index, "Column geometry widths must align with the day window.")
-        : 0,
-    spanWidth: (startIndex, endIndex) =>
-      Math.max(
-        0,
-        requireDenseValue(offsets, clampEdge(endIndex + 1), "Column geometry offsets must be dense.") -
-          requireDenseValue(offsets, clampEdge(startIndex), "Column geometry offsets must be dense."),
-      ),
-    indexAt,
-    indexAtScroll: (scrollLeft) => indexAt(Math.round(scrollLeft)),
-    xForDateInGeom: (date) => {
-      if (!origin) return 0;
-      const i = dayIndex(date, origin);
-      return Number.isFinite(i) ? xForDayIndex(i) : 0;
-    },
-    widthForDates: (start, end) => {
-      if (!origin) return 0;
-      const section = dayIndex(start, origin);
-      const endIndex = dayIndex(end, origin);
-      // Reversed or unparseable range → 0 (a harmless zero-width bar), never negative / NaN —
-      // mirrors the old widthForRange contract.
-      if (!Number.isFinite(section) || !Number.isFinite(endIndex)) return 0;
-      return Math.max(0, xForDayIndex(endIndex + 1) - xForDayIndex(section));
-    },
+    ...accessors,
   };
 }
 

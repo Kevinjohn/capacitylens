@@ -147,6 +147,20 @@ describe("buildColumnGeometry — malformed windows", () => {
 
     expect(() => buildColumnGeometry(sparseDays, 48, OFF)).toThrow("day window must be dense");
   });
+
+  it("rejects a missing width instead of treating a misaligned column as zero-width", () => {
+    const geom = buildColumnGeometry(WEEK, 48, OFF);
+    delete geom.widths[3];
+
+    expect(() => geom.widthOf(3)).toThrow("widths must align with the day window");
+  });
+
+  it("rejects a missing offset instead of treating a misaligned edge as zero", () => {
+    const geom = buildColumnGeometry(WEEK, 48, OFF);
+    delete geom.offsets[3];
+
+    expect(() => geom.x(3)).toThrow("offsets must be dense");
+  });
 });
 
 describe("buildColumnGeometry — gating + degenerate windows", () => {
