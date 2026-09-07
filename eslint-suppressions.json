@@ -484,46 +484,6 @@
       "count": 1
     }
   },
-  "src/data/persist.test.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/data/persistence/accountSwitch.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/data/persistence/attachPersistence.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/data/persistence/domListeners.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/data/persistence/refreshController.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/data/persistence/writeQueue.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/data/sync/batchWire.ts": {
-    "max-params": {
-      "count": 3
-    }
-  },
-  "src/data/sync/snapshot.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "src/hooks/useDragResize.test.tsx": {
     "max-params": {
       "count": 1
