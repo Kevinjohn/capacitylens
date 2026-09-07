@@ -62,7 +62,12 @@ describe("P3.3 restore drill", () => {
     expect(readState(live).accounts.map((a) => a.name)).toContain("Wayne Enterprises");
 
     // 2. Snapshot S1 — the point we will recover to. Then stop the daemon's timer.
-    const backups = startBackups(live, { dir: backupsDir, intervalMin: 60, keep: 48 }, () => {}, tickingClock());
+    const backups = startBackups({
+      db: live,
+      config: { dir: backupsDir, intervalMin: 60, keep: 48 },
+      log: () => {},
+      now: tickingClock(),
+    });
     const snapshot = await backups.snapshotNow();
     await backups.stop();
     expect(existsSync(snapshot)).toBe(true);

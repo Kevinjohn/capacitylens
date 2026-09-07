@@ -190,7 +190,11 @@ describe("pre-migration rollback snapshot", () => {
     const db = trackDatabase(new DatabaseSync(dbPath));
     db.exec("CREATE TABLE example (value TEXT NOT NULL); PRAGMA user_version = 7;");
 
-    await writePreMigrationBackup(db, { dbPath, fromVersion: 7, toVersion: 8, dir: rollbacks }, () => {});
+    await writePreMigrationBackup({
+      db,
+      options: { dbPath, fromVersion: 7, toVersion: 8, dir: rollbacks },
+      log: () => {},
+    });
     db.close();
 
     expect(statSync(rollbacks).mode & 0o777).toBe(0o700);
@@ -209,16 +213,16 @@ describe("pre-migration rollback snapshot", () => {
     expect(plan.migrations.map((migration) => migration.version)).toEqual([
       8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
     ]);
-    const snapshot = await writePreMigrationBackup(
+    const snapshot = await writePreMigrationBackup({
       db,
-      {
+      options: {
         dbPath,
         fromVersion: plan.fromVersion,
         toVersion: plan.toVersion,
         dir: join(dir, "rollbacks"),
       },
-      () => {},
-    );
+      log: () => {},
+    });
     expect(snapshot).not.toBeNull();
 
     initializeOpenDb(db, dbPath);
@@ -264,10 +268,13 @@ describe("pre-migration rollback snapshot", () => {
   it("does not create a rollback artifact for an in-memory database", async () => {
     const db = openDb(":memory:");
     await expect(
-      writePreMigrationBackup(db, {
-        dbPath: ":memory:",
-        fromVersion: 7,
-        toVersion: 8,
+      writePreMigrationBackup({
+        db,
+        options: {
+          dbPath: ":memory:",
+          fromVersion: 7,
+          toVersion: 8,
+        },
       }),
     ).resolves.toBeNull();
     db.close();
@@ -294,11 +301,16 @@ describe("pre-migration rollback snapshot", () => {
       try {
         await expect(
           (async () => {
-            await writePreMigrationBackup(db, { dbPath, fromVersion: 7, toVersion: 19, dir: rollbacks }, log, {
-              chmod: (path, mode) => runStage("chmod-file", () => chmodSync(path, mode)),
-              syncFile: (path) => runStage("sync-file", () => syncTestPath(path)),
-              rename: (from, to) => runStage("rename", () => renameSync(from, to)),
-              syncDirectory: (path) => runStage("sync-directory", () => syncTestPath(path)),
+            await writePreMigrationBackup({
+              db,
+              options: { dbPath, fromVersion: 7, toVersion: 19, dir: rollbacks },
+              log,
+              publisher: {
+                chmod: (path, mode) => runStage("chmod-file", () => chmodSync(path, mode)),
+                syncFile: (path) => runStage("sync-file", () => syncTestPath(path)),
+                rename: (from, to) => runStage("rename", () => renameSync(from, to)),
+                syncDirectory: (path) => runStage("sync-directory", () => syncTestPath(path)),
+              },
             });
             initialize();
           })(),
@@ -327,17 +339,17 @@ describe("pre-migration rollback snapshot", () => {
       "legacy crash-loop artifact",
     );
     writeFileSync(join(rollbacks, "capacitylens-pre-migration-v7-to-v16.db.tmp"), "torn stable refresh");
-    const first = await writePreMigrationBackup(
+    const first = await writePreMigrationBackup({
       db,
-      { dbPath, fromVersion: 7, toVersion: 16, dir: rollbacks },
-      () => {},
-    );
+      options: { dbPath, fromVersion: 7, toVersion: 16, dir: rollbacks },
+      log: () => {},
+    });
     db.prepare("INSERT INTO example (value) VALUES (?)").run("before-second-attempt");
-    const second = await writePreMigrationBackup(
+    const second = await writePreMigrationBackup({
       db,
-      { dbPath, fromVersion: 7, toVersion: 16, dir: rollbacks },
-      () => {},
-    );
+      options: { dbPath, fromVersion: 7, toVersion: 16, dir: rollbacks },
+      log: () => {},
+    });
     db.close();
 
     expect(second).toBe(first);
@@ -366,7 +378,7 @@ describe("startBackups", () => {
 
     let failure: unknown;
     try {
-      startBackups(db, { dir, intervalMin: 60, keep: 48 });
+      startBackups({ db, config: { dir, intervalMin: 60, keep: 48 } });
     } catch (error) {
       failure = error;
     }
@@ -382,7 +394,12 @@ describe("startBackups", () => {
     chmodSync(dir, 0o777);
     const db = openDb(":memory:");
 
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, tickingClock());
+    const backups = startBackups({
+      db,
+      config: { dir, intervalMin: 60, keep: 48 },
+      log: () => {},
+      now: tickingClock(),
+    });
     await backups.stop();
 
     expect(statSync(dir).mode & 0o777).toBe(0o700);
@@ -393,7 +410,7 @@ describe("startBackups", () => {
     const db = openDb(":memory:");
     insertAll(db, seed());
     const log = vi.fn();
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, log, tickingClock());
+    const backups = startBackups({ db, config: { dir, intervalMin: 60, keep: 48 }, log, now: tickingClock() });
     const file = await backups.snapshotNow();
     await backups.stop();
 
@@ -417,22 +434,28 @@ describe("startBackups", () => {
     writeFileSync(oldSnapshot, "old recovery point");
     const db = openDb(":memory:");
     const stages: string[] = [];
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 1 }, () => {}, tickingClock(), {
-      chmod: (path, mode) => {
-        stages.push("chmod-file");
-        chmodSync(path, mode);
-      },
-      syncFile: (path) => {
-        stages.push("sync-file");
-        syncTestPath(path);
-      },
-      rename: (from, to) => {
-        stages.push("rename");
-        renameSync(from, to);
-      },
-      syncDirectory: (path) => {
-        stages.push(`sync-directory:${existsSync(oldSnapshot) ? "before-retention" : "after-retention"}`);
-        syncTestPath(path);
+    const backups = startBackups({
+      db,
+      config: { dir, intervalMin: 60, keep: 1 },
+      log: () => {},
+      now: tickingClock(),
+      publisher: {
+        chmod: (path, mode) => {
+          stages.push("chmod-file");
+          chmodSync(path, mode);
+        },
+        syncFile: (path) => {
+          stages.push("sync-file");
+          syncTestPath(path);
+        },
+        rename: (from, to) => {
+          stages.push("rename");
+          renameSync(from, to);
+        },
+        syncDirectory: (path) => {
+          stages.push(`sync-directory:${existsSync(oldSnapshot) ? "before-retention" : "after-retention"}`);
+          syncTestPath(path);
+        },
       },
     });
 
@@ -460,11 +483,17 @@ describe("startBackups", () => {
         if (stage === failureStage) throw new Error(`simulated ${stage} failure`);
         operation();
       };
-      const backups = startBackups(db, { dir, intervalMin: 60, keep: 1 }, log, tickingClock(), {
-        chmod: (path, mode) => failAt("chmod-file", () => chmodSync(path, mode)),
-        syncFile: (path) => failAt("sync-file", () => syncTestPath(path)),
-        rename: (from, to) => failAt("rename", () => renameSync(from, to)),
-        syncDirectory: (path) => failAt("sync-directory", () => syncTestPath(path)),
+      const backups = startBackups({
+        db,
+        config: { dir, intervalMin: 60, keep: 1 },
+        log,
+        now: tickingClock(),
+        publisher: {
+          chmod: (path, mode) => failAt("chmod-file", () => chmodSync(path, mode)),
+          syncFile: (path) => failAt("sync-file", () => syncTestPath(path)),
+          rename: (from, to) => failAt("rename", () => renameSync(from, to)),
+          syncDirectory: (path) => failAt("sync-directory", () => syncTestPath(path)),
+        },
       });
 
       await backups.stop();
@@ -479,7 +508,7 @@ describe("startBackups", () => {
     const dir = tempDir();
     writeFileSync(join(dir, "not-a-snapshot.txt"), "keep me");
     const db = openDb(":memory:");
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 2 }, () => {}, tickingClock());
+    const backups = startBackups({ db, config: { dir, intervalMin: 60, keep: 2 }, log: () => {}, now: tickingClock() });
     await backups.snapshotNow();
     await backups.snapshotNow();
     await backups.snapshotNow();
@@ -501,7 +530,7 @@ describe("startBackups", () => {
     const instants = ["2026-10-25T00:59:59.900Z", "2026-10-25T01:00:00.100Z"];
     let nextInstant = 0;
     const clock = () => new Date(instants[Math.min(nextInstant++, instants.length - 1)]);
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 1 }, () => {}, clock);
+    const backups = startBackups({ db, config: { dir, intervalMin: 60, keep: 1 }, log: () => {}, now: clock });
     try {
       const newest = await backups.snapshotNow();
       expect(existsSync(newest)).toBe(true);
@@ -517,7 +546,7 @@ describe("startBackups", () => {
     const livePath = join(dir, "capacitylens-20000101-000000-000.db");
     const db = openDb(livePath);
     insertAll(db, seed());
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 1 }, () => {}, tickingClock());
+    const backups = startBackups({ db, config: { dir, intervalMin: 60, keep: 1 }, log: () => {}, now: tickingClock() });
 
     await backups.snapshotNow();
     await backups.stop();
@@ -540,7 +569,7 @@ describe("startBackups", () => {
     const db = openDb(livePath);
     insertAll(db, seed());
     linkSync(livePath, alias);
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 1 }, () => {}, tickingClock());
+    const backups = startBackups({ db, config: { dir, intervalMin: 60, keep: 1 }, log: () => {}, now: tickingClock() });
 
     await backups.snapshotNow();
     await backups.stop();
@@ -556,7 +585,7 @@ describe("startBackups", () => {
     const db = openDb(":memory:");
     insertAll(db, seed());
     const log = vi.fn();
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 1 }, log, tickingClock());
+    const backups = startBackups({ db, config: { dir, intervalMin: 60, keep: 1 }, log, now: tickingClock() });
 
     // Queue behind the start-up shot and retain this second, verified snapshot as the sole known-
     // good recovery point. The invalid attempt below would previously replace it under keep=1.
@@ -588,7 +617,7 @@ describe("startBackups", () => {
     // A FROZEN clock is the worst case: without the monotonic bump every snapshot would target
     // the same file and silently overwrite the previous one.
     const frozen = () => new Date("2026-06-13T00:00:00");
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, frozen);
+    const backups = startBackups({ db, config: { dir, intervalMin: 60, keep: 48 }, log: () => {}, now: frozen });
     const a = await backups.snapshotNow();
     const b = await backups.snapshotNow();
     await backups.stop();
@@ -603,7 +632,7 @@ describe("startBackups", () => {
     const dir = tempDir();
     const db = openDb(":memory:");
     const log = vi.fn();
-    const backups = startBackups(db, { dir, intervalMin: 1, keep: 48 }, log, tickingClock());
+    const backups = startBackups({ db, config: { dir, intervalMin: 1, keep: 48 }, log, now: tickingClock() });
     try {
       // The start-up snapshot is suspended at its async write (no microtask has run yet); firing
       // the first interval tick NOW must hit the in-flight guard — skipped, with a loud notice.
@@ -624,7 +653,12 @@ describe("startBackups", () => {
     const dir = tempDir();
     const db = openDb(":memory:");
     // 0.0005 min = 30ms — the injected tiny interval from the activity spec.
-    const backups = startBackups(db, { dir, intervalMin: 0.0005, keep: 48 }, () => {}, tickingClock());
+    const backups = startBackups({
+      db,
+      config: { dir, intervalMin: 0.0005, keep: 48 },
+      log: () => {},
+      now: tickingClock(),
+    });
     await vi.waitFor(() => expect(snapshots(dir).length).toBeGreaterThanOrEqual(3), { timeout: 5000 });
     await backups.stop();
     const after = snapshots(dir).length;
@@ -637,7 +671,7 @@ describe("startBackups", () => {
     const db = openDb(":memory:");
     insertAll(db, seed());
     const log = vi.fn();
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, log, tickingClock());
+    const backups = startBackups({ db, config: { dir, intervalMin: 60, keep: 48 }, log, now: tickingClock() });
     // The start-up snapshot is still suspended at its async write (no microtask has run yet).
     // stop() must wait it out: the shutdown path (index.ts) closes the DB immediately after,
     // and closing under a running backup can leave a truncated file behind a snapshot name.
@@ -657,11 +691,11 @@ describe("startBackups", () => {
     // monotonic floor resets to 0, so the second instance would reuse the first one's stamp
     // and silently overwrite its file on the node:sqlite backup path.
     const frozen = () => new Date("2026-06-13T01:00:00");
-    const first = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, frozen);
+    const first = startBackups({ db, config: { dir, intervalMin: 60, keep: 48 }, log: () => {}, now: frozen });
     const before = await first.snapshotNow();
     await first.stop();
     // "Restart": a fresh instance over the same dir must seed its floor from the files on disk.
-    const second = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, frozen);
+    const second = startBackups({ db, config: { dir, intervalMin: 60, keep: 48 }, log: () => {}, now: frozen });
     const after = await second.snapshotNow();
     await second.stop();
 
@@ -680,7 +714,7 @@ describe("startBackups", () => {
     writeFileSync(join(dir, "capacitylens-utc-20260613-010000.db"), "second-precision snapshot (seeds the floor)");
     const db = openDb(":memory:");
     const frozen = () => new Date("2026-06-13T01:00:00Z");
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, frozen);
+    const backups = startBackups({ db, config: { dir, intervalMin: 60, keep: 48 }, log: () => {}, now: frozen });
     const written = await backups.snapshotNow();
     await backups.stop();
 
@@ -706,7 +740,12 @@ describe("startBackups", () => {
     writeFileSync(fresh, "live write from a sibling instance");
     writeFileSync(join(dir, "not-a-snapshot.txt"), "keep me");
     const db = openDb(":memory:");
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, tickingClock());
+    const backups = startBackups({
+      db,
+      config: { dir, intervalMin: 60, keep: 48 },
+      log: () => {},
+      now: tickingClock(),
+    });
     await backups.stop();
 
     const files = readdirSync(dir);
@@ -730,7 +769,7 @@ describe("startBackups", () => {
     utimesSync(stale, new Date(Date.now() - 2 * 60 * 60_000), new Date(Date.now() - 2 * 60 * 60_000));
     const log = vi.fn();
     const db = openDb(":memory:");
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, log, tickingClock());
+    const backups = startBackups({ db, config: { dir, intervalMin: 60, keep: 48 }, log, now: tickingClock() });
     await backups.stop();
 
     expect(log).toHaveBeenCalledWith(expect.stringContaining("start-up sweep skipped"));
@@ -750,7 +789,7 @@ describe("startBackups", () => {
     mkdirSync(join(dir, "capacitylens-20200101-000000-000.db"));
     const log = vi.fn();
     const db = openDb(":memory:");
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 1 }, log, tickingClock());
+    const backups = startBackups({ db, config: { dir, intervalMin: 60, keep: 1 }, log, now: tickingClock() });
     await expect(backups.snapshotNow()).resolves.toMatch(/\.db$/);
     await backups.stop();
 
@@ -763,7 +802,12 @@ describe("startBackups", () => {
   it("a failed snapshot removes its temp file and surfaces the original error", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, tickingClock());
+    const backups = startBackups({
+      db,
+      config: { dir, intervalMin: 60, keep: 48 },
+      log: () => {},
+      now: tickingClock(),
+    });
     // Let the start-up shot finish cleanly (snapshotNow queues behind it), THEN break the DB:
     // backup()/VACUUM INTO on a closed handle is a realistic mid-write fault.
     await backups.snapshotNow();
@@ -784,7 +828,12 @@ describe("startBackups", () => {
     const dir = tempDir();
     const db = openDb(":memory:");
     insertAll(db, seed());
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, tickingClock());
+    const backups = startBackups({
+      db,
+      config: { dir, intervalMin: 60, keep: 48 },
+      log: () => {},
+      now: tickingClock(),
+    });
     // Fire two overlapping calls without awaiting (both also overlap the start-up shot). An
     // unserialized implementation would run two writers at once and let the newer call null the
     // guard stop() awaits while the older still runs — shutdown would close the DB under it.
@@ -817,7 +866,12 @@ describe("startBackups", () => {
     const dir = tempDir();
     const db = openDb(":memory:");
     insertAll(db, seed());
-    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, tickingClock());
+    const backups = startBackups({
+      db,
+      config: { dir, intervalMin: 60, keep: 48 },
+      log: () => {},
+      now: tickingClock(),
+    });
     const order: string[] = [];
     // Queued behind the start-up shot, NOT awaited — stop() begins while both are pending.
     const a = backups.snapshotNow().then((f) => {
