@@ -334,6 +334,47 @@ function readSurvivorState(response: unknown): SurvivorState {
   };
 }
 
+interface DeletedResourceResponse {
+  name: string;
+  deletedAt: string;
+  archivedAt: string;
+}
+
+function readDeletedResource(value: unknown): DeletedResourceResponse {
+  if (
+    !isUnknownRecord(value) ||
+    typeof value.name !== "string" ||
+    typeof value.deletedAt !== "string" ||
+    typeof value.archivedAt !== "string"
+  ) {
+    throw new Error("Expected a deleted lifecycle resource.");
+  }
+  return { name: value.name, deletedAt: value.deletedAt, archivedAt: value.archivedAt };
+}
+
+function readDeletedResourceResponse(response: unknown): DeletedResourceResponse {
+  return readDeletedResource(readResponseBodyRecord(response));
+}
+
+function readDeletedResourceState(response: unknown, id: string): DeletedResourceResponse {
+  const resources = readResponseBodyRecord(response).resources;
+  if (!Array.isArray(resources)) {
+    throw new Error("Expected lifecycle state resource rows.");
+  }
+  let resource: unknown;
+  for (const row of resources) {
+    const candidate: unknown = row;
+    if (isUnknownRecord(candidate) && candidate.id === id) {
+      resource = candidate;
+      break;
+    }
+  }
+  if (resource === undefined) {
+    throw new Error(`Expected lifecycle state resource ${id}.`);
+  }
+  return readDeletedResource(resource);
+}
+
 // One built-in Internal client whose id is captured so the built-in-guard test can target it (its id is
 // random per buildInternalClient call, so it MUST be built once and reused — not rebuilt at assert time).
 const INTERNAL = buildInternalClient("a1", TS);
@@ -937,14 +978,14 @@ describe("P2.5a lifecycle — resource soft-delete obfuscation persists (P2.3 ca
     });
     expect(del.statusCode).toBe(200);
     // The route's own response already carries the scrubbed name.
-    expect(del.json().name).toMatch(/^Removed person #/);
+    expect(readDeletedResourceResponse(del).name).toMatch(/^Removed person #/);
     expect(del.body).not.toContain(SENTINEL_NAME);
 
     // The PERSISTED row (read back with includeInactive=1) is scrubbed, and the sentinel string never
     // serializes anywhere in the raw response body — proof the scrub is server-side, not a client hide.
     const after = await readInactive(app, "a1", cookie);
     expect(after.statusCode).toBe(200);
-    const row = after.json().resources.find((r: { id: string }) => r.id === "rSent");
+    const row = readDeletedResourceState(after, "rSent");
     expect(row.name).toMatch(/^Removed person #/);
     expect(row.deletedAt).toBeTruthy(); // the tombstone is set…
     expect(row.archivedAt).toBeTruthy(); // …and archivedAt (set by the prior archive) is preserved.
