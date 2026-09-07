@@ -97,7 +97,7 @@ async function reloadFromServer(accountId: string): Promise<LifecycleReloadOutco
   // caller can keep that deliberate stale-tenant outcome silent while treating a same-tenant skip
   // (normally a failed save that must not be overwritten) as committed-but-stale.
   if (useStore.getState().activeAccountId !== accountId) return { kind: "stale-account" };
-  if (outcome !== "unattached") return { kind: outcome };
+  if (outcome.kind !== "unattached") return outcome;
   const slice = await persistenceAdapter.loadAll(accountId);
   // The bare load is asynchronous too. A switch can happen after the pre-load guard but before the
   // old slice arrives, so check ownership again at the exact store-install boundary.

@@ -1,3 +1,4 @@
+import type { FlushPendingWritesResult } from "./facades";
 import type { StoreApi } from "zustand";
 import type { StoreState } from "../../store/useStore";
 import type { PersistenceAdapter } from "../PersistenceAdapter";
@@ -109,12 +110,12 @@ export function attachPersistence({
   // than let its post-import reload wipe an unsaved edit or its retry replay a stale diff over the
   // freshly imported slice.
   const myRegisteredFlush = serverMode
-    ? async (): Promise<boolean> => {
-        if (owner.current.disposed) return false;
-        if (owner.current.authoritativeReloadRequiredFor !== null) return false;
+    ? async (): Promise<FlushPendingWritesResult> => {
+        if (owner.current.disposed) return { kind: "blocked" };
+        if (owner.current.authoritativeReloadRequiredFor !== null) return { kind: "blocked" };
         // Suspended: another slice replacement is already in flight — writes are NOT clean and
         // flushing the parked edit would push it against a mid-replacement snapshot. Refuse.
-        if (owner.current.suspendDepth > 0) return false;
+        if (owner.current.suspendDepth > 0) return { kind: "blocked" };
         // Loop until QUIESCENT, not just one round: writes are unsuspended during the await, so
         // an edit landing mid-flush arms a fresh debounce whose save can outlive a single await —
         // a one-shot flush would then return "clean" while that save is still on the wire, and
@@ -132,17 +133,17 @@ export function attachPersistence({
           cancelDebounce();
           if (owner.current.pending) save(owner.current.pending); // consumes pending, sets inFlightSave synchronously
           if (owner.current.inFlightSave) await owner.current.inFlightSave;
-          if (owner.current.suspendDepth > 0) return false;
+          if (owner.current.suspendDepth > 0) return { kind: "blocked" };
         }
-        return (
-          !owner.current.disposed &&
+        return !owner.current.disposed &&
           owner.current.suspendDepth === 0 &&
           !owner.current.timer &&
           !owner.current.pending &&
           !owner.current.inFlightSave &&
           !owner.current.failedSinceSuccess &&
           owner.current.unacknowledged === null
-        );
+          ? { kind: "clean" }
+          : { kind: "blocked" };
       }
     : null;
   // Write-suspension seam (see suspendServerWrites' doc for the resume contract) — the EXTERNAL

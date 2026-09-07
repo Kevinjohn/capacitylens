@@ -654,8 +654,8 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       ...emptyAppData(),
       accounts: [{ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
     });
-    await expect(switching).resolves.toBe("reloaded");
-    await expect(switchAndAwaitHydration(null)).resolves.toBe("reloaded");
+    await expect(switching).resolves.toEqual({ kind: "reloaded" });
+    await expect(switchAndAwaitHydration(null)).resolves.toEqual({ kind: "reloaded" });
     expect(useStore.getState().activeAccountId).toBeNull();
     detach();
   });
@@ -677,7 +677,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const switching = switchAndAwaitHydration("a2");
     detach();
 
-    await expect(switching).resolves.toBe("unattached");
+    await expect(switching).resolves.toEqual({ kind: "unattached" });
   });
 
   it("loads the picked account slice into the store and does NOT push it back as a save", async () => {
@@ -1436,7 +1436,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
   // Uses the module-scope recordingAdapter / a2Slice / attachActiveA2 helpers.
 
   it("returns 'unattached' when no orchestrator is attached (the caller falls back to a bare reload)", async () => {
-    expect(await refreshActiveAccountSlice("a2")).toBe("unattached");
+    expect(await refreshActiveAccountSlice("a2")).toEqual({ kind: "unattached" });
   });
 
   it("FLUSHES a pending debounced edit BEFORE reloading (returns 'reloaded'; the edit lands first)", async () => {
@@ -1453,7 +1453,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
     order.length = 0; // ignore the initial switch's loadAll
 
     useStore.getState().addClient({ name: "Mid-debounce", color: "#222222" }); // not yet on the wire
-    expect(await refreshActiveAccountSlice("a2")).toBe("reloaded");
+    expect(await refreshActiveAccountSlice("a2")).toEqual({ kind: "reloaded" });
 
     expect(order[0]).toBe("saveAll"); // the edit POSTed before the reload re-seeded the snapshot
     expect(order).toContain("loadAll");
@@ -1467,7 +1467,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
     saveAll.mockRejectedValue(new Error("write unavailable"));
 
     useStore.getState().addClient({ name: "Unsynced", color: "#222222" });
-    expect(await refreshActiveAccountSlice("a2")).toBe("skipped"); // the orchestrator DECLINED, honestly…
+    expect(await refreshActiveAccountSlice("a2")).toEqual({ kind: "skipped" }); // the orchestrator DECLINED, honestly…
 
     expect(loadAll.mock.calls.length).toBe(loadsAfterPick); // …which refused to clobber the edit
     expect(useStore.getState().data.clients.some((c) => c.name === "Unsynced")).toBe(true);
@@ -1554,7 +1554,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
     const aLoadsBefore = loadAll.mock.calls.filter((c) => c[0] === "a1").length;
 
     // The lifecycle hook's stale reload lands NOW (mutation ran in A; user is on B).
-    expect(await refreshActiveAccountSlice("a1")).toBe("skipped"); // stale id — declined, honestly…
+    expect(await refreshActiveAccountSlice("a1")).toEqual({ kind: "skipped" }); // stale id — declined, honestly…
     expect(loadAll.mock.calls.filter((c) => c[0] === "a1").length).toBe(aLoadsBefore); // …as a no-op
 
     // B's in-flight load was NOT cancelled: when it resolves, B's slice still lands.
@@ -1569,7 +1569,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
     const { adapter } = recordingAdapter(a2Slice());
     const detach = await attachActiveA2({ adapter: adapter });
     detach();
-    expect(await refreshActiveAccountSlice("a2")).toBe("unattached");
+    expect(await refreshActiveAccountSlice("a2")).toEqual({ kind: "unattached" });
   });
 });
 
@@ -1581,18 +1581,18 @@ describe("flushPendingWrites (the import seam)", () => {
 
     useStore.getState().addClient({ name: "Pending", color: "#222222" }); // parked in the debounce
     expect(saveAll).not.toHaveBeenCalled();
-    expect(await flushPendingWrites()).toBe(true); // flushed + landed
+    expect(await flushPendingWrites()).toEqual({ kind: "clean" }); // flushed + landed
     expect(saveAll).toHaveBeenCalledTimes(1);
 
     // A failing write makes the seam report dirty — the import path must refuse to proceed.
     saveAll.mockRejectedValueOnce(new Error("server down"));
     useStore.getState().addClient({ name: "Doomed", color: "#333333" });
-    expect(await flushPendingWrites()).toBe(false);
+    expect(await flushPendingWrites()).toEqual({ kind: "blocked" });
     detach();
   });
 
   it("returns true (clean, nothing to flush) when no orchestrator is attached", async () => {
-    expect(await flushPendingWrites()).toBe(true);
+    expect(await flushPendingWrites()).toEqual({ kind: "clean" });
   });
 
   it('loops until QUIESCENT — an edit landing mid-flush is also flushed before "clean" is reported', async () => {
@@ -1620,7 +1620,7 @@ describe("flushPendingWrites (the import seam)", () => {
 
     useStore.getState().addClient({ name: "Mid-flush", color: "#333333" }); // lands during A's await
     releaseFirst!();
-    expect(await flush).toBe(true);
+    expect(await flush).toEqual({ kind: "clean" });
     // The flush swept the mid-flush edit too before reporting clean — nothing left on the wire.
     expect(saveAll).toHaveBeenCalledTimes(2);
     expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === "Mid-flush")).toBe(true);
@@ -1645,8 +1645,8 @@ describe("flushPendingWrites (the import seam)", () => {
     const refresh = refreshActiveAccountSlice("a2");
     releaseSave();
 
-    await expect(flush).resolves.toBe(false);
-    await expect(refresh).resolves.toBe("reloaded");
+    await expect(flush).resolves.toEqual({ kind: "blocked" });
+    await expect(refresh).resolves.toEqual({ kind: "reloaded" });
     detach();
   });
 });
@@ -1765,7 +1765,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
     const resume = suspendServerWrites();
     useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
-    expect(await refreshActiveAccountSlice("a2")).toBe("reloaded"); // the post-import re-hydrate
+    expect(await refreshActiveAccountSlice("a2")).toEqual({ kind: "reloaded" }); // the post-import re-hydrate
     resume();
     await new Promise((r) => setTimeout(r, 5));
 
@@ -1826,7 +1826,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     expect(saveAll).toHaveBeenCalledTimes(1); // parked instead
 
     releaseSave!();
-    expect(await refresh).toBe("reloaded");
+    expect(await refresh).toEqual({ kind: "reloaded" });
     await new Promise((r) => setTimeout(r, 350));
     expect(saveAll).toHaveBeenCalledTimes(2);
     expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === "During flush")).toBe(true);
@@ -1858,7 +1858,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     await new Promise((r) => setTimeout(r, 5));
     useStore.getState().addClient({ name: "Mid-failed-reload", color: "#222222" }); // parked
     release!();
-    expect(await refresh).toBe("failed");
+    expect(await refresh).toEqual({ kind: "failed" });
     await new Promise((r) => setTimeout(r, 5));
 
     expect(saveAll).toHaveBeenCalledTimes(1); // re-scheduled on resume
@@ -1896,7 +1896,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     expect((saveAll.mock.calls[0][0] as AppData).clients.some((c) => c.name === "Mid-reload")).toBe(true);
 
     release!();
-    expect(await refresh).toBe("reloaded");
+    expect(await refresh).toEqual({ kind: "reloaded" });
     // The page survived: the reload rebases the parked edit and performs a normal confirmed save.
     expect(saveAll).toHaveBeenCalledTimes(2);
     expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === "Mid-reload")).toBe(true);
@@ -1934,7 +1934,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     window.dispatchEvent(new Event("pagehide")); // keepalive dispatched — and REJECTS
 
     releaseLoad!();
-    expect(await refresh).toBe("reloaded");
+    expect(await refresh).toEqual({ kind: "reloaded" });
     expect(saveAll).toHaveBeenCalledTimes(2);
     expect(saveAll.mock.calls[1][1]).toBeUndefined();
     expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === "Hidden-tab edit")).toBe(true);
@@ -1986,7 +1986,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     });
 
     release!();
-    expect(await refresh).toBe("skipped");
+    expect(await refresh).toEqual({ kind: "skipped" });
     await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).toHaveBeenCalledTimes(1);
     expect((saveAll.mock.calls[0][0] as AppData).clients.map((c) => c.id)).toEqual(["c2", "internal:a2", "stale-c"]);
@@ -2019,7 +2019,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     useStore.getState().setActiveAccount(null);
     release!();
 
-    expect(await refresh).toBe("skipped");
+    expect(await refresh).toEqual({ kind: "skipped" });
     expect(useStore.getState().activeAccountId).toBeNull();
     expect(useStore.getState().data.clients.find((client) => client.id === "c2")?.name).toBe("Fresh remote name");
     expect(saveAll).not.toHaveBeenCalled();
@@ -2043,9 +2043,9 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     const { adapter } = recordingAdapter(a2Slice());
     const detach = await attachActiveA2({ adapter: adapter });
     const resume = suspendServerWrites();
-    expect(await flushPendingWrites()).toBe(false);
+    expect(await flushPendingWrites()).toEqual({ kind: "blocked" });
     resume();
-    expect(await flushPendingWrites()).toBe(true);
+    expect(await flushPendingWrites()).toEqual({ kind: "clean" });
     detach();
   });
 
@@ -2078,7 +2078,7 @@ describe("mid-reload edits are rebased onto the fresh server slice", () => {
     expect(saveAll).not.toHaveBeenCalled(); // …yet nothing was sent: writes are suspended during the load
 
     release!();
-    expect(await refresh).toBe("reloaded");
+    expect(await refresh).toEqual({ kind: "reloaded" });
     await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).toHaveBeenCalledTimes(1);
     expect((saveAll.mock.calls[0][0] as AppData).clients.map((c) => c.name)).toEqual([
@@ -2133,7 +2133,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
     saveAll.mockRejectedValueOnce(new Error("server down"));
     useStore.getState().addClient({ name: "Doomed in A", color: "#222222" });
     await new Promise((r) => setTimeout(r, 5));
-    expect(await flushPendingWrites()).toBe(false);
+    expect(await flushPendingWrites()).toEqual({ kind: "blocked" });
 
     // Switching to B succeeds: B's writes are clean BY CONSTRUCTION (fresh authoritative slice,
     // snapshot re-seeded) — A's abandoned failure must not follow the user into B.
@@ -2141,7 +2141,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
     onSuccess.mockClear();
     useStore.getState().setActiveAccount("b1");
     await new Promise((r) => setTimeout(r, 5));
-    expect(await flushPendingWrites()).toBe(true); // an import in B is no longer falsely blocked
+    expect(await flushPendingWrites()).toEqual({ kind: "clean" }); // an import in B is no longer falsely blocked
     expect(onSuccess).toHaveBeenCalled(); // and the "changes aren't saving" banner came down
 
     // The focus refresh in B is no longer suppressed by A's stale failedSinceSuccess.
@@ -2759,7 +2759,7 @@ describe("persistence coordinator fault-injection branches", () => {
 
     expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(BatchCommitUncertainError);
     expect(loadAll).not.toHaveBeenCalled();
-    await expect(flushPendingWrites()).resolves.toBe(false);
+    await expect(flushPendingWrites()).resolves.toEqual({ kind: "blocked" });
     detach();
   });
 
@@ -2951,7 +2951,7 @@ describe("persistence coordinator fault-injection branches", () => {
     detach();
     rejectRefresh(new Error("late load failure"));
 
-    await expect(refreshing).resolves.toBe("skipped");
+    await expect(refreshing).resolves.toEqual({ kind: "skipped" });
     expect(onError).not.toHaveBeenCalled();
   });
 
@@ -3024,7 +3024,7 @@ describe("persistence coordinator fault-injection branches", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     const flushing = flushPendingWrites();
     resolveSave();
-    await expect(flushing).resolves.toBe(true);
+    await expect(flushing).resolves.toEqual({ kind: "clean" });
     detach();
   });
 
@@ -3039,7 +3039,7 @@ describe("persistence coordinator fault-injection branches", () => {
     useStore.getState().addClient({ name: "Uncertain", color: "#111111" });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    await expect(flushPendingWrites()).resolves.toBe(false);
+    await expect(flushPendingWrites()).resolves.toEqual({ kind: "blocked" });
     detach();
   });
 

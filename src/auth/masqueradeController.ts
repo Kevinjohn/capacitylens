@@ -3,7 +3,13 @@ import type {
   MasqueradeState,
   MasqueradeStatus,
 } from "@capacitylens/shared/domain/masquerade";
-import { flushPendingWrites, suspendServerWrites, switchAndAwaitHydration, type RefreshOutcome } from "../data/persist";
+import {
+  flushPendingWrites,
+  suspendServerWrites,
+  switchAndAwaitHydration,
+  type FlushPendingWritesResult,
+  type RefreshOutcome,
+} from "../data/persist";
 import { setMasqueradeEndedHandler } from "../data/requestTimeout";
 import { useStore } from "../store/useStore";
 import { masqueradeApi } from "./masqueradeApi";
@@ -25,11 +31,11 @@ type EndProjectionResult = { kind: "inactive" } | { kind: "superseded" } | { kin
 type NoStatePolicy = "succeed" | "wait";
 
 function isSwitchSuccessful(outcome: RefreshOutcome, accountId: string | null): boolean {
-  return outcome === "reloaded" || (accountId === null && outcome !== "failed");
+  return outcome.kind === "reloaded" || (accountId === null && outcome.kind !== "failed");
 }
 
 export interface MasqueradeControllerDependencies {
-  flush: () => Promise<boolean>;
+  flush: () => Promise<FlushPendingWritesResult>;
   suspend: () => ResumeWrites;
   reproject: (accountId: string) => Promise<boolean>;
   switchAccount: (accountId: string | null) => Promise<RefreshOutcome>;
@@ -65,7 +71,7 @@ export class MasqueradeController {
     if (useStore.getState().masquerade.phase !== "inactive") {
       return this.fail("End the current masquerade before starting another.");
     }
-    if (!(await this.dependencies.flush())) {
+    if ((await this.dependencies.flush()).kind === "blocked") {
       return this.fail("Save pending changes before starting a masquerade.");
     }
 
