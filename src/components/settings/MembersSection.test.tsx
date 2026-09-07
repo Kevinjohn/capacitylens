@@ -255,6 +255,36 @@ const ownerAndEditor: RawMember[] = [
   { userId: "ed", role: "editor", mayResetPassword: true, mayRevokeSessions: true },
 ];
 
+const soleOwnerAndEditor: RawMember[] = [
+  { userId: "me", role: "owner", isSelf: true },
+  { userId: "ed", role: "editor" },
+];
+
+const accessibleNameMembers: RawMember[] = [
+  { userId: "me", role: "owner", isSelf: true },
+  {
+    userId: "alice",
+    name: "Barbara Gordon",
+    email: "alice@example.test",
+    role: "editor",
+    mayResetPassword: true,
+    mayRevokeSessions: true,
+  },
+  {
+    userId: "bob",
+    name: "James Gordon",
+    email: "bob@example.test",
+    role: "viewer",
+    mayResetPassword: true,
+    mayRevokeSessions: true,
+  },
+];
+
+const accessibleMemberNames = [
+  ["Barbara Gordon", "Barbara Gordon (alice@example.test)"],
+  ["James Gordon", "James Gordon (bob@example.test)"],
+] as const;
+
 function stubPageReload(): ReturnType<typeof vi.fn> {
   const reload = vi.fn();
   const windowStub = Object.create(window) as Window;
@@ -753,35 +783,13 @@ describe("MembersSection — admin affordances", () => {
 
 describe("MembersSection — owner affordances", () => {
   it("gives every member-row control a unique member-scoped accessible name", async () => {
-    const members: RawMember[] = [
-      { userId: "me", role: "owner", isSelf: true },
-      {
-        userId: "alice",
-        name: "Barbara Gordon",
-        email: "alice@example.test",
-        role: "editor",
-        mayResetPassword: true,
-        mayRevokeSessions: true,
-      },
-      {
-        userId: "bob",
-        name: "James Gordon",
-        email: "bob@example.test",
-        role: "viewer",
-        mayResetPassword: true,
-        mayRevokeSessions: true,
-      },
-    ];
-    vi.stubGlobal("fetch", mockApi(members));
+    vi.stubGlobal("fetch", mockApi(accessibleNameMembers));
     renderSection();
     await screen.findByTestId("members-section");
 
     const user = userEvent.setup();
     const rows = screen.getAllByTestId("member-row");
-    for (const [name, member] of [
-      ["Barbara Gordon", "Barbara Gordon (alice@example.test)"],
-      ["James Gordon", "James Gordon (bob@example.test)"],
-    ] as const) {
+    for (const [name, member] of accessibleMemberNames) {
       // Both row affordances name their subject, so a screen reader never hears a bare "Edit".
       expect(screen.getByRole("button", { name: `Edit ${member}` })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: `More actions for ${member}` })).toBeInTheDocument();
@@ -807,11 +815,7 @@ describe("MembersSection — owner affordances", () => {
 
   it("never offers Owner as an ordinary role, even to the Owner", async () => {
     const user = userEvent.setup();
-    const members: RawMember[] = [
-      { userId: "me", role: "owner", isSelf: true },
-      { userId: "ed", role: "editor" },
-    ];
-    vi.stubGlobal("fetch", mockApi(members));
+    vi.stubGlobal("fetch", mockApi(soleOwnerAndEditor));
     renderSection();
     await screen.findByTestId("members-section");
 
@@ -827,11 +831,7 @@ describe("MembersSection — owner affordances", () => {
   });
 
   it("keeps the single Owner outside ordinary role and removal controls", async () => {
-    const members: RawMember[] = [
-      { userId: "me", role: "owner", isSelf: true }, // the only owner
-      { userId: "ed", role: "editor" },
-    ];
-    vi.stubGlobal("fetch", mockApi(members));
+    vi.stubGlobal("fetch", mockApi(soleOwnerAndEditor));
     renderSection();
     await screen.findByTestId("members-section");
 
