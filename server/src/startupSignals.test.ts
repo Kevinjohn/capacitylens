@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { installStartupSignalHandlers } from "./startupSignals";
+import { installStartupSignalHandlers, stopStartupIfRequested } from "./startupSignals";
 
 describe("startup signal handlers", () => {
   const controllers: Array<{ dispose(): void }> = [];
@@ -33,5 +33,113 @@ describe("startup signal handlers", () => {
     process.emit("SIGINT");
 
     expect(onRequested).not.toHaveBeenCalled();
+  });
+});
+
+describe("startup stop checkpoints", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("does nothing when no startup signal is requested", () => {
+    const stopped = new Error("test exit sentinel");
+    const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw stopped;
+    });
+    const report = vi.spyOn(console, "error").mockImplementation(() => {});
+    const close = vi.fn();
+    const dispose = vi.fn();
+
+    stopStartupIfRequested({ startupSignals: { requested: () => null, dispose }, openDb: { close } });
+
+    expect(close).not.toHaveBeenCalled();
+    expect(dispose).not.toHaveBeenCalled();
+    expect(exit).not.toHaveBeenCalled();
+    expect(report).not.toHaveBeenCalled();
+  });
+
+  it("closes the database before disposing and exiting at a requested checkpoint", () => {
+    const stopped = new Error("test exit sentinel");
+    const order: string[] = [];
+    vi.spyOn(process, "exit").mockImplementation((code) => {
+      order.push("exit " + code);
+      throw stopped;
+    });
+
+    expect(() =>
+      stopStartupIfRequested({
+        startupSignals: {
+          requested: () => "SIGTERM",
+          dispose: () => {
+            order.push("dispose");
+          },
+        },
+        openDb: {
+          close: () => {
+            order.push("close");
+          },
+        },
+      }),
+    ).toThrow(stopped);
+
+    expect(order).toEqual(["close", "dispose", "exit 0"]);
+  });
+
+  it("reports a close failure before disposing and exiting", () => {
+    const stopped = new Error("test exit sentinel");
+    const cause = new Error("close failed");
+    const order: string[] = [];
+    const report = vi.spyOn(console, "error").mockImplementation(() => {
+      order.push("report");
+    });
+    vi.spyOn(process, "exit").mockImplementation((code) => {
+      order.push("exit " + code);
+      throw stopped;
+    });
+
+    expect(() =>
+      stopStartupIfRequested({
+        startupSignals: {
+          requested: () => "SIGINT",
+          dispose: () => {
+            order.push("dispose");
+          },
+        },
+        openDb: {
+          close: () => {
+            order.push("close");
+            throw cause;
+          },
+        },
+      }),
+    ).toThrow(stopped);
+
+    expect(report).toHaveBeenCalledExactlyOnceWith(
+      "capacitylens-server: database close failed while stopping startup",
+      cause,
+    );
+    expect(order).toEqual(["close", "report", "dispose", "exit 0"]);
+  });
+
+  it("disposes and exits when the database has not been opened", () => {
+    const stopped = new Error("test exit sentinel");
+    const order: string[] = [];
+    vi.spyOn(process, "exit").mockImplementation((code) => {
+      order.push("exit " + code);
+      throw stopped;
+    });
+
+    expect(() =>
+      stopStartupIfRequested({
+        startupSignals: {
+          requested: () => "SIGTERM",
+          dispose: () => {
+            order.push("dispose");
+          },
+        },
+      }),
+    ).toThrow(stopped);
+
+    expect(order).toEqual(["dispose", "exit 0"]);
   });
 });

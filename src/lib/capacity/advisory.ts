@@ -24,42 +24,74 @@ export type CapacityAllocationInput = Pick<
  *  of rebuilding a growing one per generated allocation. */
 export type CapacityLoadByDay = Map<ISODate, number>;
 
+interface AddCapacityLoadInput {
+  byDay: CapacityLoadByDay;
+  resource: Resource;
+  allocation: CapacityAllocationInput;
+  start: ISODate;
+  end: ISODate;
+  effectiveWeek: EffectiveWorkingWeek;
+}
+
 /** Add `allocation`'s hours to `byDay` on every day of [start, end] that it actually works.
  *  Allocations belonging to another resource are ignored, mirroring `resolveAllocatedHoursOnDay`:
  *  correctness must not depend on every caller remembering to pre-filter, or an unfiltered list
  *  would count other people's hours against this resource and advise "over capacity" for days that
  *  are perfectly fine. */
-export function addCapacityLoad(
-  byDay: CapacityLoadByDay,
-  resource: Resource,
-  allocation: CapacityAllocationInput,
-  start: ISODate,
-  end: ISODate,
-  effectiveWeek: EffectiveWorkingWeek,
-): void {
+export function addCapacityLoad({
+  byDay,
+  resource,
+  allocation,
+  start,
+  end,
+  effectiveWeek,
+}: AddCapacityLoadInput): void {
   if (allocation.resourceId !== resource.id) return;
   // Zero-padded ISO dates compare lexicographically, so these min/max clamps are correct.
   const from = allocation.startDate > start ? allocation.startDate : start;
   const to = allocation.endDate < end ? allocation.endDate : end;
   for (const day of eachDayISO(from, to)) {
     // Count each existing allocation only on the days IT works, matching the over-marker's load.
-    if (!hasAllocationLoadOnDay(effectiveWeek, allocation.ignoreWeekends, isWorkingDay(effectiveWeek, day))) continue;
+    if (
+      !hasAllocationLoadOnDay({
+        effectiveWeek: effectiveWeek,
+        ignoreWorkingDays: allocation.ignoreWeekends,
+        dayIsWorking: isWorkingDay(effectiveWeek, day),
+      })
+    )
+      continue;
     byDay.set(day, (byDay.get(day) ?? 0) + allocation.hoursPerDay);
   }
+}
+
+interface BucketCapacityLoadInput {
+  resource: Resource;
+  allocations: readonly CapacityAllocationInput[];
+  start: ISODate;
+  end: ISODate;
+  effectiveWeek: EffectiveWorkingWeek;
 }
 
 /** Bucket a whole existing load onto [start, end]. Hours land in `allocations` order, so a bucket
  *  built here sums identically to one grown allocation-by-allocation (float addition is not
  *  associative — the order is load-bearing for bit-identical advisories). */
-export function bucketCapacityLoad(
-  resource: Resource,
-  allocations: readonly CapacityAllocationInput[],
-  start: ISODate,
-  end: ISODate,
-  effectiveWeek: EffectiveWorkingWeek,
-): CapacityLoadByDay {
+export function bucketCapacityLoad({
+  resource,
+  allocations,
+  start,
+  end,
+  effectiveWeek,
+}: BucketCapacityLoadInput): CapacityLoadByDay {
   const byDay: CapacityLoadByDay = new Map();
-  for (const allocation of allocations) addCapacityLoad(byDay, resource, allocation, start, end, effectiveWeek);
+  for (const allocation of allocations)
+    addCapacityLoad({
+      byDay: byDay,
+      resource: resource,
+      allocation: allocation,
+      start: start,
+      end: end,
+      effectiveWeek: effectiveWeek,
+    });
   return byDay;
 }
 
@@ -72,15 +104,25 @@ function listAdvisoryDays(proposal: CapacityAllocationInput): ISODate[] | null {
   return eachDayISO(proposal.startDate, proposal.endDate);
 }
 
-function tallyAdvisory(
-  resource: Resource,
-  proposal: CapacityAllocationInput,
-  days: ISODate[],
-  loadByDay: CapacityLoadByDay,
-  timeOff: TimeOff[],
-  effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[],
-): CapacityAdvisory {
+interface TallyAdvisoryInput {
+  resource: Resource;
+  proposal: CapacityAllocationInput;
+  days: ISODate[];
+  loadByDay: CapacityLoadByDay;
+  timeOff: TimeOff[];
+  effectiveWeek: EffectiveWorkingWeek;
+  closures: Closure[];
+}
+
+function tallyAdvisory({
+  resource,
+  proposal,
+  days,
+  loadByDay,
+  timeOff,
+  effectiveWeek,
+  closures,
+}: TallyAdvisoryInput): CapacityAdvisory {
   let overDays = 0;
   let timeOffDays = 0;
   for (const day of days) {
@@ -88,7 +130,7 @@ function tallyAdvisory(
     // would otherwise re-run isWorkingDay (and isOnTimeOff) a second time on this hot path.
     const weekday = weekdayOf(day);
     const working = effectiveWeekIncludes(effectiveWeek, weekday);
-    const onTimeOff = working && isUnavailable(resource, day, timeOff, closures);
+    const onTimeOff = working && isUnavailable({ resource: resource, date: day, timeOff: timeOff, closures: closures });
     // Time off is its own category (counted, surfaced separately) and never folded into overDays —
     // a holiday only costs capacity on a day the resource would have worked, and it reads as "on
     // time off", not "over". `continue` so it can't also be tallied as over below.
@@ -97,13 +139,29 @@ function tallyAdvisory(
       continue;
     }
     // The proposal does no work on a day it doesn't cover (a weekend-aware bar over Sat/Sun) — skip.
-    if (!hasAllocationLoadOnDay(effectiveWeek, proposal.ignoreWeekends, working)) continue;
+    if (
+      !hasAllocationLoadOnDay({
+        effectiveWeek: effectiveWeek,
+        ignoreWorkingDays: proposal.ignoreWeekends,
+        dayIsWorking: working,
+      })
+    )
+      continue;
     // Mirrors resolveAvailableHoursOnDay: a non-working weekday the proposal opts into (ignoreWeekends) has
     // 0 capacity, so any proposed hours there read as over — exactly like the per-day over-marker.
     const available = working ? resolveScheduledHoursForWeekday(resource, weekday, effectiveWeek) : 0;
     if (hasOverCapacity((loadByDay.get(day) ?? 0) + proposal.hoursPerDay, available)) overDays++;
   }
   return { overDays, timeOffDays };
+}
+
+interface BuildCapacityAdvisoryInput {
+  resource: Resource;
+  proposal: CapacityAllocationInput;
+  otherAllocations: readonly CapacityAllocationInput[];
+  timeOff: TimeOff[];
+  effectiveWeek: EffectiveWorkingWeek;
+  closures: Closure[];
 }
 
 /** Non-blocking advisory for a PROPOSED allocation (its own dates, `hoursPerDay` and
@@ -119,33 +177,64 @@ function tallyAdvisory(
  *  cell does. Time off stays its OWN category, never folded into overDays (a holiday a working
  *  allocation covers is surfaced as "on time off for N days", not "over"), which is the one place the
  *  advisory deliberately diverges from the marker. */
-export function buildCapacityAdvisory(
-  resource: Resource,
-  proposal: CapacityAllocationInput,
-  otherAllocations: readonly CapacityAllocationInput[],
-  timeOff: TimeOff[],
-  effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[],
-): CapacityAdvisory {
+export function buildCapacityAdvisory({
+  resource,
+  proposal,
+  otherAllocations,
+  timeOff,
+  effectiveWeek,
+  closures,
+}: BuildCapacityAdvisoryInput): CapacityAdvisory {
   const days = listAdvisoryDays(proposal);
   if (!days) return { overDays: 0, timeOffDays: 0 };
-  const loadByDay = bucketCapacityLoad(resource, otherAllocations, proposal.startDate, proposal.endDate, effectiveWeek);
-  return tallyAdvisory(resource, proposal, days, loadByDay, timeOff, effectiveWeek, closures);
+  const loadByDay = bucketCapacityLoad({
+    resource: resource,
+    allocations: otherAllocations,
+    start: proposal.startDate,
+    end: proposal.endDate,
+    effectiveWeek: effectiveWeek,
+  });
+  return tallyAdvisory({
+    resource: resource,
+    proposal: proposal,
+    days: days,
+    loadByDay: loadByDay,
+    timeOff: timeOff,
+    effectiveWeek: effectiveWeek,
+    closures: closures,
+  });
+}
+
+interface BuildCapacityAdvisoryFromLoadInput {
+  resource: Resource;
+  proposal: CapacityAllocationInput;
+  loadByDay: CapacityLoadByDay;
+  timeOff: TimeOff[];
+  effectiveWeek: EffectiveWorkingWeek;
+  closures: Closure[];
 }
 
 /** `buildCapacityAdvisory` against a load bucket the caller already holds — for a BATCH of proposals on
  *  one resource, where rebuilding the bucket per proposal is the dominant cost. The bucket must
  *  cover at least the proposal's window (see `bucketCapacityLoad`). */
-export function buildCapacityAdvisoryFromLoad(
-  resource: Resource,
-  proposal: CapacityAllocationInput,
-  loadByDay: CapacityLoadByDay,
-  timeOff: TimeOff[],
-  effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[],
-): CapacityAdvisory {
+export function buildCapacityAdvisoryFromLoad({
+  resource,
+  proposal,
+  loadByDay,
+  timeOff,
+  effectiveWeek,
+  closures,
+}: BuildCapacityAdvisoryFromLoadInput): CapacityAdvisory {
   const days = listAdvisoryDays(proposal);
   return days
-    ? tallyAdvisory(resource, proposal, days, loadByDay, timeOff, effectiveWeek, closures)
+    ? tallyAdvisory({
+        resource: resource,
+        proposal: proposal,
+        days: days,
+        loadByDay: loadByDay,
+        timeOff: timeOff,
+        effectiveWeek: effectiveWeek,
+        closures: closures,
+      })
     : { overDays: 0, timeOffDays: 0 };
 }

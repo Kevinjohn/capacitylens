@@ -92,9 +92,13 @@ describe("privacy-preserving member sign-in confirmation", () => {
     const current = setup();
     setMemberSignInTracking(current, "account-a", "owner", true);
     confirmTrackedMemberSignIn(current, "editor");
-    expect(setMemberStatus(current, "account-a", "editor", "disabled")).toBe("changed");
+    expect(setMemberStatus({ db: current, accountId: "account-a", userId: "editor", status: "disabled" })).toBe(
+      "changed",
+    );
     expect(readMemberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(false);
-    expect(setMemberStatus(current, "account-a", "editor", "active")).toBe("changed");
+    expect(setMemberStatus({ db: current, accountId: "account-a", userId: "editor", status: "active" })).toBe(
+      "changed",
+    );
     expect(readMemberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(false);
   });
 

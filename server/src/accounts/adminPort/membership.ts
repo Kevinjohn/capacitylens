@@ -138,7 +138,10 @@ export function createMembership(
             throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
           // "unchanged" is success, not a fault: the membership already holds the requested status,
           // so the caller's intent is satisfied and no reset link should have been burned for it.
-          if (setMemberStatus(db, workspaceId, targetPrincipalId, nextStatus) === "missing")
+          if (
+            setMemberStatus({ db: db, accountId: workspaceId, userId: targetPrincipalId, status: nextStatus }) ===
+            "missing"
+          )
             throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
           // The post-write row is the pre-write row with the new status — the write above changed
           // nothing else. Re-reading it would only re-derive what we already hold.
