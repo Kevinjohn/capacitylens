@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Allocation } from "@capacitylens/shared/types/entities";
-import { DEFAULT_ACCOUNT_ID, makeResourceDraft, resetStoreWithAccount, WORKDAYS } from "../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeResourceDraft, requireValue, resetStoreWithAccount, WORKDAYS } from "../test/fixtures";
 import { useStore, type Draft } from "./useStore";
 
 const state = () => useStore.getState();
@@ -40,7 +40,7 @@ describe("atomic allocation creation", () => {
     expect(created).toHaveLength(2);
     expect(new Set(created.map((allocation) => allocation.id)).size).toBe(2);
     expect(created.every((allocation) => allocation.accountId === DEFAULT_ACCOUNT_ID)).toBe(true);
-    expect(created[0].hoursPerDay).toBe(24);
+    expect(created[0]?.hoursPerDay).toBe(24);
     expect(state().data.allocations).toEqual(created);
     expect(state().past).toHaveLength(1);
 
@@ -145,11 +145,12 @@ describe("atomic allocation creation", () => {
     ]);
 
     expect(created.map((allocation) => allocation.projectId)).toEqual([project.id, project.id]);
-    state().updateAllocation(created[0].id, { projectId: undefined });
-    expect(state().data.allocations.find((allocation) => allocation.id === created[0].id)).not.toHaveProperty(
+    const first = requireValue(created[0], "first repeated allocation");
+    state().updateAllocation(first.id, { projectId: undefined });
+    expect(state().data.allocations.find((allocation) => allocation.id === created[0]?.id)).not.toHaveProperty(
       "projectId",
     );
-    expect(state().data.allocations.find((allocation) => allocation.id === created[1].id)?.projectId).toBe(project.id);
+    expect(state().data.allocations.find((allocation) => allocation.id === created[1]?.id)?.projectId).toBe(project.id);
   });
 
   it("applies the Viewer guard to the whole batch", () => {
@@ -173,6 +174,7 @@ describe("repeat-series allocation mutations", () => {
       draft({ seriesId, startDate: "2026-06-15", endDate: "2026-06-17" }),
       draft({ seriesId: "another-series", startDate: "2026-06-22", endDate: "2026-06-24" }),
     ]);
+    if (!earlier || !selected || !later || !unrelated) throw new Error("Expected four repeated allocations");
     useStore.setState({ past: [], future: [] });
 
     state().deleteAllocationSeriesFrom(selected.id);

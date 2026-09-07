@@ -53,8 +53,8 @@ function Harness({
       authMode={authMode}
       user={user}
       providers={providers}
-      reauthMethod={reauthMethod}
-      reauthProviderId={reauthProviderId}
+      {...(reauthMethod ? { reauthMethod } : {})}
+      {...(reauthProviderId !== undefined ? { reauthProviderId } : {})}
     />
   );
 }

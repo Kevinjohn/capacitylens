@@ -904,11 +904,11 @@ describe("offline tenant cache", () => {
     const projectId = slice.projects[0]?.id;
     expect(original).toBeDefined();
     expect(projectId).toBeDefined();
+    if (!original || !projectId) throw new Error("expected seeded allocation and project");
     slice.allocations = [
-      { ...original!, id: "attributed", projectId: projectId! },
-      { ...original!, id: "unattributed", projectId: undefined },
+      { ...original, id: "attributed", projectId },
+      { ...original, id: "unattributed" },
     ];
-    delete slice.allocations[1].projectId;
 
     await cacheAccountSlice("a-studio", slice);
     const restored = await readCachedAccountSlice("a-studio");
@@ -1010,6 +1010,7 @@ describe("offline tenant cache", () => {
     expect(Object.prototype.toString.call(raw.ciphertext)).toBe("[object ArrayBuffer]");
 
     const tampered = new Uint8Array(raw.ciphertext).slice();
+    if (tampered[0] === undefined) throw new Error("expected encrypted cache bytes");
     tampered[0] ^= 1;
     await putRaw({ ...raw, ciphertext: tampered.buffer });
     await expect(readCachedAccountSummaries()).resolves.toBeNull();
@@ -1050,6 +1051,7 @@ describe("offline tenant cache", () => {
     const key = `accounts:${currentCacheNamespace()}:user-a`;
     const raw = (await getRaw(key)) as { ciphertext: ArrayBuffer };
     const tampered = new Uint8Array(raw.ciphertext).slice();
+    if (tampered[0] === undefined) throw new Error("expected encrypted cache bytes");
     tampered[0] ^= 1;
     await putRaw({ ...raw, key, ciphertext: tampered.buffer });
 

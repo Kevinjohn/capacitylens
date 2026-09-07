@@ -63,7 +63,7 @@ describe("ProjectForm", () => {
   it("does not expose privacy settings or an editable redacted name to a non-owner", () => {
     const client = useStore.getState().addClient({ name: "Acme", color: "#111111" });
     const created = useStore.getState().addProject({ name: "Real project", clientId: client.id, color: "#ec4899" });
-    const project = { ...created, name: '"Aurora"', isPrivate: true, codeName: undefined };
+    const project = { ...created, name: '"Aurora"', isPrivate: true };
     useStore.getState().replaceAll({ ...useStore.getState().data, projects: [project] });
     render(
       <PermissionContext.Provider value={{ role: "admin" }}>
@@ -102,7 +102,7 @@ describe("ProjectForm", () => {
 
     expect(onClose).toHaveBeenCalled();
     expect(useStore.getState().data.projects).toHaveLength(1);
-    expect(useStore.getState().data.projects[0].clientId).toBe(client.id);
+    expect(useStore.getState().data.projects[0]?.clientId).toBe(client.id);
   });
 
   it("pins Internal above a divider and sorts ordinary clients alphabetically", () => {
@@ -150,11 +150,13 @@ describe("ProjectForm", () => {
     await user.clear(screen.getByLabelText("Name"));
     await user.type(screen.getByLabelText("Name"), "Planning updated");
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(useStore.getState().data.projects[0].color).toBe("#da2d92");
+    expect(useStore.getState().data.projects[0]?.color).toBe("#da2d92");
     hidden.unmount();
 
     useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { internalColourMode: "palette" });
-    render(<ProjectForm project={useStore.getState().data.projects[0]} onClose={vi.fn()} />);
+    const updatedProject = useStore.getState().data.projects[0];
+    if (!updatedProject) throw new Error("Expected project");
+    render(<ProjectForm project={updatedProject} onClose={vi.fn()} />);
     expect(screen.getByRole("button", { name: /^Colour/ })).toBeInTheDocument();
   });
 
@@ -181,8 +183,8 @@ describe("ProjectForm", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(onClose).toHaveBeenCalled();
-    expect(useStore.getState().data.projects[0].name).toBe("Alpha Renamed");
-    expect(useStore.getState().data.projects[0].clientId).toBe(client.id); // unchanged, round-tripped
+    expect(useStore.getState().data.projects[0]?.name).toBe("Alpha Renamed");
+    expect(useStore.getState().data.projects[0]?.clientId).toBe(client.id); // unchanged, round-tripped
   });
 
   it("rejects a stale edit instead of overwriting a concurrently changed project", async () => {

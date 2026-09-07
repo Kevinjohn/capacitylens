@@ -72,13 +72,13 @@ describe("buildActivityListModel", () => {
     expect(model.internal.map(({ id }) => id)).toEqual(["internal-a", "internal-b", "internal-z"]);
     expect(model.crossProject.map(({ name }) => name)).toEqual(["Workshop 2", "Workshop 10"]);
     expect(model.clients.map(({ name }) => name)).toEqual(["Alpha Client", "Zulu Client", "Unavailable client"]);
-    expect(model.clients[0].projects.map(({ name }) => name)).toEqual(["Alpha Project", "Zulu Project"]);
-    expect(model.clients[0].projects[0].activities.map(({ name }) => name)).toEqual(["Alpha task", "Zulu task"]);
-    expect(model.clients[2].projects.map(({ name }) => name)).toEqual([
+    expect(model.clients[0]?.projects.map(({ name }) => name)).toEqual(["Alpha Project", "Zulu Project"]);
+    expect(model.clients[0]?.projects[0]?.activities.map(({ name }) => name)).toEqual(["Alpha task", "Zulu task"]);
+    expect(model.clients[2]?.projects.map(({ name }) => name)).toEqual([
       "Visible orphan project",
       "Unavailable project",
     ]);
-    expect(model.clients[2].projects.flatMap(({ activities: rows }) => rows.map(({ name }) => name))).toEqual([
+    expect(model.clients[2]?.projects.flatMap(({ activities: rows }) => rows.map(({ name }) => name))).toEqual([
       "Visible orphan task",
       "Still visible",
     ]);

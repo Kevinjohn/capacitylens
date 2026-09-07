@@ -7,7 +7,7 @@ import {
   clearEntityLenses,
   type Draft,
   type ImportSummary,
-  type ScopedPatch,
+  type Patch,
   type ScopedRow,
   type StoreState,
 } from "./types";
@@ -19,8 +19,8 @@ import { createGuards } from "./storeGuards";
 interface UpdateOwnedInput<K extends ScopedEntityKey> {
   key: K;
   id: ID;
-  patch: ScopedPatch<K>;
-  prepare?: ((merged: ScopedRow<K>, existing: ScopedRow<K>) => ScopedPatch<K>) | undefined;
+  patch: Patch<ScopedRow<K>>;
+  prepare?: ((merged: ScopedRow<K>, existing: ScopedRow<K>) => Patch<ScopedRow<K>>) | undefined;
   cascade?: ((data: AppData, merged: ScopedRow<K>, existing: ScopedRow<K>) => AppData) | undefined;
 }
 
@@ -49,14 +49,14 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
   const mutateIrreversible = (producer: (data: AppData) => AppData) =>
     set((state) => ({ data: producer(state.data), past: [], future: [] }));
 
-  const applyPatch = <T extends Entity>(row: T, patch: Partial<Omit<T, keyof Entity>>): T => {
+  const applyPatch = <T extends Entity>(row: T, patch: Patch<T>): T => {
     const next = { ...row, ...patch };
     for (const [key, value] of Object.entries(patch)) {
       if (value === undefined) delete (next as Record<string, unknown>)[key];
     }
     return next;
   };
-  const updateById = <T extends Entity>(list: T[], id: ID, patch: Partial<Omit<T, keyof Entity>>): T[] =>
+  const updateById = <T extends Entity>(list: T[], id: ID, patch: Patch<T>): T[] =>
     list.map((row) => (row.id === id ? { ...applyPatch(row, patch), updatedAt: touchAfter(row.updatedAt) } : row));
 
   const {

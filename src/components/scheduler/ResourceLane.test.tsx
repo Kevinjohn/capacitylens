@@ -309,7 +309,10 @@ describe("ResourceLane draw interaction", () => {
     });
 
     expect(onDraw).toHaveBeenCalledTimes(1);
-    const [resourceId, startDate, endDate] = onDraw.mock.calls[0];
+    const call = onDraw.mock.calls[0];
+    expect(call).toBeDefined();
+    if (!call) throw new Error("Expected the draw callback arguments.");
+    const [resourceId, startDate, endDate] = call;
     expect(resourceId).toBe("r1");
     expect(startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(endDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -342,7 +345,10 @@ describe("ResourceLane draw interaction", () => {
     });
 
     expect(onDraw).toHaveBeenCalledTimes(1);
-    const [resourceId, startDate, endDate] = onDraw.mock.calls[0];
+    const call = onDraw.mock.calls[0];
+    expect(call).toBeDefined();
+    if (!call) throw new Error("Expected the draw callback arguments.");
+    const [resourceId, startDate, endDate] = call;
     expect(resourceId).toBe("r1");
     expect(startDate).toBe("2026-06-01");
     expect(endDate).toBe("2026-06-01");

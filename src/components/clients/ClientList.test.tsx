@@ -79,7 +79,7 @@ describe("ClientList archive flow", () => {
 
     // Cancel keeps it active.
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    expect(useStore.getState().data.clients[0].archivedAt).toBeUndefined();
+    expect(useStore.getState().data.clients[0]?.archivedAt).toBeUndefined();
 
     // Confirm archives it (children retained — archiving is reversible, not a cascade-delete).
     await user.click(screen.getByRole("button", { name: "Archive Acme" }));
@@ -90,7 +90,7 @@ describe("ClientList archive flow", () => {
     );
 
     expect(useStore.getState().data.clients).toHaveLength(1);
-    expect(useStore.getState().data.clients[0].archivedAt).toBeTruthy();
+    expect(useStore.getState().data.clients[0]?.archivedAt).toBeTruthy();
     expect(useStore.getState().data.projects).toHaveLength(1);
     expect(useStore.getState().data.phases).toHaveLength(1);
     expect(useStore.getState().data.activities).toHaveLength(1);
@@ -112,7 +112,7 @@ describe("ClientList archive flow", () => {
   it("keeps exactly one quote pair around a redacted private code name in confirmation copy", async () => {
     const user = userEvent.setup();
     const created = useStore.getState().addClient({ name: "Real client", color: "#111111" });
-    const client = { ...created, name: '"Nightwing"', isPrivate: true, codeName: undefined };
+    const client = { ...created, name: '"Nightwing"', isPrivate: true };
     useStore.getState().replaceAll({ ...useStore.getState().data, clients: [client] });
     render(<ClientList />);
 

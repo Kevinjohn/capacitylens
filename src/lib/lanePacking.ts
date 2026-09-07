@@ -35,7 +35,8 @@ export function packLanes(items: Interval[]): PackResult {
 
   // Origin = the first valid calendar start (a bad record sorts first but must
   // not become the origin, or it would NaN-poison every other item's day-index).
-  const origin = sorted.find((interval) => isValidISODate(interval.startDate))?.startDate ?? sorted[0].startDate;
+  const origin = sorted.find((interval) => isValidISODate(interval.startDate))?.startDate ?? sorted[0]?.startDate;
+  if (origin === undefined) return { lanes: [], laneCount: 0 };
   // The origin is invariant, so parse it ONCE instead of letting `dayIndex` re-parse it for both
   // ends of every interval. An unparseable origin (every record bad) yields an Invalid Date, so
   // every offset below is NaN and every item takes the same lane-0 fallback as before.

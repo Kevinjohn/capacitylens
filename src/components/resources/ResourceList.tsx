@@ -151,9 +151,8 @@ export function ResourceList() {
   ) =>
     rows.length === 0 ? (
       <EmptyState
-        icon={enrich ? Users : undefined}
-        description={enrich?.description}
-        action={enrich?.action ? { ...enrich.action, icon: Plus, requiresEdit: true } : undefined}
+        {...(enrich ? { icon: Users, description: enrich.description } : {})}
+        {...(enrich?.action ? { action: { ...enrich.action, icon: Plus, requiresEdit: true } } : {})}
       >
         {empty}
       </EmptyState>

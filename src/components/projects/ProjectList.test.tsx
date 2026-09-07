@@ -88,7 +88,7 @@ describe("ProjectList", () => {
     // Store is updated
     const projects = useStore.getState().data.projects;
     expect(projects).toHaveLength(1);
-    expect(projects[0].clientId).toBe(client.id);
+    expect(projects[0]?.clientId).toBe(client.id);
   });
 
   // P2.5b: the per-row "Delete" affordance now ARCHIVES (soft-delete is reached later from
@@ -117,7 +117,7 @@ describe("ProjectList", () => {
     const user = userEvent.setup();
     const client = useStore.getState().addClient({ name: "Acme Corp", color: "#111111" });
     const created = useStore.getState().addProject({ name: "Real project", clientId: client.id, color: "#ec4899" });
-    const project = { ...created, name: '"Aurora"', isPrivate: true, codeName: undefined };
+    const project = { ...created, name: '"Aurora"', isPrivate: true };
     useStore.getState().replaceAll({ ...useStore.getState().data, projects: [project] });
     render(<ProjectList />);
 
@@ -140,7 +140,7 @@ describe("ProjectList", () => {
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(useStore.getState().data.projects[0].archivedAt).toBeUndefined();
+    expect(useStore.getState().data.projects[0]?.archivedAt).toBeUndefined();
     expect(screen.getByText("Kept Project")).toBeInTheDocument();
   });
 
@@ -160,7 +160,7 @@ describe("ProjectList", () => {
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     // Retained in the data (archived, reversible), but gone from the active-only list.
     expect(useStore.getState().data.projects).toHaveLength(1);
-    expect(useStore.getState().data.projects[0].archivedAt).toBeTruthy();
+    expect(useStore.getState().data.projects[0]?.archivedAt).toBeTruthy();
     expect(useStore.getState().data.activities).toHaveLength(1);
     expect(screen.queryByText("Doomed Project")).not.toBeInTheDocument();
     expect(screen.getByText("No projects yet.")).toBeInTheDocument();

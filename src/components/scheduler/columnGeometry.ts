@@ -114,14 +114,16 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: 
   const weekdays: number[] = new Array(dayCount);
   offsets[0] = 0;
   for (let i = 0; i < dayCount; i++) {
-    const weekday = weekdayOf(days[i]);
+    const day = days[i];
+    if (!day) continue;
+    const weekday = weekdayOf(day);
     weekdays[i] = weekday;
     const isWeekend = weekday === 0 || weekday === 6;
     const extra = minimiseActive ? !isWeekend && weekday - 1 < extraPixels : weekday < extraPixels;
     widths[i] = minimiseActive && isWeekend ? narrowWidth : dayWidth + (extra ? 1 : 0);
-    offsets[i + 1] = offsets[i] + widths[i];
+    offsets[i + 1] = (offsets[i] ?? 0) + (widths[i] ?? 0);
   }
-  const totalWidth = offsets[dayCount];
+  const totalWidth = offsets[dayCount] ?? 0;
   const origin = days[0]; // undefined only when n === 0 (an empty window)
 
   const clampEdge = (i: number): number => (i < 0 ? 0 : i > dayCount ? dayCount : i);
@@ -131,7 +133,7 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: 
   const xForDayIndex = (i: number): number => {
     if (i < 0) return i * dayWidth;
     if (i > dayCount) return totalWidth + (i - dayCount) * dayWidth;
-    return offsets[i];
+    return offsets[i] ?? totalWidth;
   };
 
   const indexAt = (px: number): number => {
@@ -143,7 +145,7 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: 
     let upperIndex = dayCount - 1;
     while (lowerIndex < upperIndex) {
       const middleIndex = (lowerIndex + upperIndex + 1) >> 1;
-      if (offsets[middleIndex] <= px) lowerIndex = middleIndex;
+      if ((offsets[middleIndex] ?? totalWidth) <= px) lowerIndex = middleIndex;
       else upperIndex = middleIndex - 1;
     }
     return lowerIndex;
@@ -157,9 +159,10 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: 
     perDayColumns,
     showWeekdayLabels: dayWidth >= WEEKDAY_LABEL_MIN_WIDTH,
     minimiseActive,
-    x: (index) => offsets[clampEdge(index)],
-    widthOf: (index) => (index >= 0 && index < dayCount ? widths[index] : 0),
-    spanWidth: (startIndex, endIndex) => Math.max(0, offsets[clampEdge(endIndex + 1)] - offsets[clampEdge(startIndex)]),
+    x: (index) => offsets[clampEdge(index)] ?? totalWidth,
+    widthOf: (index) => (index >= 0 && index < dayCount ? (widths[index] ?? 0) : 0),
+    spanWidth: (startIndex, endIndex) =>
+      Math.max(0, (offsets[clampEdge(endIndex + 1)] ?? totalWidth) - (offsets[clampEdge(startIndex)] ?? totalWidth)),
     indexAt,
     indexAtScroll: (scrollLeft) => indexAt(Math.round(scrollLeft)),
     xForDateInGeom: (date) => {

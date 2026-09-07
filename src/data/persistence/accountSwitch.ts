@@ -20,6 +20,7 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
   const settleSwitch = (id: string | null, outcome: RefreshOutcome) => {
     for (let index = owner.current.switchWaiters.length - 1; index >= 0; index -= 1) {
       const waiter = owner.current.switchWaiters[index];
+      if (!waiter) continue;
       if (waiter.id !== id) continue;
       owner.current.switchWaiters.splice(index, 1);
       waiter.resolve(outcome);

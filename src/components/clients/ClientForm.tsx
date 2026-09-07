@@ -39,7 +39,13 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
         }
         updateClient(client.id, { name: trimmed, color, ...privacy });
       } else {
-        addClient({ name: trimmed, color, ...privacy });
+        addClient({
+          name: trimmed,
+          color,
+          ...(privacy.isPrivate && privacy.codeName
+            ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName }
+            : {}),
+        });
       }
       onClose();
     } catch (e) {

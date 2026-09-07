@@ -12,7 +12,7 @@ describe("built-in Internal client in the store", () => {
     const a = s().addAccount({ name: "Acme Co", color: "#6366f1" })!;
     const internal = s().data.clients.filter((c) => c.builtin && c.accountId === a.id);
     expect(internal).toHaveLength(1);
-    expect(internal[0].name).toBe("Internal");
+    expect(internal[0]?.name).toBe("Internal");
     // A second account gets its OWN Internal (one per account).
     const b = s().addAccount({ name: "Beta Co", color: "#111111" })!;
     expect(s().data.clients.filter((c) => c.builtin)).toHaveLength(2);

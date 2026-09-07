@@ -83,8 +83,8 @@ describe("buildTimeOffGroups", () => {
     });
 
     expect(groups.map((group) => group.name)).toEqual(["Bruce Wayne", "Clark Kent"]);
-    expect(groups[0].entries.map(({ id }) => id)).toEqual(["boundary", "tie-a", "tie-b", "later"]);
-    expect(groups[1].entries.map(({ id }) => id)).toEqual(["clark"]);
+    expect(groups[0]?.entries.map(({ id }) => id)).toEqual(["boundary", "tie-a", "tie-b", "later"]);
+    expect(groups[1]?.entries.map(({ id }) => id)).toEqual(["clark"]);
   });
 
   it("applies placeholder visibility before grouping", () => {
@@ -107,7 +107,7 @@ describe("buildTimeOffGroups", () => {
         resources: [placeholder],
         weekStart: "2026-06-08",
         placeholdersEnabled: true,
-      })[0].name,
+      })[0]?.name,
     ).toBe("Placeholder");
   });
 
@@ -125,7 +125,7 @@ describe("buildTimeOffGroups", () => {
     });
 
     expect(groups.map((group) => group.name)).toEqual(["Clark Kent", "(unknown)"]);
-    expect(groups[1].entries.map(({ id }) => id)).toEqual(["unknown-earlier", "unknown-later"]);
+    expect(groups[1]?.entries.map(({ id }) => id)).toEqual(["unknown-earlier", "unknown-later"]);
   });
 });
 

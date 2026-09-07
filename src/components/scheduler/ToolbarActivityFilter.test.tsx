@@ -3,8 +3,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { makeActivity } from "../../test/fixtures";
 import { ToolbarActivityFilter } from "./ToolbarActivityFilter";
 
-const admin = makeActivity({ id: "act-admin", name: "Admin", kind: "internal", projectId: undefined });
-const design = makeActivity({ id: "act-design", name: "Design", kind: "repeatable", projectId: undefined });
+const admin = makeActivity({ id: "act-admin", name: "Admin", kind: "internal" });
+const design = makeActivity({ id: "act-design", name: "Design", kind: "repeatable" });
 
 function renderFilter(props: Partial<React.ComponentProps<typeof ToolbarActivityFilter>> = {}) {
   const onChange = vi.fn();

@@ -107,7 +107,7 @@ describe("ClientForm – add mode", () => {
     expect(onClose).toHaveBeenCalledOnce();
     const clients = useStore.getState().data.clients;
     expect(clients).toHaveLength(1);
-    expect(clients[0].color).toBe("#e02727");
+    expect(clients[0]?.color).toBe("#e02727");
   });
 
   it("associates the error with the offending field (aria-invalid + aria-describedby)", async () => {
@@ -134,7 +134,7 @@ describe("ClientForm – add mode", () => {
     expect(onClose).toHaveBeenCalledOnce();
     const clients = useStore.getState().data.clients;
     expect(clients).toHaveLength(1);
-    expect(clients[0].name).toBe("Acme Corp");
+    expect(clients[0]?.name).toBe("Acme Corp");
   });
 
   it("trims leading and trailing whitespace from the name", async () => {
@@ -146,7 +146,7 @@ describe("ClientForm – add mode", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(onClose).toHaveBeenCalledOnce();
-    expect(useStore.getState().data.clients[0].name).toBe("Trimmed");
+    expect(useStore.getState().data.clients[0]?.name).toBe("Trimmed");
   });
 
   it("renders the dialog with the Add client title", () => {
@@ -176,7 +176,7 @@ describe("ClientForm – Enter key submission", () => {
     await user.keyboard("{Enter}");
 
     expect(onClose).toHaveBeenCalledOnce();
-    expect(useStore.getState().data.clients[0].name).toBe("Acme Corp");
+    expect(useStore.getState().data.clients[0]?.name).toBe("Acme Corp");
   });
 
   it("shows validation error when pressing Enter with a blank name", async () => {
@@ -194,7 +194,7 @@ describe("ClientForm – Enter key submission", () => {
 describe("ClientForm – edit mode", () => {
   it("hides owner-only privacy controls and locks the redacted name for a non-owner", () => {
     const created = useStore.getState().addClient({ name: "Real client", color: "#ff0000" });
-    const client = { ...created, name: '"Nightwing"', isPrivate: true, codeName: undefined };
+    const client = { ...created, name: '"Nightwing"', isPrivate: true };
     useStore.getState().replaceAll({ ...useStore.getState().data, clients: [client] });
     render(
       <PermissionContext.Provider value={{ role: "editor" }}>
@@ -235,8 +235,8 @@ describe("ClientForm – edit mode", () => {
     expect(onClose).toHaveBeenCalledOnce();
     const clients = useStore.getState().data.clients;
     expect(clients).toHaveLength(1);
-    expect(clients[0].name).toBe("New Name");
-    expect(clients[0].id).toBe(client.id);
+    expect(clients[0]?.name).toBe("New Name");
+    expect(clients[0]?.id).toBe(client.id);
   });
 
   it("shows an error and does not close when clearing the name in edit mode", async () => {
@@ -251,7 +251,7 @@ describe("ClientForm – edit mode", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/name is required/i);
     expect(onClose).not.toHaveBeenCalled();
     // Store still has the original client unchanged
-    expect(useStore.getState().data.clients[0].name).toBe("Existing");
+    expect(useStore.getState().data.clients[0]?.name).toBe("Existing");
   });
 
   it("does not create a new client when editing", async () => {

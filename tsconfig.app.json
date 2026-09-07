@@ -7,6 +7,8 @@
     "types": ["vite/client"],
     "skipLibCheck": true,
     "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
 
     /* Paraglide (inlang) i18n (P1.5.1) emits its message/runtime modules as .js with JSDoc types
        (src/paraglide, generated + gitignored). allowJs lets tsc READ those JSDoc types — without it

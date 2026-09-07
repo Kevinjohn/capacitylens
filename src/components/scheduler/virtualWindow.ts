@@ -35,7 +35,7 @@ export function buildLayout(heights: number[]): RowLayout {
   let totalHeight = 0;
   for (let i = 0; i < heights.length; i++) {
     tops[i] = totalHeight;
-    totalHeight += heights[i];
+    totalHeight += heights[i] ?? 0;
   }
   return { tops, total: totalHeight };
 }
@@ -68,7 +68,7 @@ export function resolveVirtualWindow({
   let high = itemCount;
   while (low < high) {
     const middle = low + Math.floor((high - low) / 2);
-    if (tops[middle] + heights[middle] <= top) low = middle + 1;
+    if ((tops[middle] ?? 0) + (heights[middle] ?? 0) <= top) low = middle + 1;
     else high = middle;
   }
   const first = Math.min(low, itemCount - 1);
@@ -79,7 +79,7 @@ export function resolveVirtualWindow({
   high = itemCount;
   while (low < high) {
     const middle = low + Math.floor((high - low) / 2);
-    if (tops[middle] < bottom) low = middle + 1;
+    if ((tops[middle] ?? 0) < bottom) low = middle + 1;
     else high = middle;
   }
   const last = low - 1;

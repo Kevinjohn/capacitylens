@@ -38,8 +38,11 @@ describe("deriveGettingStartedSteps", () => {
   });
 
   it("counts a real (non-builtin) client", () => {
+    const activeClient = { ...FIXTURE_CLIENT };
+    delete activeClient.archivedAt;
+    delete activeClient.deletedAt;
     const data = dataWith({
-      clients: [buildInternalClient("a1", NOW), { ...FIXTURE_CLIENT, archivedAt: undefined, deletedAt: undefined }],
+      clients: [buildInternalClient("a1", NOW), activeClient],
     });
     expect(buildGettingStartedSteps(data).client).toBe(true);
   });
@@ -62,8 +65,8 @@ describe("deriveGettingStartedSteps", () => {
       ...FIXTURE_PLACEHOLDER,
       kind: "person" as const,
       name: "Fixture Person",
-      projectId: undefined,
     };
+    delete person.projectId;
     const data = dataWith({
       projects: [FIXTURE_PROJECT],
       resources: [person],

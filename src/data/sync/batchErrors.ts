@@ -17,7 +17,7 @@ export class BatchConflictError extends BatchReconciliationError {
   constructor(message: string, current?: unknown) {
     super(message);
     this.name = "BatchConflictError";
-    this.current = current;
+    if (current !== undefined) this.current = current;
   }
 }
 
@@ -29,7 +29,7 @@ export class BatchValidationError extends BatchReconciliationError {
   constructor(message: string, code?: DomainErrorCode) {
     super(message);
     this.name = "BatchValidationError";
-    this.code = code;
+    if (code !== undefined) this.code = code;
   }
 }
 

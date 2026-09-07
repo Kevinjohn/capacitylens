@@ -36,7 +36,7 @@ export function applyBatch(
     state: state,
     body: prepareBatchBody(state, ops, options),
     ops: ops,
-    options: options,
+    ...(options ? { options } : {}),
   });
 }
 
@@ -78,7 +78,7 @@ export function dispatchPreparedBatch({
 }: DispatchPreparedBatchInput): Promise<BatchCommitReceipt> {
   const sequence = state.nextSyncSequence;
   state.nextSyncSequence += 1;
-  return postBatch({ state: state, body: body, ops: ops, sequence: sequence, options: options });
+  return postBatch({ state: state, body: body, ops: ops, sequence: sequence, ...(options ? { options } : {}) });
 }
 
 // updatedAt on the wire is a concurrency precondition: rebase each PUT onto the last authoritative
@@ -117,7 +117,7 @@ interface PostBatchInput {
 // the page. `body` is the already-serialized, PUT-rebased wire payload; `ops` supplies the exact
 // PUT identities that a non-superseded server receipt must cover.
 export async function postBatch({ state, body, ops, sequence, options }: PostBatchInput): Promise<BatchCommitReceipt> {
-  const res = await sendBatch({ state: state, body: body, sequence: sequence, options: options });
+  const res = await sendBatch({ state: state, body: body, sequence: sequence, ...(options ? { options } : {}) });
   await throwForBatchStatus(res);
   return readBatchReceipt(res, ops, options);
 }
@@ -144,7 +144,7 @@ export async function sendBatch({ state, body, sequence, options }: SendBatchInp
           "X-CapacityLens-Sync-Sequence": String(sequence),
         },
         body,
-        keepalive: options?.keepalive,
+        ...(options?.keepalive === undefined ? {} : { keepalive: options.keepalive }),
         credentials: "include",
       },
       // The atomic write is a BULK op: give it the long bound so a big-but-healthy batch isn't

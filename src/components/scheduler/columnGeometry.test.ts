@@ -44,7 +44,10 @@ describe("buildColumnGeometry — minimise OFF reproduces the uniform index*dayW
 
   it("xForDateInGeom / widthForDates reproduce the uniform index*dayWidth pixel values", () => {
     for (let i = 0; i < WEEK.length; i++) {
-      expect(geom.xForDateInGeom(WEEK[i])).toBe(i * 48);
+      const day = WEEK[i];
+      expect(day).toBeDefined();
+      if (!day) throw new Error("Expected a date for every week index.");
+      expect(geom.xForDateInGeom(day)).toBe(i * 48);
     }
     // Inclusive ranges, including ones that span the (uniform) weekend.
     expect(geom.widthForDates("2026-06-01", "2026-06-02")).toBe(2 * 48);
@@ -201,6 +204,6 @@ describe("buildColumnGeometry — gating + degenerate windows", () => {
     });
 
     expect(totalWidths).toEqual([110, 112, 114, 116, 118, 120]);
-    expect(totalWidths.every((width, index) => index === 0 || width >= totalWidths[index - 1])).toBe(true);
+    expect(totalWidths.every((width, index) => index === 0 || width >= (totalWidths[index - 1] ?? 0))).toBe(true);
   });
 });

@@ -61,7 +61,7 @@ export function createRowBuilder({
     x: geometry.xForDateInGeom(timeOffEntry.startDate),
     width: geometry.widthForDates(timeOffEntry.startDate, timeOffEntry.endDate),
     label: resolveTimeOffTypeLabel(timeOffEntry.type),
-    note: timeOffEntry.note,
+    ...(timeOffEntry.note ? { note: timeOffEntry.note } : {}),
   });
   const NO_TIME_OFF_BLOCKS: TimeOffBlock[] = [];
 
@@ -97,6 +97,9 @@ export function createRowBuilder({
     const laneIndicesByAllocationId = new Map(lanes.map((lane) => [lane.id, lane.lane]));
     const bars: BarLayout[] = visibleAllocations.map((allocation) => {
       const { project, client } = projectClientFor(allocation);
+      const seriesEnd = allocation.seriesId
+        ? seriesEndByKey.get(`${allocation.accountId}\u0000${allocation.seriesId}`)
+        : undefined;
       return {
         allocation: allocation,
         x: geometry.xForDateInGeom(allocation.startDate),
@@ -104,11 +107,9 @@ export function createRowBuilder({
         top: resolveLaneTop(laneIndicesByAllocationId.get(allocation.id) ?? 0, laneLayout),
         color: resolveBarColor(allocation, colorMaps),
         label: activitiesById.get(allocation.activityId)?.name ?? "Activity",
-        project: project?.name,
-        client: client?.name,
-        seriesEnd: allocation.seriesId
-          ? seriesEndByKey.get(`${allocation.accountId}\u0000${allocation.seriesId}`)
-          : undefined,
+        ...(project ? { project: project.name } : {}),
+        ...(client ? { client: client.name } : {}),
+        ...(seriesEnd ? { seriesEnd } : {}),
         external: isExternal,
       };
     });

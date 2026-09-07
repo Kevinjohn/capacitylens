@@ -47,9 +47,7 @@ describe("SchedulerGrid component identity and row variants", () => {
     useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { placeholdersEnabled: true });
     useStore.getState().replaceAll({
       ...useStore.getState().data,
-      resources: [
-        makeResource({ accountId: DEFAULT_ACCOUNT_ID, kind: "placeholder", name: undefined, disciplineId: "d1" }),
-      ],
+      resources: [makeResource({ accountId: DEFAULT_ACCOUNT_ID, kind: "placeholder", disciplineId: "d1" })],
       allocations: [],
     });
     useStore.getState().setFilters({ projectId: "p1", showUnmatched: true });

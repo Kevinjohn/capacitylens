@@ -62,16 +62,25 @@ describe("resourcesByDiscipline", () => {
   it("groups resources under disciplines ordered by sortOrder, with an ungrouped bucket last", () => {
     const groups = buildDisciplineGroups(data());
     expect(groups.map((g) => g.discipline?.name ?? "(none)")).toEqual(["Design", "Dev", "(none)"]);
-    expect(groups[0].resources.map((r) => r.id)).toEqual(["r1"]);
-    expect(groups[2].discipline).toBeNull();
-    expect(groups[2].resources.map((r) => r.id)).toEqual(["r3"]);
+    expect(groups[0]?.resources.map((r) => r.id)).toEqual(["r1"]);
+    expect(groups[2]?.discipline).toBeNull();
+    expect(groups[2]?.resources.map((r) => r.id)).toEqual(["r3"]);
   });
 });
 
 describe("disciplinesEnabledFor", () => {
   const accounts = (disciplinesEnabled?: boolean) => ({
     ...emptyAppData(),
-    accounts: [{ id: "a1", createdAt: "t", updatedAt: "t", name: "Studio", color: "#1", disciplinesEnabled }],
+    accounts: [
+      {
+        id: "a1",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Studio",
+        color: "#1",
+        ...(disciplinesEnabled !== undefined ? { disciplinesEnabled } : {}),
+      },
+    ],
   });
 
   it("defaults to true when the field is absent", () => {
@@ -105,7 +114,10 @@ describe("account feature selector defaults", () => {
       selector: resolveSchedulingMode,
       fallback: "hourly",
       explicit: ["days", "blocks"],
-      values: (schedulingMode) => ({ schedulingMode: schedulingMode as Account["schedulingMode"] }),
+      values: (schedulingMode) =>
+        schedulingMode === undefined
+          ? {}
+          : { schedulingMode: schedulingMode as NonNullable<Account["schedulingMode"]> },
     },
     {
       name: "placeholders",
@@ -202,7 +214,16 @@ describe("calendar primitive selectors", () => {
 describe("internalColourModeFor", () => {
   const accounts = (internalColourMode?: "grey" | "palette") => ({
     ...emptyAppData(),
-    accounts: [{ id: "a1", createdAt: "t", updatedAt: "t", name: "Studio", color: "#1", internalColourMode }],
+    accounts: [
+      {
+        id: "a1",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Studio",
+        color: "#1",
+        ...(internalColourMode ? { internalColourMode } : {}),
+      },
+    ],
   });
 
   it("defaults absent and unmatched accounts to grey", () => {

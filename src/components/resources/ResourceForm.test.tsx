@@ -3,7 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ResourceForm } from "./ResourceForm";
 import { useStore } from "../../store/useStore";
-import { resetStoreWithAccount } from "../../test/fixtures";
+import { requireValue, resetStoreWithAccount } from "../../test/fixtures";
 
 beforeEach(() => resetStoreWithAccount());
 
@@ -67,7 +67,9 @@ describe("ResourceForm disciplines", () => {
       halfDays: [],
       color: "#737373",
     });
-    useStore.getState().updateAccount(useStore.getState().data.accounts[0].id, { disciplinesEnabled: false });
+    useStore
+      .getState()
+      .updateAccount(requireValue(useStore.getState().data.accounts[0], "account").id, { disciplinesEnabled: false });
     render(<ResourceForm resource={resource} onClose={vi.fn()} />);
 
     expect(screen.queryByLabelText("Discipline")).not.toBeInTheDocument();
@@ -127,7 +129,9 @@ describe("ResourceForm placeholder binding", () => {
   it("saves a placeholder once a bound project is chosen", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    useStore.getState().updateAccount(useStore.getState().data.accounts[0].id, { workingDays: [1, 3, 5] });
+    useStore
+      .getState()
+      .updateAccount(requireValue(useStore.getState().data.accounts[0], "account").id, { workingDays: [1, 3, 5] });
     const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
     const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
     render(<ResourceForm kind="placeholder" onClose={onClose} />);
@@ -140,11 +144,11 @@ describe("ResourceForm placeholder binding", () => {
     expect(onClose).toHaveBeenCalled();
     const resources = useStore.getState().data.resources;
     expect(resources).toHaveLength(1);
-    expect(resources[0].kind).toBe("placeholder");
-    expect(resources[0].projectId).toBe(project.id);
-    expect(resources[0].engagement).toBe("studio");
-    expect(resources[0].workingDays).toEqual([1, 2, 3, 4, 5]);
-    expect(resources[0].halfDays).toEqual([]);
+    expect(resources[0]?.kind).toBe("placeholder");
+    expect(resources[0]?.projectId).toBe(project.id);
+    expect(resources[0]?.engagement).toBe("studio");
+    expect(resources[0]?.workingDays).toEqual([1, 2, 3, 4, 5]);
+    expect(resources[0]?.halfDays).toEqual([]);
   });
 
   // Editing a placeholder whose bound project is ARCHIVED (hidden from the active-only picker): the
@@ -183,6 +187,7 @@ describe("ResourceForm placeholder binding", () => {
 
     expect(onClose).toHaveBeenCalled();
     const saved = useStore.getState().data.resources[0];
+    if (!saved) throw new Error("Expected saved resource");
     expect(saved.role).toBe("Senior Designer");
     expect(saved.projectId).toBe(project.id); // unchanged, round-tripped
   });

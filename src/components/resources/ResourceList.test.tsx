@@ -7,6 +7,7 @@ import {
   DEFAULT_ACCOUNT_ID,
   WORKDAYS,
   resetStoreWithAccount,
+  requireValue,
   setExternalEnabled,
   setPlaceholdersEnabled,
 } from "../../test/fixtures";
@@ -259,7 +260,7 @@ describe("ResourceList display", () => {
     render(<ResourceList />);
     const rows = screen.getAllByTestId("resource-row");
     expect(rows).toHaveLength(1);
-    const row = rows[0];
+    const row = requireValue(rows[0], "resource row");
     expect(within(row).queryByText("placeholder")).not.toBeInTheDocument();
     expect(within(row).queryByText("Temp")).not.toBeInTheDocument();
   });
@@ -269,7 +270,7 @@ describe("ResourceList display", () => {
     render(<ResourceList />);
     const rows = screen.getAllByTestId("resource-row");
     expect(rows).toHaveLength(1);
-    const row = rows[0];
+    const row = requireValue(rows[0], "resource row");
     expect(within(row).queryByText("Temp")).not.toBeInTheDocument();
     expect(within(row).queryByText("placeholder")).not.toBeInTheDocument();
   });
@@ -291,7 +292,7 @@ describe("ResourceList display", () => {
     render(<ResourceList />);
     const rows = screen.getAllByTestId("resource-row");
     expect(rows).toHaveLength(1);
-    const row = rows[0];
+    const row = requireValue(rows[0], "resource row");
     expect(within(row).getByText("placeholder")).toBeInTheDocument();
     // The placeholder's NAME shows as the literal "Placeholder"; its role is in the secondary text.
     expect(within(row).getByText("Placeholder")).toBeInTheDocument();
@@ -420,7 +421,7 @@ describe("ResourceList archive flow", () => {
     // Cancel keeps the resource active + visible.
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(useStore.getState().data.resources).toHaveLength(1);
-    expect(useStore.getState().data.resources[0].archivedAt).toBeUndefined();
+    expect(useStore.getState().data.resources[0]?.archivedAt).toBeUndefined();
     expect(screen.getByText("Alice")).toBeInTheDocument();
   });
 
@@ -435,7 +436,7 @@ describe("ResourceList archive flow", () => {
 
     // Still in the data (archived, not destroyed) but hidden from the active-only list.
     expect(useStore.getState().data.resources).toHaveLength(1);
-    expect(useStore.getState().data.resources[0].archivedAt).toBeTruthy();
+    expect(useStore.getState().data.resources[0]?.archivedAt).toBeTruthy();
     expect(screen.queryByText("Alice")).not.toBeInTheDocument();
   });
 
@@ -472,7 +473,7 @@ describe("ResourceList archive flow", () => {
     const dialog = screen.getByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 
-    expect(useStore.getState().data.resources[0].archivedAt).toBeTruthy();
+    expect(useStore.getState().data.resources[0]?.archivedAt).toBeTruthy();
     expect(screen.queryByText("Bob")).not.toBeInTheDocument();
   });
 
@@ -506,7 +507,7 @@ describe("ResourceList archive flow", () => {
     expect(dialog).toHaveTextContent(/Archive "Placeholder"/i);
     await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 
-    expect(useStore.getState().data.resources[0].archivedAt).toBeTruthy();
+    expect(useStore.getState().data.resources[0]?.archivedAt).toBeTruthy();
     expect(screen.queryByText("Placeholder")).not.toBeInTheDocument();
     expect(screen.queryByText("placeholder")).not.toBeInTheDocument();
   });

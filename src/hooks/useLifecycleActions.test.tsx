@@ -280,7 +280,7 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
 
     await result.current.purge("clients", "c-old");
 
-    expect(fetchMock.mock.calls[0][0]).toBe("http://api.test/api/clients/c-old/purge");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("http://api.test/api/clients/c-old/purge");
     expect(loadAll).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
     expect(useStore.getState().data.clients.some((c) => c.id === "c-reloaded")).toBe(true);
     expect(useStore.getState().notice).toBeNull(); // no body-parse error surfaced

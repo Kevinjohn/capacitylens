@@ -22,6 +22,12 @@ import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingW
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import type { Allocation, Closure, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 
+function valueAt<T>(values: readonly T[], index: number): T {
+  const value = values[index];
+  if (value === undefined) throw new Error(`Expected value at index ${index}`);
+  return value;
+}
+
 interface AvailableHoursOnDayTestInput {
   resource: Resource;
   date: ISODate;
@@ -417,7 +423,7 @@ describe("capacityAllocationsForMode", () => {
     expect(applyCapacityMode({ allocations: allocations, blocksMode: false })).toBe(allocations);
     const blocks = applyCapacityMode({ allocations: allocations, blocksMode: true });
     expect(blocks).toEqual([{ ...allocations[0], hoursPerDay: 0 }]);
-    expect(allocations[0].hoursPerDay).toBe(7);
+    expect(allocations[0]?.hoursPerDay).toBe(7);
   });
 });
 
@@ -506,7 +512,7 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", (
     ];
     allocatedHoursOnDay({ resource: r, date: "2026-06-01", allocations: allocs });
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0][0]).toContain("allocated hours sum");
+    expect(warn.mock.calls[0]?.[0]).toContain("allocated hours sum");
     warn.mockRestore();
   });
 });
@@ -721,7 +727,7 @@ describe("dayCapacity over-allocation", () => {
     const resource = makeResource({ workingHoursPerDay: 7.5 });
 
     for (const order of orders) {
-      const ordered = order.map((index) => allocations[index]);
+      const ordered = order.map((index) => valueAt(allocations, index));
       expect(dayCapacity({ resource: resource, date: "2026-06-01", allocations: ordered, timeOff: [] }).over).toBe(
         false,
       );
@@ -1042,7 +1048,7 @@ describe("capacityAdvisory", () => {
         proposal: proposal({
           startDate: "2026-06-01",
           endDate: "2026-06-01",
-          hoursPerDay: fractional[2],
+          hoursPerDay: valueAt(fractional, 2),
           ignoreWeekends: false,
         }),
         otherAllocations: others,
@@ -1055,7 +1061,7 @@ describe("capacityAdvisory", () => {
         proposal: proposal({
           startDate: "2026-06-01",
           endDate: "2026-06-01",
-          hoursPerDay: fractional[2] + 0.05,
+          hoursPerDay: valueAt(fractional, 2) + 0.05,
           ignoreWeekends: false,
         }),
         otherAllocations: others,

@@ -73,20 +73,30 @@ export function diffOpsFromPossibleBases(possibleBases: readonly AppData[], next
     // the delete; accounts are top-level so they carry none.
     const pushDelete = (row: Entity): void => {
       const accountId = table === "accounts" ? undefined : (row as { accountId?: string }).accountId;
-      deletes.push({ method: "DELETE", table, id: row.id, accountId, updatedAt: row.updatedAt });
+      deletes.push({
+        method: "DELETE",
+        table,
+        id: row.id,
+        ...(accountId === undefined ? {} : { accountId }),
+        updatedAt: row.updatedAt,
+      });
     };
     if (baseIndexes.length === 1) {
       // The ordinary single-base diff: that base's index ALREADY is the candidate id set — same
       // first-seen order, same per-id row (the last duplicate) the multi-base lookup below picks —
       // so iterate it instead of flattening every row id into a throwaway array plus a Set.
-      for (const [id, row] of baseIndexes[0]) {
+      const [baseIndex] = baseIndexes;
+      if (!baseIndex) throw new Error("diffOps: expected the single possible base index.");
+      for (const [id, row] of baseIndex) {
         if (!nextById.has(id)) pushDelete(row);
       }
     } else {
       const candidateIds = new Set(baseRows.flatMap((rows) => rows.map((row) => row.id)));
       for (const id of candidateIds) {
         if (!nextById.has(id)) {
-          pushDelete(baseIndexes.map((index) => index.get(id)).find((candidate) => candidate !== undefined)!);
+          const row = baseIndexes.map((index) => index.get(id)).find((candidate) => candidate !== undefined);
+          if (!row) throw new Error(`diffOps: candidate row "${id}" is missing from every possible base.`);
+          pushDelete(row);
         }
       }
     }

@@ -15,7 +15,14 @@ function parseDeclarations(selector: string): Map<string, string> {
   const block = indexCss.match(new RegExp(`${escapedSelector}\\s*\\{([\\s\\S]*?)\\n\\}`))?.[1];
   if (!block) throw new Error(`Missing ${selector} declaration block`);
 
-  return new Map([...block.matchAll(/--([\w-]+):\s*([^;]+);/g)].map(([, name, value]) => [name, value.trim()]));
+  return new Map(
+    [...block.matchAll(/--([\w-]+):\s*([^;]+);/g)].map((match) => {
+      const name = match[1];
+      const value = match[2];
+      if (!name || !value) throw new Error(`Malformed declaration in ${selector}`);
+      return [name, value.trim()];
+    }),
+  );
 }
 
 const lightDeclarations = parseDeclarations(":root");
@@ -314,6 +321,7 @@ describe("AllocationBar focus ring (dual-tone, WCAG 1.4.11 non-text ≥3:1)", ()
   // darkest = highest contrast vs white halo.
   const palest = [...SWATCHES].sort((a, b) => contrastRatio(b, "#000000") - contrastRatio(a, "#000000"))[0];
   const darkest = [...SWATCHES].sort((a, b) => contrastRatio(b, "#ffffff") - contrastRatio(a, "#ffffff"))[0];
+  if (!palest || !darkest) throw new Error("Expected discipline swatches");
   ADJACENCIES["palest swatch"] = palest;
   ADJACENCIES["darkest swatch"] = darkest;
 

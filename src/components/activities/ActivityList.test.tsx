@@ -63,8 +63,8 @@ describe("ActivityList", () => {
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(useStore.getState().data.activities).toHaveLength(1);
-    expect(useStore.getState().data.activities[0].kind).toBe("internal");
-    expect(useStore.getState().data.activities[0].projectId).toBeUndefined();
+    expect(useStore.getState().data.activities[0]?.kind).toBe("internal");
+    expect(useStore.getState().data.activities[0]?.projectId).toBeUndefined();
 
     expect(screen.getByRole("heading", { name: "Internal activities" })).toBeInTheDocument();
     const row = within(screen.getByTestId("internal-activities")).getByTestId("activity-row");
@@ -83,7 +83,7 @@ describe("ActivityList", () => {
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(useStore.getState().data.activities[0].kind).toBe("repeatable");
+    expect(useStore.getState().data.activities[0]?.kind).toBe("repeatable");
     expect(screen.getByRole("heading", { name: "All-projects activities" })).toBeInTheDocument();
     const row = within(screen.getByTestId("cross-project-activities")).getByTestId("activity-row");
     expect(row).toHaveTextContent("Design");
@@ -129,8 +129,8 @@ describe("ActivityList", () => {
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(useStore.getState().data.activities[0].kind).toBe("project");
-    expect(useStore.getState().data.activities[0].projectId).toBe(project.id);
+    expect(useStore.getState().data.activities[0]?.kind).toBe("project");
+    expect(useStore.getState().data.activities[0]?.projectId).toBe(project.id);
 
     const row = within(screen.getByTestId("project-specific-activities")).getByTestId("activity-row");
     expect(row).toHaveTextContent("My Activity");

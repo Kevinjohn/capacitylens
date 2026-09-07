@@ -49,8 +49,6 @@ describe("persistence save/reload/switch overlap", () => {
       store: useStore,
       adapter: { loadAll, saveAll },
       debounceMs: 0,
-      onError: undefined,
-      onSuccess: undefined,
       serverMode: true,
     });
     useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
@@ -93,7 +91,6 @@ describe("persistence save/reload/switch overlap", () => {
       adapter: { loadAll, saveAll },
       debounceMs: 0,
       onError: onError,
-      onSuccess: undefined,
       serverMode: true,
     });
     useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });

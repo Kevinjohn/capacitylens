@@ -4,7 +4,13 @@ import userEvent from "@testing-library/user-event";
 import { TimeOffList } from "./TimeOffList";
 import { TimeOffForm } from "./TimeOffForm";
 import { useStore } from "../../store/useStore";
-import { DEFAULT_ACCOUNT_ID, WORKDAYS, resetStoreWithAccount, setPlaceholdersEnabled } from "../../test/fixtures";
+import {
+  DEFAULT_ACCOUNT_ID,
+  WORKDAYS,
+  requireValue,
+  resetStoreWithAccount,
+  setPlaceholdersEnabled,
+} from "../../test/fixtures";
 import { PermissionContext } from "../../auth/permissionContext";
 
 const resourceDraft = {
@@ -66,6 +72,8 @@ describe("TimeOffList", () => {
     const user = userEvent.setup();
     useStore.getState().addResource(resourceDraft);
     const resource = useStore.getState().data.resources[0];
+    if (!resource) throw new Error("Expected resource");
+    if (!resource.name) throw new Error("Expected named resource");
     render(<TimeOffList />);
 
     await user.click(screen.getByRole("button", { name: "Add time off" }));
@@ -89,6 +97,8 @@ describe("TimeOffList", () => {
     const user = userEvent.setup();
     useStore.getState().addResource(resourceDraft);
     const resource = useStore.getState().data.resources[0];
+    if (!resource) throw new Error("Expected resource");
+    if (!resource.name) throw new Error("Expected named resource");
     render(<TimeOffList />);
 
     await user.click(screen.getByRole("button", { name: "Add time off" }));
@@ -114,7 +124,7 @@ describe("TimeOffList", () => {
     expect(row).not.toHaveTextContent("2026-07-01"); // the raw ISO string is no longer shown
 
     expect(useStore.getState().data.timeOff).toHaveLength(1);
-    expect(useStore.getState().data.timeOff[0].resourceId).toBe(resource.id);
+    expect(requireValue(useStore.getState().data.timeOff[0], "time off").resourceId).toBe(resource.id);
   });
 
   it("keeps the row spare — start date and day count only, never the end date, type or note", () => {

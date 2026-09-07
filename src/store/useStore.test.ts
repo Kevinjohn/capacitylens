@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { hasActiveFilters, useStore } from "./useStore";
-import { resetStoreWithAccount, makeAppData, makeAccount, makeResourceDraft, WORKDAYS } from "../test/fixtures";
+import {
+  resetStoreWithAccount,
+  makeAppData,
+  makeAccount,
+  makeResourceDraft,
+  requireValue,
+  WORKDAYS,
+} from "../test/fixtures";
 import { addDaysISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { serializeData } from "@capacitylens/shared/data/transfer";
 import { PAST_BUFFER_DAYS } from "../lib/schedulerConfig";
@@ -70,6 +77,7 @@ describe("store CRUD", () => {
     const before = s().data;
     s().updateResource(r.id, { name: "Tyler" });
     const updated = s().data.resources[0];
+    if (!updated) throw new Error("Expected updated resource");
     expect(updated.name).toBe("Tyler");
     expect(Date.parse(updated.updatedAt)).toBeGreaterThan(Date.parse(r.updatedAt));
     expect(diffOps(before, s().data)).toEqual([
@@ -313,19 +321,19 @@ describe("store scheduler UI", () => {
     expect(s().data.clients).toHaveLength(0);
     s().redo();
     expect(s().data.clients).toHaveLength(1);
-    expect(s().data.clients[0].id).toBe(c.id);
+    expect(s().data.clients[0]?.id).toBe(c.id);
   });
 
   it("re-stamps a changed revision without serializing content unnecessarily", () => {
     resetStoreWithAccount();
     const clients = Array.from({ length: 100 }, (_, index) => s().addClient({ name: `Client ${index}`, color: "#1" }));
     useStore.setState({ past: [], future: [] });
-    s().updateClient(clients[0].id, { name: "Changed" });
+    s().updateClient(requireValue(clients[0], "first client").id, { name: "Changed" });
     const stringify = vi.spyOn(JSON, "stringify");
 
     s().undo();
 
-    expect(s().data.clients[0].name).toBe("Client 0");
+    expect(s().data.clients[0]?.name).toBe("Client 0");
     expect(stringify).not.toHaveBeenCalled();
     stringify.mockRestore();
   });

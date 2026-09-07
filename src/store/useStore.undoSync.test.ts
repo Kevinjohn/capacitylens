@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { diffOps } from "../data/syncOps";
 import { useStore } from "./useStore";
-import { DEFAULT_ACCOUNT_ID, makeAppData, makeResource, resetStoreWithAccount, WORKDAYS } from "../test/fixtures";
+import {
+  DEFAULT_ACCOUNT_ID,
+  makeAppData,
+  makeResource,
+  requireValue,
+  resetStoreWithAccount,
+  WORKDAYS,
+} from "../test/fixtures";
 import type { AppData } from "@capacitylens/shared/types/entities";
 
 const T = "2026-01-01T00:00:00.000Z";
@@ -26,11 +33,13 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
 
     useStore.getState().updateClient("c1", { name: "Client" });
     const afterNoOpSave = useStore.getState().data;
-    const savedRevision = afterNoOpSave.clients[0].updatedAt;
+    const savedRevision = requireValue(afterNoOpSave.clients[0], "saved client").updatedAt;
     const ops = undoOps(afterNoOpSave);
 
     expect(useStore.getState().data.clients[0]).toMatchObject({ name: "Client", color: "#111111" });
-    expect(Date.parse(useStore.getState().data.clients[0].updatedAt)).toBeGreaterThan(Date.parse(savedRevision));
+    expect(Date.parse(requireValue(useStore.getState().data.clients[0], "restored client").updatedAt)).toBeGreaterThan(
+      Date.parse(savedRevision),
+    );
     expect(ops).toContainEqual(expect.objectContaining({ method: "PUT", table: "clients", id: "c1" }));
   });
 
@@ -79,7 +88,7 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
 
     useStore.getState().deletePhase("ph1");
     const afterDelete = useStore.getState().data;
-    expect(afterDelete.activities[0].phaseId).toBeUndefined();
+    expect(afterDelete.activities[0]?.phaseId).toBeUndefined();
     const ops = undoOps(afterDelete);
 
     expect(ops).toContainEqual(
@@ -89,7 +98,7 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
         id: "act1",
       }),
     );
-    expect(useStore.getState().data.activities[0].phaseId).toBe("ph1");
+    expect(useStore.getState().data.activities[0]?.phaseId).toBe("ph1");
   });
 
   it("restores a resource disciplineId with a resource PUT", () => {
@@ -103,11 +112,11 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
 
     useStore.getState().deleteDiscipline("d1");
     const afterDelete = useStore.getState().data;
-    expect(afterDelete.resources[0].disciplineId).toBeUndefined();
+    expect(afterDelete.resources[0]?.disciplineId).toBeUndefined();
     const ops = undoOps(afterDelete);
 
     expect(ops).toContainEqual(expect.objectContaining({ method: "PUT", table: "resources", id: "r1" }));
-    expect(useStore.getState().data.resources[0].disciplineId).toBe("d1");
+    expect(useStore.getState().data.resources[0]?.disciplineId).toBe("d1");
   });
 
   it("keeps a placeholder projectId removed after project purge and emits no undo sync", () => {
@@ -146,10 +155,10 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
 
     useStore.getState().purgeEntity("projects", "p1");
     const afterDelete = useStore.getState().data;
-    expect(afterDelete.resources[0].projectId).toBeUndefined();
+    expect(afterDelete.resources[0]?.projectId).toBeUndefined();
     const ops = undoOps(afterDelete);
     expect(ops).toEqual([]);
-    expect(useStore.getState().data.resources[0].projectId).toBeUndefined();
+    expect(useStore.getState().data.resources[0]?.projectId).toBeUndefined();
   });
 
   it("keeps a placeholder projectId removed after client purge and emits no undo sync", () => {
@@ -195,9 +204,9 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
 
     useStore.getState().purgeEntity("clients", "c1");
     const afterDelete = useStore.getState().data;
-    expect(afterDelete.resources[0].projectId).toBeUndefined();
+    expect(afterDelete.resources[0]?.projectId).toBeUndefined();
     const ops = undoOps(afterDelete);
     expect(ops).toEqual([]);
-    expect(useStore.getState().data.resources[0].projectId).toBeUndefined();
+    expect(useStore.getState().data.resources[0]?.projectId).toBeUndefined();
   });
 });

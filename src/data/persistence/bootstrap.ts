@@ -85,8 +85,8 @@ export async function bootstrap(
     store: store,
     adapter: adapter,
     debounceMs: options.debounceMs ?? 300,
-    onError: options.onError,
-    onSuccess: options.onSuccess,
-    serverMode: options.serverMode,
+    ...(options.onError ? { onError: options.onError } : {}),
+    ...(options.onSuccess ? { onSuccess: options.onSuccess } : {}),
+    ...(options.serverMode === undefined ? {} : { serverMode: options.serverMode }),
   });
 }

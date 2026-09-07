@@ -4,7 +4,7 @@ import { activeOnly, lifecycleStatus, PURGE_MIN_AGE_DAYS } from "@capacitylens/s
 import { internalClientFor } from "@capacitylens/shared/data/internalClient";
 import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 import type { Resource } from "@capacitylens/shared/types/entities";
-import { makeResourceDraft, resetStoreWithAccount } from "../test/fixtures";
+import { makeResourceDraft, requireValue, resetStoreWithAccount } from "../test/fixtures";
 
 // Store-level coverage for the P2.5b data-lifecycle actions (the DEMO-build / OFF path): archiveEntity /
 // unarchiveEntity / softDeleteEntity / purgeEntity. They COMPOSE the pure shared lifecycle helpers and
@@ -28,7 +28,7 @@ const longAgoISO = () => addDaysISO(todayISO(), -(PURGE_MIN_AGE_DAYS + 1)) + "T0
 describe("archiveEntity", () => {
   it("sets archivedAt + stamps updatedAt; the row reads archived and is hidden from active views", () => {
     const r = s().addResource(personDraft);
-    expect(lifecycleStatus(s().data.resources[0])).toBe("active");
+    expect(lifecycleStatus(requireValue(s().data.resources[0], "resource"))).toBe("active");
 
     s().archiveEntity("resources", r.id);
     const row = s().data.resources.find((x) => x.id === r.id)!;
@@ -105,7 +105,7 @@ describe("softDeleteEntity", () => {
     const r = s().addResource(personDraft);
     // Active, not archived → cannot delete directly.
     expect(() => s().softDeleteEntity("resources", r.id)).toThrow(/archived first/i);
-    expect(s().data.resources[0].deletedAt).toBeUndefined();
+    expect(s().data.resources[0]?.deletedAt).toBeUndefined();
   });
 
   it.each(["resources", "clients", "projects"] as const)(
@@ -189,10 +189,10 @@ describe("softDeleteEntity", () => {
 
     const allocation = (id: string) => s().data.allocations.find((row) => row.id === id)!;
     const timeOff = (id: string) => s().data.timeOff.find((row) => row.id === id)!;
-    expect(allocation(notedAllocation.id)).toMatchObject({ note: undefined });
+    expect(allocation(notedAllocation.id)).not.toHaveProperty("note");
     expect(allocation(notedAllocation.id).updatedAt).not.toBe(notedAllocation.updatedAt);
     expect(allocation(plainAllocation.id).updatedAt).toBe(plainAllocation.updatedAt);
-    expect(timeOff(notedTimeOff.id)).toMatchObject({ note: undefined });
+    expect(timeOff(notedTimeOff.id)).not.toHaveProperty("note");
     expect(timeOff(notedTimeOff.id).updatedAt).not.toBe(notedTimeOff.updatedAt);
     expect(timeOff(plainTimeOff.id).updatedAt).toBe(plainTimeOff.updatedAt);
   });
@@ -222,7 +222,7 @@ describe("softDeleteEntity", () => {
       ...data,
       clients: data.clients.map((client) => (client.id === c.id ? { ...client, archivedAt: futureArchive } : client)),
     });
-    s().setActiveAccount(data.accounts[0].id);
+    s().setActiveAccount(requireValue(data.accounts[0], "account").id);
 
     s().softDeleteEntity("clients", c.id);
 
@@ -271,7 +271,7 @@ describe("purgeEntity", () => {
         res.id === r.id ? { ...res, archivedAt: old, deletedAt: old } : res,
       ),
     });
-    s().setActiveAccount(data.accounts[0].id);
+    s().setActiveAccount(requireValue(data.accounts[0], "account").id);
 
     s().purgeEntity("resources", r.id);
     expect(s().data.resources.some((x) => x.id === r.id)).toBe(false); // row removed
@@ -298,7 +298,7 @@ describe("purgeEntity", () => {
       ...data,
       clients: data.clients.map((cl) => (cl.id === c.id ? { ...cl, archivedAt: old, deletedAt: old } : cl)),
     });
-    s().setActiveAccount(data.accounts[0].id);
+    s().setActiveAccount(requireValue(data.accounts[0], "account").id);
 
     s().purgeEntity("clients", c.id);
     const d = s().data;
@@ -336,17 +336,17 @@ describe("viewer guard no-ops every lifecycle action (defense-in-depth)", () => 
     // Seed an archived row as an editor, then flip to viewer and prove no transition lands.
     const r = s().addResource(personDraft);
     s().archiveEntity("resources", r.id);
-    const archivedAt = s().data.resources[0].archivedAt;
+    const archivedAt = s().data.resources[0]?.archivedAt;
 
     s().setActiveRole("viewer");
     s().unarchiveEntity("resources", r.id);
-    expect(s().data.resources[0].archivedAt).toBe(archivedAt); // unchanged — still archived
+    expect(s().data.resources[0]?.archivedAt).toBe(archivedAt); // unchanged — still archived
 
     s().archiveEntity("resources", r.id); // already archived; a viewer must no-op BEFORE the throw
-    expect(s().data.resources[0].archivedAt).toBe(archivedAt);
+    expect(s().data.resources[0]?.archivedAt).toBe(archivedAt);
 
     s().softDeleteEntity("resources", r.id);
-    expect(s().data.resources[0].deletedAt).toBeUndefined(); // no tombstone
+    expect(s().data.resources[0]?.deletedAt).toBeUndefined(); // no tombstone
 
     s().purgeEntity("resources", r.id);
     expect(s().data.resources.some((x) => x.id === r.id)).toBe(true); // still present
@@ -357,10 +357,10 @@ describe("viewer guard no-ops every lifecycle action (defense-in-depth)", () => 
 describe("lifecycle actions are undoable (⌘Z)", () => {
   it("undo after archiveEntity restores the pre-archive (active) state", () => {
     const r = s().addResource(personDraft);
-    expect(lifecycleStatus(s().data.resources[0])).toBe("active");
+    expect(lifecycleStatus(requireValue(s().data.resources[0], "resource"))).toBe("active");
 
     s().archiveEntity("resources", r.id);
-    expect(lifecycleStatus(s().data.resources[0])).toBe("archived");
+    expect(lifecycleStatus(requireValue(s().data.resources[0], "archived resource"))).toBe("archived");
 
     s().undo();
     const row = s().data.resources.find((x) => x.id === r.id)!;

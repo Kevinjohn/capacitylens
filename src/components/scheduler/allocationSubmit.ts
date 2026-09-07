@@ -113,7 +113,9 @@ export function createAllocationCommands(input: CommandInput) {
     if (selectedResource && selectedActivity) {
       const check = validateAllocationAssignment(selectedResource, selectedEffectiveProjectId);
       if (!check.ok) {
-        fail("activity", resolveDomainErrorMessage(check.codes[0]));
+        const firstCode = check.codes[0];
+        if (!firstCode) throw new Error("Invalid allocation assignment did not provide an error code.");
+        fail("activity", resolveDomainErrorMessage(firstCode));
         return null;
       }
     }
@@ -134,7 +136,7 @@ export function createAllocationCommands(input: CommandInput) {
       }),
       hoursPerDay: effectiveHoursPerDay,
       status,
-      note: cleanNote || undefined,
+      ...(cleanNote ? { note: cleanNote } : {}),
       ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
       // Externals have no working week — weekends are plain calendar days for them, so a span is
       // literal (ignoreWeekends: true) and the toggle is hidden below.

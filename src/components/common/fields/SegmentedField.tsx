@@ -51,9 +51,8 @@ export function SegmentedField<T extends string | number>({
         value={value}
         onChange={onChange}
         options={options}
-        ariaLabel={ariaLabel}
-        ariaLabelledby={ariaLabel ? undefined : labelId}
-        className={controlClassName}
+        {...(ariaLabel ? { ariaLabel } : { ariaLabelledby: labelId })}
+        {...(controlClassName ? { className: controlClassName } : {})}
         geometry={geometry}
         fullWidth={fullWidth}
         size={size}

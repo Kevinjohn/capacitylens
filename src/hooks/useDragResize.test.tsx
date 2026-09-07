@@ -20,7 +20,13 @@ function Harness({
   onClick,
   onCancel,
 }: HarnessProps) {
-  const { onPointerDown } = useDragResize({ indexAtClientX, onPreview, onCommit, onClick, onCancel });
+  const { onPointerDown } = useDragResize({
+    indexAtClientX,
+    onPreview,
+    onCommit,
+    ...(onClick ? { onClick } : {}),
+    ...(onCancel ? { onCancel } : {}),
+  });
   return (
     <div data-testid="drag-target" onPointerDown={onPointerDown}>
       <span data-handle="start" data-testid="handle-start">

@@ -101,7 +101,7 @@ export function buildEffectiveAllocationValues({
   }
 
   const spanOptions = {
-    workingDays: effectiveWeek?.kind === "days" ? effectiveWeek.days : undefined,
+    ...(effectiveWeek?.kind === "days" ? { workingDays: effectiveWeek.days } : {}),
     ignoreWeekends,
   };
   const maximumDaysOver = startDate ? maxSpanDaysForStart(startDate, spanOptions) : MAX_SPAN_DAYS;

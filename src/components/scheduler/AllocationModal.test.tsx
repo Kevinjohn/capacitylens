@@ -19,6 +19,13 @@ import { PermissionContext } from "../../auth/permissionContext";
 import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { chooseOption, GEOM, indexAtClientX, renderWithTooltip } from "./__tests__/schedulerTestKit";
 
+function first<T>(values: T[]): T {
+  const value = values[0];
+  expect(value).toBeDefined();
+  if (value === undefined) throw new Error("Expected a non-empty test result.");
+  return value;
+}
+
 interface AllocationScopeCaseInput {
   caseName: string;
   activityKind: Activity["kind"];
@@ -41,7 +48,7 @@ const lastAdvisoryOthers = () => {
   const input = capacityAdvisoryMock.mock.calls.at(-1)?.[0];
   return input && "otherAllocations" in input ? input.otherAllocations : undefined;
 };
-const lastAdvisoryProposal = () => capacityAdvisoryMock.mock.calls.at(-1)?.[0].proposal;
+const lastAdvisoryProposal = () => capacityAdvisoryMock.mock.calls.at(-1)?.[0]?.proposal;
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
 // (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
 // care only about the advisory VERDICTS the modal renders.
@@ -178,7 +185,7 @@ describe("AllocationModal create", () => {
 
   it("creates an allocation for a person after picking project + activity", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = useStore.getState().data.resources[0].id;
+    const resourceId = first(useStore.getState().data.resources).id;
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -243,7 +250,7 @@ describe("AllocationModal create", () => {
     ["8 h - full day", 8],
   ] as const)("creates an allocation with the %s hours option", async (option, expectedHours) => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = useStore.getState().data.resources[0].id;
+    const resourceId = first(useStore.getState().data.resources).id;
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -264,7 +271,7 @@ describe("AllocationModal create", () => {
 
   it("rejects an empty date instead of saving a broken allocation", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = useStore.getState().data.resources[0].id;
+    const resourceId = first(useStore.getState().data.resources).id;
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -1539,6 +1546,10 @@ describe("AllocationModal edit", () => {
         seriesId,
       },
     ]);
+    expect(earlier).toBeDefined();
+    expect(selected).toBeDefined();
+    expect(later).toBeDefined();
+    if (!earlier || !selected || !later) throw new Error("Expected all repeated allocations to be created.");
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={selected.id} onClose={onClose} />);
@@ -1577,6 +1588,9 @@ describe("AllocationModal edit", () => {
         seriesId: "series-weekly",
       },
     ]);
+    expect(selected).toBeDefined();
+    expect(later).toBeDefined();
+    if (!selected || !later) throw new Error("Expected both repeated allocations to be created.");
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={selected.id} onClose={onClose} />);
@@ -2108,7 +2122,7 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
 describe("AllocationModal inline activity creation pref", () => {
   const addPerson = () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    return useStore.getState().data.resources[0].id;
+    return first(useStore.getState().data.resources).id;
   };
 
   it('renders the inline "Add activity" input + button by default (pref absent → enabled)', () => {
@@ -2202,7 +2216,7 @@ describe("AllocationModal inline activity creation pref", () => {
 describe("AllocationModal Enter key submission", () => {
   it("operates the Hours / day select with the keyboard", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = useStore.getState().data.resources[0].id;
+    const resourceId = first(useStore.getState().data.resources).id;
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -2229,7 +2243,7 @@ describe("AllocationModal Enter key submission", () => {
 
   it("submits when Enter is pressed in the single-line Note input", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = useStore.getState().data.resources[0].id;
+    const resourceId = first(useStore.getState().data.resources).id;
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -2254,7 +2268,7 @@ describe("AllocationModal Enter key submission", () => {
 
   it("pressing Enter in the new-activity input calls onAddActivity, not submit", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = useStore.getState().data.resources[0].id;
+    const resourceId = first(useStore.getState().data.resources).id;
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -2398,7 +2412,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(oneSpy).not.toHaveBeenCalled();
     expect(bulkSpy).toHaveBeenCalledTimes(1);
-    const drafts = bulkSpy.mock.calls[0][0];
+    const drafts = bulkSpy.mock.calls[0]?.[0];
+    expect(drafts).toBeDefined();
+    if (!drafts) throw new Error("Expected repeated allocation drafts.");
     expect(drafts).toHaveLength(14);
     expect(drafts[0]).toMatchObject({ startDate: "2099-06-01", endDate: "2099-06-03" });
     expect(drafts.at(-1)).toMatchObject({ startDate: "2099-08-31", endDate: "2099-09-02" });
@@ -2435,7 +2451,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
       await chooseOption(user, "Repeat", "Weekly");
       await user.click(screen.getByRole("button", { name: "Save" }));
 
-      const drafts = bulkSpy.mock.calls[0][0];
+      const drafts = bulkSpy.mock.calls[0]?.[0];
+      expect(drafts).toBeDefined();
+      if (!drafts) throw new Error("Expected repeated allocation drafts.");
       expect(drafts.length).toBeGreaterThan(1);
       for (const draft of drafts) {
         if (projectId) expect(draft).toHaveProperty("projectId", projectId);
@@ -2469,7 +2487,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(/clamp|month-end|fallback/i)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(bulkSpy.mock.calls[0][0].map(({ startDate, endDate }) => [startDate, endDate])).toEqual([
+    expect(bulkSpy.mock.calls[0]?.[0]?.map(({ startDate, endDate }) => [startDate, endDate])).toEqual([
       ["2099-01-31", "2099-02-02"],
       ["2099-02-28", "2099-03-02"],
       ["2099-03-31", "2099-04-02"],

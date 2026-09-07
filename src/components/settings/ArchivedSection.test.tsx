@@ -164,7 +164,6 @@ describe("ArchivedSection — demo build (store source)", () => {
         client({
           name: '"Nightwing"',
           isPrivate: true,
-          codeName: undefined,
           archivedAt: TS,
         }),
       ],

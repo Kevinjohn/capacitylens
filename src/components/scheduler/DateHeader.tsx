@@ -33,7 +33,10 @@ function buildWeekBlocks(days: string[], weekStartsOn: 0 | 1): Span[] {
   days.forEach((day, i) => {
     if (i === 0 || weekdayOf(day) === weekStartsOn)
       blocks.push({ key: day, label: format(parseDate(day), "d MMM"), days: 1, start: i });
-    else blocks[blocks.length - 1].days += 1;
+    else {
+      const currentBlock = blocks[blocks.length - 1];
+      if (currentBlock) currentBlock.days += 1;
+    }
   });
   return blocks;
 }

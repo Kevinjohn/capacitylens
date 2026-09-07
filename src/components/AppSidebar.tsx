@@ -206,7 +206,7 @@ function SessionMenuItem({ demoAuthActive, onSignOutDemo }: { demoAuthActive: bo
         title={m.nav_signed_in_as({ who: name })}
         onClick={demoAuthActive ? onSignOutDemo : () => void signOut()}
       >
-        <Avatar name={name} color={DEFAULT_COLORS.account} size={20} imageUrl={imageUrl} />
+        <Avatar name={name} color={DEFAULT_COLORS.account} size={20} {...(imageUrl ? { imageUrl } : {})} />
         <span className="truncate">{m.nav_sign_out()}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>

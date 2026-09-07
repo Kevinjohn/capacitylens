@@ -101,8 +101,8 @@ export function buildRepeatedAllocationDrafts(
     throw new RangeError("Repeat projection requires at least one effective working day.");
   }
   const spanOptions = {
-    workingDays: context.effectiveWeek.kind === "days" ? context.effectiveWeek.days : undefined,
-    ignoreWeekends: baseDraft.ignoreWeekends,
+    ...(context.effectiveWeek.kind === "days" ? { workingDays: context.effectiveWeek.days } : {}),
+    ...(baseDraft.ignoreWeekends !== undefined ? { ignoreWeekends: baseDraft.ignoreWeekends } : {}),
   };
   if (!usesCalendarSpan) {
     for (const generatedStart of startDates) {

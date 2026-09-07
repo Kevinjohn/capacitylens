@@ -104,7 +104,7 @@ export function TimeOffForm({
           return;
         }
         update(timeOff.id, patch);
-      } else add(patch);
+      } else add({ ...basePatch, ...(cleanNote ? { note: cleanNote } : {}) });
       onClose();
     } catch (e) {
       fail(null, e instanceof Error ? resolveErrorMessage(e) : m.form_timeoff_err_save_failed());

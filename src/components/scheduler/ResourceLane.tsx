@@ -57,7 +57,7 @@ const BarsLayer = memo(function BarsLayer({
           bar={bar}
           geom={geometry}
           indexAtClientX={indexAtClientX}
-          onEdit={onEdit}
+          {...(onEdit ? { onEdit } : {})}
         />
       ))}
     </div>
@@ -176,17 +176,19 @@ export const ResourceLane = memo(function ResourceLane({
       if (isOtherPointer(event)) return;
       detach();
       setDraw(null);
-      // A clean click (sub-threshold) creates a SINGLE-day allocation on the clicked
-      // day — the most common case, and previously impossible (you had to find the
-      // tiny row "+"). A multi-day drag spans clicked-start → release. Grabbing a bar
-      // never reaches here (the bar stops propagation), so this only fires on empty space.
+      // A clean click creates one day; a drag spans start → release. Bar pointer events never
+      // reach this empty-space handler because bars stop propagation.
       if (Math.abs(event.clientX - startX) < DRAW_THRESHOLD_PX) {
         const day = days[start];
+        if (!day) return;
         onDraw(resourceId, day, day);
         return;
       }
       const end = indexAt(event.clientX);
-      onDraw(resourceId, days[Math.min(start, end)], days[Math.max(start, end)]);
+      const startDay = days[Math.min(start, end)];
+      const endDay = days[Math.max(start, end)];
+      if (!startDay || !endDay) return;
+      onDraw(resourceId, startDay, endDay);
     };
     const onCancel = (event: PointerEvent) => {
       if (isOtherPointer(event)) return;
@@ -383,7 +385,7 @@ export const ResourceLane = memo(function ResourceLane({
         />
       )}
 
-      <BarsLayer bars={bars} geom={geometry} indexAtClientX={indexAt} onEdit={onEdit} />
+      <BarsLayer bars={bars} geom={geometry} indexAtClientX={indexAt} {...(onEdit ? { onEdit } : {})} />
 
       {/* today line */}
       {todayX !== null && (
