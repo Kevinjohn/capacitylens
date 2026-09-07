@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
-import { anonymise, remapIds, scrubDanglingReferences } from "../scripts/rehearse/anonymise";
+import { anonymise } from "../scripts/rehearse/anonymise";
+import { remapIds, scrubDanglingReferences } from "../scripts/rehearse/anonymiseOperations";
 import { KNOWN_COLUMNS, KNOWN_TABLES } from "../scripts/rehearse/knownColumns";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { openDb } from "./db";
@@ -45,12 +46,17 @@ describe("rehearsal anonymisation helpers", () => {
         INSERT INTO clients VALUES ('client-one', 'a-source-account'), ('client-two', 'rehearsal-accounts-1');
         INSERT INTO projects VALUES ('project-one', 'a-source-account'), ('project-two', 'rehearsal-accounts-1');
       `);
-      remapIds(db, "accounts", "id", [
-        { table: "clients", column: "accountId" },
-        { table: "projects", column: "accountId" },
-        { table: "missing_table", column: "accountId" },
-        { table: "clients", column: "missingColumn" },
-      ]);
+      remapIds({
+        db: db,
+        table: "accounts",
+        idColumn: "id",
+        references: [
+          { table: "clients", column: "accountId" },
+          { table: "projects", column: "accountId" },
+          { table: "missing_table", column: "accountId" },
+          { table: "clients", column: "missingColumn" },
+        ],
+      });
       const accounts = db.prepare("SELECT id FROM accounts ORDER BY id").all();
       expect(accounts).toHaveLength(2);
       expect(new Set(accounts.map(({ id }) => id)).size).toBe(2);
@@ -61,8 +67,8 @@ describe("rehearsal anonymisation helpers", () => {
       expect(new Set(clients.map(({ accountId }) => accountId))).toEqual(new Set(accounts.map(({ id }) => id)));
       expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
       // Missing parent tables and columns are historical-shape no-ops as well.
-      remapIds(db, "missing_table", "id", []);
-      remapIds(db, "accounts", "missingColumn", []);
+      remapIds({ db: db, table: "missing_table", idColumn: "id", references: [] });
+      remapIds({ db: db, table: "accounts", idColumn: "missingColumn", references: [] });
       expect(db.prepare("SELECT id FROM accounts ORDER BY id").all()).toEqual(accounts);
     } finally {
       db.close();
@@ -78,13 +84,13 @@ describe("rehearsal anonymisation helpers", () => {
         INSERT INTO user VALUES ('known-principal');
         INSERT INTO account_security_revisions VALUES ('known-principal'), ('source-orphan'), (NULL);
       `);
-      scrubDanglingReferences(
-        db,
-        "user",
-        "id",
-        [{ table: "account_security_revisions", column: "principalId" }],
-        "principal",
-      );
+      scrubDanglingReferences({
+        db: db,
+        parentTable: "user",
+        parentColumn: "id",
+        references: [{ table: "account_security_revisions", column: "principalId" }],
+        label: "principal",
+      });
       const rows = db.prepare("SELECT principalId FROM account_security_revisions ORDER BY rowid").all();
       expect(rows[0]).toEqual({ principalId: "known-principal" });
       expect(rows[1]?.principalId).toMatch(/^rehearsal-dangling-principal-/);
@@ -101,17 +107,17 @@ describe("rehearsal anonymisation helpers", () => {
         CREATE TABLE account_security_revisions (principalId TEXT);
         INSERT INTO account_security_revisions VALUES ('source-first'), ('source-second'), (NULL);
       `);
-      scrubDanglingReferences(
-        db,
-        "user",
-        "id",
-        [
+      scrubDanglingReferences({
+        db: db,
+        parentTable: "user",
+        parentColumn: "id",
+        references: [
           { table: "account_security_revisions", column: "principalId" },
           { table: "missing_table", column: "principalId" },
           { table: "account_security_revisions", column: "missingColumn" },
         ],
-        "principal",
-      );
+        label: "principal",
+      });
       const rows = db.prepare("SELECT principalId FROM account_security_revisions ORDER BY rowid").all();
       expect(rows).toHaveLength(3);
       expect(rows[0]?.principalId).toMatch(/^rehearsal-dangling-principal-/);
