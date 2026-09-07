@@ -125,6 +125,13 @@ function parseCommandId(value: unknown): string {
   return value.commandId;
 }
 
+function parseErrorCode(value: unknown): string {
+  if (typeof value !== "object" || value === null || !("code" in value) || typeof value.code !== "string") {
+    throw new Error("Expected response body to contain a string error code");
+  }
+  return value.code;
+}
+
 describe("GET /api/accounts/:id/members — gate", () => {
   it("owner and admin may list; editor/viewer/non-member are 403", async () => {
     for (const [role, allowed] of [
@@ -450,7 +457,7 @@ describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
       },
     });
     expect(result.statusCode).toBe(403);
-    expect(result.json().code).toBe("SESSION_NOT_FRESH");
+    expect(parseErrorCode(result.json())).toBe("SESSION_NOT_FRESH");
     expect(
       (
         await call(app, {
@@ -531,7 +538,7 @@ describe("step-up freshness gate — missing sessionCreatedAt fails closed", () 
 
     const result = await revokeSessionsReq({ app, accountId: "a1", userId: "undated-target" });
     expect(result.statusCode).toBe(403);
-    expect(result.json().code).toBe("SESSION_NOT_FRESH");
+    expect(parseErrorCode(result.json())).toBe("SESSION_NOT_FRESH");
     // The membership itself is intact — only the freshness gate refused, not authorization.
     expect(getMemberRole(db, "a1", "undated-target")).toBe("editor");
   });
