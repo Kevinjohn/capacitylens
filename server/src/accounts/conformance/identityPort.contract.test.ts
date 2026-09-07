@@ -270,12 +270,12 @@ async function betterAuthHarness(): Promise<Harness> {
   const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
   const realAuth = configured.auth!;
   await runAuthMigrations(realAuth);
-  const created = await realAuth.createCredentialUser(
-    PRINCIPAL.email,
-    PRINCIPAL.displayName,
-    "conformance-password-123",
-    true,
-  );
+  const created = await realAuth.createCredentialUser({
+    email: PRINCIPAL.email,
+    name: PRINCIPAL.displayName,
+    password: "conformance-password-123",
+    emailVerified: true,
+  });
   const token = "conformance-session-bearer";
   const sessionId = buildApplicationSessionHandle(APPLICATION_ID, token);
   db.prepare(
@@ -469,12 +469,12 @@ describe("revocation window race", () => {
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
     const realAuth = configured.auth!;
     await runAuthMigrations(realAuth);
-    const created = await realAuth.createCredentialUser(
-      PRINCIPAL.email,
-      PRINCIPAL.displayName,
-      "conformance-password-123",
-      true,
-    );
+    const created = await realAuth.createCredentialUser({
+      email: PRINCIPAL.email,
+      name: PRINCIPAL.displayName,
+      password: "conformance-password-123",
+      emailVerified: true,
+    });
     const seedSession = (suffix: string) => {
       const bearer = `race-session-${suffix}`;
       const handle = buildApplicationSessionHandle(APPLICATION_ID, bearer);
