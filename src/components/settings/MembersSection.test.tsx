@@ -197,7 +197,9 @@ async function saveRoleVia(user: User, row: HTMLElement, option: string): Promis
 }
 
 async function findMemberRow(email: RegExp): Promise<HTMLElement> {
-  return (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(email))!;
+  const row = (await screen.findAllByTestId("member-row")).find((candidate) => within(candidate).queryByText(email));
+  if (!row) throw new Error(`Expected a member row matching ${email}`);
+  return row;
 }
 
 async function confirmMemberAction({ user, row, testId, confirmationName }: ConfirmMemberActionInput): Promise<void> {
@@ -479,8 +481,7 @@ describe("MembersSection — admin affordances", () => {
     renderSection();
     await screen.findByTestId("members-section");
 
-    const rows = await screen.findAllByTestId("member-row");
-    const ownerRow = rows.find((r) => within(r).queryByText(/theowner@x\.io/))!;
+    const ownerRow = await findMemberRow(/theowner@x\.io/);
     expect(ownerRow).toBeTruthy();
     // No pencil on the owner row for an admin, and no gear either: with reset/revoke/status/remove
     // all forbidden against an Owner the menu has nothing left to offer, so it is not rendered.
@@ -488,7 +489,7 @@ describe("MembersSection — admin affordances", () => {
     expect(within(ownerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
 
     // The editor row, by contrast, IS manageable by the admin.
-    const editorRow = rows.find((r) => within(r).queryByText(/theeditor@x\.io/))!;
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
     expect(within(editorRow).getByTestId("member-edit")).toBeInTheDocument();
     await chooseMemberAction(userEvent.setup(), editorRow, "member-remove");
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
@@ -498,10 +499,9 @@ describe("MembersSection — admin affordances", () => {
     const user = userEvent.setup();
     vi.stubGlobal("fetch", mockApi(members));
     renderSection();
-    const rows = await screen.findAllByTestId("member-row");
-    const selfRow = rows.find((row) => within(row).queryByText(/me@x\.io/))!;
-    const ownerRow = rows.find((row) => within(row).queryByText(/theowner@x\.io/))!;
-    const editorRow = rows.find((row) => within(row).queryByText(/theeditor@x\.io/))!;
+    const selfRow = await findMemberRow(/me@x\.io/);
+    const ownerRow = await findMemberRow(/theowner@x\.io/);
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
 
     expect(within(selfRow).queryByTestId("member-masquerade")).not.toBeInTheDocument();
     expect(within(ownerRow).getByTestId("member-masquerade")).toBeInTheDocument();
@@ -519,9 +519,7 @@ describe("MembersSection — admin affordances", () => {
     const fetchMock = mockApi(members);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/theeditor@x\.io/),
-    )!;
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
 
     await chooseMemberAction(user, editorRow, "member-remove");
 
@@ -551,9 +549,7 @@ describe("MembersSection — admin affordances", () => {
     const fetchMock = mockApi(actionableMembers);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/theeditor@x\.io/),
-    )!;
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
 
     await chooseMemberAction(user, editorRow, testId);
 
@@ -570,9 +566,7 @@ describe("MembersSection — admin affordances", () => {
     );
     vi.stubGlobal("fetch", mockApi(actionableMembers));
     renderSection();
-    const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/theeditor@x\.io/),
-    )!;
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
     await openMemberMenu(user, editorRow);
     const revokeButton = screen.getByTestId("member-revoke-sessions");
 
@@ -599,9 +593,7 @@ describe("MembersSection — admin affordances", () => {
       }),
     );
     renderSection();
-    const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/theeditor@x\.io/),
-    )!;
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
 
     await chooseMemberAction(user, editorRow, "member-revoke-sessions");
     await user.click(
@@ -621,7 +613,7 @@ describe("MembersSection — admin affordances", () => {
     ];
     vi.stubGlobal("fetch", mockApi(selfMembers));
     renderSection();
-    const selfRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
+    const selfRow = await findMemberRow(/me@x\.io/);
 
     await chooseMemberAction(user, selfRow, "member-remove");
     expect(within(screen.getByRole("alertdialog")).getByText(/return to the company picker/i)).toBeInTheDocument();
@@ -641,8 +633,7 @@ describe("MembersSection — admin affordances", () => {
     vi.stubGlobal("fetch", fetchMock);
     const revisionBefore = useStore.getState().membershipRevision;
     renderSection();
-    const rows = await screen.findAllByTestId("member-row");
-    const editorRow = rows.find((r) => within(r).queryByText(/theeditor@x\.io/))!;
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
 
     await user.click(within(editorRow).getByTestId("member-edit"));
     const dialog = await screen.findByRole("dialog");
@@ -672,9 +663,7 @@ describe("MembersSection — admin affordances", () => {
     });
     vi.stubGlobal("fetch", mockApi(members, { "PATCH /members/theeditor": () => patchResponse }));
     renderSection();
-    const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/theeditor@x\.io/),
-    )!;
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
 
     await saveRoleVia(user, editorRow, "Viewer");
 
@@ -695,7 +684,7 @@ describe("MembersSection — admin affordances", () => {
     const revisionBefore = useStore.getState().membershipRevision;
     renderSection({ refreshAuth });
 
-    const selfRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
+    const selfRow = await findMemberRow(/me@x\.io/);
     await saveRoleVia(user, selfRow, "Editor");
 
     await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
@@ -712,7 +701,7 @@ describe("MembersSection — admin affordances", () => {
     });
     renderSection();
 
-    const selfRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
+    const selfRow = await findMemberRow(/me@x\.io/);
     await saveRoleVia(user, selfRow, "Editor");
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
