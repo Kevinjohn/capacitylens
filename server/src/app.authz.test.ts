@@ -129,6 +129,29 @@ function readClientId(row: unknown): string {
   return row.id;
 }
 
+function readProjectRows(response: LightMyRequestResponse): unknown[] {
+  const body = readJsonObject(response);
+  if (!("projects" in body) || !isUnknownArray(body.projects)) {
+    throw new TypeError("Expected the state response to contain a projects array.");
+  }
+  return body.projects;
+}
+
+function readRowById(rows: unknown[], id: string): object {
+  const row = rows.find(
+    (candidate) => typeof candidate === "object" && candidate !== null && "id" in candidate && candidate.id === id,
+  );
+  if (typeof row !== "object" || row === null) throw new TypeError(`Expected a response row with id ${id}.`);
+  return row;
+}
+
+function readPrivateRows(response: LightMyRequestResponse): { client: object; project: object } {
+  return {
+    client: readRowById(readClientRows(response), "c1"),
+    project: readRowById(readProjectRows(response), "p1"),
+  };
+}
+
 function expectPrivateClientExport(response: LightMyRequestResponse): object {
   const body = readJsonObject(response);
   const matchingClient = readClientRows(response).find(
@@ -1368,11 +1391,11 @@ describe("private client/project names — owner-only server projection", () => 
 
       const res = await getState(app, "a1", cookie);
       expect(res.statusCode).toBe(200);
-      const body = res.json() as AppData;
-      expect(body.clients.find((row) => row.id === "c1")?.name).toBe(clientName);
-      expect(body.projects.find((row) => row.id === "p1")?.name).toBe(projectName);
-      expect("codeName" in body.clients.find((row) => row.id === "c1")!).toBe(seesCodeNameField);
-      expect("codeName" in body.projects.find((row) => row.id === "p1")!).toBe(seesCodeNameField);
+      const { client, project } = readPrivateRows(res);
+      expect("name" in client ? client.name : undefined).toBe(clientName);
+      expect("name" in project ? project.name : undefined).toBe(projectName);
+      expect("codeName" in client).toBe(seesCodeNameField);
+      expect("codeName" in project).toBe(seesCodeNameField);
       if (role !== "owner") {
         expect(res.body).not.toContain(REAL_CLIENT_NAME);
         expect(res.body).not.toContain(REAL_PROJECT_NAME);
@@ -1396,9 +1419,9 @@ describe("private client/project names — owner-only server projection", () => 
     expect(patched.json()).toMatchObject({ name: '"Nightwing"', isPrivate: true });
     expect(patched.body).not.toContain(REAL_CLIENT_NAME);
 
-    const visible = (await getState(app, "a1", cookie)).json() as AppData;
-    const redactedClient = visible.clients.find((row) => row.id === "c1")!;
-    const redactedProject = visible.projects.find((row) => row.id === "p1")!;
+    const visible = readPrivateRows(await getState(app, "a1", cookie));
+    const redactedClient = visible.client;
+    const redactedProject = visible.project;
     const batch = await call(app, {
       method: "POST",
       url: "/api/batch",
@@ -1449,7 +1472,7 @@ describe("private client/project names — owner-only server projection", () => 
     seedPrivateNames(db);
     const { cookie, userId } = await signUp(app, "private-conflict-editor@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
-    const stale = ((await getState(app, "a1", cookie)).json() as AppData).clients.find((row) => row.id === "c1")!;
+    const stale = readPrivateRows(await getState(app, "a1", cookie)).client;
     db.prepare("UPDATE clients SET updatedAt = ? WHERE id = ?").run("2026-02-01T00:00:00.000Z", "c1");
 
     const res = await call(app, {
