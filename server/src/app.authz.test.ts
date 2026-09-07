@@ -187,6 +187,19 @@ function readWorkingDays(response: LightMyRequestResponse): unknown {
   return accountRow.workingDays;
 }
 
+function readCurrentObject(response: LightMyRequestResponse): object {
+  const body = readJsonObject(response);
+  if (
+    !("current" in body) ||
+    typeof body.current !== "object" ||
+    body.current === null ||
+    Array.isArray(body.current)
+  ) {
+    throw new TypeError("Expected the conflict response to contain a current object.");
+  }
+  return body.current;
+}
+
 /** Add owner-only names to the a1 client/project without changing the broad authz fixture shape. */
 function seedPrivateNames(db: Db): void {
   seedTwo(db);
@@ -1446,8 +1459,8 @@ describe("private client/project names — owner-only server projection", () => 
       headers: { cookie },
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().current).toMatchObject({ name: '"Nightwing"', isPrivate: true });
-    expect(res.json().current).not.toHaveProperty("codeName");
+    expect(readCurrentObject(res)).toMatchObject({ name: '"Nightwing"', isPrivate: true });
+    expect(readCurrentObject(res)).not.toHaveProperty("codeName");
     expect(res.body).not.toContain(REAL_CLIENT_NAME);
   });
 
