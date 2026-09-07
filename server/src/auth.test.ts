@@ -632,11 +632,12 @@ describe("resolved auth options", () => {
       deferDatabaseSetup: true,
       ...(trustedOrigins === undefined ? {} : { trustedOrigins }),
     });
+    const configuredAuth = assertPresent(auth, `${env.CAPACITYLENS_AUTH} auth`);
 
-    expect(auth!.options.telemetry?.enabled).toBe(false);
-    expect(auth!.options.verification?.storeIdentifier).toBe("hashed");
-    expect(auth!.options.plugins?.map((plugin) => plugin.id)).toEqual(pluginIds);
-    expect(auth!.options.trustedOrigins).toEqual(trustedOrigins);
+    expect(configuredAuth.options.telemetry?.enabled).toBe(false);
+    expect(configuredAuth.options.verification?.storeIdentifier).toBe("hashed");
+    expect(configuredAuth.options.plugins?.map((plugin) => plugin.id)).toEqual(pluginIds);
+    expect(configuredAuth.options.trustedOrigins).toEqual(trustedOrigins);
     db.close();
   });
 });
