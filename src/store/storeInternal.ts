@@ -16,6 +16,14 @@ import { HISTORY_LIMIT } from "./history";
 import { resetSchedulerView } from "./storeConstants";
 import { createGuards } from "./storeGuards";
 
+interface UpdateOwnedInput<K extends ScopedEntityKey> {
+  key: K;
+  id: ID;
+  patch: ScopedPatch<K>;
+  prepare?: ((merged: ScopedRow<K>, existing: ScopedRow<K>) => ScopedPatch<K>) | undefined;
+  cascade?: ((data: AppData, merged: ScopedRow<K>, existing: ScopedRow<K>) => AppData) | undefined;
+}
+
 export * from "./revisions";
 export * from "./history";
 export * from "./storeConstants";
@@ -95,13 +103,13 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
    *  which always merges before it validates — rejected the full row, diverging local from synced
    *  state. `prepare` may also throw (surface, don't swallow) and may repair the patch it returns;
    *  `cascade` adds dependent table writes to that same mutation/history entry. */
-  const updateOwned = <K extends ScopedEntityKey>(
-    key: K,
-    id: ID,
-    patch: ScopedPatch<K>,
-    prepare?: (merged: ScopedRow<K>, existing: ScopedRow<K>) => ScopedPatch<K>,
-    cascade?: (data: AppData, merged: ScopedRow<K>, existing: ScopedRow<K>) => AppData,
-  ): boolean => {
+  const updateOwned = <K extends ScopedEntityKey>({
+    key,
+    id,
+    patch,
+    prepare,
+    cascade,
+  }: UpdateOwnedInput<K>): boolean => {
     const existing = resolveOwnedRow(get().data, key, id);
     if (!existing) return false;
     const effective = prepare
