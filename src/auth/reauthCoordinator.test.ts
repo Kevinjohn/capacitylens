@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  reauthPending,
+  isReauthPending,
   REAUTH_REQUEST_TIMEOUT_MS,
   requestReauth,
-  resolveReauth,
+  completeReauth,
   subscribeReauth,
 } from "./reauthCoordinator";
 
 afterEach(() => {
-  if (reauthPending()) resolveReauth(false);
+  if (isReauthPending()) completeReauth(false);
   vi.useRealTimers();
 });
 
@@ -21,13 +21,13 @@ describe("reauthCoordinator", () => {
     const second = requestReauth();
 
     expect(second).toBe(first);
-    expect(reauthPending()).toBe(true);
+    expect(isReauthPending()).toBe(true);
     expect(listener).toHaveBeenCalledOnce();
 
-    resolveReauth(outcome);
+    completeReauth(outcome);
 
     await expect(Promise.all([first, second])).resolves.toEqual([outcome, outcome]);
-    expect(reauthPending()).toBe(false);
+    expect(isReauthPending()).toBe(false);
     expect(listener).toHaveBeenCalledTimes(2);
     unsubscribe();
   });
@@ -36,9 +36,9 @@ describe("reauthCoordinator", () => {
     const listener = vi.fn();
     const unsubscribe = subscribeReauth(listener);
 
-    resolveReauth(true);
+    completeReauth(true);
 
-    expect(reauthPending()).toBe(false);
+    expect(isReauthPending()).toBe(false);
     expect(listener).not.toHaveBeenCalled();
     unsubscribe();
   });
@@ -49,7 +49,7 @@ describe("reauthCoordinator", () => {
     unsubscribe();
 
     const pending = requestReauth();
-    resolveReauth(false);
+    completeReauth(false);
 
     await expect(pending).resolves.toBe(false);
     expect(listener).not.toHaveBeenCalled();
@@ -62,6 +62,6 @@ describe("reauthCoordinator", () => {
     await vi.advanceTimersByTimeAsync(REAUTH_REQUEST_TIMEOUT_MS);
 
     await expect(outcome).resolves.toBe(false);
-    expect(reauthPending()).toBe(false);
+    expect(isReauthPending()).toBe(false);
   });
 });

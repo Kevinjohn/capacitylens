@@ -1,8 +1,8 @@
 import type { useNavigate } from "react-router-dom";
-import { emptyFilters, type Filters } from "../store/useStore";
+import { buildEmptyFilters, type Filters } from "../store/useStore";
 import type { useActiveScopedData } from "../store/useScopedData";
 import { fuzzyFilter } from "../lib/fuzzy";
-import { resourceDisplayName } from "../lib/metadata";
+import { resolveResourceDisplayName } from "../lib/metadata";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
@@ -22,7 +22,7 @@ export interface PaletteItem {
 
 const SECTION_LIMIT = 5; // max results per entity section
 
-export function buildItems({
+export function buildPaletteItems({
   query,
   data,
   disciplinesEnabled,
@@ -49,7 +49,7 @@ export function buildItems({
   setFilters: (patch: Partial<Filters>) => void;
   onClose: () => void;
 }): PaletteItem[] {
-  const q = query.trim();
+  const trimmedQuery = query.trim();
   const items: PaletteItem[] = [];
 
   // ── Actions ────────────────────────────────────────────────────────────────
@@ -68,21 +68,23 @@ export function buildItems({
   });
 
   // "Go to date YYYY-MM-DD" — appears only when query is a valid ISO date
-  if (isValidISODate(q)) {
+  if (isValidISODate(trimmedQuery)) {
     actions.push({
-      id: `action-date-${q}`,
-      label: m.palette_action_date({ date: q }),
+      id: `action-date-${trimmedQuery}`,
+      label: m.palette_action_date({ date: trimmedQuery }),
       section: m.palette_section_actions(),
       onSelect: () => {
         void navigate("/");
-        goToDate(q);
+        goToDate(trimmedQuery);
         onClose();
       },
     });
   }
 
   // Filter actions by query (fuzzy on label)
-  const filteredActions = q ? fuzzyFilter(actions, q, (a) => a.label).slice(0, SECTION_LIMIT) : actions;
+  const filteredActions = trimmedQuery
+    ? fuzzyFilter(actions, trimmedQuery, (paletteItem) => paletteItem.label).slice(0, SECTION_LIMIT)
+    : actions;
 
   // ── Pages ──────────────────────────────────────────────────────────────────
   // Derive page destinations from the same source as the sidebar navigation. New first-class
@@ -103,32 +105,34 @@ export function buildItems({
       },
     }));
 
-  const filteredPages = q ? fuzzyFilter(pages, q, (p) => p.label).slice(0, SECTION_LIMIT) : pages;
+  const filteredPages = trimmedQuery
+    ? fuzzyFilter(pages, trimmedQuery, (project) => project.label).slice(0, SECTION_LIMIT)
+    : pages;
 
   // ── Resources ──────────────────────────────────────────────────────────────
   // Placeholders and externals are each gated behind a per-account pref (both default OFF). When
   // off, drop them as jump targets — their schedule row is hidden, so jumping to it would scroll to
   // nothing.
   const resourceItems: PaletteItem[] = data.resources
-    .filter((r) => placeholdersEnabled || r.kind !== "placeholder")
-    .filter((r) => externalEnabled || !isExternalResource(r))
-    .map((r) => ({
-      id: `res-${r.id}`,
+    .filter((resource) => placeholdersEnabled || resource.kind !== "placeholder")
+    .filter((resource) => externalEnabled || !isExternalResource(resource))
+    .map((resource) => ({
+      id: `res-${resource.id}`,
       // External / 3rd parties are jump targets too (they're schedule rows), but mark them so they
       // don't read as one of our own people in the list — mirrors the assignee dropdown's " (external)".
       // A placeholder reads as the literal "Placeholder" with its role as secondary text.
-      label: `${resourceDisplayName(r)}${isExternalResource(r) ? m.palette_resource_external_suffix() : ""}`,
-      sublabel: r.kind === "placeholder" ? r.role : r.name ? r.role : undefined,
+      label: `${resolveResourceDisplayName(resource)}${isExternalResource(resource) ? m.palette_resource_external_suffix() : ""}`,
+      sublabel: resource.kind === "placeholder" ? resource.role : resource.name ? resource.role : undefined,
       section: m.palette_section_people(),
       onSelect: () => {
         void navigate("/");
-        jumpToResource(r.id);
+        jumpToResource(resource.id);
         onClose();
       },
     }));
 
-  const filteredResources = q
-    ? fuzzyFilter(resourceItems, q, (r) => r.label).slice(0, SECTION_LIMIT)
+  const filteredResources = trimmedQuery
+    ? fuzzyFilter(resourceItems, trimmedQuery, (row) => row.label).slice(0, SECTION_LIMIT)
     : resourceItems.slice(0, SECTION_LIMIT);
 
   // ── Projects ───────────────────────────────────────────────────────────────
@@ -144,63 +148,63 @@ export function buildItems({
         section: m.palette_section_projects(),
         onSelect: () => {
           void navigate("/");
-          setFilters({ ...emptyFilters(), projectId: project.id });
+          setFilters({ ...buildEmptyFilters(), projectId: project.id });
           onClose();
         },
       };
     });
 
-  const filteredProjects = q
-    ? fuzzyFilter(projectItems, q, (p) => p.label).slice(0, SECTION_LIMIT)
+  const filteredProjects = trimmedQuery
+    ? fuzzyFilter(projectItems, trimmedQuery, (project) => project.label).slice(0, SECTION_LIMIT)
     : projectItems.slice(0, SECTION_LIMIT);
 
   // ── Clients ────────────────────────────────────────────────────────────────
-  const clientItems: PaletteItem[] = data.clients.map((c) => ({
-    id: `client-${c.id}`,
-    label: c.name,
+  const clientItems: PaletteItem[] = data.clients.map((client) => ({
+    id: `client-${client.id}`,
+    label: client.name,
     section: m.palette_section_clients(),
     onSelect: () => {
       void navigate("/");
-      setFilters({ ...emptyFilters(), clientId: c.id });
+      setFilters({ ...buildEmptyFilters(), clientId: client.id });
       onClose();
     },
   }));
 
-  const filteredClients = q
-    ? fuzzyFilter(clientItems, q, (c) => c.label).slice(0, SECTION_LIMIT)
+  const filteredClients = trimmedQuery
+    ? fuzzyFilter(clientItems, trimmedQuery, (client) => client.label).slice(0, SECTION_LIMIT)
     : clientItems.slice(0, SECTION_LIMIT);
 
   // Activities open the management list, not a schedule bar. Keep internal activities searchable
   // even when their schedule-only visibility preference is off.
   const projectsById = new Map(data.projects.map((project) => [project.id, project]));
-  const activityItems: PaletteItem[] = data.activities.map((a) => {
-    const project = a.projectId ? projectsById.get(a.projectId) : undefined;
+  const activityItems: PaletteItem[] = data.activities.map((activity) => {
+    const project = activity.projectId ? projectsById.get(activity.projectId) : undefined;
     return {
-      id: `activity-${a.id}`,
-      label: a.name,
+      id: `activity-${activity.id}`,
+      label: activity.name,
       // Project-specific activities show their project; project-less activities show their kind so the two
       // aren't indistinguishable blank-sublabel rows.
       sublabel:
-        a.kind === "project"
+        activity.kind === "project"
           ? project?.name
-          : a.kind === "internal"
+          : activity.kind === "internal"
             ? m.palette_activity_internal()
             : m.palette_activity_repeatable(),
       section: m.palette_section_activities(),
       onSelect: () => {
-        void navigate(`/activities#activity=${encodeURIComponent(a.id)}`);
+        void navigate(`/activities#activity=${encodeURIComponent(activity.id)}`);
         onClose();
       },
     };
   });
 
-  const filteredActivities = q
-    ? fuzzyFilter(activityItems, q, (a) => a.label).slice(0, SECTION_LIMIT)
+  const filteredActivities = trimmedQuery
+    ? fuzzyFilter(activityItems, trimmedQuery, (paletteItem) => paletteItem.label).slice(0, SECTION_LIMIT)
     : activityItems.slice(0, SECTION_LIMIT);
 
   // ── Assemble ───────────────────────────────────────────────────────────────
   // When there's a query, only include sections that have results
-  if (q) {
+  if (trimmedQuery) {
     if (filteredActions.length) items.push(...filteredActions);
     if (filteredPages.length) items.push(...filteredPages);
     if (filteredResources.length) items.push(...filteredResources);

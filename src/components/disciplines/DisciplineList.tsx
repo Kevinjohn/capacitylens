@@ -14,9 +14,9 @@ import { useConfirmDelete } from "../../hooks/useConfirmDelete";
 
 export function DisciplineList() {
   const disciplines = useActiveScopedData().disciplines;
-  const del = useStore((s) => s.deleteDiscipline);
+  const deleteEntity = useStore((state) => state.deleteDiscipline);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Discipline>();
-  const confirmDelete = useConfirmDelete(del, () => setConfirming(null));
+  const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
 
   // Management is alphabetical for scanning; the scheduler deliberately keeps discipline sortOrder.
   const sorted = useMemo(() => [...disciplines].sort(byName), [disciplines]);
@@ -38,19 +38,22 @@ export function DisciplineList() {
         </EmptyState>
       ) : (
         <ItemGroup className="rounded-md border bg-card">
-          {sorted.map((d, index) => (
-            <Fragment key={d.id}>
+          {sorted.map((discipline, index) => (
+            <Fragment key={discipline.id}>
               {index > 0 && <ItemSeparator />}
               <Item size="sm" role="listitem" data-testid="discipline-row" className="rounded-none">
                 <ItemContent className="flex-row items-center gap-2">
-                  <ColorSwatch color={d.color ?? NEUTRAL_COLOR} />
-                  {d.name}
+                  <ColorSwatch color={discipline.color ?? NEUTRAL_COLOR} />
+                  {discipline.name}
                 </ItemContent>
                 <ItemActions>
-                  <EditButton label={m.list_edit_aria({ name: d.name })} onClick={() => setEditing(d)} />
+                  <EditButton
+                    label={m.list_edit_aria({ name: discipline.name })}
+                    onClick={() => setEditing(discipline)}
+                  />
                   <DeleteButton
-                    label={m.list_disciplines_delete_aria({ name: d.name })}
-                    onClick={() => setConfirming(d)}
+                    label={m.list_disciplines_delete_aria({ name: discipline.name })}
+                    onClick={() => setConfirming(discipline)}
                   />
                 </ItemActions>
               </Item>

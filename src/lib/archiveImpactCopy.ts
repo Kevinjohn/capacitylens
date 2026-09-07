@@ -14,7 +14,7 @@ const projectCount = plural(m.list_archive_project_one, m.list_archive_project_o
 const phaseCount = plural(m.list_archive_phase_one, m.list_archive_phase_other);
 const allocationCount = plural(m.list_archive_allocation_one, m.list_archive_allocation_other);
 
-export function clientArchiveImpactCopy({ projects, phases, allocations }: ArchiveImpact): string {
+export function buildClientArchiveImpactCopy({ projects, phases, allocations }: ArchiveImpact): string {
   return m.list_clients_archive_cascade({
     projects: projectCount(projects),
     phases: phaseCount(phases),
@@ -22,7 +22,7 @@ export function clientArchiveImpactCopy({ projects, phases, allocations }: Archi
   });
 }
 
-export function projectArchiveImpactCopy({ phases, allocations }: ArchiveImpact): string {
+export function buildProjectArchiveImpactCopy({ phases, allocations }: ArchiveImpact): string {
   return m.list_projects_archive_cascade({
     phases: phaseCount(phases),
     allocations: allocationCount(allocations),

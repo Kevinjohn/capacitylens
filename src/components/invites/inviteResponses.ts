@@ -5,7 +5,7 @@ import type { InvitePreview } from "./InviteAcceptView";
 // Map the accept endpoint's status codes to the surfaced message. 404/409/410 are the documented
 // invite outcomes (unknown / already-used / expired); the server's JSON `{ error }` body carries a
 // friendly sentence we prefer, with a safe fallback per status when the body is missing/unreadable.
-export function messageForStatus(status: number, bodyError: string | undefined): string {
+export function resolveMessageForStatus(status: number, bodyError: string | undefined): string {
   if (bodyError) return bodyError;
   if (status === 404) return m.invite_err_not_found();
   if (status === 409) return m.invite_err_used();
@@ -26,7 +26,7 @@ export function parsePreview(value: unknown): InvitePreview | null {
   };
 }
 
-export async function accountFailure(response: Response): Promise<{ code: string | null; message: string | null }> {
+export async function readAccountFailure(response: Response): Promise<{ code: string | null; message: string | null }> {
   const body: unknown = await response.json().catch(() => null);
   if (!body || typeof body !== "object" || Array.isArray(body)) return { code: null, message: null };
   const failure = body as { code?: unknown; error?: unknown };

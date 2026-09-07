@@ -2,23 +2,23 @@ import { useMemo } from "react";
 import { hasActiveFilters, useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { carriesHourlyLoad, emptyAppData, isCapacityTracked } from "@capacitylens/shared/types/entities";
-import { laneLayoutFor, schedulerDensity } from "./layout";
-import { buildSchedulerModel, refreshVisibleUtilization } from "./schedulerModel";
+import { buildLaneLayout, buildSchedulerDensity } from "./layout";
+import { buildSchedulerModel, applyVisibleUtilization } from "./schedulerModel";
 import { useCalendarToday } from "./useCalendarToday";
-import { visibleSpanLabels, visibleWindowFor } from "./visibleSpan";
-import { averageUtilizationPercent } from "./schedulerGridModal";
+import { buildVisibleSpanLabels, resolveVisibleWindow } from "./visibleSpan";
+import { buildAverageUtilizationLabel } from "./schedulerGridModal";
 import type { useSchedulerViewport } from "./useSchedulerViewport";
 import {
-  disciplinesEnabledFor,
-  externalEnabledFor,
-  groupResourcesByEngagementFor,
-  internalColourModeFor,
-  placeholdersEnabledFor,
-  schedulingModeFor,
-  showInternalActivitiesFor,
-  showInternalProjectsFor,
-  timeZoneFor,
-  weekStartsOnFor,
+  hasDisciplinesEnabled,
+  hasExternalResourcesEnabled,
+  hasResourceEngagementGrouping,
+  resolveInternalColourMode,
+  hasPlaceholdersEnabled,
+  resolveSchedulingMode,
+  hasVisibleInternalActivities,
+  hasVisibleInternalProjects,
+  resolveTimeZone,
+  resolveWeekStart,
 } from "../../store/selectors";
 import { defaultAccountWorkingDays, normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
@@ -35,30 +35,30 @@ export function useSchedulerGridPreferences() {
   // selector subscriptions meant ten `accounts.find` scans on every unrelated store write. The
   // selectors still OWN their absent-field defaults (each differs and is load-bearing), so they
   // are called here against a one-account view of the data rather than reimplemented.
-  const accountPrefs = useMemo(() => {
+  const accountPreferences = useMemo(() => {
     const view = { ...emptyAppData(), accounts: activeAccount ? [activeAccount] : [] };
     const id = activeAccount?.id ?? null;
     return {
       // Default OFF: when off, placeholder ("slot") rows are hidden from the schedule (and dropped
       // from utilisation) by buildSchedulerModel's resourceVisible filter.
-      placeholdersEnabled: placeholdersEnabledFor(view, id),
+      placeholdersEnabled: hasPlaceholdersEnabled(view, id),
       // Default OFF: when off, external / 3rd-party rows are hidden from the schedule (and their
       // now-empty band header is dropped) by the same resourceVisible filter.
-      externalEnabled: externalEnabledFor(view, id),
+      externalEnabled: hasExternalResourcesEnabled(view, id),
       // When disciplines are off, discipline bands disappear and the model uses the
       // Studio/Supplementary (or Unassigned) fallback. The discipline filter is ignored.
-      disciplinesEnabled: disciplinesEnabledFor(view, id),
-      groupResourcesByEngagement: groupResourcesByEngagementFor(view, id),
+      disciplinesEnabled: hasDisciplinesEnabled(view, id),
+      groupResourcesByEngagement: hasResourceEngagementGrouping(view, id),
       // Internal work colour preference. Grey is the absent/default mode; palette restores saved
       // project colours without changing the underlying project records.
-      internalColourMode: internalColourModeFor(view, id),
+      internalColourMode: resolveInternalColourMode(view, id),
       // BAR-ONLY hide prefs for internal work (both default ON). They remove only the bars —
       // capacity/utilisation stay truthful (see buildSchedulerModel's barVisibleByInternalPref).
-      showInternalProjects: showInternalProjectsFor(view, id),
-      showInternalActivities: showInternalActivitiesFor(view, id),
-      blocksMode: !carriesHourlyLoad(schedulingModeFor(view, id)),
-      calendarTimeZone: timeZoneFor(view, id),
-      calendarWeekStartsOn: weekStartsOnFor(view, id),
+      showInternalProjects: hasVisibleInternalProjects(view, id),
+      showInternalActivities: hasVisibleInternalActivities(view, id),
+      blocksMode: !carriesHourlyLoad(resolveSchedulingMode(view, id)),
+      calendarTimeZone: resolveTimeZone(view, id),
+      calendarWeekStartsOn: resolveWeekStart(view, id),
     };
   }, [activeAccount]);
   const accountWorkingDays = useMemo(() => {
@@ -67,27 +67,35 @@ export function useSchedulerGridPreferences() {
       ? defaultAccountWorkingDays(weekStartsOn)
       : normalizeAccountWorkingDays(activeAccount.workingDays, weekStartsOn);
   }, [activeAccount]);
-  const ui = useStore((s) => s.ui);
+  const ui = useStore((state) => state.ui);
   // Utilisation display toggles (Settings → Utilisation). Each gates one of the three
   // utilisation figures: total (header), discipline (group header), personal (per row).
-  const utilizationPrefs = useStore((s) => s.utilizationPrefs);
+  const utilizationPreferences = useStore((state) => state.utilizationPrefs);
   // Device-global display pref (default on): narrow the weekend columns. Drives the geometry below.
-  const minimiseWeekends = useStore((s) => s.minimiseWeekends);
+  const minimiseWeekends = useStore((state) => state.minimiseWeekends);
   // Device-global display pref (default on): after a FREE scroll settles, floor the left edge back
   // to the current week's first day (the scroll-idle snap in onScroll below). FREE SCROLL ONLY —
   // the navigation snap (zoom / Prev-Next / date-picker, Feature 1) is always on, independent of this.
-  const snapToWeekStart = useStore((s) => s.snapToWeekStart);
-  return { data, accountPrefs, accountWorkingDays, ui, utilizationPrefs, minimiseWeekends, snapToWeekStart };
+  const snapToWeekStart = useStore((state) => state.snapToWeekStart);
+  return {
+    data,
+    accountPrefs: accountPreferences,
+    accountWorkingDays,
+    ui,
+    utilizationPrefs: utilizationPreferences,
+    minimiseWeekends,
+    snapToWeekStart,
+  };
 }
 
 export function useSchedulerGridModel(
-  { data, accountPrefs, accountWorkingDays, ui }: ReturnType<typeof useSchedulerGridPreferences>,
+  { data, accountPrefs: accountPreferences, accountWorkingDays, ui }: ReturnType<typeof useSchedulerGridPreferences>,
   {
     days,
-    leftEdgeIdx,
+    leftEdgeIdx: leftEdgeIndex,
     start,
     end,
-    geom,
+    geom: geometry,
   }: Pick<ReturnType<typeof useSchedulerViewport>, "days" | "leftEdgeIdx" | "start" | "end" | "geom">,
 ) {
   const {
@@ -100,7 +108,7 @@ export function useSchedulerGridModel(
     showInternalActivities,
     blocksMode,
     calendarTimeZone,
-  } = accountPrefs;
+  } = accountPreferences;
   const today = useCalendarToday(calendarTimeZone);
   // FIXED forward window from today (overStart..overEnd): drives ONLY the `overSoon` red flag — a
   // near-term, zoom/pan-INDEPENDENT "over soon" radar, so the per-resource overbooked warning fires
@@ -113,26 +121,26 @@ export function useSchedulerGridModel(
   // day; the inclusive end is `+ (zoom*7 - 1)` — a 1-week view is the 7 inclusive days [L, L+6], not
   // +7 (8 days). The end is CLAMPED to the last timeline day so the window never reads past `days[]`.
   // Day-quantized via leftEdgeIdx so a scroll within a column doesn't rebuild the model.
-  const { start: visStart, end: visEnd } = useMemo(
-    () => visibleWindowFor(days, leftEdgeIdx, ui.zoom, ui.focusDate),
-    [days, leftEdgeIdx, ui.zoom, ui.focusDate],
+  const { start: visibleStart, end: visibleEnd } = useMemo(
+    () => resolveVisibleWindow(days, leftEdgeIndex, ui.zoom, ui.focusDate),
+    [days, leftEdgeIndex, ui.zoom, ui.focusDate],
   );
 
   // Human labels for the visible span: `long` for the utilisation titles ("over the visible N
   // week(s)") and the row summaries, `compact` for the header chip. Memoised because every row's
   // title and screen-reader summary reads them, and they change only when the window does.
   const { long: visibleWeeksLabel, compact: visibleSpanCompact } = useMemo(
-    () => visibleSpanLabels(visStart, visEnd),
-    [visStart, visEnd],
+    () => buildVisibleSpanLabels(visibleStart, visibleEnd),
+    [visibleStart, visibleEnd],
   );
 
   // Vertical density ("Compact view" device pref, default OFF = roomier). `density` covers the
   // geometry the VIEW draws directly; `rowLaneLayout` is the projection the MODEL packs lanes with.
   // Both must be memo dependencies of everything derived from them (the model, and the heights
   // prefix-sum below) or a density change would leave stale row heights and bar offsets behind.
-  const compactView = useStore((s) => s.compactView);
+  const compactView = useStore((state) => state.compactView);
   const { density, rowLaneLayout } = useMemo(
-    () => ({ density: schedulerDensity(compactView), rowLaneLayout: laneLayoutFor(compactView) }),
+    () => ({ density: buildSchedulerDensity(compactView), rowLaneLayout: buildLaneLayout(compactView) }),
     [compactView],
   );
 
@@ -140,7 +148,7 @@ export function useSchedulerGridModel(
     () =>
       buildSchedulerModel({
         data,
-        geom,
+        geom: geometry,
         days,
         // The percentage is overlaid below. Keeping this input fixed prevents horizontal scrolling
         // from rebuilding lanes, bars and every timeline day-state.
@@ -162,7 +170,7 @@ export function useSchedulerGridModel(
       }),
     [
       data,
-      geom,
+      geometry,
       days,
       overStart,
       overEnd,
@@ -180,11 +188,11 @@ export function useSchedulerGridModel(
     ],
   );
   const model = useMemo(
-    () => refreshVisibleUtilization(staticModel, data, visStart, visEnd, accountWorkingDays, blocksMode),
-    [staticModel, data, visStart, visEnd, accountWorkingDays, blocksMode],
+    () => applyVisibleUtilization(staticModel, data, visibleStart, visibleEnd, accountWorkingDays, blocksMode),
+    [staticModel, data, visibleStart, visibleEnd, accountWorkingDays, blocksMode],
   );
 
-  const todayX = today >= start && today <= end ? geom.xForDateInGeom(today) : null;
+  const todayX = today >= start && today <= end ? geometry.xForDateInGeom(today) : null;
 
   const filtersActive = hasActiveFilters(ui.filters);
 
@@ -195,7 +203,10 @@ export function useSchedulerGridModel(
     // otherwise drag the headline average down. NOTE the group figure below guards on the whole
     // BAND instead, so a mixed group still averages an external row in at 0% — a known
     // inconsistency between the two figures, deliberately left alone by this refactor.
-    () => averageUtilizationPercent(model.flatMap((g) => g.rows).filter((r) => isCapacityTracked(r.resource))),
+    () =>
+      buildAverageUtilizationLabel(
+        model.flatMap((group) => group.rows).filter((row) => isCapacityTracked(row.resource)),
+      ),
     [model],
   );
 

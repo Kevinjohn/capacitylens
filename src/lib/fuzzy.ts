@@ -33,36 +33,36 @@ const WORD_BOUNDARY_RE = /(?:^|[\s\-_]+)(.)/g;
 
 /** Score an ALREADY-FOLDED query against a raw `text`. Split out so a filter pass folds its query
  *  once instead of once per item; `fuzzyScore` is the folding entry point. */
-function scoreFolded(q: string, text: string): number {
-  if (!q) return 0;
+function scoreFolded(query: string, text: string): number {
+  if (!query) return 0;
 
-  const t = foldForSearch(text);
+  const foldedText = foldForSearch(text);
 
   // Tier 0: exact prefix
-  if (t.startsWith(q)) return 0;
+  if (foldedText.startsWith(query)) return 0;
 
   // Tiers 1 and 2 both require `q` to appear contiguously, so a single `includes` gates them: when
   // it fails (the common case while filtering) the word-boundary scan cannot match either and is
   // skipped entirely. Ordering within the gate is unchanged — a word-boundary prefix still beats a
   // mid-word substring.
-  if (t.includes(q)) {
+  if (foldedText.includes(query)) {
     // Tier 1: word-boundary prefix — query starts a word inside the text
     WORD_BOUNDARY_RE.lastIndex = 0;
-    let m: RegExpExecArray | null;
-    while ((m = WORD_BOUNDARY_RE.exec(t)) !== null) {
-      const wordStart = m.index + (m[0].length - 1); // position of the captured letter
-      if (t.startsWith(q, wordStart)) return 1;
+    let match: RegExpExecArray | null;
+    while ((match = WORD_BOUNDARY_RE.exec(foldedText)) !== null) {
+      const wordStart = match.index + (match[0].length - 1); // position of the captured letter
+      if (foldedText.startsWith(query, wordStart)) return 1;
     }
     // Tier 2: contiguous substring match anywhere
     return 2;
   }
 
   // Tier 3: subsequence (every character of query appears in order)
-  let qi = 0;
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) qi++;
+  let queryIndex = 0;
+  for (let textIndex = 0; textIndex < foldedText.length && queryIndex < query.length; textIndex++) {
+    if (foldedText[textIndex] === query[queryIndex]) queryIndex++;
   }
-  if (qi === q.length) return 3;
+  if (queryIndex === query.length) return 3;
 
   return Infinity;
 }
@@ -99,5 +99,5 @@ export function fuzzyFilter<T>(items: T[], query: string, getText: (item: T) => 
     return a.lower.localeCompare(b.lower);
   });
 
-  return scored.map((x) => x.item);
+  return scored.map((scoredItem) => scoredItem.item);
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { laneTop, packLanes, rowHeightForLanes, type Interval } from "./lanePacking";
+import { resolveLaneTop, packLanes, resolveRowHeightForLanes, type Interval } from "./lanePacking";
 
 const iv = (id: string, startDate: string, endDate: string): Interval => ({ id, startDate, endDate });
 
@@ -169,14 +169,14 @@ describe("row geometry", () => {
   const layout = { barHeight: 24, laneGap: 4, rowPadding: 6 };
 
   it("rowHeightForLanes is at least one lane tall", () => {
-    expect(rowHeightForLanes(0, layout)).toBe(24 + 12);
-    expect(rowHeightForLanes(1, layout)).toBe(24 + 12);
-    expect(rowHeightForLanes(2, layout)).toBe(48 + 4 + 12);
+    expect(resolveRowHeightForLanes(0, layout)).toBe(24 + 12);
+    expect(resolveRowHeightForLanes(1, layout)).toBe(24 + 12);
+    expect(resolveRowHeightForLanes(2, layout)).toBe(48 + 4 + 12);
   });
 
   it("laneTop offsets each lane by bar height + gap", () => {
-    expect(laneTop(0, layout)).toBe(6);
-    expect(laneTop(1, layout)).toBe(6 + 28);
-    expect(laneTop(2, layout)).toBe(6 + 56);
+    expect(resolveLaneTop(0, layout)).toBe(6);
+    expect(resolveLaneTop(1, layout)).toBe(6 + 28);
+    expect(resolveLaneTop(2, layout)).toBe(6 + 56);
   });
 });

@@ -3,8 +3,8 @@ import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
 import {
   apiFetch,
   isTransportFailure,
-  masqueradeErrorCode,
-  requestSignal,
+  readMasqueradeErrorCode,
+  createRequestSignal,
   API_REQUEST_TIMEOUT_MS,
   API_BULK_TIMEOUT_MS,
   setMasqueradeEndedHandler,
@@ -35,16 +35,16 @@ describe("requestSignal tiers", () => {
   // the BOUND requested per tier rather than trying to fast-forward the deadline.
   it("uses the interactive 15s bound by default and the 120s bulk bound when asked", () => {
     const spy = vi.spyOn(AbortSignal, "timeout");
-    requestSignal();
+    createRequestSignal();
     expect(spy).toHaveBeenLastCalledWith(API_REQUEST_TIMEOUT_MS);
-    requestSignal(undefined, API_BULK_TIMEOUT_MS);
+    createRequestSignal(undefined, API_BULK_TIMEOUT_MS);
     expect(spy).toHaveBeenLastCalledWith(API_BULK_TIMEOUT_MS);
     spy.mockRestore();
   });
 
   it("the null tier never arms a timeout (the keepalive unload flush)", () => {
     const spy = vi.spyOn(AbortSignal, "timeout");
-    const signal = requestSignal(undefined, null);
+    const signal = createRequestSignal(undefined, null);
     expect(spy).not.toHaveBeenCalled();
     expect(signal.aborted).toBe(false);
     spy.mockRestore();
@@ -52,7 +52,7 @@ describe("requestSignal tiers", () => {
 
   it("honours the caller signal even with no timeout", () => {
     const controller = new AbortController();
-    const signal = requestSignal(controller.signal, null);
+    const signal = createRequestSignal(controller.signal, null);
     expect(signal.aborted).toBe(false);
     controller.abort();
     expect(signal.aborted).toBe(true);
@@ -66,10 +66,10 @@ describe("apiFetch", () => {
       headers: { "Content-Type": "application/json" },
     });
 
-    await expect(masqueradeErrorCode(response)).resolves.toBe(MASQUERADE_ERROR_CODES.readOnly);
+    await expect(readMasqueradeErrorCode(response)).resolves.toBe(MASQUERADE_ERROR_CODES.readOnly);
     await expect(response.json()).resolves.toEqual({ code: MASQUERADE_ERROR_CODES.readOnly });
     await expect(
-      masqueradeErrorCode(
+      readMasqueradeErrorCode(
         new Response(JSON.stringify({ code: "UNKNOWN" }), {
           status: 403,
           headers: { "Content-Type": "application/json" },

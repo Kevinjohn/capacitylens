@@ -1,5 +1,5 @@
 import { useStore } from "../store/useStore";
-import { errorMessage } from "../lib/errorMessage";
+import { resolveErrorMessage } from "../lib/errorMessage";
 
 /**
  * Shared delete-with-notice handler for a list page's ConfirmDialog `onConfirm`. Three list pages
@@ -7,14 +7,14 @@ import { errorMessage } from "../lib/errorMessage";
  * the dialog on success; on a thrown validation error, leave the dialog open and surface the message
  * as a store notice instead. Kept as the same delete-then-close call order everywhere.
  */
-export function useConfirmDelete(del: (id: string) => void, close: () => void) {
-  const setNotice = useStore((s) => s.setNotice);
+export function useConfirmDelete(deleteEntity: (id: string) => void, close: () => void) {
+  const setNotice = useStore((state) => state.setNotice);
   return (id: string) => {
     try {
-      del(id);
+      deleteEntity(id);
       close();
     } catch (error) {
-      setNotice(errorMessage(error), "error");
+      setNotice(resolveErrorMessage(error), "error");
     }
   };
 }

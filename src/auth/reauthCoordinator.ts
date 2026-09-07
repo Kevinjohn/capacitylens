@@ -38,10 +38,10 @@ function emit(): void {
 export function requestReauth(): Promise<boolean> {
   if (pending) return pending.promise;
   let resolve!: Resolver;
-  const promise = new Promise<boolean>((r) => {
-    resolve = r;
+  const promise = new Promise<boolean>((resolvePromise) => {
+    resolve = resolvePromise;
   });
-  const timeout = setTimeout(() => resolveReauth(false), REAUTH_REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => completeReauth(false), REAUTH_REQUEST_TIMEOUT_MS);
   pending = { promise, resolve, timeout };
   emit();
   return promise;
@@ -49,7 +49,7 @@ export function requestReauth(): Promise<boolean> {
 
 /** Fulfil the pending re-auth request. `true` = the session was refreshed (callers retry); `false` =
  *  cancelled (callers surface the original error). No-op when nothing is pending. */
-export function resolveReauth(reauthenticated: boolean): void {
+export function completeReauth(reauthenticated: boolean): void {
   const current = pending;
   if (!current) return;
   pending = null;
@@ -60,12 +60,12 @@ export function resolveReauth(reauthenticated: boolean): void {
 }
 
 /** Last completed step-up, used to collapse late responses from the same request burst. */
-export function reauthResolution(): Readonly<{ epoch: number; outcome: boolean | null }> {
+export function readReauthResolution(): Readonly<{ epoch: number; outcome: boolean | null }> {
   return resolution;
 }
 
 /** Snapshot for useSyncExternalStore — whether a step-up dialog should currently be shown. */
-export function reauthPending(): boolean {
+export function isReauthPending(): boolean {
   return pending !== null;
 }
 

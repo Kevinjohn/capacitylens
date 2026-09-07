@@ -4,7 +4,7 @@ import { useRole } from "../auth/permissionContext";
 import { useStore } from "../store/useStore";
 import { useActiveScopedData } from "../store/useScopedData";
 import { startTour } from "../lib/tour";
-import { deriveGettingStartedSteps, allStepsDone } from "../lib/gettingStarted";
+import { buildGettingStartedSteps, hasCompletedAllSteps } from "../lib/gettingStarted";
 import { Check } from "lucide-react";
 import { Button } from "./ui/button";
 import { m } from "@/i18n";
@@ -60,7 +60,7 @@ function StepRow({ done, label, to, hint }: { done: boolean; label: string; to?:
  *  undismissed/non-viewer case needs to know the per-step completion, so only THAT case mounts
  *  `GettingStartedCard` and pays for the subscription. */
 export function GettingStarted() {
-  const dismissed = useStore((s) => s.gettingStartedDismissed);
+  const dismissed = useStore((state) => state.gettingStartedDismissed);
   const activeRole = useRole();
   if (dismissed || activeRole === "viewer") return null;
   return <GettingStartedCard />;
@@ -69,11 +69,11 @@ export function GettingStarted() {
 /** Owns the scoped-data read + step derivation; hides itself once every step is done (a
  *  seeded/established account never sees it). Kept out of the exported gate above — see there. */
 function GettingStartedCard() {
-  const setDismissed = useStore((s) => s.setGettingStartedDismissed);
-  const setNotice = useStore((s) => s.setNotice);
+  const setDismissed = useStore((state) => state.setGettingStartedDismissed);
+  const setNotice = useStore((state) => state.setNotice);
   const activeRole = useRole();
   const data = useActiveScopedData();
-  const steps = deriveGettingStartedSteps(data);
+  const steps = buildGettingStartedSteps(data);
   const tourInFlight = useRef(false);
   const [tourBusy, setTourBusy] = useState(false);
 
@@ -92,7 +92,7 @@ function GettingStartedCard() {
     }
   };
 
-  if (allStepsDone(steps)) return null;
+  if (hasCompletedAllSteps(steps)) return null;
 
   return (
     <Card aria-label={m.gs_title()} data-testid="getting-started" className="getting-started-popover gap-4 py-4">

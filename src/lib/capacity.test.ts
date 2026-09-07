@@ -1,19 +1,19 @@
 import { describe, it, expect, vi } from "vitest";
 import {
-  capacityAllocationsForMode,
-  allocatedHoursOnDay as allocatedHoursOnDayWithWeek,
-  availableHoursOnDay as availableHoursOnDayWithWeek,
-  capacityAdvisory as capacityAdvisoryWithWeek,
-  capacityForWindow as capacityForWindowWithWeek,
-  dayCapacity as dayCapacityWithWeek,
+  applyCapacityMode,
+  resolveAllocatedHoursOnDay as allocatedHoursOnDayWithWeek,
+  resolveAvailableHoursOnDay as availableHoursOnDayWithWeek,
+  buildCapacityAdvisory as capacityAdvisoryWithWeek,
+  buildCapacityWindow as capacityForWindowWithWeek,
+  buildDayCapacity as dayCapacityWithWeek,
   formatCapacityAdvisory,
   isHalfDay,
   isOnClosure,
   isOnTimeOff,
   isWorkingDay as isWorkingDayWithWeek,
-  scheduledHoursOnDay as scheduledHoursOnDayWithWeek,
-  utilization as utilizationWithWeek,
-  utilizationFromCapacity,
+  resolveScheduledHoursOnDay as scheduledHoursOnDayWithWeek,
+  resolveUtilization as utilizationWithWeek,
+  resolveUtilizationFromCapacity,
   type CapacityAllocationInput,
 } from "./capacity";
 import { addDaysISO, eachDayISO } from "@capacitylens/shared/lib/dateMath";
@@ -172,8 +172,8 @@ describe("effective working-week semantics table", () => {
   const normalMonday = [makeAlloc({ startDate: monday, endDate: monday, hoursPerDay: 8 })];
   const normalFriday = [makeAlloc({ startDate: friday, endDate: friday, hoursPerDay: 8 })];
   const ignoredFriday = [makeAlloc({ startDate: friday, endDate: friday, hoursPerDay: 8, ignoreWeekends: true })];
-  const blockMonday = capacityAllocationsForMode(normalMonday, true);
-  const blockFriday = capacityAllocationsForMode(normalFriday, true);
+  const blockMonday = applyCapacityMode(normalMonday, true);
+  const blockFriday = applyCapacityMode(normalFriday, true);
 
   it.each([
     ["normal allocation on an effective day", monday, normalMonday, [], { allocated: 8, available: 8, over: false }],
@@ -228,8 +228,8 @@ describe("effective working-week semantics table", () => {
 describe("capacityAllocationsForMode", () => {
   it("preserves hourly allocations and projects blocks to zero load without mutating input", () => {
     const allocations = [makeAlloc({ hoursPerDay: 7 })];
-    expect(capacityAllocationsForMode(allocations, false)).toBe(allocations);
-    const blocks = capacityAllocationsForMode(allocations, true);
+    expect(applyCapacityMode(allocations, false)).toBe(allocations);
+    const blocks = applyCapacityMode(allocations, true);
     expect(blocks).toEqual([{ ...allocations[0], hoursPerDay: 0 }]);
     expect(allocations[0].hoursPerDay).toBe(7);
   });
@@ -537,7 +537,7 @@ describe("utilization", () => {
 
   it("reduces precomputed capacity while excluding zero-availability days", () => {
     expect(
-      utilizationFromCapacity([
+      resolveUtilizationFromCapacity([
         { date: "2026-06-01", allocated: 4, available: 8, over: false },
         { date: "2026-06-02", allocated: 8, available: 0, over: true },
         { date: "2026-06-03", allocated: 2, available: 4, over: false },
@@ -812,7 +812,7 @@ describe("capacityAdvisory", () => {
     // Blocks propose 0 load too, so nothing is over — whereas the RAW hourly rows would flag
     // nothing here either; the difference shows when the proposal itself carries hours.
     expect(capacityAdvisory(r, proposal("2026-06-01", "2026-06-05", 1, false), legacy, []).overDays).toBe(5);
-    const projected = capacityAllocationsForMode(legacy, true);
+    const projected = applyCapacityMode(legacy, true);
     expect(capacityAdvisory(r, proposal("2026-06-01", "2026-06-05", 1, false), projected, []).overDays).toBe(0);
   });
 

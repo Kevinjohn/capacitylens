@@ -3,8 +3,8 @@ import { matchPath, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/authContext";
 import { usePermissionStatus, useRole } from "../auth/permissionContext";
 import { useOfflineState } from "../data/useOfflineState";
-import { accessLabelFor } from "../lib/accessCopy";
-import { accessExperienceFor } from "../lib/accessMode";
+import { resolveAccessLabel } from "../lib/accessCopy";
+import { resolveAccessExperience } from "../lib/resolveAccessExperience";
 import { FAKE_USER } from "../lib/fakeAuth";
 import demoAvatarUrl from "../assets/avatar-demo.svg";
 import { DEFAULT_COLORS } from "../lib/palette";
@@ -28,7 +28,7 @@ import {
 } from "./ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { m } from "@/i18n";
-import { schedulerDensity } from "./scheduler/layout";
+import { buildSchedulerDensity } from "./scheduler/layout";
 import { useStore } from "../store/useStore";
 import type React from "react";
 import { APP_NAME } from "@capacitylens/shared/brand";
@@ -57,7 +57,7 @@ export function AppSidebar({
   const { pathname } = useLocation();
   const { isMobile, openMobile, setOpenMobile } = useSidebar();
   const expanded = isMobile ? openMobile : open;
-  const compactView = useStore((s) => s.compactView);
+  const compactView = useStore((state) => state.compactView);
   const toggleLabel = expanded ? m.nav_collapse_menu() : m.nav_expand_menu();
   // On mobile the sidebar is an overlay sheet; following a link must dismiss it or the destination
   // stays hidden behind the nav. On desktop the sidebar is persistent, so this is a no-op.
@@ -72,7 +72,7 @@ export function AppSidebar({
   // picks the rhythm up without each one having to read the store. Only GAPS and PADDING move — item
   // height is untouched, so the collapsed icon rail (which pins each button square) is unaffected.
   // See src/index.css.
-  const density = schedulerDensity(compactView);
+  const density = buildSchedulerDensity(compactView);
 
   return (
     <Sidebar
@@ -211,9 +211,9 @@ function ActiveRoleBadge() {
   const permissionStatus = usePermissionStatus();
   const { authMode } = useAuth();
   const offline = useOfflineState();
-  const accessExperience = accessExperienceFor(authMode);
+  const accessExperience = resolveAccessExperience(authMode);
   const resolvedRole = accessExperience === "authenticated" && permissionStatus === "resolved" ? role : null;
-  const label = accessLabelFor({
+  const label = resolveAccessLabel({
     offlineReadOnly: offline.readOnly,
     experience: accessExperience,
     permissionStatus,

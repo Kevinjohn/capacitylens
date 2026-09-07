@@ -10,7 +10,7 @@ import {
   setOfflineReadEnabled,
 } from "../../data/offlineCache";
 import { useExclusiveAction } from "../../hooks/useExclusiveAction";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { reloadPage } from "../../lib/reloadPage";
 
 import type { StoreState } from "../../store/useStore";
@@ -60,7 +60,7 @@ export function useLocalDataActions({
       clearActionLock.current = false;
       setClearBusy(false);
       setConfirmingClear(false);
-      setNotice(m.settings_err_clear_storage({ error: errorMessage(e) }), "error");
+      setNotice(m.settings_err_clear_storage({ error: resolveErrorMessage(e) }), "error");
       return;
     }
     // Reload so the app re-initialises from the server or a fresh in-memory demo.
@@ -109,7 +109,7 @@ export function useLocalDataActions({
           throw e;
         }
       },
-      (error) => setNotice(m.settings_offline_error({ error: errorMessage(error) }), "error"),
+      (error) => setNotice(m.settings_offline_error({ error: resolveErrorMessage(error) }), "error"),
     );
   };
 

@@ -44,11 +44,11 @@ export const Avatar = memo(function Avatar({
         .join("")
         .toUpperCase() || "—";
   // Keep the initials legible (white-on-mid-tone often fails AA) by nudging the fill.
-  const { bg, ink } = ensureBarColors(color);
+  const { bg: background, ink } = ensureBarColors(color);
   return (
     <ShadAvatar
       aria-hidden
-      style={{ width: size, height: size, backgroundColor: bg, color: ink }}
+      style={{ width: size, height: size, backgroundColor: background, color: ink }}
       className="ring-2 ring-surface"
     >
       {imageUrl && <AvatarImage src={imageUrl} alt="" />}

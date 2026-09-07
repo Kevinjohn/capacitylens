@@ -12,7 +12,7 @@ export function createWriteQueue(
   owner: AttachmentState,
   serverMode: boolean,
   startAuthoritativeReload: (id: string) => void,
-  onError?: (e: unknown) => void,
+  onError?: (error: unknown) => void,
 ) {
   const MAX_RETRY_ATTEMPTS = 5;
   const { cancelDebounce, cancelRetry, acknowledge, discardEdit } = owner;
@@ -46,18 +46,18 @@ export function createWriteQueue(
         // failure state. `acknowledge` applies that ordering rule for every save path.
         acknowledge(data);
       },
-      (e: unknown) => {
+      (error: unknown) => {
         if (owner.current.disposed) return;
         owner.update({ failedSinceSuccess: true });
         incrementPersistenceDiagnostic("savesFailed");
         // The banner must surface EVERY failed write — including a conflict, where the user's
         // edit is about to be discarded (server wins below); they must learn it did not save.
-        onError?.(e);
+        onError?.(error);
         // A deterministic 400/409 rejection and a malformed 2xx commit receipt all require an
         // authoritative reload. Rejections would repeat forever if retried; an uncertain receipt
         // may already have committed, so replaying against the prior snapshot is unsafe. This reload deliberately bypasses
         // abortIfSaveFailed because it is the resolution, not an ordinary focus refresh.
-        if (beginAuthoritativeReloadFor(e)) return;
+        if (beginAuthoritativeReloadFor(error)) return;
         // An over-limit diff is TERMINAL, not transient: the atomic batch refuses to split it, so
         // the identical over-limit diff would throw on every backoff attempt — a permanent
         // auto-retrying banner. Surface it (onError already raised the banner + a clear sticky
@@ -66,7 +66,7 @@ export function createWriteQueue(
         // user changing fewer items at once) syncs. Reloading before that discards the unsaved edit.
         // Focus/online recovery also declines this exact snapshot; a fresh edit clears the marker
         // and earns one new attempt in case the resulting delta is now small enough.
-        if (serverMode && e instanceof BatchTooLargeError) {
+        if (serverMode && error instanceof BatchTooLargeError) {
           owner.update({ terminalBatchSnapshot: data });
           cancelRetry();
           return;

@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { m } from "@/i18n";
-import { undoShortcut } from "../../lib/keyboardShortcuts";
+import { buildUndoShortcut } from "../../lib/keyboardShortcuts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,7 +38,7 @@ export function RepeatedAllocationDeleteDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>{m.form_allocation_delete_repeated_title()}</AlertDialogTitle>
           <AlertDialogDescription>
-            {m.form_allocation_delete_repeated_message({ shortcut: undoShortcut() })}
+            {m.form_allocation_delete_repeated_message({ shortcut: buildUndoShortcut() })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="sm:grid sm:grid-cols-1">

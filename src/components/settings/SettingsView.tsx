@@ -4,24 +4,24 @@ import { useId } from "react";
 import { useAuth } from "../../auth/authContext";
 import { useCanEdit } from "../../auth/permissionContext";
 import { isServerConfigured } from "../../data/apiConfig";
-import { buildStamp, feedbackMailto } from "../../data/buildInfo";
+import { readBuildStamp, readFeedbackMailto } from "../../data/buildInfo";
 import { useOfflineReadEnabled, useOfflineState, usePersistenceDiagnostics } from "../../data/useOfflineState";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { DEFAULT_COLORS } from "../../lib/palette";
-import { timeZoneOptionLabel } from "../../lib/timezones";
+import { resolveTimeZoneOptionLabel } from "../../lib/timezones";
 import {
-  accountWorkingDaysFor,
-  disciplinesEnabledFor,
-  externalEnabledFor,
-  groupResourcesByEngagementFor,
-  inlineActivityCreateEnabledFor,
-  internalColourModeFor,
-  placeholdersEnabledFor,
-  schedulingModeFor,
-  showInternalActivitiesFor,
-  showInternalProjectsFor,
-  timeZoneFor,
-  weekStartsOnFor,
+  listAccountWorkingDays,
+  hasDisciplinesEnabled,
+  hasExternalResourcesEnabled,
+  hasResourceEngagementGrouping,
+  canCreateInlineActivity,
+  resolveInternalColourMode,
+  hasPlaceholdersEnabled,
+  resolveSchedulingMode,
+  hasVisibleInternalActivities,
+  hasVisibleInternalProjects,
+  resolveTimeZone,
+  resolveWeekStart,
 } from "../../store/selectors";
 import { useStore } from "../../store/useStore";
 import { Avatar, ListPage } from "../common/ui";
@@ -42,43 +42,43 @@ export function SettingsView() {
   // ONE data subscription: every per-account read below goes through a `*For(data, id)` selector,
   // and the offline opt-in caches the whole slice, so a separate `s.data.accounts` subscription
   // would only add a second re-render source for a view this one already covers.
-  const data = useStore((s) => s.data);
-  const accountSummaries = useStore((s) => s.accountSummaries);
-  const activeAccountId = useStore((s) => s.activeAccountId);
-  const activeAccount = data.accounts.find((a) => a.id === activeAccountId) ?? null;
-  const updateAccount = useStore((s) => s.updateAccount);
-  const setNotice = useStore((s) => s.setNotice);
-  const theme = useStore((s) => s.theme);
-  const setTheme = useStore((s) => s.setTheme);
-  const utilizationPrefs = useStore((s) => s.utilizationPrefs);
-  const setUtilizationPref = useStore((s) => s.setUtilizationPref);
-  const barLabelPrefs = useStore((s) => s.barLabelPrefs);
-  const setBarLabelPref = useStore((s) => s.setBarLabelPref);
-  const minimiseWeekends = useStore((s) => s.minimiseWeekends);
-  const setMinimiseWeekends = useStore((s) => s.setMinimiseWeekends);
+  const data = useStore((state) => state.data);
+  const accountSummaries = useStore((state) => state.accountSummaries);
+  const activeAccountId = useStore((state) => state.activeAccountId);
+  const activeAccount = data.accounts.find((account) => account.id === activeAccountId) ?? null;
+  const updateAccount = useStore((state) => state.updateAccount);
+  const setNotice = useStore((state) => state.setNotice);
+  const theme = useStore((state) => state.theme);
+  const setTheme = useStore((state) => state.setTheme);
+  const utilizationPreferences = useStore((state) => state.utilizationPrefs);
+  const setUtilizationPreference = useStore((state) => state.setUtilizationPref);
+  const barLabelPreferences = useStore((state) => state.barLabelPrefs);
+  const setBarLabelPreference = useStore((state) => state.setBarLabelPref);
+  const minimiseWeekends = useStore((state) => state.minimiseWeekends);
+  const setMinimiseWeekends = useStore((state) => state.setMinimiseWeekends);
   const persistenceDiagnostics = usePersistenceDiagnostics();
-  const snapToWeekStart = useStore((s) => s.snapToWeekStart);
-  const compactView = useStore((s) => s.compactView);
-  const setSnapToWeekStart = useStore((s) => s.setSnapToWeekStart);
-  const setCompactView = useStore((s) => s.setCompactView);
+  const snapToWeekStart = useStore((state) => state.snapToWeekStart);
+  const compactView = useStore((state) => state.compactView);
+  const setSnapToWeekStart = useStore((state) => state.setSnapToWeekStart);
+  const setCompactView = useStore((state) => state.setCompactView);
 
   // Every per-account setting is read through its selector, so this screen shows the SAME
   // absent-field default (`?? true` for disciplines/internal visibility, `?? false` for
   // placeholders/external, …) that the surfaces gating on it use — the defaults live once, in
   // store/selectors.ts, and can't drift between where they're edited and where they're honoured.
-  const schedulingMode = schedulingModeFor(data, activeAccountId);
-  const weekStartsOn = weekStartsOnFor(data, activeAccountId);
-  const workingDays = accountWorkingDaysFor(data, activeAccountId);
+  const schedulingMode = resolveSchedulingMode(data, activeAccountId);
+  const weekStartsOn = resolveWeekStart(data, activeAccountId);
+  const workingDays = listAccountWorkingDays(data, activeAccountId);
   const workingDayOrder = orderedWeekdays(weekStartsOn);
-  const timezone = timeZoneFor(data, activeAccountId);
-  const disciplinesEnabled = disciplinesEnabledFor(data, activeAccountId);
-  const groupResourcesByEngagement = groupResourcesByEngagementFor(data, activeAccountId);
-  const placeholdersEnabled = placeholdersEnabledFor(data, activeAccountId);
-  const externalEnabled = externalEnabledFor(data, activeAccountId);
-  const internalColourMode = internalColourModeFor(data, activeAccountId);
-  const showInternalProjects = showInternalProjectsFor(data, activeAccountId);
-  const showInternalActivities = showInternalActivitiesFor(data, activeAccountId);
-  const inlineActivityCreateEnabled = inlineActivityCreateEnabledFor(data, activeAccountId);
+  const timezone = resolveTimeZone(data, activeAccountId);
+  const disciplinesEnabled = hasDisciplinesEnabled(data, activeAccountId);
+  const groupResourcesByEngagement = hasResourceEngagementGrouping(data, activeAccountId);
+  const placeholdersEnabled = hasPlaceholdersEnabled(data, activeAccountId);
+  const externalEnabled = hasExternalResourcesEnabled(data, activeAccountId);
+  const internalColourMode = resolveInternalColourMode(data, activeAccountId);
+  const showInternalProjects = hasVisibleInternalProjects(data, activeAccountId);
+  const showInternalActivities = hasVisibleInternalActivities(data, activeAccountId);
+  const inlineActivityCreateEnabled = canCreateInlineActivity(data, activeAccountId);
   const { authMode, user, canCreateAccount, multiAccount, signOut } = useAuth();
   const offlineEnabled = useOfflineReadEnabled();
   const offlineState = useOfflineState();
@@ -103,14 +103,14 @@ export function SettingsView() {
     try {
       updateAccount(activeAccount.id, patch);
     } catch (error) {
-      setNotice(errorMessage(error), "error");
+      setNotice(resolveErrorMessage(error), "error");
     }
   };
 
-  const stamp = buildStamp();
-  const feedback = feedbackMailto();
+  const stamp = readBuildStamp();
+  const feedback = readFeedbackMailto();
   const weekStartLabel = weekStartsOn === 0 ? m.settings_week_start_sunday() : m.settings_week_start_monday();
-  const timeZoneLabel = timeZoneOptionLabel(timezone);
+  const timeZoneLabel = resolveTimeZoneOptionLabel(timezone);
 
   return (
     <ListPage title={m.settings_title()}>
@@ -139,10 +139,10 @@ export function SettingsView() {
         />
 
         <SettingsAppearanceSection
-          barLabelPrefs={barLabelPrefs}
-          setBarLabelPref={setBarLabelPref}
-          utilizationPrefs={utilizationPrefs}
-          setUtilizationPref={setUtilizationPref}
+          barLabelPrefs={barLabelPreferences}
+          setBarLabelPref={setBarLabelPreference}
+          utilizationPrefs={utilizationPreferences}
+          setUtilizationPref={setUtilizationPreference}
           theme={theme}
           setTheme={setTheme}
           disciplinesEnabled={disciplinesEnabled}

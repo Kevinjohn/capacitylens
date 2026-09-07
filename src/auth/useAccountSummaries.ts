@@ -6,7 +6,7 @@ import { isAccountRole } from "@capacitylens/shared/account/types";
 import { accountClient } from "../account/accountClient";
 import { cacheAccountSummaries, readCachedAccountSummaries, setOfflineReadState } from "../data/offlineCache";
 import { isTransportFailure } from "../data/requestTimeout";
-import { hasDuplicateIdentity } from "../lib/arrayIdentity";
+import { hasDuplicateIdentity } from "../lib/hasDuplicateIdentity";
 import { m } from "@/i18n";
 
 // The AccountPicker's data source (production plan P1.13). It populates `store.accountSummaries` — the
@@ -29,16 +29,16 @@ import { m } from "@/i18n";
  *  crash the picker or smuggle a bogus account in. A valid account with an unrecognized role stays
  *  selectable under a fail-closed Viewer projection, but is explicitly tagged unavailable so the
  *  picker never presents Viewer as an authoritative membership role. */
-function toSummary(entry: unknown): AccountSummary | null {
+function parseAccountSummary(entry: unknown): AccountSummary | null {
   if (typeof entry !== "object" || entry === null) return null;
-  const e = entry as { id?: unknown; name?: unknown; role?: unknown };
-  if (typeof e.id !== "string" || e.id.length === 0) return null;
-  if (typeof e.name !== "string") return null;
-  if (!isAccountRole(e.role)) {
+  const summaryRecord = entry as { id?: unknown; name?: unknown; role?: unknown };
+  if (typeof summaryRecord.id !== "string" || summaryRecord.id.length === 0) return null;
+  if (typeof summaryRecord.name !== "string") return null;
+  if (!isAccountRole(summaryRecord.role)) {
     console.warn("fetchAccountSummaries: /api/accounts returned an unrecognized role; marking it unavailable", entry);
-    return { id: e.id, name: e.name, role: "viewer", roleStatus: "unavailable" };
+    return { id: summaryRecord.id, name: summaryRecord.name, role: "viewer", roleStatus: "unavailable" };
   }
-  return { id: e.id, name: e.name, role: e.role };
+  return { id: summaryRecord.id, name: summaryRecord.name, role: summaryRecord.role };
 }
 
 /**
@@ -47,7 +47,7 @@ function toSummary(entry: unknown): AccountSummary | null {
  * can pull a fresh list on demand: a just-joined account is in neither `data.accounts` nor
  * `accountSummaries` there, so `setActiveAccount` would reject it without this refetch.
  *
- * @param init optional `{ signal }` threaded to the fetch — lets a caller BOUND the read (e.g.
+ * @param requestOptions optional `{ signal }` threaded to the fetch — lets a caller BOUND the read (e.g.
  *             InviteAccept's `AbortSignal.timeout(5000)` best-effort activation step); an abort
  *             lands in the catch below and reports as null like any other failure.
  * @returns the validated list, or null on ANY failure (non-OK status, transport error, abort,
@@ -57,7 +57,7 @@ function toSummary(entry: unknown): AccountSummary | null {
  *          empty array (a real "no accounts" answer). A mixed body keeps its valid rows; every
  *          dropped row leaves a `console.warn` breadcrumb.
  */
-export async function fetchAccountSummaries(init?: {
+export async function fetchAccountSummaries(requestOptions?: {
   signal?: AbortSignal;
   acceptEffects?: () => boolean;
   /** Mutation reconciliation and access transitions need a live server answer, not an offline
@@ -67,8 +67,8 @@ export async function fetchAccountSummaries(init?: {
   /** Reports whether the returned live list is complete enough to prove membership absence. */
   onCompleteness?: (complete: boolean) => void;
 }): Promise<AccountSummary[] | null> {
-  const acceptEffects = init?.acceptEffects ?? (() => true);
-  const allowCachedFallback = init?.allowCachedFallback ?? true;
+  const acceptEffects = requestOptions?.acceptEffects ?? (() => true);
+  const allowCachedFallback = requestOptions?.allowCachedFallback ?? true;
   const cachedFallback = async (): Promise<AccountSummary[] | null> => {
     const cached = await readCachedAccountSummaries();
     if (!cached) return null;
@@ -92,7 +92,7 @@ export async function fetchAccountSummaries(init?: {
     }
   };
   try {
-    const res = await accountClient.listWorkspaces(init?.signal);
+    const res = await accountClient.listWorkspaces(requestOptions?.signal);
     if (!res.ok) return res.status >= 500 && allowCachedFallback ? safeCachedFallback() : null;
     const body: unknown = await res.json();
     // UNTRUSTED external input: validate each entry's shape; drop off-spec rows rather than trusting
@@ -106,7 +106,7 @@ export async function fetchAccountSummaries(init?: {
       );
       return null;
     }
-    const valid = body.map(toSummary).filter((s): s is AccountSummary => s !== null);
+    const valid = body.map(parseAccountSummary).filter((state): state is AccountSummary => state !== null);
     const droppedCount = body.length - valid.length;
     if (droppedCount > 0) {
       // Partial corruption must not be silent (DEFENSIVE-CODING.md §5, handled-but-logged): every
@@ -138,7 +138,9 @@ export async function fetchAccountSummaries(init?: {
         );
       }
     }
-    init?.onCompleteness?.(droppedCount === 0 && valid.every((summary) => summary.roleStatus !== "unavailable"));
+    requestOptions?.onCompleteness?.(
+      droppedCount === 0 && valid.every((summary) => summary.roleStatus !== "unavailable"),
+    );
     return valid;
   } catch (e) {
     // Fail-soft by contract (see @returns): a transport error/abort is reported as null, never a
@@ -159,18 +161,18 @@ export async function fetchAccountSummaries(init?: {
  * older response ineligible to replace the picker list. The fetched list is still returned to the
  * caller for its local reconciliation flow; only the shared-store publication is sequenced.
  */
-export async function refreshAccountSummaries(init?: {
+export async function refreshAccountSummaries(requestOptions?: {
   signal?: AbortSignal;
   acceptEffects?: () => boolean;
   allowCachedFallback?: boolean;
   preserveActiveAccountIfMissing?: boolean;
 }): Promise<AccountSummary[] | null> {
-  const callerAcceptsEffects = init?.acceptEffects ?? (() => true);
+  const callerAcceptsEffects = requestOptions?.acceptEffects ?? (() => true);
   const requestId = useStore.getState().beginAccountSummariesRequest();
   const requestIsCurrent = () => callerAcceptsEffects() && useStore.getState().accountSummariesRequestId === requestId;
   let complete = false;
   const list = await fetchAccountSummaries({
-    ...init,
+    ...requestOptions,
     acceptEffects: requestIsCurrent,
     onCompleteness: (value) => {
       complete = value;
@@ -182,7 +184,7 @@ export async function refreshAccountSummaries(init?: {
     if (
       published &&
       complete &&
-      init?.preserveActiveAccountIfMissing !== true &&
+      requestOptions?.preserveActiveAccountIfMissing !== true &&
       activeAccountId !== null &&
       !list.some((account) => account.id === activeAccountId)
     ) {
@@ -218,12 +220,12 @@ export function useAccountSummaries({
   const serverMode = isServerConfigured();
   // Re-key the server request owner on the active account so a switch / sign-in re-pulls the list
   // (a freshly accepted invite or a just-created org then appears). Harmless in the demo build.
-  const activeAccountId = useStore((s) => s.activeAccountId);
-  const membershipRevision = useStore((s) => s.membershipRevision);
+  const activeAccountId = useStore((state) => state.activeAccountId);
+  const membershipRevision = useStore((state) => state.membershipRevision);
   // The demo build reads the accounts straight off the store; selecting the array keeps the derive effect
   // reactive to add/delete. (In server mode `data.accounts` holds only the active slice, so this is
   // NOT the picker source there — the fetch is.)
-  const localAccounts = useStore((s) => s.data.accounts);
+  const localAccounts = useStore((state) => state.data.accounts);
 
   useEffect(() => {
     if (!serverMode) return; // demo build handled by the derive effect below
@@ -246,6 +248,8 @@ export function useAccountSummaries({
     // add/delete so the picker reflects changes without a fetch.
     useStore
       .getState()
-      .setAccountSummaries(localAccounts.map((a) => ({ id: a.id, name: a.name, role: "owner" as const })));
+      .setAccountSummaries(
+        localAccounts.map((allocation) => ({ id: allocation.id, name: allocation.name, role: "owner" as const })),
+      );
   }, [serverMode, localAccounts]);
 }

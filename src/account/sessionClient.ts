@@ -27,7 +27,7 @@ function isSessionView(value: unknown): value is SessionView {
 }
 
 /** Load the complete validated directory; transport failures are logged and returned as failed. */
-export async function listSessions(): Promise<SessionListResult> {
+export async function readSessions(): Promise<SessionListResult> {
   try {
     const response = await apiFetch(`${API_BASE}/api/account/sessions`, {
       credentials: "include",

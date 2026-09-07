@@ -35,7 +35,7 @@ export function packLanes(items: Interval[]): PackResult {
 
   // Origin = the first valid calendar start (a bad record sorts first but must
   // not become the origin, or it would NaN-poison every other item's day-index).
-  const origin = sorted.find((it) => isValidISODate(it.startDate))?.startDate ?? sorted[0].startDate;
+  const origin = sorted.find((interval) => isValidISODate(interval.startDate))?.startDate ?? sorted[0].startDate;
   // The origin is invariant, so parse it ONCE instead of letting `dayIndex` re-parse it for both
   // ends of every interval. An unparseable origin (every record bad) yields an Invalid Date, so
   // every offset below is NaN and every item takes the same lane-0 fallback as before.
@@ -43,23 +43,23 @@ export function packLanes(items: Interval[]): PackResult {
   const laneEnds: number[] = []; // inclusive endDay of the last item placed in each lane
   const lanes: LaneItem[] = [];
 
-  for (const it of sorted) {
-    const s = differenceInCalendarDays(parseISO(it.startDate), originDate);
-    const e = differenceInCalendarDays(parseISO(it.endDate), originDate);
+  for (const interval of sorted) {
+    const startIndex = differenceInCalendarDays(parseISO(interval.startDate), originDate);
+    const endIndex = differenceInCalendarDays(parseISO(interval.endDate), originDate);
     // A record with an unparseable date can't be positioned; drop it into lane 0
     // without touching laneEnds so it can't corrupt overlap detection for the row.
-    if (!Number.isFinite(s) || !Number.isFinite(e)) {
-      lanes.push({ id: it.id, lane: 0 });
+    if (!Number.isFinite(startIndex) || !Number.isFinite(endIndex)) {
+      lanes.push({ id: interval.id, lane: 0 });
       continue;
     }
-    let lane = laneEnds.findIndex((end) => end < s); // first lane free strictly before this starts
+    let lane = laneEnds.findIndex((end) => end < startIndex); // first lane free strictly before this starts
     if (lane === -1) {
       lane = laneEnds.length;
-      laneEnds.push(e);
+      laneEnds.push(endIndex);
     } else {
-      laneEnds[lane] = e;
+      laneEnds[lane] = endIndex;
     }
-    lanes.push({ id: it.id, lane });
+    lanes.push({ id: interval.id, lane });
   }
 
   return { lanes, laneCount: laneEnds.length };
@@ -72,12 +72,12 @@ export interface LaneLayout {
 }
 
 /** Pixel height of a resource row given how many lanes it needs (min 1 lane tall). */
-export function rowHeightForLanes(laneCount: number, layout: LaneLayout): number {
+export function resolveRowHeightForLanes(laneCount: number, layout: LaneLayout): number {
   const lanes = Math.max(1, laneCount);
   return lanes * layout.barHeight + (lanes - 1) * layout.laneGap + layout.rowPadding * 2;
 }
 
 /** Pixel top offset of a given lane within a resource row. */
-export function laneTop(lane: number, layout: LaneLayout): number {
+export function resolveLaneTop(lane: number, layout: LaneLayout): number {
   return layout.rowPadding + lane * (layout.barHeight + layout.laneGap);
 }

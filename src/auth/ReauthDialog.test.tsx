@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useSyncExternalStore } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ReauthDialog } from "./ReauthDialog";
-import { reauthPending, requestReauth, resolveReauth, subscribeReauth } from "./reauthCoordinator";
+import { isReauthPending, requestReauth, completeReauth, subscribeReauth } from "./reauthCoordinator";
 import type { AuthProviderInfo, AuthUser } from "./authContext";
 import { m } from "@/i18n";
 
@@ -45,7 +45,7 @@ function Harness({
   reauthMethod?: "password" | "provider";
   reauthProviderId?: string | null;
 }) {
-  const pending = useSyncExternalStore(subscribeReauth, reauthPending);
+  const pending = useSyncExternalStore(subscribeReauth, isReauthPending);
   if (!pending) return <div>no-dialog</div>;
   return (
     <ReauthDialog
@@ -59,7 +59,7 @@ function Harness({
 }
 
 afterEach(() => {
-  if (reauthPending()) resolveReauth(false);
+  if (isReauthPending()) completeReauth(false);
   signInEmail.mockReset();
   signInOauth2.mockReset();
   signInSocial.mockReset();
@@ -109,7 +109,7 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     // Dialog gone (pending cleared) and the coordinator resolved TRUE (the wrapper will retry).
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Confirm it's you" })).not.toBeInTheDocument());
     await waitFor(() => expect(settled).toBe(true));
-    expect(reauthPending()).toBe(false);
+    expect(isReauthPending()).toBe(false);
   });
 
   it("cannot cancel while password verification is in flight", async () => {
@@ -129,7 +129,7 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
 
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(reauthPending()).toBe(true);
+    expect(isReauthPending()).toBe(true);
     expect(screen.getByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
 
     release({ data: {}, error: null });
@@ -155,7 +155,7 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     expect(password).toHaveAttribute("aria-describedby", alert.id);
     // Still open, still pending — the user can try again.
     expect(screen.getByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
-    expect(reauthPending()).toBe(true);
+    expect(isReauthPending()).toBe(true);
   });
 
   it("fails locally when password re-auth has no user email", async () => {
@@ -390,10 +390,10 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     await waitFor(() => expect(signInOauth2).toHaveBeenCalledOnce());
 
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(reauthPending()).toBe(true);
+    expect(isReauthPending()).toBe(true);
     expect(screen.getByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
 
-    resolveReauth(false);
+    completeReauth(false);
     await screen.findByText("no-dialog");
     const second = requestReauth();
     await screen.findByRole("heading", { name: "Confirm it's you" });
@@ -409,7 +409,7 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     await waitFor(() => expect(verifyTotp).toHaveBeenCalledOnce());
 
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(reauthPending()).toBe(true);
+    expect(isReauthPending()).toBe(true);
     expect(screen.getByTestId("reauth-2fa-code")).toBeInTheDocument();
   });
 

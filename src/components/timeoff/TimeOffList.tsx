@@ -1,11 +1,11 @@
 import { useStore } from "../../store/useStore";
-import { placeholdersEnabledFor, timeZoneFor, weekStartsOnFor } from "../../store/selectors";
+import { hasPlaceholdersEnabled, resolveTimeZone, resolveWeekStart } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useCrudListState } from "../../hooks/useCrudListState";
 import { AddButton, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
 import { formatShortDate, formatDayCount } from "../../lib/dateDisplay";
 import { TimeOffForm } from "./TimeOffForm";
-import { buildTimeOffGroups, currentTimeOffWeekStart } from "./timeOffView";
+import { buildTimeOffGroups, readCurrentTimeOffWeekStart } from "./timeOffView";
 import type { TimeOff } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { Fragment, useMemo } from "react";
@@ -17,14 +17,14 @@ import { CompanyClosureSection } from "./CompanyClosureSection";
 export function TimeOffList() {
   const data = useActiveScopedData();
   const resources = data.resources;
-  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId));
-  const calendarTimeZone = useStore((s) => timeZoneFor(s.data, s.activeAccountId));
-  const calendarWeekStartsOn = useStore((s) => weekStartsOnFor(s.data, s.activeAccountId));
-  const del = useStore((s) => s.deleteTimeOff);
+  const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
+  const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
+  const calendarWeekStartsOn = useStore((state) => resolveWeekStart(state.data, state.activeAccountId));
+  const deleteEntity = useStore((state) => state.deleteTimeOff);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<TimeOff>();
-  const confirmDelete = useConfirmDelete(del, () => setConfirming(null));
+  const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
 
-  const currentWeekStart = currentTimeOffWeekStart(calendarTimeZone, calendarWeekStartsOn);
+  const currentWeekStart = readCurrentTimeOffWeekStart(calendarTimeZone, calendarWeekStartsOn);
   const groups = useMemo(
     () => buildTimeOffGroups(data.timeOff, resources, currentWeekStart, placeholdersEnabled),
     [currentWeekStart, data.timeOff, placeholdersEnabled, resources],
@@ -71,29 +71,30 @@ export function TimeOffList() {
                       {group.name}
                     </h3>
                     <ItemGroup className="rounded-md border bg-card">
-                      {group.entries.map((t, index) => {
+                      {group.entries.map((timeOffEntry, index) => {
                         const labelContext = {
                           name: group.name,
-                          start: formatShortDate(t.startDate),
-                          end: formatShortDate(t.endDate),
+                          start: formatShortDate(timeOffEntry.startDate),
+                          end: formatShortDate(timeOffEntry.endDate),
                         };
                         return (
-                          <Fragment key={t.id}>
+                          <Fragment key={timeOffEntry.id}>
                             {index > 0 && <ItemSeparator />}
                             <Item size="sm" role="listitem" data-testid="timeoff-row" className="rounded-none">
                               <ItemContent>
                                 <span className="text-sm text-muted-foreground">
-                                  {formatShortDate(t.startDate)} · {formatDayCount(t.startDate, t.endDate)}
+                                  {formatShortDate(timeOffEntry.startDate)} ·{" "}
+                                  {formatDayCount(timeOffEntry.startDate, timeOffEntry.endDate)}
                                 </span>
                               </ItemContent>
                               <ItemActions>
                                 <EditButton
                                   label={m.list_timeoff_edit_aria(labelContext)}
-                                  onClick={() => setEditing(t)}
+                                  onClick={() => setEditing(timeOffEntry)}
                                 />
                                 <DeleteButton
                                   label={m.list_timeoff_delete_aria(labelContext)}
-                                  onClick={() => setConfirming(t)}
+                                  onClick={() => setConfirming(timeOffEntry)}
                                 />
                               </ItemActions>
                             </Item>

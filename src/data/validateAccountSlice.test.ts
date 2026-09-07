@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { validateAccountSlice } from "./validateAccountSlice";
+import { parseAccountSlice } from "./validateAccountSlice";
 
 const accountId = "account-1";
 const validSlice = () => ({
@@ -18,10 +18,10 @@ const validSlice = () => ({
 
 describe("validateAccountSlice", () => {
   it("rejects missing, non-string, and duplicate ids before migration seeds a diff baseline", () => {
-    expect(validateAccountSlice({ ...validSlice(), clients: [{ accountId }] }, accountId)).toBeNull();
-    expect(validateAccountSlice({ ...validSlice(), clients: [{ id: 42, accountId }] }, accountId)).toBeNull();
+    expect(parseAccountSlice({ ...validSlice(), clients: [{ accountId }] }, accountId)).toBeNull();
+    expect(parseAccountSlice({ ...validSlice(), clients: [{ id: 42, accountId }] }, accountId)).toBeNull();
     expect(
-      validateAccountSlice(
+      parseAccountSlice(
         {
           ...validSlice(),
           clients: [
@@ -35,6 +35,6 @@ describe("validateAccountSlice", () => {
   });
 
   it("accepts a complete unique-id slice", () => {
-    expect(validateAccountSlice(validSlice(), accountId)?.accounts[0]?.id).toBe(accountId);
+    expect(parseAccountSlice(validSlice(), accountId)?.accounts[0]?.id).toBe(accountId);
   });
 });

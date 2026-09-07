@@ -10,7 +10,7 @@ import { awaitRequest, awaitTx, openOfflineDb } from "./idb";
 import { cacheGeneration, advanceCacheGeneration } from "./state";
 import type { CachedRecord, EncryptedRecord, WriteBoundary } from "./types";
 
-export function webCrypto(): Crypto {
+export function assertWebCrypto(): Crypto {
   if (typeof crypto === "undefined" || !crypto.subtle) {
     throw new Error("Web Crypto is unavailable; encrypted offline access cannot be enabled.");
   }
@@ -27,10 +27,10 @@ async function readDeviceKey(db: IDBDatabase): Promise<CryptoKey | null> {
     : null;
 }
 
-export async function deviceKey(db: IDBDatabase): Promise<CryptoKey> {
+export async function readOrCreateDeviceKey(db: IDBDatabase): Promise<CryptoKey> {
   const existing = await readDeviceKey(db);
   if (existing) return existing;
-  const generated = await webCrypto().subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
+  const generated = await assertWebCrypto().subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
     "encrypt",
     "decrypt",
   ]);
@@ -56,7 +56,7 @@ export async function deviceKey(db: IDBDatabase): Promise<CryptoKey> {
   }
 }
 
-function storedWriteBoundaryToken(): string | null {
+function readStoredWriteBoundaryToken(): string | null {
   try {
     return localStorage.getItem(OFFLINE_WRITE_BOUNDARY_STORAGE_KEY);
   } catch (error) {
@@ -65,9 +65,9 @@ function storedWriteBoundaryToken(): string | null {
   }
 }
 
-function newWriteBoundaryToken(): string {
+function createWriteBoundaryToken(): string {
   try {
-    return webCrypto().randomUUID();
+    return assertWebCrypto().randomUUID();
   } catch {
     // Cleanup must remain available even if Web Crypto disappears after offline access was enabled.
     // This is an ordering nonce, not a secret; Date + random + the local counter makes accidental
@@ -81,7 +81,7 @@ export function advanceWriteBoundary(): {
   storageError: unknown | null;
 } {
   advanceCacheGeneration();
-  const token = newWriteBoundaryToken();
+  const token = createWriteBoundaryToken();
   try {
     localStorage.setItem(OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, token);
     return { token, storageError: null };
@@ -102,7 +102,7 @@ export async function initialiseWriteBoundary(db: IDBDatabase): Promise<void> {
   const tx = db.transaction(KEY_STORE_NAME, "readwrite");
   const store = tx.objectStore(KEY_STORE_NAME);
   const durableToken = await readDurableWriteBoundary(store);
-  const token = durableToken ?? storedWriteBoundaryToken() ?? newWriteBoundaryToken();
+  const token = durableToken ?? readStoredWriteBoundaryToken() ?? createWriteBoundaryToken();
   if (durableToken === null) store.put({ id: WRITE_BOUNDARY_ID, token });
   await awaitTx(
     tx,
@@ -112,25 +112,25 @@ export async function initialiseWriteBoundary(db: IDBDatabase): Promise<void> {
   localStorage.setItem(OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, token);
 }
 
-export function associatedData(key: string, savedAt: number): Uint8Array<ArrayBuffer> {
+export function buildAssociatedData(key: string, savedAt: number): Uint8Array<ArrayBuffer> {
   return new TextEncoder().encode(`${key}:${savedAt}:capacitylens-offline-v1`);
 }
 
 export async function writeEncryptedRecord<T>(record: CachedRecord<T>): Promise<void> {
   const writeBoundary: WriteBoundary = {
     generation: cacheGeneration,
-    token: storedWriteBoundaryToken(),
+    token: readStoredWriteBoundaryToken(),
   };
   const db = await openOfflineDb();
   try {
-    const encryptionKey = await deviceKey(db);
-    const iv: Uint8Array<ArrayBuffer> = webCrypto().getRandomValues(new Uint8Array(12));
+    const encryptionKey = await readOrCreateDeviceKey(db);
+    const initializationVector: Uint8Array<ArrayBuffer> = assertWebCrypto().getRandomValues(new Uint8Array(12));
     const plaintext = new TextEncoder().encode(JSON.stringify(record.value));
-    const ciphertext = await webCrypto().subtle.encrypt(
+    const ciphertext = await assertWebCrypto().subtle.encrypt(
       {
         name: "AES-GCM",
-        iv,
-        additionalData: associatedData(record.key, record.savedAt),
+        iv: initializationVector,
+        additionalData: buildAssociatedData(record.key, record.savedAt),
         tagLength: 128,
       },
       encryptionKey,
@@ -140,7 +140,10 @@ export async function writeEncryptedRecord<T>(record: CachedRecord<T>): Promise<
       key: record.key,
       savedAt: record.savedAt,
       version: 1,
-      iv: iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength),
+      iv: initializationVector.buffer.slice(
+        initializationVector.byteOffset,
+        initializationVector.byteOffset + initializationVector.byteLength,
+      ),
       ciphertext,
     };
     if (writeBoundary.generation !== cacheGeneration) return;

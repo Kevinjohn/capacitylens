@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import type { AuthProviderInfo, AuthUser } from "./authContext";
-import { reauthPending, resolveReauth, subscribeReauth } from "./reauthCoordinator";
+import { isReauthPending, completeReauth, subscribeReauth } from "./reauthCoordinator";
 import {
   clearExternalSignInError,
-  externalSignInErrorCode,
-  externalSignInErrorMessage,
+  readExternalSignInErrorCode,
+  resolveExternalSignInErrorMessage,
   hasExternalSignInError,
 } from "./externalSignInError";
 import { useStore } from "../store/useStore";
@@ -13,7 +13,9 @@ import { m } from "@/i18n";
 // Lazy so Better Auth's client (pulled in by ReauthDialog) never enters the main bundle — the same
 // discipline as LoginScreen. The step-up dialog only exists in an auth-on session that hits a
 // SESSION_NOT_FRESH 403 (DEFECT B).
-const ReauthDialog = lazy(() => import("./ReauthDialog").then((m) => ({ default: m.ReauthDialog })));
+const ReauthDialog = lazy(() =>
+  import("./ReauthDialog").then((screenModule) => ({ default: screenModule.ReauthDialog })),
+);
 
 /** Bridges the module-level re-auth coordinator (reauthCoordinator.ts) into React: subscribes to the
  *  pending flag via useSyncExternalStore and, while a SESSION_NOT_FRESH step-up is pending, renders
@@ -33,10 +35,10 @@ export function ReauthMount({
   reauthMethod: "password" | "provider";
   reauthProviderId: string | null;
 }) {
-  const pending = useSyncExternalStore(subscribeReauth, reauthPending);
+  const pending = useSyncExternalStore(subscribeReauth, isReauthPending);
   // This host exists only while the authenticated subtree is rendered. A concurrent 401 or
   // mandatory-MFA transition removes it; settle every outside-React waiter before disappearing.
-  useEffect(() => () => resolveReauth(false), []);
+  useEffect(() => () => completeReauth(false), []);
   if (!pending) return null;
   return (
     <Suspense fallback={<AuthLoading message={m.auth_loading_confirmation()} overlay />}>
@@ -73,13 +75,13 @@ export function AuthLoading({ message, overlay = false }: { message: string; ove
  * where the existing session means the login wall is intentionally not rendered. */
 export function AuthenticatedExternalSignInFailure() {
   const [failed] = useState(() => hasExternalSignInError(window.location.href));
-  const [failureCode] = useState(() => externalSignInErrorCode(window.location.href));
+  const [failureCode] = useState(() => readExternalSignInErrorCode(window.location.href));
   const setNotice = useStore((state) => state.setNotice);
 
   useEffect(() => {
     if (!failed) return;
     window.history.replaceState(window.history.state, "", clearExternalSignInError(window.location.href));
-    setNotice(externalSignInErrorMessage(failureCode), "error");
+    setNotice(resolveExternalSignInErrorMessage(failureCode), "error");
   }, [failed, failureCode, setNotice]);
 
   return null;

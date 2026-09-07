@@ -3,7 +3,7 @@ import { Switch } from "../../ui/switch";
 import { Checkbox } from "../../ui/checkbox";
 import { Field, FieldContent, FieldDescription, FieldLabel } from "../../ui/field";
 import { useMarkFormDirty } from "../formDirty";
-import { productFieldLayoutProps } from "./fieldLayoutProps";
+import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
 import type { ProductFieldLayout } from "./fieldTypes";
 
 /** Accessible on/off field shared by settings and privacy controls. */
@@ -47,7 +47,7 @@ export function SwitchField({
     <Field
       orientation={layout === "label-control" ? "vertical" : "horizontal"}
       data-disabled={disabled || undefined}
-      {...productFieldLayoutProps(layout)}
+      {...buildProductFieldLayoutProps(layout)}
     >
       <FieldContent>
         <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
@@ -100,7 +100,7 @@ export function CheckboxField({
     <Field
       orientation={layout === "label-control" ? "vertical" : "horizontal"}
       data-disabled={disabled || undefined}
-      {...productFieldLayoutProps(layout)}
+      {...buildProductFieldLayoutProps(layout)}
     >
       {layout === "label-control" ? (
         <>

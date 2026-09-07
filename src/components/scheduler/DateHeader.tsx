@@ -16,23 +16,23 @@ interface Span {
 }
 
 /** Group visible days into calendar-month spans. */
-function monthSpans(days: string[]): Span[] {
+function buildMonthSpans(days: string[]): Span[] {
   const spans: Span[] = [];
-  days.forEach((d, i) => {
-    const key = d.slice(0, 7); // YYYY-MM
+  days.forEach((day, i) => {
+    const key = day.slice(0, 7); // YYYY-MM
     const last = spans[spans.length - 1];
     if (last && last.key === key) last.days += 1;
-    else spans.push({ key, label: format(parseDate(d), "MMM yyyy"), days: 1, start: i });
+    else spans.push({ key, label: format(parseDate(day), "MMM yyyy"), days: 1, start: i });
   });
   return spans;
 }
 
 /** Group visible days into weeks (new block on the week-start day or at the window start). */
-function weekBlocks(days: string[], weekStartsOn: 0 | 1): Span[] {
+function buildWeekBlocks(days: string[], weekStartsOn: 0 | 1): Span[] {
   const blocks: Span[] = [];
-  days.forEach((d, i) => {
-    if (i === 0 || weekdayOf(d) === weekStartsOn)
-      blocks.push({ key: d, label: format(parseDate(d), "d MMM"), days: 1, start: i });
+  days.forEach((day, i) => {
+    if (i === 0 || weekdayOf(day) === weekStartsOn)
+      blocks.push({ key: day, label: format(parseDate(day), "d MMM"), days: 1, start: i });
     else blocks[blocks.length - 1].days += 1;
   });
   return blocks;
@@ -42,7 +42,7 @@ function weekBlocks(days: string[], weekStartsOn: 0 | 1): Span[] {
 // across data mutations, so it stops re-rendering ~120 cells on every store change.
 export const DateHeader = memo(function DateHeader({
   days,
-  geom,
+  geom: geometry,
   visibleWeeks,
   weekStartsOn,
   today,
@@ -55,18 +55,18 @@ export const DateHeader = memo(function DateHeader({
   weekStartsOn: 0 | 1;
   today: string;
 }) {
-  const showDays = geom.perDayColumns; // per-day columns vs per-week blocks
-  const showWeekday = geom.showWeekdayLabels;
+  const showDays = geometry.perDayColumns; // per-day columns vs per-week blocks
+  const showWeekday = geometry.showWeekdayLabels;
   // The 1/2-week views have enough room to place labels at the visible month segment's start.
   // At compact zooms that treatment would leave too little room, so keep the bounded sticky label.
   const alignVisibleMonths = visibleWeeks <= 2 && showWeekday;
-  const totalWidth = geom.totalWidth;
+  const totalWidth = geometry.totalWidth;
   // Width of a span [start, start+days-1] from the real per-column widths.
-  const spanWidth = (s: Span) => geom.spanWidth(s.start, s.start + s.days - 1);
+  const resolveSpanWidth = (span: Span) => geometry.spanWidth(span.start, span.start + span.days - 1);
   // Month/week groupings depend only on `days` — recompute on the day set changing,
   // not on a pure dayWidth (zoom) change that only re-widths the same blocks.
-  const months = useMemo(() => monthSpans(days), [days]);
-  const weeks = useMemo(() => weekBlocks(days, weekStartsOn), [days, weekStartsOn]);
+  const months = useMemo(() => buildMonthSpans(days), [days]);
+  const weeks = useMemo(() => buildWeekBlocks(days, weekStartsOn), [days, weekStartsOn]);
 
   return (
     /* Column 2 of the scheduler grid: the timeline date header (col 1 is the sticky utilisation
@@ -86,12 +86,12 @@ export const DateHeader = memo(function DateHeader({
           Compact zooms retain the bounded sticky label: no overflow-hidden ancestor in that
           branch, because it would trap position:sticky. */}
       <div className="flex shrink-0 border-b border-line">
-        {months.map((mo) => {
-          const width = spanWidth(mo);
-          const start = geom.x(mo.start);
+        {months.map((month) => {
+          const width = resolveSpanWidth(month);
+          const start = geometry.x(month.start);
           return (
             <div
-              key={mo.key}
+              key={month.key}
               className="relative flex shrink-0 items-center border-r border-line py-0.75"
               style={{
                 width,
@@ -122,7 +122,7 @@ export const DateHeader = memo(function DateHeader({
                       data-month-label
                       className="inline-block max-w-full truncate px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-faint"
                     >
-                      {mo.label}
+                      {month.label}
                     </span>
                   </div>
                 </>
@@ -133,7 +133,7 @@ export const DateHeader = memo(function DateHeader({
                   className="sticky inline-block max-w-full truncate bg-scheduler-header px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-faint"
                   style={{ left: LAYOUT.leftColWidth }}
                 >
-                  {mo.label}
+                  {month.label}
                 </span>
               )}
             </div>
@@ -146,16 +146,16 @@ export const DateHeader = memo(function DateHeader({
           overflow the row and get clipped — while still filling any slack height. */}
       {showDays ? (
         <div data-testid="scheduler-day-tier" className="flex flex-auto">
-          {days.map((d, i) => {
-            const wd = weekdayOf(d);
-            const weekStart = wd === weekStartsOn;
-            const weekend = wd === 0 || wd === 6;
-            const isToday = d === today;
-            const date = parseDate(d);
+          {days.map((day, i) => {
+            const weekday = weekdayOf(day);
+            const weekStart = weekday === weekStartsOn;
+            const weekend = weekday === 0 || weekday === 6;
+            const isToday = day === today;
+            const date = parseDate(day);
             return (
               <div
-                key={d}
-                data-date={d}
+                key={day}
+                data-date={day}
                 className={`flex flex-col items-center justify-center py-1 text-xs leading-tight ${weekStart ? "border-l border-line" : ""} ${
                   isToday
                     ? "bg-brand-soft font-semibold text-ink shadow-[inset_0_2px_0_var(--color-brand)]"
@@ -163,14 +163,14 @@ export const DateHeader = memo(function DateHeader({
                       ? "bg-weekend text-muted-foreground"
                       : "text-muted-foreground"
                 }`}
-                style={{ width: geom.widthOf(i) }}
+                style={{ width: geometry.widthOf(i) }}
               >
                 <span className="font-medium">{format(date, "d")}</span>
                 {/* Narrowed weekend columns have no room for "Sat"/"Sun" — both read just "S"
                     (the date number always stays). Weekdays keep their three-letter label. */}
                 {showWeekday && (
                   <span className="text-2xs uppercase">
-                    {geom.minimiseActive && weekend ? m.scheduler_weekday_narrow_weekend() : format(date, "EEE")}
+                    {geometry.minimiseActive && weekend ? m.scheduler_weekday_narrow_weekend() : format(date, "EEE")}
                   </span>
                 )}
               </div>
@@ -179,13 +179,13 @@ export const DateHeader = memo(function DateHeader({
         </div>
       ) : (
         <div className="flex flex-auto">
-          {weeks.map((b) => (
+          {weeks.map((span) => (
             <div
-              key={b.key}
+              key={span.key}
               className="flex items-center overflow-hidden border-l border-line px-1 py-1 text-2xs text-muted-foreground"
-              style={{ width: spanWidth(b) }}
+              style={{ width: resolveSpanWidth(span) }}
             >
-              <span className="truncate font-medium">{b.label}</span>
+              <span className="truncate font-medium">{span.label}</span>
             </div>
           ))}
         </div>

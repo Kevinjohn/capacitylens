@@ -1,14 +1,14 @@
 import { eachDayISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import type { Allocation, Closure, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
-import { allocatedHoursForWeekday, availableHoursForWeekday } from "./capacity/availability";
+import { resolveAllocatedHoursForWeekday, resolveAvailableHoursForWeekday } from "./capacity/availability";
 
 export * from "./capacity/availability";
 export * from "./capacity/advisory";
 export * from "./capacity/advisoryCopy";
 
 export * from "./capacity/primitives";
-import { exceedsCapacity } from "./capacity/primitives";
+import { hasOverCapacity } from "./capacity/primitives";
 
 export interface DayCapacity {
   date: ISODate;
@@ -19,7 +19,7 @@ export interface DayCapacity {
 
 /** Allocated vs. available hours for one resource-day, with the `over` flag (allocated > available).
  *  @remarks Assumes finite, non-negative hours (see the top-of-file precondition). */
-export function dayCapacity(
+export function buildDayCapacity(
   resource: Resource,
   date: ISODate,
   allocations: Allocation[],
@@ -31,13 +31,13 @@ export function dayCapacity(
   // weekday (twice over, for the working-week and half-day tests), and this runs per resource ×
   // per visible day on every model rebuild.
   const weekday = weekdayOf(date);
-  const available = availableHoursForWeekday(resource, date, timeOff, closures, weekday, effectiveWeek);
-  const allocated = allocatedHoursForWeekday(resource, date, allocations, weekday, effectiveWeek);
+  const available = resolveAvailableHoursForWeekday(resource, date, timeOff, closures, weekday, effectiveWeek);
+  const allocated = resolveAllocatedHoursForWeekday(resource, date, allocations, weekday, effectiveWeek);
   return {
     date,
     allocated,
     available,
-    over: exceedsCapacity(allocated, available),
+    over: hasOverCapacity(allocated, available),
   };
 }
 
@@ -46,7 +46,7 @@ export function dayCapacity(
  *  resource, so it builds the day array once, buckets each resource's allocations and time off by
  *  covered date (`bucketByCoveredDate`), and memoises `dayCapacity` per date. This stays the
  *  straight-line definition those optimisations are checked against. */
-export function capacityForWindow(
+export function buildCapacityWindow(
   resource: Resource,
   allocations: Allocation[],
   timeOff: TimeOff[],
@@ -55,11 +55,13 @@ export function capacityForWindow(
   effectiveWeek: EffectiveWorkingWeek,
   closures: Closure[],
 ): DayCapacity[] {
-  return eachDayISO(start, end).map((d) => dayCapacity(resource, d, allocations, timeOff, effectiveWeek, closures));
+  return eachDayISO(start, end).map((day) =>
+    buildDayCapacity(resource, day, allocations, timeOff, effectiveWeek, closures),
+  );
 }
 
 /** Reduce already-computed resource-day capacity into the visible-window utilisation ratio. */
-export function utilizationFromCapacity(days: Iterable<DayCapacity>): number {
+export function resolveUtilizationFromCapacity(days: Iterable<DayCapacity>): number {
   let allocated = 0;
   let available = 0;
   for (const day of days) {
@@ -76,7 +78,7 @@ export function utilizationFromCapacity(days: Iterable<DayCapacity>): number {
  *  would push a normal allocation that merely spans a weekend past 100%.
  *  Like `capacityForWindow`, this is the straight-line definition; the render path reaches the same
  *  number through `utilizationFromCapacity` over its memoised per-date capacity. */
-export function utilization(
+export function resolveUtilization(
   resource: Resource,
   allocations: Allocation[],
   timeOff: TimeOff[],
@@ -85,7 +87,7 @@ export function utilization(
   effectiveWeek: EffectiveWorkingWeek,
   closures: Closure[],
 ): number {
-  return utilizationFromCapacity(
-    capacityForWindow(resource, allocations, timeOff, start, end, effectiveWeek, closures),
+  return resolveUtilizationFromCapacity(
+    buildCapacityWindow(resource, allocations, timeOff, start, end, effectiveWeek, closures),
   );
 }

@@ -5,9 +5,9 @@ import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingW
 import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
 import type { Draft } from "../store/useStore";
 import {
-  projectAllocationDates,
-  repeatingAllocationAdvisory as repeatingAllocationAdvisoryWithWeek,
-  repeatPatternForSelection,
+  buildRepeatedAllocationDrafts,
+  buildRepeatingAllocationAdvisory as repeatingAllocationAdvisoryWithWeek,
+  resolveRepeatPattern,
   type RepeatProjectionContext,
 } from "./repeatingAllocations";
 
@@ -50,7 +50,7 @@ describe("#257 characterization: repeat start-day policy", () => {
     const startDates = generateRepeatingStartDates("2026-06-01", "2026-08-01", {
       kind: "monthly-date",
     }).startDates;
-    const projected = projectAllocationDates(
+    const projected = buildRepeatedAllocationDrafts(
       baseDraft({ startDate: "2026-06-01", endDate: "2026-06-01" }),
       startDates,
       repeatContext("days", 1, resourceContext({ workingDays: [1] })),
@@ -68,7 +68,7 @@ describe("#257 characterization: repeat start-day policy", () => {
     const startDates = generateRepeatingStartDates(
       "2026-06-01",
       "2026-07-27",
-      repeatPatternForSelection("weekly"),
+      resolveRepeatPattern("weekly"),
     ).startDates;
 
     expect(startDates).toHaveLength(9);
@@ -79,11 +79,11 @@ describe("#257 characterization: repeat start-day policy", () => {
 describe("repeatPatternForSelection", () => {
   it("maps every repeating form choice exhaustively", () => {
     expect([
-      repeatPatternForSelection("weekly"),
-      repeatPatternForSelection("every-two-weeks"),
-      repeatPatternForSelection("every-three-weeks"),
-      repeatPatternForSelection("every-four-weeks"),
-      repeatPatternForSelection("monthly"),
+      resolveRepeatPattern("weekly"),
+      resolveRepeatPattern("every-two-weeks"),
+      resolveRepeatPattern("every-three-weeks"),
+      resolveRepeatPattern("every-four-weeks"),
+      resolveRepeatPattern("monthly"),
     ]).toEqual([
       { kind: "weeks", interval: 1 },
       { kind: "weeks", interval: 2 },
@@ -97,7 +97,7 @@ describe("repeatPatternForSelection", () => {
 describe("projectAllocationDates", () => {
   it("retains the exact first draft and copies all fields while changing only an hourly calendar span", () => {
     const base = baseDraft();
-    const projected = projectAllocationDates(
+    const projected = buildRepeatedAllocationDrafts(
       base,
       ["2027-01-31", "2027-02-28", "2027-03-31"],
       repeatContext("hourly", 99),
@@ -110,7 +110,7 @@ describe("projectAllocationDates", () => {
   it("checks External first and preserves its validated zero-load literal span in every account mode", () => {
     const base = baseDraft({ hoursPerDay: 0, ignoreWeekends: true });
     for (const schedulingMode of ["hourly", "days", "blocks"] as const) {
-      const projected = projectAllocationDates(
+      const projected = buildRepeatedAllocationDrafts(
         base,
         ["2027-01-31", "2027-02-28"],
         repeatContext(schedulingMode, 0, resourceContext({ kind: "external", workingDays: [] })),
@@ -126,7 +126,7 @@ describe("projectAllocationDates", () => {
 
   it.each(["days", "blocks"] as const)("projects %s with the effective working span and preserves load", (mode) => {
     const base = baseDraft({ startDate: "2026-06-01", endDate: "2026-06-03", hoursPerDay: mode === "blocks" ? 0 : 6 });
-    const projected = projectAllocationDates(base, ["2026-06-01", "2026-06-06"], repeatContext(mode, 3));
+    const projected = buildRepeatedAllocationDrafts(base, ["2026-06-01", "2026-06-06"], repeatContext(mode, 3));
     expect(projected[1]).toMatchObject({
       startDate: "2026-06-06",
       endDate: "2026-06-10",
@@ -144,20 +144,24 @@ describe("projectAllocationDates", () => {
         ignoreWeekends: true,
       });
       expect(() =>
-        projectAllocationDates(base, ["9999-09-30", "9999-10-30", "9999-11-30", "9999-12-30"], repeatContext(mode, 3)),
+        buildRepeatedAllocationDrafts(
+          base,
+          ["9999-09-30", "9999-10-30", "9999-11-30", "9999-12-30"],
+          repeatContext(mode, 3),
+        ),
       ).toThrow(/supported date range/i);
     },
   );
 
   it("honours custom work weeks and Ignore working days without moving the generated start", () => {
-    const custom = projectAllocationDates(
+    const custom = buildRepeatedAllocationDrafts(
       baseDraft({ startDate: "2026-06-01", endDate: "2026-06-04" }),
       ["2026-06-01", "2026-06-03"],
       repeatContext("days", 2, resourceContext({ workingDays: [2, 4] })),
     );
     expect(custom[1]).toMatchObject({ startDate: "2026-06-03", endDate: "2026-06-09" });
 
-    const weekends = projectAllocationDates(
+    const weekends = buildRepeatedAllocationDrafts(
       baseDraft({ startDate: "2026-06-01", endDate: "2026-06-03", ignoreWeekends: true }),
       ["2026-06-01", "2026-06-06"],
       repeatContext("days", 3),
@@ -167,16 +171,18 @@ describe("projectAllocationDates", () => {
 
   it("rejects a mismatched resource, a missing anchor and invalid working-span context", () => {
     expect(() =>
-      projectAllocationDates(
+      buildRepeatedAllocationDrafts(
         baseDraft(),
         ["2027-01-31", "2027-02-28"],
         repeatContext("hourly", 1, resourceContext({ id: "other" })),
       ),
     ).toThrow(/does not match/i);
-    expect(() => projectAllocationDates(baseDraft(), ["2027-02-28"], repeatContext("hourly", 1))).toThrow(/begin/i);
-    expect(() => projectAllocationDates(baseDraft(), ["2027-01-31", "2027-02-28"], repeatContext("blocks", 0))).toThrow(
-      /daysOver/i,
+    expect(() => buildRepeatedAllocationDrafts(baseDraft(), ["2027-02-28"], repeatContext("hourly", 1))).toThrow(
+      /begin/i,
     );
+    expect(() =>
+      buildRepeatedAllocationDrafts(baseDraft(), ["2027-01-31", "2027-02-28"], repeatContext("blocks", 0)),
+    ).toThrow(/daysOver/i);
   });
 
   it.each([
@@ -184,7 +190,7 @@ describe("projectAllocationDates", () => {
     ["monthly", ["2026-06-01", "2026-07-01"], "2026-07-08"],
   ] as const)("projects %s working spans through the narrowed company week", (_, startDates, expectedEnd) => {
     const resource = resourceContext();
-    const projected = projectAllocationDates(
+    const projected = buildRepeatedAllocationDrafts(
       baseDraft({ startDate: "2026-06-01", endDate: "2026-06-08" }),
       startDates,
       repeatContext("days", 5, resource, [1, 2, 3, 4]),
@@ -196,7 +202,7 @@ describe("projectAllocationDates", () => {
   it("rejects a working-span repeat before empty effective days can reach date math", () => {
     const resource = resourceContext({ workingDays: [1] });
     expect(() =>
-      projectAllocationDates(
+      buildRepeatedAllocationDrafts(
         baseDraft({ startDate: "2026-06-01", endDate: "2026-06-01" }),
         ["2026-06-01", "2026-06-08"],
         repeatContext("days", 1, resource, [2]),
@@ -204,7 +210,7 @@ describe("projectAllocationDates", () => {
     ).toThrow(/effective working day/i);
 
     expect(
-      projectAllocationDates(
+      buildRepeatedAllocationDrafts(
         baseDraft({
           startDate: "2026-06-01",
           endDate: "2026-06-02",
@@ -333,7 +339,7 @@ describe("repeatingAllocationAdvisory", () => {
   });
 
   it("creates later occurrences on company closures and counts them in the overlap advisory", () => {
-    const drafts = projectAllocationDates(
+    const drafts = buildRepeatedAllocationDrafts(
       baseDraft({ startDate: "2026-06-01", endDate: "2026-06-01" }),
       ["2026-06-01", "2026-06-08", "2026-06-15"],
       repeatContext("hourly", 1),
@@ -405,11 +411,7 @@ describe("repeatingAllocationAdvisory", () => {
 
   it("reports zero non-effective starts for a weekly cadence anchored on an effective weekday", () => {
     const resource = fullResource({ workingDays: [1] });
-    const starts = generateRepeatingStartDates(
-      "2026-06-01",
-      "2026-06-29",
-      repeatPatternForSelection("weekly"),
-    ).startDates;
+    const starts = generateRepeatingStartDates("2026-06-01", "2026-06-29", resolveRepeatPattern("weekly")).startDates;
     const drafts = starts.map((startDate) => baseDraft({ startDate, endDate: startDate }));
 
     expect(repeatingAllocationAdvisory(resource, [], [], drafts, [])).toMatchObject({

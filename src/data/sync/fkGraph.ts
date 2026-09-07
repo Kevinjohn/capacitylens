@@ -58,7 +58,7 @@ const accountScopeEdgesAreComplete: MissingAccountScopeEdge extends never ? true
 void accountScopeEdgesAreComplete;
 
 /** Missing-table compatibility is safe only when no returned child points into that table. */
-export function referencedMissingTables(record: Record<string, unknown>, missingKeys: readonly string[]): string[] {
+export function listReferencedMissingTables(record: Record<string, unknown>, missingKeys: readonly string[]): string[] {
   return missingKeys.filter((key) =>
     FK_EDGES.some((edge) => edge.parent === key && rowsReference(record, edge.child, edge.field)),
   );

@@ -15,7 +15,9 @@ export function buildFilterOptions(data: AppData) {
   const internalClientId = clients.find((client) => client.builtin === true)?.id;
   const clientNames = new Map(clients.map((client) => [client.id, client.name]));
   return {
-    disciplineOptions: [...data.disciplines].sort(byDisciplineOrder).map((d) => ({ id: d.id, label: d.name })),
+    disciplineOptions: [...data.disciplines]
+      .sort(byDisciplineOrder)
+      .map((discipline) => ({ id: discipline.id, label: discipline.name })),
     clientOptions: clients.map((client) => ({ id: client.id, label: client.name })),
     projectOptions: [...data.projects]
       .sort((a, b) => Number(b.clientId === internalClientId) - Number(a.clientId === internalClientId) || byName(a, b))
@@ -25,7 +27,7 @@ export function buildFilterOptions(data: AppData) {
       }),
     // The activity lens covers only the project-LESS kinds — project-specific activities are
     // reached via the Projects dropdown above.
-    internalActivities: data.activities.filter((t) => t.kind === "internal").sort(byName),
-    repeatableActivities: data.activities.filter((t) => t.kind === "repeatable").sort(byName),
+    internalActivities: data.activities.filter((activity) => activity.kind === "internal").sort(byName),
+    repeatableActivities: data.activities.filter((activity) => activity.kind === "repeatable").sort(byName),
   };
 }

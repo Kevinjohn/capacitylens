@@ -6,7 +6,7 @@ import type { InvitationRole } from "@capacitylens/shared/account/types";
 import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
 import type { AuthMode, AuthProviderInfo, AuthUser } from "../../auth/authContext";
-import { roleLabel, roleSummary } from "../../lib/accessCopy";
+import { resolveRoleLabel, resolveRoleSummary } from "../../lib/accessCopy";
 import { m } from "@/i18n";
 import { TextField } from "../common/ui";
 import { Badge } from "../ui/badge";
@@ -87,7 +87,7 @@ export function InviteAcceptView({
   const joinedStatus =
     state.kind === "joined"
       ? preview
-        ? m.invite_joined_company({ company: preview.accountName, role: roleLabel(state.role) })
+        ? m.invite_joined_company({ company: preview.accountName, role: resolveRoleLabel(state.role) })
         : `${m.invite_joined_base()}${state.role ? m.invite_joined_role({ role: state.role }) : ""}.`
       : null;
   const flowStatus =
@@ -120,7 +120,7 @@ export function InviteAcceptView({
                   <ItemTitle>
                     <h2>{preview.accountName}</h2>
                   </ItemTitle>
-                  <ItemDescription>{roleSummary(preview.role)}</ItemDescription>
+                  <ItemDescription>{resolveRoleSummary(preview.role)}</ItemDescription>
                   <ItemDescription>{m.invite_existing_role_note()}</ItemDescription>
                   <ItemDescription>
                     {m.invite_expires({ when: new Date(preview.expiresAt).toLocaleString() })}
@@ -129,7 +129,7 @@ export function InviteAcceptView({
                 <ItemActions className="self-start text-right">
                   <div>
                     <p className="text-xs font-medium text-muted-foreground">{m.invite_proposed_role_label()}</p>
-                    <Badge>{roleLabel(preview.role)}</Badge>
+                    <Badge>{resolveRoleLabel(preview.role)}</Badge>
                   </div>
                 </ItemActions>
               </Item>

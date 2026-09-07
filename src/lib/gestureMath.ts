@@ -23,7 +23,7 @@ export interface DateRange {
  *  `workingDays` doesn't cover the whole week, a move preserves the allocation's
  *  *working-day* count by extending its end across non-working days. Omit (or
  *  set `ignoreWeekends`) to get the plain calendar-shift behavior. */
-export interface GestureOpts {
+export interface GestureOptions {
   workingDays?: Weekday[];
   ignoreWeekends?: boolean;
 }
@@ -57,7 +57,7 @@ function isPast(date: ISODate, limit: ISODate, direction: Direction): boolean {
  *  hand-mirrored copies — down to the pin-and-re-snap over-drag fix — so the next correction
  *  could easily have landed in only one of them. `weekendAwareDays` is non-null only when the
  *  gesture is weekend-aware (see `applyGesture`). */
-function resizedEdge(
+function resolveResizedEdge(
   range: DateRange,
   deltaDays: number,
   edge: "start" | "end",
@@ -85,11 +85,13 @@ function resizedEdge(
   return moved;
 }
 
-export function applyGesture(mode: DragMode, range: DateRange, deltaDays: number, opts?: GestureOpts): DateRange {
+export function applyGesture(mode: DragMode, range: DateRange, deltaDays: number, options?: GestureOptions): DateRange {
   // Resolve weekend-awareness ONCE for the whole gesture: non-null exactly when the resource has a
   // partial working week and the allocation hasn't opted out. Carrying the working-day array rather
   // than a boolean is what lets every branch below drop the `opts!.workingDays!` assertions.
-  const weekendAwareDays = isWeekendAware(opts?.workingDays, opts?.ignoreWeekends) ? (opts?.workingDays ?? null) : null;
+  const weekendAwareDays = isWeekendAware(options?.workingDays, options?.ignoreWeekends)
+    ? (options?.workingDays ?? null)
+    : null;
   switch (mode) {
     case "move": {
       let newStart = addDaysISO(range.startDate, deltaDays);
@@ -112,8 +114,8 @@ export function applyGesture(mode: DragMode, range: DateRange, deltaDays: number
       return { startDate: newStart, endDate: newEnd };
     }
     case "resize-start":
-      return { startDate: resizedEdge(range, deltaDays, "start", weekendAwareDays), endDate: range.endDate };
+      return { startDate: resolveResizedEdge(range, deltaDays, "start", weekendAwareDays), endDate: range.endDate };
     case "resize-end":
-      return { startDate: range.startDate, endDate: resizedEdge(range, deltaDays, "end", weekendAwareDays) };
+      return { startDate: range.startDate, endDate: resolveResizedEdge(range, deltaDays, "end", weekendAwareDays) };
   }
 }

@@ -1,7 +1,7 @@
 import { API_BASE } from "../apiConfig";
 import { DB_NAME, STORE_NAME, KEY_STORE_NAME, MAX_AGE_MS } from "./constants";
 
-export function originKey(): string {
+export function readOriginKey(): string {
   const frontendOrigin = typeof window === "undefined" ? "server" : window.location.origin;
   if (API_BASE.length === 0) return `${frontendOrigin}|api:${frontendOrigin}`;
   try {

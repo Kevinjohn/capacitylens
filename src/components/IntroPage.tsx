@@ -17,8 +17,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card"
  */
 export function IntroPage({ onContinue }: { onContinue: () => void }) {
   // Copy resolves at render via the introCopy getters (Paraglide-backed) so the active locale applies.
-  const para1 = introPara1();
-  const para2 = introPara2();
+  const firstParagraph = introPara1();
+  const secondParagraph = introPara2();
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <main className="w-full max-w-sm">
@@ -30,14 +30,14 @@ export function IntroPage({ onContinue }: { onContinue: () => void }) {
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <p className="text-sm text-muted-foreground">
-              {para1.before}
-              <strong className="font-semibold text-ink">{para1.strong}</strong>
-              {para1.after}
+              {firstParagraph.before}
+              <strong className="font-semibold text-ink">{firstParagraph.strong}</strong>
+              {firstParagraph.after}
             </p>
             <p className="text-sm text-muted-foreground">
-              {para2.before}
-              <strong className="font-semibold text-ink">{para2.strong}</strong>
-              {para2.after}
+              {secondParagraph.before}
+              <strong className="font-semibold text-ink">{secondParagraph.strong}</strong>
+              {secondParagraph.after}
             </p>
             <p className="text-sm text-muted-foreground">{introPara3()}</p>
           </CardContent>

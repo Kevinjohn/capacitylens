@@ -2,7 +2,7 @@ import { m } from "@/i18n";
 import { Button } from "../ui/button";
 import { ConfirmDialog } from "../common/dialogs";
 import { RepeatedAllocationDeleteDialog } from "./RepeatedAllocationDeleteDialog";
-import { undoShortcut } from "../../lib/keyboardShortcuts";
+import { buildUndoShortcut } from "../../lib/keyboardShortcuts";
 import type { AllocationModalState } from "./useAllocationModalState";
 
 type AllocationFooterProps = AllocationModalState["footer"];
@@ -27,7 +27,7 @@ export function AllocationFooter({
       ) : confirmDelete ? (
         <ConfirmDialog
           title={m.form_allocation_delete_title()}
-          message={m.form_allocation_delete_message({ shortcut: undoShortcut() })}
+          message={m.form_allocation_delete_message({ shortcut: buildUndoShortcut() })}
           onConfirm={() => onDelete("one")}
           onCancel={() => setConfirmDelete(false)}
         />

@@ -3,7 +3,7 @@ import type { Weekday } from "@capacitylens/shared/types/entities";
 import type { BarLayout } from "./schedulerModel";
 import type { ColumnGeometry } from "./columnGeometry";
 
-export function gesturePreviewDates(
+export function buildGesturePreviewDates(
   bar: BarLayout,
   mode: DragMode,
   deltaDays: number,
@@ -25,9 +25,9 @@ export function gesturePreviewDates(
   return { previewImpossible, dates };
 }
 
-export function gesturePreviewGeometry(
+export function buildGesturePreviewGeometry(
   bar: BarLayout,
-  geom: ColumnGeometry,
+  geometry: ColumnGeometry,
   preview: { mode: DragMode; deltaDays: number; deltaY: number; dates: DateRange | null } | null,
 ) {
   let left = bar.x;
@@ -39,8 +39,8 @@ export function gesturePreviewGeometry(
     // running it through the SAME ColumnGeometry the view-model placed bar.x / bar.width with, so
     // the preview stays pixel-identical to the committed bar even across a narrowed weekend.
     if (preview.deltaDays !== 0 && preview.dates) {
-      left = geom.xForDateInGeom(preview.dates.startDate);
-      width = geom.widthForDates(preview.dates.startDate, preview.dates.endDate);
+      left = geometry.xForDateInGeom(preview.dates.startDate);
+      width = geometry.widthForDates(preview.dates.startDate, preview.dates.endDate);
     }
   }
 

@@ -8,7 +8,7 @@ import { createResourceSlice } from "./slices/resourceSlice";
 import { createRuntimeSlice } from "./slices/runtimeSlice";
 import { createSchedulerSlice } from "./slices/schedulerSlice";
 import { createStoreInternals } from "./storeInternal";
-import { emptyFilters, type StoreState } from "./types";
+import { buildEmptyFilters, type StoreState } from "./types";
 
 export type {
   AccountSummary,
@@ -24,7 +24,7 @@ export type {
   StoreState,
   WeeksZoom,
 } from "./types";
-export { clearEntityLenses, emptyFilters, hasActiveFilters, hasLensFilter, hasProjectClientLens } from "./types";
+export { clearEntityLenses, buildEmptyFilters, hasActiveFilters, hasLensFilter, hasProjectClientLens } from "./types";
 
 export const useStore = create<StoreState>()((set, get, store) => {
   const internals = createStoreInternals(set, get);
@@ -32,15 +32,15 @@ export const useStore = create<StoreState>()((set, get, store) => {
     ...createAccountSlice(internals)(set, get, store),
     ...createHistorySlice(internals)(set, get, store),
     ...createRuntimeSlice(set, get, store),
-    ...createSchedulerSlice(emptyFilters)(set, get, store),
+    ...createSchedulerSlice(buildEmptyFilters)(set, get, store),
     ...createCatalogSlice(internals)(set, get, store),
     ...createResourceSlice(internals)(set, get, store),
     ...createAllocationSlice({
-      guarded: internals.guarded,
-      addAllocationsImpl: internals.addAllocationsImpl,
+      createGuardedAction: internals.createGuardedAction,
+      createAllocations: internals.createAllocations,
       updateOwned: internals.updateOwned,
       assertAllocation: internals.assertAllocation,
-      findOwned: internals.findOwned,
+      resolveOwnedRow: internals.resolveOwnedRow,
       mutate: internals.mutate,
     })(set, get, store),
     ...createLifecycleSlice(internals)(set, get, store),

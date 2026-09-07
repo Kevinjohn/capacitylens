@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import type { ReactNode } from "react";
 import { isServerConfigured } from "../data/apiConfig";
 import { bindStoredAccountCommandsToIdentity, clearStoredAccountCommands } from "../account/accountClient";
-import { publicAuthEntryForPath } from "./authEntryRoute";
+import { resolvePublicAuthEntry } from "./authEntryRoute";
 import { useStore } from "../store/useStore";
 import { AuthContext } from "./authContext";
 import { m } from "@/i18n";
@@ -11,7 +11,7 @@ import { OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, revalidateOfflineShell } from "../d
 import { signOutAndReload } from "./signOut";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { markCompanyPickerForNextReload } from "../lib/companyPickerEntry";
-import { passOpen, type Status } from "./authStatus";
+import { buildOpenAuthResult, type AuthStatusResult } from "./authStatus";
 import { fetchAuthStatus } from "./fetchAuthStatus";
 import { AuthenticatedExternalSignInFailure, AuthLoading, ReauthMount } from "./authScreens";
 import { useAuthContextValue } from "./useAuthContextValue";
@@ -22,10 +22,10 @@ import { useAuthContextValue } from "./useAuthContextValue";
 // exactly as today; a 401 replaces everything with the LoginScreen. The screen is a
 // lazy chunk so better-auth's client never loads unless a login is actually shown.
 
-const LoginScreen = lazy(() => import("./LoginScreen").then((m) => ({ default: m.LoginScreen })));
+const LoginScreen = lazy(() => import("./LoginScreen").then((screenModule) => ({ default: screenModule.LoginScreen })));
 const MfaEnrollmentScreen = lazy(() =>
-  import("./MfaEnrollmentScreen").then((m) => ({
-    default: m.MfaEnrollmentScreen,
+  import("./MfaEnrollmentScreen").then((screenModule) => ({
+    default: screenModule.MfaEnrollmentScreen,
   })),
 );
 /**
@@ -54,11 +54,11 @@ export function AuthProvider({
   onTenantAccessReady?: () => void;
 }) {
   const serverMode = isServerConfigured();
-  const [status, setStatus] = useState<Status>(
+  const [status, setStatus] = useState<AuthStatusResult>(
     // Demo build: no server, no cap — canCreateAccount/multiAccount fail open to true (passOpen).
-    serverMode ? { kind: "checking" } : passOpen("off", null),
+    serverMode ? { kind: "checking" } : buildOpenAuthResult("off", null),
   );
-  const persistError = useStore((s) => s.persistError);
+  const persistError = useStore((state) => state.persistError);
   const tenantAccessSignalled = useRef(false);
 
   const tenantAccessReady = status.kind === "pass" && !(status.authMode === "password" && status.mfaRequired);
@@ -86,7 +86,7 @@ export function AuthProvider({
    *    render the auth error boundary and are never converted to auth-off.
    *  - 'keep-previous' (every mid-session re-check): keep the current snapshot with a warn
    *    breadcrumb — stale beats resetting a live session's user/authMode to 'off'. */
-  const checkAuth = useCallback((onNull: "fail-open" | "keep-previous"): Promise<Status | null> => {
+  const checkAuth = useCallback((onNull: "fail-open" | "keep-previous"): Promise<AuthStatusResult | null> => {
     const requestId = ++authRequestSeq.current;
     // .then (not await) so setStatus runs in a plain callback — the same shape as subscribing to
     // an external system, which is what this is (react-hooks/set-state-in-effect is happy with it).
@@ -94,7 +94,7 @@ export function AuthProvider({
       if (requestId !== authRequestSeq.current) return null; // superseded by a newer check — drop, don't clobber
       if (next === null || (next.kind === "error" && onNull === "keep-previous")) {
         if (onNull === "fail-open") {
-          setStatus(passOpen("off", null));
+          setStatus(buildOpenAuthResult("off", null));
         } else {
           console.warn("AuthProvider: /api/auth/me refresh failed; keeping the previous auth snapshot");
         }
@@ -217,7 +217,7 @@ export function AuthProvider({
   if (status.kind === "login") {
     // Computed only where it's actually read (this branch and the mfaRequired branch below) —
     // a pure, cheap read of window.location.pathname, so recomputing it per branch is fine.
-    const publicEntry = publicAuthEntryForPath(window.location.pathname);
+    const publicEntry = resolvePublicAuthEntry(window.location.pathname);
     // Pre-session carve-out (P1.18): /reset-password/:token must render WITHOUT a session — the
     // visitor redeeming an admin-issued reset link is exactly the person who cannot sign in (the
     // login wall would be a dead end). The page is as safe as LoginScreen itself: it renders no
@@ -266,7 +266,7 @@ export function AuthProvider({
     return (
       <Suspense fallback={<AuthLoading message={m.auth_loading_sign_in()} />}>
         <MfaEnrollmentScreen
-          blockedEntry={publicAuthEntryForPath(window.location.pathname)}
+          blockedEntry={resolvePublicAuthEntry(window.location.pathname)}
           onEnrolled={confirmMfaEnrollment}
           onSignOut={() => void signOut()}
         />

@@ -13,12 +13,12 @@ type Props = Pick<ReturnType<typeof useSchedulerViewport>, "days" | "geom"> &
   };
 export function SchedulerGridHeader({
   headerRef,
-  utilizationPrefs,
+  utilizationPrefs: utilizationPreferences,
   visibleWeeksLabel,
   visibleSpanCompact,
   overallUtil,
   days,
-  geom,
+  geom: geometry,
   ui,
   calendarWeekStartsOn,
   today,
@@ -45,7 +45,7 @@ export function SchedulerGridHeader({
           className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-scheduler-header px-3"
           style={{ width: LAYOUT.leftColWidth }}
         >
-          {utilizationPrefs.showTotal && (
+          {utilizationPreferences.showTotal && (
             <>
               <span
                 className="text-2xs font-medium uppercase tracking-wide text-faint"
@@ -63,7 +63,13 @@ export function SchedulerGridHeader({
             </>
           )}
         </div>
-        <DateHeader days={days} geom={geom} visibleWeeks={ui.zoom} weekStartsOn={calendarWeekStartsOn} today={today} />
+        <DateHeader
+          days={days}
+          geom={geometry}
+          visibleWeeks={ui.zoom}
+          weekStartsOn={calendarWeekStartsOn}
+          today={today}
+        />
       </div>
     </>
   );

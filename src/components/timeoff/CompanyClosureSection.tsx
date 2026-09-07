@@ -5,22 +5,22 @@ import { m } from "@/i18n";
 import { useCrudListState } from "../../hooks/useCrudListState";
 import { useConfirmDelete } from "../../hooks/useConfirmDelete";
 import { formatShortDate } from "../../lib/dateDisplay";
-import { timeZoneFor, weekStartsOnFor } from "../../store/selectors";
+import { resolveTimeZone, resolveWeekStart } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useStore } from "../../store/useStore";
 import { AddButton, ConfirmDialog, DeleteButton, EditButton, EmptyState } from "../common/ui";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemSeparator, ItemTitle } from "../ui/item";
 import { ClosureForm } from "./ClosureForm";
-import { buildClosureList, currentTimeOffWeekStart } from "./timeOffView";
+import { buildClosureList, readCurrentTimeOffWeekStart } from "./timeOffView";
 
 export function CompanyClosureSection() {
   const data = useActiveScopedData();
-  const calendarTimeZone = useStore((state) => timeZoneFor(state.data, state.activeAccountId));
-  const calendarWeekStartsOn = useStore((state) => weekStartsOnFor(state.data, state.activeAccountId));
-  const del = useStore((state) => state.deleteClosure);
+  const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
+  const calendarWeekStartsOn = useStore((state) => resolveWeekStart(state.data, state.activeAccountId));
+  const deleteEntity = useStore((state) => state.deleteClosure);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Closure>();
-  const confirmDelete = useConfirmDelete(del, () => setConfirming(null));
-  const currentWeekStart = currentTimeOffWeekStart(calendarTimeZone, calendarWeekStartsOn);
+  const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
+  const currentWeekStart = readCurrentTimeOffWeekStart(calendarTimeZone, calendarWeekStartsOn);
   const closures = useMemo(() => buildClosureList(data.closures, currentWeekStart), [currentWeekStart, data.closures]);
 
   return (

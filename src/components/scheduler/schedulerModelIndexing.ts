@@ -22,15 +22,15 @@ export const NO_CLOSURES: Closure[] = [];
 /** Index of the first entry of the sorted, de-duplicated `dates` that is >= `target`
  *  (`dates.length` when every entry is earlier). Date-only ISO strings are zero-padded, so
  *  lexicographic order IS chronological order and a plain string compare is a valid ordering. */
-export function firstDateAtOrAfter(dates: ISODate[], target: ISODate): number {
-  let lo = 0;
-  let hi = dates.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (dates[mid]! < target) lo = mid + 1;
-    else hi = mid;
+export function resolveFirstDateIndexAtOrAfter(dates: ISODate[], target: ISODate): number {
+  let lowerIndex = 0;
+  let upperIndex = dates.length;
+  while (lowerIndex < upperIndex) {
+    const middleIndex = (lowerIndex + upperIndex) >> 1;
+    if (dates[middleIndex]! < target) lowerIndex = middleIndex + 1;
+    else upperIndex = middleIndex;
   }
-  return lo;
+  return lowerIndex;
 }
 
 /** Bucket date-ranged rows (allocations, time off) onto the dates the model will actually ask about:
@@ -46,7 +46,7 @@ export function bucketByCoveredDate<T extends { startDate: ISODate; endDate: ISO
 ): Map<ISODate, T[]> {
   const byDate = new Map<ISODate, T[]>();
   for (const row of rows) {
-    for (let i = firstDateAtOrAfter(dates, row.startDate); i < dates.length; i++) {
+    for (let i = resolveFirstDateIndexAtOrAfter(dates, row.startDate); i < dates.length; i++) {
       const date = dates[i]!;
       if (date > row.endDate) break;
       const list = byDate.get(date);

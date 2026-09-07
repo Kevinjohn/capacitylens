@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   clearExternalSignInError,
-  externalSignInErrorMessage,
-  externalSignInErrorUrl,
+  resolveExternalSignInErrorMessage,
+  buildExternalSignInErrorUrl,
   hasExternalSignInError,
 } from "./externalSignInError";
 import { m } from "@/i18n";
 
 describe("external sign-in browser error URL", () => {
   it("marks the current route while preserving invitation state", () => {
-    const marked = externalSignInErrorUrl("https://app.example/invite/token?source=mail");
+    const marked = buildExternalSignInErrorUrl("https://app.example/invite/token?source=mail");
     expect(marked).toBe("https://app.example/invite/token?source=mail&externalSignInError=1");
   });
 
@@ -25,11 +25,11 @@ describe("external sign-in browser error URL", () => {
 
 describe("externalSignInErrorMessage", () => {
   it("maps each application-owned code to its dedicated copy", () => {
-    expect(externalSignInErrorMessage("oidc_verification_failed")).toBe(m.login_sso_verification_failed());
-    expect(externalSignInErrorMessage("account_link_conflict")).toBe(m.login_sso_account_link_conflict());
+    expect(resolveExternalSignInErrorMessage("oidc_verification_failed")).toBe(m.login_sso_verification_failed());
+    expect(resolveExternalSignInErrorMessage("account_link_conflict")).toBe(m.login_sso_account_link_conflict());
   });
 
   it("falls back to the generic failure copy when there is no recognized code", () => {
-    expect(externalSignInErrorMessage(null)).toBe(m.login_sso_failed());
+    expect(resolveExternalSignInErrorMessage(null)).toBe(m.login_sso_failed());
   });
 });

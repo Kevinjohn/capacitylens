@@ -10,8 +10,8 @@ import { isValidISODate } from "@capacitylens/shared/lib/integrity";
  * `ToolbarDateNavigation.tsx`. It is kept live and covered by its own tests — see DECISIONS.md.
  */
 export function JumpToDateInput() {
-  const goToDate = useStore((s) => s.goToDate);
-  const focusDate = useStore((s) => s.ui.focusDate);
+  const goToDate = useStore((state) => state.goToDate);
+  const focusDate = useStore((state) => state.ui.focusDate);
 
   return (
     <Input

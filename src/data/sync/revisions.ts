@@ -28,9 +28,9 @@ const compatibilityWarnings = new Set<string>();
 
 // The one composite key every row-identity Map/Set in this module is keyed by. NUL is the separator
 // because neither a table name nor an entity id can contain it, so the two halves always round-trip.
-export const rowKey = (table: string, id: string): string => `${table}\0${id}`;
+export const buildRowKey = (table: string, id: string): string => `${table}\0${id}`;
 
-/** Split a {@link rowKey} back into its `[table, id]` halves. */
+/** Split a {@link buildRowKey} back into its `[table, id]` halves. */
 export function rowKeyParts(key: string): [table: string, id: string] {
   const separator = key.indexOf("\0");
   return [key.slice(0, separator), key.slice(separator + 1)];
@@ -42,7 +42,7 @@ export function warnCompatibilityOnce(key: string, message: string): void {
   console.warn(message);
 }
 
-export function safeResponseError(action: string, status: number, rawBody: string): Error {
+export function createSafeResponseError(action: string, status: number, rawBody: string): Error {
   const message = `${action} failed (${status}).`;
   if (!rawBody) return new Error(message);
   const diagnostic = rawBody.slice(0, MAX_DIAGNOSTIC_BODY_LENGTH);
@@ -62,7 +62,7 @@ export function safeResponseError(action: string, status: number, rawBody: strin
 export function writeRows(
   data: AppData,
   rows: Array<{ table: Op["table"]; row: Entity }>,
-  opts: { replaceExisting: boolean },
+  options: { replaceExisting: boolean },
 ): AppData {
   if (rows.length === 0) return data;
   const next = { ...data };
@@ -70,7 +70,7 @@ export function writeRows(
     const list = next[table] as Entity[];
     const exists = list.some((existing) => existing.id === row.id);
     if (!exists) next[table] = [...list, row] as never;
-    else if (opts.replaceExisting)
+    else if (options.replaceExisting)
       next[table] = list.map((existing) => (existing.id === row.id ? row : existing)) as never;
   }
   return next;
@@ -89,14 +89,14 @@ export function applyCommittedRevision(row: Entity, revision: CommittedRevision)
 
 export function applyCommittedRevisions(data: AppData, revisions: CommittedRevision[]): AppData {
   if (revisions.length === 0) return data;
-  const byTable = new Map<keyof AppData, Map<string, CommittedRevision>>();
+  const revisionsByTable = new Map<keyof AppData, Map<string, CommittedRevision>>();
   for (const revision of revisions) {
-    const rows = byTable.get(revision.table) ?? new Map<string, CommittedRevision>();
+    const rows = revisionsByTable.get(revision.table) ?? new Map<string, CommittedRevision>();
     rows.set(revision.id, revision);
-    byTable.set(revision.table, rows);
+    revisionsByTable.set(revision.table, rows);
   }
   const next = { ...data };
-  for (const [table, revisionsById] of byTable) {
+  for (const [table, revisionsById] of revisionsByTable) {
     next[table] = data[table].map((row) => {
       const revision = revisionsById.get(row.id);
       return revision ? applyCommittedRevision(row, revision) : row;
@@ -106,7 +106,7 @@ export function applyCommittedRevisions(data: AppData, revisions: CommittedRevis
 }
 
 /** Compare the persisted content of two rows while ignoring server-owned revision stamps. */
-export function sameEntityContent(left: Entity, right: Entity): boolean {
+export function hasSameEntityContent(left: Entity, right: Entity): boolean {
   const content = (row: Entity) =>
     Object.fromEntries(
       Object.entries(row)

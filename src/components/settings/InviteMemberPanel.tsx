@@ -5,7 +5,7 @@ import type { Role } from "@capacitylens/shared/domain/access";
 import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
 import type { TeamInvitation } from "../../account/teamAccessClient";
 import { formatInstantDate } from "../../lib/dateDisplay";
-import { roleSummary } from "../../lib/accessCopy";
+import { resolveRoleSummary } from "../../lib/accessCopy";
 import { SelectField, TextField } from "../common/ui";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
@@ -147,7 +147,7 @@ export function InviteMemberPanel({
             </Button>
           </div>
           <p className="text-xs text-muted-foreground" data-testid="invite-role-summary" aria-live="polite">
-            {roleSummary(inviteRole)}
+            {resolveRoleSummary(inviteRole)}
           </p>
           <FieldError id={errorId}>{errorField === "invite" ? error : null}</FieldError>
           {mintedLink && (
@@ -165,25 +165,25 @@ export function InviteMemberPanel({
           <div className="flex flex-col gap-1">
             <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_invites_outstanding_heading()}</h3>
             <ItemGroup>
-              {invites.map((inv, index) => {
-                const expired = Date.parse(inv.expiresAt) <= renderedAt;
-                const actionable = inv.usedAt === null && !expired;
+              {invites.map((invitation, index) => {
+                const expired = Date.parse(invitation.expiresAt) <= renderedAt;
+                const actionable = invitation.usedAt === null && !expired;
                 return (
-                  <Fragment key={inv.id}>
+                  <Fragment key={invitation.id}>
                     {index > 0 && <ItemSeparator />}
                     <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="invite-row">
                       <ItemContent className="text-sm text-ink">
-                        <span className="capitalize">{inv.role}</span>
-                        {inv.preauthEmail
-                          ? m.settings_invite_suffix_email({ email: inv.preauthEmail })
+                        <span className="capitalize">{invitation.role}</span>
+                        {invitation.preauthEmail
+                          ? m.settings_invite_suffix_email({ email: invitation.preauthEmail })
                           : m.settings_invite_suffix_link()}
-                        {inv.usedAt
+                        {invitation.usedAt
                           ? m.settings_invite_suffix_used()
                           : expired
                             ? m.settings_invite_suffix_expired()
                             : // Invite validity spans several days, so keep this compact row date-only while
                               // rendering the date on the viewer's local calendar rather than slicing UTC.
-                              m.settings_invite_suffix_expires({ date: formatInstantDate(inv.expiresAt) })}
+                              m.settings_invite_suffix_expires({ date: formatInstantDate(invitation.expiresAt) })}
                       </ItemContent>
                       {actionable && (
                         <ItemActions>
@@ -192,7 +192,7 @@ export function InviteMemberPanel({
                             variant="outline"
                             data-testid="invite-revoke"
                             disabled={busy}
-                            onClick={() => void revokeInvite(inv.id)}
+                            onClick={() => void revokeInvite(invitation.id)}
                           >
                             {m.settings_invite_revoke()}
                           </Button>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateAuthUser } from "./validateAuthUser";
+import { parseAuthUser } from "./validateAuthUser";
 
 describe("validateAuthUser", () => {
   it("accepts a complete user and preserves forward-compatible fields", () => {
@@ -12,7 +12,7 @@ describe("validateAuthUser", () => {
       futureField: "retained",
     };
 
-    expect(validateAuthUser(value, true)).toBe(value);
+    expect(parseAuthUser(value, true)).toBe(value);
   });
 
   it.each([
@@ -25,12 +25,12 @@ describe("validateAuthUser", () => {
     { id: "user-1", twoFactorEnabled: "yes" },
     { id: "user-1", image: 1 },
   ])("rejects a malformed auth response: %j", (value) => {
-    expect(validateAuthUser(value)).toBeNull();
+    expect(parseAuthUser(value)).toBeNull();
   });
 
   it("requires a non-blank email only at boundaries that request it", () => {
-    expect(validateAuthUser({ id: "user-1" })).toEqual({ id: "user-1" });
-    expect(validateAuthUser({ id: "user-1" }, true)).toBeNull();
-    expect(validateAuthUser({ id: "user-1", email: "   " }, true)).toBeNull();
+    expect(parseAuthUser({ id: "user-1" })).toEqual({ id: "user-1" });
+    expect(parseAuthUser({ id: "user-1" }, true)).toBeNull();
+    expect(parseAuthUser({ id: "user-1", email: "   " }, true)).toBeNull();
   });
 });

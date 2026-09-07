@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { daysInclusive, parseDate } from "@capacitylens/shared/lib/dateMath";
 import type { ISODate } from "@capacitylens/shared/types/entities";
-import { activeDateLocale, m } from "@/i18n";
+import { readActiveDateLocale, m } from "@/i18n";
 
 // Human-readable date presentation for at-a-glance lists (e.g. the Time-off list), where a
 // reader wants "which days, how long" — not a machine date. Pure display formatting only; the
@@ -19,7 +19,7 @@ import { activeDateLocale, m } from "@/i18n";
  * day count carries "how long"), so this formats a single anchor date — typically the start.
  */
 export function formatShortDate(date: ISODate): string {
-  return format(parseDate(date), "EEE do MMM", { locale: activeDateLocale() });
+  return format(parseDate(date), "EEE do MMM", { locale: readActiveDateLocale() });
 }
 
 /**
@@ -32,7 +32,7 @@ export function formatShortDate(date: ISODate): string {
  * ordinal suffix rather than reusing that longer shape.
  */
 export function formatDayMonth(date: ISODate): string {
-  return format(parseDate(date), "d MMM", { locale: activeDateLocale() });
+  return format(parseDate(date), "d MMM", { locale: readActiveDateLocale() });
 }
 
 /**
@@ -45,8 +45,8 @@ export function formatDayMonth(date: ISODate): string {
 export function formatDayCount(start: ISODate, end: ISODate): string {
   const inclusiveDays = daysInclusive(start, end);
   if (!Number.isFinite(inclusiveDays)) throw new RangeError("Invalid time-off date range");
-  const n = Math.max(0, inclusiveDays);
-  return n === 1 ? m.list_timeoff_days_one({ count: n }) : m.list_timeoff_days_other({ count: n });
+  const dayCount = Math.max(0, inclusiveDays);
+  return dayCount === 1 ? m.list_timeoff_days_one({ count: dayCount }) : m.list_timeoff_days_other({ count: dayCount });
 }
 
 // ─── Instants ────────────────────────────────────────────────────────────────

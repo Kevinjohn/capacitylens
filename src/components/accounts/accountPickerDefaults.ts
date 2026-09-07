@@ -22,10 +22,10 @@ export const DEFAULT_LANGUAGE = "en";
  *  `toSummary` (the server is external input; never trust an `as` cast). Returns null when the
  *  body is unusable (not an object, or id/name missing/empty) — the caller must then treat the
  *  create as "succeeded, but id unknown", NOT as a failure (see createOrgOnServer). */
-export function toCreatedOrg(body: unknown): { id: string; name: string } | null {
+export function parseCreatedAccount(body: unknown): { id: string; name: string } | null {
   if (typeof body !== "object" || body === null) return null;
-  const b = body as { id?: unknown; name?: unknown };
-  if (typeof b.id !== "string" || b.id.trim().length === 0) return null;
-  if (typeof b.name !== "string" || b.name.trim().length === 0) return null;
-  return { id: b.id, name: b.name };
+  const bodyRecord = body as { id?: unknown; name?: unknown };
+  if (typeof bodyRecord.id !== "string" || bodyRecord.id.trim().length === 0) return null;
+  if (typeof bodyRecord.name !== "string" || bodyRecord.name.trim().length === 0) return null;
+  return { id: bodyRecord.id, name: bodyRecord.name };
 }

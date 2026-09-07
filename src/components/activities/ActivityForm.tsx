@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { validateName } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/staleEdit";
+import { isStaleEdit } from "../../lib/isStaleEdit";
 import { m } from "@/i18n";
 import { FormActions, Modal, RequiredLegend, SegmentedField, SelectField, TextField, type Option } from "../common/ui";
 import { FieldError } from "../ui/field";
@@ -13,7 +13,7 @@ import { ACTIVITY_KIND_ORDER } from "./activityKinds";
 
 // Resolved at render (a getter, not a module-scope const) so the labels re-resolve on a locale
 // switch rather than freezing to the import-time locale — per the i18n key convention (DECISIONS).
-const kindOptions = (): { value: ActivityKind; label: string }[] => {
+const buildKindOptions = (): { value: ActivityKind; label: string }[] => {
   const labels: Record<ActivityKind, string> = {
     internal: m.form_activity_kind_internal(),
     repeatable: m.form_activity_kind_repeatable(),
@@ -26,8 +26,8 @@ const kindOptions = (): { value: ActivityKind; label: string }[] => {
  *  its phase); `internal`/all-projects (`repeatable`) are project-less, so the project picker is hidden and their
  *  project/phase forced empty. `onClose` fires on save or cancel. */
 export function ActivityForm({ activity, onClose }: { activity?: Activity; onClose: () => void }) {
-  const add = useStore((s) => s.addActivity);
-  const update = useStore((s) => s.updateActivity);
+  const add = useStore((state) => state.addActivity);
+  const update = useStore((state) => state.updateActivity);
   const data = useActiveScopedData();
   const projects = data.projects;
   const clients = data.clients;
@@ -51,9 +51,9 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
   // validation.ts's "getter, not module-scope const" note), so it's rebuilt un-cached each render.
   const baseProjectOptions: Option[] = useMemo(
     () =>
-      projects.map((p) => {
-        const client = clients.find((c) => c.id === p.clientId);
-        return { value: p.id, label: client ? `${client.name} / ${p.name}` : p.name };
+      projects.map((project) => {
+        const client = clients.find((client) => client.id === project.clientId);
+        return { value: project.id, label: client ? `${client.name} / ${project.name}` : project.name };
       }),
     [projects, clients],
   );
@@ -63,9 +63,9 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
   // stays selected/submittable as the current value (the store's unchanged-parent relaxation
   // accepts it), but can't be picked back once the user chooses an active project.
   let projectOptions: Option[] = baseProjectOptions;
-  if (activity?.projectId && !projects.some((p) => p.id === activity.projectId)) {
-    const rawProject = raw.projects.find((p) => p.id === activity.projectId);
-    const rawClient = rawProject && raw.clients.find((c) => c.id === rawProject.clientId);
+  if (activity?.projectId && !projects.some((project) => project.id === activity.projectId)) {
+    const rawProject = raw.projects.find((project) => project.id === activity.projectId);
+    const rawClient = rawProject && raw.clients.find((client) => client.id === rawProject.clientId);
     projectOptions = [
       ...baseProjectOptions,
       {
@@ -78,7 +78,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
     ];
   }
 
-  const onKindChange = (next: ActivityKind) => {
+  const changeKind = (next: ActivityKind) => {
     setKind(next);
     // Internal/all-projects activities are project-less — drop any project/phase the form held so a
     // toggle can't submit an incoherent activity (the store would reject it anyway).
@@ -88,8 +88,8 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
     }
   };
 
-  const onProjectChange = (v: string) => {
-    setProjectId(v);
+  const changeProject = (value: string) => {
+    setProjectId(value);
     setPhaseId("");
   };
 
@@ -123,7 +123,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
       }
       onClose();
     } catch (e) {
-      fail(null, errorMessage(e));
+      fail(null, resolveErrorMessage(e));
     }
   };
 
@@ -147,8 +147,8 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
       <SegmentedField
         label={m.form_activity_kind_label()}
         value={kind}
-        onChange={onKindChange}
-        options={kindOptions()}
+        onChange={changeKind}
+        options={buildKindOptions()}
         ariaLabel={m.form_activity_kind_aria()}
         geometry="gapped"
         fullWidth
@@ -159,7 +159,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
         <SelectField
           label={m.form_activity_project_label()}
           value={projectId}
-          onChange={onProjectChange}
+          onChange={changeProject}
           options={projectOptions}
           placeholder={m.form_activity_select_project_placeholder()}
           required

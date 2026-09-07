@@ -2,7 +2,7 @@ import { KEY_STORE_NAME, STORE_NAME, WRITE_BOUNDARY_ID } from "./constants";
 import { scope, recentSliceWrites, resetOfflineState } from "./state";
 import { openOfflineDb, awaitTx } from "./idb";
 import { advanceWriteBoundary } from "./crypto";
-import { authKey, scopedKey } from "./keys";
+import { buildAuthKey, buildScopedKey } from "./keys";
 
 /** Shared cleanup shell. Both paths advance the write boundary BEFORE opening the database, run
  * exactly one keys+records transaction, always drop page-local state, and report a
@@ -57,9 +57,9 @@ export async function clearOfflineDataForCurrentUser(): Promise<void> {
         const cursor = request.result;
         if (!cursor) return;
         const key = String(cursor.key);
-        const accountsKey = currentScope ? scopedKey("accounts", "", currentScope) : null;
-        const slicePrefix = currentScope ? scopedKey("slice", ":", currentScope) : null;
-        if (key === authKey() || key === accountsKey || (slicePrefix && key.startsWith(slicePrefix)))
+        const accountsKey = currentScope ? buildScopedKey("accounts", "", currentScope) : null;
+        const slicePrefix = currentScope ? buildScopedKey("slice", ":", currentScope) : null;
+        if (key === buildAuthKey() || key === accountsKey || (slicePrefix && key.startsWith(slicePrefix)))
           store.delete(cursor.key);
         cursor.continue();
       };
@@ -70,8 +70,8 @@ export async function clearOfflineDataForCurrentUser(): Promise<void> {
     () => {
       const recent = recentSliceWrites.get(indexedDB);
       if (currentScope && recent) {
-        const accountsKey = scopedKey("accounts", "", currentScope);
-        const slicePrefix = scopedKey("slice", ":", currentScope);
+        const accountsKey = buildScopedKey("accounts", "", currentScope);
+        const slicePrefix = buildScopedKey("slice", ":", currentScope);
         for (const key of recent.keys()) if (key === accountsKey || key.startsWith(slicePrefix)) recent.delete(key);
       }
     },

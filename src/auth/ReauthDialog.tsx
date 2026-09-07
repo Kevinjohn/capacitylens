@@ -6,7 +6,7 @@ import { Field, FieldError, FieldLabel } from "../components/ui/field";
 import { authClient } from "./authClient";
 import { m } from "@/i18n";
 import type { AuthProviderInfo, AuthUser } from "./authContext";
-import { resolveReauth } from "./reauthCoordinator";
+import { completeReauth } from "./reauthCoordinator";
 import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
 
 // The "Confirm it's you" step-up dialog (DEFECT B). Rendered by ReauthMount (AuthProvider) ONLY
@@ -47,7 +47,7 @@ export function ReauthDialog({
 
   const email = user?.email ?? "";
 
-  const cancel = () => resolveReauth(false);
+  const cancel = () => completeReauth(false);
 
   const confirmPassword = async () => {
     if (busy) return;
@@ -71,11 +71,11 @@ export function ReauthDialog({
         setBusy(false);
         return;
       }
-      resolveReauth(true); // fresh session — apiFetchReauth retries the pending action
-    } catch (err) {
+      completeReauth(true); // fresh session — apiFetchReauth retries the pending action
+    } catch (error) {
       // A THROW is a pre-response transport error (an auth FAILURE comes back as { error } above).
       // Surface it + reset busy so the button never sticks disabled; log the real cause.
-      console.error("ReauthDialog: password re-auth request failed", err);
+      console.error("ReauthDialog: password re-auth request failed", error);
       setError(m.login_network_error());
       setBusy(false);
     }
@@ -94,9 +94,9 @@ export function ReauthDialog({
         setBusy(false);
         return;
       }
-      resolveReauth(true);
-    } catch (err) {
-      console.error("ReauthDialog: second-factor re-auth verification failed", err);
+      completeReauth(true);
+    } catch (error) {
+      console.error("ReauthDialog: second-factor re-auth verification failed", error);
       setError(m.login_network_error());
       setBusy(false);
     }
@@ -119,8 +119,8 @@ export function ReauthDialog({
         setError(m.reauth_failed());
         setBusy(false);
       }
-    } catch (err) {
-      console.error("ReauthDialog: SSO re-auth request failed", err);
+    } catch (error) {
+      console.error("ReauthDialog: SSO re-auth request failed", error);
       setError(m.login_network_error());
       setBusy(false);
     }

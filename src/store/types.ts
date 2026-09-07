@@ -3,8 +3,8 @@ import type { Filters } from "./filters";
 export * from "./entityDrafts";
 export * from "./filters";
 import type { WeeksZoom } from "../lib/schedulerConfig";
-import type { BarLabelPrefs, UtilizationPrefs } from "../lib/displayPrefs";
-import type { ThemePref } from "../lib/theme";
+import type { BarLabelPreferences, UtilizationPreferences } from "../lib/displayPrefs";
+import type { ThemePreference } from "../lib/theme";
 import type { Role } from "@capacitylens/shared/domain/access";
 import type { MasqueradeState } from "@capacitylens/shared/domain/masquerade";
 import type {
@@ -164,13 +164,13 @@ export interface StoreState {
   draggingAllocationId: ID | null;
   /** Colour-scheme preference. Device-global, not part of account data: kept in the
    *  store only for reactivity, persisted to its own localStorage key by setTheme. */
-  theme: ThemePref;
+  theme: ThemePreference;
   /** Utilisation display toggles. Device-global like `theme`, persisted to their
    *  own localStorage key — not part of account data. */
-  utilizationPrefs: UtilizationPrefs;
+  utilizationPrefs: UtilizationPreferences;
   /** Allocation-bar label toggles (client/project context before the activity name).
    *  Device-global like `utilizationPrefs`, own localStorage key. */
-  barLabelPrefs: BarLabelPrefs;
+  barLabelPrefs: BarLabelPreferences;
   /** Sidebar open (labels) vs collapsed (icon rail). Device-global like `theme`,
    *  own localStorage key; the first-run default is viewport-derived (collapsed
    *  on small screens, open on desktop). */
@@ -238,27 +238,27 @@ export interface StoreState {
   /** Replace the active account's slice from an import; undoable via ⌘Z. Returns a
    *  summary of how many records were brought in vs. dropped as invalid. */
   importData: (data: AppData) => ImportSummary;
-  setHydrated: (v: boolean) => void;
-  setPersistError: (v: boolean) => void;
-  setLoadError: (v: boolean) => void;
-  setConnectionError: (v: boolean) => void;
+  setHydrated: (value: boolean) => void;
+  setPersistError: (value: boolean) => void;
+  setLoadError: (value: boolean) => void;
+  setConnectionError: (value: boolean) => void;
   setNotice: (message: string | null, tone?: "info" | "warning" | "error") => void;
   /** Announce a capacity outcome to the grid's polite aria-live region (WCAG 4.1.3). Bumps `seq`
    *  so the SAME text re-announces (an aria-live region re-reads only on a content change). Call
    *  ONLY after a successful KEYBOARD-committed allocation edit — pointer drags give sighted
    *  feedback and must not announce. Transient, never persisted/undone. */
   announceCapacity: (text: string) => void;
-  setDirtyForm: (v: boolean) => void;
+  setDirtyForm: (value: boolean) => void;
   /** Publish or clear one component's dirty contribution without disturbing another owner. */
   setDirtyFormSource: (source: symbol, dirty: boolean) => void;
   /** Mark/clear the allocation being dragged (drives the grid's drag-pin). */
   setDraggingAllocation: (id: ID | null) => void;
   /** Set the colour-scheme preference: persist it, repaint the DOM, update state. */
-  setTheme: (pref: ThemePref) => void;
+  setTheme: (pref: ThemePreference) => void;
   /** Toggle a single utilisation display preference: persist and update state. */
-  setUtilizationPref: (key: keyof UtilizationPrefs, value: boolean) => void;
+  setUtilizationPref: (key: keyof UtilizationPreferences, value: boolean) => void;
   /** Toggle a single bar-label display preference: persist and update state. */
-  setBarLabelPref: (key: keyof BarLabelPrefs, value: boolean) => void;
+  setBarLabelPref: (key: keyof BarLabelPreferences, value: boolean) => void;
   /** Open/collapse the sidebar: persist the choice and update state. */
   setSidebarOpen: (open: boolean) => void;
   /** Toggle the minimise-weekends preference: persist and update state. */

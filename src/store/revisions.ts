@@ -37,4 +37,5 @@ export const advanceOverData = (data: AppData, next: number): number => {
   }
   return result;
 };
-export const nextDataRevision = (data: AppData): string => new Date(advanceOverData(data, Date.now())).toISOString();
+export const readNextDataRevision = (data: AppData): string =>
+  new Date(advanceOverData(data, Date.now())).toISOString();

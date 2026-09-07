@@ -27,12 +27,12 @@ async function freshProvider() {
   const { useStore } = await import("../store/useStore");
   const { attachPersistence } = await import("../data/persist");
   const { resetStoreWithAccount } = await import("../test/fixtures");
-  const { cacheAuthSnapshot, offlineStateSnapshot, setOfflineReadState } = await import("../data/offlineCache");
+  const { cacheAuthSnapshot, readOfflineStateSnapshot, setOfflineReadState } = await import("../data/offlineCache");
   // authContext must come from the SAME fresh module graph as AuthProvider (which imports it
   // internally): a statically-imported useAuth from before vi.resetModules() would read the
   // context object's DEFAULT value, not whatever this AuthProvider instance provides.
   const { useAuth } = await import("./authContext");
-  const { requestReauth, reauthPending } = await import("./reauthCoordinator");
+  const { requestReauth, isReauthPending } = await import("./reauthCoordinator");
   return {
     AuthProvider,
     useStore,
@@ -40,10 +40,10 @@ async function freshProvider() {
     attachPersistence,
     resetStoreWithAccount,
     cacheAuthSnapshot,
-    offlineStateSnapshot,
+    readOfflineStateSnapshot,
     setOfflineReadState,
     requestReauth,
-    reauthPending,
+    isReauthPending,
   };
 }
 
@@ -345,7 +345,7 @@ describe("AuthProvider — server mode", () => {
       "fetch",
       vi.fn(async () => me(200, { authMode: "off", user: null })),
     );
-    const { AuthProvider, useStore, offlineStateSnapshot, setOfflineReadState } = await freshProvider();
+    const { AuthProvider, useStore, readOfflineStateSnapshot, setOfflineReadState } = await freshProvider();
     useStore.setState({ activeAccountId: "a1" });
     setOfflineReadState("identity", true, Date.parse("2026-07-17T10:00:00.000Z"));
 
@@ -356,7 +356,7 @@ describe("AuthProvider — server mode", () => {
     );
 
     expect(await screen.findByText("cached-app-content")).toBeInTheDocument();
-    expect(offlineStateSnapshot().readOnly).toBe(true);
+    expect(readOfflineStateSnapshot().readOnly).toBe(true);
   });
 
   it("a 401 replaces the app with the login screen (password form)", async () => {
@@ -723,7 +723,7 @@ describe("AuthProvider — server mode", () => {
     });
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("signal timed out", "TimeoutError")));
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    const { AuthProvider, useAuth, cacheAuthSnapshot, offlineStateSnapshot } = await freshProvider();
+    const { AuthProvider, useAuth, cacheAuthSnapshot, readOfflineStateSnapshot } = await freshProvider();
     const savedAt = Date.parse("2026-07-20T12:00:00.000Z");
     vi.spyOn(Date, "now").mockReturnValue(savedAt);
     await cacheAuthSnapshot({
@@ -744,7 +744,7 @@ describe("AuthProvider — server mode", () => {
     );
 
     expect(await screen.findByText("authMode:password user:offline-user")).toBeInTheDocument();
-    expect(offlineStateSnapshot()).toEqual({
+    expect(readOfflineStateSnapshot()).toEqual({
       readOnly: true,
       lastUpdated: savedAt,
       cacheWriteFailed: false,
@@ -853,7 +853,7 @@ describe("AuthProvider — server mode", () => {
       )
       .mockResolvedValue(me(401, { authMode: "password", providers: [] }));
     vi.stubGlobal("fetch", fetchSpy);
-    const { AuthProvider, useStore, requestReauth, reauthPending } = await freshProvider();
+    const { AuthProvider, useStore, requestReauth, isReauthPending } = await freshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -862,7 +862,7 @@ describe("AuthProvider — server mode", () => {
     expect(await screen.findByText("app-content")).toBeInTheDocument();
 
     const outcome = requestReauth();
-    expect(reauthPending()).toBe(true);
+    expect(isReauthPending()).toBe(true);
     act(() => useStore.getState().setPersistError(true));
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
 
@@ -871,7 +871,7 @@ describe("AuthProvider — server mode", () => {
       new Promise<"unsettled">((resolve) => setTimeout(() => resolve("unsettled"), 100)),
     ]);
     expect(settled).toBe(false);
-    expect(reauthPending()).toBe(false);
+    expect(isReauthPending()).toBe(false);
   });
 
   it("warns on the login screen when a mid-session 401 strands unsaved writes", async () => {

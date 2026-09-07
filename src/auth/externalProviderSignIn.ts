@@ -1,5 +1,5 @@
 import { authClient } from "./authClient";
-import { externalSignInErrorUrl } from "./externalSignInError";
+import { buildExternalSignInErrorUrl } from "./externalSignInError";
 import type { AuthProviderInfo } from "./authContext";
 
 // Only imported from LoginScreen.tsx and ReauthDialog.tsx — both are React.lazy chunks in
@@ -17,11 +17,11 @@ export function dispatchExternalProviderSignIn(provider: AuthProviderInfo) {
     ? authClient.signIn.oauth2({
         providerId: provider.id,
         callbackURL: window.location.href,
-        errorCallbackURL: externalSignInErrorUrl(window.location.href),
+        errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
       })
     : authClient.signIn.social({
         provider: provider.id,
         callbackURL: window.location.href,
-        errorCallbackURL: externalSignInErrorUrl(window.location.href),
+        errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
       });
 }

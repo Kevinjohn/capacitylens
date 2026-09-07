@@ -57,8 +57,8 @@ export function createGuards(get: StoreApi<StoreState>["getState"], set: StoreAp
   // so the call sites stay terse; assertAllocation keeps its legacy name locally.
   // assertScopedRefs / assertDateRange / assertResourceExists are used directly
   // from the import above.
-  const findOwned = <K extends ScopedEntityKey>(d: AppData, key: K, id: ID): AppData[K][number] | null =>
-    findOwnedIn(d, requireAccount(), key, id);
+  const resolveOwnedRow = <K extends ScopedEntityKey>(data: AppData, key: K, id: ID): AppData[K][number] | null =>
+    findOwnedIn(data, requireAccount(), key, id);
   const assertAllocation = assertAllocationRefs;
 
   // The built-in "Internal" client is a FIXED bucket — every account must keep exactly one — so it
@@ -68,7 +68,7 @@ export function createGuards(get: StoreApi<StoreState>["getState"], set: StoreAp
   // catch and show it; the UI also hides the affordance). See shared/src/data/internalClient.ts.
   const assertNotBuiltinClient = (entity: ScopedEntityKey, id: ID, verb: "renamed" | "archived" | "deleted"): void => {
     if (entity !== "clients") return;
-    const client = findOwned(get().data, "clients", id);
+    const client = resolveOwnedRow(get().data, "clients", id);
     if (client && isBuiltinClient(client)) {
       throw new Error(`The Internal client is built in and cannot be ${verb}.`);
     }
@@ -109,18 +109,18 @@ export function createGuards(get: StoreApi<StoreState>["getState"], set: StoreAp
   // idiom that used to be copy-pasted across every update* action (P#: colour-repair
   // consolidation). Returns the SAME object reference when there's no colour to repair, so a
   // colourless edit doesn't pay for a needless clone.
-  const withSnappedColor = <T extends { color?: unknown }>(patch: T, allowNeutral = false): T =>
+  const applySnappedColor = <T extends { color?: unknown }>(patch: T, allowNeutral = false): T =>
     patch.color === undefined ? patch : { ...patch, color: snapColor(patch.color, allowNeutral) };
 
   return {
     requireAccount,
     blockedByViewer,
-    findOwned,
+    resolveOwnedRow,
     assertAllocation,
     assertNotBuiltinClient,
     assertWorkingDays,
     assertHalfDays,
     snapColor,
-    withSnappedColor,
+    applySnappedColor,
   };
 }

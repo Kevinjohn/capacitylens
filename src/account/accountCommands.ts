@@ -5,7 +5,7 @@ export interface BrowserAccountCommand {
   idempotencyKey: string;
 }
 
-export function newBrowserAccountCommand(): BrowserAccountCommand {
+export function createBrowserAccountCommand(): BrowserAccountCommand {
   return {
     commandId: crypto.randomUUID(),
     idempotencyKey: crypto.randomUUID(),
@@ -20,7 +20,7 @@ const COMMAND_IDENTITY_STORAGE_KEY = `${COMMAND_STORAGE_PREFIX}identity`;
 const memoryCommands = new Map<string, BrowserAccountCommand>();
 let activeCommandIdentity: string | undefined;
 
-function commandStorageKey(operationKey: string): string {
+function buildCommandStorageKey(operationKey: string): string {
   // Cleanup is best-effort because sessionStorage can fail partway through an identity change.
   // Keep the identity in the lookup coordinate as the backstop: a surviving old handle can only
   // ever be recovered by the same authenticated principal.
@@ -71,8 +71,8 @@ export function bindStoredAccountCommandsToIdentity(identity: string): void {
   }
 }
 
-export function storedCommand(operationKey: string): BrowserAccountCommand {
-  const storageKey = commandStorageKey(operationKey);
+export function readOrCreateStoredCommand(operationKey: string): BrowserAccountCommand {
+  const storageKey = buildCommandStorageKey(operationKey);
   const memoryCommand = memoryCommands.get(storageKey);
   if (memoryCommand) return memoryCommand;
   try {
@@ -88,7 +88,7 @@ export function storedCommand(operationKey: string): BrowserAccountCommand {
   } catch {
     // A corrupt browser cache is not authoritative; replace it with a fresh opaque command.
   }
-  const created = newBrowserAccountCommand();
+  const created = createBrowserAccountCommand();
   memoryCommands.set(storageKey, created);
   try {
     sessionStorage.setItem(storageKey, JSON.stringify(created));
@@ -99,7 +99,7 @@ export function storedCommand(operationKey: string): BrowserAccountCommand {
 }
 
 export function clearStoredCommand(operationKey: string): void {
-  const storageKey = commandStorageKey(operationKey);
+  const storageKey = buildCommandStorageKey(operationKey);
   memoryCommands.delete(storageKey);
   try {
     sessionStorage.removeItem(storageKey);

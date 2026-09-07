@@ -9,11 +9,11 @@ import { useStore } from "../store/useStore";
 import { masqueradeApi } from "./masqueradeApi";
 import { reprojectAccess } from "./reprojectAccess";
 
-type ResumeWrites = (opts?: { dropParkedEdits?: boolean }) => void;
+type ResumeWrites = (options?: { dropParkedEdits?: boolean }) => void;
 type EndProjectionResult = "inactive" | "superseded" | "noop" | "failed";
 type NoStatePolicy = "succeed" | "wait";
 
-function switchSucceeded(outcome: RefreshOutcome, accountId: string | null): boolean {
+function isSwitchSuccessful(outcome: RefreshOutcome, accountId: string | null): boolean {
   return outcome === "reloaded" || (accountId === null && outcome !== "failed");
 }
 
@@ -122,13 +122,13 @@ export class MasqueradeController {
     const runtime = useStore.getState().masquerade;
     if (runtime.phase === "inactive") {
       const outcome = await this.dependencies.switchAccount(accountId);
-      return switchSucceeded(outcome, accountId);
+      return isSwitchSuccessful(outcome, accountId);
     }
     const ended = await this.endProjection(
       "account_switch",
       async () => {
         const outcome = await this.dependencies.switchAccount(accountId);
-        return switchSucceeded(outcome, accountId) || this.fail("The selected company could not be loaded.");
+        return isSwitchSuccessful(outcome, accountId) || this.fail("The selected company could not be loaded.");
       },
       "The company switch could not be completed.",
       { onNoState: "wait" },
@@ -177,7 +177,7 @@ export class MasqueradeController {
   adoptStatus(status: MasqueradeStatus): void {
     const current = useStore.getState().masquerade;
     if (!status.active) {
-      if (current.phase === "active" || current.phase === "starting") this.handleServerEnded();
+      if (current.phase === "active" || current.phase === "starting") this.restoreServerEndedProjection();
       return;
     }
     // The controller already owns these transitions. A membership invalidation triggered by its
@@ -188,7 +188,7 @@ export class MasqueradeController {
   }
 
   /** A projected read reported that server-side revalidation ended this session's masquerade. */
-  handleServerEnded(): void {
+  restoreServerEndedProjection(): void {
     const runtime = useStore.getState().masquerade;
     if (runtime.phase === "inactive" || runtime.phase === "ending") return;
     const state = runtime.state;
@@ -223,4 +223,4 @@ export const masqueradeController = new MasqueradeController({
   api: masqueradeApi,
 });
 
-setMasqueradeEndedHandler(() => masqueradeController.handleServerEnded());
+setMasqueradeEndedHandler(() => masqueradeController.restoreServerEndedProjection());

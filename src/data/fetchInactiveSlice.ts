@@ -2,7 +2,7 @@ import type { AppData, ID } from "@capacitylens/shared/types/entities";
 import { readApiError } from "../lib/readApiError";
 import { API_BASE } from "./apiConfig";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "./requestTimeout";
-import { validateAccountSlice } from "./validateAccountSlice";
+import { parseAccountSlice } from "./validateAccountSlice";
 
 // The ONE client-side reader of the purge-gated admin endpoint
 // `GET /api/state?accountId=…&includeInactive=1` (the P2.6 complete per-tenant read: archived +
@@ -73,7 +73,7 @@ export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): P
   );
   if (!res.ok) throw new InactiveSliceHttpError(res.status, await readApiError(res));
   const body: unknown = await res.json();
-  const data = validateAccountSlice(body, accountId);
+  const data = parseAccountSlice(body, accountId);
   if (!data) throw new InactiveSliceShapeError();
   return data;
 }

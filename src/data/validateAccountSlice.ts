@@ -6,12 +6,12 @@ export const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 
 /** Validate a complete tenant slice before migration can repair or synthesize rows. */
-export function validateAccountSlice(value: unknown, accountId: string): AppData | null {
-  return validateAccountSliceWithRepairBase(value, accountId)?.data ?? null;
+export function parseAccountSlice(value: unknown, accountId: string): AppData | null {
+  return parseAccountSliceWithRepairBase(value, accountId)?.data ?? null;
 }
 
 /** Validate a complete tenant slice and preserve its pre-repair persistence baseline. */
-export function validateAccountSliceWithRepairBase(value: unknown, accountId: string): MigrationWithRepairBase | null {
+export function parseAccountSliceWithRepairBase(value: unknown, accountId: string): MigrationWithRepairBase | null {
   if (!isRecord(value) || KNOWN_KEYS.some((key) => !Array.isArray(value[key]))) return null;
   for (const key of KNOWN_KEYS) {
     const rows = value[key] as unknown[];

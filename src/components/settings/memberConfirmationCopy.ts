@@ -9,13 +9,13 @@ export type MemberConfirmationAction =
   "masquerade" | "remove" | "resetPassword" | "revokeSessions" | "disable" | "archive" | "restore";
 export type MemberConfirmation = { action: MemberConfirmationAction; member: TeamMember };
 
-export function labelFor(m: TeamMember): string {
-  const name = m.name?.trim();
-  if (name && m.email) return `${name} (${m.email})`;
-  return name || m.email || m.userId;
+export function resolveMemberLabel(member: TeamMember): string {
+  const name = member.name?.trim();
+  if (name && member.email) return `${name} (${member.email})`;
+  return name || member.email || member.userId;
 }
 
-export function confirmationCopy({ action, member }: MemberConfirmation): {
+export function buildMemberConfirmationCopy({ action, member }: MemberConfirmation): {
   title: string;
   confirmLabel: string;
   message: string;
@@ -25,7 +25,7 @@ export function confirmationCopy({ action, member }: MemberConfirmation): {
       return {
         title: m.settings_masquerade_title(),
         confirmLabel: m.settings_masquerade_confirm(),
-        message: m.settings_masquerade_message({ member: labelFor(member) }),
+        message: m.settings_masquerade_message({ member: resolveMemberLabel(member) }),
       };
     case "remove":
       return {
@@ -33,13 +33,13 @@ export function confirmationCopy({ action, member }: MemberConfirmation): {
         confirmLabel: m.settings_member_remove(),
         message: member.isSelf
           ? m.settings_remove_self_message()
-          : m.settings_remove_member_message({ member: labelFor(member) }),
+          : m.settings_remove_member_message({ member: resolveMemberLabel(member) }),
       };
     case "resetPassword":
       return {
         title: m.settings_reset_password_title(),
         confirmLabel: m.settings_member_reset_password(),
-        message: m.settings_reset_password_message({ member: labelFor(member) }),
+        message: m.settings_reset_password_message({ member: resolveMemberLabel(member) }),
       };
     case "revokeSessions":
       return {
@@ -47,25 +47,25 @@ export function confirmationCopy({ action, member }: MemberConfirmation): {
         confirmLabel: m.settings_member_revoke_sessions(),
         message: member.isSelf
           ? m.settings_revoke_self_sessions_message({ app: APP_NAME })
-          : m.settings_revoke_sessions_message({ member: labelFor(member), app: APP_NAME }),
+          : m.settings_revoke_sessions_message({ member: resolveMemberLabel(member), app: APP_NAME }),
       };
     case "disable":
       return {
         title: m.settings_disable_member_title(),
         confirmLabel: m.settings_member_disable(),
-        message: m.settings_disable_member_message({ member: labelFor(member) }),
+        message: m.settings_disable_member_message({ member: resolveMemberLabel(member) }),
       };
     case "archive":
       return {
         title: m.settings_archive_member_title(),
         confirmLabel: m.settings_member_archive(),
-        message: m.settings_archive_member_message({ member: labelFor(member) }),
+        message: m.settings_archive_member_message({ member: resolveMemberLabel(member) }),
       };
     case "restore":
       return {
         title: m.settings_restore_member_title(),
         confirmLabel: m.settings_member_restore(),
-        message: m.settings_restore_member_message({ member: labelFor(member) }),
+        message: m.settings_restore_member_message({ member: resolveMemberLabel(member) }),
       };
   }
 }

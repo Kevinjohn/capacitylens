@@ -8,7 +8,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
 import {
-  readinessMemberLabel,
+  resolveReadinessMemberLabel,
   type ReadinessMember,
   type ReadinessRepairLink,
   type WorkspaceReadiness,
@@ -42,13 +42,13 @@ const WORKSPACE_ISSUE_REASONS: ReadonlySet<SsoReadinessReason> = new Set<SsoRead
   "workspace_has_no_owner",
 ]);
 
-function reasonLabel(member: ReadinessMember): string {
+function resolveReadinessReasonLabel(member: ReadinessMember): string {
   const label = REASON_LABELS[member.reason];
   if (label) return label();
   return member.linked ? m.settings_sso_member_connected() : m.settings_sso_member_not_connected();
 }
 
-function repairableLinks(member: ReadinessMember): ReadinessRepairLink[] {
+function listRepairableLinks(member: ReadinessMember): ReadinessRepairLink[] {
   return REPAIRABLE_REASONS.has(member.reason) ? member.repairLinks : [];
 }
 
@@ -95,9 +95,9 @@ export function SsoReadinessPanel({
       </p>
       <ul className="flex flex-col gap-1">
         {readiness.members.map((member) => {
-          const memberName = readinessMemberLabel(member);
+          const memberName = resolveReadinessMemberLabel(member);
           const editingEmail = emailRepair?.member.principalId === member.principalId;
-          const repairLinks = repairableLinks(member);
+          const repairLinks = listRepairableLinks(member);
           // "Critical AND blocking" is the one state drawn in danger red: a critical issue that no
           // longer blocks the cutover is history, not an alarm.
           const criticalBlocking = member.critical && member.blocking;
@@ -113,7 +113,7 @@ export function SsoReadinessPanel({
                   {memberName} ({member.role}){criticalBlocking ? ` · ${m.settings_sso_critical()}` : ""}
                 </span>
                 <Badge variant={criticalBlocking ? "danger" : member.blocking ? "warn" : "secondary"}>
-                  {reasonLabel(member)}
+                  {resolveReadinessReasonLabel(member)}
                 </Badge>
               </div>
               {member.reason !== "principal_missing" && (member.blocking || member.linked) && (

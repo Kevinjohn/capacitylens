@@ -18,7 +18,7 @@ export interface Filters {
   showUnmatched: boolean;
 }
 
-export const emptyFilters = (): Filters => ({
+export const buildEmptyFilters = (): Filters => ({
   disciplineId: null,
   clientId: null,
   projectId: null,
@@ -43,16 +43,16 @@ export const clearEntityLenses = (filters: Filters): Filters => ({
 
 /** The project/client lens specifically — the pair that decides whether a bar "matches the filter"
  *  (the activity lens is standalone and mutually exclusive with it via setFilters). */
-export function hasProjectClientLens(f: Filters): boolean {
-  return !!(f.projectId || f.clientId);
+export function hasProjectClientLens(filters: Filters): boolean {
+  return !!(filters.projectId || filters.clientId);
 }
 
 /** Any "what work" lens is active — project/client OR activity. This is the gate for the dimmed
  *  show-unmatched staffing view, which behaves identically whichever of the two lenses is set. */
-export function hasLensFilter(f: Filters): boolean {
-  return hasProjectClientLens(f) || !!(f.activityId || f.activityKind);
+export function hasLensFilter(filters: Filters): boolean {
+  return hasProjectClientLens(filters) || !!(filters.activityId || filters.activityKind);
 }
 
-export function hasActiveFilters(f: Filters): boolean {
-  return hasLensFilter(f) || !!f.disciplineId || f.search.trim() !== "" || f.hideTentative;
+export function hasActiveFilters(filters: Filters): boolean {
+  return hasLensFilter(filters) || !!filters.disciplineId || filters.search.trim() !== "" || filters.hideTentative;
 }

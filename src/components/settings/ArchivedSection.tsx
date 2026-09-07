@@ -7,7 +7,7 @@ import { useLifecycleActions } from "../../hooks/useLifecycleActions";
 import { useCan } from "../../auth/permissionContext";
 import { useExclusiveAction } from "../../hooks/useExclusiveAction";
 import { useDeadlineClock } from "../../hooks/useDeadlineClock";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { ConfirmDialog } from "../common/ui";
 import { Button } from "../ui/button";
 import { m } from "@/i18n";
@@ -41,20 +41,21 @@ interface Row {
 // fall back to a resource's `role` for a nameless placeholder/external. Clients/projects always carry
 // a name. Kept local (not resourceDisplayName) so a placeholder tombstone shows its scrubbed name/role
 // rather than the generic "Placeholder" label the scheduler uses.
-function rowName(entity: LifecycleEntity, e: Resource | Client | Project): string {
+function resolveRowName(entity: LifecycleEntity, inactiveRow: Resource | Client | Project): string {
   if (entity === "resources") {
-    const r = e as Resource;
-    return r.name ?? r.role;
+    const resource = inactiveRow as Resource;
+    return resource.name ?? resource.role;
   }
-  return (e as Client | Project).name;
+  return (inactiveRow as Client | Project).name;
 }
 
 // Collect every NON-active row across the three tables into a flat list, preserving entity identity.
-function collectInactive(data: AppData): Row[] {
+function listInactiveRows(data: AppData): Row[] {
   const out: Row[] = [];
   const push = (entity: LifecycleEntity, list: (Resource | Client | Project)[]) => {
-    for (const e of list) {
-      if (lifecycleStatus(e) !== "active") out.push({ entity, id: e.id, name: rowName(entity, e), raw: e });
+    for (const inactiveRow of list) {
+      if (lifecycleStatus(inactiveRow) !== "active")
+        out.push({ entity, id: inactiveRow.id, name: resolveRowName(entity, inactiveRow), raw: inactiveRow });
     }
   };
   push("resources", data.resources);
@@ -65,7 +66,7 @@ function collectInactive(data: AppData): Row[] {
 
 /** Confirmation messages add their own quotes. Strip the read projection's outer quote pair from a
  * private client/project first so a code name still appears with exactly one pair. */
-function confirmationName(row: Row): string {
+function resolveConfirmationName(row: Row): string {
   if (row.entity === "resources") return row.name;
   return (row.raw as Client | Project).isPrivate === true ? nameForQuotedContext(row.name) : row.name;
 }
@@ -105,15 +106,15 @@ function LifecycleGroup({
     <div className="flex flex-col gap-1">
       <h3 className="mb-1 text-xs font-semibold text-ink">{heading}</h3>
       <ItemGroup>
-        {rows.map((r, index) => (
-          <Fragment key={`${r.entity}-${r.id}`}>
+        {rows.map((row, index) => (
+          <Fragment key={`${row.entity}-${row.id}`}>
             {index > 0 && <ItemSeparator />}
             <Item size="sm" role="listitem" className="rounded-none px-0" data-testid={rowTestId}>
               <ItemContent className="min-w-0">
-                <span className="text-sm text-ink">{r.name}</span>
-                <span className="ml-2 text-xs text-muted-foreground">· {TYPE_LABEL[r.entity]()}</span>
+                <span className="text-sm text-ink">{row.name}</span>
+                <span className="ml-2 text-xs text-muted-foreground">· {TYPE_LABEL[row.entity]()}</span>
               </ItemContent>
-              {rowActions(r)}
+              {rowActions(row)}
             </Item>
           </Fragment>
         ))}
@@ -139,8 +140,8 @@ export function ArchivedSection({
   defaultOpen?: boolean;
 } = {}) {
   const server = isServerConfigured();
-  const activeAccountId = useStore((s) => s.activeAccountId);
-  const setNotice = useStore((s) => s.setNotice);
+  const activeAccountId = useStore((state) => state.activeAccountId);
+  const setNotice = useStore((state) => state.setNotice);
   // Stable, render-unique base for the per-row "30-day locked" hint ids, so each disabled purge
   // button can point its aria-describedby at its OWN hint (suffixed with entity-id below). Without
   // this a screen reader announces only "Permanently delete {name}" with no reason it's disabled.
@@ -175,7 +176,7 @@ export function ArchivedSection({
   // reloadKey idiom. (The demo build re-renders off the store directly, so the bump is a harmless no-op.)
   const [reloadKey, setReloadKey] = useState(0);
   const requestGeneration = useRef(0);
-  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+  const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
   // Confirm-dialog target: a soft-delete (archived → tombstone) and a permanent purge each need
   // confirmation, so park the pending row + which transition it is until the user confirms
@@ -187,7 +188,7 @@ export function ArchivedSection({
 
   const actions = useLifecycleActions(reload);
   const runLifecycle = useCallback(
-    (action: () => Promise<void>) => run(action, (error: unknown) => setNotice(errorMessage(error), "error")),
+    (action: () => Promise<void>) => run(action, (error: unknown) => setNotice(resolveErrorMessage(error), "error")),
     [run, setNotice],
   );
 
@@ -208,7 +209,7 @@ export function ArchivedSection({
         setServerRows({
           accountId: activeAccountId,
           reloadKey,
-          rows: collectInactive(body),
+          rows: listInactiveRows(body),
         });
         setGate("shown");
       } catch (e) {
@@ -228,7 +229,7 @@ export function ArchivedSection({
         } else if (e instanceof InactiveSliceShapeError) {
           setNotice(m.settings_archived_err_incomplete(), "error");
         } else {
-          setNotice(m.settings_err_server({ error: errorMessage(e) }), "error");
+          setNotice(m.settings_err_server({ error: resolveErrorMessage(e) }), "error");
         }
       }
     })();
@@ -245,7 +246,7 @@ export function ArchivedSection({
         ? serverRows?.accountId === activeAccountId && serverRows.reloadKey === reloadKey
           ? serverRows.rows
           : []
-        : collectInactive(localData),
+        : listInactiveRows(localData),
     [server, serverRows, activeAccountId, reloadKey, localData],
   );
   // One pass, two groups: every inactive row is either archived or a tombstone, and each group's
@@ -294,7 +295,7 @@ export function ArchivedSection({
           heading={m.settings_archived_group_archived()}
           rows={archived}
           rowTestId="archived-row"
-          rowActions={(r) => (
+          rowActions={(row) => (
             <ItemActions>
               <Button
                 size="sm"
@@ -302,9 +303,9 @@ export function ArchivedSection({
                 data-testid="archived-restore"
                 disabled={lifecycleBusy}
                 aria-label={m.settings_archived_restore_aria({
-                  name: r.name,
+                  name: row.name,
                 })}
-                onClick={() => runLifecycle(() => actions.unarchive(r.entity, r.id))}
+                onClick={() => runLifecycle(() => actions.unarchive(row.entity, row.id))}
               >
                 {m.settings_archived_restore()}
               </Button>
@@ -315,12 +316,12 @@ export function ArchivedSection({
                   data-testid="archived-delete"
                   disabled={lifecycleBusy}
                   aria-label={m.settings_archived_delete_aria({
-                    name: r.name,
+                    name: row.name,
                   })}
                   onClick={() => {
                     // `locked()` reads the synchronous ref: it refuses to open the dialog inside the
                     // same click that started a mutation, before React has committed `busy`.
-                    if (!locked()) setConfirming({ kind: "delete", row: r });
+                    if (!locked()) setConfirming({ kind: "delete", row: row });
                   }}
                 >
                   {m.settings_archived_delete()}
@@ -335,14 +336,14 @@ export function ArchivedSection({
           heading={m.settings_archived_group_deleted()}
           rows={deleted}
           rowTestId="deleted-row"
-          rowActions={(r) => {
+          rowActions={(row) => {
             if (!mayPurge) return null;
             // Exact-instant "now", not date-only midnight: a midnight-truncated timestamp would
             // let the client stay up to ~24h more conservative than the server's own boundary check.
-            const purgeable = canPurge(r.raw, new Date(purgeClock).toISOString());
+            const purgeable = canPurge(row.raw, new Date(purgeClock).toISOString());
             // The "locked" hint only renders (and is only referenced) while the purge button is
             // disabled, so a screen reader hears WHY it can't act yet, not just the button name.
-            const hintId = `${hintBaseId}-${r.entity}-${r.id}`;
+            const hintId = `${hintBaseId}-${row.entity}-${row.id}`;
             return (
               <ItemActions>
                 {!purgeable && (
@@ -358,12 +359,12 @@ export function ArchivedSection({
                   data-testid="archived-purge"
                   disabled={lifecycleBusy || !purgeable}
                   aria-label={m.settings_archived_purge_aria({
-                    name: r.name,
+                    name: row.name,
                   })}
                   aria-describedby={!purgeable ? hintId : undefined}
                   onClick={() => {
                     // Same same-render guard as the delete button above.
-                    if (!locked()) setConfirming({ kind: "purge", row: r });
+                    if (!locked()) setConfirming({ kind: "purge", row: row });
                   }}
                 >
                   {m.settings_archived_purge()}
@@ -378,8 +379,8 @@ export function ArchivedSection({
           title={confirming.kind === "delete" ? m.settings_archived_delete_title() : m.settings_archived_purge_title()}
           message={
             confirming.kind === "delete"
-              ? m.settings_archived_delete_message({ name: confirmationName(confirming.row) })
-              : m.settings_archived_purge_message({ name: confirmationName(confirming.row) })
+              ? m.settings_archived_delete_message({ name: resolveConfirmationName(confirming.row) })
+              : m.settings_archived_purge_message({ name: resolveConfirmationName(confirming.row) })
           }
           confirmLabel={
             confirming.kind === "delete" ? m.settings_archived_delete() : m.settings_archived_purge_confirm()

@@ -21,27 +21,27 @@ export function compareDisplayNames(leftName: string, leftId: string, rightName:
   );
 }
 
-export function displayNameComparator<T extends Identified>(displayName: (item: T) => string) {
+export function createDisplayNameComparator<T extends Identified>(displayName: (item: T) => string) {
   return (left: T, right: T): number => compareDisplayNames(displayName(left), left.id, displayName(right), right.id);
 }
 
-export function favouriteDisplayNameComparator<T extends Identified & { isFavourite?: boolean }>(
+export function createFavouriteDisplayNameComparator<T extends Identified & { isFavourite?: boolean }>(
   displayName: (item: T) => string,
 ) {
-  const byDisplayName = displayNameComparator(displayName);
+  const byDisplayName = createDisplayNameComparator(displayName);
   return (left: T, right: T): number =>
     Number(right.isFavourite === true) - Number(left.isFavourite === true) || byDisplayName(left, right);
 }
 
 /** Studio before Supplementary, then favourites first and deterministic display-name order within
  * each engagement partition. Used by both Resources and the scheduler so the two views cannot drift. */
-export function engagementFavouriteDisplayNameComparator<
+export function createEngagementFavouriteDisplayNameComparator<
   T extends Identified & { engagement: "studio" | "supplementary"; isFavourite?: boolean },
 >(displayName: (item: T) => string) {
-  const byFavouriteDisplayName = favouriteDisplayNameComparator(displayName);
+  const byFavouriteDisplayName = createFavouriteDisplayNameComparator(displayName);
   return (left: T, right: T): number =>
     Number(left.engagement === "supplementary") - Number(right.engagement === "supplementary") ||
     byFavouriteDisplayName(left, right);
 }
 
-export const byName = displayNameComparator<Named>((item) => item.name);
+export const byName = createDisplayNameComparator<Named>((item) => item.name);

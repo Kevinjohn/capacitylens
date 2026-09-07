@@ -3,7 +3,7 @@ import { MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { Input } from "../../ui/input";
 import { Field, FieldContent, FieldDescription } from "../../ui/field";
 import { RequiredFieldLabel } from "./fieldLayout";
-import { productFieldLayoutProps } from "./fieldLayoutProps";
+import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
 import type { ProductFieldLayout } from "./fieldTypes";
 
 export function TextField({
@@ -27,7 +27,7 @@ export function TextField({
 }: {
   label: string;
   value: string;
-  onChange: (v: string) => void;
+  onChange: (value: string) => void;
   placeholder?: string;
   description?: string;
   autoFocus?: boolean;
@@ -75,7 +75,7 @@ export function TextField({
     <Field
       data-invalid={invalid || undefined}
       data-disabled={disabled || undefined}
-      {...productFieldLayoutProps(layout)}
+      {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       {description ? (
@@ -105,7 +105,7 @@ export function NumberField({
 }: {
   label: string;
   value: number;
-  onChange: (v: number) => void;
+  onChange: (value: number) => void;
   min?: number;
   max?: number;
   step?: number;
@@ -121,7 +121,7 @@ export function NumberField({
     <Field
       data-invalid={invalid || undefined}
       data-disabled={disabled || undefined}
-      {...productFieldLayoutProps(layout)}
+      {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Input
@@ -147,11 +147,11 @@ export function NumberField({
         // Clamp to [min, max] on blur — type=number's own min/max are advisory and
         // aren't enforced on paste/typing, so a stray entry would otherwise stick.
         onBlur={(e) => {
-          let n = Number(e.target.value);
-          if (!Number.isFinite(n)) n = min ?? 0;
-          if (min !== undefined) n = Math.max(min, n);
-          if (max !== undefined) n = Math.min(max, n);
-          if (n !== value) onChange(n);
+          let numericValue = Number(e.target.value);
+          if (!Number.isFinite(numericValue)) numericValue = min ?? 0;
+          if (min !== undefined) numericValue = Math.max(min, numericValue);
+          if (max !== undefined) numericValue = Math.min(max, numericValue);
+          if (numericValue !== value) onChange(numericValue);
         }}
       />
     </Field>
@@ -171,7 +171,7 @@ export function DateField({
 }: {
   label: string;
   value: string;
-  onChange: (v: string) => void;
+  onChange: (value: string) => void;
   invalid?: boolean;
   required?: boolean;
   describedById?: string;
@@ -182,7 +182,7 @@ export function DateField({
 }) {
   const id = useId();
   return (
-    <Field data-invalid={invalid || undefined} {...productFieldLayoutProps(layout)}>
+    <Field data-invalid={invalid || undefined} {...buildProductFieldLayoutProps(layout)}>
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Input
         id={id}

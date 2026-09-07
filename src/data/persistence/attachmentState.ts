@@ -9,7 +9,7 @@ import { ReloadDiscardedEditError, type RefreshOutcome } from "./facades";
  * including after awaits; primitive snapshots are only for explicit sequence comparisons. */
 export function createAttachmentState(
   store: StoreApi<StoreState>,
-  onError?: (e: unknown) => void,
+  onError?: (error: unknown) => void,
   onSuccess?: () => void,
 ) {
   const values = {
@@ -99,7 +99,7 @@ export function createAttachmentState(
     beginSuspension(
       external: boolean,
       writes: { save: (data: AppData) => void; scheduleRetry: () => void },
-    ): (opts?: { dropParkedEdits?: boolean }) => void {
+    ): (options?: { dropParkedEdits?: boolean }) => void {
       const { save, scheduleRetry } = writes;
       // Begin a write suspension. Cancels the armed debounce (parking its edit — `pending` already
       // holds the data) and bumps the depth so the subscribe handler parks instead of scheduling.
@@ -123,7 +123,7 @@ export function createAttachmentState(
       cancelDebounce();
       cancelRetry();
       let resumed = false;
-      return (opts = {}) => {
+      return (options = {}) => {
         if (owner.current.disposed) return;
         if (resumed) return; // resume is idempotent — a double call must not underflow the depth
         resumed = true;
@@ -143,7 +143,7 @@ export function createAttachmentState(
             scheduleRetry();
           return;
         }
-        if (opts.dropParkedEdits) {
+        if (options.dropParkedEdits) {
           owner.update({ pending: null });
           owner.update({ unacknowledged: null });
           owner.update({ externalBaseData: null });

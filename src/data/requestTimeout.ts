@@ -1,6 +1,6 @@
 import { MASQUERADE_ERROR_CODES, type MasqueradeErrorCode } from "@capacitylens/shared/domain/masquerade";
 import { noteAuditWarning } from "../lib/auditWarning";
-import { peekApiErrorCode } from "../lib/readApiError";
+import { readApiErrorCode } from "../lib/readApiError";
 
 let masqueradeEndedHandler: (() => void) | null = null;
 
@@ -38,7 +38,7 @@ export function isTransportFailure(error: unknown): boolean {
  *     self-contradictory (the request is meant to outlive the page as far as the browser permits).
  * A caller `signal` is always honoured; the result aborts as soon as EITHER it or the timeout does.
  */
-export function requestSignal(
+export function createRequestSignal(
   signal?: AbortSignal | null,
   timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
 ): AbortSignal {
@@ -51,8 +51,8 @@ export function requestSignal(
 }
 
 /** Read a recognized masquerade failure code without consuming the caller's response body. */
-export async function masqueradeErrorCode(response: Response): Promise<MasqueradeErrorCode | null> {
-  const code = await peekApiErrorCode(response);
+export async function readMasqueradeErrorCode(response: Response): Promise<MasqueradeErrorCode | null> {
+  const code = await readApiErrorCode(response);
   return Object.values(MASQUERADE_ERROR_CODES).some((candidate) => candidate === code)
     ? (code as MasqueradeErrorCode)
     : null;
@@ -60,15 +60,18 @@ export async function masqueradeErrorCode(response: Response): Promise<Masquerad
 
 export async function apiFetch(
   input: RequestInfo | URL,
-  init: RequestInit = {},
+  requestOptions: RequestInit = {},
   timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
 ): Promise<Response> {
-  const response = await fetch(input, { ...init, signal: requestSignal(init.signal, timeoutMs) });
+  const response = await fetch(input, {
+    ...requestOptions,
+    signal: createRequestSignal(requestOptions.signal, timeoutMs),
+  });
   // Defer until the direct action's own success notice has run; otherwise that notice immediately
   // overwrites the more important persistent audit warning in the single-notice store.
   noteAuditWarning(response, { defer: true });
   if (response.status === 403) {
-    const code = await masqueradeErrorCode(response);
+    const code = await readMasqueradeErrorCode(response);
     if (code === MASQUERADE_ERROR_CODES.ended) masqueradeEndedHandler?.();
   }
   return response;

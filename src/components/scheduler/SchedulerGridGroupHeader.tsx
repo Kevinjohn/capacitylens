@@ -1,17 +1,17 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { m } from "@/i18n";
 import { Button } from "../ui/button";
-import { LAYOUT, schedulerDensity } from "./layout";
+import { LAYOUT, buildSchedulerDensity } from "./layout";
 import type { GroupModel } from "./schedulerModel";
 import type { SchedulerUI, StoreState } from "../../store/useStore";
 import type { ColumnGeometry } from "./columnGeometry";
-import { averageUtilizationPercent } from "./schedulerGridModal";
+import { buildAverageUtilizationLabel } from "./schedulerGridModal";
 
 interface SchedulerGridGroupHeaderProps {
   group: GroupModel;
   rowIndex: number;
   ui: Pick<SchedulerUI, "collapsedGroups">;
-  density: ReturnType<typeof schedulerDensity>;
+  density: ReturnType<typeof buildSchedulerDensity>;
   toggleGroup: (key: string) => void;
   geom: ColumnGeometry;
   utilizationPrefs: StoreState["utilizationPrefs"];
@@ -22,8 +22,8 @@ export function SchedulerGridGroupHeader({
   ui,
   density,
   toggleGroup,
-  geom,
-  utilizationPrefs,
+  geom: geometry,
+  utilizationPrefs: utilizationPreferences,
 }: SchedulerGridGroupHeaderProps) {
   const collapsed = ui.collapsedGroups.includes(group.key);
   return (
@@ -58,14 +58,14 @@ export function SchedulerGridGroupHeader({
         role="gridcell"
         aria-colindex={2}
         className="flex shrink-0 items-center px-3 text-xs"
-        style={{ width: geom.totalWidth }}
+        style={{ width: geometry.totalWidth }}
       >
         {collapsed
           ? m.scheduler_group_hidden({ count: group.rows.length })
           : group.external
             ? "" /* external parties have no capacity — an avg utilisation here would misleadingly read 0% */
-            : utilizationPrefs.showDiscipline
-              ? m.scheduler_group_avg_utilisation({ percent: averageUtilizationPercent(group.rows) })
+            : utilizationPreferences.showDiscipline
+              ? m.scheduler_group_avg_utilisation({ percent: buildAverageUtilizationLabel(group.rows) })
               : ""}
       </div>
     </div>

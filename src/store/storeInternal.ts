@@ -29,17 +29,17 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
   // stops bad multi-tenant data being persisted. Swallowing here would convert a loud, fixable
   // rejection into SILENT data corruption (the explicit anti-goal; see DEFENSIVE-CODING.md §4). If
   // a producer throws, `set` never runs, so state is left untouched — a clean, atomic failure.
-  const mutate = (producer: (d: AppData) => AppData) =>
-    set((s) => ({
-      data: producer(s.data),
-      past: [...s.past, s.data].slice(-HISTORY_LIMIT),
+  const mutate = (producer: (data: AppData) => AppData) =>
+    set((state) => ({
+      data: producer(state.data),
+      past: [...state.past, state.data].slice(-HISTORY_LIMIT),
       future: [],
     }));
 
   // Erasure/purge actions must not leave a recoverable pre-erasure snapshot in memory. They also
   // cannot honestly be undoable, so clear both history directions as part of the same state write.
-  const mutateIrreversible = (producer: (d: AppData) => AppData) =>
-    set((s) => ({ data: producer(s.data), past: [], future: [] }));
+  const mutateIrreversible = (producer: (data: AppData) => AppData) =>
+    set((state) => ({ data: producer(state.data), past: [], future: [] }));
 
   const applyPatch = <T extends Entity>(row: T, patch: Partial<Omit<T, keyof Entity>>): T => {
     const next = { ...row, ...patch } as T;
@@ -54,13 +54,13 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
   const {
     requireAccount,
     blockedByViewer,
-    findOwned,
+    resolveOwnedRow,
     assertAllocation,
     assertNotBuiltinClient,
     assertWorkingDays,
     assertHalfDays,
     snapColor,
-    withSnappedColor,
+    applySnappedColor,
   } = createGuards(get, set);
 
   // --- Write-shape wrappers ---------------------------------------------------------------------
@@ -69,23 +69,23 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
   // (2) an update must validate the MERGED row rather than the raw patch. The wrappers below make
   // both structural; each action then declares only what is specific to it.
 
-  /** Run `fn` only when the caller may write; a blocked viewer gets `blockedValue` plus a notice and
-   *  nothing runs. `fn` is first so TypeScript infers the return type from it and checks the blocked
+  /** Run `action` only when the caller may write; a blocked viewer gets `blockedValue` plus a notice and
+   *  nothing runs. `action` is first so TypeScript infers the return type from it and checks the blocked
    *  value against it — omit the value entirely for the void actions. */
-  const guarded =
-    <A extends unknown[], R>(fn: (...args: A) => R, blockedValue?: R) =>
-    (...args: A): R =>
-      blockedByViewer() ? (blockedValue as R) : fn(...args);
+  const createGuardedAction =
+    <A extends unknown[], R>(action: (...parameters: A) => R, blockedValue?: R) =>
+    (...parameters: A): R =>
+      blockedByViewer() ? (blockedValue as R) : action(...parameters);
 
   /** The add* shape. `build` CONSTRUCTS the entity only — it may resolve the active account, but must
    *  never validate, repair a colour or persist — then the gate runs, then `persist` asserts/repairs/
    *  commits. So a blocked viewer gets back exactly the row they submitted, never a value we silently
    *  changed on their behalf, and nothing lands in state. Server 403 is the real backstop. */
-  const guardedAdd =
-    <A extends unknown[], E>(build: (...args: A) => E, persist: (built: E, ...args: A) => E) =>
-    (...args: A): E => {
-      const built = build(...args);
-      return blockedByViewer() ? built : persist(built, ...args);
+  const createGuardedAddAction =
+    <A extends unknown[], E>(build: (...parameters: A) => E, persist: (built: E, ...args: A) => E) =>
+    (...parameters: A): E => {
+      const built = build(...parameters);
+      return blockedByViewer() ? built : persist(built, ...parameters);
     };
 
   /** The update* shape: resolve the owned row (a stale id — e.g. a drag committed after an undo
@@ -102,16 +102,16 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
     prepare?: (merged: ScopedRow<K>, existing: ScopedRow<K>) => ScopedPatch<K>,
     cascade?: (data: AppData, merged: ScopedRow<K>, existing: ScopedRow<K>) => AppData,
   ): boolean => {
-    const existing = findOwned(get().data, key, id);
+    const existing = resolveOwnedRow(get().data, key, id);
     if (!existing) return false;
     const effective = prepare
       ? prepare(applyPatch(existing, patch as Partial<Omit<ScopedRow<K>, keyof Entity>>), existing)
       : patch;
-    // The table key is generic here, so TS can't narrow d[key] to a single row type; K pins the row
+    // The table key is generic here, so TS can't narrow data[key] to a single row type; K pins the row
     // and patch types at every call site above, which is where correctness is actually checked.
-    mutate((d) => {
-      const rows = updateById(d[key] as Entity[], id, effective as Partial<Entity>);
-      const next = { ...d, [key]: rows } as AppData;
+    mutate((data) => {
+      const rows = updateById(data[key] as Entity[], id, effective as Partial<Entity>);
+      const next = { ...data, [key]: rows } as AppData;
       return cascade
         ? cascade(next, applyPatch(existing, effective as Partial<Omit<ScopedRow<K>, keyof Entity>>), existing)
         : next;
@@ -121,7 +121,7 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
 
   // One shared implementation keeps single and repeated creation behavior identical. Build and
   // validate every row before mutate() so a bad middle draft cannot publish, persist or enter history.
-  const addAllocationsImpl = (inputs: readonly Draft<Allocation>[]): Allocation[] => {
+  const createAllocations = (inputs: readonly Draft<Allocation>[]): Allocation[] => {
     if (inputs.length === 0) throw new Error("At least one allocation is required.");
     const accountId = requireAccount();
     const allocations = inputs.map((input) => ({
@@ -133,7 +133,7 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
     }));
     // Preserve the existing add* contract: a Viewer receives a constructed return value plus the
     // visible read-only notice, but no validation or state mutation runs. Hand-gated rather than
-    // wrapped in `guarded`, whose blocked value is fixed up front: here it is the batch this call
+    // wrapped in `createGuardedAction`, whose blocked value is fixed up front: here it is the batch this call
     // just built, which only exists after the pre-check work above.
     if (blockedByViewer()) return allocations;
     const data = get().data;
@@ -148,14 +148,14 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
       );
       assertDateRange(allocation.startDate, allocation.endDate);
     }
-    mutate((d) => ({ ...d, allocations: [...d.allocations, ...allocations] }));
+    mutate((data) => ({ ...data, allocations: [...data.allocations, ...allocations] }));
     return allocations;
   };
 
   // Replace the active account's slice from an import (see the importData action for the id-remap
   // rationale). Wrapped in the shared viewer gate, whose zero-effect summary reports honestly that
   // nothing was imported or skipped.
-  const importSlice = guarded(
+  const importSlice = createGuardedAction(
     (accountId: ID, incoming: AppData): ImportSummary => {
       const result = remapAndValidateImport(get().data, accountId, incoming, touch());
       // Refuse a zero-record import rather than wiping the account's existing slice.
@@ -187,17 +187,17 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
     updateById,
     requireAccount,
     blockedByViewer,
-    findOwned,
+    resolveOwnedRow,
     assertAllocation,
     assertNotBuiltinClient,
     assertWorkingDays,
     assertHalfDays,
     snapColor,
-    withSnappedColor,
-    guarded,
-    guardedAdd,
+    applySnappedColor,
+    createGuardedAction,
+    createGuardedAddAction,
     updateOwned,
-    addAllocationsImpl,
+    createAllocations,
     importSlice,
   };
 }

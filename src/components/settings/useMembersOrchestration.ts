@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
 import type { TeamMember as Member } from "../../account/teamAccessClient";
-import { strictOidcProvider, useAuth } from "../../auth/authContext";
+import { resolveStrictOidcProvider, useAuth } from "../../auth/authContext";
 import { isServerConfigured } from "../../data/apiConfig";
 import { useOfflineState } from "../../data/useOfflineState";
 import { useDeadlineClock } from "../../hooks/useDeadlineClock";
@@ -11,22 +11,22 @@ import { useStore } from "../../store/useStore";
 import { useTeamDirectory } from "./useTeamDirectory";
 import { useMemberInvites } from "./useMemberInvites";
 import { useWorkspaceReadiness } from "./useWorkspaceReadiness";
-import { memberAccessReconciliation } from "./memberAccessReconciliation";
-import { memberMutations } from "./memberMutations";
+import { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
+import { createMemberMutations } from "./createMemberMutations";
 import { startMasquerade } from "../../auth/accountTransition";
 import { STATUS_FOR_ACTION, type MemberConfirmation, type MemberConfirmationAction } from "./memberConfirmationCopy";
-import { memberDirectoryPresentation } from "./memberDirectoryPresentation";
+import { buildMemberDirectoryPresentation } from "./buildMemberDirectoryPresentation";
 
 export function useMembersOrchestration(activeAccountId: string | null) {
   const { authMode, providers, refreshAuth } = useAuth();
   // Only the strict (non-experimental) OIDC provider's IDENTITY is needed here: the readiness read
   // is keyed on it, and keying on the provider OBJECT would re-fetch whenever an equal-but-new
   // provider list is resolved.
-  const strictProviderId = strictOidcProvider(providers)?.id ?? null;
+  const strictProviderId = resolveStrictOidcProvider(providers)?.id ?? null;
   const offline = useOfflineState();
-  const setNotice = useStore((s) => s.setNotice);
-  const setActiveAccount = useStore((s) => s.setActiveAccount);
-  const invalidateMemberships = useStore((s) => s.invalidateMemberships);
+  const setNotice = useStore((state) => state.setNotice);
+  const setActiveAccount = useStore((state) => state.setActiveAccount);
+  const invalidateMemberships = useStore((state) => state.invalidateMemberships);
   const { error, errorField, errorId, fail, clear } = useFieldError();
 
   // The freshly-minted password-reset link (P1.18) — same write-once posture as the invite link,
@@ -72,7 +72,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     fail,
     onInvitesLoaded: reconcileMintedInvite,
   });
-  const requestAccountId = (): string => {
+  const assertActiveAccountId = (): string => {
     if (!activeAccountId) throw new Error(m.settings_members_err_no_active_account());
     return activeAccountId;
   };
@@ -99,7 +99,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
    * its own sequence rather than passing that sequence in as options.
    */
   const withMemberAction = async (key: string, body: (accountId: string) => Promise<void>): Promise<void> => {
-    const accountId = requestAccountId();
+    const accountId = assertActiveAccountId();
     if (!beginAction(key)) return;
     try {
       await body(accountId);
@@ -133,7 +133,13 @@ export function useMembersOrchestration(activeAccountId: string | null) {
       .reduce((nearest, expiry) => Math.min(nearest, expiry), Number.POSITIVE_INFINITY);
     return Number.isFinite(nextExpiry) ? nextExpiry : null;
   });
-  const actionDependencies = { requestAccountId, isActiveAccount, withMemberAction, fail, setNotice };
+  const actionDependencies = {
+    requestAccountId: assertActiveAccountId,
+    isActiveAccount,
+    withMemberAction,
+    fail,
+    setNotice,
+  };
   const { bumpReadiness, ...readinessState } = useWorkspaceReadiness({
     activeAccountId,
     strictProviderId,
@@ -149,7 +155,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     reload();
     bumpReadiness();
   };
-  const { refreshCallerAccess, reconcileUnknownMutation } = memberAccessReconciliation({
+  const { refreshCallerAccess, reconcileUnknownMutation } = createMemberAccessReconciliation({
     activeAccountId,
     invalidateMemberships,
     refreshAuth,
@@ -159,7 +165,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     replaceDirectory,
     reconcileMintedInvite,
   });
-  const actions = memberMutations({
+  const actions = createMemberMutations({
     ...actionDependencies,
     reconcileUnknownMutation,
     refreshCallerAccess,
@@ -183,7 +189,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     setMemberConfirmation({ action, member });
   };
 
-  const confirmedMemberAction = () => {
+  const confirmMemberAction = () => {
     if (!memberConfirmation) return;
     const pending = memberConfirmation;
     setMemberConfirmation(null);
@@ -207,7 +213,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     }
   };
 
-  const presentation = memberDirectoryPresentation(members);
+  const presentation = buildMemberDirectoryPresentation(members);
 
   return {
     authMode,
@@ -239,7 +245,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     setInactiveOpen,
     setActionStatusElement,
     chooseMemberAction,
-    confirmedMemberAction,
+    confirmedMemberAction: confirmMemberAction,
     changeRole: actions.changeRole,
   };
 }

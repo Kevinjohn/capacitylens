@@ -7,9 +7,9 @@ import {
   WEEKEND_COLUMN_REM,
   resolveColumnFit,
 } from "../../lib/schedulerConfig";
-import { visibleRange } from "../../store/selectors";
+import { buildVisibleRange } from "../../store/selectors";
 import { useStore, type SchedulerUI } from "../../store/useStore";
-import { buildColumnGeometry, leftEdgeDate } from "./columnGeometry";
+import { buildColumnGeometry, resolveLeftEdgeDate } from "./columnGeometry";
 import { LAYOUT } from "./layout";
 import { weekStartSnapTarget } from "./weekSnap";
 
@@ -51,7 +51,7 @@ export function useSchedulerViewport({
   const [timelineHeight, setTimelineHeight] = useState(0);
   const [rootFontSizePx, setRootFontSizePx] = useState(16);
   const [scrollTop, setScrollTop] = useState(0);
-  const [leftEdgeIdx, setLeftEdgeIdx] = useState(-1);
+  const [leftEdgeIndex, setLeftEdgeIndex] = useState(-1);
 
   // Measure before paint so remounting the schedule never flashes fallback geometry.
   useLayoutEffect(() => {
@@ -137,9 +137,9 @@ export function useSchedulerViewport({
       ? resolveColumnFit(availableWidth, ui.zoom, weekendWidth)
       : uniformFit;
   const dayWidth = fit.dayWidth;
-  const { start, end } = visibleRange(ui);
+  const { start, end } = buildVisibleRange(ui);
   const days = useMemo(() => eachDayISO(start, end), [start, end]);
-  const geom = useMemo(
+  const geometry = useMemo(
     () =>
       buildColumnGeometry(days, dayWidth, {
         minimiseWeekends,
@@ -149,7 +149,7 @@ export function useSchedulerViewport({
     [days, dayWidth, minimiseWeekends, weekendWidth, fit.weekWidth],
   );
 
-  const focusX = geom.xForDateInGeom(ui.focusDate);
+  const focusX = geometry.xForDateInGeom(ui.focusDate);
   const focusXRef = useRef(focusX);
   const previousScrollLeftRef = useRef<number | null>(null);
   // Recenter consumes this ref in a later layout effect from the same commit. Update it here,
@@ -159,10 +159,10 @@ export function useSchedulerViewport({
     focusXRef.current = focusX;
   }, [focusX]);
 
-  const prevGeomRef = useRef(geom);
-  const prevDaysRef = useRef(days);
-  const prevZoomRef = useRef(ui.zoom);
-  const prevRecenterRef = useRef(ui.recenterToken);
+  const previousGeometryRef = useRef(geometry);
+  const previousDaysRef = useRef(days);
+  const previousZoomRef = useRef(ui.zoom);
+  const previousRecenterRef = useRef(ui.recenterToken);
   useLayoutEffect(() => {
     if (scrollRaf.current) {
       cancelAnimationFrame(scrollRaf.current);
@@ -171,24 +171,24 @@ export function useSchedulerViewport({
     clearTimeout(snapTimer.current);
     snapTimer.current = 0;
 
-    const previousGeom = prevGeomRef.current;
-    const previousDays = prevDaysRef.current;
-    const previousZoom = prevZoomRef.current;
-    const previousRecenter = prevRecenterRef.current;
-    prevGeomRef.current = geom;
-    prevDaysRef.current = days;
-    prevZoomRef.current = ui.zoom;
-    prevRecenterRef.current = ui.recenterToken;
+    const previousGeom = previousGeometryRef.current;
+    const previousDays = previousDaysRef.current;
+    const previousZoom = previousZoomRef.current;
+    const previousRecenter = previousRecenterRef.current;
+    previousGeometryRef.current = geometry;
+    previousDaysRef.current = days;
+    previousZoomRef.current = ui.zoom;
+    previousRecenterRef.current = ui.recenterToken;
 
     const el = scrollRef.current;
-    if (!el || !didScroll.current || previousGeom === geom || previousGeom.totalWidth <= 0) return;
+    if (!el || !didScroll.current || previousGeom === geometry || previousGeom.totalWidth <= 0) return;
     if (ui.recenterToken !== previousRecenter) return;
 
-    const leftDate = leftEdgeDate(previousGeom, days, el.scrollLeft);
+    const leftDate = resolveLeftEdgeDate(previousGeom, days, el.scrollLeft);
     const navigationChanged = ui.zoom !== previousZoom || days !== previousDays;
     const targetDate = navigationChanged ? startOfWeekISO(leftDate, calendarWeekStartsOn) : leftDate;
-    setScrollLeft(el, Math.max(0, geom.xForDateInGeom(targetDate)));
-  }, [geom, days, ui.zoom, ui.recenterToken, calendarWeekStartsOn]);
+    setScrollLeft(el, Math.max(0, geometry.xForDateInGeom(targetDate)));
+  }, [geometry, days, ui.zoom, ui.recenterToken, calendarWeekStartsOn]);
 
   useEffect(() => {
     if (didScroll.current || !scrollRef.current || timelineWidth === 0) return;
@@ -219,18 +219,18 @@ export function useSchedulerViewport({
       if (useStore.getState().draggingAllocationId !== null || !horizontalChanged) return;
       // indexAtScroll, not indexAt: it owns the HiDPI sub-pixel rounding every scroll-position
       // read needs (see its doc comment / weekSnap.ts's "SUB-PIXEL ROUNDING" note).
-      setLeftEdgeIdx(geom.indexAtScroll(el.scrollLeft));
+      setLeftEdgeIndex(geometry.indexAtScroll(el.scrollLeft));
 
       if (!snapToWeekStart) return;
       clearTimeout(snapTimer.current);
       snapTimer.current = window.setTimeout(() => {
         const node = scrollRef.current;
         if (!node || useStore.getState().draggingAllocationId !== null) return;
-        const target = weekStartSnapTarget(geom, days, node.scrollLeft, calendarWeekStartsOn);
+        const target = weekStartSnapTarget(geometry, days, node.scrollLeft, calendarWeekStartsOn);
         if (target !== null) setScrollLeft(node, target);
       }, WEEK_SNAP_IDLE_MS);
     });
-  }, [geom, days, snapToWeekStart, calendarWeekStartsOn]);
+  }, [geometry, days, snapToWeekStart, calendarWeekStartsOn]);
 
   useEffect(
     () => () => {
@@ -244,15 +244,15 @@ export function useSchedulerViewport({
   useEffect(() => {
     if (!dragging && scrollRef.current) {
       setScrollTop(scrollRef.current.scrollTop);
-      setLeftEdgeIdx(geom.indexAtScroll(scrollRef.current.scrollLeft));
+      setLeftEdgeIndex(geometry.indexAtScroll(scrollRef.current.scrollLeft));
     }
-  }, [dragging, geom]);
+  }, [dragging, geometry]);
 
-  const visibleStartDate = useCallback((): ISODate => {
+  const readVisibleStartDate = useCallback((): ISODate => {
     const el = scrollRef.current;
     // Unmeasured container (jsdom / before first paint) → the window's first day, as before.
-    return (el ? leftEdgeDate(geom, days, el.scrollLeft) : days[0]) ?? ui.originDate;
-  }, [geom, days, ui.originDate]);
+    return (el ? resolveLeftEdgeDate(geometry, days, el.scrollLeft) : days[0]) ?? ui.originDate;
+  }, [geometry, days, ui.originDate]);
 
   return {
     scrollRef,
@@ -261,13 +261,13 @@ export function useSchedulerViewport({
     timelineWidth,
     timelineHeight,
     scrollTop,
-    leftEdgeIdx,
+    leftEdgeIdx: leftEdgeIndex,
     start,
     end,
     days,
     dayWidth,
-    geom,
+    geom: geometry,
     onScroll,
-    visibleStartDate,
+    visibleStartDate: readVisibleStartDate,
   };
 }

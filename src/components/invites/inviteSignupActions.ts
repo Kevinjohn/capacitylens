@@ -2,12 +2,12 @@ import type { Dispatch, SetStateAction, RefObject } from "react";
 import type { InviteAcceptState } from "./InviteAcceptView";
 import {
   accountClient,
-  accountCommandOutcomeUnknown,
-  newBrowserAccountCommand,
+  readUnknownAccountCommandOutcome,
+  createBrowserAccountCommand,
   type BrowserAccountCommand,
 } from "../../account/accountClient";
 import { m } from "@/i18n";
-import { accountFailure, messageForStatus } from "./inviteResponses";
+import { readAccountFailure, resolveMessageForStatus } from "./inviteResponses";
 import { authClient } from "../../auth/authClient";
 import { reloadPage } from "../../lib/reloadPage";
 import { validateText } from "../../lib/validation";
@@ -68,7 +68,7 @@ export function createInviteSignupActions({
     setState({ kind: "auth" });
     let commandOutcomeUnknown = false;
     try {
-      const command = signupCommand.current ?? (signupCommand.current = newBrowserAccountCommand());
+      const command = signupCommand.current ?? (signupCommand.current = createBrowserAccountCommand());
       const res = await accountClient.signupWithInvitation(
         token,
         {
@@ -79,12 +79,12 @@ export function createInviteSignupActions({
         command,
       );
       if (!res.ok) {
-        commandOutcomeUnknown = await accountCommandOutcomeUnknown(res);
-        const failure = await accountFailure(res);
+        commandOutcomeUnknown = await readUnknownAccountCommandOutcome(res);
+        const failure = await readAccountFailure(res);
         if (res.status >= 400 && res.status < 500 && !commandOutcomeUnknown) {
-          signupCommand.current = newBrowserAccountCommand();
+          signupCommand.current = createBrowserAccountCommand();
         }
-        throw new Error(failure.message ?? messageForStatus(res.status, undefined));
+        throw new Error(failure.message ?? resolveMessageForStatus(res.status, undefined));
       }
       const signupBody = (await res.json().catch(() => null)) as Record<string, unknown> | null;
       const accountId =

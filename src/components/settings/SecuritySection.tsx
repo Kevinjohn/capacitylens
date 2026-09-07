@@ -7,23 +7,23 @@ import {
   passwordLengthFailure,
 } from "@capacitylens/shared/domain/password";
 import { authClient } from "../../auth/authClient";
-import { accountClient, accountCommandOutcomeUnknown } from "../../account/accountClient";
+import { accountClient, readUnknownAccountCommandOutcome } from "../../account/accountClient";
 import { m } from "@/i18n";
 import { Button } from "../ui/button";
 import { TextField } from "../common/fields";
 import { FieldError, FieldGroup } from "../ui/field";
 import { Separator } from "../ui/separator";
-import { strictOidcProvider, useAuth } from "../../auth/authContext";
+import { resolveStrictOidcProvider, useAuth } from "../../auth/authContext";
 import { useFieldError } from "../../hooks/useFieldError";
 import { formatInstant } from "../../lib/dateDisplay";
 import { reloadPage } from "../../lib/reloadPage";
 import { Badge } from "../ui/badge";
 import { SettingsSection } from "./SettingsSection";
-import { listSessions, type SessionView } from "../../account/sessionClient";
+import { readSessions, type SessionView } from "../../account/sessionClient";
 
 export function SecuritySection() {
   const { providers } = useAuth();
-  const strictProvider = strictOidcProvider(providers);
+  const strictProvider = resolveStrictOidcProvider(providers);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -106,7 +106,7 @@ export function SecuritySection() {
 
   const loadSessions = useCallback(async (): Promise<"loaded" | "unauthorized" | "failed" | "superseded"> => {
     const generation = ++sessionLoadGeneration.current;
-    const result = await listSessions();
+    const result = await readSessions();
     if (generation !== sessionLoadGeneration.current) return "superseded";
     switch (result.kind) {
       case "invalid":
@@ -211,7 +211,7 @@ export function SecuritySection() {
     try {
       const response = await accountClient.revokeOwnSession(sessionId);
       if (!response.ok) {
-        if (await accountCommandOutcomeUnknown(response)) {
+        if (await readUnknownAccountCommandOutcome(response)) {
           // A 401 is the second way this browser's own session can be the one that went: treat it
           // exactly like revoking the current session.
           await reconcileUnknownRevocation(revokingCurrentSession || response.status === 401);

@@ -1,18 +1,18 @@
 import { accountClient } from "../account/accountClient";
 import { useStore } from "../store/useStore";
-import { validateAuthUser } from "./validateAuthUser";
+import { parseAuthUser } from "./validateAuthUser";
 import { m } from "@/i18n";
 import { cacheAuthSnapshot, readCachedAuthSnapshot, setOfflineReadState } from "../data/offlineCache";
 import { isTransportFailure } from "../data/requestTimeout";
 import { hasUnsavedPersistenceWrites } from "../data/persist";
 import { readApiError } from "../lib/readApiError";
-import { boolFieldOr, isAuthMode, providersFrom, type Status } from "./authStatus";
+import { resolveBooleanField, isAuthMode, parseAuthProviders, type AuthStatusResult } from "./authStatus";
 
 /** Ask the server who we are. Total (never throws): a 401 maps to login, a valid 200 to pass,
  *  and transport/status/shape failures map to an explicit error. Boot must never reinterpret a
  *  broken authentication service as auth-off; mid-session callers may retain their last snapshot.
  *  Module-scope so the component's effects only subscribe to its result. */
-export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | null> {
+export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<AuthStatusResult | null> {
   try {
     const res = await accountClient.me();
     if (res.status === 401) {
@@ -51,7 +51,7 @@ export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Sta
         authMode,
         degraded,
         hadUnsavedChanges: hasUnsavedPersistenceWrites(),
-        providers: providersFrom(loginBody?.providers), // [] when absent/malformed — never a hard error
+        providers: parseAuthProviders(loginBody?.providers), // [] when absent/malformed — never a hard error
         // FAIL-CLOSED: only a literal `true` (a server that computed "password mode + empty user
         // table") shows the owner-setup form — absent (an older server) or junk means the
         // ordinary sign-in, never a create-account form on a populated instance.
@@ -73,7 +73,7 @@ export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Sta
       // Every authenticated server session has a non-empty email. Password reauthentication uses
       // it directly, and SSO invitation/identity policy also treats it as part of SessionUser.
       // Auth-off retains the deliberately smaller demo-user compatibility shape.
-      const user = validateAuthUser(rawUser, rawMode !== "off");
+      const user = parseAuthUser(rawUser, rawMode !== "off");
       if (rawMode !== "off" && !user) {
         console.warn("AuthProvider: /api/auth/me returned auth-on without a valid user", body);
         return { kind: "error", message: m.auth_service_invalid_response() };
@@ -82,11 +82,14 @@ export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Sta
       // POST /api/orgs gate — the instance cap AND the caller's owner/admin standing), fail-open to
       // `true` when absent (an older server, or a response shape we don't recognise) — see
       // boolFieldOr and AuthContextValue.canCreateAccount.
-      const canCreateAccount = boolFieldOr((body as { canCreateAccount?: unknown } | null)?.canCreateAccount, true);
-      const multiAccount = boolFieldOr((body as { multiAccount?: unknown } | null)?.multiAccount, true);
+      const canCreateAccount = resolveBooleanField(
+        (body as { canCreateAccount?: unknown } | null)?.canCreateAccount,
+        true,
+      );
+      const multiAccount = resolveBooleanField((body as { multiAccount?: unknown } | null)?.multiAccount, true);
       const mfaRequired =
-        rawMode === "password" && boolFieldOr((body as { mfaRequired?: unknown } | null)?.mfaRequired, false);
-      const next: Status = {
+        rawMode === "password" && resolveBooleanField((body as { mfaRequired?: unknown } | null)?.mfaRequired, false);
+      const next: AuthStatusResult = {
         kind: "pass",
         authMode: rawMode,
         user,
@@ -96,7 +99,7 @@ export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Sta
         // The authenticated /me also advertises the configured SSO providers (server app.ts). We
         // carry them so the SESSION_NOT_FRESH step-up dialog can offer the SAME provider re-auth
         // route the login screen uses (DEFECT B). Off-spec entries are dropped (providersFrom).
-        providers: providersFrom((body as { providers?: unknown } | null)?.providers),
+        providers: parseAuthProviders((body as { providers?: unknown } | null)?.providers),
         reauthMethod:
           (body as { reauthMethod?: unknown } | null)?.reauthMethod === "provider" || rawMode === "sso"
             ? "provider"
@@ -130,11 +133,11 @@ export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Sta
       kind: "error",
       message: m.auth_check_failed({ status: res.status }),
     };
-  } catch (err) {
+  } catch (error) {
     // A previously opted-in device may continue with its last VERIFIED identity, but only in the
     // global read-only state. Only a transport failure qualifies: a reachable server returning
     // malformed JSON must surface as an auth error, never be reinterpreted as "offline".
-    const transportFailure = isTransportFailure(err);
+    const transportFailure = isTransportFailure(error);
     if (transportFailure) {
       try {
         const cached = await readCachedAuthSnapshot({ acceptEffects });
@@ -158,7 +161,7 @@ export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Sta
         console.warn("AuthProvider: the offline identity snapshot could not be read", cacheError);
       }
     }
-    console.warn("AuthProvider: /api/auth/me check failed", err);
+    console.warn("AuthProvider: /api/auth/me check failed", error);
     return {
       kind: "error",
       message: transportFailure ? m.auth_service_unreachable() : m.auth_service_invalid_response(),

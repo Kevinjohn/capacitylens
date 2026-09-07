@@ -10,7 +10,7 @@ import {
 import { assertActivityProjectAllowsDependents, assertScopedRefs } from "@capacitylens/shared/domain/mutations";
 import { hasUsablePrivateCodeName } from "@capacitylens/shared/domain/privateNames";
 import type { Activity, Client, Discipline, ID, Phase, Project } from "@capacitylens/shared/types/entities";
-import { nextDataRevision, stamp, touchAfter, type StoreInternals } from "../storeInternal";
+import { readNextDataRevision, stamp, touchAfter, type StoreInternals } from "../storeInternal";
 import type { Draft, Patch, StoreState } from "../types";
 
 type CatalogSlice = Pick<
@@ -33,38 +33,38 @@ type CatalogSlice = Pick<
 export function createCatalogSlice(internals: StoreInternals): StateCreator<StoreState, [], [], CatalogSlice> {
   return (_set, get) => {
     const {
-      guarded,
-      guardedAdd,
+      createGuardedAction,
+      createGuardedAddAction,
       requireAccount,
-      withSnappedColor,
+      applySnappedColor,
       mutate,
       updateOwned,
-      findOwned,
+      resolveOwnedRow,
       assertNotBuiltinClient,
     } = internals;
     return {
-      addDiscipline: guardedAdd(
+      addDiscipline: createGuardedAddAction(
         (input: Draft<Discipline>): Discipline => ({
           ...input,
           id: newId(),
           accountId: requireAccount(),
           ...stamp(),
         }),
-        (e) => {
-          const safe = withSnappedColor(e);
-          mutate((d) => ({ ...d, disciplines: [...d.disciplines, safe] }));
+        (entity) => {
+          const safe = applySnappedColor(entity);
+          mutate((data) => ({ ...data, disciplines: [...data.disciplines, safe] }));
           return safe;
         },
       ),
-      updateDiscipline: guarded((id: ID, patch: Patch<Discipline>) => {
-        updateOwned("disciplines", id, patch, () => withSnappedColor(patch));
+      updateDiscipline: createGuardedAction((id: ID, patch: Patch<Discipline>) => {
+        updateOwned("disciplines", id, patch, () => applySnappedColor(patch));
       }),
-      deleteDiscipline: guarded((id: ID) => {
-        if (!findOwned(get().data, "disciplines", id)) return;
-        mutate((d) => deleteDisciplineCascade(d, id, nextDataRevision(d)));
+      deleteDiscipline: createGuardedAction((id: ID) => {
+        if (!resolveOwnedRow(get().data, "disciplines", id)) return;
+        mutate((data) => deleteDisciplineCascade(data, id, readNextDataRevision(data)));
       }),
 
-      addClient: guardedAdd(
+      addClient: createGuardedAddAction(
         (input: Draft<Client>): Client => {
           // STORE-STRIP enforcement point (1) of the single-Internal invariant — see the canonical doc
           // in shared/src/data/internalClient.ts (the other two points are import fold + server reject).
@@ -81,16 +81,16 @@ export function createCatalogSlice(internals: StoreInternals): StateCreator<Stor
             ...stamp(),
           };
         },
-        (e) => {
-          if (!hasUsablePrivateCodeName(e as unknown as Record<string, unknown>)) {
+        (entity) => {
+          if (!hasUsablePrivateCodeName(entity as unknown as Record<string, unknown>)) {
             throw new Error("A private client requires a code name.");
           }
-          const safe = withSnappedColor(e);
-          mutate((d) => ({ ...d, clients: [...d.clients, safe] }));
+          const safe = applySnappedColor(entity);
+          mutate((data) => ({ ...data, clients: [...data.clients, safe] }));
           return safe;
         },
       ),
-      updateClient: guarded((id: ID, patch: Patch<Client>) => {
+      updateClient: createGuardedAction((id: ID, patch: Patch<Client>) => {
         // `builtin` is excluded from Patch<Client> at the type level; strip it at runtime too so an
         // untyped/cast patch can't PROMOTE a normal client to a second builtin (store-strip enforcement
         // point (1); canonical doc in shared/src/data/internalClient.ts).
@@ -103,23 +103,23 @@ export function createCatalogSlice(internals: StoreInternals): StateCreator<Stor
           if (!hasUsablePrivateCodeName(merged as unknown as Record<string, unknown>)) {
             throw new Error("A private client requires a code name.");
           }
-          return withSnappedColor(safe);
+          return applySnappedColor(safe);
         });
       }),
 
-      addProject: guardedAdd(
+      addProject: createGuardedAddAction(
         (input: Draft<Project>): Project => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
-        (e, input) => {
-          if (!hasUsablePrivateCodeName(e as unknown as Record<string, unknown>)) {
+        (entity, input) => {
+          if (!hasUsablePrivateCodeName(entity as unknown as Record<string, unknown>)) {
             throw new Error("A private project requires a code name.");
           }
-          assertScopedRefs(get().data, e.accountId, "projects", input);
-          const safe = withSnappedColor(e);
-          mutate((d) => ({ ...d, projects: [...d.projects, safe] }));
+          assertScopedRefs(get().data, entity.accountId, "projects", input);
+          const safe = applySnappedColor(entity);
+          mutate((data) => ({ ...data, projects: [...data.projects, safe] }));
           return safe;
         },
       ),
-      updateProject: guarded((id: ID, patch: Patch<Project>) => {
+      updateProject: createGuardedAction((id: ID, patch: Patch<Project>) => {
         updateOwned("projects", id, patch, (merged, existing) => {
           if (!hasUsablePrivateCodeName(merged as unknown as Record<string, unknown>)) {
             throw new Error("A private project requires a code name.");
@@ -128,19 +128,19 @@ export function createCatalogSlice(internals: StoreInternals): StateCreator<Stor
           // the hydrated slice is active-only, so an unchanged clientId pointing at an ARCHIVED client
           // must not block an unrelated edit; a CHANGED clientId is still validated strictly.
           assertScopedRefs(get().data, existing.accountId, "projects", patch, existing);
-          return withSnappedColor(patch);
+          return applySnappedColor(patch);
         });
       }),
 
-      addPhase: guardedAdd(
+      addPhase: createGuardedAddAction(
         (input: Draft<Phase>): Phase => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
-        (e, input) => {
-          assertScopedRefs(get().data, e.accountId, "phases", input);
-          mutate((d) => ({ ...d, phases: [...d.phases, e] }));
-          return e;
+        (entity, input) => {
+          assertScopedRefs(get().data, entity.accountId, "phases", input);
+          mutate((data) => ({ ...data, phases: [...data.phases, entity] }));
+          return entity;
         },
       ),
-      updatePhase: guarded((id: ID, patch: Patch<Phase>) => {
+      updatePhase: createGuardedAction((id: ID, patch: Patch<Phase>) => {
         updateOwned("phases", id, patch, (_merged, existing) => {
           // `existing` enables the unchanged-parent relaxation (see assertScopedRefs) — same
           // archived-parent rationale as updateProject above.
@@ -148,20 +148,20 @@ export function createCatalogSlice(internals: StoreInternals): StateCreator<Stor
           return patch;
         });
       }),
-      deletePhase: guarded((id: ID) => {
-        if (!findOwned(get().data, "phases", id)) return;
-        mutate((d) => deletePhaseCascade(d, id, nextDataRevision(d)));
+      deletePhase: createGuardedAction((id: ID) => {
+        if (!resolveOwnedRow(get().data, "phases", id)) return;
+        mutate((data) => deletePhaseCascade(data, id, readNextDataRevision(data)));
       }),
 
-      addActivity: guardedAdd(
+      addActivity: createGuardedAddAction(
         (input: Draft<Activity>): Activity => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
-        (e, input) => {
-          assertScopedRefs(get().data, e.accountId, "activities", input);
-          mutate((d) => ({ ...d, activities: [...d.activities, e] }));
-          return e;
+        (entity, input) => {
+          assertScopedRefs(get().data, entity.accountId, "activities", input);
+          mutate((data) => ({ ...data, activities: [...data.activities, entity] }));
+          return entity;
         },
       ),
-      updateActivity: guarded((id: ID, patch: Patch<Activity>) => {
+      updateActivity: createGuardedAction((id: ID, patch: Patch<Activity>) => {
         updateOwned(
           "activities",
           id,
@@ -186,9 +186,9 @@ export function createCatalogSlice(internals: StoreInternals): StateCreator<Stor
           }),
         );
       }),
-      deleteActivity: guarded((id: ID) => {
-        if (!findOwned(get().data, "activities", id)) return;
-        mutate((d) => deleteActivityCascade(d, id));
+      deleteActivity: createGuardedAction((id: ID) => {
+        if (!resolveOwnedRow(get().data, "activities", id)) return;
+        mutate((data) => deleteActivityCascade(data, id));
       }),
     };
   };
