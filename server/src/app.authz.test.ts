@@ -42,7 +42,15 @@ const person = (id: string, accountId: string) => ({
   color: "#3b82f6",
   ...meta(),
 });
-const timeOff = (id: string, accountId: string, resourceId: string, note?: string) => ({
+
+interface TimeOffInput {
+  id: string;
+  accountId: string;
+  resourceId: string;
+  note?: string | undefined;
+}
+
+const timeOff = ({ id, accountId, resourceId, note }: TimeOffInput) => ({
   id,
   accountId,
   resourceId,
@@ -76,7 +84,10 @@ function seedTwo(db: Db): void {
   d.clients = [client("c1", "a1"), client("c2", "a2")];
   d.projects = [project("p1", "a1", "c1"), project("p2", "a2", "c2")];
   d.resources = [person("r1", "a1"), person("r2", "a2")];
-  d.timeOff = [timeOff("to1", "a1", "r1", SENTINEL_TIMEOFF_NOTE), timeOff("to-a2", "a2", "r2")];
+  d.timeOff = [
+    timeOff({ id: "to1", accountId: "a1", resourceId: "r1", note: SENTINEL_TIMEOFF_NOTE }),
+    timeOff({ id: "to-a2", accountId: "a2", resourceId: "r2" }),
+  ];
   insertAll(db, d as unknown as AppData);
 }
 
@@ -126,12 +137,26 @@ async function appWithAuth(
 const getState = (app: FastifyInstance, accountId: string, cookie?: string) =>
   call(app, { method: "GET", url: `/api/state?accountId=${accountId}`, headers: cookie ? { cookie } : {} });
 
+interface PostClientInput {
+  app: FastifyInstance;
+  accountId: string;
+  id: string;
+  cookie?: string | undefined;
+}
+
 /** POST a NEW client into `accountId`. */
-const postClient = (app: FastifyInstance, accountId: string, id: string, cookie?: string) =>
+const postClient = ({ app, accountId, id, cookie }: PostClientInput) =>
   call(app, { method: "POST", url: "/api/clients", payload: client(id, accountId), headers: cookie ? { cookie } : {} });
 
+interface PutClientInput {
+  app: FastifyInstance;
+  accountId: string;
+  id: string;
+  cookie?: string | undefined;
+}
+
 /** PUT (upsert) a client by id into `accountId`. */
-const putClient = (app: FastifyInstance, accountId: string, id: string, cookie?: string) =>
+const putClient = ({ app, accountId, id, cookie }: PutClientInput) =>
   call(app, {
     method: "PUT",
     url: `/api/clients/${id}`,
@@ -156,16 +181,30 @@ const patchResourceFavourite = (app: FastifyInstance, id: string, cookie?: strin
     headers: cookie ? { cookie } : {},
   });
 
+interface DeleteProjectInput {
+  app: FastifyInstance;
+  accountId: string;
+  id: string;
+  cookie?: string | undefined;
+}
+
 /** DELETE a seeded non-lifecycle row (scoped delete needs ?accountId=). */
-const deleteProject = (app: FastifyInstance, accountId: string, id: string, cookie?: string) =>
+const deleteProject = ({ app, accountId, id, cookie }: DeleteProjectInput) =>
   call(app, {
     method: "DELETE",
     url: `/api/timeOff/${id === "p1" ? "to1" : "to-a2"}?accountId=${accountId}`,
     headers: cookie ? { cookie } : {},
   });
 
+interface BatchIntoInput {
+  app: FastifyInstance;
+  accountId: string;
+  id: string;
+  cookie?: string | undefined;
+}
+
 /** A batch that upserts a NEW client into `accountId`. */
-const batchInto = (app: FastifyInstance, accountId: string, id: string, cookie?: string) =>
+const batchInto = ({ app, accountId, id, cookie }: BatchIntoInput) =>
   call(app, {
     method: "POST",
     url: "/api/batch",
@@ -173,7 +212,15 @@ const batchInto = (app: FastifyInstance, accountId: string, id: string, cookie?:
     headers: cookie ? { cookie } : {},
   });
 
-const writeClosure = (app: FastifyInstance, accountId: string, id: string, cookie: string, batched: boolean) => {
+interface WriteClosureInput {
+  app: FastifyInstance;
+  accountId: string;
+  id: string;
+  cookie: string;
+  batched: boolean;
+}
+
+const writeClosure = ({ app, accountId, id, cookie, batched }: WriteClosureInput) => {
   const row = closure(id, accountId);
   return call(
     app,
@@ -213,8 +260,15 @@ const replaceGeneratedInternal = (app: FastifyInstance, cookie: string, batched:
   );
 };
 
+interface ImportIntoInput {
+  app: FastifyInstance;
+  accountId: string;
+  id: string;
+  cookie?: string | undefined;
+}
+
 /** Import a single-client slice into `accountId`. */
-const importInto = (app: FastifyInstance, accountId: string, id: string, cookie?: string) => {
+const importInto = ({ app, accountId, id, cookie }: ImportIntoInput) => {
   const data = { ...emptyAppData(), clients: [client(id, accountId)] };
   return call(app, {
     method: "POST",
@@ -233,7 +287,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
       const { cookie, userId } = await signUp(app, `${role}-company-timeoff-${batched}@capacitylens.dev`);
       upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
       const id = `${role}-company-${batched}`;
-      const response = await writeClosure(app, "a1", id, cookie, batched);
+      const response = await writeClosure({ app, accountId: "a1", id, cookie, batched });
 
       expect(response.statusCode, role).toBe(role === "viewer" ? 403 : batched ? 200 : 201);
       if (role === "viewer") expect(getRow(db, "closures", id), role).toBeUndefined();
@@ -252,12 +306,12 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     const { cookie } = await signUp(app, "stranger@capacitylens.dev"); // NO membership upserted
 
     expect((await getState(app, "a1", cookie)).statusCode).toBe(403);
-    expect((await postClient(app, "a1", "nc1", cookie)).statusCode).toBe(403);
-    expect((await putClient(app, "a1", "nc2", cookie)).statusCode).toBe(403);
+    expect((await postClient({ app, accountId: "a1", id: "nc1", cookie })).statusCode).toBe(403);
+    expect((await putClient({ app, accountId: "a1", id: "nc2", cookie })).statusCode).toBe(403);
     expect((await patchClient(app, "c1", cookie)).statusCode).toBe(404);
-    expect((await deleteProject(app, "a1", "p1", cookie)).statusCode).toBe(403);
-    expect((await batchInto(app, "a1", "nc3", cookie)).statusCode).toBe(403);
-    expect((await importInto(app, "a1", "nc4", cookie)).statusCode).toBe(403);
+    expect((await deleteProject({ app, accountId: "a1", id: "p1", cookie })).statusCode).toBe(403);
+    expect((await batchInto({ app, accountId: "a1", id: "nc3", cookie })).statusCode).toBe(403);
+    expect((await importInto({ app, accountId: "a1", id: "nc4", cookie })).statusCode).toBe(403);
   });
 
   it("cross-account: asserted a2 operations are 403 while row-addressed PATCH conceals as 404", async () => {
@@ -267,12 +321,12 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
 
     expect((await getState(app, "a2", cookie)).statusCode).toBe(403);
-    expect((await postClient(app, "a2", "x1", cookie)).statusCode).toBe(403);
-    expect((await putClient(app, "a2", "x2", cookie)).statusCode).toBe(403);
+    expect((await postClient({ app, accountId: "a2", id: "x1", cookie })).statusCode).toBe(403);
+    expect((await putClient({ app, accountId: "a2", id: "x2", cookie })).statusCode).toBe(403);
     expect((await patchClient(app, "c2", cookie)).statusCode).toBe(404); // c2 belongs to a2
-    expect((await deleteProject(app, "a2", "p2", cookie)).statusCode).toBe(403);
-    expect((await batchInto(app, "a2", "x3", cookie)).statusCode).toBe(403);
-    expect((await importInto(app, "a2", "x4", cookie)).statusCode).toBe(403);
+    expect((await deleteProject({ app, accountId: "a2", id: "p2", cookie })).statusCode).toBe(403);
+    expect((await batchInto({ app, accountId: "a2", id: "x3", cookie })).statusCode).toBe(403);
+    expect((await importInto({ app, accountId: "a2", id: "x4", cookie })).statusCode).toBe(403);
   });
 
   it("cross-account batch (one a1 op + one a2 op) → 403 AND the a1 op is NOT applied", async () => {
@@ -313,13 +367,13 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     upsertMember(db, { accountId: "a1", userId, role: "viewer", status: "active", createdAt: TS });
 
     expect((await getState(app, "a1", cookie)).statusCode).toBe(200);
-    expect((await postClient(app, "a1", "vc1", cookie)).statusCode).toBe(403);
-    expect((await putClient(app, "a1", "vc2", cookie)).statusCode).toBe(403);
+    expect((await postClient({ app, accountId: "a1", id: "vc1", cookie })).statusCode).toBe(403);
+    expect((await putClient({ app, accountId: "a1", id: "vc2", cookie })).statusCode).toBe(403);
     expect((await patchClient(app, "c1", cookie)).statusCode).toBe(403);
     expect((await patchResourceFavourite(app, "r1", cookie)).statusCode).toBe(403);
-    expect((await deleteProject(app, "a1", "p1", cookie)).statusCode).toBe(403);
-    expect((await batchInto(app, "a1", "vc3", cookie)).statusCode).toBe(403);
-    expect((await importInto(app, "a1", "vc4", cookie)).statusCode).toBe(403);
+    expect((await deleteProject({ app, accountId: "a1", id: "p1", cookie })).statusCode).toBe(403);
+    expect((await batchInto({ app, accountId: "a1", id: "vc3", cookie })).statusCode).toBe(403);
+    expect((await importInto({ app, accountId: "a1", id: "vc4", cookie })).statusCode).toBe(403);
   });
 
   it("editor of a1: read → 200; every row-level write to a1 → 2xx; import → 403 (owner-only)", async () => {
@@ -329,16 +383,16 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
 
     expect((await getState(app, "a1", cookie)).statusCode).toBe(200);
-    expect((await postClient(app, "a1", "ec1", cookie)).statusCode).toBe(201);
-    expect((await putClient(app, "a1", "ec2", cookie)).statusCode).toBe(200);
+    expect((await postClient({ app, accountId: "a1", id: "ec1", cookie })).statusCode).toBe(201);
+    expect((await putClient({ app, accountId: "a1", id: "ec2", cookie })).statusCode).toBe(200);
     expect((await patchClient(app, "c1", cookie)).statusCode).toBe(200);
     expect((await patchResourceFavourite(app, "r1", cookie)).statusCode).toBe(200);
     expect(getRow(db, "resources", "r1")?.isFavourite).toBe(true);
-    expect((await deleteProject(app, "a1", "p1", cookie)).statusCode).toBe(204);
-    expect((await batchInto(app, "a1", "ec3", cookie)).statusCode).toBe(200);
+    expect((await deleteProject({ app, accountId: "a1", id: "p1", cookie })).statusCode).toBe(204);
+    expect((await batchInto({ app, accountId: "a1", id: "ec3", cookie })).statusCode).toBe(200);
     // Import is NOT an editor write: it replaces the whole slice AND (all ids remapped) bypasses
     // the P1.6 note pin — ultimately gated to owner. See the dedicated import-tier suite below.
-    expect((await importInto(app, "a1", "ec4", cookie)).statusCode).toBe(403);
+    expect((await importInto({ app, accountId: "a1", id: "ec4", cookie })).statusCode).toBe(403);
   });
 
   it.each([
@@ -488,12 +542,14 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
 
     expect((await getState(app, "a1", cookie)).statusCode).toBe(200);
-    expect((await postClient(app, "a1", `${role}-c1`, cookie)).statusCode).toBe(201);
-    expect((await putClient(app, "a1", `${role}-c2`, cookie)).statusCode).toBe(200);
+    expect((await postClient({ app, accountId: "a1", id: `${role}-c1`, cookie })).statusCode).toBe(201);
+    expect((await putClient({ app, accountId: "a1", id: `${role}-c2`, cookie })).statusCode).toBe(200);
     expect((await patchClient(app, "c1", cookie)).statusCode).toBe(200);
-    expect((await deleteProject(app, "a1", "p1", cookie)).statusCode).toBe(204);
-    expect((await batchInto(app, "a1", `${role}-c3`, cookie)).statusCode).toBe(200);
-    expect((await importInto(app, "a1", `${role}-c4`, cookie)).statusCode).toBe(role === "owner" ? 200 : 403);
+    expect((await deleteProject({ app, accountId: "a1", id: "p1", cookie })).statusCode).toBe(204);
+    expect((await batchInto({ app, accountId: "a1", id: `${role}-c3`, cookie })).statusCode).toBe(200);
+    expect((await importInto({ app, accountId: "a1", id: `${role}-c4`, cookie })).statusCode).toBe(
+      role === "owner" ? 200 : 403,
+    );
   });
 
   it("generic account create is CLOSED auth-on: POST /api/accounts → 403 directing to /api/orgs", async () => {
@@ -564,7 +620,14 @@ describe("scoped generic writes conceal foreign row existence", () => {
     body: response.body,
   });
 
-  const patch = (app: FastifyInstance, entity: ScopedEntity, id: string, cookie: string) =>
+  interface PatchInput {
+    app: FastifyInstance;
+    entity: ScopedEntity;
+    id: string;
+    cookie: string;
+  }
+
+  const patch = ({ app, entity, id, cookie }: PatchInput) =>
     call(app, {
       method: "PATCH",
       url: `/api/${entity}/${id}`,
@@ -572,7 +635,16 @@ describe("scoped generic writes conceal foreign row existence", () => {
       headers: { cookie },
     });
 
-  const put = (app: FastifyInstance, db: Db, entity: ScopedEntity, sourceId: string, id: string, cookie: string) =>
+  interface PutInput {
+    app: FastifyInstance;
+    db: Db;
+    entity: ScopedEntity;
+    sourceId: string;
+    id: string;
+    cookie: string;
+  }
+
+  const put = ({ app, db, entity, sourceId, id, cookie }: PutInput) =>
     call(app, {
       method: "PUT",
       url: `/api/${entity}/${id}`,
@@ -580,7 +652,14 @@ describe("scoped generic writes conceal foreign row existence", () => {
       headers: { cookie },
     });
 
-  const remove = (app: FastifyInstance, entity: ScopedEntity, id: string, cookie: string) =>
+  interface RemoveInput {
+    app: FastifyInstance;
+    entity: ScopedEntity;
+    id: string;
+    cookie: string;
+  }
+
+  const remove = ({ app, entity, id, cookie }: RemoveInput) =>
     call(app, {
       method: "DELETE",
       url: `/api/${entity}/${id}?accountId=a-studio`,
@@ -595,14 +674,15 @@ describe("scoped generic writes conceal foreign row existence", () => {
     for (const entity of scopedEntities) {
       const foreignId = foreignIds[entity];
       const absentId = `absent-${entity}`;
-      expect(responseShape(await patch(app, entity, foreignId, cookie)), `PATCH ${entity}`).toEqual(
-        responseShape(await patch(app, entity, absentId, cookie)),
+      expect(responseShape(await patch({ app, entity, id: foreignId, cookie })), `PATCH ${entity}`).toEqual(
+        responseShape(await patch({ app, entity, id: absentId, cookie })),
       );
-      expect(responseShape(await put(app, db, entity, foreignId, foreignId, cookie)), `PUT ${entity}`).toEqual(
-        responseShape(await put(app, db, entity, foreignId, absentId, cookie)),
-      );
-      expect(responseShape(await remove(app, entity, foreignId, cookie)), `DELETE ${entity}`).toEqual(
-        responseShape(await remove(app, entity, absentId, cookie)),
+      expect(
+        responseShape(await put({ app, db, entity, sourceId: foreignId, id: foreignId, cookie })),
+        `PUT ${entity}`,
+      ).toEqual(responseShape(await put({ app, db, entity, sourceId: foreignId, id: absentId, cookie })));
+      expect(responseShape(await remove({ app, entity, id: foreignId, cookie })), `DELETE ${entity}`).toEqual(
+        responseShape(await remove({ app, entity, id: absentId, cookie })),
       );
     }
   });
@@ -619,8 +699,8 @@ describe("scoped generic writes conceal foreign row existence", () => {
     const existingId = `internal:${accountId}`;
     const absentId = "internal:absent-account";
 
-    expect(responseShape(await patch(app, "clients", existingId, cookie))).toEqual(
-      responseShape(await patch(app, "clients", absentId, cookie)),
+    expect(responseShape(await patch({ app, entity: "clients", id: existingId, cookie }))).toEqual(
+      responseShape(await patch({ app, entity: "clients", id: absentId, cookie })),
     );
     expect(
       responseShape(
@@ -658,11 +738,11 @@ describe("scoped generic writes conceal foreign row existence", () => {
     for (const entity of scopedEntities) {
       const foreignId = foreignIds[entity];
       const absentId = `absent-${entity}`;
-      expect(responseShape(await patch(app, entity, foreignId, cookie)), `PATCH ${entity}`).toEqual(
-        responseShape(await patch(app, entity, absentId, cookie)),
+      expect(responseShape(await patch({ app, entity, id: foreignId, cookie })), `PATCH ${entity}`).toEqual(
+        responseShape(await patch({ app, entity, id: absentId, cookie })),
       );
-      expect(responseShape(await remove(app, entity, foreignId, cookie)), `DELETE ${entity}`).toEqual(
-        responseShape(await remove(app, entity, absentId, cookie)),
+      expect(responseShape(await remove({ app, entity, id: foreignId, cookie })), `DELETE ${entity}`).toEqual(
+        responseShape(await remove({ app, entity, id: absentId, cookie })),
       );
     }
   });
@@ -743,7 +823,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
 
   const SENTINEL = SENTINEL_TIMEOFF_NOTE;
   const stampedTimeOff = (over: Record<string, unknown> = {}) =>
-    ({ ...timeOff("to1", "a1", "r1"), ...over }) as Record<string, unknown>;
+    ({ ...timeOff({ id: "to1", accountId: "a1", resourceId: "r1" }), ...over }) as Record<string, unknown>;
 
   /** The note as an OWNER sees it after the write under test (the ground truth in the DB). */
   const noteInDb = (db: Db): unknown =>
@@ -835,7 +915,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
     const res = await call(app, {
       method: "POST",
       url: "/api/timeOff",
-      payload: { ...timeOff("to2", "a1", "r1"), note: "smuggled onto a create" },
+      payload: { ...timeOff({ id: "to2", accountId: "a1", resourceId: "r1" }), note: "smuggled onto a create" },
       headers: { cookie },
     });
     expect(res.statusCode).toBe(201); // the create itself is fine — nothing existing to preserve
@@ -984,7 +1064,7 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
     const data = {
       ...emptyAppData(),
       resources: [person("r1", accountId)],
-      timeOff: [timeOff("to1", accountId, "r1")], // no note key
+      timeOff: [timeOff({ id: "to1", accountId, resourceId: "r1" })], // no note key
     };
     return call(app, { method: "POST", url: "/api/import", payload: { accountId, data }, headers: { cookie } });
   };
@@ -1165,14 +1245,21 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
 });
 
 describe("private client/project names — owner-only server projection", () => {
+  interface PrivateIdentityProjectionInput {
+    role: "owner" | "admin" | "editor" | "viewer";
+    clientName: string;
+    projectName: string;
+    seesCodeNameField: boolean;
+  }
+
   it.each([
-    ["owner", REAL_CLIENT_NAME, REAL_PROJECT_NAME, true],
-    ["admin", '"Nightwing"', '"Aurora"', false],
-    ["editor", '"Nightwing"', '"Aurora"', false],
-    ["viewer", '"Nightwing"', '"Aurora"', false],
-  ] as const)(
-    "%s receives the correct client/project identity fields",
-    async (role, clientName, projectName, seesCodeNameField) => {
+    { role: "owner", clientName: REAL_CLIENT_NAME, projectName: REAL_PROJECT_NAME, seesCodeNameField: true },
+    { role: "admin", clientName: '"Nightwing"', projectName: '"Aurora"', seesCodeNameField: false },
+    { role: "editor", clientName: '"Nightwing"', projectName: '"Aurora"', seesCodeNameField: false },
+    { role: "viewer", clientName: '"Nightwing"', projectName: '"Aurora"', seesCodeNameField: false },
+  ] satisfies PrivateIdentityProjectionInput[])(
+    "$role receives the correct client/project identity fields",
+    async ({ role, clientName, projectName, seesCodeNameField }: PrivateIdentityProjectionInput) => {
       const { app, db } = await appWithAuth();
       seedPrivateNames(db);
       const { cookie, userId } = await signUp(app, `private-read-${role}@capacitylens.dev`);
@@ -1355,13 +1442,13 @@ describe("P1.5 authorize — OFF mode stays allow-all/no-op (the #1 invariant)",
 
   it("every write (incl. cross-account ids) succeeds with NO membership and NO session", async () => {
     const app = offApp();
-    expect((await postClient(app, "a1", "off1")).statusCode).toBe(201);
-    expect((await postClient(app, "a2", "off2")).statusCode).toBe(201);
-    expect((await putClient(app, "a2", "off3")).statusCode).toBe(200);
+    expect((await postClient({ app, accountId: "a1", id: "off1" })).statusCode).toBe(201);
+    expect((await postClient({ app, accountId: "a2", id: "off2" })).statusCode).toBe(201);
+    expect((await putClient({ app, accountId: "a2", id: "off3" })).statusCode).toBe(200);
     expect((await patchClient(app, "c2")).statusCode).toBe(200);
-    expect((await deleteProject(app, "a2", "p2")).statusCode).toBe(204);
-    expect((await batchInto(app, "a2", "off4")).statusCode).toBe(200);
-    expect((await importInto(app, "a2", "off5")).statusCode).toBe(200);
+    expect((await deleteProject({ app, accountId: "a2", id: "p2" })).statusCode).toBe(204);
+    expect((await batchInto({ app, accountId: "a2", id: "off4" })).statusCode).toBe(200);
+    expect((await importInto({ app, accountId: "a2", id: "off5" })).statusCode).toBe(200);
   });
 
   it("account hard-delete uses only the dedicated endpoint in trusted-local mode", async () => {

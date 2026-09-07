@@ -38,14 +38,22 @@ export function buildCutoverAuditEvent(
   };
 }
 
+interface CreateFederatedLinkCeremonyInput {
+  db: Db;
+  principalId: string;
+  providerId: string;
+  ceremonyId?: string | undefined;
+  revokeSupersededProviderStateInTransaction?: (() => void) | undefined;
+}
+
 /** Persist one bounded link ceremony, superseding an abandoned attempt for the same identity. */
-export function createFederatedLinkCeremony(
-  db: Db,
-  principalId: string,
-  providerId: string,
+export function createFederatedLinkCeremony({
+  db,
+  principalId,
+  providerId,
   ceremonyId = randomBytes(24).toString("base64url"),
-  revokeSupersededProviderStateInTransaction: () => void = () => undefined,
-) {
+  revokeSupersededProviderStateInTransaction = () => undefined,
+}: CreateFederatedLinkCeremonyInput) {
   const now = new Date();
   const ceremony = {
     id: ceremonyId,

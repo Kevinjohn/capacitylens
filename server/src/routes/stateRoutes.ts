@@ -258,7 +258,7 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
         provisionProductData: () => {
           // Finding 9: accounts validation is name-only (validate.ts), so it needs no cross-table
           // data — a full-DB loadState here was pure waste. Scope to this account's (empty) slice.
-          assertValidWrite(emptyAppData(), "accounts", accountRow);
+          assertValidWrite({ state: emptyAppData(), table: "accounts", row: accountRow });
           insertRow(db, "accounts", accountRow);
           insertRow(db, "clients", buildInternalClient(id, now) as unknown as Record<string, unknown>);
           enqueueAudit(db, {

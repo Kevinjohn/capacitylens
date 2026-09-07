@@ -100,7 +100,15 @@ const activity = (id: string, accountId: string, projectId: string) => ({
   projectId,
   ...meta(),
 });
-const allocation = (id: string, accountId: string, resourceId: string, activityId: string) => ({
+
+interface AllocationInput {
+  id: string;
+  accountId: string;
+  resourceId: string;
+  activityId: string;
+}
+
+const allocation = ({ id, accountId, resourceId, activityId }: AllocationInput) => ({
   id,
   accountId,
   resourceId,
@@ -114,7 +122,15 @@ const allocation = (id: string, accountId: string, resourceId: string, activityI
   ignoreWeekends: true,
   ...meta(),
 });
-const timeOff = (id: string, accountId: string, resourceId: string, note?: string) => ({
+
+interface TimeOffInput {
+  id: string;
+  accountId: string;
+  resourceId: string;
+  note?: string | undefined;
+}
+
+const timeOff = ({ id, accountId, resourceId, note }: TimeOffInput) => ({
   id,
   accountId,
   resourceId,
@@ -146,8 +162,14 @@ function seedTwoAccounts(): AppData {
   d.phases = [phase("ph1", "a1", "p1"), phase("ph2", "a2", "p2")];
   d.resources = [person("r1", "a1", "d1"), person("r2", "a2", "d2")];
   d.activities = [activity("act1", "a1", "p1"), activity("act2", "a2", "p2")];
-  d.allocations = [allocation("al1", "a1", "r1", "act1"), allocation("al2", "a2", "r2", "act2")];
-  d.timeOff = [timeOff("to1", "a1", "r1"), timeOff("to2", "a2", "r2")];
+  d.allocations = [
+    allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "act1" }),
+    allocation({ id: "al2", accountId: "a2", resourceId: "r2", activityId: "act2" }),
+  ];
+  d.timeOff = [
+    timeOff({ id: "to1", accountId: "a1", resourceId: "r1" }),
+    timeOff({ id: "to2", accountId: "a2", resourceId: "r2" }),
+  ];
   return d as unknown as AppData;
 }
 
@@ -204,7 +226,9 @@ describe("readSlice — tenant isolation", () => {
     // Both weekday JSON arrays + omitted optionals survive exactly (deep-equals the seeded object).
     expect(slice.resources[0]).toEqual(person("r1", "a1", "d1"));
     // optional note + json ignoreWeekends survive.
-    expect(slice.allocations[0]).toEqual(allocation("al1", "a1", "r1", "act1"));
+    expect(slice.allocations[0]).toEqual(
+      allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "act1" }),
+    );
   });
 
   it("returns one WAL snapshot when another handle commits between scoped table reads", () => {
@@ -277,7 +301,7 @@ describe("replaceAccountSlice", () => {
     next.projects = [project("p1", "a1", "c1")];
     next.resources = [person("r1", "a1", "d1")];
     next.activities = [activity("act1", "a1", "p1")];
-    next.allocations = [allocation("al1b", "a1", "r1", "act1")];
+    next.allocations = [allocation({ id: "al1b", accountId: "a1", resourceId: "r1", activityId: "act1" })];
     replaceAccountSlice(db, "a1", buildCompleteAccountSlice(next as unknown as AppData));
 
     const a1 = readSlice(db, "a1", FULL);
@@ -385,7 +409,10 @@ describe("sqliteTenantStore", () => {
   it("scrubs resource notes, advances revisions and preserves another tenant", () => {
     const db = openDb(":memory:");
     const data = seedTwoAccounts() as unknown as Record<string, unknown[]>;
-    data.timeOff = [timeOff("to1", "a1", "r1", "private-a1"), timeOff("to2", "a2", "r2", "private-a2")];
+    data.timeOff = [
+      timeOff({ id: "to1", accountId: "a1", resourceId: "r1", note: "private-a1" }),
+      timeOff({ id: "to2", accountId: "a2", resourceId: "r2", note: "private-a2" }),
+    ];
     insertAll(db, data as unknown as AppData);
     const store = createSqliteTenantStore(db);
 
@@ -425,7 +452,7 @@ describe("readSlice — P1.6 time-off note redaction", () => {
   function seedWithNote(): Db {
     const db = openDb(":memory:");
     const d = seedTwoAccounts() as unknown as Record<string, unknown[]>;
-    d.timeOff = [timeOff("to1", "a1", "r1", NOTE)];
+    d.timeOff = [timeOff({ id: "to1", accountId: "a1", resourceId: "r1", note: NOTE })];
     insertAll(db, d as unknown as AppData);
     return db;
   }
@@ -539,7 +566,7 @@ describe("readSlice — P2.4 lifecycle projection (includeInactive)", () => {
     // Non-lifecycle children — must survive BOTH flags untouched.
     d.phases = [phase("ph1", "a1", "p-active")];
     d.activities = [activity("act1", "a1", "p-active")];
-    d.timeOff = [timeOff("to1", "a1", "r-active")];
+    d.timeOff = [timeOff({ id: "to1", accountId: "a1", resourceId: "r-active" })];
     insertAll(db, d as unknown as AppData);
     return db;
   }

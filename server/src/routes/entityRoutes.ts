@@ -76,10 +76,15 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
     // try block could classify it — a misclassified 500. checkEntityWriteBody rejects it with the
     // same shape /api/batch and /api/import use.
     const scoped = isScopedTable(entity);
-    const bodyCheck = checkEntityWriteBody("create", entity, req.body, undefined, scoped);
+    const bodyCheck = checkEntityWriteBody({ verb: "create", entity, body: req.body, urlId: undefined, scoped });
     if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
     const requestRow = req.body as Record<string, unknown>;
-    const builtinCheck = resolveBuiltinWriteRejection("create", entity, undefined, requestRow);
+    const builtinCheck = resolveBuiltinWriteRejection({
+      verb: "create",
+      entity,
+      existing: undefined,
+      incoming: requestRow,
+    });
     if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error });
     // P1.5 write gate (scoped tables only).
     if (scoped) {
@@ -123,7 +128,7 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
     const { entity, id } = req.params as { entity: string; id: string };
     if (!isGenericEntity(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` });
     const scoped = isScopedTable(entity);
-    const bodyCheck = checkEntityWriteBody("replace", entity, req.body, id, scoped);
+    const bodyCheck = checkEntityWriteBody({ verb: "replace", entity, body: req.body, urlId: id, scoped });
     if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
     const body = req.body as Record<string, unknown>;
     // P1.5 write gate (scoped tables): membership + write tier for the body's accountId. The
@@ -132,7 +137,7 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
     if (scoped && !authorize(req, reply, body.accountId as string, "write")) return;
     try {
       const existing = getRow(db, entity, id);
-      const builtinCheck = resolveBuiltinWriteRejection("replace", entity, existing, body);
+      const builtinCheck = resolveBuiltinWriteRejection({ verb: "replace", entity, existing, incoming: body });
       if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error });
       // Ordinary Editors may manage clients, but changing the server-owned Internal singleton's
       // identity also rewrites every referencing project. Preserve the documented legacy-id
@@ -188,7 +193,7 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
       let rewrittenAllocations: RewrittenAllocationRevision[] = [];
       commitProductAudit(reply, auditRecord, () => {
         if (generatedReplacement) {
-          replaceGeneratedBuiltin(db, scopedState, generatedReplacement, row);
+          replaceGeneratedBuiltin({ db, state: scopedState, generatedId: generatedReplacement, row });
         } else if (entity === "activities") {
           rewrittenAllocations = writeActivityRow(db, undefined, row, existing);
         } else {
@@ -214,7 +219,7 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
     // null-deref inside sanitizeWrite's merge, a misclassified 500. For PATCH accountId is
     // OPTIONAL — only a PRESENT non-string is rejected.
     const scoped = isScopedTable(entity);
-    const bodyCheck = checkEntityWriteBody("patch", entity, req.body, id, scoped);
+    const bodyCheck = checkEntityWriteBody({ verb: "patch", entity, body: req.body, urlId: id, scoped });
     if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
     try {
       const existing = getRow(db, entity, id);
@@ -229,7 +234,12 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
         })
       )
         return;
-      const builtinCheck = resolveBuiltinWriteRejection("patch", entity, existing, req.body as Record<string, unknown>);
+      const builtinCheck = resolveBuiltinWriteRejection({
+        verb: "patch",
+        entity,
+        existing,
+        incoming: req.body as Record<string, unknown>,
+      });
       if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error });
       // P1.6 note pin (see sanitizeWrite): the merge already carries the STORED note (a note-blind
       // caller's PATCH body can't include one they never received), but the pin also stops a
@@ -265,7 +275,7 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
       const lookup = store.validationLookup?.();
       const validationState =
         entity === "clients" || lookup === undefined ? store.readFullSlice(scopeId) : emptyAppData();
-      assertValidWrite(validationState, entity, stamped, existing, lookup);
+      assertValidWrite({ state: validationState, table: entity, row: stamped, existing, lookup });
       // Record only requested keys whose sanitized, pinned result actually differs from storage.
       let rewrittenAllocations: RewrittenAllocationRevision[] = [];
       commitProductAudit(
