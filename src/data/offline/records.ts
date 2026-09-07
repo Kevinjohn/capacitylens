@@ -1,3 +1,4 @@
+import type { SliceRewriteResult } from "./state";
 import { isAccountRole } from "@capacitylens/shared/account/types";
 import { parseAuthUser } from "../../auth/validateAuthUser";
 import { isRecord } from "../validateAccountSlice";
@@ -138,9 +139,9 @@ export function createCachedRecord<T, A extends unknown[] = []>(
     /** Reads that require a verified scope. The identity snapshot deliberately does not: a cold
      * offline boot reads it BEFORE any scope exists. */
     readNeedsScope?: boolean;
-    /** Runs after the guards with the key and envelope timestamp. Returns either a skip result
-     * declining the write, or a callback to run once the write has landed. */
-    gate?: (key: string, value: T, savedAt: number) => OfflineCacheWriteResult | (() => void);
+    /** Runs after the guards with the key and envelope timestamp. Returns a skipped result or a
+     * write-required result carrying complete, called only once the write has landed. */
+    gate?: (key: string, value: T, savedAt: number) => SliceRewriteResult;
   } = {},
 ) {
   const { readNeedsScope = true, gate } = options;
@@ -151,9 +152,9 @@ export function createCachedRecord<T, A extends unknown[] = []>(
       const key = keyFor(...parameters);
       const savedAt = Date.now();
       const written = gate?.(key, value, savedAt);
-      if (written && typeof written !== "function") return written;
+      if (written?.kind === "skipped") return written;
       await put({ key, savedAt, value });
-      written?.();
+      written?.complete();
       return { kind: "written" };
     },
     async read(...parameters: A): Promise<CachedRecord<T> | null> {
