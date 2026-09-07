@@ -38,22 +38,23 @@ interface AccessCopyInput {
 }
 
 /** The fixed-copy states the label and the summary share. The seventh outcome — "nothing else
- *  took precedence, render the viewer's role" — is carried as `{ role }` instead, because its copy
- *  comes from resolveRoleLabel/resolveRoleSummary rather than a state table. */
+ *  took precedence, render the viewer's role" — is carried as `{ kind: "role", role }` instead,
+ *  because its copy comes from resolveRoleLabel/resolveRoleSummary rather than a state table. */
 type AccessState = "offline" | "demo" | "open" | "checking" | "not-applicable" | "unavailable";
+type AccessCopyResult = { kind: AccessState } | { kind: "role"; role: Role };
 
 /** THE precedence ladder — resolved once so the label and its explanatory counterpart can never
  *  drift into disagreeing about which state the viewer is in. Ordering is load-bearing: a cached
  *  offline session outranks the access posture, which outranks how far the permission check has
  *  got, and a resolved check with no role still reads as "unavailable" rather than a blank role. */
-function resolveAccessState(input: AccessCopyInput): AccessState | { role: Role } {
-  if (input.offlineReadOnly) return "offline";
-  if (input.experience === "demo") return "demo";
-  if (input.experience === "open") return "open";
-  if (input.permissionStatus === "pending") return "checking";
-  if (input.permissionStatus === "not-applicable") return "not-applicable";
-  if (input.permissionStatus === "unavailable" || input.role === null) return "unavailable";
-  return { role: input.role };
+function resolveAccessState(input: AccessCopyInput): AccessCopyResult {
+  if (input.offlineReadOnly) return { kind: "offline" };
+  if (input.experience === "demo") return { kind: "demo" };
+  if (input.experience === "open") return { kind: "open" };
+  if (input.permissionStatus === "pending") return { kind: "checking" };
+  if (input.permissionStatus === "not-applicable") return { kind: "not-applicable" };
+  if (input.permissionStatus === "unavailable" || input.role === null) return { kind: "unavailable" };
+  return { kind: "role", role: input.role };
 }
 
 // UNCALLED message references, called at lookup: Paraglide resolves the active locale at CALL
@@ -79,12 +80,12 @@ const STATE_SUMMARIES: Record<AccessState, () => string> = {
 /** Single product-facing label for demo, open, authenticated and cached-offline access. */
 export function resolveAccessLabel(input: AccessCopyInput): string {
   const state = resolveAccessState(input);
-  return typeof state === "string" ? STATE_LABELS[state]() : resolveRoleLabel(state.role);
+  return state.kind === "role" ? resolveRoleLabel(state.role) : STATE_LABELS[state.kind]();
 }
 
 /** Explanatory counterpart to {@link resolveAccessLabel}, sharing its state precedence by construction
  *  (both resolve through {@link resolveAccessState}). */
 export function resolveAccessSummary(input: AccessCopyInput): string {
   const state = resolveAccessState(input);
-  return typeof state === "string" ? STATE_SUMMARIES[state]() : resolveRoleSummary(state.role);
+  return state.kind === "role" ? resolveRoleSummary(state.role) : STATE_SUMMARIES[state.kind]();
 }
