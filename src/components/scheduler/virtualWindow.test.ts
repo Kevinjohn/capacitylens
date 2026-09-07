@@ -15,6 +15,25 @@ const computeWindow = ({ heights, scrollTop, viewportHeight, overscanPx = 300 }:
   resolveVirtualWindow({ layout: buildLayout(heights), heights, scrollTop, viewportHeight, overscanPx });
 
 describe("computeWindow", () => {
+  it("rejects sparse heights instead of treating a missing row as zero-height", () => {
+    const heights = [20, 20, 20];
+    delete heights[1];
+
+    expect(() => buildLayout(heights)).toThrow("row heights must be dense");
+  });
+
+  it("rejects a layout that is not aligned with its row heights", () => {
+    expect(() =>
+      resolveVirtualWindow({
+        layout: { tops: [0], total: 60 },
+        heights: [20, 20, 20],
+        scrollTop: 30,
+        viewportHeight: 10,
+        overscanPx: 0,
+      }),
+    ).toThrow("layout tops must align with row heights");
+  });
+
   it("renders everything when the content fits the viewport", () => {
     const heights = Array.from({ length: 8 }, () => 56); // 448px total
     const w = computeWindow({ heights, scrollTop: 0, viewportHeight: 720 });

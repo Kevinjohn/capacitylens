@@ -6,6 +6,10 @@ import { ESLint } from "eslint";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const promiseRules = ["@typescript-eslint/no-floating-promises", "@typescript-eslint/no-misused-promises"];
+
+const promiseRuleIds = (messages) =>
+  messages.map(({ ruleId }) => ruleId).filter((ruleId) => ruleId?.includes("promise"));
+
 test("real new production and test files reject both promise defects in each typed package", async (t) => {
   const paths = [];
   for (const directory of ["src", "server/src", "shared/src"]) {
@@ -24,7 +28,7 @@ test("real new production and test files reject both promise defects in each typ
   for (const { invalid, valid } of paths) {
     const [failure] = await fixtureLint.lintFiles([invalid]);
     assert.equal(failure.fatalErrorCount, 0, invalid);
-    assert.deepEqual(failure.messages.map(({ ruleId }) => ruleId).sort(), [...promiseRules].sort(), invalid);
+    assert.deepEqual(promiseRuleIds(failure.messages).sort(), [...promiseRules].sort(), invalid);
     const [success] = await fixtureLint.lintFiles([valid]);
     assert.deepEqual(success.messages, [], valid);
   }

@@ -15,9 +15,9 @@ describe("resolveLeftEdgeDate", () => {
     expect(resolveLeftEdgeDate(buildColumnGeometry([], 48, OFF), [], 0)).toBeUndefined();
   });
 
-  it("falls back to the first day when a custom index is beyond the array", () => {
+  it("rejects a custom geometry index beyond the day window", () => {
     const customGeom = { ...geom, indexAtScroll: () => WEEK.length };
-    expect(resolveLeftEdgeDate(customGeom, WEEK, 0)).toBe(WEEK[0]);
+    expect(() => resolveLeftEdgeDate(customGeom, WEEK, 0)).toThrow("outside the day window");
   });
 
   it("uses the rounded column for a fractional position below a valid boundary", () => {
@@ -138,6 +138,15 @@ describe("buildColumnGeometry — indexAt is the exact inverse of x() at every b
       }
     });
   }
+});
+
+describe("buildColumnGeometry — malformed windows", () => {
+  it("rejects a sparse day window instead of collapsing the missing column", () => {
+    const sparseDays = [...WEEK];
+    delete sparseDays[3];
+
+    expect(() => buildColumnGeometry(sparseDays, 48, OFF)).toThrow("day window must be dense");
+  });
 });
 
 describe("buildColumnGeometry — gating + degenerate windows", () => {
