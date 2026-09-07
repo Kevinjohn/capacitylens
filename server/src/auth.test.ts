@@ -43,6 +43,10 @@ const PASSWORD_ENV = {
 
 const fixtures = registerServerFixtureCleanup();
 const openDb = (...args: Parameters<typeof openDbRaw>) => fixtures.trackDb(openDbRaw(...args));
+const assertPresent = <T>(value: T, label: string): NonNullable<T> => {
+  if (value === null || value === undefined) throw new Error(`Expected ${label}`);
+  return value;
+};
 
 describe("password verification backpressure", () => {
   it("maps scrypt saturation to a retryable service-unavailable API error", async () => {
@@ -76,7 +80,8 @@ describe("federated link observation reconciliation", () => {
   it("rejects a reserved observation trigger whose body does not match the v25 definition", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    const auth = assertPresent(configured.auth, "password auth");
+    await runAuthMigrations(auth);
     db.exec(`
       DROP TRIGGER capacitylens_observe_federated_account;
       CREATE TRIGGER capacitylens_observe_federated_account
@@ -100,7 +105,8 @@ describe("federated link observation reconciliation", () => {
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
       CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
     });
-    await runAuthMigrations(configured.auth!);
+    const auth = assertPresent(configured.auth, "password auth");
+    await runAuthMigrations(auth);
     const timestamp = "2026-08-07T00:00:00.000Z";
     db.prepare(
       `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
@@ -136,7 +142,10 @@ describe("federated link observation reconciliation", () => {
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
       CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
     });
-    await runAuthMigrations(configured.auth!);
+    const auth = assertPresent(configured.auth, "password auth");
+    const strictProvider = assertPresent(auth.strictProvider, "strict OIDC provider");
+    const reconcileFederatedLinks = assertPresent(auth.reconcileFederatedLinks, "federated-link reconciler");
+    await runAuthMigrations(auth);
     const timestamp = "2026-08-07T00:00:00.000Z";
     db.prepare(
       `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
@@ -154,14 +163,14 @@ describe("federated link observation reconciliation", () => {
 
     const identity = createBetterAuthIdentityPort({
       applicationId: "capacitylens",
-      auth: configured.auth!,
+      auth,
       authMode: "sso",
       db,
     }).inspectSsoCutover("workforce");
     expect(
       evaluateSsoCutoverReadiness({
-        provider: configured.auth!.strictProvider!,
-        providers: configured.auth!.providers,
+        provider: strictProvider,
+        providers: auth.providers,
         identity,
         workspaces: [
           {
@@ -174,8 +183,8 @@ describe("federated link observation reconciliation", () => {
       }).ready,
     ).toBe(true);
 
-    configured.auth!.reconcileFederatedLinks!();
-    configured.auth!.reconcileFederatedLinks!();
+    reconcileFederatedLinks();
+    reconcileFederatedLinks();
 
     expect(db.prepare(`SELECT * FROM capacitylens_federated_link_observations`).all()).toEqual([
       expect.objectContaining({
@@ -201,24 +210,27 @@ describe("federated link observation reconciliation", () => {
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
       CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
     });
-    await runAuthMigrations(configured.auth!);
+    const auth = assertPresent(configured.auth, "password auth");
+    const reconcileFederatedLinks = assertPresent(auth.reconcileFederatedLinks, "federated-link reconciler");
+    await runAuthMigrations(auth);
     const ceremony = createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "workforce" });
 
-    configured.auth!.reconcileFederatedLinks!();
+    reconcileFederatedLinks();
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([{ id: ceremony.id }]);
 
     db.prepare(`UPDATE capacitylens_federated_link_ceremonies SET expiresAt = ? WHERE id = ?`).run(
       "2000-01-01T00:00:00.000Z",
       ceremony.id,
     );
-    configured.auth!.reconcileFederatedLinks!();
+    reconcileFederatedLinks();
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
 
   it("does not acquire a SQLite write lock when reconciliation has no work", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    const auth = assertPresent(configured.auth, "password auth");
+    await runAuthMigrations(auth);
     let immediateTransactions = 0;
     const observedDb = new Proxy(db, {
       get(target, property) {
@@ -248,7 +260,8 @@ describe("federated link observation reconciliation", () => {
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
       CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
     });
-    await runAuthMigrations(configured.auth!);
+    const auth = assertPresent(configured.auth, "password auth");
+    await runAuthMigrations(auth);
     createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "workforce", ceremonyId: "abandoned" });
     db.prepare(
       `INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
@@ -287,7 +300,9 @@ describe("federated link observation reconciliation", () => {
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
       CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
     });
-    await runAuthMigrations(configured.auth!);
+    const auth = assertPresent(configured.auth, "password auth");
+    const reconcileFederatedLinks = assertPresent(auth.reconcileFederatedLinks, "federated-link reconciler");
+    await runAuthMigrations(auth);
     const timestamp = "2026-08-07T00:00:00.000Z";
     db.prepare(
       `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
@@ -307,7 +322,7 @@ describe("federated link observation reconciliation", () => {
         )
         .run("link-2", "workforce", "subject-2", "principal-1", timestamp, timestamp),
     ).toThrow(/unique constraint/i);
-    configured.auth!.reconcileFederatedLinks!();
+    reconcileFederatedLinks();
 
     expect(db.prepare(`SELECT id, accountId FROM account WHERE providerId = 'workforce'`).all()).toEqual([
       { id: "link-1", accountId: "subject-1" },
