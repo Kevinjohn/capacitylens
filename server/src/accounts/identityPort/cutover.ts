@@ -52,7 +52,7 @@ export function createCutover(
           const principalIds = new Set(principals);
           const activeCutoverCeremonies = verificationRows.filter(({ value, expiresAt }) => {
             const expiry = parseTimestampMilliseconds(expiresAt);
-            return principalIds.has(value) && (!Number.isFinite(expiry) || expiry > now);
+            return principalIds.has(value) && (expiry === null || expiry > now);
           }).length;
           const activated =
             db.prepare(`SELECT 1 FROM capacitylens_sso_cutover_state WHERE applicationId = ?`).get(applicationId) !==
