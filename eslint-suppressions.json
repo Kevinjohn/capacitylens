@@ -104,11 +104,6 @@
       "count": 2
     }
   },
-  "server/src/app.syncOrdering.integration.test.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    }
-  },
   "server/src/app.test.ts": {
     "max-params": {
       "count": 7
@@ -312,11 +307,6 @@
   "server/src/syncOrdering.ts": {
     "max-params": {
       "count": 1
-    }
-  },
-  "server/src/tables/columns.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 10
     }
   },
   "server/src/tenantIndexes.ts": {
