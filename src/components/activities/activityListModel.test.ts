@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { Activity, Client, Project } from "@capacitylens/shared/types/entities";
 import { buildActivityListModel } from "./activityListModel";
 
+interface ActivityInput {
+  id: string;
+  name: string;
+  kind: Activity["kind"];
+  projectId?: string | undefined;
+}
+
 const base = {
   accountId: "account",
   createdAt: "2026-08-11T00:00:00.000Z",
@@ -16,7 +23,7 @@ const project = (id: string, name: string, clientId: string): Project => ({
   clientId,
   color: "#222222",
 });
-const activity = (id: string, name: string, kind: Activity["kind"], projectId?: string): Activity => ({
+const activity = ({ id, name, kind, projectId }: ActivityInput): Activity => ({
   ...base,
   id,
   name,
@@ -34,17 +41,22 @@ describe("buildActivityListModel", () => {
       project("project-missing-client", "Visible orphan project", "missing-client"),
     ];
     const activities = [
-      activity("internal-z", "Zulu internal", "internal"),
-      activity("project-z", "Zulu task", "project", "project-a"),
-      activity("cross-10", "Workshop 10", "repeatable"),
-      activity("project-a", "Alpha task", "project", "project-a"),
-      activity("missing-project", "Still visible", "project", "missing-project"),
-      activity("cross-2", "Workshop 2", "repeatable"),
-      activity("missing-client", "Visible orphan task", "project", "project-missing-client"),
-      activity("internal-b", "Alpha internal", "internal"),
-      activity("other-client", "Other client task", "project", "project-other"),
-      activity("other-project", "Other project task", "project", "project-z"),
-      activity("internal-a", "Alpha internal", "internal"),
+      activity({ id: "internal-z", name: "Zulu internal", kind: "internal" }),
+      activity({ id: "project-z", name: "Zulu task", kind: "project", projectId: "project-a" }),
+      activity({ id: "cross-10", name: "Workshop 10", kind: "repeatable" }),
+      activity({ id: "project-a", name: "Alpha task", kind: "project", projectId: "project-a" }),
+      activity({ id: "missing-project", name: "Still visible", kind: "project", projectId: "missing-project" }),
+      activity({ id: "cross-2", name: "Workshop 2", kind: "repeatable" }),
+      activity({
+        id: "missing-client",
+        name: "Visible orphan task",
+        kind: "project",
+        projectId: "project-missing-client",
+      }),
+      activity({ id: "internal-b", name: "Alpha internal", kind: "internal" }),
+      activity({ id: "other-client", name: "Other client task", kind: "project", projectId: "project-other" }),
+      activity({ id: "other-project", name: "Other project task", kind: "project", projectId: "project-z" }),
+      activity({ id: "internal-a", name: "Alpha internal", kind: "internal" }),
     ];
     const storedOrder = activities.map(({ id }) => id);
 
