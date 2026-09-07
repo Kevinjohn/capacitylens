@@ -844,42 +844,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
   });
 
   it("rebases an edit landing while a switch load is in flight onto the newly active account", async () => {
-    const aSlice: AppData = {
-      ...emptyAppData(),
-      accounts: [
-        {
-          id: "a1",
-          name: "Alpha",
-          color: "#1",
-          createdAt: "t",
-          updatedAt: "t",
-        },
-      ],
-      clients: [
-        {
-          id: "ca",
-          accountId: "a1",
-          name: "Alpha Client",
-          color: "#1",
-          createdAt: "t",
-          updatedAt: "t",
-        },
-      ],
-    };
-    const bSlice: AppData = {
-      ...emptyAppData(),
-      accounts: [{ id: "b1", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
-      clients: [
-        {
-          id: "cb",
-          accountId: "b1",
-          name: "Beta Client",
-          color: "#1",
-          createdAt: "t",
-          updatedAt: "t",
-        },
-      ],
-    };
+    const { aSlice, bSlice } = accountSwitchSlices();
     let releaseB: (() => void) | null = null;
     const loadAll = vi.fn((accountId?: string): Promise<AppData> => {
       if (accountId === "b1") {
