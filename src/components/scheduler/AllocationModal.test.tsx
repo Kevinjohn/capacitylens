@@ -671,9 +671,12 @@ describe("AllocationModal days mode", () => {
     const daysOver = screen.getByLabelText("Days over");
     expect(daysOver).toHaveAttribute("max", "4");
     fireEvent.change(daysOver, { target: { value: "5" } });
+    fireEvent.change(screen.getByLabelText("Days of work"), { target: { value: "0" } });
     fireEvent.submit(daysOver.closest("form")!);
 
     expect(screen.getByRole("alert")).toHaveTextContent(/cannot extend beyond 31 December 9999/i);
+    expect(daysOver).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Days of work")).not.toHaveAttribute("aria-invalid", "true");
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 
