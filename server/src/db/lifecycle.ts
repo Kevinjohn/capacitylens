@@ -57,7 +57,7 @@ export function wipe(db: Db): void {
 /** Replace one account's scoped slice with the rows for that account in a branded complete `next`.
  *  Used by /api/import after its snapshot is revalidated inside the surrounding write transaction.
  *  The rewrite erases any sibling row not re-supplied; independently validated replacement data
- *  must cross the explicit {@link validatedCompleteAccountSlice} boundary. */
+ *  must cross the explicit {@link buildCompleteAccountSlice} boundary. */
 export function replaceAccountSlice(db: Db, accountId: string, next: CompleteAccountSlice): void {
   const d = next as unknown as Record<string, Row[]>;
   tx(db, () => {

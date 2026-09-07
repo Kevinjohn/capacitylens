@@ -129,7 +129,7 @@ export const DEFAULT_ACCOUNT_APPLICATION: BoundApplication = {
  * `/api/auth/me`, P1.10 invite binding) — decoupled from Better Auth's richer user type.
  *
  * `emailVerified` is the IdP-asserted verified-email flag. It defaults to `false` when a
- * provider omits it (see {@link normalizeSessionUser}): an unverifiable provider is treated as
+ * provider omits it (see {@link buildSessionUser}): an unverifiable provider is treated as
  * unverified. SSO email-preauthorised invites bind a session only when `emailVerified === true`;
  * password deployments instead treat possession of the addressed invite as the verification
  * ceremony because they have no outbound email-verification service. Never widen the SSO check to
