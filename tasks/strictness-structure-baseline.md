@@ -3,8 +3,8 @@
 This ledger records the declaration-level structural suppressions accepted at
 `6a9cf77480a34cb4f3c3429bae48561af90b7948`. It covers production and test declarations under
 `src`, `shared/src`, `server/src`, and `server/scripts`, plus end-to-end declarations under `e2e`.
-The settings are `complexity` 12, `max-depth` 3, and `max-lines-per-function` 60 with blank lines,
-comments, and IIFEs excluded.
+The settings are `complexity` 12, `max-depth` 3, and `max-lines-per-function` 60 with blank lines and
+comments excluded and IIFEs included.
 
 These entries are threshold debt, not confirmed behavior defects. The file/rule counts are frozen
 and may only shrink; a replacement declaration in the same file is not an acceptable transfer.
