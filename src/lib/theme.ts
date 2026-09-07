@@ -38,10 +38,17 @@ export function writeStoredTheme(preference: ThemePreference): void {
   }
 }
 
-const readDarkSchemeQuery = (): MediaQueryList | null =>
-  typeof window !== "undefined" && typeof window.matchMedia === "function"
-    ? window.matchMedia("(prefers-color-scheme: dark)")
-    : null;
+const readDarkSchemeQuery = (): MediaQueryList | null => {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return null;
+  try {
+    return window.matchMedia("(prefers-color-scheme: dark)");
+  } catch (error) {
+    // Theme is device-only display state, so a failed runtime query may safely use the documented
+    // light fallback, but keep a breadcrumb rather than hiding the environment failure.
+    console.warn("Unable to read the system colour scheme; using light", error);
+    return null;
+  }
+};
 
 /** Collapse a preference to the concrete scheme to paint. 'system' follows the OS;
  *  if the OS can't be queried (e.g. jsdom in tests) it falls back to light. */
