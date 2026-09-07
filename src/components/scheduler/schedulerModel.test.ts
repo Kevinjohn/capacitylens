@@ -262,7 +262,7 @@ describe("#257 characterization: company-off tint/capacity agreement", () => {
   });
 });
 
-it("keeps discipline groups while ordering engagement partitions and externals deterministically", () => {
+function makeEngagementOrderingData(): AppData {
   const data = dataset();
   const designTemplate = requireValue(data.resources[0], "design resource template");
   data.resources = [
@@ -298,6 +298,11 @@ it("keeps discipline groups while ordering engagement partitions and externals d
       isFavourite: true,
     },
   ];
+  return data;
+}
+
+it("keeps discipline groups while ordering engagement partitions and externals deterministically", () => {
+  const data = makeEngagementOrderingData();
 
   const model = buildSchedulerModel({
     data,
