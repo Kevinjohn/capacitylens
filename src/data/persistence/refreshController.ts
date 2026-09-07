@@ -6,17 +6,31 @@ import { incrementPersistenceDiagnostic } from "../persistenceDiagnostics";
 import type { AttachmentState } from "./attachmentState";
 import type { WriteQueue } from "./writeQueue";
 
-export function createRefreshController(
-  store: StoreApi<StoreState>,
-  adapter: PersistenceAdapter,
-  owner: AttachmentState,
-  writes: WriteQueue,
-  onError?: (error: unknown) => void,
-  onSuccess?: () => void,
-) {
+interface BeginSuspensionInput {
+  external: boolean;
+}
+
+interface CreateRefreshControllerInput {
+  store: StoreApi<StoreState>;
+  adapter: PersistenceAdapter;
+  owner: AttachmentState;
+  writes: WriteQueue;
+  onError?: (error: unknown) => void;
+  onSuccess?: () => void;
+}
+
+export function createRefreshController({
+  store,
+  adapter,
+  owner,
+  writes,
+  onError,
+  onSuccess,
+}: CreateRefreshControllerInput) {
   const { save } = writes;
   const { cancelRetry, supersededBy, installSlice, discardEdit } = owner;
-  const beginSuspension = (external: boolean) => owner.beginSuspension(external, writes);
+  const beginSuspension = ({ external }: BeginSuspensionInput) =>
+    owner.beginSuspension({ external: external, writes: writes });
   // Re-hydrate ONE non-null account's slice and re-seed the adapter's diff snapshot to it,
   // ATOMICALLY — the shared body of both a tenant SWITCH (newId) and a refresh-on-focus
   // (activeId). Extracted (P1.16) precisely so refresh REUSES this exact sequence: the snapshot
@@ -87,7 +101,7 @@ export function createRefreshController(
     // snapshot unchanged → saving is correct). When this load is required to reconcile an unknown
     // commit, save's gate retains the edit without replaying it until a later load succeeds.
     const dataAtSequenceStart = store.getState().data;
-    const resume = beginSuspension(false);
+    const resume = beginSuspension({ external: false });
     try {
       // (a) Let a prior account's save settle before we re-seed the snapshot.
       if (owner.current.inFlightSave) await owner.current.inFlightSave;

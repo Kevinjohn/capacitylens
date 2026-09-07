@@ -91,7 +91,7 @@ describe("attachPersistence", () => {
         publish = handler;
       },
     };
-    const detach = attachPersistence(useStore, adapter, 0);
+    const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
 
     useStore.getState().updateAllocation(allocation.id, { note: "Trigger save" });
     await vi.waitFor(() => expect(useStore.getState().data.allocations[0].updatedAt).toBe(rewrittenAt));
@@ -152,7 +152,7 @@ describe("attachPersistence", () => {
         publish = handler;
       },
     };
-    const detach = attachPersistence(useStore, adapter, 0);
+    const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
 
     useStore.getState().updateAllocation(allocation.id, { note: "Flushed edit" });
     await vi.waitFor(() => expect(saved).toHaveLength(1));
@@ -175,9 +175,9 @@ describe("attachPersistence", () => {
   });
 
   it("rejects a second live persistence owner", () => {
-    const detach = attachPersistence(useStore, new InMemoryDemoAdapter(), 0);
+    const detach = attachPersistence({ store: useStore, adapter: new InMemoryDemoAdapter(), debounceMs: 0 });
     try {
-      expect(() => attachPersistence(useStore, new InMemoryDemoAdapter(), 0)).toThrow(
+      expect(() => attachPersistence({ store: useStore, adapter: new InMemoryDemoAdapter(), debounceMs: 0 })).toThrow(
         "Persistence is already attached.",
       );
     } finally {
@@ -187,7 +187,7 @@ describe("attachPersistence", () => {
 
   it("persists data changes (immediate mode)", async () => {
     const adapter = new InMemoryDemoAdapter();
-    const detach = attachPersistence(useStore, adapter, 0);
+    const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
     useStore.getState().addClient({ name: "Acme", color: "#1" });
     const loaded = await adapter.loadAll();
     expect(loaded.clients).toHaveLength(1);
@@ -227,7 +227,7 @@ describe("attachPersistence", () => {
 
   it("stops persisting after detach", async () => {
     const adapter = new InMemoryDemoAdapter();
-    const detach = attachPersistence(useStore, adapter, 0);
+    const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
     detach();
     useStore.getState().addClient({ name: "Acme", color: "#1" });
     expect(await adapter.loadAll()).toEqual(emptyAppData());
@@ -237,7 +237,11 @@ describe("attachPersistence", () => {
     vi.useFakeTimers();
     try {
       const saveAll = vi.fn().mockResolvedValue(undefined);
-      const detach = attachPersistence(useStore, { loadAll: async () => emptyAppData(), saveAll }, 300);
+      const detach = attachPersistence({
+        store: useStore,
+        adapter: { loadAll: async () => emptyAppData(), saveAll },
+        debounceMs: 300,
+      });
       useStore.getState().addClient({ name: "Pending at detach", color: "#111111" });
       detach();
       await vi.advanceTimersByTimeAsync(1_000);
@@ -259,27 +263,27 @@ describe("attachPersistence", () => {
       );
       const oldError = vi.fn();
       const oldSuccess = vi.fn();
-      const detachOld = attachPersistence(
-        useStore,
-        { loadAll: async () => emptyAppData(), saveAll: oldSave },
-        0,
-        oldError,
-        oldSuccess,
-        true,
-      );
+      const detachOld = attachPersistence({
+        store: useStore,
+        adapter: { loadAll: async () => emptyAppData(), saveAll: oldSave },
+        debounceMs: 0,
+        onError: oldError,
+        onSuccess: oldSuccess,
+        serverMode: true,
+      });
       useStore.getState().addClient({ name: "Old owner edit", color: "#111111" });
       expect(oldSave).toHaveBeenCalledOnce();
       detachOld();
 
       const newSave = vi.fn().mockResolvedValue(undefined);
-      const detachNew = attachPersistence(
-        useStore,
-        { loadAll: async () => emptyAppData(), saveAll: newSave },
-        0,
-        undefined,
-        undefined,
-        true,
-      );
+      const detachNew = attachPersistence({
+        store: useStore,
+        adapter: { loadAll: async () => emptyAppData(), saveAll: newSave },
+        debounceMs: 0,
+        onError: undefined,
+        onSuccess: undefined,
+        serverMode: true,
+      });
       rejectOld(new Error("late network failure"));
       // The complete retry horizon is 31 seconds; stay below the independent one-minute
       // visible-session refresh owned by the replacement adapter.
@@ -308,7 +312,14 @@ describe("attachPersistence", () => {
     );
     const loadAll = vi.fn(async () => emptyAppData());
     const onError = vi.fn();
-    const detach = attachPersistence(useStore, { loadAll, saveAll }, 0, onError, undefined, true);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll, saveAll },
+      debounceMs: 0,
+      onError: onError,
+      onSuccess: undefined,
+      serverMode: true,
+    });
     useStore.getState().addClient({ name: "Conflicted old edit", color: "#111111" });
     detach();
 
@@ -330,13 +341,13 @@ describe("attachPersistence", () => {
         }),
     );
     const onSuccess = vi.fn();
-    const detach = attachPersistence(
-      useStore,
-      { loadAll: async () => emptyAppData(), saveAll },
-      0,
-      undefined,
-      onSuccess,
-    );
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll: async () => emptyAppData(), saveAll },
+      debounceMs: 0,
+      onError: undefined,
+      onSuccess: onSuccess,
+    });
     useStore.getState().addClient({ name: "Late success", color: "#111111" });
     detach();
 
@@ -350,7 +361,7 @@ describe("attachPersistence", () => {
 
   it("flushes a pending debounced write on pagehide (so a tab close does not lose it)", async () => {
     const adapter = new InMemoryDemoAdapter();
-    const detach = attachPersistence(useStore, adapter, 300); // debounced, NOT immediate
+    const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 300 }); // debounced, NOT immediate
     useStore.getState().addClient({ name: "Acme", color: "#1" });
     expect((await adapter.loadAll()).clients).toHaveLength(0); // still inside the debounce window
     window.dispatchEvent(new Event("pagehide"));
@@ -361,7 +372,11 @@ describe("attachPersistence", () => {
   it("uses the normal save path when a surviving tab becomes hidden", async () => {
     const saveAll = vi.fn().mockResolvedValue(undefined);
     const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
-    const detach = attachPersistence(useStore, { loadAll: async () => emptyAppData(), saveAll }, 300);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll: async () => emptyAppData(), saveAll },
+      debounceMs: 300,
+    });
     useStore.getState().addClient({ name: "Hidden tab", color: "#111111" });
 
     document.dispatchEvent(new Event("visibilitychange"));
@@ -389,7 +404,12 @@ describe("attachPersistence", () => {
         return Promise.resolve();
       });
       const onError = vi.fn();
-      const detach = attachPersistence(useStore, { loadAll: async () => emptyAppData(), saveAll }, 300, onError);
+      const detach = attachPersistence({
+        store: useStore,
+        adapter: { loadAll: async () => emptyAppData(), saveAll },
+        debounceMs: 300,
+        onError: onError,
+      });
 
       useStore.getState().addClient({ name: "First", color: "#111111" });
       await vi.advanceTimersByTimeAsync(300); // first normal save is now in flight
@@ -445,7 +465,7 @@ describe("attachPersistence", () => {
     }) as unknown as typeof fetch;
     const adapter = new ServerSyncAdapter("http://x", fetchImpl);
     const onError = vi.fn();
-    const detach = await attachActiveA2(adapter, 300, onError);
+    const detach = await attachActiveA2({ adapter: adapter, debounceMs: 300, onError: onError });
 
     useStore.getState().replaceAll({
       ...useStore.getState().data,
@@ -484,7 +504,13 @@ describe("attachPersistence", () => {
     });
     const onError = vi.fn();
     const onSuccess = vi.fn();
-    const detach = attachPersistence(useStore, adapter, 0, onError, onSuccess);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: adapter,
+      debounceMs: 0,
+      onError: onError,
+      onSuccess: onSuccess,
+    });
 
     useStore.getState().addClient({ name: "A", color: "#111111" });
     await new Promise((r) => setTimeout(r, 5));
@@ -513,7 +539,13 @@ describe("attachPersistence", () => {
         return realSave(d);
       });
       const onSuccess = vi.fn();
-      const detach = attachPersistence(useStore, adapter, 0, undefined, onSuccess);
+      const detach = attachPersistence({
+        store: useStore,
+        adapter: adapter,
+        debounceMs: 0,
+        onError: undefined,
+        onSuccess: onSuccess,
+      });
 
       useStore.getState().addClient({ name: "Retry Me", color: "#333333" });
       await vi.advanceTimersByTimeAsync(0); // first attempt → fails, schedules retry
@@ -545,7 +577,13 @@ describe("attachPersistence", () => {
         return realSave(d);
       });
       const onSuccess = vi.fn();
-      const detach = attachPersistence(useStore, adapter, 0, undefined, onSuccess);
+      const detach = attachPersistence({
+        store: useStore,
+        adapter: adapter,
+        debounceMs: 0,
+        onError: undefined,
+        onSuccess: onSuccess,
+      });
 
       useStore.getState().addClient({ name: "Stranded", color: "#444444" });
       await vi.advanceTimersByTimeAsync(0); // initial attempt fails
@@ -568,7 +606,7 @@ describe("attachPersistence", () => {
   it("does NOT re-write on an online event when nothing is stranded (no needless full rewrite)", async () => {
     const adapter = new InMemoryDemoAdapter();
     const saveAll = vi.spyOn(adapter, "saveAll");
-    const detach = attachPersistence(useStore, adapter, 0);
+    const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
     useStore.getState().addClient({ name: "Synced", color: "#555555" });
     await new Promise((r) => setTimeout(r, 5));
     const callsAfterSync = saveAll.mock.calls.length;
@@ -596,7 +634,14 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
     useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
-    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: adapter,
+      debounceMs: 0,
+      onError: undefined,
+      onSuccess: undefined,
+      serverMode: true,
+    });
 
     const switching = switchAndAwaitHydration("a2");
     let settled = false;
@@ -620,14 +665,14 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
     useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
-    const detach = attachPersistence(
-      useStore,
-      { loadAll: vi.fn(async () => load), saveAll: vi.fn(async () => {}) },
-      0,
-      undefined,
-      undefined,
-      true,
-    );
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll: vi.fn(async () => load), saveAll: vi.fn(async () => {}) },
+      debounceMs: 0,
+      onError: undefined,
+      onSuccess: undefined,
+      serverMode: true,
+    });
 
     const switching = switchAndAwaitHydration("a2");
     detach();
@@ -658,7 +703,14 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
     useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
-    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: adapter,
+      debounceMs: 0,
+      onError: undefined,
+      onSuccess: undefined,
+      serverMode: true,
+    });
 
     // Pick a2 (existence via the summary) → the orchestrator loads a2's slice.
     useStore.getState().setActiveAccount("a2");
@@ -683,7 +735,14 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
     useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
-    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: adapter,
+      debounceMs: 0,
+      onError: undefined,
+      onSuccess: undefined,
+      serverMode: true,
+    });
 
     useStore.getState().setActiveAccount("a2");
     await new Promise((r) => setTimeout(r, 5));
@@ -765,7 +824,14 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       { id: "a1", name: "Alpha", role: "owner" },
       { id: "b1", name: "Beta", role: "owner" },
     ]);
-    const detach = attachPersistence(useStore, adapter, 300, undefined, undefined, true); // genuinely debounced
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: adapter,
+      debounceMs: 300,
+      onError: undefined,
+      onSuccess: undefined,
+      serverMode: true,
+    }); // genuinely debounced
 
     // Pick A → orchestrator hydrates A's slice (snapshot := A).
     useStore.getState().setActiveAccount("a1");
@@ -853,7 +919,14 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       { id: "a1", name: "Alpha", role: "owner" },
       { id: "b1", name: "Beta", role: "owner" },
     ]);
-    const detach = attachPersistence(useStore, adapter, 300, onError, undefined, true); // debounced
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: adapter,
+      debounceMs: 300,
+      onError: onError,
+      onSuccess: undefined,
+      serverMode: true,
+    }); // debounced
 
     useStore.getState().setActiveAccount("a1");
     await new Promise((r) => setTimeout(r, 5));
@@ -885,7 +958,14 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
 
     useStore.getState().replaceAll(makeLocalTwoAccounts());
     useStore.getState().setActiveAccount("a1");
-    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, false); // demo build
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: adapter,
+      debounceMs: 0,
+      onError: undefined,
+      onSuccess: undefined,
+      serverMode: false,
+    }); // demo build
 
     useStore.getState().setActiveAccount("a2");
     await new Promise((r) => setTimeout(r, 5));
@@ -933,17 +1013,26 @@ const a2Slice = (): AppData => ({
   ],
 });
 
+interface AttachActiveA2Input {
+  adapter: PersistenceAdapter;
+  debounceMs?: number;
+  onError?: (e: unknown) => void;
+  onSuccess?: () => void;
+}
+
 /** Server-mode attach with a2 already the active account (post-pick steady state). */
-async function attachActiveA2(
-  adapter: PersistenceAdapter,
-  debounceMs = 0,
-  onError?: (e: unknown) => void,
-  onSuccess?: () => void,
-) {
+async function attachActiveA2({ adapter, debounceMs = 0, onError, onSuccess }: AttachActiveA2Input) {
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().setActiveAccount(null);
   useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
-  const detach = attachPersistence(useStore, adapter, debounceMs, onError, onSuccess, true);
+  const detach = attachPersistence({
+    store: useStore,
+    adapter: adapter,
+    debounceMs: debounceMs,
+    onError: onError,
+    onSuccess: onSuccess,
+    serverMode: true,
+  });
   useStore.getState().setActiveAccount("a2"); // hydrates a2, seeds snapshot := a2
   await new Promise((r) => setTimeout(r, 5));
   return detach;
@@ -959,7 +1048,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
   it("re-hydrates the active slice on focus + re-seeds the snapshot (a later save diffs to ZERO ops)", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
-    const detach = await attachActiveA2(adapter);
+    const detach = await attachActiveA2({ adapter: adapter });
     const loadsAfterPick = loadAll.mock.calls.length; // the switch already loaded once
     saveAll.mockClear();
 
@@ -984,7 +1073,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     const saveAll = vi.fn(async (data: AppData) => {
       remote = structuredClone(data);
     });
-    const detach = await attachActiveA2({ loadAll, saveAll });
+    const detach = await attachActiveA2({ adapter: { loadAll, saveAll } });
 
     useStore.getState().addClient({ name: "Undo me", color: "#222222" });
     await new Promise((resolve) => setTimeout(resolve, 5));
@@ -1001,7 +1090,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
 
   it("does not duplicate the successful slice load when focus follows a company switch", async () => {
     const { adapter, loadAll } = recordingAdapter(a2Slice());
-    const detach = await attachActiveA2(adapter);
+    const detach = await attachActiveA2({ adapter: adapter });
     const loadsAfterPick = loadAll.mock.calls.length;
 
     window.dispatchEvent(new Event("focus"));
@@ -1015,7 +1104,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     try {
       const { adapter, loadAll } = recordingAdapter(a2Slice());
-      const detach = await attachActiveA2(adapter);
+      const detach = await attachActiveA2({ adapter: adapter });
       const before = loadAll.mock.calls.length;
 
       now.mockReturnValue(129_999);
@@ -1051,7 +1140,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
       });
     });
     const saveAll = vi.fn().mockResolvedValue(undefined);
-    const detach = await attachActiveA2({ loadAll, saveAll });
+    const detach = await attachActiveA2({ adapter: { loadAll, saveAll } });
 
     hold = true;
     now.mockReturnValue(131_000);
@@ -1075,7 +1164,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     vi.useFakeTimers();
     try {
       const { adapter, loadAll } = recordingAdapter(a2Slice());
-      const detachPromise = attachActiveA2(adapter);
+      const detachPromise = attachActiveA2({ adapter: adapter });
       await vi.advanceTimersByTimeAsync(5);
       const detach = await detachPromise;
       const loadsAfterPick = loadAll.mock.calls.length;
@@ -1098,7 +1187,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
     try {
       const { adapter, loadAll } = recordingAdapter(a2Slice());
-      const detachPromise = attachActiveA2(adapter);
+      const detachPromise = attachActiveA2({ adapter: adapter });
       await vi.advanceTimersByTimeAsync(5);
       const detach = await detachPromise;
       const loadsAfterPick = loadAll.mock.calls.length;
@@ -1122,7 +1211,14 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
     useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
-    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: adapter,
+      debounceMs: 0,
+      onError: undefined,
+      onSuccess: undefined,
+      serverMode: true,
+    });
     // No account picked → still on the picker.
     loadAll.mockClear();
 
@@ -1145,7 +1241,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
       order.push("saveAll");
     });
     const adapter: PersistenceAdapter = { loadAll, saveAll };
-    const detach = await attachActiveA2(adapter, 300); // genuinely debounced
+    const detach = await attachActiveA2({ adapter: adapter, debounceMs: 300 }); // genuinely debounced
     order.length = 0; // ignore the initial switch's loadAll
 
     useStore.getState().addClient({ name: "Unsaved", color: "#222222" }); // debounced — not yet on the wire
@@ -1165,7 +1261,14 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     const { adapter, loadAll } = recordingAdapter(a2Slice());
     useStore.getState().replaceAll(makeLocalTwoAccounts());
     useStore.getState().setActiveAccount("a1");
-    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, false); // demo build
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: adapter,
+      debounceMs: 0,
+      onError: undefined,
+      onSuccess: undefined,
+      serverMode: false,
+    }); // demo build
     loadAll.mockClear();
 
     window.dispatchEvent(new Event("focus"));
@@ -1182,7 +1285,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     // forever. The refresh must abort instead: the retry machinery still holds the edit, and the
     // persist banner (onError) already tells the user they're unsynced.
     const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
-    const detach = await attachActiveA2(adapter); // debounceMs 0 — saves fire immediately
+    const detach = await attachActiveA2({ adapter: adapter }); // debounceMs 0 — saves fire immediately
     const loadsAfterPick = loadAll.mock.calls.length;
     saveAll.mockRejectedValue(new Error("write unavailable")); // every save now fails
 
@@ -1209,7 +1312,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
         if (!writable) throw new Error("write unavailable");
         remote = data;
       });
-      const detachPromise = attachActiveA2({ loadAll, saveAll });
+      const detachPromise = attachActiveA2({ adapter: { loadAll, saveAll } });
       await vi.advanceTimersByTimeAsync(5);
       const detach = await detachPromise;
       const loadsAfterPick = loadAll.mock.calls.length;
@@ -1294,7 +1397,14 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
       { id: "a1", name: "Alpha", role: "owner" },
       { id: "b1", name: "Beta", role: "owner" },
     ]);
-    const detach = attachPersistence(useStore, { loadAll, saveAll }, 0, undefined, undefined, true);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll, saveAll },
+      debounceMs: 0,
+      onError: undefined,
+      onSuccess: undefined,
+      serverMode: true,
+    });
     useStore.getState().setActiveAccount("a1");
     await new Promise((resolve) => setTimeout(resolve, 5));
 
@@ -1339,7 +1449,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
       order.push("saveAll");
     });
     const adapter: PersistenceAdapter = { loadAll, saveAll };
-    const detach = await attachActiveA2(adapter, 300); // genuinely debounced
+    const detach = await attachActiveA2({ adapter: adapter, debounceMs: 300 }); // genuinely debounced
     order.length = 0; // ignore the initial switch's loadAll
 
     useStore.getState().addClient({ name: "Mid-debounce", color: "#222222" }); // not yet on the wire
@@ -1352,7 +1462,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
 
   it("SKIPS the reload when the flush FAILS — preserving the edit beats reflecting the mutation", async () => {
     const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
-    const detach = await attachActiveA2(adapter, 300);
+    const detach = await attachActiveA2({ adapter: adapter, debounceMs: 300 });
     const loadsAfterPick = loadAll.mock.calls.length;
     saveAll.mockRejectedValue(new Error("write unavailable"));
 
@@ -1425,7 +1535,14 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
       { id: "a1", name: "Alpha", role: "owner" },
       { id: "b1", name: "Beta", role: "owner" },
     ]);
-    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: adapter,
+      debounceMs: 0,
+      onError: undefined,
+      onSuccess: undefined,
+      serverMode: true,
+    });
 
     useStore.getState().setActiveAccount("a1"); // hydrate A
     await new Promise((r) => setTimeout(r, 5));
@@ -1450,7 +1567,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
 
   it("is UNREGISTERED after detach (a later call falls back)", async () => {
     const { adapter } = recordingAdapter(a2Slice());
-    const detach = await attachActiveA2(adapter);
+    const detach = await attachActiveA2({ adapter: adapter });
     detach();
     expect(await refreshActiveAccountSlice("a2")).toBe("unattached");
   });
@@ -1459,7 +1576,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
 describe("flushPendingWrites (the import seam)", () => {
   it("lands a pending debounced edit and reports clean; reports NOT clean while a write is failed", async () => {
     const { adapter, saveAll } = recordingAdapter(a2Slice());
-    const detach = await attachActiveA2(adapter, 300); // genuinely debounced
+    const detach = await attachActiveA2({ adapter: adapter, debounceMs: 300 }); // genuinely debounced
     saveAll.mockClear();
 
     useStore.getState().addClient({ name: "Pending", color: "#222222" }); // parked in the debounce
@@ -1494,7 +1611,7 @@ describe("flushPendingWrites (the import seam)", () => {
       return Promise.resolve();
     });
     const loadAll = vi.fn(async () => a2Slice());
-    const detach = await attachActiveA2({ loadAll, saveAll }, 300);
+    const detach = await attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 300 });
 
     useStore.getState().addClient({ name: "First", color: "#222222" }); // parked in the debounce
     const flush = flushPendingWrites(); // consumes it → round-trip A, held open
@@ -1519,7 +1636,7 @@ describe("flushPendingWrites (the import seam)", () => {
         }),
     );
     const loadAll = vi.fn(async () => a2Slice());
-    const detach = await attachActiveA2({ loadAll, saveAll }, 300);
+    const detach = await attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 300 });
     loadAll.mockClear();
 
     useStore.getState().addClient({ name: "Pending", color: "#222222" });
@@ -1545,14 +1662,14 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     vi.useFakeTimers();
     try {
       const saveAll = vi.fn().mockRejectedValueOnce(new Error("temporary failure")).mockResolvedValue(undefined);
-      const detach = attachPersistence(
-        useStore,
-        { loadAll: async () => emptyAppData(), saveAll },
-        0,
-        vi.fn(),
-        undefined,
-        true,
-      );
+      const detach = attachPersistence({
+        store: useStore,
+        adapter: { loadAll: async () => emptyAppData(), saveAll },
+        debounceMs: 0,
+        onError: vi.fn(),
+        onSuccess: undefined,
+        serverMode: true,
+      });
 
       useStore.getState().addClient({ name: "Retry me", color: "#222222" });
       await vi.advanceTimersByTimeAsync(0);
@@ -1578,14 +1695,14 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
     try {
       const saveAll = vi.fn().mockResolvedValue(undefined);
-      const detach = attachPersistence(
-        useStore,
-        { loadAll: async () => emptyAppData(), saveAll },
-        300,
-        undefined,
-        undefined,
-        true,
-      );
+      const detach = attachPersistence({
+        store: useStore,
+        adapter: { loadAll: async () => emptyAppData(), saveAll },
+        debounceMs: 300,
+        onError: undefined,
+        onSuccess: undefined,
+        serverMode: true,
+      });
       const resume = suspendServerWrites();
       useStore.getState().addClient({ name: "Parked while hidden", color: "#222222" });
 
@@ -1606,7 +1723,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
   it("surfaces a parked external-suspension edit when page teardown cannot flush it safely", async () => {
     const onError = vi.fn();
     const { adapter, saveAll } = recordingAdapter(a2Slice());
-    const detach = await attachActiveA2(adapter, 300, onError);
+    const detach = await attachActiveA2({ adapter: adapter, debounceMs: 300, onError: onError });
     saveAll.mockClear();
     const resume = suspendServerWrites();
     useStore.getState().addClient({ name: "Parked at teardown", color: "#222222" });
@@ -1621,7 +1738,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
   it("parks an edit made while suspended (nothing sent) and re-schedules it on resume when no reload ran", async () => {
     const { adapter, saveAll } = recordingAdapter(a2Slice());
-    const detach = await attachActiveA2(adapter); // immediate saves
+    const detach = await attachActiveA2({ adapter: adapter }); // immediate saves
     saveAll.mockClear();
 
     const resume = suspendServerWrites();
@@ -1642,7 +1759,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     const onError = vi.fn();
     const onSuccess = vi.fn();
     const { adapter, saveAll } = recordingAdapter(a2Slice());
-    const detach = await attachActiveA2(adapter, 0, onError, onSuccess);
+    const detach = await attachActiveA2({ adapter: adapter, debounceMs: 0, onError: onError, onSuccess: onSuccess });
     saveAll.mockClear();
     onSuccess.mockClear();
 
@@ -1670,7 +1787,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     // the stale snapshot and upsert ghost rows into the imported slice (remapped ids → no 409).
     const onError = vi.fn();
     const { adapter, saveAll } = recordingAdapter(a2Slice());
-    const detach = await attachActiveA2(adapter, 0, onError);
+    const detach = await attachActiveA2({ adapter: adapter, debounceMs: 0, onError: onError });
     saveAll.mockClear();
 
     const resume = suspendServerWrites();
@@ -1697,7 +1814,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
       });
     });
     const onError = vi.fn();
-    const detach = await attachActiveA2({ loadAll, saveAll }, 300, onError); // genuinely debounced
+    const detach = await attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 300, onError: onError }); // genuinely debounced
 
     useStore.getState().addClient({ name: "Pre-reload", color: "#222222" }); // pending, debounced
     const refresh = refreshActiveAccountSlice("a2"); // (a′) flushes it → saveAll held open
@@ -1733,7 +1850,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     });
     const saveAll = vi.fn().mockResolvedValue(undefined);
     const onError = vi.fn();
-    const detach = await attachActiveA2({ loadAll, saveAll }, 0, onError);
+    const detach = await attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 0, onError: onError });
     saveAll.mockClear();
 
     hold = true;
@@ -1766,7 +1883,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     });
     const saveAll = vi.fn().mockResolvedValue(undefined);
     const onError = vi.fn();
-    const detach = await attachActiveA2({ loadAll, saveAll }, 0, onError);
+    const detach = await attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 0, onError: onError });
     saveAll.mockClear();
 
     hold = true;
@@ -1804,7 +1921,11 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
       opts?.unload ? Promise.reject(new Error("keepalive dropped")) : Promise.resolve(),
     );
     const onError = vi.fn();
-    const detach = await attachActiveA2({ loadAll, saveAll: saveAll as PersistenceAdapter["saveAll"] }, 0, onError);
+    const detach = await attachActiveA2({
+      adapter: { loadAll, saveAll: saveAll as PersistenceAdapter["saveAll"] },
+      debounceMs: 0,
+      onError: onError,
+    });
 
     hold = true;
     const refresh = refreshActiveAccountSlice("a2");
@@ -1839,7 +1960,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     });
     const saveAll = vi.fn().mockResolvedValue(undefined);
     const onError = vi.fn();
-    const detach = await attachActiveA2({ loadAll, saveAll }, 0, onError);
+    const detach = await attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 0, onError: onError });
     saveAll.mockClear();
 
     hold = true;
@@ -1889,7 +2010,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
       });
     });
     const saveAll = vi.fn().mockResolvedValue(undefined);
-    const detach = await attachActiveA2({ loadAll, saveAll }, 0);
+    const detach = await attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 0 });
     saveAll.mockClear();
 
     hold = true;
@@ -1907,7 +2028,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
   it("unload flush DECLINES under an EXTERNAL (import) suspension — the parked edit must not diff a mid-replacement snapshot", async () => {
     const { adapter, saveAll } = recordingAdapter(a2Slice());
-    const detach = await attachActiveA2(adapter, 0);
+    const detach = await attachActiveA2({ adapter: adapter, debounceMs: 0 });
     saveAll.mockClear();
 
     const resume = suspendServerWrites();
@@ -1920,7 +2041,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
   it("flushPendingWrites reports NOT clean while suspended (a second import cannot slip in)", async () => {
     const { adapter } = recordingAdapter(a2Slice());
-    const detach = await attachActiveA2(adapter);
+    const detach = await attachActiveA2({ adapter: adapter });
     const resume = suspendServerWrites();
     expect(await flushPendingWrites()).toBe(false);
     resume();
@@ -1946,7 +2067,7 @@ describe("mid-reload edits are rebased onto the fresh server slice", () => {
     });
     const saveAll = vi.fn().mockResolvedValue(undefined);
     const onError = vi.fn();
-    const detach = await attachActiveA2({ loadAll, saveAll }, 0, onError);
+    const detach = await attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 0, onError: onError });
     saveAll.mockClear();
 
     hold = true;
@@ -1997,7 +2118,14 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
       { id: "a2", name: "Beta", role: "owner" },
       { id: "b1", name: "Beta Two", role: "owner" },
     ]);
-    const detach = attachPersistence(useStore, { loadAll, saveAll }, 0, onError, onSuccess, true);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll, saveAll },
+      debounceMs: 0,
+      onError: onError,
+      onSuccess: onSuccess,
+      serverMode: true,
+    });
     useStore.getState().setActiveAccount("a2");
     await new Promise((r) => setTimeout(r, 5));
 
@@ -2062,7 +2190,14 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
         { id: "a2", name: "Beta", role: "owner" },
         { id: "b1", name: "Beta Two", role: "owner" },
       ]);
-      const detach = attachPersistence(useStore, { loadAll, saveAll }, 0, onError, undefined, true);
+      const detach = attachPersistence({
+        store: useStore,
+        adapter: { loadAll, saveAll },
+        debounceMs: 0,
+        onError: onError,
+        onSuccess: undefined,
+        serverMode: true,
+      });
       useStore.getState().setActiveAccount("a2");
       await vi.advanceTimersByTimeAsync(5);
 
@@ -2117,7 +2252,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
       const onError = vi.fn();
       const onSuccess = vi.fn();
-      const detachP = attachActiveA2(adapter, 0, onError, onSuccess);
+      const detachP = attachActiveA2({ adapter: adapter, debounceMs: 0, onError: onError, onSuccess: onSuccess });
       await vi.advanceTimersByTimeAsync(5);
       const detach = await detachP;
       const loadsAfterPick = loadAll.mock.calls.length;
@@ -2153,7 +2288,7 @@ describe("batch reconciliation (authoritative reload)", () => {
     try {
       const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
       const onError = vi.fn();
-      const detachP = attachActiveA2(adapter, 0, onError);
+      const detachP = attachActiveA2({ adapter: adapter, debounceMs: 0, onError: onError });
       await vi.advanceTimersByTimeAsync(5);
       const detach = await detachP;
       const loadsAfterPick = loadAll.mock.calls.length;
@@ -2182,7 +2317,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
       const onError = vi.fn();
       const onSuccess = vi.fn();
-      const detachP = attachActiveA2(adapter, 0, onError, onSuccess);
+      const detachP = attachActiveA2({ adapter: adapter, debounceMs: 0, onError: onError, onSuccess: onSuccess });
       await vi.advanceTimersByTimeAsync(5);
       const detach = await detachP;
       const loadsAfterPick = loadAll.mock.calls.length;
@@ -2220,7 +2355,7 @@ describe("batch reconciliation (authoritative reload)", () => {
     try {
       const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
       const onError = vi.fn();
-      const detachP = attachActiveA2(adapter, 0, onError);
+      const detachP = attachActiveA2({ adapter: adapter, debounceMs: 0, onError: onError });
       await vi.advanceTimersByTimeAsync(5);
       const detach = await detachP;
       const loadsAfterPick = loadAll.mock.calls.length;
@@ -2264,7 +2399,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
       const onError = vi.fn();
       const onSuccess = vi.fn();
-      const detachP = attachActiveA2(adapter, 0, onError, onSuccess);
+      const detachP = attachActiveA2({ adapter: adapter, debounceMs: 0, onError: onError, onSuccess: onSuccess });
       await vi.advanceTimersByTimeAsync(5);
       const detach = await detachP;
       const loadsAfterPick = loadAll.mock.calls.length;
@@ -2313,7 +2448,7 @@ describe("batch reconciliation (authoritative reload)", () => {
     const saveAll = vi.fn().mockResolvedValue(undefined);
     const adapter: PersistenceAdapter = { loadAll, saveAll };
     const onError = vi.fn();
-    const detach = await attachActiveA2(adapter, 0, onError);
+    const detach = await attachActiveA2({ adapter: adapter, debounceMs: 0, onError: onError });
 
     saveAll.mockRejectedValueOnce(new BatchConflictError("stale write"));
     hold = true; // the resolution reload will now be held open
@@ -2347,7 +2482,7 @@ describe("batch reconciliation (authoritative reload)", () => {
     try {
       const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
       const onSuccess = vi.fn();
-      const detachP = attachActiveA2(adapter, 0, undefined, onSuccess);
+      const detachP = attachActiveA2({ adapter: adapter, debounceMs: 0, onError: undefined, onSuccess: onSuccess });
       await vi.advanceTimersByTimeAsync(5);
       const detach = await detachP;
       const loadsAfterPick = loadAll.mock.calls.length;
@@ -2382,7 +2517,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
       const onError = vi.fn();
       const onSuccess = vi.fn();
-      const detachP = attachActiveA2(adapter, 0, onError, onSuccess);
+      const detachP = attachActiveA2({ adapter: adapter, debounceMs: 0, onError: onError, onSuccess: onSuccess });
       await vi.advanceTimersByTimeAsync(5);
       const detach = await detachP;
       const loadsAfterPick = loadAll.mock.calls.length;
@@ -2608,7 +2743,14 @@ describe("persistence coordinator fault-injection branches", () => {
     );
     const loadAll = vi.fn().mockResolvedValue(emptyAppData());
     const onError = vi.fn();
-    const detach = attachPersistence(useStore, { loadAll, saveAll }, 0, onError, undefined, true);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll, saveAll },
+      debounceMs: 0,
+      onError: onError,
+      onSuccess: undefined,
+      serverMode: true,
+    });
     useStore.getState().addClient({ name: "Pending", color: "#111111" });
     await new Promise((resolve) => setTimeout(resolve, 0));
     useStore.getState().setActiveAccount(null);
@@ -2641,14 +2783,14 @@ describe("persistence coordinator fault-injection branches", () => {
       { id: "a1", name: "Alpha", role: "owner" },
       { id: "a2", name: "Beta", role: "owner" },
     ]);
-    const detach = attachPersistence(
-      useStore,
-      { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
-      0,
-      undefined,
-      undefined,
-      true,
-    );
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
+      debounceMs: 0,
+      onError: undefined,
+      onSuccess: undefined,
+      serverMode: true,
+    });
     useStore.getState().setActiveAccount("a2");
     await new Promise((resolve) => setTimeout(resolve, 0));
     useStore.getState().setActiveAccount("a1");
@@ -2668,7 +2810,11 @@ describe("persistence coordinator fault-injection branches", () => {
       rejectFirst = reject;
     });
     const saveAll = vi.fn().mockReturnValueOnce(first).mockResolvedValue(undefined);
-    const detach = attachPersistence(useStore, { loadAll: async () => emptyAppData(), saveAll }, 0);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll: async () => emptyAppData(), saveAll },
+      debounceMs: 0,
+    });
     useStore.getState().addClient({ name: "First", color: "#111111" });
     useStore.getState().addClient({ name: "Latest", color: "#222222" });
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -2686,7 +2832,11 @@ describe("persistence coordinator fault-injection branches", () => {
     vi.useFakeTimers();
     try {
       const saveAll = vi.fn().mockRejectedValue(new Error("offline"));
-      const detach = attachPersistence(useStore, { loadAll: async () => emptyAppData(), saveAll }, 0);
+      const detach = attachPersistence({
+        store: useStore,
+        adapter: { loadAll: async () => emptyAppData(), saveAll },
+        debounceMs: 0,
+      });
       useStore.getState().addClient({ name: "Retry", color: "#111111" });
       await vi.advanceTimersByTimeAsync(0);
       expect(saveAll).toHaveBeenCalledOnce();
@@ -2703,14 +2853,14 @@ describe("persistence coordinator fault-injection branches", () => {
     vi.useFakeTimers();
     try {
       const saveAll = vi.fn().mockRejectedValue(new Error("offline"));
-      const detach = attachPersistence(
-        useStore,
-        { loadAll: async () => emptyAppData(), saveAll },
-        0,
-        undefined,
-        undefined,
-        true,
-      );
+      const detach = attachPersistence({
+        store: useStore,
+        adapter: { loadAll: async () => emptyAppData(), saveAll },
+        debounceMs: 0,
+        onError: undefined,
+        onSuccess: undefined,
+        serverMode: true,
+      });
       useStore.getState().addClient({ name: "Retry", color: "#111111" });
       await vi.advanceTimersByTimeAsync(0);
       const resume = suspendServerWrites();
@@ -2734,13 +2884,13 @@ describe("persistence coordinator fault-injection branches", () => {
       const saveAll = vi.fn((_data: AppData, opts?: { unload?: boolean }) => (opts?.unload ? keepalive : ordinary));
       const onError = vi.fn();
       const onSuccess = vi.fn();
-      const detach = attachPersistence(
-        useStore,
-        { loadAll: async () => emptyAppData(), saveAll },
-        0,
-        onError,
-        onSuccess,
-      );
+      const detach = attachPersistence({
+        store: useStore,
+        adapter: { loadAll: async () => emptyAppData(), saveAll },
+        debounceMs: 0,
+        onError: onError,
+        onSuccess: onSuccess,
+      });
       useStore.getState().addClient({ name: "Pending", color: "#111111" });
       await new Promise((resolve) => setTimeout(resolve, 0));
       window.dispatchEvent(new Event("pagehide"));
@@ -2756,14 +2906,14 @@ describe("persistence coordinator fault-injection branches", () => {
 
   it("makes resume idempotent and keeps a nested external suspension active until its final owner resumes", async () => {
     const saveAll = vi.fn().mockResolvedValue(undefined);
-    const detach = attachPersistence(
-      useStore,
-      { loadAll: async () => emptyAppData(), saveAll },
-      0,
-      undefined,
-      undefined,
-      true,
-    );
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll: async () => emptyAppData(), saveAll },
+      debounceMs: 0,
+      onError: undefined,
+      onSuccess: undefined,
+      serverMode: true,
+    });
     const resumeOuter = suspendServerWrites();
     const resumeInner = suspendServerWrites();
     useStore.getState().addClient({ name: "Parked", color: "#111111" });
@@ -2791,7 +2941,11 @@ describe("persistence coordinator fault-injection branches", () => {
       });
     });
     const onError = vi.fn();
-    const detach = await attachActiveA2({ loadAll, saveAll: vi.fn().mockResolvedValue(undefined) }, 0, onError);
+    const detach = await attachActiveA2({
+      adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
+      debounceMs: 0,
+      onError: onError,
+    });
     const refreshing = refreshActiveAccountSlice("a2");
     await new Promise((resolve) => setTimeout(resolve, 0));
     detach();
@@ -2813,7 +2967,7 @@ describe("persistence coordinator fault-injection branches", () => {
         releaseRefresh = () => resolve(initial);
       });
     });
-    const detach = await attachActiveA2({ loadAll, saveAll: vi.fn().mockResolvedValue(undefined) });
+    const detach = await attachActiveA2({ adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) } });
     now.mockReturnValue(131_000);
 
     window.dispatchEvent(new Event("focus"));
@@ -2832,14 +2986,14 @@ describe("persistence coordinator fault-injection branches", () => {
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
     useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
-    const detach = attachPersistence(
-      useStore,
-      { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
-      0,
-      vi.fn(),
-      undefined,
-      true,
-    );
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
+      debounceMs: 0,
+      onError: vi.fn(),
+      onSuccess: undefined,
+      serverMode: true,
+    });
     useStore.getState().setActiveAccount("a2");
     await new Promise((resolve) => setTimeout(resolve, 0));
     window.dispatchEvent(new Event("focus"));
@@ -2858,14 +3012,14 @@ describe("persistence coordinator fault-injection branches", () => {
           resolveSave = resolve;
         }),
     );
-    const detach = attachPersistence(
-      useStore,
-      { loadAll: async () => emptyAppData(), saveAll },
-      0,
-      undefined,
-      undefined,
-      true,
-    );
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll: async () => emptyAppData(), saveAll },
+      debounceMs: 0,
+      onError: undefined,
+      onSuccess: undefined,
+      serverMode: true,
+    });
     useStore.getState().addClient({ name: "In flight", color: "#111111" });
     await new Promise((resolve) => setTimeout(resolve, 0));
     const flushing = flushPendingWrites();
@@ -2879,7 +3033,7 @@ describe("persistence coordinator fault-injection branches", () => {
     let holdReload = false;
     const loadAll = vi.fn(() => (holdReload ? new Promise<AppData>(() => undefined) : Promise.resolve(initial)));
     const saveAll = vi.fn().mockResolvedValue(undefined);
-    const detach = await attachActiveA2({ loadAll, saveAll });
+    const detach = await attachActiveA2({ adapter: { loadAll, saveAll } });
     holdReload = true;
     saveAll.mockRejectedValueOnce(new BatchCommitUncertainError("uncertain"));
     useStore.getState().addClient({ name: "Uncertain", color: "#111111" });
@@ -2897,7 +3051,7 @@ describe("persistence coordinator fault-injection branches", () => {
       const saveAll = vi.fn((_data: AppData, opts?: { unload?: boolean }) =>
         opts?.unload ? Promise.reject(new BatchConflictError("teardown conflict")) : Promise.resolve(undefined),
       );
-      const detachPromise = attachActiveA2({ loadAll, saveAll }, 300);
+      const detachPromise = attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 300 });
       await vi.advanceTimersByTimeAsync(5);
       const detach = await detachPromise;
       const loadsAfterPick = loadAll.mock.calls.length;
@@ -2927,7 +3081,7 @@ describe("persistence coordinator fault-injection branches", () => {
       });
     });
     const saveAll = vi.fn().mockRejectedValueOnce(new BatchCommitUncertainError("uncertain"));
-    const detach = await attachActiveA2({ loadAll, saveAll });
+    const detach = await attachActiveA2({ adapter: { loadAll, saveAll } });
     saveAll.mockClear();
     saveAll.mockRejectedValueOnce(new BatchCommitUncertainError("uncertain"));
     useStore.getState().addClient({ name: "Uncertain", color: "#111111" });

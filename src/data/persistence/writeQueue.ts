@@ -6,18 +6,31 @@ import { BatchTooLargeError } from "../ServerSyncAdapter";
 import { incrementPersistenceDiagnostic } from "../persistenceDiagnostics";
 import type { AttachmentState } from "./attachmentState";
 
-export function createWriteQueue(
-  store: StoreApi<StoreState>,
-  adapter: PersistenceAdapter,
-  owner: AttachmentState,
-  serverMode: boolean,
-  startAuthoritativeReload: (id: string) => void,
-  onError?: (error: unknown) => void,
-) {
+interface CreateWriteQueueInput {
+  store: StoreApi<StoreState>;
+  adapter: PersistenceAdapter;
+  owner: AttachmentState;
+  serverMode: boolean;
+  startAuthoritativeReload: (id: string) => void;
+  onError?: (error: unknown) => void;
+}
+
+export function createWriteQueue({
+  store,
+  adapter,
+  owner,
+  serverMode,
+  startAuthoritativeReload,
+  onError,
+}: CreateWriteQueueInput) {
   const MAX_RETRY_ATTEMPTS = 5;
   const { cancelDebounce, cancelRetry, acknowledge, discardEdit } = owner;
   const beginAuthoritativeReloadFor = (error: unknown) =>
-    owner.beginAuthoritativeReloadFor(error, serverMode, startAuthoritativeReload);
+    owner.beginAuthoritativeReloadFor({
+      error: error,
+      serverMode: serverMode,
+      startAuthoritativeReload: startAuthoritativeReload,
+    });
 
   const save = (data: AppData) => {
     if (owner.current.disposed) return;

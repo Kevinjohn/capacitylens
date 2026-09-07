@@ -90,7 +90,8 @@ export async function restoreRememberedLifecycleRows(
     state.lastSynced = writeRows(state.lastSynced, [{ table: op.table, row }], { replaceExisting: true });
     const key = buildLifecycleKey(op);
     state.acknowledgedRevisions.delete(key);
-    if (hasSameEntityContent(op.row, row)) rememberRevisions(state, [op], [revision], state.lastSynced);
+    if (hasSameEntityContent(op.row, row))
+      rememberRevisions({ state: state, ops: [op], revisions: [revision], committedSnapshot: state.lastSynced });
     state.archivedBySync.delete(buildLifecycleKey(op));
     restored = true;
   }

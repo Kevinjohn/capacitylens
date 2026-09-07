@@ -10,6 +10,15 @@ import { createRefreshController } from "./refreshController";
 import { attachAccountSwitch } from "./accountSwitch";
 import { attachDomListeners } from "./domListeners";
 
+interface AttachPersistenceInput {
+  store: StoreApi<StoreState>;
+  adapter: PersistenceAdapter;
+  debounceMs?: number;
+  onError?: (error: unknown) => void;
+  onSuccess?: () => void;
+  serverMode?: boolean;
+}
+
 /**
  * Wire the store to a PersistenceAdapter (OUTSIDE the store) and return a hard-detach function.
  * Detach cancels ownership without initiating a final write; a caller that needs a confirmed handoff
@@ -27,24 +36,31 @@ import { attachDomListeners } from "./domListeners";
  *  5. `visibilitychange→hidden` flushes through the normal serialized path while the page survives;
  *     `pagehide` uses the adapter's keepalive teardown path.
  */
-export function attachPersistence(
-  store: StoreApi<StoreState>,
-  adapter: PersistenceAdapter,
+export function attachPersistence({
+  store,
+  adapter,
   debounceMs = 300,
-  onError?: (error: unknown) => void,
-  onSuccess?: () => void,
+  onError,
+  onSuccess,
   serverMode = false,
-): () => void {
+}: AttachPersistenceInput): () => void {
   const owner = createAttachmentState(store, onError, onSuccess);
-  const writes = createWriteQueue(
-    store,
-    adapter,
-    owner,
-    serverMode,
-    (id) => refresh.startAuthoritativeReload(id),
-    onError,
-  );
-  const refresh = createRefreshController(store, adapter, owner, writes, onError, onSuccess);
+  const writes = createWriteQueue({
+    store: store,
+    adapter: adapter,
+    owner: owner,
+    serverMode: serverMode,
+    startAuthoritativeReload: (id) => refresh.startAuthoritativeReload(id),
+    onError: onError,
+  });
+  const refresh = createRefreshController({
+    store: store,
+    adapter: adapter,
+    owner: owner,
+    writes: writes,
+    onError: onError,
+    onSuccess: onSuccess,
+  });
   const { save } = writes;
   const { cancelDebounce, cancelRetry } = owner;
   const { refreshActive, beginSuspension } = refresh;
@@ -73,7 +89,13 @@ export function attachPersistence(
     owner.update({ timer: setTimeout(() => save(state.data), debounceMs) });
   });
 
-  const { unsubscribeSwitch, myRegisteredSwitch } = attachAccountSwitch(store, owner, writes, refresh, serverMode);
+  const { unsubscribeSwitch, myRegisteredSwitch } = attachAccountSwitch({
+    store: store,
+    owner: owner,
+    writes: writes,
+    refresh: refresh,
+    serverMode: serverMode,
+  });
   // Register the orchestrator-backed refresh for out-of-band server writers (see
   // refreshActiveAccountSlice above). Server mode only — the demo build's lifecycle actions mutate
   // the store directly and never reload. abortIfSaveFailed for the same reason as focus-refresh:
@@ -125,7 +147,7 @@ export function attachPersistence(
     : null;
   // Write-suspension seam (see suspendServerWrites' doc for the resume contract) — the EXTERNAL
   // variant of beginSuspension, registered for the server-mode import.
-  const myRegisteredSuspend = serverMode ? () => beginSuspension(true) : null;
+  const myRegisteredSuspend = serverMode ? () => beginSuspension({ external: true }) : null;
   const myRegisteredHasUnsaved = () =>
     !owner.current.disposed &&
     (owner.current.unacknowledged !== null ||
@@ -155,7 +177,13 @@ export function attachPersistence(
     });
   });
 
-  const detachDomListeners = attachDomListeners(store, owner, writes, refresh, serverMode);
+  const detachDomListeners = attachDomListeners({
+    store: store,
+    owner: owner,
+    writes: writes,
+    refresh: refresh,
+    serverMode: serverMode,
+  });
   return () => {
     if (owner.current.disposed) return;
     owner.dispose();

@@ -895,17 +895,17 @@ describe("AuthProvider — server mode", () => {
     expect(await screen.findByText("app-content")).toBeInTheDocument();
 
     resetStoreWithAccount();
-    const detach = attachPersistence(
-      useStore,
-      {
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: {
         loadAll: async () => useStore.getState().data,
         saveAll: vi.fn().mockResolvedValue(undefined),
       },
-      60_000,
-      undefined,
-      undefined,
-      true,
-    );
+      debounceMs: 60_000,
+      onError: undefined,
+      onSuccess: undefined,
+      serverMode: true,
+    });
     useStore.getState().addClient({ name: "Not yet saved", color: "#222222" });
 
     act(() => useStore.getState().setPersistError(true));
