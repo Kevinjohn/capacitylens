@@ -1,9 +1,4 @@
 {
-  "server/scripts/rehearse/anonymise.ts": {
-    "max-params": {
-      "count": 3
-    }
-  },
   "server/src/accountConfig.ts": {
     "max-params": {
       "count": 1
