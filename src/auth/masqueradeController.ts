@@ -21,7 +21,7 @@ interface EndProjectionInput {
 }
 
 type ResumeWrites = (options?: { dropParkedEdits?: boolean }) => void;
-type EndProjectionResult = "inactive" | "superseded" | "noop" | "failed";
+type EndProjectionResult = { kind: "inactive" } | { kind: "superseded" } | { kind: "noop" } | { kind: "failed" };
 type NoStatePolicy = "succeed" | "wait";
 
 function isSwitchSuccessful(outcome: RefreshOutcome, accountId: string | null): boolean {
@@ -125,8 +125,8 @@ export class MasqueradeController {
       failureMessage: "Masquerade could not be ended.",
       options: { onNoState: "succeed" },
     });
-    if (ended === "inactive") navigate?.("/");
-    return ended !== "failed";
+    if (ended.kind === "inactive") navigate?.("/");
+    return ended.kind !== "failed";
   }
 
   async transitionAccount(accountId: string | null): Promise<boolean> {
@@ -144,10 +144,10 @@ export class MasqueradeController {
       failureMessage: "The company switch could not be completed.",
       options: { onNoState: "wait" },
     });
-    if (ended === "superseded") {
+    if (ended.kind === "superseded") {
       return this.fail("A newer masquerade is active. End it before switching companies.");
     }
-    return ended === "inactive";
+    return ended.kind === "inactive";
   }
 
   private async endProjection({
@@ -159,9 +159,9 @@ export class MasqueradeController {
     const runtime = useStore.getState().masquerade;
     const state = runtime.phase === "inactive" ? null : runtime.state;
     if (!state) {
-      if (options.onNoState === "succeed") return "noop";
+      if (options.onNoState === "succeed") return { kind: "noop" };
       this.fail("Wait for the current masquerade transition to finish.");
-      return "failed";
+      return { kind: "failed" };
     }
     const generation = ++this.generation;
     this.acquireSuspension();
@@ -171,16 +171,16 @@ export class MasqueradeController {
       const status = await this.dependencies.api.status();
       if (status.active) {
         useStore.getState().setMasquerade({ phase: "active", state: status, generation });
-        return "superseded";
+        return { kind: "superseded" };
       }
-      if (!(await finish(state))) return "failed";
+      if (!(await finish(state))) return { kind: "failed" };
       this.releaseSuspension({ dropParkedEdits: true });
       useStore.getState().clearUndoHistory();
       useStore.getState().setMasquerade({ phase: "inactive" });
-      return "inactive";
+      return { kind: "inactive" };
     } catch (error) {
       this.fail(error instanceof Error ? error.message : failureMessage);
-      return "failed";
+      return { kind: "failed" };
     }
   }
 
