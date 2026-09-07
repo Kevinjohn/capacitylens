@@ -315,7 +315,7 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     engagement: "studio" as const,
     workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4, 5],
-    projectId: undefined,
+    ...(over.projectId === undefined ? {} : { projectId: over.projectId }),
     color: "#3b82f6",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-02-01T00:00:00.000Z",
@@ -383,7 +383,9 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
   });
 
   it("handles a NAMELESS placeholder (name undefined) → token set, non-empty", () => {
-    const result = obfuscateResource(makeResource({ kind: "placeholder", name: undefined }));
+    const nameless = makeResource({ kind: "placeholder" });
+    delete nameless.name;
+    const result = obfuscateResource(nameless);
     expect(result.name).toBeDefined();
     expect(result.name?.startsWith("Removed person #")).toBe(true);
     expect(result.name).not.toBe("Removed person #"); // a real tag, not bare

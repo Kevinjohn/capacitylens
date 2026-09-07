@@ -10,9 +10,11 @@ const rows = [
 
 describe("tenant predicates", () => {
   it("compares the exact account id", () => {
-    expect(belongsToAccount(rows[0], "a")).toBe(true);
-    expect(belongsToAccount(rows[0], "A")).toBe(false);
-    expect(belongsToAccount(rows[0], "b")).toBe(false);
+    const row = rows[0];
+    if (row === undefined) throw new Error("Fixture must include an account-a row.");
+    expect(belongsToAccount(row, "a")).toBe(true);
+    expect(belongsToAccount(row, "A")).toBe(false);
+    expect(belongsToAccount(row, "b")).toBe(false);
   });
 
   it("partitions a mixed table exactly without changing row identity", () => {

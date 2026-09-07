@@ -93,7 +93,7 @@ const activity = ({ id, accountId, projectId, phaseId }: ActivityOptions): Activ
   name: "Activity",
   kind: "project",
   projectId,
-  phaseId,
+  ...(phaseId === undefined ? {} : { phaseId }),
 });
 const person = (id: ID, accountId: ID): Resource => ({
   ...meta(id, accountId),
@@ -114,7 +114,7 @@ const discipline = (id: ID, accountId: ID): Discipline => ({
 const placeholder = (id: ID, accountId: ID, projectId?: ID): Resource => ({
   ...person(id, accountId),
   kind: "placeholder",
-  projectId,
+  ...(projectId === undefined ? {} : { projectId }),
 });
 const external = (id: ID, accountId: ID): Resource => ({
   ...person(id, accountId),
@@ -706,15 +706,17 @@ describe("assertAllocationRefs", () => {
   });
 
   it("enforces repeatable-only attribution, project ownership/liveness and placeholder scope", () => {
-    const repeatable = {
+    const repeatable: Activity = {
       ...activity({ id: "repeatable", accountId: A1, projectId: "p1" }),
       kind: "repeatable" as const,
-      projectId: undefined,
     };
+    delete repeatable.projectId;
+    const projectActivity = world().activities[0];
+    if (projectActivity === undefined) throw new Error("World fixture must include a project activity.");
     const data: AppData = {
       ...world(),
       projects: [project("p1", A1, "c1"), project("p2", A1, "c1"), project("foreign", A2, "c2")],
-      activities: [world().activities[0], repeatable],
+      activities: [projectActivity, repeatable],
       resources: [person("r1", A1), placeholder("bound", A1, "p1"), placeholder("unbound", A1, undefined)],
     };
 
@@ -730,11 +732,11 @@ describe("assertAllocationRefs", () => {
   });
 
   it("allows an unchanged archived allocation attribution but rejects changing to it", () => {
-    const repeatable = {
+    const repeatable: Activity = {
       ...activity({ id: "repeatable", accountId: A1, projectId: "p1" }),
       kind: "repeatable" as const,
-      projectId: undefined,
     };
+    delete repeatable.projectId;
     const data: AppData = {
       ...world(),
       projects: [{ ...project("p1", A1, "c1"), archivedAt: TS }],
@@ -745,8 +747,8 @@ describe("assertAllocationRefs", () => {
     expect(() => assertAllocationRefs(data, A1, "r1", "repeatable", 8, "p1", existing)).not.toThrow();
     expect(() =>
       assertAllocationRefs(data, A1, "r1", "repeatable", 8, "p1", {
-        ...existing,
-        projectId: undefined,
+        resourceId: existing.resourceId,
+        activityId: existing.activityId,
       }),
     ).toThrow(/active project/i);
   });
@@ -1039,7 +1041,11 @@ describe("parent project edits preserve placeholder allocation assignments", () 
         data,
         A1,
         "placeholder-work",
-        { ...placeholderActivity, kind: "repeatable", projectId: undefined },
+        (() => {
+          const changed = { ...placeholderActivity, kind: "repeatable" as const };
+          delete changed.projectId;
+          return changed;
+        })(),
         placeholderActivity,
       ),
     ).not.toThrow();
@@ -1096,15 +1102,18 @@ describe("remapAndValidateImport", () => {
     expect(skipped).toBe(0);
     const p = data.projects[0];
     const t = data.activities[0];
+    if (p === undefined || t === undefined) throw new Error("Import must retain the project and activity.");
     expect(p.id).not.toBe("src-p"); // fresh id
     expect(p.accountId).toBe(A1); // stamped active account
     expect(t.projectId).toBe(p.id); // FK rewired to the new project id
-    expect(data.clients[0].id).not.toBe("src-c");
+    expect(data.clients[0]?.id).not.toBe("src-c");
   });
 
   it("does not retain properties outside the declared entity schema", () => {
     const handEdited = incoming();
-    Object.assign(handEdited.clients[0], {
+    const sourceClient = handEdited.clients[0];
+    if (sourceClient === undefined) throw new Error("Fixture must include a client.");
+    Object.assign(sourceClient, {
       opaquePrivateField: "must not persist",
     });
 
@@ -1150,7 +1159,7 @@ describe("remapAndValidateImport", () => {
     const legacyActivity = data.activities.find(({ name }) => name === "Legacy work");
     expect(legacyActivity).toBeDefined();
     expect(data.allocations).toHaveLength(1);
-    expect(data.allocations[0].activityId).toBe(legacyActivity?.id);
+    expect(data.allocations[0]?.activityId).toBe(legacyActivity?.id);
     expect(imported).toBe(4);
     expect(skipped).toBe(0);
   });
@@ -1350,7 +1359,7 @@ describe("remapAndValidateImport", () => {
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     expect(data.allocations).toHaveLength(1);
-    expect(data.allocations[0].hoursPerDay).toBe(0); // load coerced — capacity-free resource
+    expect(data.allocations[0]?.hoursPerDay).toBe(0); // load coerced — capacity-free resource
     expect(data.timeOff).toHaveLength(0); // external time-off dropped
   });
 
@@ -1368,8 +1377,8 @@ describe("remapAndValidateImport", () => {
       role: "Removed resource",
       deletedAt: deleted.deletedAt,
     });
-    expect(data.resources[0].name).toMatch(/^Removed person #[a-zA-Z0-9]{12}$/);
-    expect(data.resources[0].name).not.toContain("Named Person");
+    expect(data.resources[0]?.name).toMatch(/^Removed person #[a-zA-Z0-9]{12}$/);
+    expect(data.resources[0]?.name).not.toContain("Named Person");
   });
 
   it("scrubs dependent allocation and time-off notes for an imported deleted resource", () => {
@@ -1439,7 +1448,7 @@ describe("remapAndValidateImport", () => {
     const active = { ...person("src-r", "src-acct"), name: "Named Person" };
     const { data } = remapAndValidateImport(base(), A1, { ...emptyAppData(), resources: [active] }, TS);
     expect(data.resources).toHaveLength(1);
-    expect(data.resources[0].name).toBe("Named Person");
+    expect(data.resources[0]?.name).toBe("Named Person");
   });
 
   it("drops records with a dangling REQUIRED ref and unbinds a dangling OPTIONAL ref", () => {
@@ -1458,11 +1467,11 @@ describe("remapAndValidateImport", () => {
     expect(data.projects).toHaveLength(0);
     expect(data.phases).toHaveLength(0);
     expect(data.resources).toHaveLength(1);
-    expect(data.resources[0].disciplineId).toBeUndefined();
+    expect(data.resources[0]?.disciplineId).toBeUndefined();
     expect(data.activities).toHaveLength(1);
-    expect(data.activities[0].projectId).toBeUndefined(); // unbound → project-less activity
-    expect(data.activities[0].phaseId).toBeUndefined(); // a project-less activity carries no phase
-    expect(data.activities[0].kind).toBe("repeatable"); // a project activity that loses its project becomes repeatable
+    expect(data.activities[0]?.projectId).toBeUndefined(); // unbound → project-less activity
+    expect(data.activities[0]?.phaseId).toBeUndefined(); // a project-less activity carries no phase
+    expect(data.activities[0]?.kind).toBe("repeatable"); // a project activity that loses its project becomes repeatable
     expect(imported).toBe(2); // resource + activity
     expect(skipped).toBe(2); // project + phase
   });
@@ -1478,8 +1487,8 @@ describe("remapAndValidateImport", () => {
       allocations: [allocation({ id: "al", accountId: "src", resourceId: "ph", activityId: "t-general" })],
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
-    expect(data.resources[0].projectId).toBeUndefined();
-    expect(data.activities[0].projectId).toBeUndefined();
+    expect(data.resources[0]?.projectId).toBeUndefined();
+    expect(data.activities[0]?.projectId).toBeUndefined();
     expect(data.allocations).toHaveLength(1); // unbound placeholder + general activity is allowed
   });
 
@@ -1495,8 +1504,8 @@ describe("remapAndValidateImport", () => {
       allocations: [allocation({ id: "al", accountId: "src", resourceId: "ph", activityId: "t-proj" })],
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
-    expect(data.resources[0].projectId).toBeUndefined();
-    expect(data.activities[0].projectId).toBe(data.projects[0].id); // activity stays bound
+    expect(data.resources[0]?.projectId).toBeUndefined();
+    expect(data.activities[0]?.projectId).toBe(data.projects[0]?.id); // activity stays bound
     expect(data.allocations).toHaveLength(0); // placeholder rule drops the allocation
   });
 
@@ -1790,7 +1799,7 @@ describe("remapAndValidateImport", () => {
     expect(builtins).toHaveLength(1); // duplicates folded to one
     const proj = data.projects.find((p) => p.accountId === A1);
     expect(proj).toBeDefined(); // rewired to the kept Internal ⇒ survives the required-FK drop
-    expect(proj?.clientId).toBe(builtins[0].id);
+    expect(proj?.clientId).toBe(builtins[0]?.id);
   });
 
   it("repairs an imported allocation’s unpadded dates instead of dropping it", () => {
