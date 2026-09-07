@@ -114,26 +114,6 @@
       "count": 3
     }
   },
-  "server/src/backup/preMigration.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "server/src/backup/publish.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "server/src/backup/retention.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/backup/scheduler.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "server/src/cascadeParity.test.ts": {
     "max-params": {
       "count": 1
