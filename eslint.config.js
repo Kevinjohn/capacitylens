@@ -171,6 +171,17 @@ export default defineConfig([
     },
   },
 
+  // End-to-end scenarios share the structural limits even though their Playwright project is
+  // separate from the typed app/server lint projects. Tests are not exempt from the baseline.
+  {
+    files: ["e2e/**/*.{ts,tsx,mts,cts}"],
+    rules: {
+      complexity: ["error", { max: 12 }],
+      "max-depth": ["error", 3],
+      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
+    },
+  },
+
   // The reviewed no-unnecessary-type-assertion probe covered authored production code, not tests.
   {
     files: ["src/**/*.{ts,tsx}", "server/src/**/*.ts", "server/scripts/**/*.ts", "shared/src/**/*.{ts,tsx,mts,cts}"],

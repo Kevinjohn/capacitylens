@@ -1,4 +1,169 @@
 {
+  "e2e/accessibility.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/activities.spec.ts": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "e2e/all-projects-attribution.spec.ts": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "e2e/allocation-modal-layout.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/allocation.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/clear-local-storage.spec.ts": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "e2e/clients.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/company-closures.auth.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/data.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/disciplines-optional.spec.ts": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "e2e/external.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/features.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/filters.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/getting-started.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/half-day-scheduler.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/invite.auth.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/login.auth.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/members.auth.spec.ts": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "e2e/minimise-weekends.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/modal-layout.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/navigation.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/oidc.oidc.spec.ts": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "e2e/palette.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/persistence.db.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/private-name-permissions.auth.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/reset-password.auth.spec.ts": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "e2e/resilience.db.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/resources.spec.ts": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "e2e/scheduler.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/timeoff.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/toolbar.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "e2e/viewer.auth.spec.ts": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "e2e/weekend-overmarker.spec.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
   "server/scripts/generate-database-fixtures.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
