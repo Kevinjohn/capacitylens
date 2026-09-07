@@ -144,7 +144,8 @@ describe("P2.7 privacy posture — no analytics/telemetry/email vendor dependenc
     const keyLine = /^ {2}'?((?:@[^\s/']+\/)?[^\s@']+)@(?:\d|https?:|git\+|file:|link:)/;
     for (const line of raw.split("\n")) {
       const match = keyLine.exec(line);
-      if (match) installed.add(match[1]);
+      const packageName = match?.[1];
+      if (packageName !== undefined) installed.add(packageName);
     }
 
     // Non-vacuous: we must have parsed a real tree. (A lockfile format change that stops these
