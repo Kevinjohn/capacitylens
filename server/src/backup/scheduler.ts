@@ -19,13 +19,22 @@ import { isProtectedDatabasePath, listSnapshots, readMainDatabaseIdentity, prune
 // the thing that corrupts it). A fixed constant rather than 2× the interval because the interval
 // is operator-tunable down to seconds, which would defeat the margin.
 const TMP_SWEEP_AGE_MS = 60 * 60_000;
-export function startBackups(
-  db: Db,
-  config: BackupConfig,
-  log: (msg: string) => void = console.log,
-  now: () => Date = () => new Date(),
-  publisher: DurableSnapshotPublisher = durableSnapshotPublisher,
-): Backups {
+
+interface StartBackupsInput {
+  db: Db;
+  config: BackupConfig;
+  log?: ((msg: string) => void) | undefined;
+  now?: (() => Date) | undefined;
+  publisher?: DurableSnapshotPublisher | undefined;
+}
+
+export function startBackups({
+  db,
+  config,
+  log = console.log,
+  now = () => new Date(),
+  publisher = durableSnapshotPublisher,
+}: StartBackupsInput): Backups {
   // Deliberately fatal: the operator asked for backups via CAPACITYLENS_BACKUP_DIR, and a directory
   // we cannot create or restrict means snapshots cannot meet their configured privacy boundary.
   // Booting anyway would silently run without trustworthy backups. Later housekeeping degrades.
@@ -132,7 +141,15 @@ export function startBackups(
       // Write to the temp name and rename on success: rename is atomic on the same filesystem,
       // so a torn write (crash, full disk) never sits behind a valid snapshot name. Read the
       // source version for this attempt rather than caching it.
-      await writeVerifiedSnapshot(db, tmp, file, config.dir, "scheduled snapshot", readDatabaseVersion(db), publisher);
+      await writeVerifiedSnapshot({
+        db,
+        tmp,
+        file,
+        dir: config.dir,
+        label: "scheduled snapshot",
+        expectedVersion: readDatabaseVersion(db),
+        publisher,
+      });
     } catch (error) {
       health.degraded = true;
       // A failed write must not orphan its temp file: prune() and the start-up sweep both
@@ -144,7 +161,7 @@ export function startBackups(
     }
     // The just-published file is an explicit retention exclusion as a final fail-safe: a successful
     // snapshotNow() must never return a path that its own retention pass removed.
-    const pruned = prune(config.dir, config.keep, liveDatabase, file, log);
+    const pruned = prune({ dir: config.dir, keep: config.keep, database: liveDatabase, currentFile: file, log });
     if (pruned > 0) {
       try {
         // The new snapshot name was already synced before prune. Persist retention metadata too;

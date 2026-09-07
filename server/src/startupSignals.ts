@@ -1,3 +1,5 @@
+import type { Db } from "./db";
+
 export interface StartupSignalController {
   requested(): NodeJS.Signals | null;
   dispose(): void;
@@ -34,4 +36,21 @@ export function installStartupSignalHandlers(options: {
       process.off("SIGINT", onSigint);
     },
   };
+}
+
+interface StopStartupIfRequestedInput {
+  startupSignals: StartupSignalController;
+  openDb?: Pick<Db, "close"> | undefined;
+}
+
+export function stopStartupIfRequested({ startupSignals, openDb }: StopStartupIfRequestedInput): void {
+  const signal = startupSignals.requested();
+  if (!signal) return;
+  try {
+    openDb?.close();
+  } catch (error) {
+    console.error("capacitylens-server: database close failed while stopping startup", error);
+  }
+  startupSignals.dispose();
+  process.exit(0);
 }
