@@ -1,3 +1,4 @@
+import type { EffectiveRoleResult } from "./appAuthorization";
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
@@ -44,7 +45,7 @@ export interface StateRouteDependencies {
   accountFlows: LocalAccountFlows;
   masquerades: MasqueradeRegistry;
   authorize: AuthorizeRoute;
-  resolveEffectiveRole: (req: FastifyRequest, accountId: string) => { role: Role | null; ended: boolean };
+  resolveEffectiveRole: (req: FastifyRequest, accountId: string) => EffectiveRoleResult;
   accountCommand: (req: FastifyRequest) => CommandIdentity;
   accountFail: (reply: FastifyReply, error: unknown) => FastifyReply;
   sendFail: (reply: FastifyReply, error: unknown) => FastifyReply;
@@ -99,7 +100,7 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
       let projectedRole: ReturnType<typeof accountAdminPort.roleForPrincipalInWorkspace> = null;
       if (activeRecord) {
         const activeResolution = resolveEffectiveRole(req, activeRecord.accountId);
-        if (activeResolution.ended) {
+        if (activeResolution.kind === "ended") {
           return reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
         }
         projectedRole = activeResolution.role;
@@ -127,7 +128,7 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
         // single source of truth: OFF mode short-circuits to allow-all (trusted-local), auth-on
         // requires membership (read = any member, via can()) and 403s a non-member.
         const authorization = authorize({ req, reply, accountId, action: "read" });
-        if (!authorization) return;
+        if (authorization.kind === "denied") return;
         // P1.6 field-level redaction: the time-off `note` is owner/admin-only. Decide visibility from
         // the caller's role and redact it SERVER-SIDE so it never serializes for an Editor/Viewer.
         // OFF mode = trusted-local ⇒ include. Auth-on: owner/admin include, editor/viewer omit.
@@ -156,7 +157,7 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
           return reply.code(400).send({ error: "includeInactive must be the literal value 1 when present." });
         }
         const wantsInactive = includeInactive === "1";
-        if (wantsInactive && !authorize({ req, reply, accountId, action: "purge" })) return;
+        if (wantsInactive && authorize({ req, reply, accountId, action: "purge" }).kind === "denied") return;
         // P2.4: the NORMAL app read HIDES archived/soft-deleted resources/clients/projects — pass
         // includeInactive:false so readSlice drops them server-side (the same rule the client views
         // apply via useActiveScopedData). The P2.5a admin read passes true to retain them.
