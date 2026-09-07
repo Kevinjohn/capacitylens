@@ -73,7 +73,8 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
   // Generic scoped-entity creation. `accounts` is served by the dedicated routes above.
   app.post("/api/:entity", (req, reply) => {
     const { entity } = req.params as { entity: string };
-    if (!isGenericEntity(entity)) return reply.code(404).send({ error: "Unknown entity." });
+    const unknownEntityMessage = `Unknown entity: ${entity}`;
+    if (!isGenericEntity(entity)) return reply.code(404).send({ error: unknownEntityMessage });
     // Shared body-shape + builtin-Internal guard (Finding 7 funnel). A missing/non-object body
     // would otherwise null-deref below (accountId! / sanitizeWrite's assertIdPresent) BEFORE the
     // try block could classify it — a misclassified 500. checkEntityWriteBody rejects it with the
@@ -134,7 +135,8 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
   // body's id must match the URL id.
   app.put("/api/:entity/:id", (req, reply) => {
     const { entity, id } = req.params as { entity: string; id: string };
-    if (!isGenericEntity(entity)) return reply.code(404).send({ error: "Unknown entity." });
+    const unknownEntityMessage = `Unknown entity: ${entity}`;
+    if (!isGenericEntity(entity)) return reply.code(404).send({ error: unknownEntityMessage });
     const scoped = isScopedTable(entity);
     const bodyCheck = checkEntityWriteBody({ verb: "replace", entity, body: req.body, urlId: id, scoped });
     if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
@@ -225,7 +227,8 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
   // field the body omits.) 404 when the row doesn't exist.
   app.patch("/api/:entity/:id", (req, reply) => {
     const { entity, id } = req.params as { entity: string; id: string };
-    if (!isGenericEntity(entity)) return reply.code(404).send({ error: "Unknown entity." });
+    const unknownEntityMessage = `Unknown entity: ${entity}`;
+    if (!isGenericEntity(entity)) return reply.code(404).send({ error: unknownEntityMessage });
     // Shared body-shape check (Finding 7 funnel). A missing/non-object body would otherwise
     // null-deref inside sanitizeWrite's merge, a misclassified 500. For PATCH accountId is
     // OPTIONAL — only a PRESENT non-string is rejected.
@@ -331,7 +334,8 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
 
   app.delete("/api/:entity/:id", (req, reply) => {
     const { entity, id } = req.params as { entity: string; id: string };
-    if (!isGenericEntity(entity)) return reply.code(404).send({ error: "Unknown entity." });
+    const unknownEntityMessage = `Unknown entity: ${entity}`;
+    if (!isGenericEntity(entity)) return reply.code(404).send({ error: unknownEntityMessage });
     if (isLifecycleEntity(entity)) {
       return reply.code(400).send({
         error: "Use the dedicated lifecycle endpoints for this entity.",

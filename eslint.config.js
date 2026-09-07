@@ -165,6 +165,13 @@ export default defineConfig([
     },
   },
 
+  // The reviewed no-unnecessary-type-assertion probe covered authored production code, not tests.
+  {
+    files: ["src/**/*.{ts,tsx}", "server/src/**/*.ts", "server/scripts/**/*.ts", "shared/src/**/*.{ts,tsx,mts,cts}"],
+    ignores: ["**/*.{test,spec}.{ts,tsx,mts,cts}", "**/__tests__/**/*.{ts,tsx,mts,cts}"],
+    rules: { "@typescript-eslint/no-unnecessary-type-assertion": "error" },
+  },
+
   // The mechanical part of docs-src/reference/conventions.md: identifier casing, no negated
   // boolean names, and at most three positional parameters. Properties, methods and imports are
   // unformatted because many mirror wire fields, SQL columns and library names. Existing

@@ -25,7 +25,7 @@ export function listSupportedTimeZones(): readonly string[] {
 
 function buildSupportedTimeZones(): string[] {
   try {
-    const zones = Intl.supportedValuesOf("timeZone") as string[];
+    const zones = Intl.supportedValuesOf("timeZone");
     if (!zones.includes(DEFAULT_TIME_ZONE)) return [DEFAULT_TIME_ZONE, ...zones];
     return zones;
   } catch {

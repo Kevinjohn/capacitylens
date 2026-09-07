@@ -52,7 +52,7 @@ function buildCanonicalJson(value: unknown): string {
  * audit event for a request that merely re-read an already committed result. */
 export function markAccountCommandReplay<T>(result: T): T {
   if ((typeof result === "object" && result !== null) || typeof result === "function") {
-    replayedCommandResults.add(result as object);
+    replayedCommandResults.add(result);
   }
   return result;
 }
@@ -60,7 +60,7 @@ export function markAccountCommandReplay<T>(result: T): T {
 export function wasAccountCommandReplayed(result: unknown): boolean {
   return (
     ((typeof result === "object" && result !== null) || typeof result === "function") &&
-    replayedCommandResults.has(result as object)
+    replayedCommandResults.has(result)
   );
 }
 

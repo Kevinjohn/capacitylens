@@ -54,7 +54,7 @@ function countDaysInMonth(year: number, month: number): number {
 }
 
 function buildIsoDate(year: number, month: number, day: number): ISODate {
-  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` as ISODate;
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 function parseDateParts(date: ISODate): { year: number; month: number; day: number } {

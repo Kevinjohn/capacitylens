@@ -247,9 +247,7 @@ export const accountClient = {
 
   async createInvitation(body: unknown, command?: BrowserAccountCommand): Promise<Response> {
     const accountId =
-      typeof body === "object" && body !== null && "accountId" in body
-        ? String((body as { accountId: unknown }).accountId)
-        : "unknown";
+      typeof body === "object" && body !== null && "accountId" in body ? String(body.accountId) : "unknown";
     return runCommand({
       operationKey: await buildPayloadOperationKey(`invitation-create:${accountId}`, body),
       explicit: command,

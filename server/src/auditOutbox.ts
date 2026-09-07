@@ -249,7 +249,7 @@ export function drainAuditOutbox(db: Db, sink: AuditSink): boolean {
   }
   for (const [index, entry] of entries.entries()) {
     if (!sink.append(entry)) return false;
-    const row = validRows[index]!;
+    const row = validRows[index];
     const result = remove.run(row.sequence, row.id);
     if (result.changes !== 1) throw new Error(`Audit outbox row ${row.id} changed during delivery.`);
   }

@@ -69,7 +69,7 @@ export function createAuthAdapterFactory({
     // this single narrowing boundary (P1.7a): Better Auth's full user carries the richer fields we
     // drop here, so this is exactly where `emailVerified` is read and defaulted before everything
     // downstream sees only the {id,email,emailVerified,name} SessionUser.
-    const raw = instance as unknown as {
+    const raw = instance as {
       handler: Auth["handler"];
       api: {
         getSession: (input: { headers: Headers }) => Promise<{
@@ -242,7 +242,7 @@ export function createAuthAdapterFactory({
               WHERE applicationId = ? AND (issuer = ? OR providerId = ?)`,
             )
             .all(application.applicationId, issuer, providerId) as Array<{ issuer: string; providerId: string }>;
-          if (row.length !== 1 || row[0]!.issuer !== issuer || row[0]!.providerId !== providerId) {
+          if (row.length !== 1 || row[0].issuer !== issuer || row[0].providerId !== providerId) {
             throw new Error(`Persisted provider binding does not match configured provider ${providerId}.`);
           }
         }

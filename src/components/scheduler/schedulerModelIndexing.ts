@@ -27,7 +27,7 @@ export function resolveFirstDateIndexAtOrAfter(dates: ISODate[], target: ISODate
   let upperIndex = dates.length;
   while (lowerIndex < upperIndex) {
     const middleIndex = (lowerIndex + upperIndex) >> 1;
-    if (dates[middleIndex]! < target) lowerIndex = middleIndex + 1;
+    if (dates[middleIndex] < target) lowerIndex = middleIndex + 1;
     else upperIndex = middleIndex;
   }
   return lowerIndex;
@@ -47,7 +47,7 @@ export function bucketByCoveredDate<T extends { startDate: ISODate; endDate: ISO
   const byDate = new Map<ISODate, T[]>();
   for (const row of rows) {
     for (let i = resolveFirstDateIndexAtOrAfter(dates, row.startDate); i < dates.length; i++) {
-      const date = dates[i]!;
+      const date = dates[i];
       if (date > row.endDate) break;
       const list = byDate.get(date);
       if (list) list.push(row);

@@ -113,7 +113,7 @@ export function createGuards(get: StoreApi<StoreState>["getState"], set: StoreAp
   // an assert* throw). A rejected write must not silently substitute a colour the caller never
   // asked for onto an entity that was never saved; see the CRUD contract note on StoreState.
   const snapColor = ({ color, allowNeutral = false }: SnapColorInput): string =>
-    allowNeutral && color === NEUTRAL_COLOR ? (color as string) : snapToPresetColor(color);
+    allowNeutral && color === NEUTRAL_COLOR ? color : snapToPresetColor(color);
 
   // Collapses the `patch.color === undefined ? patch : { ...patch, color: snapColor(...) }`
   // idiom that used to be copy-pasted across every update* action (P#: colour-repair

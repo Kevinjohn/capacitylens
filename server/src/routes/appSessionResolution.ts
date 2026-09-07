@@ -60,7 +60,7 @@ export function installSessionResolution({
     }
     const resolution = (async (): Promise<SessionResolutionResult> => {
       try {
-        const session = await identityPort!.verifyApplicationSession({ headers: toWebHeaders(req.headers) });
+        const session = await identityPort.verifyApplicationSession({ headers: toWebHeaders(req.headers) });
         return session ? { kind: "verified", session } : { kind: "absent_or_invalid" };
       } catch (error) {
         return { kind: "backend_failure", error };

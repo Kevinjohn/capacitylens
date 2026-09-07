@@ -39,8 +39,8 @@ export function readCapacityAnnouncement(resourceId: ID): string {
   });
   if (allocations.length === 0) return m.scheduler_sr_announce_clear({ name });
 
-  let start = allocations[0]!.startDate;
-  let end = allocations[0]!.endDate;
+  let start = allocations[0].startDate;
+  let end = allocations[0].endDate;
   for (const allocation of allocations) {
     if (allocation.startDate < start) start = allocation.startDate;
     if (allocation.endDate > end) end = allocation.endDate;

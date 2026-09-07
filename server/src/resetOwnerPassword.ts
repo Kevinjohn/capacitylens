@@ -110,7 +110,7 @@ export async function resetOwnerPassword(input: OwnerRecoveryInput): Promise<Own
           : "More than one identity matches that address; recovery requires an unambiguous target.",
       );
     }
-    const userId = matches[0]!;
+    const userId = matches[0];
 
     // Authority condition: only the state no in-product actor can recover. Anyone else has an
     // in-product reset path, and this tool must not become a general backdoor.
@@ -138,12 +138,12 @@ export async function resetOwnerPassword(input: OwnerRecoveryInput): Promise<Own
       const expiresAt = new Date(Date.now() + RESET_LINK_TTL_SECONDS * 1000).toISOString();
       const event: AccountAuditEvent = {
         id: randomUUID(),
-        occurredAt: new Date().toISOString() as AccountAuditEvent["occurredAt"],
+        occurredAt: new Date().toISOString(),
         applicationId,
         workspaceId: null,
         // No in-product actor exists for this ceremony — that absence is the auditable fact.
         actorPrincipalId: null,
-        targetPrincipalId: userId as AccountAuditEvent["targetPrincipalId"],
+        targetPrincipalId: userId,
         commandId: null,
         action: "identity.owner_recovery_issued",
         outcome: "success",

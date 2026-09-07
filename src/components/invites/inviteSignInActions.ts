@@ -87,7 +87,7 @@ export function createInviteSignInActions({ email, password, refreshAuth, setSta
               fetchOptions: { signal },
             })
           : authClient.signIn.social({
-              provider: provider.id as "google" | "microsoft" | "github",
+              provider: provider.id,
               callbackURL: window.location.href,
               errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
               disableRedirect: true,

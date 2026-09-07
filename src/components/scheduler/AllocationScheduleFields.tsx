@@ -1,4 +1,3 @@
-import type { ISODate } from "@capacitylens/shared/types/entities";
 import { MAX_NOTE_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { m } from "@/i18n";
 import {
@@ -184,7 +183,7 @@ export function AllocationScheduleFields({
               <p className="text-xs text-muted-foreground">
                 {m.form_allocation_repeat_preview({
                   count: repeatProjection.startDates.length,
-                  repeatUntil: formatShortDate(repeatUntil as ISODate),
+                  repeatUntil: formatShortDate(repeatUntil),
                   lastStart: formatShortDate(repeatLastStart),
                 })}
               </p>

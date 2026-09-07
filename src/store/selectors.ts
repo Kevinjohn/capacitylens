@@ -24,7 +24,7 @@ export const DEFAULT_WEEK_STARTS_ON = 1 as const;
 const createAccountFieldSelector =
   <K extends keyof Account>(key: K, fallback: NonNullable<Account[K]>) =>
   (data: AppData, activeAccountId: ID | null): NonNullable<Account[K]> =>
-    (data.accounts.find((account) => account.id === activeAccountId)?.[key] ?? fallback) as NonNullable<Account[K]>;
+    data.accounts.find((account) => account.id === activeAccountId)?.[key] ?? fallback;
 
 /** The active company's scheduling input mode. Absent on the account reads as the
  *  original 'hourly' behaviour. Single source so the modal and the bar can't drift. */
