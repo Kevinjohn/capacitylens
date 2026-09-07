@@ -2,6 +2,14 @@ import { useMemo } from "react";
 import { useStore } from "../../store/useStore";
 import type { LaneLayout } from "../../lib/lanePacking";
 
+interface BuildSchedulerDensityInput {
+  compact: boolean;
+}
+
+interface BuildLaneLayoutInput {
+  compact: boolean;
+}
+
 // Fixed pixel geometry for the scheduler. dayWidth is dynamic (zoom) and lives in
 // the store; everything here is constant.
 export const LAYOUT = {
@@ -86,7 +94,7 @@ export interface SchedulerDensity {
 }
 
 /** Vertical geometry for the current density. `compact` true === today's tight layout. */
-export function buildSchedulerDensity(compact: boolean): SchedulerDensity {
+export function buildSchedulerDensity({ compact }: BuildSchedulerDensityInput): SchedulerDensity {
   const laneGap = compact ? LAYOUT.laneGap : resolveRoomySize(LAYOUT.laneGap, LANE_GAP_SCALE);
   const rowPadding = compact ? LAYOUT.rowPadding : resolveRoomySize(LAYOUT.rowPadding);
   return {
@@ -110,11 +118,11 @@ export function buildSchedulerDensity(compact: boolean): SchedulerDensity {
  */
 export function useSchedulerDensity(): SchedulerDensity {
   const compact = useStore((state) => state.compactView);
-  return useMemo(() => buildSchedulerDensity(compact), [compact]);
+  return useMemo(() => buildSchedulerDensity({ compact }), [compact]);
 }
 
 /** The lane-packing projection of `buildSchedulerDensity`, handed to buildSchedulerModel. */
-export function buildLaneLayout(compact: boolean): LaneLayout {
-  const density = buildSchedulerDensity(compact);
+export function buildLaneLayout({ compact }: BuildLaneLayoutInput): LaneLayout {
+  const density = buildSchedulerDensity({ compact });
   return { barHeight: LAYOUT.barHeight, laneGap: density.laneGap, rowPadding: density.rowPadding };
 }

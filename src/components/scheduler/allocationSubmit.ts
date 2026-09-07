@@ -143,6 +143,11 @@ export function createAllocationCommands(input: CommandInput) {
     };
   };
 
+  interface RejectNewPlacementCalendarConflictsInput {
+    draft: ReturnType<typeof validateDraft>;
+    newPlacement: boolean;
+  }
+
   /** The calendar gates for NEW placement only: create, duplicate, or an assignee-changing edit.
    *  A normal edit on the original assignee remains valid after calendar settings change (its
    *  stale start stays editable). Routed through the grid's own start gate so a typed date obeys
@@ -151,19 +156,19 @@ export function createAllocationCommands(input: CommandInput) {
    *  for Ignore working days (there is no ignored-creation escape hatch; the override affects
    *  spans and moves of saved allocations only). Repeat OCCURRENCES are the deliberate exception
    *  (advisory-counted instead, decision 9). */
-  const rejectNewPlacementCalendarConflicts = (draft: ReturnType<typeof validateDraft>, newPlacement: boolean) => {
+  const rejectNewPlacementCalendarConflicts = ({ draft, newPlacement }: RejectNewPlacementCalendarConflictsInput) => {
     if (!draft || !newPlacement || !selectedResource || !selectedEffectiveWeek) return false;
     if (selectedEffectiveWeek.kind !== "days") {
       fail("resource", m.form_allocation_err_no_effective_working_days());
       return true;
     }
-    const blocked = resolveEffectiveWeekCreationBlockReason(
-      selectedResource,
-      draft.startDate,
-      data.timeOff,
-      selectedEffectiveWeek,
-      data.closures,
-    );
+    const blocked = resolveEffectiveWeekCreationBlockReason({
+      resource: selectedResource,
+      date: draft.startDate,
+      timeOff: data.timeOff,
+      effectiveWeek: selectedEffectiveWeek,
+      closures: data.closures,
+    });
     if (blocked === "non-working") {
       fail("startDate", m.form_allocation_err_start_non_working());
       return true;
@@ -179,7 +184,10 @@ export function createAllocationCommands(input: CommandInput) {
     if (!canEdit) return;
     const draft = validateDraft();
     if (!draft) return;
-    if (rejectNewPlacementCalendarConflicts(draft, !editing || editing.resourceId !== draft.resourceId)) return;
+    if (
+      rejectNewPlacementCalendarConflicts({ draft, newPlacement: !editing || editing.resourceId !== draft.resourceId })
+    )
+      return;
     try {
       if (editing) {
         // Blocks-mode edits deliberately omit hoursPerDay so the store preserves the allocation's
@@ -226,7 +234,7 @@ export function createAllocationCommands(input: CommandInput) {
     if (!editing) return;
     const draft = validateDraft();
     if (!draft) return;
-    if (rejectNewPlacementCalendarConflicts(draft, true)) return;
+    if (rejectNewPlacementCalendarConflicts({ draft, newPlacement: true })) return;
     try {
       addAllocation(draft);
       onClose();

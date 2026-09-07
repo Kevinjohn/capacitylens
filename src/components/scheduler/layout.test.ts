@@ -20,7 +20,7 @@ describe("laneLayout", () => {
 // the pref defaults OFF, so the ROOMY numbers are what ships — these pin both ends.
 describe("schedulerDensity", () => {
   it("returns today's geometry unchanged when compact", () => {
-    const compact = buildSchedulerDensity(true);
+    const compact = buildSchedulerDensity({ compact: true });
     expect(compact.laneGap).toBe(LAYOUT.laneGap);
     expect(compact.rowPadding).toBe(LAYOUT.rowPadding);
     expect(compact.groupHeaderHeight).toBe(LAYOUT.groupHeaderHeight);
@@ -28,8 +28,8 @@ describe("schedulerDensity", () => {
   });
 
   it("scales row padding and the toolbar/nav rhythm by DENSITY_SCALE when roomy", () => {
-    const compact = buildSchedulerDensity(true);
-    const roomy = buildSchedulerDensity(false);
+    const compact = buildSchedulerDensity({ compact: true });
+    const roomy = buildSchedulerDensity({ compact: false });
     expect(roomy.rowPadding).toBe(Math.round(LAYOUT.rowPadding * DENSITY_SCALE));
     expect(roomy.toolbarPadY).toBe(compact.toolbarPadY * DENSITY_SCALE);
     expect(roomy.toolbarGapY).toBe(compact.toolbarGapY * DENSITY_SCALE);
@@ -41,16 +41,16 @@ describe("schedulerDensity", () => {
   // Owner decision: a discipline band holds one short label and nothing else, so padding it out
   // just makes a tall empty stripe. It must stay put while everything around it grows.
   it("never changes the discipline band height", () => {
-    expect(buildSchedulerDensity(true).groupHeaderHeight).toBe(LAYOUT.groupHeaderHeight);
-    expect(buildSchedulerDensity(false).groupHeaderHeight).toBe(LAYOUT.groupHeaderHeight);
+    expect(buildSchedulerDensity({ compact: true }).groupHeaderHeight).toBe(LAYOUT.groupHeaderHeight);
+    expect(buildSchedulerDensity({ compact: false }).groupHeaderHeight).toBe(LAYOUT.groupHeaderHeight);
   });
 
   // Owner decision: at the shared scale the stacked-allocation gap moves 4px → 8px, which the row
   // padding either side swamps — it reads as "that gap never changed". It gets its own multiplier,
   // and must scale strictly harder than the padding around it or the complaint comes back.
   it("scales the gap between stacked allocations harder than the row padding", () => {
-    const compact = buildSchedulerDensity(true);
-    const roomy = buildSchedulerDensity(false);
+    const compact = buildSchedulerDensity({ compact: true });
+    const roomy = buildSchedulerDensity({ compact: false });
     expect(roomy.laneGap).toBe(Math.round(LAYOUT.laneGap * LANE_GAP_SCALE));
     expect(LANE_GAP_SCALE).toBeGreaterThan(DENSITY_SCALE);
     expect(roomy.laneGap / compact.laneGap).toBeGreaterThan(roomy.rowPadding / compact.rowPadding);
@@ -59,8 +59,8 @@ describe("schedulerDensity", () => {
   // The bar is CONTENT, not spacing: growing it would restyle every allocation and change how much
   // label fits. Only the gaps between things move.
   it("keeps the bar the same height in both densities", () => {
-    expect(buildLaneLayout(true).barHeight).toBe(LAYOUT.barHeight);
-    expect(buildLaneLayout(false).barHeight).toBe(LAYOUT.barHeight);
+    expect(buildLaneLayout({ compact: true }).barHeight).toBe(LAYOUT.barHeight);
+    expect(buildLaneLayout({ compact: false }).barHeight).toBe(LAYOUT.barHeight);
   });
 
   // The left column's identity band is pinned to exactly one lane band so the name/avatar stays
@@ -68,16 +68,16 @@ describe("schedulerDensity", () => {
   // off the bar it labels — at whichever density broke first.
   it("keeps the identity band equal to a single-lane row at both densities", () => {
     for (const compact of [true, false]) {
-      expect(buildSchedulerDensity(compact).identityBandHeight).toBe(
-        resolveRowHeightForLanes(1, buildLaneLayout(compact)),
+      expect(buildSchedulerDensity({ compact }).identityBandHeight).toBe(
+        resolveRowHeightForLanes(1, buildLaneLayout({ compact })),
       );
     }
   });
 
   it("gives a roomy row more height than a compact one, at every lane count", () => {
     for (const lanes of [1, 2, 3]) {
-      expect(resolveRowHeightForLanes(lanes, buildLaneLayout(false))).toBeGreaterThan(
-        resolveRowHeightForLanes(lanes, buildLaneLayout(true)),
+      expect(resolveRowHeightForLanes(lanes, buildLaneLayout({ compact: false }))).toBeGreaterThan(
+        resolveRowHeightForLanes(lanes, buildLaneLayout({ compact: true })),
       );
     }
   });

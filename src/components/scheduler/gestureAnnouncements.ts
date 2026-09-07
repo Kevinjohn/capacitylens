@@ -16,6 +16,14 @@ import { listAccountWorkingDays, resolveSchedulingMode, buildVisibleRange } from
 import { useStore } from "../../store/useStore";
 import { buildActiveGestureData } from "./gestureLanes";
 
+interface ReadCapacityGestureAdvisoryInput {
+  bar: BarLayout;
+  effectiveResourceId: ID;
+  isBlocks: boolean;
+  dates: DateRange;
+  reconciledHours: number;
+}
+
 /** Builds the screen-reader status from the same visible-range capacity signal as the grid. */
 export function readCapacityAnnouncement(resourceId: ID): string {
   const { data: storedData, ui, activeAccountId } = useStore.getState();
@@ -59,13 +67,13 @@ export function readCapacityAnnouncement(resourceId: ID): string {
     : m.scheduler_sr_announce_over_other({ name, count: overDays });
 }
 
-export function readCapacityGestureAdvisory(
-  bar: BarLayout,
-  effectiveResourceId: ID,
-  isBlocks: boolean,
-  dates: DateRange,
-  reconciledHours: number,
-) {
+export function readCapacityGestureAdvisory({
+  bar,
+  effectiveResourceId,
+  isBlocks,
+  dates,
+  reconciledHours,
+}: ReadCapacityGestureAdvisoryInput) {
   const { data: storedData, activeAccountId } = useStore.getState();
   const data = buildActiveGestureData(storedData, activeAccountId);
   const resource = data.resources.find((candidate) => candidate.id === effectiveResourceId);

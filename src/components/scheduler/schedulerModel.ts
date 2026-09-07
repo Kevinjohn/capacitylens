@@ -31,6 +31,16 @@ import { createAllocationFilters } from "./schedulerModelFilters";
 import { createRowBuilder } from "./schedulerRowModel";
 import { createCapacitySource } from "./schedulerRowCapacity";
 import type { GroupModel, SchedulerModelOptions, SchedulerResourceGroup } from "./schedulerModelTypes";
+
+interface ApplyVisibleUtilizationInput {
+  model: GroupModel[];
+  data: AppData;
+  start: ISODate;
+  end: ISODate;
+  accountWorkingDays: Weekday[];
+  blocksMode?: boolean | undefined;
+}
+
 export type {
   BarLayout,
   DayState,
@@ -50,14 +60,14 @@ export type {
 
 /** Recompute only the visible-window percentage while retaining the expensive bar, lane and
  * timeline-day model. Horizontal scrolling changes this projection, not the static schedule. */
-export function applyVisibleUtilization(
-  model: GroupModel[],
-  data: AppData,
-  start: ISODate,
-  end: ISODate,
-  accountWorkingDays: Weekday[],
+export function applyVisibleUtilization({
+  model,
+  data,
+  start,
+  end,
+  accountWorkingDays,
   blocksMode = false,
-): GroupModel[] {
+}: ApplyVisibleUtilizationInput): GroupModel[] {
   const days = eachDayISO(start, end);
   const allocations = groupByResourceId(data.allocations, { include: hasRenderableDateRange });
   const personalTimeOff = groupByResourceId(data.timeOff, { include: hasRenderableDateRange });
@@ -151,9 +161,9 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
   const closures = data.closures.filter(hasRenderableDateRange);
   const timeOffByResource = groupByResourceId(personalTimeOff);
 
-  const capacitySource = createCapacitySource(days, visibleWindow, overSoonWindow, closures, blocksMode);
-  const buildRow = createRowBuilder(
-    { data, geom: geometry, days },
+  const capacitySource = createCapacitySource({ days, visibleWindow, overSoonWindow, closures, blocksMode });
+  const buildRow = createRowBuilder({
+    model: { data, geom: geometry, days },
     accountWorkingDays,
     blocksMode,
     laneLayout,
@@ -162,7 +172,7 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
     seriesEndByKey,
     allocationFilters,
     capacitySource,
-  );
+  });
 
   const buildFallbackGroups = (resources: Resource[]): SchedulerResourceGroup[] => {
     if (!groupResourcesByEngagement) {

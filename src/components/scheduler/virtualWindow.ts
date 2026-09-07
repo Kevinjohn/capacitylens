@@ -1,3 +1,11 @@
+interface ResolveVirtualWindowInput {
+  layout: RowLayout;
+  heights: number[];
+  scrollTop: number;
+  viewportHeight: number;
+  overscanPx?: number | undefined;
+}
+
 // Pure vertical-windowing math for the scheduler grid. Given the ordered heights of
 // every renderable item (group headers + resource rows), the scroll offset and the
 // viewport height, it returns which slice to render. Kept pure (no DOM) so it's
@@ -34,13 +42,13 @@ export function buildLayout(heights: number[]): RowLayout {
 
 /** The per-scroll-frame work: given a precomputed layout, find the visible slice.
  *  Binary-searches both edges — no O(n) prefix-sum rebuild or row scan. */
-export function resolveVirtualWindow(
-  layout: RowLayout,
-  heights: number[],
-  scrollTop: number,
-  viewportHeight: number,
+export function resolveVirtualWindow({
+  layout,
+  heights,
+  scrollTop,
+  viewportHeight,
   overscanPx = 300,
-): VirtualWindow {
+}: ResolveVirtualWindowInput): VirtualWindow {
   const itemCount = heights.length;
   if (itemCount === 0) return { first: 0, last: -1 };
   const { tops, total } = layout;
