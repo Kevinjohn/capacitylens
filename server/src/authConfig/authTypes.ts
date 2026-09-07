@@ -160,7 +160,7 @@ export interface RawSessionUser {
   id: string;
   email: string;
   name: string;
-  emailVerified?: boolean | null;
+  emailVerified?: boolean | null | undefined;
   twoFactorEnabled?: boolean | null;
   image?: string | null;
 }

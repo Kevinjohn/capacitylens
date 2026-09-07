@@ -350,8 +350,9 @@ describe("normalizeSessionUser (P1.7a)", () => {
     expect(buildSessionUser({ ...RAW, emailVerified: false }).emailVerified).toBe(false);
   });
 
-  it("defaults emailVerified to false when the provider omits it or sends null", () => {
+  it("defaults emailVerified to false when the provider omits it, sends undefined, or sends null", () => {
     expect(buildSessionUser(RAW).emailVerified).toBe(false);
+    expect(buildSessionUser({ ...RAW, emailVerified: undefined }).emailVerified).toBe(false);
     expect(buildSessionUser({ ...RAW, emailVerified: null }).emailVerified).toBe(false);
   });
 

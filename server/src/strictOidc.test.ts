@@ -261,6 +261,11 @@ describe("strictOidcUserInfo", () => {
     });
     expect(Object.hasOwn(profile, "image")).toBe(true);
     expect(profile.image).toBeUndefined();
+    expect(Object.getOwnPropertyDescriptor(profile, "image")).toMatchObject({
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
   });
 
   it("rejects a user-info response for a different subject", async () => {

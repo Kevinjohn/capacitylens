@@ -243,7 +243,12 @@ export function createStrictOidcClient(input: {
     // The established response shape owns `image` even when the provider picture is unusable.
     // Define it explicitly without widening the optional public contract to permit assignments of
     // `undefined`; callers may still distinguish the stable own-property shape at runtime.
-    Object.defineProperty(result, "image", { value: image ?? undefined, enumerable: true });
+    Object.defineProperty(result, "image", {
+      value: image ?? undefined,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
     return result;
   };
 

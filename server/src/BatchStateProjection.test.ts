@@ -220,6 +220,13 @@ describe("BatchStateProjection", () => {
     expect(projection.data.projects[0]?.clientId).toBe("imported-internal");
   });
 
+  it("surfaces a corrupted index when its indexed collection is empty", () => {
+    const projection = new BatchStateProjection(relationshipFixture());
+    projection.data.clients.length = 0;
+
+    expect(() => projection.delete("clients", "c1")).toThrow("Missing indexed clients row c1.");
+  });
+
   it("keeps reverse allocation lookups current across resource and activity edits", () => {
     const projection = new BatchStateProjection(relationshipFixture());
 
