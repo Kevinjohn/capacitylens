@@ -94,7 +94,7 @@ export function createPasswordResetFlows(
             });
           }
           const reservation = resetReplay.reserve(command.commandId);
-          if (!reservation.accepted) {
+          if (reservation.kind === "rejected") {
             const capacityError = createReplayCapacityError(command.commandId, reservation.retryAfterMs);
             persistTerminalOutcome(
               () => terminateCommand({ db, scope, command, status: "compensated", failureCode: "RATE_LIMITED" }),
