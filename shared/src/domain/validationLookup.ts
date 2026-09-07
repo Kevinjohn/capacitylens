@@ -105,8 +105,8 @@ export const assertValid = (validation: ValidationResult): void => {
 
 /** Match normal-read lifecycle closure at the shared active-write boundary. Indexed server batch
  * callers retain O(depth) point lookups; browser/store callers traverse the same bounded graph over
- * their local arrays. Missing/cross-account parents return false and keep each caller's existing
- * domain-specific validation message. */
+ * their local arrays. Inactive rows or ancestors return false; missing, malformed or cross-account
+ * ancestors do not imply lifecycle state and are handled separately by integrity validation. */
 export const isEffectivelyActive = ({ data, table, row, lookup }: IsEffectivelyActiveOptions): boolean =>
   lifecycleStatus(row) === "active" &&
   inspectLifecycleAncestry(
