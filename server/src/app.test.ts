@@ -832,7 +832,7 @@ describe("generic lifecycle deletion guard", () => {
     await scaffold(app);
     await post(app, "allocations", allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "t1" }));
     expect((await del({ app, entity: "clients", id: "c1", accountId: "a1" })).statusCode).toBe(400);
-    const s = await state(app);
+    const s = await readValidatedState(app);
     expect(s.clients).toHaveLength(1);
     expect(s.projects).toHaveLength(1);
     expect(s.activities).toHaveLength(1);
@@ -852,10 +852,10 @@ describe("generic lifecycle deletion guard", () => {
     });
     await post(app, "resources", { ...person("r1", "a1"), disciplineId: "d1" });
     await del({ app, entity: "disciplines", id: "d1", accountId: "a1" });
-    const s = await state(app);
+    const s = await readValidatedState(app);
     expect(s.disciplines).toHaveLength(0);
     expect(s.resources).toHaveLength(1);
-    expect(s.resources[0].disciplineId).toBeUndefined();
+    expect(readFirstResource(s.resources).disciplineId).toBeUndefined();
   });
 });
 
