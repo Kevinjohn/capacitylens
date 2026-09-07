@@ -309,9 +309,11 @@ interface ClientSnapshot {
 type ClientResponse = ClientSnapshot;
 
 interface ValidatedStateResponse {
+  accounts: unknown[];
   activities: ProjectBinding[];
   allocations: unknown[];
   clients: ClientSnapshot[];
+  disciplines: unknown[];
   resources: ProjectBinding[];
   timeOff: unknown[];
 }
@@ -435,12 +437,18 @@ async function readValidatedState(app: FastifyInstance): Promise<ValidatedStateR
     throw new Error("Expected the state response to be an object.");
   }
   return {
+    accounts: readStateArray(value, "accounts"),
     activities: readProjectBindings(readStateArray(value, "activities"), "activity"),
     allocations: readStateArray(value, "allocations"),
     clients: readClientSnapshots(readStateArray(value, "clients")),
+    disciplines: readStateArray(value, "disciplines"),
     resources: readProjectBindings(readStateArray(value, "resources"), "resource"),
     timeOff: readStateArray(value, "timeOff"),
   };
+}
+
+async function readStateClients(app: FastifyInstance): Promise<ClientSnapshot[]> {
+  return (await readValidatedState(app)).clients;
 }
 
 /** Seed a minimal account → client → project → activity → person chain. */
@@ -1320,7 +1328,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       payload: body({ ops: [null] }),
     });
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/object/i);
+    expect(readErrorResponse(res).error).toMatch(/object/i);
   });
 });
 
@@ -1349,7 +1357,7 @@ describe("batch pre-scan validation", () => {
     const { app } = freshApp();
     const response = await orderedBatch({ app, sessionId: "browser-session-valid-0002", sequence: 1, ops: [op] });
     expect(response.statusCode).toBe(400);
-    expect(response.json().error).toContain(`ordered ${verb} op needs a string updatedAt`);
+    expect(readErrorResponse(response).error).toContain(`ordered ${verb} op needs a string updatedAt`);
   });
 
   it.each([
@@ -1365,7 +1373,7 @@ describe("batch pre-scan validation", () => {
     const { app } = freshApp();
     const response = await batch(app, [op]);
     expect(response.statusCode).toBe(400);
-    expect(response.json().error).toMatch(message);
+    expect(readErrorResponse(response).error).toMatch(message);
   });
 });
 
@@ -3884,7 +3892,7 @@ describe("optimistic concurrency (default-on)", () => {
         updatedAt: readUpdatedAtResponse(external),
       },
     });
-    const current = await state(app);
+    const current = await readValidatedState(app);
     expect(current.allocations).toEqual([
       expect.objectContaining({
         id: "al1",
@@ -3932,7 +3940,7 @@ describe("optimistic concurrency (default-on)", () => {
       error: "The record was modified more recently on the server.",
       current: { id: "c1", name: "Externally edited" },
     });
-    expect((await state(app)).clients).toEqual([expect.objectContaining({ id: "c1", name: "Externally edited" })]);
+    expect(await readStateClients(app)).toEqual([expect.objectContaining({ id: "c1", name: "Externally edited" })]);
   });
 
   it.each(["first-before-undo", "undo-before-first"])(
@@ -3974,7 +3982,7 @@ describe("optimistic concurrency (default-on)", () => {
         arrivalOrder === "first-before-undo" ? [await create(), await undo()] : [await undo(), await create()];
 
       expect(responses.every((response) => response.statusCode === 200)).toBe(true);
-      expect((await state(app)).disciplines).toEqual([]);
+      expect((await readValidatedState(app)).disciplines).toEqual([]);
     },
   );
 });
@@ -3992,8 +4000,8 @@ describe("batch op-count cap (MAX_BATCH_OPS)", () => {
     }));
     const res = await batch(app, ops);
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toContain(String(MAX_BATCH_OPS));
-    expect((await state(app)).accounts).toHaveLength(0); // nothing written
+    expect(readErrorResponse(res).error).toContain(String(MAX_BATCH_OPS));
+    expect((await readValidatedState(app)).accounts).toHaveLength(0); // nothing written
   });
 
   it(`allows a batch of exactly ${MAX_BATCH_OPS} ops (boundary, inclusive)`, async () => {
@@ -4033,9 +4041,9 @@ describe("null-id rejection (POST/batch without id → 400)", () => {
       ...meta(),
     });
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/id/);
+    expect(readErrorResponse(res).error).toMatch(/id/);
     // nothing persisted
-    expect((await state(app)).accounts).toHaveLength(0);
+    expect((await readValidatedState(app)).accounts).toHaveLength(0);
   });
 
   it("POST with id: null is rejected with 400", async () => {
@@ -4047,7 +4055,7 @@ describe("null-id rejection (POST/batch without id → 400)", () => {
       ...meta(),
     });
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/id/);
+    expect(readErrorResponse(res).error).toMatch(/id/);
   });
 
   it("POST with empty-string id is rejected with 400", async () => {
@@ -4059,7 +4067,7 @@ describe("null-id rejection (POST/batch without id → 400)", () => {
       ...meta(),
     });
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/id/);
+    expect(readErrorResponse(res).error).toMatch(/id/);
   });
 
   it("batch PUT op with a missing/non-string id is rejected with 400", async () => {
@@ -4080,7 +4088,7 @@ describe("null-id rejection (POST/batch without id → 400)", () => {
       }),
     });
     expect(res.statusCode).toBe(400);
-    expect((await state(app)).accounts).toHaveLength(0);
+    expect((await readValidatedState(app)).accounts).toHaveLength(0);
   });
 });
 
