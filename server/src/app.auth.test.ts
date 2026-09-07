@@ -46,6 +46,26 @@ function cookiesOf(res: LightMyRequestResponse): string {
   return list.map((c) => String(c).split(";")[0]).join("; ");
 }
 
+function parseJsonObject(res: LightMyRequestResponse): object {
+  const value: unknown = JSON.parse(res.body);
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Expected response body to be a JSON object.");
+  }
+  return value;
+}
+
+function parseNeedsSetup(res: LightMyRequestResponse): boolean {
+  const value = parseJsonObject(res);
+  if (!("needsSetup" in value) || typeof value.needsSetup !== "boolean") {
+    throw new Error("Expected response body to include a boolean needsSetup.");
+  }
+  return value.needsSetup;
+}
+
+function hasNeedsSetup(res: LightMyRequestResponse): boolean {
+  return "needsSetup" in parseJsonObject(res);
+}
+
 function totpCode(secret: string, at = Date.now()): string {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   let bits = "";
@@ -1794,14 +1814,14 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
     // Zero users: the login screen must offer "Create the owner account" instead of a dead end.
     const before = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(before.statusCode).toBe(401);
-    expect(before.json().needsSetup).toBe(true);
+    expect(parseNeedsSetup(before)).toBe(true);
     // The 401 shape still excludes account facts (only authMode/error/needsSetup — no capFields).
-    expect(Object.keys(before.json()).sort()).toEqual(["authMode", "error", "needsSetup", "providers"]);
+    expect(Object.keys(parseJsonObject(before)).sort()).toEqual(["authMode", "error", "needsSetup", "providers"]);
     // One user later, the flag is GONE (absent, not false — the client fail-closes on absence).
     expect((await signUp(app, "owner@capacitylens.dev")).statusCode).toBe(200);
     const after = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(after.statusCode).toBe(401);
-    expect(after.json().needsSetup).toBeUndefined();
+    expect(hasNeedsSetup(after)).toBe(false);
   });
 });
 
