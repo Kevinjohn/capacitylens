@@ -38,11 +38,13 @@ export function resolveErrorStatus(error: unknown): number {
   return 500;
 }
 
+interface ResolveRequestClientIpInput {
+  request: Pick<FastifyRequest, "headers" | "ip">;
+  trustProxyHeaders: boolean;
+}
+
 /** Resolve the client identity consistently for rate limiting and security telemetry. */
-export function resolveRequestClientIp(
-  request: Pick<FastifyRequest, "headers" | "ip">,
-  trustProxyHeaders: boolean,
-): string {
+export function resolveRequestClientIp({ request, trustProxyHeaders }: ResolveRequestClientIpInput): string {
   if (trustProxyHeaders) {
     const forwarded = request.headers["x-forwarded-for"];
     const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim();

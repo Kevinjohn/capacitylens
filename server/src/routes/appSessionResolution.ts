@@ -10,13 +10,26 @@ import type { resolveAppConfig } from "./appConfig";
 import type { createAppRuntime } from "./appRuntime";
 import type { AppOptions } from "../app";
 
-export function installSessionResolution(
-  app: FastifyInstance,
-  runtime: ReturnType<typeof createAppRuntime>,
-  config: ReturnType<typeof resolveAppConfig>,
-  options: AppOptions,
-  securityEvent: (event: Record<string, unknown>) => void,
-) {
+export interface ResolveIncomingSessionInput {
+  req: FastifyRequest;
+  force?: boolean | undefined;
+}
+
+interface InstallSessionResolutionInput {
+  app: FastifyInstance;
+  runtime: ReturnType<typeof createAppRuntime>;
+  config: ReturnType<typeof resolveAppConfig>;
+  options: AppOptions;
+  securityEvent: (event: Record<string, unknown>) => void;
+}
+
+export function installSessionResolution({
+  app,
+  runtime,
+  config,
+  options,
+  securityEvent,
+}: InstallSessionResolutionInput) {
   const { accountAudit, identityPort, masquerades } = runtime;
   const { application, authMode } = config;
   // requireUser — ONE gate for everything under /api/ except /api/health (the
@@ -35,7 +48,10 @@ export function installSessionResolution(
     | { kind: "verified"; session: ApplicationSession }
     | { kind: "backend_failure"; error: unknown };
   const incomingSessionResolutions = new WeakMap<FastifyRequest, Promise<SessionResolutionResult>>();
-  const resolveIncomingSession = (req: FastifyRequest, force = false): Promise<SessionResolutionResult> => {
+  const resolveIncomingSession = ({
+    req,
+    force = false,
+  }: ResolveIncomingSessionInput): Promise<SessionResolutionResult> => {
     const existing = incomingSessionResolutions.get(req);
     if (existing) return existing;
     const credentialsPresent = req.headers.cookie !== undefined || req.headers.authorization !== undefined;
@@ -63,7 +79,7 @@ export function installSessionResolution(
   app.addHook("preHandler", async (req: FastifyRequest, reply: FastifyReply) => {
     const path = req.url.split("?", 1)[0];
     if (!path.startsWith("/api/") || path === "/api/health" || path === "/api/security/csp-report") return;
-    let resolution = await resolveIncomingSession(req);
+    let resolution = await resolveIncomingSession({ req });
     if (resolution.kind === "verified") attachVerifiedSession(req, resolution.session);
     const activeMasquerade = resolution.kind === "verified" ? masquerades.lookup(resolution.session.id) : null;
     const unsafe = req.method !== "GET" && req.method !== "HEAD" && req.method !== "OPTIONS";
@@ -92,7 +108,12 @@ export function installSessionResolution(
       activeMasquerade && req.method === "POST" && (path === "/api/account/sign-out" || path === "/api/auth/sign-out");
     if (signingOut) {
       masquerades.end(activeMasquerade.sessionHandle, null, (record) =>
-        enqueueMasqueradeEndAudit(accountAudit, application.applicationId, record, "sign_out"),
+        enqueueMasqueradeEndAudit({
+          accountAudit,
+          applicationId: application.applicationId,
+          record,
+          reason: "sign_out",
+        }),
       );
     }
     if (resolution.kind === "backend_failure" && unsafe) {
@@ -118,7 +139,7 @@ export function installSessionResolution(
       return;
     }
     if (resolution.kind === "absent_or_invalid") {
-      resolution = await resolveIncomingSession(req, true);
+      resolution = await resolveIncomingSession({ req, force: true });
       if (resolution.kind === "verified") attachVerifiedSession(req, resolution.session);
     }
     if (resolution.kind === "backend_failure") {
@@ -131,7 +152,7 @@ export function installSessionResolution(
         outcome: "blocked",
         method: req.method,
         path,
-        remoteIp: resolveRequestClientIp(req, options.trustProxyHeaders === true),
+        remoteIp: resolveRequestClientIp({ request: req, trustProxyHeaders: options.trustProxyHeaders === true }),
       });
       return reply.code(401).send({ error: "Sign in to continue." });
     }

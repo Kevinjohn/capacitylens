@@ -41,13 +41,19 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
     },
   };
   const masquerades = new MasqueradeRegistry({
-    expired: (record) => enqueueMasqueradeEndAudit(accountAudit, application.applicationId, record, "session_expired"),
+    expired: (record) =>
+      enqueueMasqueradeEndAudit({
+        accountAudit,
+        applicationId: application.applicationId,
+        record,
+        reason: "session_expired",
+      }),
   });
   const prepareMasqueradeUsers = (userIds: readonly string[], reason: "session_revoked"): readonly string[] => {
     const handles = [...new Set(userIds.flatMap((userId) => masquerades.listSessionHandlesForUser(userId)))];
     for (const sessionHandle of handles) {
       masquerades.prepareEnd(sessionHandle, null, (record) =>
-        enqueueMasqueradeEndAudit(accountAudit, application.applicationId, record, reason),
+        enqueueMasqueradeEndAudit({ accountAudit, applicationId: application.applicationId, record, reason }),
       );
     }
     return handles;
@@ -56,7 +62,7 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
     prepare: (sessionHandles: readonly string[], reason: "session_expired" | "session_revoked") => {
       for (const sessionHandle of sessionHandles) {
         masquerades.prepareEnd(sessionHandle, null, (record) =>
-          enqueueMasqueradeEndAudit(accountAudit, application.applicationId, record, reason),
+          enqueueMasqueradeEndAudit({ accountAudit, applicationId: application.applicationId, record, reason }),
         );
       }
     },
@@ -146,7 +152,7 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
 
   const endMasquerade = (record: Readonly<StoredMasqueradeRecord>, reason: MasqueradeEndReason): void => {
     masquerades.end(record.sessionHandle, null, (ending) =>
-      enqueueMasqueradeEndAudit(accountAudit, application.applicationId, ending, reason),
+      enqueueMasqueradeEndAudit({ accountAudit, applicationId: application.applicationId, record: ending, reason }),
     );
   };
 

@@ -17,9 +17,14 @@ export function buildGesturePreviewDates(
   const previewImpossible = previewDays?.length === 0 && !bar.allocation.ignoreWeekends;
   const dates =
     !previewImpossible && (deltaDays !== 0 || mode === "move")
-      ? applyGesture(mode, { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }, deltaDays, {
-          workingDays: previewDays,
-          ignoreWeekends: bar.allocation.ignoreWeekends,
+      ? applyGesture({
+          mode: mode,
+          range: { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate },
+          deltaDays: deltaDays,
+          options: {
+            workingDays: previewDays,
+            ignoreWeekends: bar.allocation.ignoreWeekends,
+          },
         })
       : null;
   return { previewImpossible, dates };

@@ -12,13 +12,15 @@ import { DEFAULT_CORS } from "./appConfig";
 import type { AppOptions } from "../app";
 import { installSecurityPlugins } from "./appSecurityPlugins";
 
-export function installRootHooks(
-  app: FastifyInstance,
-  db: Db,
-  runtime: ReturnType<typeof createAppRuntime>,
-  config: ReturnType<typeof resolveAppConfig>,
-  options: AppOptions,
-) {
+interface InstallRootHooksInput {
+  app: FastifyInstance;
+  db: Db;
+  runtime: ReturnType<typeof createAppRuntime>;
+  config: ReturnType<typeof resolveAppConfig>;
+  options: AppOptions;
+}
+
+export function installRootHooks({ app, db, runtime, config, options }: InstallRootHooksInput) {
   const { auditDrainer, repliesWithAuditDrain } = runtime;
   const { logOn, rateLimitMax } = config;
   app.addHook("onClose", () => auditDrainer.stop());
@@ -36,7 +38,7 @@ export function installRootHooks(
         reason,
         method: request.method,
         path: request.url.split("?", 1)[0],
-        remoteIp: resolveRequestClientIp(request, options.trustProxyHeaders === true),
+        remoteIp: resolveRequestClientIp({ request, trustProxyHeaders: options.trustProxyHeaders === true }),
       });
     });
   });
@@ -204,7 +206,7 @@ export function installRootHooks(
         method: req.method,
         path,
         status: reply.statusCode,
-        remoteIp: resolveRequestClientIp(req, options.trustProxyHeaders === true),
+        remoteIp: resolveRequestClientIp({ request: req, trustProxyHeaders: options.trustProxyHeaders === true }),
         ...(req.authenticationUserId === null ? {} : { userId: req.authenticationUserId }),
       });
     } else if (reply.statusCode === 429) {
@@ -214,7 +216,7 @@ export function installRootHooks(
         method: req.method,
         path,
         status: 429,
-        remoteIp: resolveRequestClientIp(req, options.trustProxyHeaders === true),
+        remoteIp: resolveRequestClientIp({ request: req, trustProxyHeaders: options.trustProxyHeaders === true }),
       });
     }
   });
