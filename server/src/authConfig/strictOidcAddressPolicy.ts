@@ -18,6 +18,7 @@ function isPrivateOrReservedIPv4(address: string): boolean {
   const parts = address.split(".").map(Number);
   if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
   const [a, b] = parts;
+  if (a === undefined || b === undefined) return true;
   if (a === 0 || a === 10 || a === 127) return true;
   if (a === 169 && b === 254) return true;
   if (a === 172 && b >= 16 && b <= 31) return true;
@@ -35,11 +36,16 @@ function parseIpv6Bytes(address: string): number[] | null {
   let text = address.toLowerCase();
   const dotted = text.match(/^(.*:)(\d+\.\d+\.\d+\.\d+)$/); // fold a trailing IPv4 quad into two hextets
   if (dotted) {
-    const quad = dotted[2].split(".").map(Number);
+    const dottedQuad = dotted[2];
+    const prefix = dotted[1];
+    if (dottedQuad === undefined || prefix === undefined) return null;
+    const quad = dottedQuad.split(".").map(Number);
     if (quad.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return null;
-    const hi = ((quad[0] << 8) | quad[1]).toString(16);
-    const lo = ((quad[2] << 8) | quad[3]).toString(16);
-    text = `${dotted[1]}${hi}:${lo}`;
+    const [first, second, third, fourth] = quad;
+    if (first === undefined || second === undefined || third === undefined || fourth === undefined) return null;
+    const hi = ((first << 8) | second).toString(16);
+    const lo = ((third << 8) | fourth).toString(16);
+    text = `${prefix}${hi}:${lo}`;
   }
   const halves = text.split("::");
   if (halves.length > 2) return null; // at most one `::`
@@ -53,8 +59,11 @@ function parseIpv6Bytes(address: string): number[] | null {
     }
     return octets;
   };
-  const head = toOctets(halves[0]);
-  const tail = halves.length === 2 ? toOctets(halves[1]) : [];
+  const firstHalf = halves[0];
+  if (firstHalf === undefined) return null;
+  const head = toOctets(firstHalf);
+  const secondHalf = halves[1];
+  const tail = secondHalf === undefined ? [] : toOctets(secondHalf);
   if (head === null || tail === null) return null;
   if (halves.length === 2) {
     const fill = 16 - head.length - tail.length;
@@ -70,21 +79,31 @@ function parseIpv6Bytes(address: string): number[] | null {
 function isPrivateOrReservedIPv6(address: string): boolean {
   const bytes = parseIpv6Bytes(address);
   if (!bytes) return true; // unparseable → fail closed
+  const [b0, b1, b2, b3, , , , , , , b10, b11] = bytes;
+  if (
+    b0 === undefined ||
+    b1 === undefined ||
+    b2 === undefined ||
+    b3 === undefined ||
+    b10 === undefined ||
+    b11 === undefined
+  )
+    return true;
   const isEmbeddedIpv4PrivateOrReserved = (offset: number): boolean =>
     isPrivateOrReservedIPv4(bytes.slice(offset, offset + 4).join("."));
   const hasZeroPrefix = (count: number): boolean => bytes.slice(0, count).every((octet) => octet === 0);
 
   if (hasZeroPrefix(15)) return true; // ::/120 covers unspecified (::) and loopback (::1)
-  if (hasZeroPrefix(10) && bytes[10] === 0xff && bytes[11] === 0xff) return isEmbeddedIpv4PrivateOrReserved(12); // ::ffff:0:0/96 mapped
+  if (hasZeroPrefix(10) && b10 === 0xff && b11 === 0xff) return isEmbeddedIpv4PrivateOrReserved(12); // ::ffff:0:0/96 mapped
   if (hasZeroPrefix(12)) return isEmbeddedIpv4PrivateOrReserved(12); // ::/96 deprecated IPv4-compatible
-  if (bytes[0] === 0x00 && bytes[1] === 0x64 && bytes[2] === 0xff && bytes[3] === 0x9b && hasZeroPrefix(12))
+  if (b0 === 0x00 && b1 === 0x64 && b2 === 0xff && b3 === 0x9b && hasZeroPrefix(12))
     return isEmbeddedIpv4PrivateOrReserved(12); // 64:ff9b::/96 NAT64
-  if (bytes[0] === 0x20 && bytes[1] === 0x02) return isEmbeddedIpv4PrivateOrReserved(2); // 2002::/16 6to4 embeds v4 at octets 2-5
-  if ((bytes[0] & 0xfe) === 0xfc) return true; // fc00::/7 unique local
-  if (bytes[0] === 0xfe && (bytes[1] & 0xc0) === 0x80) return true; // fe80::/10 link-local
-  if (bytes[0] === 0xff) return true; // ff00::/8 multicast
-  if (bytes[0] === 0x20 && bytes[1] === 0x01 && bytes[2] === 0x0d && bytes[3] === 0xb8) return true; // 2001:db8::/32 docs
-  return (bytes[0] & 0xe0) !== 0x20; // only global unicast 2000::/3 is routable; everything else fails closed
+  if (b0 === 0x20 && b1 === 0x02) return isEmbeddedIpv4PrivateOrReserved(2); // 2002::/16 6to4 embeds v4 at octets 2-5
+  if ((b0 & 0xfe) === 0xfc) return true; // fc00::/7 unique local
+  if (b0 === 0xfe && (b1 & 0xc0) === 0x80) return true; // fe80::/10 link-local
+  if (b0 === 0xff) return true; // ff00::/8 multicast
+  if (b0 === 0x20 && b1 === 0x01 && b2 === 0x0d && b3 === 0xb8) return true; // 2001:db8::/32 docs
+  return (b0 & 0xe0) !== 0x20; // only global unicast 2000::/3 is routable; everything else fails closed
 }
 
 /** True when a resolved address belongs to a non-globally-routable range and so must not receive a
