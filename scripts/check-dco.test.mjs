@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   evaluateDcoCommit,
+  evaluateDcoRatification,
   isDcoExemptPullRequestAuthor,
-  isDcoRatifiedCommit,
   isMergeCommit,
   validateDcoRatifications,
 } from "./check-dco.mjs";
@@ -62,46 +62,65 @@ test("identifies generated merge commits by their multiple parents", () => {
 });
 
 test("accepts only an exact ratification from the commit author or committer", () => {
-  const ratifications = {
-    "0123456789abcdef0123456789abcdef01234567": "AUTHOR@example.com",
-  };
   const details = {
     commit: "0123456789abcdef0123456789abcdef01234567",
     authorEmail: "author@example.com",
     committerEmail: "committer@example.com",
   };
+  const ratification = {
+    ratifierEmail: "AUTHOR@example.com",
+    attestationCommit: "abcdef0123456789abcdef0123456789abcdef01",
+  };
+  const attestation = {
+    authorEmail: "author@example.com",
+    committerEmail: "committer@example.com",
+    message: "Ratify\n\nSigned-off-by: Author <author@example.com>",
+    patch: `+  "${details.commit}": {}`,
+  };
 
-  assert.equal(isDcoRatifiedCommit(details, ratifications), true);
+  assert.equal(evaluateDcoRatification(details, ratification, attestation), true);
   assert.equal(
-    isDcoRatifiedCommit({ ...details, commit: "1123456789abcdef0123456789abcdef01234567" }, ratifications),
+    evaluateDcoRatification(
+      { ...details, commit: "1123456789abcdef0123456789abcdef01234567" },
+      ratification,
+      attestation,
+    ),
     false,
   );
   assert.equal(
-    isDcoRatifiedCommit(details, {
-      "0123456789abcdef0123456789abcdef01234567": "unrelated@example.com",
-    }),
+    evaluateDcoRatification(details, { ...ratification, ratifierEmail: "unrelated@example.com" }, attestation),
     false,
   );
+  assert.equal(evaluateDcoRatification(details, ratification, { ...attestation, patch: `-${details.commit}` }), false);
 });
 
-test("accepts a ratification from the commit committer", () => {
-  const sha = "0123456789abcdef0123456789abcdef01234567";
-  assert.equal(
-    isDcoRatifiedCommit(
-      { commit: sha, authorEmail: "author@example.com", committerEmail: "committer@example.com" },
-      { [sha]: "COMMITTER@example.com" },
-    ),
-    true,
-  );
+test("requires the ratifier to sign the attestation commit", () => {
+  const target = {
+    commit: "0123456789abcdef0123456789abcdef01234567",
+    authorEmail: "author@example.com",
+    committerEmail: "committer@example.com",
+  };
+  const ratification = {
+    ratifierEmail: "author@example.com",
+    attestationCommit: "abcdef0123456789abcdef0123456789abcdef01",
+  };
+  const attestation = {
+    authorEmail: "other@example.com",
+    committerEmail: "other@example.com",
+    message: "Ratify\n\nSigned-off-by: Other <other@example.com>",
+    patch: `+${target.commit}`,
+  };
+
+  assert.equal(evaluateDcoRatification(target, ratification, attestation), false);
 });
 
 test("rejects malformed DCO ratification ledgers", () => {
   for (const ratifications of [
     null,
     [],
-    { shortsha: "author@example.com" },
-    { "0123456789abcdef0123456789abcdef01234567": "" },
-    { "0123456789abcdef0123456789abcdef01234567": 42 },
+    { shortsha: { ratifierEmail: "author@example.com", attestationCommit: "a".repeat(40) } },
+    { ["0".repeat(40)]: { ratifierEmail: "not-an-email", attestationCommit: "a".repeat(40) } },
+    { ["0".repeat(40)]: { ratifierEmail: "author@example.com", attestationCommit: "shortsha" } },
   ]) {
     assert.throws(() => validateDcoRatifications(ratifications), TypeError);
   }
