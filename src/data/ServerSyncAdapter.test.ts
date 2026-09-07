@@ -1512,74 +1512,70 @@ describe("ServerSyncAdapter.saveAll", () => {
   });
 });
 
+// The store never writes the server's revision back into a row, so a previously-acked row keeps its
+// client-side updatedAt forever while lastSynced holds the SERVER stamp. The translation the ack map
+// performs is therefore needed on EVERY future diff, not just the first: a consume-once map deletes
+// the entry after one use, so the very next diff sees store(clientStamp) != lastSynced(serverStamp)
+// and re-emits a phantom PUT, which re-stamps the row server-side and 409-discards another user's edit.
+// A commit receipt whose server revision is DISTINCT from the client stamp (the server owns
+// timestamps), so a row left untranslated reads as changed against lastSynced.
+const ackReceipt = (init?: RequestInit): Response => {
+  const ops = opsFromInit(init);
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      applied: ops.length,
+      revisions: ops
+        .filter((op) => op.row !== undefined)
+        .map((o) => {
+          const row = requiredRecord(o.row, "expected acknowledged row");
+          return {
+            table: o.table,
+            id: o.id,
+            createdAt: requiredString(row.createdAt, "expected createdAt in batch row"),
+            updatedAt: `${requiredString(row.updatedAt, "expected updatedAt in batch row")}::server`,
+          };
+        }),
+    }),
+    { status: 200 },
+  );
+};
+
+async function expectDurableAckAcrossUnrelatedSaves(): Promise<void> {
+  const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => ackReceipt(init)) as unknown as typeof fetch;
+  const a = new ServerSyncAdapter("http://x", fetchImpl);
+  // Edit c1 → save → ack. The store keeps c1@TS1 (the server stamp is never written back into it).
+  await a.saveAll(withData({ clients: [client("c1", TS1)] }));
+  // Several UNRELATED saves, each adding a new client while c1 stays at its client stamp TS1.
+  await a.saveAll(withData({ clients: [client("c1", TS1), client("c2", TS1)] }));
+  await a.saveAll(withData({ clients: [client("c1", TS1), client("c2", TS1), client("c3", TS1)] }));
+  await a.saveAll(withData({ clients: [client("c1", TS1), client("c2", TS1), client("c3", TS1), client("c4", TS1)] }));
+  const batches = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.map((call) =>
+    batchOps(call).map((op) => op.id),
+  );
+  // c1 is PUT exactly once (its first save) and never re-appears — no phantom re-PUT on alternate saves.
+  expect(batches).toEqual([["c1"], ["c2"], ["c3"], ["c4"]]);
+}
+
+async function expectNoPhantomPutOnUnload(): Promise<void> {
+  const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => ackReceipt(init)) as unknown as typeof fetch;
+  const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+  const localState = withData({ clients: [client("c1", TS1)] });
+
+  await adapter.saveAll(localState);
+  (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
+  await adapter.saveAll(localState, { unload: true });
+
+  expect(fetchImpl).not.toHaveBeenCalled();
+}
+
 describe("ServerSyncAdapter — durable acknowledged-revision translation (phantom-PUT guard)", () => {
-  // The store never writes the server's revision back into a row, so a previously-acked row keeps its
-  // client-side updatedAt forever while lastSynced holds the SERVER stamp. The translation the ack map
-  // performs is therefore needed on EVERY future diff, not just the first: a consume-once map deletes
-  // the entry after one use, so the very next diff sees store(clientStamp) ≠ lastSynced(serverStamp)
-  // and re-emits a phantom PUT — which re-stamps the row server-side and 409-discards another user's
-  // real edit. These specs pin the DURABLE translation.
+  it(
+    "emits ZERO further ops for a previously-acked row across many unrelated saves",
+    expectDurableAckAcrossUnrelatedSaves,
+  );
 
-  // A commit receipt whose server revision is DISTINCT from the client stamp (the server owns
-  // timestamps), so a row left untranslated reads as changed against lastSynced.
-  const ackReceipt = (init?: RequestInit): Response => {
-    const ops = opsFromInit(init);
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        applied: ops.length,
-        revisions: ops
-          .filter((op) => op.row !== undefined)
-          .map((o) => {
-            const row = requiredRecord(o.row, "expected acknowledged row");
-            return {
-              table: o.table,
-              id: o.id,
-              createdAt: requiredString(row.createdAt, "expected createdAt in batch row"),
-              updatedAt: `${requiredString(row.updatedAt, "expected updatedAt in batch row")}::server`,
-            };
-          }),
-      }),
-      { status: 200 },
-    );
-  };
-
-  it("emits ZERO further ops for a previously-acked row across many unrelated saves", async () => {
-    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => ackReceipt(init)) as unknown as typeof fetch;
-    const a = new ServerSyncAdapter("http://x", fetchImpl);
-    // Edit c1 → save → ack. The store keeps c1@TS1 (the server stamp is never written back into it).
-    await a.saveAll(withData({ clients: [client("c1", TS1)] }));
-    // Several UNRELATED saves, each adding a new client while c1 stays at its client stamp TS1.
-    await a.saveAll(withData({ clients: [client("c1", TS1), client("c2", TS1)] }));
-    await a.saveAll(
-      withData({
-        clients: [client("c1", TS1), client("c2", TS1), client("c3", TS1)],
-      }),
-    );
-    await a.saveAll(
-      withData({
-        clients: [client("c1", TS1), client("c2", TS1), client("c3", TS1), client("c4", TS1)],
-      }),
-    );
-    const batches = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.map((c) =>
-      batchOps(c).map((o) => o.id),
-    );
-    // c1 is PUT exactly once (its first save) and never re-appears — no phantom re-PUT on alternate saves.
-    expect(batches).toEqual([["c1"], ["c2"], ["c3"], ["c4"]]);
-  });
-
-  it("emits no phantom PUT for a previously-acked row during an unload flush", async () => {
-    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => ackReceipt(init)) as unknown as typeof fetch;
-    const a = new ServerSyncAdapter("http://x", fetchImpl);
-    const localState = withData({ clients: [client("c1", TS1)] });
-
-    await a.saveAll(localState);
-    (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
-
-    await a.saveAll(localState, { unload: true });
-
-    expect(fetchImpl).not.toHaveBeenCalled();
-  });
+  it("emits no phantom PUT for a previously-acked row during an unload flush", expectNoPhantomPutOnUnload);
 
   it("emits exactly one PUT when a previously-acked row is genuinely edited again, then is durable anew", async () => {
     const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => ackReceipt(init)) as unknown as typeof fetch;
