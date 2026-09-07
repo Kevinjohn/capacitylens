@@ -113,7 +113,7 @@ function addCalendarMonthsClamped(date: ISODate, months: number): ISODate {
   return buildIsoDate(targetYear, targetMonth, Math.min(day, countDaysInMonth(targetYear, targetMonth)));
 }
 
-function appendRepeatingStartDate(startDates: ISODate[], candidate: ISODate): void {
+function applyRepeatingStartDate(startDates: ISODate[], candidate: ISODate): ISODate[] {
   const previous = startDates.at(-1);
   if (previous !== undefined && candidate <= previous) {
     throw new Error("Repeating allocation dates must be strictly increasing.");
@@ -124,7 +124,7 @@ function appendRepeatingStartDate(startDates: ISODate[], candidate: ISODate): vo
       `Repeating allocation generation exceeds its ${GENERATED_ALLOCATION_LIMIT}-allocation limit.`,
     );
   }
-  startDates.push(candidate);
+  return [...startDates, candidate];
 }
 
 function buildWeeklyStartDates(startDate: ISODate, repeatUntil: ISODate, interval: number): ISODate[] {
@@ -185,8 +185,7 @@ export function generateRepeatingStartDates(
       `Repeat until cannot be more than ${MAX_REPEAT_MONTHS} calendar months after the allocation start.`,
     );
   }
-  const startDates: ISODate[] = [];
-  appendRepeatingStartDate(startDates, startDate);
+  let startDates = applyRepeatingStartDate([], startDate);
   const repeatedStartDates = (() => {
     switch (pattern.kind) {
       case "weeks":
@@ -201,7 +200,7 @@ export function generateRepeatingStartDates(
     }
   })();
   for (const candidate of repeatedStartDates) {
-    appendRepeatingStartDate(startDates, candidate);
+    startDates = applyRepeatingStartDate(startDates, candidate);
   }
 
   if (startDates.length < 2) {
