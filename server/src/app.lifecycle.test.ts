@@ -150,7 +150,9 @@ it("rolls a lifecycle transition back when response redaction fails", async () =
     readSlice: () => data as ProjectedAccountSlice,
     readFullSlice: () => data as CompleteAccountSlice,
     readLifecycleRow: (accountId, entity, id) =>
-      (data[entity] as Array<Resource | Client | Project>).find((row) => row.id === id && row.accountId === accountId),
+      (data[entity] as Array<Resource | Client | Project>).find(
+        (row) => row.id === id && row.accountId === accountId,
+      ) ?? null,
     writeLifecycleRow: (accountId, entity, row) => {
       data = {
         ...data,

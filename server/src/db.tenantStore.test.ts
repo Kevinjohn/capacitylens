@@ -375,7 +375,9 @@ describe("sqliteTenantStore", () => {
     }
     const store = createSqliteTenantStore(db);
     const row = store.readLifecycleRow("a1", "resources", "r1");
-    expect(row).toBeDefined();
+    expect(row).toMatchObject({ id: "r1", accountId: "a1" });
+    expect(store.readLifecycleRow("a1", "resources", "missing")).toBeNull();
+    expect(store.readLifecycleRow("a1", "resources", "r2")).toBeNull();
 
     store.writeLifecycleRow("a1", "resources", {
       ...(row as AppData["resources"][number]),
