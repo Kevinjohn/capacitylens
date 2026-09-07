@@ -194,17 +194,7 @@
       "count": 2
     }
   },
-  "server/src/db/introspection.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "server/src/db/migrationLedger.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/db/statementCache.ts": {
     "max-params": {
       "count": 1
     }
