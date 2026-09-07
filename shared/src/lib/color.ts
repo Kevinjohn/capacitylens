@@ -104,7 +104,7 @@ export function snapToPresetColor(value: unknown): string {
   const channels = parseRgb(normalized);
   if (!channels) return FALLBACK_PRESET_COLOR;
   const { red: r, green: g, blue: b } = channels;
-  let nearest: string = PRESET_COLORS[0];
+  let nearest: string = FALLBACK_PRESET_COLOR;
   let nearestDistance = Infinity;
   for (let i = 0; i < PRESET_COLORS.length; i++) {
     const presetRgb = PRESET_RGB[i];
@@ -116,7 +116,7 @@ export function snapToPresetColor(value: unknown): string {
     // is the deterministic tie-break.
     if (distance < nearestDistance) {
       nearestDistance = distance;
-      nearest = PRESET_COLORS[i];
+      nearest = PRESET_COLORS[i] ?? FALLBACK_PRESET_COLOR;
     }
   }
   return nearest;
