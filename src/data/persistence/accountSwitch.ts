@@ -49,14 +49,14 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
               save(owner.current.pending);
               if (owner.current.inFlightSave) await owner.current.inFlightSave;
             }
-            settleSwitch(null, "reloaded");
+            settleSwitch(null, { kind: "reloaded" });
           })();
           return;
         }
         void refreshActive(newId).then((outcome) => {
           // A successful company switch just loaded this same slice. Count it as a refresh so a
           // focus event delivered by the picker transition cannot immediately load it again.
-          if (outcome === "reloaded") owner.update({ lastRefreshAt: Date.now() });
+          if (outcome.kind === "reloaded") owner.update({ lastRefreshAt: Date.now() });
           settleSwitch(newId, outcome);
         });
       })
@@ -67,12 +67,12 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
         new Promise<RefreshOutcome>((resolve) => {
           const previousId = store.getState().activeAccountId;
           if (previousId === id) {
-            resolve("skipped");
+            resolve({ kind: "skipped" });
             return;
           }
           owner.current.switchWaiters.push({ id, resolve });
           store.getState().setActiveAccount(id);
-          if (store.getState().activeAccountId !== id) settleSwitch(id, "skipped");
+          if (store.getState().activeAccountId !== id) settleSwitch(id, { kind: "skipped" });
         })
     : null;
 

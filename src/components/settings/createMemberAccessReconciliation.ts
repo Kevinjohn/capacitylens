@@ -72,7 +72,7 @@ export function createMemberAccessReconciliation({
     // `refreshActiveAccountSlice` can report `reloaded` after restoring an offline snapshot. That is
     // still not an authoritative post-role projection: close the tenant so confidential fields
     // from the caller's previous role cannot remain visible under an unverified role badge.
-    if (outcome === "reloaded" && !readOfflineStateSnapshot().readOnly) return { kind: "active" };
+    if (outcome.kind === "reloaded" && !readOfflineStateSnapshot().readOnly) return { kind: "active" };
     // A user-initiated tenant switch can legitimately supersede this refresh. Never close the new
     // tenant or replace its notice because a stale operation finished late.
     closeActiveAccount();

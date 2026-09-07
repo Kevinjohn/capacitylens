@@ -30,7 +30,7 @@ vi.mock("../lib/reloadPage", () => reloadMock);
 // is recorded so tests can pin the committed/dropParkedEdits bookkeeping (with no orchestrator
 // attached the real seam is an unobservable no-op anyway).
 const refreshOverride = vi.hoisted(() => ({
-  value: null as null | "reloaded" | "skipped" | "failed" | "unattached",
+  value: null as null | { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "unattached" },
 }));
 const resumeSpy = vi.hoisted(() => ({ calls: [] as unknown[] }));
 // When set, the mocked re-hydrate raises this error notice mid-flight — simulating the sticky
@@ -43,7 +43,7 @@ vi.mock("../data/persist", async (importOriginal) => {
     refreshActiveAccountSlice: async (id: string) => {
       if (refreshNotice.error !== null) {
         useStore.getState().setNotice(refreshNotice.error, "error");
-        return "reloaded" as const;
+        return { kind: "reloaded" as const };
       }
       return refreshOverride.value ?? actual.refreshActiveAccountSlice(id);
     },
@@ -424,7 +424,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
 
   beforeEach(() => {
     serverFlag.on = true;
-    refreshOverride.value = "reloaded";
+    refreshOverride.value = { kind: "reloaded" };
   });
 
   it("keeps active-slice export available to editors without calling the admin endpoint", async () => {
@@ -615,7 +615,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
 
     await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/changed while the import.*retry/i));
     expect(useStore.getState().notice?.tone).toBe("error");
-    expect(refreshOverride.value).toBe("reloaded");
+    expect(refreshOverride.value).toEqual({ kind: "reloaded" });
     expect(resumeSpy.calls).toEqual([{ dropParkedEdits: false }]);
   });
 
@@ -661,7 +661,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   it("a committed import whose re-hydrate FAILS reports the honest stale-view message, not success", async () => {
     // The import POST committed but the follow-up slice load broke: claiming "Imported 3 records"
     // over a view still rendering PRE-import data would be a lie — say both halves honestly.
-    refreshOverride.value = "failed";
+    refreshOverride.value = { kind: "failed" };
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -688,7 +688,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   });
 
   it("does not report success when no persistence orchestrator can rehydrate the committed slice", async () => {
-    refreshOverride.value = "unattached";
+    refreshOverride.value = { kind: "unattached" };
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -712,7 +712,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   });
 
   it("keeps writes blocked when a committed import refresh is skipped", async () => {
-    refreshOverride.value = "skipped";
+    refreshOverride.value = { kind: "skipped" };
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -732,7 +732,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   });
 
   it("keeps writes blocked when an off-spec committed response cannot be rehydrated", async () => {
-    refreshOverride.value = "failed";
+    refreshOverride.value = { kind: "failed" };
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("<html>proxy mangled</html>", { status: 200 })));
 
@@ -864,7 +864,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   it.each([408, 500, 503, 504])(
     "reconciles an HTTP %i import as an unknown atomic outcome before resuming writes",
     async (status) => {
-      refreshOverride.value = "reloaded";
+      refreshOverride.value = { kind: "reloaded" };
       vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status })));
 
       render(<ImportExport />);
@@ -886,7 +886,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   });
 
   it("reconciles an unknown timed-out import before resuming writes", async () => {
-    refreshOverride.value = "reloaded";
+    refreshOverride.value = { kind: "reloaded" };
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
     render(<ImportExport />);
     await importAndConfirm(incoming());
@@ -895,7 +895,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   });
 
   it("leaves writes suspended when a timed-out import cannot be reconciled", async () => {
-    refreshOverride.value = "failed";
+    refreshOverride.value = { kind: "failed" };
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
     render(<ImportExport />);
     await importAndConfirm(incoming());

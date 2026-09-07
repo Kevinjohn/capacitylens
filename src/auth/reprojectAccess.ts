@@ -10,5 +10,5 @@ export async function reprojectAccess(accountId: string): Promise<boolean> {
     preserveActiveAccountIfMissing: true,
   });
   if (summaries === null) return false;
-  return (await refreshActiveAccountSlice(accountId)) === "reloaded";
+  return (await refreshActiveAccountSlice(accountId)).kind === "reloaded";
 }

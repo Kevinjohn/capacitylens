@@ -93,7 +93,7 @@ export function createAttachmentState(
     dispose() {
       if (values.disposed) return;
       values.disposed = true;
-      for (const waiter of values.switchWaiters.splice(0)) waiter.resolve("unattached");
+      for (const waiter of values.switchWaiters.splice(0)) waiter.resolve({ kind: "unattached" });
       setPersistenceSuspended(false);
     },
     cancelDebounce: () => cancelDebounce(),

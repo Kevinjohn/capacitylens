@@ -6,6 +6,7 @@ export {
   ReloadDiscardedEditError,
   refreshActiveAccountSlice,
   switchAndAwaitHydration,
+  type FlushPendingWritesResult,
   type RefreshOutcome,
 } from "./persistence/facades";
 

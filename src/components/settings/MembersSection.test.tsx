@@ -72,12 +72,12 @@ vi.mock("../../data/apiConfig", () => ({
 }));
 
 vi.mock("../../data/persist", () => ({
-  refreshActiveAccountSlice: vi.fn(async () => "reloaded"),
-  flushPendingWrites: vi.fn(async () => true),
+  refreshActiveAccountSlice: vi.fn(async () => ({ kind: "reloaded" })),
+  flushPendingWrites: vi.fn(async () => ({ kind: "clean" })),
   suspendServerWrites: vi.fn(() => vi.fn()),
   switchAndAwaitHydration: vi.fn(async (id: string | null) => {
     useStore.getState().setActiveAccount(id);
-    return "reloaded";
+    return { kind: "reloaded" };
   }),
 }));
 
@@ -230,7 +230,7 @@ beforeEach(() => {
   accountTransitionMocks.startMasquerade.mockClear();
   resetStoreWithAccount(); // sets activeAccountId = DEFAULT_ACCOUNT_ID
   setOfflineReadState("cleanup", false);
-  vi.mocked(refreshActiveAccountSlice).mockResolvedValue("reloaded");
+  vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
   setOfflineReadState("cleanup", false);
@@ -708,7 +708,7 @@ describe("MembersSection — admin affordances", () => {
     vi.stubGlobal("fetch", mockApi(members));
     vi.mocked(refreshActiveAccountSlice).mockImplementationOnce(async () => {
       setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
-      return "reloaded";
+      return { kind: "reloaded" };
     });
     renderSection();
 

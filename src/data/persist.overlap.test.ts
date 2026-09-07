@@ -61,15 +61,15 @@ describe("persistence save/reload/switch overlap", () => {
     expect(hasUnsavedPersistenceWrites()).toBe(true);
 
     saving.resolve();
-    await expect(refreshing).resolves.toBe("skipped");
+    await expect(refreshing).resolves.toEqual({ kind: "skipped" });
     await vi.waitFor(() => expect(loadAll).toHaveBeenCalledExactlyOnceWith(secondAccount.id));
     const parked = useStore.getState().addClient({ name: "Stark Industries", color: "#222222" });
     expect(saveAll).toHaveBeenCalledTimes(1);
-    expect(await flushPendingWrites()).toBe(false);
+    expect(await flushPendingWrites()).toEqual({ kind: "blocked" });
 
     loading.resolve(makeAppData({ accounts: [secondAccount] }));
-    await expect(switching).resolves.toBe("reloaded");
-    expect(await flushPendingWrites()).toBe(true);
+    await expect(switching).resolves.toEqual({ kind: "reloaded" });
+    expect(await flushPendingWrites()).toEqual({ kind: "clean" });
     expect(useStore.getState().activeAccountId).toBe(secondAccount.id);
     expect(useStore.getState().data.clients).toContainEqual(parked);
     expect(saveAll).toHaveBeenCalledTimes(2);
@@ -103,14 +103,14 @@ describe("persistence save/reload/switch overlap", () => {
     await vi.waitFor(() => expect(loadAll).toHaveBeenCalledTimes(2));
     const authoritative = makeAppData({ accounts: [secondAccount] });
     newLoad.resolve(authoritative);
-    await expect(switching).resolves.toBe("reloaded");
+    await expect(switching).resolves.toEqual({ kind: "reloaded" });
     oldLoad.reject(new Error("old account unavailable"));
-    await vi.waitFor(() => expect(flushPendingWrites()).resolves.toBe(true));
+    await vi.waitFor(() => expect(flushPendingWrites()).resolves.toEqual({ kind: "clean" }));
 
     expect(onError).toHaveBeenCalledExactlyOnceWith(conflict);
     expect(useStore.getState().data.accounts).toEqual(authoritative.accounts);
     const client = useStore.getState().addClient({ name: "Stark Industries", color: "#222222" });
-    expect(await flushPendingWrites()).toBe(true);
+    expect(await flushPendingWrites()).toEqual({ kind: "clean" });
     expect(saveAll.mock.lastCall![0].clients).toContainEqual(client);
     expect(hasUnsavedPersistenceWrites()).toBe(false);
   });

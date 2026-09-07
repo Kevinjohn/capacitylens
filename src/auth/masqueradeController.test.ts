@@ -16,10 +16,10 @@ const state: MasqueradeState = {
 function harness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
   const resume = vi.fn();
   const dependencies: MasqueradeControllerDependencies = {
-    flush: vi.fn(async () => true),
+    flush: vi.fn(async () => ({ kind: "clean" as const })),
     suspend: vi.fn(() => resume),
     reproject: vi.fn(async () => true),
-    switchAccount: vi.fn(async (): Promise<"reloaded"> => "reloaded"),
+    switchAccount: vi.fn(async () => ({ kind: "reloaded" as const })),
     api: {
       status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: false })),
       start: vi.fn(async () => state),
@@ -68,7 +68,7 @@ describe("MasqueradeController", () => {
   });
 
   it("aborts before suspension when pending writes cannot be flushed", async () => {
-    const { controller, dependencies } = harness({ flush: vi.fn(async () => false) });
+    const { controller, dependencies } = harness({ flush: vi.fn(async () => ({ kind: "blocked" as const })) });
     await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(false);
     expect(dependencies.suspend).not.toHaveBeenCalled();
     expect(dependencies.api.start).not.toHaveBeenCalled();
