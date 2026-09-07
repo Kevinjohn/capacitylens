@@ -65,6 +65,39 @@ const parseApiErrorFields = (value: unknown): { status: unknown; code: unknown }
   }
   return { status, code: body.code };
 };
+const parseSingleFederatedObservation = (
+  value: unknown,
+): {
+  accountRowId: unknown;
+  principalId: unknown;
+  providerId: unknown;
+  subject: unknown;
+  verifiedAt: unknown;
+  auditedAt: unknown;
+} => {
+  if (!Array.isArray(value) || value.length !== 1) throw new Error("Expected one federated-link observation");
+  const row: unknown = value[0];
+  if (
+    typeof row !== "object" ||
+    row === null ||
+    !("accountRowId" in row) ||
+    !("principalId" in row) ||
+    !("providerId" in row) ||
+    !("subject" in row) ||
+    !("verifiedAt" in row) ||
+    !("auditedAt" in row)
+  ) {
+    throw new Error("Expected a complete federated-link observation");
+  }
+  return {
+    accountRowId: row.accountRowId,
+    principalId: row.principalId,
+    providerId: row.providerId,
+    subject: row.subject,
+    verifiedAt: row.verifiedAt,
+    auditedAt: row.auditedAt,
+  };
+};
 
 describe("password verification backpressure", () => {
   it("maps scrypt saturation to a retryable service-unavailable API error", async () => {
@@ -204,16 +237,22 @@ describe("federated link observation reconciliation", () => {
     reconcileFederatedLinks();
     reconcileFederatedLinks();
 
-    expect(db.prepare(`SELECT * FROM capacitylens_federated_link_observations`).all()).toEqual([
-      expect.objectContaining({
-        accountRowId: "link-1",
-        principalId: "principal-1",
-        providerId: "workforce",
-        subject: "subject-1",
-        verifiedAt: expect.any(String),
-        auditedAt: expect.any(String),
-      }),
-    ]);
+    const observation = parseSingleFederatedObservation(
+      db.prepare(`SELECT * FROM capacitylens_federated_link_observations`).all(),
+    );
+    expect({
+      accountRowId: observation.accountRowId,
+      principalId: observation.principalId,
+      providerId: observation.providerId,
+      subject: observation.subject,
+    }).toEqual({
+      accountRowId: "link-1",
+      principalId: "principal-1",
+      providerId: "workforce",
+      subject: "subject-1",
+    });
+    expect(typeof observation.verifiedAt).toBe("string");
+    expect(typeof observation.auditedAt).toBe("string");
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
     expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox`).all()).toEqual([{ id: "identity-link:link-1" }]);
   });
