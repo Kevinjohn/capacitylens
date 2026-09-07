@@ -3,9 +3,9 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { PanelLeftIcon } from "lucide-react";
 import { Slot } from "radix-ui";
 
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
-import { hasOpenModal, textEntryOwnsShortcut } from "@/lib/shortcutGuards";
+import { hasOpenModal, isTextEntryShortcutOwner } from "@/lib/shortcutGuards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -55,8 +55,9 @@ function useSidebar() {
 
 function SidebarProvider({
   defaultOpen = true,
-  open: openProp,
-  onOpenChange: setOpenProp,
+  // Local aliases describe controlled state; the public open/onOpenChange keys stay unchanged.
+  open: controlledOpen,
+  onOpenChange: setControlledOpen,
   className,
   style,
   children,
@@ -70,19 +71,19 @@ function SidebarProvider({
   const [openMobile, setOpenMobile] = React.useState(false);
 
   // This is the internal state of the sidebar.
-  // We use openProp and setOpenProp for control from outside the component.
+  // We use controlledOpen and setControlledOpen for control from outside the component.
   const [_open, _setOpen] = React.useState(defaultOpen);
-  const open = openProp ?? _open;
+  const open = controlledOpen ?? _open;
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
       const openState = typeof value === "function" ? value(open) : value;
-      if (setOpenProp) {
-        setOpenProp(openState);
+      if (setControlledOpen) {
+        setControlledOpen(openState);
       } else {
         _setOpen(openState);
       }
     },
-    [setOpenProp, open],
+    [setControlledOpen, open],
   );
 
   // Helper to toggle the sidebar.
@@ -92,14 +93,15 @@ function SidebarProvider({
 
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
+    // Local convention: name the handler for its action, keeping the keyboard contract unchanged.
+    const toggleSidebarFromShortcut = (event: KeyboardEvent) => {
       if (
         event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
         (event.metaKey || event.ctrlKey)
       ) {
         if (
           event.isComposing ||
-          textEntryOwnsShortcut(event.target) ||
+          isTextEntryShortcutOwner(event.target) ||
           hasOpenModal()
         )
           return;
@@ -108,8 +110,9 @@ function SidebarProvider({
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", toggleSidebarFromShortcut);
+    return () =>
+      window.removeEventListener("keydown", toggleSidebarFromShortcut);
   }, [toggleSidebar]);
 
   // We add a state so that we can do data-state="expanded" or "collapsed".
@@ -410,10 +413,11 @@ function SidebarGroupLabel({
   asChild = false,
   ...props
 }: React.ComponentProps<"div"> & { asChild?: boolean }) {
-  const Comp = asChild ? Slot.Root : "div";
+  // Local convention: spell out the JSX binding while preserving the primitive props.
+  const Component = asChild ? Slot.Root : "div";
 
   return (
-    <Comp
+    <Component
       data-slot="sidebar-group-label"
       data-sidebar="group-label"
       className={cn(
@@ -431,10 +435,11 @@ function SidebarGroupAction({
   asChild = false,
   ...props
 }: React.ComponentProps<"button"> & { asChild?: boolean }) {
-  const Comp = asChild ? Slot.Root : "button";
+  // Local convention: spell out the JSX binding while preserving the primitive props.
+  const Component = asChild ? Slot.Root : "button";
 
   return (
-    <Comp
+    <Component
       data-slot="sidebar-group-action"
       data-sidebar="group-action"
       className={cn(
@@ -520,11 +525,12 @@ function SidebarMenuButton({
   isActive?: boolean;
   tooltip?: string | React.ComponentProps<typeof TooltipContent>;
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
-  const Comp = asChild ? Slot.Root : "button";
+  // Local convention: spell out the JSX binding while preserving the primitive props.
+  const Component = asChild ? Slot.Root : "button";
   const { isMobile, state } = useSidebar();
 
   const button = (
-    <Comp
+    <Component
       data-slot="sidebar-menu-button"
       data-sidebar="menu-button"
       data-size={size}
@@ -566,10 +572,11 @@ function SidebarMenuAction({
   asChild?: boolean;
   showOnHover?: boolean;
 }) {
-  const Comp = asChild ? Slot.Root : "button";
+  // Local convention: spell out the JSX binding while preserving the primitive props.
+  const Component = asChild ? Slot.Root : "button";
 
   return (
-    <Comp
+    <Component
       data-slot="sidebar-menu-action"
       data-sidebar="menu-action"
       className={cn(
@@ -686,10 +693,11 @@ function SidebarMenuSubButton({
   size?: "sm" | "md";
   isActive?: boolean;
 }) {
-  const Comp = asChild ? Slot.Root : "a";
+  // Local convention: spell out the JSX binding while preserving the primitive props.
+  const Component = asChild ? Slot.Root : "a";
 
   return (
-    <Comp
+    <Component
       data-slot="sidebar-menu-sub-button"
       data-sidebar="menu-sub-button"
       data-size={size}

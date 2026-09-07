@@ -30,7 +30,7 @@ import type { TeamMember } from "../../account/teamAccessClient";
  * stays outside ordinary role/removal controls). The server enforces all of it regardless.
  */
 export function MembersSection() {
-  const activeAccountId = useStore((s) => s.activeAccountId);
+  const activeAccountId = useStore((state) => state.activeAccountId);
   return <AccountMembersSection key={activeAccountId ?? "no-active-account"} activeAccountId={activeAccountId} />;
 }
 
@@ -63,7 +63,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   }
 
   // Wrapped in an overflow container so a narrow viewport scrolls the TABLE, never the page.
-  const membersTable = (rows: TeamMember[], testId: string) => (
+  const renderMembersTable = (rows: TeamMember[], testId: string) => (
     <div className="overflow-x-auto">
       <table className="w-full text-sm" data-testid={testId}>
         <thead>
@@ -167,7 +167,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           {orchestration.members && orchestration.members.length === 0 ? (
             <p className="py-2 text-sm text-muted-foreground">{m.settings_members_empty()}</p>
           ) : orchestration.activeMembers ? (
-            membersTable(orchestration.activeMembers, "members-table")
+            renderMembersTable(orchestration.activeMembers, "members-table")
           ) : null}
           {/* Disabled and archived memberships, collapsed behind a disclosure (#175). They are still
               real rows an administrator has to be able to reach — to restore one, or to remove it —
@@ -191,7 +191,9 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
                 {m.settings_members_inactive_group({ count: orchestration.inactiveMembers.length })}
               </button>
               {orchestration.inactiveOpen && (
-                <div id="members-inactive">{membersTable(orchestration.inactiveMembers, "members-inactive-table")}</div>
+                <div id="members-inactive">
+                  {renderMembersTable(orchestration.inactiveMembers, "members-inactive-table")}
+                </div>
               )}
             </section>
           )}

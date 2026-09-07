@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { useRouteError } from "react-router-dom";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { reloadPage } from "../../lib/reloadPage";
 import { m } from "@/i18n";
 import { Button } from "../ui/button";
@@ -24,7 +24,7 @@ export function ErrorFallback({ message }: { message?: string }) {
 export function RouteError() {
   const error = useRouteError();
   if (error) console.error("CapacityLens route error:", error);
-  return <ErrorFallback message={errorMessage(error)} />;
+  return <ErrorFallback message={resolveErrorMessage(error)} />;
 }
 
 interface State {
@@ -45,7 +45,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   }
 
   render() {
-    if (this.state.error) return <ErrorFallback message={errorMessage(this.state.error)} />;
+    if (this.state.error) return <ErrorFallback message={resolveErrorMessage(this.state.error)} />;
     return this.props.children;
   }
 }

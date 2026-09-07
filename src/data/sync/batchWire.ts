@@ -3,8 +3,8 @@ import { isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { announceAuditWarning, noteAuditWarning } from "../../lib/auditWarning";
-import { apiErrorFromBody } from "../../lib/readApiError";
-import { API_BULK_TIMEOUT_MS, isTransportFailure, masqueradeErrorCode } from "../requestTimeout";
+import { extractApiErrorMessage } from "../../lib/readApiError";
+import { API_BULK_TIMEOUT_MS, isTransportFailure, readMasqueradeErrorCode } from "../requestTimeout";
 import { type Op } from "../syncOps";
 import {
   BatchCommitUncertainError,
@@ -17,8 +17,8 @@ import {
   MAX_OPS_PER_BATCH,
 } from "./batchErrors";
 import {
-  rowKey,
-  safeResponseError,
+  buildRowKey,
+  createSafeResponseError,
   warnCompatibilityOnce,
   type BatchCommitReceipt,
   type CommittedRevision,
@@ -30,16 +30,16 @@ import type { SyncState } from "./state";
 export function applyBatch(
   state: SyncState,
   ops: Op[],
-  opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
+  options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
 ): Promise<BatchCommitReceipt> {
-  return dispatchPreparedBatch(state, prepareBatchBody(state, ops, opts), ops, opts);
+  return dispatchPreparedBatch(state, prepareBatchBody(state, ops, options), ops, options);
 }
 
 /** Validate and serialize before a teardown dispatches any ordering-dependent sibling request. */
 export function prepareBatchBody(
   state: SyncState,
   ops: Op[],
-  opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
+  options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
 ): string {
   if (ops.length > MAX_OPS_PER_BATCH) {
     throw new BatchTooLargeError(`Atomic sync exceeds the ${MAX_OPS_PER_BATCH}-operation server limit.`);
@@ -47,12 +47,12 @@ export function prepareBatchBody(
   // Rebase PUT preconditions, then serialize ONCE — the same body feeds both the keepalive
   // byte-budget check and the request, so a large batch isn't JSON.stringified twice per save.
   const wireOps = rebaseForWire(state, ops).map((op) =>
-    opts?.archiveLifecycleDeletes && op.method === "DELETE" && isLifecycleEntityKey(op.table)
+    options?.archiveLifecycleDeletes && op.method === "DELETE" && isLifecycleEntityKey(op.table)
       ? { ...op, method: "ARCHIVE" }
       : op,
   );
   const body = JSON.stringify({ ops: wireOps });
-  if (opts?.keepalive && new TextEncoder().encode(body).byteLength > KEEPALIVE_BODY_BUDGET) {
+  if (options?.keepalive && new TextEncoder().encode(body).byteLength > KEEPALIVE_BODY_BUDGET) {
     throw new KeepaliveNotDispatchedError("The pending change was too large for a page-teardown keepalive request.");
   }
   return body;
@@ -62,11 +62,11 @@ export function dispatchPreparedBatch(
   state: SyncState,
   body: string,
   ops: Op[],
-  opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
+  options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
 ): Promise<BatchCommitReceipt> {
   const sequence = state.nextSyncSequence;
   state.nextSyncSequence += 1;
-  return postBatch(state, body, ops, sequence, opts);
+  return postBatch(state, body, ops, sequence, options);
 }
 
 // updatedAt on the wire is a concurrency precondition: rebase each PUT onto the last authoritative
@@ -101,11 +101,11 @@ export async function postBatch(
   body: string,
   ops: Op[],
   sequence: number,
-  opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
+  options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
 ): Promise<BatchCommitReceipt> {
-  const res = await sendBatch(state, body, sequence, opts);
+  const res = await sendBatch(state, body, sequence, options);
   await throwForBatchStatus(res);
-  return readBatchReceipt(res, ops, opts);
+  return readBatchReceipt(res, ops, options);
 }
 
 /** Dispatch stage: build and send the request, mapping a transport-level failure to the typed
@@ -114,7 +114,7 @@ export async function sendBatch(
   state: SyncState,
   body: string,
   sequence: number,
-  opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
+  options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
 ): Promise<Response> {
   let res: Response;
   try {
@@ -128,7 +128,7 @@ export async function sendBatch(
           "X-CapacityLens-Sync-Sequence": String(sequence),
         },
         body,
-        keepalive: opts?.keepalive,
+        keepalive: options?.keepalive,
         credentials: "include",
       },
       // The atomic write is a BULK op: give it the long bound so a big-but-healthy batch isn't
@@ -136,7 +136,7 @@ export async function sendBatch(
       // The keepalive unload flush gets NO deadline — a timeout on a request meant to outlive the
       // page is self-contradictory; when the page survives, its receipt or failure still flows back
       // through flushUnload to the persistence coordinator.
-      opts?.keepalive ? null : API_BULK_TIMEOUT_MS,
+      options?.keepalive ? null : API_BULK_TIMEOUT_MS,
     );
   } catch (error) {
     if (isTransportFailure(error)) {
@@ -160,7 +160,7 @@ export async function throwForBatchStatus(res: Response): Promise<void> {
     if (res.status === 409) {
       const body = (await res.json().catch(() => null)) as { current?: unknown } | null;
       throw new BatchConflictError(
-        apiErrorFromBody(body) ?? "Batch sync failed (409): stale write conflict",
+        extractApiErrorMessage(body) ?? "Batch sync failed (409): stale write conflict",
         body?.current,
       );
     }
@@ -171,12 +171,12 @@ export async function throwForBatchStatus(res: Response): Promise<void> {
     if (res.status === 400) {
       const body = (await res.json().catch(() => null)) as { code?: unknown } | null;
       throw new BatchValidationError(
-        apiErrorFromBody(body) ?? "Batch sync failed (400): validation rejected",
+        extractApiErrorMessage(body) ?? "Batch sync failed (400): validation rejected",
         isDomainErrorCode(body?.code) ? body.code : undefined,
       );
     }
     if (res.status === 403) {
-      if ((await masqueradeErrorCode(res)) === MASQUERADE_ERROR_CODES.readOnly) {
+      if ((await readMasqueradeErrorCode(res)) === MASQUERADE_ERROR_CODES.readOnly) {
         throw new BatchMasqueradeReadOnlyError("Batch sync was refused while masquerading.");
       }
     }
@@ -184,7 +184,7 @@ export async function throwForBatchStatus(res: Response): Promise<void> {
     // failure — persist.ts raises the banner, and the AuthProvider's re-check sees the
     // 401 and swaps to the login screen. Never a silent drop.
     const detail = await res.text().catch(() => "");
-    throw safeResponseError("Batch sync", res.status, detail);
+    throw createSafeResponseError("Batch sync", res.status, detail);
   }
 }
 
@@ -193,7 +193,7 @@ export async function throwForBatchStatus(res: Response): Promise<void> {
 export async function readBatchReceipt(
   res: Response,
   ops: Op[],
-  opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
+  options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
 ): Promise<BatchCommitReceipt> {
   const receipt = (await res.json().catch(() => null)) as {
     ok?: unknown;
@@ -244,13 +244,15 @@ export async function readBatchReceipt(
     );
 
   const expected = new Set(
-    receipt.superseded === true ? [] : ops.filter((op) => op.method === "PUT").map((op) => rowKey(op.table, op.id)),
+    receipt.superseded === true
+      ? []
+      : ops.filter((op) => op.method === "PUT").map((op) => buildRowKey(op.table, op.id)),
   );
   const received = new Set<string>();
   const serverRewrites = new Set<string>();
   const compatibleRevisions: CommittedRevision[] = [];
   for (const revision of revisions) {
-    const key = rowKey(revision.table, revision.id);
+    const key = buildRowKey(revision.table, revision.id);
     if (revision.rewrite !== true && expected.has(key) && !received.has(key)) {
       received.add(key);
       compatibleRevisions.push(revision);
@@ -272,11 +274,11 @@ export async function readBatchReceipt(
     );
   }
   const expectedArchives = new Set(
-    receipt.superseded === true || !opts?.archiveLifecycleDeletes
+    receipt.superseded === true || !options?.archiveLifecycleDeletes
       ? []
       : ops
           .filter((op) => op.method === "DELETE" && isLifecycleEntityKey(op.table))
-          .map((op) => rowKey(op.table, op.id)),
+          .map((op) => buildRowKey(op.table, op.id)),
   );
   const rawArchives = Array.isArray(receipt.archives) ? receipt.archives : [];
   if (expectedArchives.size > 0 && !Array.isArray(receipt.archives)) {
@@ -289,7 +291,7 @@ export async function readBatchReceipt(
       throw new BatchCommitUncertainError("Batch sync returned an invalid lifecycle archive receipt.");
     }
     const value = archiveReceipt as { table?: unknown; id?: unknown; archived?: unknown };
-    const key = rowKey(String(value.table), String(value.id));
+    const key = buildRowKey(String(value.table), String(value.id));
     if (
       typeof value.table !== "string" ||
       !isLifecycleEntityKey(value.table) ||

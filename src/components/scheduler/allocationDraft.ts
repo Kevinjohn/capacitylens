@@ -4,9 +4,9 @@ import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import { MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
 import type { Allocation, ISODate } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { formatShortDate } from "../../lib/dateDisplay";
-import { repeatPatternForSelection, type RepeatSelection } from "../../lib/repeatingAllocations";
+import { resolveRepeatPattern, type RepeatSelection } from "../../lib/repeatingAllocations";
 
 // The allocation form's decision layer, lifted out of AllocationModal so the rules can be read (and
 // tested) without a render. Nothing here touches React or the store: the modal supplies the already-
@@ -77,7 +77,7 @@ function validateCountField({
  *  user should hear about them. Returns the FIRST problem, or `null` when the draft is persistable.
  *  Save and Duplicate both run this so Duplicate cannot persist a shape Save would reject. */
 export function validateAllocationDraft(input: AllocationDraftValidationInput): AllocationDraftProblem | null {
-  const { startDate, endDate, isBlocks, isDays, isExternal, effHoursPerDay } = input;
+  const { startDate, endDate, isBlocks, isDays, isExternal, effHoursPerDay: effectiveHoursPerDay } = input;
   if (!input.resourceId) return { field: "resource", message: m.form_allocation_err_choose_resource() };
   if (!input.activityId) return { field: "activity", message: m.form_allocation_err_choose_activity() };
   if (input.usesTypedDateRange) {
@@ -122,7 +122,7 @@ export function validateAllocationDraft(input: AllocationDraftValidationInput): 
       };
     }
     try {
-      generateRepeatingStartDates(startDate, repeat.until, repeatPatternForSelection(repeat.selection));
+      generateRepeatingStartDates(startDate, repeat.until, resolveRepeatPattern(repeat.selection));
     } catch (error) {
       if (error instanceof RepeatingDateError) {
         return {
@@ -135,7 +135,7 @@ export function validateAllocationDraft(input: AllocationDraftValidationInput): 
       }
       return {
         field: null,
-        message: error instanceof Error ? errorMessage(error) : m.form_allocation_err_save_failed(),
+        message: error instanceof Error ? resolveErrorMessage(error) : m.form_allocation_err_save_failed(),
       };
     }
   }
@@ -149,7 +149,7 @@ export function validateAllocationDraft(input: AllocationDraftValidationInput): 
   if (
     !isExternal &&
     !isBlocks &&
-    !(Number.isFinite(effHoursPerDay) && effHoursPerDay > 0 && effHoursPerDay <= MAX_HOURS_PER_DAY)
+    !(Number.isFinite(effectiveHoursPerDay) && effectiveHoursPerDay > 0 && effectiveHoursPerDay <= MAX_HOURS_PER_DAY)
   ) {
     return isDays
       ? { field: "daysOfWork", message: m.form_allocation_err_days_over_max({ max: MAX_HOURS_PER_DAY }) }
@@ -169,14 +169,14 @@ export interface EndDateInput {
   daysOver: number;
   /** The span the form seeded from the stored allocation when it opened. */
   initialDaysOver: number;
-  /** The end the current form state derives (`effectiveAllocationValues`). */
+  /** The end the current form state derives (`buildEffectiveAllocationValues`). */
   effectiveEndDate: ISODate;
 }
 
 /** The end date to persist. A span-mode edit that changed NOTHING the span depends on keeps the
  *  STORED end verbatim: re-deriving it would silently renormalise a historical row (one saved under
  *  a different working week, or before a span rule changed) on an unrelated edit such as a note. */
-export function deriveEndDate({
+export function resolveEndDate({
   editing,
   isBlocks,
   isDays,

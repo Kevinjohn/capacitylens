@@ -5,7 +5,7 @@ interface ExternalSignInResult {
   error?: { message?: string | null } | null;
 }
 
-function externalRedirectUrl(value: string | null | undefined): string | null {
+function parseExternalRedirectUrl(value: string | null | undefined): string | null {
   if (!value) return null;
   try {
     const url = new URL(value, window.location.href);
@@ -92,7 +92,7 @@ export async function runExternalSignIn({
       onFailure(outcome.result.error.message ?? undefined);
       return;
     }
-    const redirectUrl = externalRedirectUrl(outcome.result.data?.url);
+    const redirectUrl = parseExternalRedirectUrl(outcome.result.data?.url);
     if (!redirectUrl) {
       onFailure();
       return;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isStaleEdit } from "./staleEdit";
+import { isStaleEdit } from "./isStaleEdit";
 
 interface Row {
   id: string;

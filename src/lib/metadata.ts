@@ -13,7 +13,7 @@ import { m } from "@/i18n";
 // select and label render.
 
 /** A `<select>`/segmented-control option. `V` carries the enum union through the derivation, so a
- *  caller binding `options={allocationStatusOptions()}` gets `value: AllocationStatus` rather than a
+ *  caller binding `options={buildAllocationStatusOptions()}` gets `value: AllocationStatus` rather than a
  *  widened `string` it would have to re-assert. */
 export interface LabelOption<V extends string = string> {
   value: V;
@@ -21,23 +21,23 @@ export interface LabelOption<V extends string = string> {
 }
 
 /** One uncalled message reference per union member — the per-enum source list. Exported alongside
- *  {@link labelsFrom} so a caller outside this file can name the shape it must build. */
+ *  {@link buildLabels} so a caller outside this file can name the shape it must build. */
 export type LabelMessages<K extends string> = Record<K, () => string>;
 
 /** Resolve a whole message table to strings, in its declaration order. Exported so a surface with an
  *  enum table of its OWN (a settings section's per-option copy, say) derives its labels through the
  *  same lazy-resolution rule rather than hand-rolling a second `Object.keys` loop that a locale
  *  switch would then have to be re-audited against. */
-export function labelsFrom<K extends string>(messages: LabelMessages<K>): Record<K, string> {
+export function buildLabels<K extends string>(messages: LabelMessages<K>): Record<K, string> {
   const labels = {} as Record<K, string>;
   for (const key of Object.keys(messages) as K[]) labels[key] = messages[key]();
   return labels;
 }
 
 /** Turn a resolved label map into `<select>` options, preserving key order. Exported for the same
- *  reason as {@link labelsFrom}: option lists built elsewhere keep this file's `LabelOption` shape
+ *  reason as {@link buildLabels}: option lists built elsewhere keep this file's `LabelOption` shape
  *  and its value-typing, instead of a parallel `.map` that widens `value` back to `string`. */
-export function toOptions<K extends string>(labels: Record<K, string>): LabelOption<K>[] {
+export function buildLabelOptions<K extends string>(labels: Record<K, string>): LabelOption<K>[] {
   return (Object.entries(labels) as [K, string][]).map(([value, label]) => ({ value, label }));
 }
 
@@ -62,23 +62,23 @@ const timeOffTypeMessages: LabelMessages<TimeOffType> = {
 /** Label for ONE allocation status — for the render sites that hold a single status and would
  *  otherwise build (and discard) the whole map to read one key out of it. An unrecognised runtime
  *  value from legacy or hand-edited data renders blank instead of taking down the scheduler. */
-export function allocationStatusLabel(status: AllocationStatus): string {
+export function resolveAllocationStatusLabel(status: AllocationStatus): string {
   const message = allocationStatusMessages[status];
   return message ? message() : "";
 }
 
-/** Label for ONE time-off type, with the same blank fallback as {@link allocationStatusLabel}. */
-export function timeOffTypeLabel(type: TimeOffType): string {
+/** Label for ONE time-off type, with the same blank fallback as {@link resolveAllocationStatusLabel}. */
+export function resolveTimeOffTypeLabel(type: TimeOffType): string {
   const message = timeOffTypeMessages[type];
   return message ? message() : "";
 }
 
-export function allocationStatusLabels(): Record<AllocationStatus, string> {
-  return labelsFrom(allocationStatusMessages);
+export function buildAllocationStatusLabels(): Record<AllocationStatus, string> {
+  return buildLabels(allocationStatusMessages);
 }
 
-export function timeOffTypeLabels(): Record<TimeOffType, string> {
-  return labelsFrom(timeOffTypeMessages);
+export function buildTimeOffTypeLabels(): Record<TimeOffType, string> {
+  return buildLabels(timeOffTypeMessages);
 }
 
 /** Primary display name for a placeholder ("slot") resource: the literal word "Placeholder"
@@ -87,28 +87,28 @@ export function timeOffTypeLabels(): Record<TimeOffType, string> {
  *  invent per-slot numbering. One source so the schedule lane, the assignee picker, the command
  *  palette and the Resources list can't drift on what a placeholder is called. The placeholder
  *  feature is gated behind the per-account `placeholdersEnabled` setting on the Account (default off). */
-export function placeholderDisplayName(): string {
+export function resolvePlaceholderDisplayName(): string {
   return m.placeholder_display_name();
 }
 
 /** The display name for ANY resource: the literal word "Placeholder" for a placeholder ("slot")
- *  resource (per `placeholderDisplayName` above), otherwise the resource's own name (falling back
+ *  resource (per `resolvePlaceholderDisplayName` above), otherwise the resource's own name (falling back
  *  to its role when unnamed). One source so every render site — the schedule lane + its add button,
  *  the assignee picker, the command palette, and the Resources list (row AND its delete confirm) —
  *  agrees on what a resource is called, and a placeholder can't read as its role in one place while
  *  reading as "Placeholder" everywhere else. No behaviour change for non-placeholders. */
-export function resourceDisplayName(r: Resource): string {
-  if (r.kind === "placeholder") return placeholderDisplayName();
-  const name = r.name?.trim();
-  return name || r.role;
+export function resolveResourceDisplayName(resource: Resource): string {
+  if (resource.kind === "placeholder") return resolvePlaceholderDisplayName();
+  const name = resource.name?.trim();
+  return name || resource.role;
 }
 
-export function allocationStatusOptions(): LabelOption<AllocationStatus>[] {
-  return toOptions(allocationStatusLabels());
+export function buildAllocationStatusOptions(): LabelOption<AllocationStatus>[] {
+  return buildLabelOptions(buildAllocationStatusLabels());
 }
-export function resourceEngagementOptions(): LabelOption<ResourceEngagement>[] {
-  return toOptions(labelsFrom(resourceEngagementMessages));
+export function buildResourceEngagementOptions(): LabelOption<ResourceEngagement>[] {
+  return buildLabelOptions(buildLabels(resourceEngagementMessages));
 }
-export function timeOffTypeOptions(): LabelOption<TimeOffType>[] {
-  return toOptions(timeOffTypeLabels());
+export function buildTimeOffTypeOptions(): LabelOption<TimeOffType>[] {
+  return buildLabelOptions(buildTimeOffTypeLabels());
 }

@@ -4,7 +4,7 @@ import { fetchAccountSummaries, refreshAccountSummaries, useAccountSummaries } f
 import { useStore } from "../store/useStore";
 import {
   cacheAccountSummaries,
-  offlineStateSnapshot,
+  readOfflineStateSnapshot,
   readCachedAccountSummaries,
   setOfflineReadState,
 } from "../data/offlineCache";
@@ -106,7 +106,7 @@ describe("fetchAccountSummaries — response classification", () => {
 
     await expect(fetchAccountSummaries()).resolves.toHaveLength(1);
 
-    expect(offlineStateSnapshot().readOnly).toBe(true);
+    expect(readOfflineStateSnapshot().readOnly).toBe(true);
   });
 
   it("does clear an identity/list-only offline marker at the company picker", async () => {
@@ -119,7 +119,7 @@ describe("fetchAccountSummaries — response classification", () => {
 
     await expect(fetchAccountSummaries()).resolves.toHaveLength(1);
 
-    expect(offlineStateSnapshot().readOnly).toBe(false);
+    expect(readOfflineStateSnapshot().readOnly).toBe(false);
   });
 
   it("does not mark a live active slice read-only when only the company directory falls back to cache", async () => {
@@ -137,7 +137,7 @@ describe("fetchAccountSummaries — response classification", () => {
 
     await expect(fetchAccountSummaries()).resolves.toEqual([{ id: "a1", name: "Studio A", role: "owner" }]);
 
-    expect(offlineStateSnapshot()).toEqual({
+    expect(readOfflineStateSnapshot()).toEqual({
       readOnly: false,
       lastUpdated: null,
       cacheWriteFailed: false,
@@ -159,7 +159,7 @@ describe("fetchAccountSummaries — response classification", () => {
 
     await expect(fetchAccountSummaries()).resolves.toHaveLength(1);
 
-    expect(offlineStateSnapshot()).toEqual({
+    expect(readOfflineStateSnapshot()).toEqual({
       readOnly: true,
       lastUpdated: savedAt,
       cacheWriteFailed: false,

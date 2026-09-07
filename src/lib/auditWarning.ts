@@ -22,9 +22,9 @@ export function announceAuditWarning(): void {
  */
 export function noteAuditWarning(
   res: { headers?: { get?: (name: string) => string | null } },
-  opts: { defer?: boolean } = {},
+  options: { defer?: boolean } = {},
 ): void {
   if (res.headers?.get?.(AUDIT_WARNING_HEADER) !== "true") return;
-  if (opts.defer) globalThis.setTimeout(() => announceAuditWarning(), 0);
+  if (options.defer) globalThis.setTimeout(() => announceAuditWarning(), 0);
   else announceAuditWarning();
 }

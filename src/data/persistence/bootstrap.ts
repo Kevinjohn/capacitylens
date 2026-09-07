@@ -12,7 +12,7 @@ interface BootstrapOptions {
   seedIfEmpty?: AppData;
   /** Called when a persistence write fails (e.g. storage quota exceeded, or the
    *  server is unreachable). */
-  onError?: (e: unknown) => void;
+  onError?: (error: unknown) => void;
   /** Called after a persistence write succeeds — lets the caller clear a prior
    *  error state once saving recovers (e.g. the server comes back). */
   onSuccess?: () => void;
@@ -27,7 +27,7 @@ interface BootstrapOptions {
 export async function bootstrap(
   store: StoreApi<StoreState>,
   adapter: PersistenceAdapter,
-  opts: BootstrapOptions = {},
+  options: BootstrapOptions = {},
 ): Promise<() => void> {
   let loaded: AppData;
   try {
@@ -65,8 +65,8 @@ export async function bootstrap(
     console.warn("bootstrap: hasExisting() failed; inferring existence from loaded data", e);
     existed = !isEmpty(loaded);
   }
-  const seedNeeded = !existed && !!opts.seedIfEmpty;
-  const initial = seedNeeded ? (opts.seedIfEmpty as AppData) : loaded;
+  const seedNeeded = !existed && !!options.seedIfEmpty;
+  const initial = seedNeeded ? (options.seedIfEmpty as AppData) : loaded;
 
   store.getState().replaceAll(initial);
   store.getState().setHydrated(true);
@@ -77,9 +77,16 @@ export async function bootstrap(
     try {
       await adapter.saveAll(initial);
     } catch (e) {
-      opts.onError?.(e);
+      options.onError?.(e);
     }
   }
 
-  return attachPersistence(store, adapter, opts.debounceMs ?? 300, opts.onError, opts.onSuccess, opts.serverMode);
+  return attachPersistence(
+    store,
+    adapter,
+    options.debounceMs ?? 300,
+    options.onError,
+    options.onSuccess,
+    options.serverMode,
+  );
 }

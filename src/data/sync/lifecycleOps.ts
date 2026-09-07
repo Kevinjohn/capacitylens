@@ -7,9 +7,9 @@ import { isRecord } from "../validateAccountSlice";
 import { LifecycleRestoreError } from "./batchErrors";
 import {
   MAX_DIAGNOSTIC_BODY_LENGTH,
-  rowKey,
-  safeResponseError,
-  sameEntityContent,
+  buildRowKey,
+  createSafeResponseError,
+  hasSameEntityContent,
   writeRows,
   type CommittedRevision,
 } from "./revisions";
@@ -33,22 +33,22 @@ export function splitLifecycleDeletes(ops: Op[]): {
   return { batchOps, lifecycleDeletes };
 }
 
-export function lifecycleKey(op: Pick<Op, "table" | "id">): string {
-  return rowKey(op.table, op.id);
+export function buildLifecycleKey(op: Pick<Op, "table" | "id">): string {
+  return buildRowKey(op.table, op.id);
 }
 
 export function isRememberedLifecycleReappearance(state: SyncState, op: Op): boolean {
-  return op.method === "PUT" && isLifecycleEntityKey(op.table) && state.archivedBySync.has(lifecycleKey(op));
+  return op.method === "PUT" && isLifecycleEntityKey(op.table) && state.archivedBySync.has(buildLifecycleKey(op));
 }
 
-export function rememberedLifecycleRestoreOps(state: SyncState, target: AppData): Op[] {
+export function listRememberedLifecycleRestoreOps(state: SyncState, target: AppData): Op[] {
   // Nothing was ever archived by this session, so no reappearance can need reversing — skip the
   // whole-lifecycle-table scan (the common case on every save).
   if (state.archivedBySync.size === 0) return [];
   const ops: Op[] = [];
   for (const table of LIFECYCLE_ENTITY_KEYS) {
     for (const row of target[table]) {
-      if (state.archivedBySync.has(lifecycleKey({ table, id: row.id }))) {
+      if (state.archivedBySync.has(buildLifecycleKey({ table, id: row.id }))) {
         ops.push({ method: "PUT", table, id: row.id, row, accountId: row.accountId });
       }
     }
@@ -58,7 +58,7 @@ export function rememberedLifecycleRestoreOps(state: SyncState, target: AppData)
 
 export function rememberLifecycleArchives(state: SyncState, ops: Op[], confirmed: ReadonlySet<string>): void {
   for (const op of ops) {
-    const key = lifecycleKey(op);
+    const key = buildLifecycleKey(op);
     if (confirmed.has(key)) state.archivedBySync.add(key);
     else state.archivedBySync.delete(key);
   }
@@ -88,10 +88,10 @@ export async function restoreRememberedLifecycleRows(
     // A normal archive advanced lastSynced past the row, while a teardown archive deliberately
     // did not. Replace-or-append handles both and makes the unarchive receipt authoritative.
     state.lastSynced = writeRows(state.lastSynced, [{ table: op.table, row }], { replaceExisting: true });
-    const key = lifecycleKey(op);
+    const key = buildLifecycleKey(op);
     state.acknowledgedRevisions.delete(key);
-    if (sameEntityContent(op.row, row)) rememberRevisions(state, [op], [revision], state.lastSynced);
-    state.archivedBySync.delete(lifecycleKey(op));
+    if (hasSameEntityContent(op.row, row)) rememberRevisions(state, [op], [revision], state.lastSynced);
+    state.archivedBySync.delete(buildLifecycleKey(op));
     restored = true;
   }
   return restored;
@@ -155,25 +155,29 @@ export async function unarchiveLifecycleRow(state: SyncState, op: Op): Promise<E
 // after a partial success or a concurrent archive) and a 404 (row already gone from this account)
 // are the intended out-of-active end state. Other 409 conflicts, including protected rows, remain
 // surfaced failures. A THROWN fetch (network/abort) also propagates so the save retries when healthy.
-export async function archiveLifecycleRow(state: SyncState, op: Op, opts: { keepalive?: boolean } = {}): Promise<void> {
-  const init: RequestInit = {
+export async function archiveLifecycleRow(
+  state: SyncState,
+  op: Op,
+  options: { keepalive?: boolean } = {},
+): Promise<void> {
+  const requestOptions: RequestInit = {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ accountId: op.accountId }),
     credentials: "include",
-    ...(opts.keepalive ? { keepalive: true } : {}),
+    ...(options.keepalive ? { keepalive: true } : {}),
   };
   const res = await state.request(
     `${state.baseUrl}/api/${op.table}/${encodeURIComponent(op.id)}/archive`,
-    init,
-    opts.keepalive ? null : API_REQUEST_TIMEOUT_MS,
+    requestOptions,
+    options.keepalive ? null : API_REQUEST_TIMEOUT_MS,
   );
   // Same gap as unarchiveLifecycleRow above: this dedicated route bypasses apiFetch, so the
   // audit-degradation header on this destructive write would otherwise be silently dropped.
   // Announced SYNCHRONOUSLY (no `defer`) for the same reason as unarchive.
   noteAuditWarning(res);
   // A response body can only be read ONCE, and every failure arm below wants the same two views of
-  // it: the raw text (safeResponseError attaches it as the diagnostic cause) and its best-effort
+  // it: the raw text (createSafeResponseError attaches it as the diagnostic cause) and its best-effort
   // JSON envelope. Read and parse each exactly once, here, before branching on status.
   //
   // The parse is deliberately allowed to fail without surfacing: an unreadable CONFLICT body cannot
@@ -190,23 +194,23 @@ export async function archiveLifecycleRow(state: SyncState, op: Op, opts: { keep
   }
   if (res.status === 409) {
     if (envelope?.code === "already_inactive") {
-      state.archivedBySync.add(lifecycleKey(op));
+      state.archivedBySync.add(buildLifecycleKey(op));
       return;
     }
     if (typeof envelope?.error === "string") {
       throw new Error(`Lifecycle archive of ${op.table}/${op.id} failed (${res.status}): ${envelope.error}`);
     }
-    throw safeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
+    throw createSafeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
   }
   if (res.status === 404) {
     if (envelope?.error === "Not found") {
-      state.archivedBySync.delete(lifecycleKey(op));
+      state.archivedBySync.delete(buildLifecycleKey(op));
       return;
     }
-    throw safeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
+    throw createSafeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
   }
   if (!res.ok) {
-    throw safeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
+    throw createSafeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
   }
-  state.archivedBySync.add(lifecycleKey(op));
+  state.archivedBySync.add(buildLifecycleKey(op));
 }

@@ -1,11 +1,11 @@
 import { useSyncExternalStore } from "react";
 import {
-  offlineReadEnabled,
-  offlineStateSnapshot,
+  isOfflineReadEnabled,
+  readOfflineStateSnapshot,
   subscribeOfflinePreference,
   subscribeOfflineState,
 } from "./offlineCache";
-import { persistenceDiagnosticsSnapshot, subscribePersistenceDiagnostics } from "./persistenceDiagnostics";
+import { readPersistenceDiagnosticsSnapshot, subscribePersistenceDiagnostics } from "./persistenceDiagnostics";
 
 // React bindings for the data layer's plain subscribe/snapshot stores. Each store is deliberately
 // framework-free (it is read from persistence code and the service worker, not just components), so
@@ -17,14 +17,14 @@ import { persistenceDiagnosticsSnapshot, subscribePersistenceDiagnostics } from 
 
 /** Reactive view of the device's read-only offline state. */
 export function useOfflineState() {
-  return useSyncExternalStore(subscribeOfflineState, offlineStateSnapshot, offlineStateSnapshot);
+  return useSyncExternalStore(subscribeOfflineState, readOfflineStateSnapshot, readOfflineStateSnapshot);
 }
 
 /** Reactive view of the offline-read PREFERENCE — has the user opted this device in? Distinct from
  *  {@link useOfflineState}, which reports whether offline reading is currently in EFFECT; this is the
  *  toggle's own value, and it fails closed when the preference cannot be read. */
 export function useOfflineReadEnabled(): boolean {
-  return useSyncExternalStore(subscribeOfflinePreference, offlineReadEnabled, offlineReadEnabled);
+  return useSyncExternalStore(subscribeOfflinePreference, isOfflineReadEnabled, isOfflineReadEnabled);
 }
 
 /** Reactive view of the process-local persistence counters (failed saves, rebased edits, whether
@@ -32,7 +32,7 @@ export function useOfflineReadEnabled(): boolean {
 export function usePersistenceDiagnostics() {
   return useSyncExternalStore(
     subscribePersistenceDiagnostics,
-    persistenceDiagnosticsSnapshot,
-    persistenceDiagnosticsSnapshot,
+    readPersistenceDiagnosticsSnapshot,
+    readPersistenceDiagnosticsSnapshot,
   );
 }

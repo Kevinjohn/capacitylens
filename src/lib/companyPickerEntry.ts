@@ -1,6 +1,6 @@
 const SHOW_COMPANY_PICKER_ON_RELOAD = "capacitylens.showCompanyPickerOnReload";
 
-function historyStateRecord(): Record<string, unknown> {
+function parseHistoryStateRecord(): Record<string, unknown> {
   const current: unknown = window.history.state;
   return typeof current === "object" && current !== null && !Array.isArray(current)
     ? { ...(current as Record<string, unknown>) }
@@ -11,7 +11,7 @@ function historyStateRecord(): Record<string, unknown> {
 export function markCompanyPickerForNextReload(): void {
   try {
     window.history.replaceState(
-      { ...historyStateRecord(), [SHOW_COMPANY_PICKER_ON_RELOAD]: true },
+      { ...parseHistoryStateRecord(), [SHOW_COMPANY_PICKER_ON_RELOAD]: true },
       "",
       window.location.href,
     );
@@ -24,7 +24,7 @@ export function markCompanyPickerForNextReload(): void {
 
 /** Consume the post-sign-in marker once. A failed cleanup degrades safely to showing the picker. */
 export function consumeCompanyPickerForReload(): boolean {
-  const state = historyStateRecord();
+  const state = parseHistoryStateRecord();
   if (state[SHOW_COMPANY_PICKER_ON_RELOAD] !== true) return false;
   delete state[SHOW_COMPANY_PICKER_ON_RELOAD];
   try {

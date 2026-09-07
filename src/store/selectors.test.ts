@@ -1,21 +1,21 @@
 import { describe, it, expect } from "vitest";
 import {
-  disciplinesEnabledFor,
-  externalEnabledFor,
-  groupResourcesByEngagementFor,
-  inlineActivityCreateEnabledFor,
-  internalColourModeFor,
-  placeholdersEnabledFor,
-  resourcesByDiscipline,
-  schedulingModeFor,
-  showInternalActivitiesFor,
-  showInternalProjectsFor,
-  accountWorkingDaysFor,
-  timeZoneFor,
-  visibleRange,
-  weekStartsOnFor,
+  hasDisciplinesEnabled,
+  hasExternalResourcesEnabled,
+  hasResourceEngagementGrouping,
+  canCreateInlineActivity,
+  resolveInternalColourMode,
+  hasPlaceholdersEnabled,
+  buildDisciplineGroups,
+  resolveSchedulingMode,
+  hasVisibleInternalActivities,
+  hasVisibleInternalProjects,
+  listAccountWorkingDays,
+  resolveTimeZone,
+  buildVisibleRange,
+  resolveWeekStart,
 } from "./selectors";
-import { emptyFilters } from "./useStore";
+import { buildEmptyFilters } from "./useStore";
 import { DEFAULT_ACCOUNT_ID, makeResource } from "../test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Account, AppData, ID } from "@capacitylens/shared/types/entities";
@@ -60,7 +60,7 @@ function data(): AppData {
 
 describe("resourcesByDiscipline", () => {
   it("groups resources under disciplines ordered by sortOrder, with an ungrouped bucket last", () => {
-    const groups = resourcesByDiscipline(data());
+    const groups = buildDisciplineGroups(data());
     expect(groups.map((g) => g.discipline?.name ?? "(none)")).toEqual(["Design", "Dev", "(none)"]);
     expect(groups[0].resources.map((r) => r.id)).toEqual(["r1"]);
     expect(groups[2].discipline).toBeNull();
@@ -75,16 +75,16 @@ describe("disciplinesEnabledFor", () => {
   });
 
   it("defaults to true when the field is absent", () => {
-    expect(disciplinesEnabledFor(accounts(undefined), "a1")).toBe(true);
+    expect(hasDisciplinesEnabled(accounts(undefined), "a1")).toBe(true);
   });
 
   it("defaults to true when no account matches", () => {
-    expect(disciplinesEnabledFor(accounts(false), "missing")).toBe(true);
+    expect(hasDisciplinesEnabled(accounts(false), "missing")).toBe(true);
   });
 
   it("returns the explicit account value", () => {
-    expect(disciplinesEnabledFor(accounts(false), "a1")).toBe(false);
-    expect(disciplinesEnabledFor(accounts(true), "a1")).toBe(true);
+    expect(hasDisciplinesEnabled(accounts(false), "a1")).toBe(false);
+    expect(hasDisciplinesEnabled(accounts(true), "a1")).toBe(true);
   });
 });
 
@@ -102,28 +102,28 @@ describe("account feature selector defaults", () => {
   }> = [
     {
       name: "scheduling mode",
-      selector: schedulingModeFor,
+      selector: resolveSchedulingMode,
       fallback: "hourly",
       explicit: ["days", "blocks"],
       values: (schedulingMode) => ({ schedulingMode: schedulingMode as Account["schedulingMode"] }),
     },
     {
       name: "placeholders",
-      selector: placeholdersEnabledFor,
+      selector: hasPlaceholdersEnabled,
       fallback: false,
       explicit: [true, false],
       values: (placeholdersEnabled) => ({ placeholdersEnabled: placeholdersEnabled as boolean }),
     },
     {
       name: "external resources",
-      selector: externalEnabledFor,
+      selector: hasExternalResourcesEnabled,
       fallback: false,
       explicit: [true, false],
       values: (externalEnabled) => ({ externalEnabled: externalEnabled as boolean }),
     },
     {
       name: "engagement grouping",
-      selector: groupResourcesByEngagementFor,
+      selector: hasResourceEngagementGrouping,
       fallback: true,
       explicit: [true, false],
       values: (groupResourcesByEngagement) => ({
@@ -132,21 +132,21 @@ describe("account feature selector defaults", () => {
     },
     {
       name: "internal projects",
-      selector: showInternalProjectsFor,
+      selector: hasVisibleInternalProjects,
       fallback: true,
       explicit: [true, false],
       values: (showInternalProjects) => ({ showInternalProjects: showInternalProjects as boolean }),
     },
     {
       name: "internal activities",
-      selector: showInternalActivitiesFor,
+      selector: hasVisibleInternalActivities,
       fallback: true,
       explicit: [true, false],
       values: (showInternalActivities) => ({ showInternalActivities: showInternalActivities as boolean }),
     },
     {
       name: "inline activity creation",
-      selector: inlineActivityCreateEnabledFor,
+      selector: canCreateInlineActivity,
       fallback: true,
       explicit: [true, false],
       values: (inlineActivityCreateEnabled) => ({
@@ -169,21 +169,21 @@ describe("calendar primitive selectors", () => {
   });
 
   it("single-sources absent calendar defaults without returning a fresh object", () => {
-    expect(timeZoneFor(accounts(), "missing")).toBe("Etc/GMT");
-    expect(weekStartsOnFor(accounts(), "missing")).toBe(1);
+    expect(resolveTimeZone(accounts(), "missing")).toBe("Etc/GMT");
+    expect(resolveWeekStart(accounts(), "missing")).toBe(1);
   });
 
   it("returns the active account calendar values", () => {
     const data = accounts({ timezone: "Europe/London", weekStartsOn: 0 });
-    expect(timeZoneFor(data, "a1")).toBe("Europe/London");
-    expect(weekStartsOnFor(data, "a1")).toBe(0);
+    expect(resolveTimeZone(data, "a1")).toBe("Europe/London");
+    expect(resolveWeekStart(data, "a1")).toBe(0);
   });
 
   it("derives legacy account working days from week start and preserves an explicit selection", () => {
-    expect(accountWorkingDaysFor(accounts({ weekStartsOn: 1 }), "a1")).toEqual([1, 2, 3, 4, 5]);
-    expect(accountWorkingDaysFor(accounts({ weekStartsOn: 0 }), "a1")).toEqual([0, 1, 2, 3, 4]);
+    expect(listAccountWorkingDays(accounts({ weekStartsOn: 1 }), "a1")).toEqual([1, 2, 3, 4, 5]);
+    expect(listAccountWorkingDays(accounts({ weekStartsOn: 0 }), "a1")).toEqual([0, 1, 2, 3, 4]);
     expect(
-      accountWorkingDaysFor(
+      listAccountWorkingDays(
         {
           ...accounts({ weekStartsOn: 0 }),
           accounts: [{ ...accounts({ weekStartsOn: 0 }).accounts[0]!, workingDays: [1, 3, 5] }],
@@ -194,8 +194,8 @@ describe("calendar primitive selectors", () => {
   });
 
   it("repairs an empty persisted account week from its configured week start", () => {
-    expect(accountWorkingDaysFor(accounts({ weekStartsOn: 1, workingDays: [] }), "a1")).toEqual([1, 2, 3, 4, 5]);
-    expect(accountWorkingDaysFor(accounts({ weekStartsOn: 0, workingDays: [] }), "a1")).toEqual([0, 1, 2, 3, 4]);
+    expect(listAccountWorkingDays(accounts({ weekStartsOn: 1, workingDays: [] }), "a1")).toEqual([1, 2, 3, 4, 5]);
+    expect(listAccountWorkingDays(accounts({ weekStartsOn: 0, workingDays: [] }), "a1")).toEqual([0, 1, 2, 3, 4]);
   });
 });
 
@@ -206,25 +206,25 @@ describe("internalColourModeFor", () => {
   });
 
   it("defaults absent and unmatched accounts to grey", () => {
-    expect(internalColourModeFor(accounts(), "a1")).toBe("grey");
-    expect(internalColourModeFor(accounts("palette"), "missing")).toBe("grey");
+    expect(resolveInternalColourMode(accounts(), "a1")).toBe("grey");
+    expect(resolveInternalColourMode(accounts("palette"), "missing")).toBe("grey");
   });
 
   it("returns an explicit palette choice", () => {
-    expect(internalColourModeFor(accounts("palette"), "a1")).toBe("palette");
+    expect(resolveInternalColourMode(accounts("palette"), "a1")).toBe("palette");
   });
 });
 
 describe("visibleRange", () => {
   it("spans rangeDays inclusive from the origin", () => {
-    const range = visibleRange({
+    const range = buildVisibleRange({
       zoom: 4,
       originDate: "2026-06-01",
       rangeDays: 7,
       focusDate: "2026-06-01",
       drawMode: "work",
       selectedAllocationId: null,
-      filters: emptyFilters(),
+      filters: buildEmptyFilters(),
       collapsedGroups: [],
       recenterToken: 0,
       scrollToResource: null,

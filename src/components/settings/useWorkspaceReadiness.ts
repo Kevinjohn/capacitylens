@@ -98,7 +98,9 @@ export function useWorkspaceReadiness({
           fail("sso-email", (await readApiError(response)) ?? m.settings_sso_correct_email_error());
           return;
         }
-        const changedSelf = members?.some((mem) => mem.userId === emailRepair.member.principalId && mem.isSelf);
+        const changedSelf = members?.some(
+          (member) => member.userId === emailRepair.member.principalId && member.isSelf,
+        );
         setEmailRepair(null);
         setNotice(m.settings_sso_correct_email_done());
         if (changedSelf) {

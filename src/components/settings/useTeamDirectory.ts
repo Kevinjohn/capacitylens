@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import {
   teamAccessClient,
   type TeamDirectory,
@@ -157,7 +157,7 @@ export function useTeamDirectory({
             gate: "error",
           });
         }
-        fail(null, m.settings_err_server({ error: errorMessage(error) }));
+        fail(null, m.settings_err_server({ error: resolveErrorMessage(error) }));
       }
     })();
 
@@ -205,7 +205,7 @@ export function useTeamDirectory({
       onInvitesLoaded?.(invitationsResult.value);
     } catch (error) {
       if (!current()) return;
-      fail(null, m.settings_err_server({ error: errorMessage(error) }));
+      fail(null, m.settings_err_server({ error: resolveErrorMessage(error) }));
     }
   }, [enabled, activeAccountId, offlineReadOnly, fail, onInvitesLoaded]);
 

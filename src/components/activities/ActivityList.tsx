@@ -16,9 +16,9 @@ export function ActivityList({ selectedActivityId = null }: { selectedActivityId
   const activities = data.activities;
   const projects = data.projects;
   const clients = data.clients;
-  const del = useStore((s) => s.deleteActivity);
+  const deleteEntity = useStore((state) => state.deleteActivity);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Activity>();
-  const confirmDelete = useConfirmDelete(del, () => setConfirming(null));
+  const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
   const selectedRowRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {

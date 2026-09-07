@@ -42,7 +42,7 @@ const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
   project_client_required: m.domain_error_project_client_required,
 };
 
-export const domainErrorMessage = (code: DomainErrorCode): string => DOMAIN_ERROR_MESSAGES[code]();
+export const resolveDomainErrorMessage = (code: DomainErrorCode): string => DOMAIN_ERROR_MESSAGES[code]();
 
 /** Normalise anything thrown (an Error, a bare string, a React Router ErrorResponse, …)
  *  to a human message, so a non-Error throw never renders a blank screen.
@@ -52,9 +52,9 @@ export const domainErrorMessage = (code: DomainErrorCode): string => DOMAIN_ERRO
  *    SINK for `catch` blocks across the app, so do NOT wrap it in its own try/catch (there is nothing
  *    to guard, and a wrapper would only add noise). The generic fallback resolves through Paraglide
  *    at call time so it follows the active locale. */
-export function errorMessage(error: unknown): string {
+export function resolveErrorMessage(error: unknown): string {
   try {
-    if (error instanceof DomainError) return domainErrorMessage(error.code);
+    if (error instanceof DomainError) return resolveDomainErrorMessage(error.code);
     if (error instanceof Error && error.message.trim()) return error.message;
     if (typeof error === "string" && error.trim()) return error;
     if (error && typeof error === "object") {

@@ -4,8 +4,8 @@ import { SlidersHorizontal, Users } from "lucide-react";
 import { m } from "@/i18n";
 import { useStore } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
-import { sharedScopedData } from "../../store/useScopedData";
-import { accountWorkingDaysFor } from "../../store/selectors";
+import { resolveSharedScopedData } from "../../store/useScopedData";
+import { listAccountWorkingDays } from "../../store/selectors";
 import { EmptyState } from "../common/ui";
 import { LAYOUT } from "./layout";
 import { SchedulerGridHeader } from "./SchedulerGridHeader";
@@ -34,29 +34,29 @@ const TimeOffForm = lazy(() =>
 
 export function SchedulerGrid() {
   const navigate = useNavigate();
-  const prefs = useSchedulerGridPreferences();
+  const preferences = useSchedulerGridPreferences();
   const {
     data,
     accountPrefs: { calendarWeekStartsOn },
     ui,
-    utilizationPrefs,
+    utilizationPrefs: utilizationPreferences,
     minimiseWeekends,
     snapToWeekStart,
-  } = prefs;
+  } = preferences;
   // Viewer read-only (P1.12): when the active account's role is a viewer, the grid is display-only —
   // no row "+" create, no lane draw-to-create, no bar edit/drag/resize (the bar gating lives in
   // AllocationBar; the draw/create gating is the conditional onDraw/onEdit + the hidden "+" below).
   // null/owner/admin/editor (incl. OFF/local) → fully editable, byte-identical to today. The server
   // 403 backstops a write regardless; this is the UX read-only surface.
   const canEdit = useCanEdit();
-  const toggleGroup = useStore((s) => s.toggleGroup);
-  const clearFilters = useStore((s) => s.clearFilters);
+  const toggleGroup = useStore((state) => state.toggleGroup);
+  const clearFilters = useStore((state) => state.clearFilters);
   // WCAG 4.1.3: the latest screen-reader capacity announcement, set by AllocationBar after a
   // KEYBOARD-committed move/resize. Rendered ONCE below in a polite aria-live region. It changes
   // only on a keyboard edit (not a scroll/zoom/modal/render), so subscribing here adds no hot-path
   // re-render; pointer drags never set it, so they stay silent for screen readers (sighted feedback).
-  const srAnnouncement = useStore((s) => s.srAnnouncement);
-  const announceStatus = useStore((s) => s.announceCapacity);
+  const screenReaderAnnouncement = useStore((state) => state.srAnnouncement);
+  const announceStatus = useStore((state) => state.announceCapacity);
   const [modal, setModal] = useState<ModalState | null>(null);
   const previousDrawMode = useRef(ui.drawMode);
   useEffect(() => {
@@ -68,18 +68,27 @@ export function SchedulerGrid() {
   }, [announceStatus, ui.drawMode]);
 
   const viewport = useSchedulerViewport({ ui, minimiseWeekends, snapToWeekStart, calendarWeekStartsOn });
-  const { scrollRef, headerRef, stickyHeaderHeight, timelineWidth, days, geom, onScroll, visibleStartDate } = viewport;
+  const {
+    scrollRef,
+    headerRef,
+    stickyHeaderHeight,
+    timelineWidth,
+    days,
+    geom: geometry,
+    onScroll,
+    visibleStartDate,
+  } = viewport;
   const { model, density, today, todayX, visibleWeeksLabel, visibleSpanCompact, overallUtil, filtersActive } =
-    useSchedulerGridModel(prefs, viewport);
+    useSchedulerGridModel(preferences, viewport);
   const virtualization = useSchedulerGridVirtualization(model, ui, density, data, viewport);
   const { items, visibleClosures } = virtualization;
 
   // Stable callbacks so the memoised ResourceLane can skip re-rendering on
   // grid-level UI changes (e.g. opening a modal). setModal is referentially stable.
-  const handleEdit = useCallback((allocationId: ID) => setModal({ kind: "edit", allocationId }), []);
-  const handleDraw = useCallback((resourceId: ID, startDate: ISODate, endDate: ISODate) => {
+  const editAllocation = useCallback((allocationId: ID) => setModal({ kind: "edit", allocationId }), []);
+  const createFromDraw = useCallback((resourceId: ID, startDate: ISODate, endDate: ISODate) => {
     // Read the draw mode LIVE (getState) when the gesture FIRES, not via a closure over
-    // ui.drawMode. That's load-bearing: closing over ui.drawMode would give handleDraw a fresh
+    // ui.drawMode. That's load-bearing: closing over ui.drawMode would give createFromDraw a fresh
     // reference on every toggle, which `onDraw` hands to every ResourceLane — failing their
     // React.memo and re-rendering every lane (and its bars) on a mode toggle. The mode that
     // matters is the one live at pointerup, which is exactly what getState() returns here, so
@@ -90,7 +99,7 @@ export function SchedulerGrid() {
     const drawMode = state.ui.drawMode;
     const resource = state.data.resources.find((candidate) => candidate.id === resourceId);
     if (!resource) return;
-    const scopedData = sharedScopedData(state.data, state.activeAccountId);
+    const scopedData = resolveSharedScopedData(state.data, state.activeAccountId);
     // The SAME gate the model paints `creationBlocked` with, so a lane can never accept a draw on a
     // day it drew as unavailable. It scopes time off to the resource itself, so no pre-filter here.
     // EXCEPT in time-off draw mode: a closure must not swallow the gesture — sick
@@ -102,7 +111,7 @@ export function SchedulerGrid() {
         resource,
         startDate,
         gateTimeOff,
-        accountWorkingDaysFor(state.data, state.activeAccountId),
+        listAccountWorkingDays(state.data, state.activeAccountId),
         drawMode === "timeoff" ? [] : scopedData.closures,
       )
     ) {
@@ -164,12 +173,12 @@ export function SchedulerGrid() {
         >
           <SchedulerGridHeader
             headerRef={headerRef}
-            utilizationPrefs={utilizationPrefs}
+            utilizationPrefs={utilizationPreferences}
             visibleWeeksLabel={visibleWeeksLabel}
             visibleSpanCompact={visibleSpanCompact}
             overallUtil={overallUtil}
             days={days}
-            geom={geom}
+            geom={geometry}
             ui={ui}
             calendarWeekStartsOn={calendarWeekStartsOn}
             today={today}
@@ -225,8 +234,8 @@ export function SchedulerGrid() {
             ui={ui}
             density={density}
             toggleGroup={toggleGroup}
-            geom={geom}
-            utilizationPrefs={utilizationPrefs}
+            geom={geometry}
+            utilizationPrefs={utilizationPreferences}
             visibleWeeksLabel={visibleWeeksLabel}
             canEdit={canEdit}
             visibleStartDate={visibleStartDate}
@@ -234,8 +243,8 @@ export function SchedulerGrid() {
             days={days}
             todayX={todayX}
             calendarWeekStartsOn={calendarWeekStartsOn}
-            handleEdit={handleEdit}
-            handleDraw={handleDraw}
+            handleEdit={editAllocation}
+            handleDraw={createFromDraw}
           />
 
           {modal && (
@@ -289,7 +298,7 @@ export function SchedulerGrid() {
           aria-atomic="true"
           data-testid="scheduler-live-region"
         >
-          {srAnnouncement && <span key={srAnnouncement.seq}>{srAnnouncement.text}</span>}
+          {screenReaderAnnouncement && <span key={screenReaderAnnouncement.seq}>{screenReaderAnnouncement.text}</span>}
         </div>
       </div>
     </TooltipProvider>

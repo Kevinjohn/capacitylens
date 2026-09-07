@@ -2,37 +2,37 @@ import { useMemo, useState, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../store/useStore";
 import {
-  disciplinesEnabledFor,
-  externalEnabledFor,
-  placeholdersEnabledFor,
-  showInternalProjectsFor,
+  hasDisciplinesEnabled,
+  hasExternalResourcesEnabled,
+  hasPlaceholdersEnabled,
+  hasVisibleInternalProjects,
 } from "../store/selectors";
 import { useActiveScopedData } from "../store/useScopedData";
 import { m } from "@/i18n";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "./ui/command";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
-import { buildItems, type PaletteItem } from "./commandPaletteItems";
+import { buildPaletteItems, type PaletteItem } from "./buildPaletteItems";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CommandPalette({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
-  const goToToday = useStore((s) => s.goToToday);
-  const goToDate = useStore((s) => s.goToDate);
-  const jumpToResource = useStore((s) => s.jumpToResource);
-  const setFilters = useStore((s) => s.setFilters);
+  const goToToday = useStore((state) => state.goToToday);
+  const goToDate = useStore((state) => state.goToDate);
+  const jumpToResource = useStore((state) => state.jumpToResource);
+  const setFilters = useStore((state) => state.setFilters);
   const data = useActiveScopedData();
   // Scoped `data` has accounts blanked, so read the discipline flag from the full store.
-  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
+  const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   // Per-account view pref (default OFF): when off, placeholders are not offered as jump targets.
-  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId));
+  const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
   // Per-account view pref (default OFF): when off, external / 3rd parties are not offered as
   // jump targets — their schedule row is hidden, so jumping to it would scroll to nothing.
-  const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId));
+  const externalEnabled = useStore((state) => hasExternalResourcesEnabled(state.data, state.activeAccountId));
   // Internal-project results also jump to the schedule, so omit them when their bars are hidden.
   // Internal ACTIVITIES deliberately remain below: they open the complete management list instead.
-  const showInternalProjects = useStore((s) => showInternalProjectsFor(s.data, s.activeAccountId));
+  const showInternalProjects = useStore((state) => hasVisibleInternalProjects(state.data, state.activeAccountId));
 
   const [query, setQuery] = useState("");
   // cmdk owns highlight/selection by item `value` (we pass each item's id). Controlling it lets us
@@ -50,7 +50,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // re-render), and the active-row change must not re-run the filter. Keyed on the real inputs only.
   const items: PaletteItem[] = useMemo(
     () =>
-      buildItems({
+      buildPaletteItems({
         query,
         data,
         disciplinesEnabled,
@@ -83,12 +83,12 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // Group items by section for rendering (one CommandGroup per section).
   const sections: { title: string; items: PaletteItem[] }[] = [];
   for (const item of items) {
-    let sec = sections.find((s) => s.title === item.section);
-    if (!sec) {
-      sec = { title: item.section, items: [] };
-      sections.push(sec);
+    let section = sections.find((section) => section.title === item.section);
+    if (!section) {
+      section = { title: item.section, items: [] };
+      sections.push(section);
     }
-    sec.items.push(item);
+    section.items.push(item);
   }
 
   // Repair the combobox's `aria-activedescendant`. cmdk hardcodes it from its OWN `selectedItemId`,
@@ -110,8 +110,8 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     const list = listElement;
     if (!input || !list) return;
     const syncActiveDescendant = () => {
-      const activeOpt = list.querySelector<HTMLElement>('[cmdk-item=""][aria-selected="true"]');
-      const activeId = activeOpt?.id ?? null;
+      const activeOption = list.querySelector<HTMLElement>('[cmdk-item=""][aria-selected="true"]');
+      const activeId = activeOption?.id ?? null;
       if (activeId) {
         input.setAttribute("aria-activedescendant", activeId);
       } else {

@@ -1,10 +1,10 @@
 import type { Role } from "@capacitylens/shared/domain/access";
 import { m } from "@/i18n";
-import type { AccessExperience } from "./accessMode";
+import type { AccessExperience } from "./resolveAccessExperience";
 
 export type AccessPermissionStatus = "not-applicable" | "pending" | "resolved" | "unavailable";
 
-export function roleLabel(role: Role): string {
+export function resolveRoleLabel(role: Role): string {
   switch (role) {
     case "owner":
       return m.settings_role_owner();
@@ -17,7 +17,7 @@ export function roleLabel(role: Role): string {
   }
 }
 
-export function roleSummary(role: Role): string {
+export function resolveRoleSummary(role: Role): string {
   switch (role) {
     case "owner":
       return m.access_role_owner_summary();
@@ -39,14 +39,14 @@ interface AccessCopyInput {
 
 /** The fixed-copy states the label and the summary share. The seventh outcome — "nothing else
  *  took precedence, render the viewer's role" — is carried as `{ role }` instead, because its copy
- *  comes from roleLabel/roleSummary rather than a state table. */
+ *  comes from resolveRoleLabel/resolveRoleSummary rather than a state table. */
 type AccessState = "offline" | "demo" | "open" | "checking" | "not-applicable" | "unavailable";
 
 /** THE precedence ladder — resolved once so the label and its explanatory counterpart can never
  *  drift into disagreeing about which state the viewer is in. Ordering is load-bearing: a cached
  *  offline session outranks the access posture, which outranks how far the permission check has
  *  got, and a resolved check with no role still reads as "unavailable" rather than a blank role. */
-function accessStateFor(input: AccessCopyInput): AccessState | { role: Role } {
+function resolveAccessState(input: AccessCopyInput): AccessState | { role: Role } {
   if (input.offlineReadOnly) return "offline";
   if (input.experience === "demo") return "demo";
   if (input.experience === "open") return "open";
@@ -77,14 +77,14 @@ const STATE_SUMMARIES: Record<AccessState, () => string> = {
 };
 
 /** Single product-facing label for demo, open, authenticated and cached-offline access. */
-export function accessLabelFor(input: AccessCopyInput): string {
-  const state = accessStateFor(input);
-  return typeof state === "string" ? STATE_LABELS[state]() : roleLabel(state.role);
+export function resolveAccessLabel(input: AccessCopyInput): string {
+  const state = resolveAccessState(input);
+  return typeof state === "string" ? STATE_LABELS[state]() : resolveRoleLabel(state.role);
 }
 
-/** Explanatory counterpart to {@link accessLabelFor}, sharing its state precedence by construction
- *  (both resolve through {@link accessStateFor}). */
-export function accessSummaryFor(input: AccessCopyInput): string {
-  const state = accessStateFor(input);
-  return typeof state === "string" ? STATE_SUMMARIES[state]() : roleSummary(state.role);
+/** Explanatory counterpart to {@link resolveAccessLabel}, sharing its state precedence by construction
+ *  (both resolve through {@link resolveAccessState}). */
+export function resolveAccessSummary(input: AccessCopyInput): string {
+  const state = resolveAccessState(input);
+  return typeof state === "string" ? STATE_SUMMARIES[state]() : resolveRoleSummary(state.role);
 }

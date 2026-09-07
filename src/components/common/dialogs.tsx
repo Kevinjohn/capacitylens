@@ -146,8 +146,8 @@ export function Modal({
   /** Called for every form edit, including edits after the form is already dirty. */
   onEdit?: () => void;
 }) {
-  const setNotice = useStore((s) => s.setNotice);
-  const setDirtyFormSource = useStore((s) => s.setDirtyFormSource);
+  const setNotice = useStore((state) => state.setNotice);
+  const setDirtyFormSource = useStore((state) => state.setDirtyFormSource);
   const [dirtySource] = useState(() => Symbol("modal-dirty"));
   const [invoker] = useState(() => document.activeElement as HTMLElement | null);
 

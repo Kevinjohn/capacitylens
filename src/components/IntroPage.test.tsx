@@ -49,8 +49,8 @@ describe('IntroPage (post-login "What CapacityLens is")', () => {
     // The two emphasised phrases render inside <strong>.
     const resourcing = screen.getByText("resourcing tool");
     expect(resourcing.tagName).toBe("STRONG");
-    const notPm = screen.getByText("not a project management tool");
-    expect(notPm.tagName).toBe("STRONG");
+    const projectManagementPhrase = screen.getByText("not a project management tool");
+    expect(projectManagementPhrase.tagName).toBe("STRONG");
 
     // The Continue button.
     expect(screen.getByRole("button", { name: "Continue" })).toBeInTheDocument();

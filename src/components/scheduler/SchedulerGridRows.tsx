@@ -23,8 +23,8 @@ export function SchedulerGridRows({
   ui,
   density,
   toggleGroup,
-  geom,
-  utilizationPrefs,
+  geom: geometry,
+  utilizationPrefs: utilizationPreferences,
   visibleWeeksLabel,
   canEdit,
   visibleStartDate,
@@ -57,8 +57,8 @@ export function SchedulerGridRows({
                   ui={ui}
                   density={density}
                   toggleGroup={toggleGroup}
-                  geom={geom}
-                  utilizationPrefs={utilizationPrefs}
+                  geom={geometry}
+                  utilizationPrefs={utilizationPreferences}
                 />
               ) : (
                 <SchedulerGridRow
@@ -68,14 +68,14 @@ export function SchedulerGridRows({
                   rowIndex={rowIndex}
                   ui={ui}
                   density={density}
-                  utilizationPrefs={utilizationPrefs}
+                  utilizationPrefs={utilizationPreferences}
                   visibleWeeksLabel={visibleWeeksLabel}
                   canEdit={canEdit}
                   visibleStartDate={visibleStartDate}
                   setModal={setModal}
                   days={days}
                   todayX={todayX}
-                  geom={geom}
+                  geom={geometry}
                   calendarWeekStartsOn={calendarWeekStartsOn}
                   handleEdit={handleEdit}
                   handleDraw={handleDraw}
@@ -103,7 +103,7 @@ export function SchedulerGridRows({
                 closure={closure}
                 visibleStart={timelineStart}
                 visibleEnd={timelineEnd}
-                geom={geom}
+                geom={geometry}
                 leftOffset={LAYOUT.leftColWidth}
                 height={trackedGridHeight}
               />

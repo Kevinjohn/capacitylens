@@ -5,8 +5,8 @@ afterEach(() => vi.unstubAllEnvs());
 async function accessExperience(demo: string, authMode: "off" | "password" | "sso") {
   vi.stubEnv("VITE_CAPACITYLENS_DEMO", demo);
   vi.resetModules();
-  const { accessExperienceFor } = await import("./accessMode");
-  return accessExperienceFor(authMode);
+  const { resolveAccessExperience } = await import("./resolveAccessExperience");
+  return resolveAccessExperience(authMode);
 }
 
 describe("accessExperienceFor", () => {

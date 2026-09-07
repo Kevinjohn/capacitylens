@@ -11,7 +11,7 @@ const MOBILE_QUERY = `(max-width: ${PHONE_MAX_WIDTH_PX}px)`;
 // the query is null and the hook reports "not mobile".
 let cached: { matchMedia: unknown; query: MediaQueryList | null } | null = null;
 
-function mobileMediaQuery(): MediaQueryList | null {
+function readMobileMediaQuery(): MediaQueryList | null {
   const matchMedia = typeof window.matchMedia === "function" ? window.matchMedia : null;
   if (cached === null || cached.matchMedia !== matchMedia) {
     cached = { matchMedia, query: matchMedia ? matchMedia.call(window, MOBILE_QUERY) : null };
@@ -19,17 +19,17 @@ function mobileMediaQuery(): MediaQueryList | null {
   return cached.query;
 }
 
-function getIsMobile() {
-  return mobileMediaQuery()?.matches ?? false;
+function readIsMobile() {
+  return readMobileMediaQuery()?.matches ?? false;
 }
 
 function subscribeToMobileChange(onStoreChange: () => void) {
-  const mediaQuery = mobileMediaQuery();
+  const mediaQuery = readMobileMediaQuery();
   if (!mediaQuery) return () => {};
   mediaQuery.addEventListener("change", onStoreChange);
   return () => mediaQuery.removeEventListener("change", onStoreChange);
 }
 
 export function useIsMobile() {
-  return React.useSyncExternalStore(subscribeToMobileChange, getIsMobile, () => false);
+  return React.useSyncExternalStore(subscribeToMobileChange, readIsMobile, () => false);
 }

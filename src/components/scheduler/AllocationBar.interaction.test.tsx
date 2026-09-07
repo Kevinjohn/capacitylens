@@ -7,7 +7,7 @@ import type { BarLayout } from "./schedulerModel";
 import { useStore } from "../../store/useStore";
 import { type Allocation, type Weekday } from "@capacitylens/shared/types/entities";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from "../../test/fixtures";
-import { visibleRange } from "../../store/selectors";
+import { buildVisibleRange } from "../../store/selectors";
 import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/schedulerTestKit";
 
 // A fixed-width (500px) lane DOMRect stub for pointer-geometry math in drag/resize tests — only
@@ -278,7 +278,7 @@ describe("AllocationBar interactions", () => {
   it("refuses a keyboard nudge that would unmount the bar beyond the visible timeline", () => {
     useStore.getState().setOriginDate("2026-06-01");
     useStore.getState().setZoom(1);
-    const lastVisibleDay = visibleRange(useStore.getState().ui).end;
+    const lastVisibleDay = buildVisibleRange(useStore.getState().ui).end;
     const allocation = seedAllocation({
       startDate: lastVisibleDay,
       endDate: lastVisibleDay,

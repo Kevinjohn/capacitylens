@@ -1,21 +1,21 @@
 import type { StateCreator } from "zustand";
 import { m } from "@/i18n";
 import {
-  clearedSession,
+  buildClearedSession,
   hasSameEntityRevisions,
   HISTORY_LIMIT,
   prepareHistoryTarget,
   resetSchedulerView,
   type StoreInternals,
 } from "../storeInternal";
-import { weekAnchor } from "./schedulerSlice";
+import { readCurrentWeekAnchor } from "./schedulerSlice";
 import type { StoreState } from "../types";
 
 type HistorySlice = Pick<StoreState, "past" | "future" | "replaceAll" | "importData" | "undo" | "redo">;
 
 export function createHistorySlice(internals: StoreInternals): StateCreator<StoreState, [], [], HistorySlice> {
   return (set) => {
-    const { guarded, importSlice, requireAccount } = internals;
+    const { createGuardedAction, importSlice, requireAccount } = internals;
     return {
       past: [],
       future: [],
@@ -45,7 +45,7 @@ export function createHistorySlice(internals: StoreInternals): StateCreator<Stor
                 message: m.notice_company_not_found(),
                 tone: "error" as const,
               },
-              ...clearedSession(),
+              ...buildClearedSession(),
               past: [],
               future: [],
               // No anchor: a publication is not a navigation, so the week in view is left alone.
@@ -66,7 +66,7 @@ export function createHistorySlice(internals: StoreInternals): StateCreator<Stor
             data,
             past: [],
             future: [],
-            ui: { ...state.ui, ...weekAnchor(data, account.id) },
+            ui: { ...state.ui, ...readCurrentWeekAnchor(data, account.id) },
           };
         }),
       // Replace only the active account's slice; other accounts and the account
@@ -79,29 +79,29 @@ export function createHistorySlice(internals: StoreInternals): StateCreator<Stor
       // let an edit in one account silently rewrite another's row.
       // The account is resolved at the CALL, ahead of the shared viewer gate: replacing a slice with
       // NO active account is a programming error for every role, so requireAccount must still throw
-      // where `guarded` would merely refuse. Viewer no-op (P1.12 defense-in-depth): a read-only user
+      // where `createGuardedAction` would merely refuse. Viewer no-op (P1.12 defense-in-depth): a read-only user
       // can't replace the account slice, and gets a zero-effect summary so the caller reports honestly.
       importData: (incoming) => importSlice(requireAccount(), incoming),
 
-      undo: guarded(() => {
-        set((s) => {
-          if (s.past.length === 0) return {};
-          const previous = prepareHistoryTarget(s.data, s.past[s.past.length - 1]);
+      undo: createGuardedAction(() => {
+        set((state) => {
+          if (state.past.length === 0) return {};
+          const previous = prepareHistoryTarget(state.data, state.past[state.past.length - 1]);
           return {
             data: previous,
-            past: s.past.slice(0, -1),
-            future: [s.data, ...s.future].slice(0, HISTORY_LIMIT),
+            past: state.past.slice(0, -1),
+            future: [state.data, ...state.future].slice(0, HISTORY_LIMIT),
           };
         });
       }),
-      redo: guarded(() => {
-        set((s) => {
-          if (s.future.length === 0) return {};
-          const next = prepareHistoryTarget(s.data, s.future[0]);
+      redo: createGuardedAction(() => {
+        set((state) => {
+          if (state.future.length === 0) return {};
+          const next = prepareHistoryTarget(state.data, state.future[0]);
           return {
             data: next,
-            future: s.future.slice(1),
-            past: [...s.past, s.data].slice(-HISTORY_LIMIT),
+            future: state.future.slice(1),
+            past: [...state.past, state.data].slice(-HISTORY_LIMIT),
           };
         });
       }),

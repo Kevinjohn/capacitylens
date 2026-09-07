@@ -1,22 +1,22 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { m } from "@/i18n";
-import { undoShortcut } from "../../lib/keyboardShortcuts";
-import { errorMessage } from "../../lib/errorMessage";
+import { buildUndoShortcut } from "../../lib/keyboardShortcuts";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { applyGesture, type DateRange, type DragMode } from "../../lib/gestureMath";
 import { rangesOverlap } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { carriesHourlyLoad, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
 import type { ID, Weekday } from "@capacitylens/shared/types/entities";
 import { useDragResize } from "../../hooks/useDragResize";
-import { accountWorkingDaysFor, schedulingModeFor, visibleRange } from "../../store/selectors";
+import { listAccountWorkingDays, resolveSchedulingMode, buildVisibleRange } from "../../store/selectors";
 import { useStore } from "../../store/useStore";
-import { computeGesture, reconcileReassignedHours, volumePreservingHoursClamped } from "./allocationDrag";
+import { resolveGesture, reconcileReassignedHours, resolveVolumePreservingHours } from "./allocationDrag";
 import type { ColumnGeometry } from "./columnGeometry";
-import { effectiveWorkingDays, isAllocationMoveStartBlocked } from "./creationAvailability";
+import { resolveEffectiveWorkingDays, isAllocationMoveStartBlocked } from "./creationAvailability";
 import type { BarLayout } from "./schedulerModel";
-import { laneAt, snapshotLanes, type LaneSnapshot } from "./gestureLanes";
-import { capacityAnnouncement, capacityGestureAdvisory } from "./gestureAnnouncements";
-import { gesturePreviewDates, gesturePreviewGeometry } from "./gestureGeometry";
+import { resolveLaneAt, readLaneSnapshots, type LaneSnapshot } from "./gestureLanes";
+import { readCapacityAnnouncement, readCapacityGestureAdvisory } from "./gestureAnnouncements";
+import { buildGesturePreviewDates, buildGesturePreviewGeometry } from "./gestureGeometry";
 
 interface GesturePreview {
   mode: DragMode;
@@ -41,14 +41,14 @@ interface AllocationGestureOptions {
  * Coordinates the complete allocation gesture lifecycle, including lane hit-testing,
  * drag pinning, weekend-aware previews, reassignment reconciliation and keyboard parity.
  */
-export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: AllocationGestureOptions) {
+export function useAllocationGesture({ bar, geom: geometry, indexAtClientX, onEdit }: AllocationGestureOptions) {
   // Store WRITES are read at call time instead of subscribed to. Action identities never change, so
   // a `useStore(s => s.action)` selector could only ever re-run for nothing — and it ran once per
   // action, per bar, on every store write. Every gesture handler below is already imperative and
   // already reaches for `useStore.getState()` for the live data it commits against.
   const setDraggingAllocation = (id: ID | null) => useStore.getState().setDraggingAllocation(id);
   const resourceId = bar.allocation.resourceId;
-  const schedulingMode = useStore((state) => schedulingModeFor(state.data, state.activeAccountId));
+  const schedulingMode = useStore((state) => resolveSchedulingMode(state.data, state.activeAccountId));
   const isDays = schedulingMode === "days";
   const isBlocks = !carriesHourlyLoad(schedulingMode);
   const [preview, setPreview] = useState<GesturePreview | null>(null);
@@ -63,15 +63,15 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
   // and the keyboard nudge always re-derive against the live store.
   const gestureWorkingDaysRef = useRef(new Map<ID, Weekday[] | undefined>());
 
-  const workingDaysFor = (targetResourceId: ID) => {
+  const readWorkingDays = (targetResourceId: ID) => {
     const state = useStore.getState();
     const resource = state.data.resources.find((candidate) => candidate.id === targetResourceId);
     if (!resource) return undefined;
-    return effectiveWorkingDays(resource, accountWorkingDaysFor(state.data, state.activeAccountId));
+    return resolveEffectiveWorkingDays(resource, listAccountWorkingDays(state.data, state.activeAccountId));
   };
 
   /** A non-ignored gesture on a resource with NO effective working days is refused outright:
-   *  working-span math is undefined there, and passing the collapsed empty week into GestureOpts
+   *  working-span math is undefined there, and passing the collapsed empty week into GestureOptions
    *  would hit isWeekendAware's calendar-day fallback — silently rewriting stored hours the
    *  capacity model says load nothing. The move gates below catch start changes; this also covers
    *  a pure end-edge resize. Mirrors the modal's frozen Days-over for the same week. */
@@ -80,13 +80,13 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
     const state = useStore.getState();
     const resource = state.data.resources.find((candidate) => candidate.id === targetResourceId);
     if (!resource) return false;
-    return effectiveWorkingWeek(resource, accountWorkingDaysFor(state.data, state.activeAccountId)).kind === "none";
+    return effectiveWorkingWeek(resource, listAccountWorkingDays(state.data, state.activeAccountId)).kind === "none";
   };
 
-  const previewWorkingDaysFor = (targetResourceId: ID) => {
+  const resolvePreviewWorkingDays = (targetResourceId: ID) => {
     const memo = gestureWorkingDaysRef.current;
     if (memo.has(targetResourceId)) return memo.get(targetResourceId);
-    const resolved = workingDaysFor(targetResourceId);
+    const resolved = readWorkingDays(targetResourceId);
     memo.set(targetResourceId, resolved);
     return resolved;
   };
@@ -107,18 +107,18 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
 
   const refreshDirtyLanes = () => {
     if (!lanesDirtyRef.current) return;
-    lanesRef.current = snapshotLanes();
+    lanesRef.current = readLaneSnapshots();
     lanesDirtyRef.current = false;
   };
 
   const startGeometryWatch = () => {
     stopGeometryWatch();
-    let raf = 0;
+    let animationFrame = 0;
     const onGeometryChange = () => {
       lanesDirtyRef.current = true;
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
+      if (animationFrame) return;
+      animationFrame = requestAnimationFrame(() => {
+        animationFrame = 0;
         refreshDirtyLanes();
       });
     };
@@ -130,7 +130,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
       document.removeEventListener("scroll", onGeometryChange, true);
       window.removeEventListener("resize", onGeometryChange);
       resizeObserver?.disconnect();
-      if (raf) cancelAnimationFrame(raf);
+      if (animationFrame) cancelAnimationFrame(animationFrame);
     };
   };
 
@@ -149,10 +149,10 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
     indexAtClientX,
     onPreview: (mode, deltaDays, deltaY, pointer) => {
       if (!preview) setDraggingAllocation(bar.allocation.id);
-      const target = mode === "move" ? laneAt(lanesRef.current, pointer.clientX, pointer.clientY) : null;
+      const target = mode === "move" ? resolveLaneAt(lanesRef.current, pointer.clientX, pointer.clientY) : null;
       const destination = target && target.id !== resourceId ? target : null;
-      const previewDays = previewWorkingDaysFor(destination?.id ?? resourceId);
-      const { previewImpossible, dates } = gesturePreviewDates(bar, mode, deltaDays, previewDays);
+      const previewDays = resolvePreviewWorkingDays(destination?.id ?? resourceId);
+      const { previewImpossible, dates } = buildGesturePreviewDates(bar, mode, deltaDays, previewDays);
       setPreview({
         mode,
         deltaDays,
@@ -172,7 +172,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
               isAllocationMoveStartBlocked(
                 targetResource,
                 dates.startDate,
-                accountWorkingDaysFor(state.data, state.activeAccountId),
+                listAccountWorkingDays(state.data, state.activeAccountId),
                 bar.allocation.ignoreWeekends,
               )));
         setDropTarget(destination && !blocked ? destination.el : null);
@@ -192,7 +192,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
     onCommit: (mode, deltaDays, pointer) => {
       // The final hit test is authoritative. Re-read move-lane geometry even if a scroll/resize
       // observer callback has not run yet, then stop its queued preview refresh.
-      if (mode === "move") lanesRef.current = snapshotLanes();
+      if (mode === "move") lanesRef.current = readLaneSnapshots();
       const { setNotice, updateAllocation } = useStore.getState();
       stopGeometryWatch();
       setPreview(null);
@@ -201,18 +201,18 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
         startDate: bar.allocation.startDate,
         endDate: bar.allocation.endDate,
       };
-      const target = mode === "move" ? laneAt(lanesRef.current, pointer.clientX, pointer.clientY) : null;
+      const target = mode === "move" ? resolveLaneAt(lanesRef.current, pointer.clientX, pointer.clientY) : null;
       const reassignTo = target && target.id !== resourceId ? target.id : null;
       setDropTarget(null);
       if (deltaDays === 0 && !reassignTo) return;
 
       const computeFor = (targetResourceId: ID) => {
-        return computeGesture(
+        return resolveGesture(
           mode,
           current,
           deltaDays,
           {
-            workingDays: workingDaysFor(targetResourceId),
+            workingDays: readWorkingDays(targetResourceId),
             ignoreWeekends: bar.allocation.ignoreWeekends,
           },
           bar.allocation.hoursPerDay,
@@ -240,7 +240,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
           isAllocationMoveStartBlocked(
             effectiveResource,
             dates.startDate,
-            accountWorkingDaysFor(state.data, state.activeAccountId),
+            listAccountWorkingDays(state.data, state.activeAccountId),
             bar.allocation.ignoreWeekends,
           )
         ) {
@@ -254,7 +254,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
             targetResource,
             isBlocks,
             dates.startDate,
-            effectiveWorkingWeek(targetResource, accountWorkingDaysFor(state.data, state.activeAccountId)),
+            effectiveWorkingWeek(targetResource, listAccountWorkingDays(state.data, state.activeAccountId)),
           )
         : hours;
       const hoursPatch = reconciledHours !== bar.allocation.hoursPerDay ? { hoursPerDay: reconciledHours } : null;
@@ -270,17 +270,17 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
         // A diagonal drag is one transaction. updateAllocation validates the complete merged row
         // before mutating, so a rejected reassignment leaves the source allocation untouched; do
         // not silently commit its horizontal component as a second, unrelated update.
-        setNotice(error instanceof Error ? errorMessage(error) : m.scheduler_toast_move_rejected(), "error");
+        setNotice(error instanceof Error ? resolveErrorMessage(error) : m.scheduler_toast_move_rejected(), "error");
         return;
       }
       if (!updated) return;
 
       // The mutation is committed above. Keep pure advisory/feedback work outside its catch so a
       // programmer error cannot be mislabeled as a rejected move or trigger mutation recovery.
-      const advisory = capacityGestureAdvisory(bar, effectiveResourceId, isBlocks, dates, reconciledHours);
-      const cap = clamped ? m.scheduler_cap_fragment({ max: MAX_HOURS_PER_DAY }) : "";
+      const advisory = readCapacityGestureAdvisory(bar, effectiveResourceId, isBlocks, dates, reconciledHours);
+      const dayCapacity = clamped ? m.scheduler_cap_fragment({ max: MAX_HOURS_PER_DAY }) : "";
       setNotice(
-        `${reassignTo ? m.scheduler_toast_reassigned() : m.scheduler_toast_moved()}${advisory}.${cap}${m.scheduler_toast_undo_hint({ shortcut: undoShortcut() })}`,
+        `${reassignTo ? m.scheduler_toast_reassigned() : m.scheduler_toast_moved()}${advisory}.${dayCapacity}${m.scheduler_toast_undo_hint({ shortcut: buildUndoShortcut() })}`,
         clamped ? "warning" : "info",
       );
     },
@@ -288,7 +288,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!armPointerGesture(event)) return;
-    lanesRef.current = snapshotLanes();
+    lanesRef.current = readLaneSnapshots();
     startGeometryWatch();
   };
 
@@ -301,7 +301,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
       return;
     }
     const options = {
-      workingDays: workingDaysFor(resourceId),
+      workingDays: readWorkingDays(resourceId),
       ignoreWeekends: bar.allocation.ignoreWeekends,
     };
     const current = {
@@ -318,14 +318,14 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
       isAllocationMoveStartBlocked(
         resource,
         next.startDate,
-        accountWorkingDaysFor(state.data, state.activeAccountId),
+        listAccountWorkingDays(state.data, state.activeAccountId),
         bar.allocation.ignoreWeekends,
       )
     ) {
       setNotice(m.scheduler_toast_non_working_drop(), "error");
       return;
     }
-    const visible = visibleRange(useStore.getState().ui);
+    const visible = buildVisibleRange(useStore.getState().ui);
     const currentIntersectsTimeline = rangesOverlap(current.startDate, current.endDate, visible.start, visible.end);
     const nextIntersectsTimeline = rangesOverlap(next.startDate, next.endDate, visible.start, visible.end);
     if (currentIntersectsTimeline && !nextIntersectsTimeline) {
@@ -334,7 +334,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
     }
     const rescale =
       isDays && mode !== "move"
-        ? volumePreservingHoursClamped(current, next, options, bar.allocation.hoursPerDay)
+        ? resolveVolumePreservingHours(current, next, options, bar.allocation.hoursPerDay)
         : null;
     if (
       next.startDate === current.startDate &&
@@ -349,9 +349,9 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
       });
       if (!updated) return;
       if (rescale?.clamped) {
-        setNotice(m.scheduler_toast_capped({ max: MAX_HOURS_PER_DAY, shortcut: undoShortcut() }), "warning");
+        setNotice(m.scheduler_toast_capped({ max: MAX_HOURS_PER_DAY, shortcut: buildUndoShortcut() }), "warning");
       }
-      announceCapacity(capacityAnnouncement(resourceId));
+      announceCapacity(readCapacityAnnouncement(resourceId));
       requestAnimationFrame(() => {
         const element = Array.from(document.querySelectorAll<HTMLElement>("[data-alloc-id]")).find(
           (candidate) => candidate.dataset.allocId === bar.allocation.id,
@@ -360,11 +360,11 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
         element?.focus({ preventScroll: true });
       });
     } catch (error) {
-      setNotice(error instanceof Error ? errorMessage(error) : m.scheduler_toast_move_disallowed(), "error");
+      setNotice(error instanceof Error ? resolveErrorMessage(error) : m.scheduler_toast_move_disallowed(), "error");
     }
   };
 
-  const { left, width, translateY } = gesturePreviewGeometry(bar, geom, preview);
+  const { left, width, translateY } = buildGesturePreviewGeometry(bar, geometry, preview);
 
   return {
     isBlocks,

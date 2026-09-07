@@ -9,7 +9,7 @@ import {
 import { applyBatch, dispatchPreparedBatch, prepareBatchBody } from "./sync/batchWire";
 import {
   archiveLifecycleRow,
-  rememberedLifecycleRestoreOps,
+  listRememberedLifecycleRestoreOps,
   rememberLifecycleArchives,
   restoreRememberedLifecycleRows,
   splitLifecycleDeletes,
@@ -79,7 +79,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     this.state.allocationRewriteHandler = handler;
   }
 
-  async saveAll(next: AppData, opts?: { unload?: boolean }): Promise<void> {
+  async saveAll(next: AppData, options?: { unload?: boolean }): Promise<void> {
     if (this.state.seededAccountId !== null) {
       const expected = this.state.seededAccountId;
       const mismatchedAccount = next.accounts.some((account) => account.id !== expected);
@@ -90,7 +90,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     }
     // Page-teardown flush: send the whole diff as ONE keepalive batch request so it
     // survives the unload (a plain fetch would be cancelled mid-flight). See applyBatch.
-    if (opts?.unload) {
+    if (options?.unload) {
       if (this.state.inFlight) {
         // drain() has already dispatched its current target. Do not merely park this newer
         // snapshot behind that ordinary request: page teardown can terminate the tab before the
@@ -127,7 +127,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       ? [this.state.lastSynced, this.state.dispatchedTarget]
       : [this.state.lastSynced];
     const ops = diffOpsFromPossibleBases(possibleBases, canonicalTarget);
-    if (rememberedLifecycleRestoreOps(this.state, canonicalTarget).length > 0) {
+    if (listRememberedLifecycleRestoreOps(this.state, canonicalTarget).length > 0) {
       // Restoring an archive requires an ordered request/receipt before any dependent batch can be
       // constructed. A page-teardown keepalive cannot safely promise that second dispatch after the
       // page dies, so refuse explicitly; a surviving page retains the dirty state and retries through
@@ -194,7 +194,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         // Keep the ordinary save path synchronous through its first network dispatch. That timing
         // lets an overlapping pagehide observe the in-flight request and immediately put its own
         // compensating keepalive on the wire. Only a real remembered restore needs this await.
-        const restoreOps = rememberedLifecycleRestoreOps(this.state, canonicalTarget);
+        const restoreOps = listRememberedLifecycleRestoreOps(this.state, canonicalTarget);
         const restored =
           restoreOps.length > 0 ? await restoreRememberedLifecycleRows(this.state, restoreOps, targetSeedGen) : false;
         if (targetSeedGen !== this.state.seedGen) {
@@ -256,7 +256,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
           await archiveLifecycleRow(this.state, op);
         } catch (e) {
           if (lifecycleError === null) lifecycleError = e;
-          const row = (this.state.lastSynced[op.table] as Entity[]).find((r) => r.id === op.id);
+          const row = (this.state.lastSynced[op.table] as Entity[]).find((row) => row.id === op.id);
           if (row) unconverged.push({ table: op.table, row });
         }
       }

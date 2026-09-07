@@ -68,10 +68,11 @@ function Button({
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
   }) {
-  const Comp = asChild ? Slot.Root : "button";
+  // Local convention: spell out the JSX binding while preserving the primitive props.
+  const Component = asChild ? Slot.Root : "button";
 
   return (
-    <Comp
+    <Component
       data-slot="button"
       data-variant={variant}
       data-size={size}

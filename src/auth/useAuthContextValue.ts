@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { AuthContextValue, AuthProviderInfo } from "./authContext";
-import type { Status } from "./authStatus";
+import type { AuthStatusResult } from "./authStatus";
 
 // A stable (never-reallocated) empty providers array — used as the authContextValue memo's fallback
 // for statuses that never actually read it (checking/error), so those renders can't be mistaken by
@@ -8,7 +8,7 @@ import type { Status } from "./authStatus";
 const EMPTY_PROVIDERS: AuthProviderInfo[] = [];
 
 export function useAuthContextValue(
-  status: Status,
+  status: AuthStatusResult,
   refreshAuth: AuthContextValue["refreshAuth"],
   signOut: AuthContextValue["signOut"],
 ) {

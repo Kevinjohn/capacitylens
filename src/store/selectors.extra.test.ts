@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  allocationsForResource,
+  listResourceAllocations,
   byDisciplineOrder,
   clientById,
   projectById,
@@ -62,7 +62,7 @@ describe("lookup + relation selectors", () => {
   });
 
   it("relation selectors filter children", () => {
-    expect(allocationsForResource(data, "r1").map((a) => a.id)).toEqual(["a1"]);
+    expect(listResourceAllocations(data, "r1").map((a) => a.id)).toEqual(["a1"]);
   });
 });
 

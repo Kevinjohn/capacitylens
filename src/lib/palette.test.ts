@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { PRESET_COLORS, isPresetColor } from "@capacitylens/shared/lib/color";
-import { DEFAULT_COLORS, SWATCH_COLUMNS, SWATCHES, colorName, swatchLabel } from "./palette";
+import { DEFAULT_COLORS, SWATCH_COLUMNS, SWATCHES, resolveColorName, resolveSwatchLabel } from "./palette";
 
 describe("DEFAULT_COLORS", () => {
   it("uses the refreshed blue family for new accounts and resources", () => {
@@ -36,9 +36,9 @@ describe("SWATCHES", () => {
 describe("colorName", () => {
   it("names a known swatch instead of echoing its hex", () => {
     const hex = SWATCHES[0];
-    const name = colorName(hex);
+    const name = resolveColorName(hex);
     expect(name).not.toBe(hex);
-    expect(name).toBe(swatchLabel(0));
+    expect(name).toBe(resolveSwatchLabel(0));
   });
 
   it("falls back to the raw hex for an unknown colour", () => {
@@ -46,6 +46,6 @@ describe("colorName", () => {
     // else-branch and get the hex back verbatim, not a swatch label.
     const unknown = "#123456";
     expect(SWATCHES).not.toContain(unknown);
-    expect(colorName(unknown)).toBe(unknown);
+    expect(resolveColorName(unknown)).toBe(unknown);
   });
 });

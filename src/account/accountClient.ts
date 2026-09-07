@@ -2,16 +2,16 @@ import { apiFetchReauth } from "../auth/apiFetchReauth";
 import { API_BASE } from "../data/apiConfig";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
 import type { BrowserAccountCommand } from "./accountCommands";
-import { payloadOperationKey } from "./commandOutcome";
-import { runCommand, commandInit, jsonCommandInit } from "./commandRequest";
+import { buildPayloadOperationKey } from "./commandOutcome";
+import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from "./commandRequest";
 
 export {
   type BrowserAccountCommand,
-  newBrowserAccountCommand,
+  createBrowserAccountCommand,
   clearStoredAccountCommands,
   bindStoredAccountCommandsToIdentity,
 } from "./accountCommands";
-export { accountCommandOutcomeWasUnknown, accountCommandOutcomeUnknown } from "./commandOutcome";
+export { hasUnknownAccountCommandOutcome, readUnknownAccountCommandOutcome } from "./commandOutcome";
 
 export const accountClient = {
   me(signal?: AbortSignal): Promise<Response> {
@@ -82,14 +82,14 @@ export const accountClient = {
     return runCommand(`own-session:${sessionId}`, command, (resolved) =>
       apiFetch(
         `${API_BASE}/api/account/sessions/${encodeURIComponent(sessionId)}`,
-        commandInit({ method: "DELETE", credentials: "include" }, resolved),
+        buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
       ),
     );
   },
 
   async createWorkspace(body: unknown, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand(await payloadOperationKey("workspace-create", body), command, (resolved) =>
-      apiFetch(`${API_BASE}/api/orgs`, jsonCommandInit("POST", body, resolved)),
+    return runCommand(await buildPayloadOperationKey("workspace-create", body), command, (resolved) =>
+      apiFetch(`${API_BASE}/api/orgs`, buildJsonCommandRequestInit("POST", body, resolved)),
     );
   },
 
@@ -100,7 +100,7 @@ export const accountClient = {
       (resolved) =>
         apiFetchReauth(
           `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}`,
-          commandInit({ method: "DELETE", credentials: "include" }, resolved),
+          buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
           API_BULK_TIMEOUT_MS,
         ),
       403,
@@ -159,7 +159,7 @@ export const accountClient = {
     return runCommand(`member-role:${workspaceId}:${principalId}:${role}`, command, (resolved) =>
       apiFetchReauth(
         `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}`,
-        jsonCommandInit("PATCH", { role }, resolved),
+        buildJsonCommandRequestInit("PATCH", { role }, resolved),
       ),
     );
   },
@@ -173,7 +173,7 @@ export const accountClient = {
     return runCommand(`member-status:${workspaceId}:${principalId}:${status}`, command, (resolved) =>
       apiFetchReauth(
         `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/status`,
-        jsonCommandInit("PATCH", { status }, resolved),
+        buildJsonCommandRequestInit("PATCH", { status }, resolved),
       ),
     );
   },
@@ -182,7 +182,7 @@ export const accountClient = {
     return runCommand(`member-remove:${workspaceId}:${principalId}`, command, (resolved) =>
       apiFetchReauth(
         `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}`,
-        commandInit({ method: "DELETE", credentials: "include" }, resolved),
+        buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
       ),
     );
   },
@@ -195,7 +195,7 @@ export const accountClient = {
     return runCommand(`ownership-transfer:${workspaceId}:${targetPrincipalId}`, command, (resolved) =>
       apiFetchReauth(
         `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/transfer-ownership`,
-        jsonCommandInit("POST", { toUserId: targetPrincipalId }, resolved),
+        buildJsonCommandRequestInit("POST", { toUserId: targetPrincipalId }, resolved),
       ),
     );
   },
@@ -204,7 +204,7 @@ export const accountClient = {
     return runCommand(`password-reset:${workspaceId}:${principalId}`, command, (resolved) =>
       apiFetchReauth(
         `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/reset-password`,
-        commandInit({ method: "POST", credentials: "include" }, resolved),
+        buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
       ),
     );
   },
@@ -213,7 +213,7 @@ export const accountClient = {
     return runCommand(`member-sessions:${workspaceId}:${principalId}`, command, (resolved) =>
       apiFetchReauth(
         `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/revoke-sessions`,
-        commandInit({ method: "POST", credentials: "include" }, resolved),
+        buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
       ),
     );
   },
@@ -223,8 +223,8 @@ export const accountClient = {
       typeof body === "object" && body !== null && "accountId" in body
         ? String((body as { accountId: unknown }).accountId)
         : "unknown";
-    return runCommand(await payloadOperationKey(`invitation-create:${accountId}`, body), command, (resolved) =>
-      apiFetchReauth(`${API_BASE}/api/invites`, jsonCommandInit("POST", body, resolved)),
+    return runCommand(await buildPayloadOperationKey(`invitation-create:${accountId}`, body), command, (resolved) =>
+      apiFetchReauth(`${API_BASE}/api/invites`, buildJsonCommandRequestInit("POST", body, resolved)),
     );
   },
 
@@ -232,7 +232,7 @@ export const accountClient = {
     return runCommand(`invitation-revoke:${workspaceId}:${invitationId}`, command, (resolved) =>
       apiFetchReauth(
         `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/invites/${encodeURIComponent(invitationId)}`,
-        commandInit({ method: "DELETE", credentials: "include" }, resolved),
+        buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
       ),
     );
   },
@@ -247,14 +247,17 @@ export const accountClient = {
     return runCommand(null, command, (resolved) =>
       apiFetch(
         `${API_BASE}/api/invites/${encodeURIComponent(token)}/accept`,
-        commandInit({ method: "POST", credentials: "include" }, resolved),
+        buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
       ),
     );
   },
 
   signupWithInvitation(token: string, body: unknown, command?: BrowserAccountCommand): Promise<Response> {
     return runCommand(null, command, (resolved) =>
-      apiFetch(`${API_BASE}/api/invites/${encodeURIComponent(token)}/signup`, jsonCommandInit("POST", body, resolved)),
+      apiFetch(
+        `${API_BASE}/api/invites/${encodeURIComponent(token)}/signup`,
+        buildJsonCommandRequestInit("POST", body, resolved),
+      ),
     );
   },
 

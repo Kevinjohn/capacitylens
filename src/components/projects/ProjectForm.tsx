@@ -2,13 +2,13 @@ import { useMemo, useState } from "react";
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
-import { domainErrorMessage, errorMessage } from "../../lib/errorMessage";
+import { resolveDomainErrorMessage, resolveErrorMessage } from "../../lib/errorMessage";
 import { validateHex, validateName } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/staleEdit";
+import { isStaleEdit } from "../../lib/isStaleEdit";
 import { validateProjectClient } from "@capacitylens/shared/lib/integrity";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { byName } from "../../lib/displayOrder";
-import { internalColourModeFor } from "../../store/selectors";
+import { resolveInternalColourMode } from "../../store/selectors";
 import { m } from "@/i18n";
 import { ColorField, FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
 import { PrivateNameFields } from "../common/PrivateNameFields";
@@ -19,15 +19,15 @@ import type { Project } from "@capacitylens/shared/types/entities";
 /** Add (no `project`) or edit a project: name, REQUIRED client, preset colour. `onClose` fires on
  *  save or cancel. */
 export function ProjectForm({ project, onClose }: { project?: Project; onClose: () => void }) {
-  const add = useStore((s) => s.addProject);
-  const update = useStore((s) => s.updateProject);
+  const add = useStore((state) => state.addProject);
+  const update = useStore((state) => state.updateProject);
   const data = useActiveScopedData();
   const clients = data.clients;
   // The RAW scoped slice, for the archived-parent label only (see clientOptions below): in the demo
   // build an archived client is still in the raw slice (so we can show its name); in server mode the
   // per-account read strips it entirely, so the label degrades to the generic "(current, archived)".
   const rawClients = useScopedData().clients;
-  const internalColourMode = useStore((s) => internalColourModeFor(s.data, s.activeAccountId));
+  const internalColourMode = useStore((state) => resolveInternalColourMode(state.data, state.activeAccountId));
 
   const [name, setName] = useState(project?.name ?? "");
   const [clientId, setClientId] = useState(project?.clientId ?? "");
@@ -60,8 +60,8 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   // selected/submittable as the current value (the store's unchanged-parent relaxation accepts it),
   // but can't be picked back once the user chooses an active client.
   let clientOptions: Option[] = baseClientOptions;
-  if (project && !clients.some((c) => c.id === project.clientId)) {
-    const raw = rawClients.find((c) => c.id === project.clientId);
+  if (project && !clients.some((client) => client.id === project.clientId)) {
+    const raw = rawClients.find((client) => client.id === project.clientId);
     clientOptions = [
       ...baseClientOptions,
       {
@@ -79,7 +79,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
     if (!privacy) return;
     const check = validateProjectClient(clientId);
     if (!check.ok) {
-      fail("client", domainErrorMessage(check.codes[0]));
+      fail("client", resolveDomainErrorMessage(check.codes[0]));
       return;
     }
     if (!validateHex(color, fail)) return;
@@ -97,7 +97,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
       }
       onClose();
     } catch (e) {
-      fail(null, errorMessage(e));
+      fail(null, resolveErrorMessage(e));
     }
   };
 

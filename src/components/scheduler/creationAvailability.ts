@@ -10,7 +10,7 @@ import type { Closure, ISODate, Resource, TimeOff, Weekday } from "@capacitylens
  *  TRANSITIONAL SEAM: the ONLY place an EffectiveWorkingWeek collapses to a plain array. An empty
  *  result for "none" happens to be correct for start gating (every day blocked); #257 Phases 3-5
  *  replace this with explicit "none" branches where downstream behavior must differ. */
-export function effectiveWorkingDays(resource: Resource, accountWorkingDays: Weekday[]): Weekday[] {
+export function resolveEffectiveWorkingDays(resource: Resource, accountWorkingDays: Weekday[]): Weekday[] {
   const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
   return effectiveWeek.kind === "days" ? effectiveWeek.days : [];
 }
@@ -29,7 +29,7 @@ const NO_CLOSURES: Closure[] = [];
  *  resource-day?" (the model's per-day `creationBlocked`, the grid's draw commit, and the
  *  drag/keyboard move paths). Returns the REASON so a caller that must tell the two apart can,
  *  without re-deriving either rule. `timeOff` need not be pre-filtered by resource. */
-export function creationBlockedAt(
+export function resolveCreationBlockReason(
   resource: Resource,
   date: ISODate,
   timeOff: TimeOff[],
@@ -37,17 +37,17 @@ export function creationBlockedAt(
   ignoreWorkingDays: boolean | undefined,
   closures: Closure[],
 ): CreationBlockReason | null {
-  return creationBlockedForCalendar(
+  return resolveCalendarCreationBlockReason(
     resource,
     date,
     timeOff,
-    effectiveWorkingDays(resource, accountWorkingDays).includes(weekdayOf(date)),
+    resolveEffectiveWorkingDays(resource, accountWorkingDays).includes(weekdayOf(date)),
     ignoreWorkingDays,
     closures,
   );
 }
 
-function creationBlockedForCalendar(
+function resolveCalendarCreationBlockReason(
   resource: Resource,
   date: ISODate,
   timeOff: TimeOff[],
@@ -64,10 +64,10 @@ function creationBlockedForCalendar(
     : null;
 }
 
-/** The resolved-week variant of `creationBlockedAt`, for callers (the scheduler rows, the modal's
+/** The resolved-week variant of `resolveCreationBlockReason`, for callers (the scheduler rows, the modal's
  * typed-date gate) that already hold the effective week. Same rules, same reasons: the creation
  * gate never honors the allocation-level override — there is no ignored-creation escape hatch. */
-export function creationBlockedForEffectiveWeek(
+export function resolveEffectiveWeekCreationBlockReason(
   resource: Resource,
   date: ISODate,
   timeOff: TimeOff[],
@@ -75,7 +75,7 @@ export function creationBlockedForEffectiveWeek(
   closures: Closure[],
 ): CreationBlockReason | null {
   const calendarAllowsStart = effectiveWeekIncludes(effectiveWeek, weekdayOf(date));
-  return creationBlockedForCalendar(resource, date, timeOff, calendarAllowsStart, false, closures);
+  return resolveCalendarCreationBlockReason(resource, date, timeOff, calendarAllowsStart, false, closures);
 }
 
 /** The per-row scheduler variant: its caller has already resolved the effective week once and
@@ -87,7 +87,7 @@ export function isCreationStartBlockedForEffectiveWeek(
   effectiveWeek: EffectiveWorkingWeek,
   closures: Closure[],
 ): boolean {
-  return creationBlockedForEffectiveWeek(resource, date, timeOff, effectiveWeek, closures) !== null;
+  return resolveEffectiveWeekCreationBlockReason(resource, date, timeOff, effectiveWeek, closures) !== null;
 }
 
 /** Whether recurring company/personal calendars reject an EXISTING allocation's proposed start.
@@ -98,7 +98,9 @@ export function isAllocationMoveStartBlocked(
   accountWorkingDays: Weekday[],
   ignoreWorkingDays: boolean | undefined,
 ): boolean {
-  return creationBlockedAt(resource, date, NO_TIME_OFF, accountWorkingDays, ignoreWorkingDays, NO_CLOSURES) !== null;
+  return (
+    resolveCreationBlockReason(resource, date, NO_TIME_OFF, accountWorkingDays, ignoreWorkingDays, NO_CLOSURES) !== null
+  );
 }
 
 /** Whether a schedule gesture may begin on this date. Spans may cross later blocked dates. */
@@ -109,5 +111,5 @@ export function isCreationStartBlocked(
   accountWorkingDays: Weekday[],
   closures: Closure[],
 ): boolean {
-  return creationBlockedAt(resource, date, timeOff, accountWorkingDays, false, closures) !== null;
+  return resolveCreationBlockReason(resource, date, timeOff, accountWorkingDays, false, closures) !== null;
 }

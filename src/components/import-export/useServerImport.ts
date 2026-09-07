@@ -3,7 +3,7 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 import { API_BASE } from "../../data/apiConfig";
 import { flushPendingWrites, refreshActiveAccountSlice, suspendServerWrites } from "../../data/persist";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "../../data/requestTimeout";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { readApiError } from "../../lib/readApiError";
 import { useStore } from "../../store/useStore";
 import { m } from "@/i18n";
@@ -134,7 +134,7 @@ export function useServerImport() {
         if (safeToResume) resumeWrites({ dropParkedEdits: committed });
       }
     } catch (error) {
-      setNotice(errorMessage(error) || m.data_import_failed({ status: 0 }), "error");
+      setNotice(resolveErrorMessage(error) || m.data_import_failed({ status: 0 }), "error");
     } finally {
       if (!keepBlockedUntilReload) setBusy(false);
     }

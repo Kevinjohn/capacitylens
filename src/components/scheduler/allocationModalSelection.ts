@@ -16,16 +16,16 @@ import type { EffectiveAllocationInput } from "./allocationModalTypes";
  *  noise (e.g. 8 × 3/7 × 7/8 = 2.9999…) WITHOUT distorting a legitimate fraction
  *  (½ → 0.5, ⅛-day → 1.875). Keeping the seed exact means re-deriving hours on a
  *  no-op save returns the original value rather than drifting it. */
-export const roundDays = (n: number) => Math.round(n * 1e6) / 1e6;
+export const roundDays = (dayCount: number) => Math.round(dayCount * 1e6) / 1e6;
 export const INTERNAL_PROJECT_SELECTION = "__allocation_internal__";
 export const ANY_PROJECT_SELECTION = "__allocation_any_project__";
-export function projectSelectionForActivity(activity: Activity | undefined): string {
+export function resolveProjectSelection(activity: Activity | undefined): string {
   if (allocationAttributionAllowed(activity?.kind)) return ANY_PROJECT_SELECTION;
   if (activity?.kind === "project" && activity.projectId) return activity.projectId;
   return INTERNAL_PROJECT_SELECTION;
 }
 
-export function attributedProjectForSelection(activity: Activity | undefined, selection: string): string | undefined {
+export function resolveAttributedProject(activity: Activity | undefined, selection: string): string | undefined {
   if (
     !allocationAttributionAllowed(activity?.kind) ||
     selection === INTERNAL_PROJECT_SELECTION ||
@@ -36,7 +36,7 @@ export function attributedProjectForSelection(activity: Activity | undefined, se
   return selection;
 }
 
-export function activityBelongsToProjectSelection(
+export function isActivityInProjectSelection(
   activity: Pick<Activity, "kind" | "projectId">,
   selection: string,
 ): boolean {
@@ -45,18 +45,18 @@ export function activityBelongsToProjectSelection(
   return activity.kind === "repeatable" || (activity.kind === "project" && activity.projectId === selection);
 }
 
-export function activityScopeForProjectSelection(selection: string): { kind: Activity["kind"]; projectId?: string } {
+export function buildActivityScope(selection: string): { kind: Activity["kind"]; projectId?: string } {
   if (selection === INTERNAL_PROJECT_SELECTION) return { kind: "internal" };
   if (selection === ANY_PROJECT_SELECTION) return { kind: "repeatable" };
   return { kind: "project", projectId: selection };
 }
 
 /** Days/Blocks derive their span from the working week; hourly and external spans stay literal. */
-export function usesWorkingSpanFor(resource: Resource | undefined, mode: SchedulingMode): boolean {
+export function hasWorkingSpan(resource: Resource | undefined, mode: SchedulingMode): boolean {
   return !!resource && !isExternalResource(resource) && (mode === "blocks" || mode === "days");
 }
 
-export function effectiveAllocationValues({
+export function buildEffectiveAllocationValues({
   resource,
   effectiveWeek,
   mode,
@@ -69,7 +69,7 @@ export function effectiveAllocationValues({
 }: EffectiveAllocationInput) {
   const external = !!resource && isExternalResource(resource);
   const validDaysOver = Number.isSafeInteger(daysOver) && daysOver >= 1 && daysOver <= MAX_SPAN_DAYS;
-  const usesWorkingSpan = usesWorkingSpanFor(resource, mode);
+  const usesWorkingSpan = hasWorkingSpan(resource, mode);
   const spanLimitedByDateDomain = !!startDate && daysInclusive(startDate, MAX_ISO_DATE) < MAX_SPAN_DAYS;
   if (!usesWorkingSpan) {
     return {
@@ -100,14 +100,14 @@ export function effectiveAllocationValues({
     };
   }
 
-  const spanOpts = {
+  const spanOptions = {
     workingDays: effectiveWeek?.kind === "days" ? effectiveWeek.days : undefined,
     ignoreWeekends,
   };
-  const maximumDaysOver = startDate ? maxSpanDaysForStart(startDate, spanOpts) : MAX_SPAN_DAYS;
+  const maximumDaysOver = startDate ? maxSpanDaysForStart(startDate, spanOptions) : MAX_SPAN_DAYS;
   const spanFitsDateDomain = !!startDate && validDaysOver && daysOver <= maximumDaysOver;
   const spanEnd = startDate
-    ? endDateForSpan(startDate, validDaysOver && spanFitsDateDomain ? daysOver : 1, spanOpts)
+    ? endDateForSpan(startDate, validDaysOver && spanFitsDateDomain ? daysOver : 1, spanOptions)
     : endDate;
   const effective =
     mode === "blocks"

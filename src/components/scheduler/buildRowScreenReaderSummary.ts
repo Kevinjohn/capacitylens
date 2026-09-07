@@ -1,5 +1,5 @@
 import { m } from "@/i18n";
-import { formatUtilizationPercent } from "../../lib/utilizationPercent";
+import { formatUtilizationPercent } from "../../lib/formatUtilizationPercent";
 import { isCapacityTracked } from "@capacitylens/shared/types/entities";
 import type { RowModel } from "./schedulerModel";
 import type { DrawMode } from "../../store/useStore";
@@ -24,7 +24,7 @@ export interface RowSummaryContext {
  *  meaning only via a `title` on a non-interactive span, which AT may not expose, so it is folded
  *  in too (WCAG 1.3.1) — the per-PERSON signal, kept distinct from the conflict count above and
  *  from `overSoon`. */
-export function rowScreenReaderSummary(row: RowModel, ctx: RowSummaryContext): string {
+export function buildRowScreenReaderSummary(row: RowModel, context: RowSummaryContext): string {
   const parts: string[] = [];
   if (row.overSoon) parts.push(m.scheduler_sr_overbooked_two_weeks());
   if (row.conflictDayCount) {
@@ -39,13 +39,16 @@ export function rowScreenReaderSummary(row: RowModel, ctx: RowSummaryContext): s
     const count = row.timeOff.length;
     parts.push(count > 1 ? m.scheduler_sr_timeoff_other({ count }) : m.scheduler_sr_timeoff_one({ count }));
   }
-  if (ctx.showPersonalUtilization && isCapacityTracked(row.resource)) {
+  if (context.showPersonalUtilization && isCapacityTracked(row.resource)) {
     parts.push(
-      m.scheduler_sr_utilisation({ percent: formatUtilizationPercent(row.utilization), span: ctx.visibleSpanLabel }),
+      m.scheduler_sr_utilisation({
+        percent: formatUtilizationPercent(row.utilization),
+        span: context.visibleSpanLabel,
+      }),
     );
   }
   // Time-off draw mode is about absences, not bookings: an allocation count would be noise there.
-  if (ctx.drawMode !== "timeoff") {
+  if (context.drawMode !== "timeoff") {
     const count = row.bars.length;
     parts.push(count === 1 ? m.scheduler_sr_allocations_one({ count }) : m.scheduler_sr_allocations_other({ count }));
   }

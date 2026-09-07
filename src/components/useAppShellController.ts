@@ -7,7 +7,7 @@ import { useAccountSummaries } from "../auth/useAccountSummaries";
 import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
 import { clearJoinedAccountHandoff, readJoinedAccountHandoff } from "../lib/joinedAccountHandoff";
 import { ADMIN_LINKS, LINKS } from "../lib/navLinks";
-import { hasOpenModal, textEntryOwnsShortcut } from "../lib/shortcutGuards";
+import { hasOpenModal, isTextEntryShortcutOwner } from "../lib/shortcutGuards";
 import { hasUnsavedPersistenceWrites } from "../data/persist";
 import { useStore } from "../store/useStore";
 import { useAuth } from "../auth/authContext";
@@ -15,7 +15,7 @@ import { useDemoAuthActive } from "../lib/fakeAuth";
 import { consumeCompanyPickerForReload } from "../lib/companyPickerEntry";
 import { transitionAccount } from "../auth/accountTransition";
 
-function isReloadNavigation(): boolean {
+function readReloadNavigationState(): boolean {
   try {
     return globalThis.performance
       .getEntriesByType("navigation")
@@ -54,7 +54,7 @@ export function useAppShellController() {
   const joinedAccountHandoffConsumed = useRef(false);
   const singleAccountReloadHandled = useRef(false);
   const initialActiveAccountId = useRef(activeAccountId);
-  const [reloadNavigation] = useState(isReloadNavigation);
+  const [reloadNavigation] = useState(readReloadNavigationState);
   const [showPickerForReload] = useState(consumeCompanyPickerForReload);
   const hydratedActiveAccount = accounts.find((account) => account.id === activeAccountId);
   const activeLanguage = hydratedActiveAccount?.language;
@@ -195,7 +195,7 @@ export function useAppShellController() {
       }
 
       if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") return;
-      if (event.isComposing || textEntryOwnsShortcut(event.target) || hasOpenModal()) return;
+      if (event.isComposing || isTextEntryShortcutOwner(event.target) || hasOpenModal()) return;
       if (useStore.getState().dirtyForm) return;
       event.preventDefault();
       if (event.shiftKey) redo();

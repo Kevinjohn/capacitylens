@@ -12,8 +12,8 @@ async function freshBuildInfo() {
 }
 
 async function freshBuildStamp() {
-  const { buildStamp } = await freshBuildInfo();
-  return buildStamp;
+  const { readBuildStamp } = await freshBuildInfo();
+  return readBuildStamp;
 }
 
 describe("buildStamp", () => {
@@ -50,16 +50,16 @@ describe("buildStamp", () => {
 describe("feedbackMailto", () => {
   it("is null when VITE_CAPACITYLENS_FEEDBACK_MAILTO is unset (render nothing)", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_FEEDBACK_MAILTO", "");
-    const { feedbackMailto } = await freshBuildInfo();
-    expect(feedbackMailto()).toBeNull();
+    const { readFeedbackMailto } = await freshBuildInfo();
+    expect(readFeedbackMailto()).toBeNull();
   });
 
   it("pins the subject to the build stamp when there is one", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_FEEDBACK_MAILTO", "owner@example.com");
     vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "a1b2c3d");
     vi.stubEnv("VITE_CAPACITYLENS_API", "https://api.example.com");
-    const { feedbackMailto } = await freshBuildInfo();
-    expect(feedbackMailto()).toBe(
+    const { readFeedbackMailto } = await freshBuildInfo();
+    expect(readFeedbackMailto()).toBe(
       `mailto:owner@example.com?subject=${encodeURIComponent("CapacityLens feedback — build a1b2c3d · server")}`,
     );
   });
@@ -67,14 +67,16 @@ describe("feedbackMailto", () => {
   it("falls back to a plain subject without a build stamp", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_FEEDBACK_MAILTO", "owner@example.com");
     vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "");
-    const { feedbackMailto } = await freshBuildInfo();
-    expect(feedbackMailto()).toBe(`mailto:owner@example.com?subject=${encodeURIComponent("CapacityLens feedback")}`);
+    const { readFeedbackMailto } = await freshBuildInfo();
+    expect(readFeedbackMailto()).toBe(
+      `mailto:owner@example.com?subject=${encodeURIComponent("CapacityLens feedback")}`,
+    );
   });
 
   it("encodes reserved characters as part of a valid recipient mailbox", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_FEEDBACK_MAILTO", "owner?reports@example.com");
-    const { feedbackMailto } = await freshBuildInfo();
-    expect(feedbackMailto()).toBe(
+    const { readFeedbackMailto } = await freshBuildInfo();
+    expect(readFeedbackMailto()).toBe(
       `mailto:owner%3Freports@example.com?subject=${encodeURIComponent("CapacityLens feedback")}`,
     );
   });
@@ -83,8 +85,8 @@ describe("feedbackMailto", () => {
     "renders no feedback link for an invalid mailbox: %s",
     async (value) => {
       vi.stubEnv("VITE_CAPACITYLENS_FEEDBACK_MAILTO", value);
-      const { feedbackMailto } = await freshBuildInfo();
-      expect(feedbackMailto()).toBeNull();
+      const { readFeedbackMailto } = await freshBuildInfo();
+      expect(readFeedbackMailto()).toBeNull();
     },
   );
 });

@@ -2,9 +2,9 @@ import { m } from "@/i18n";
 import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
 import type { InternalColourMode, SchedulingMode } from "@capacitylens/shared/types/entities";
 import { externalExplainer } from "../../lib/externalCopy";
-import { labelsFrom, toOptions } from "../../lib/metadata";
-import { weekdayLabel, weekdayShortLabel } from "../../lib/weekdays";
-import { accountWorkingDaysFor } from "../../store/selectors";
+import { buildLabels, buildLabelOptions } from "../../lib/metadata";
+import { resolveWeekdayLabel, resolveWeekdayShortLabel } from "../../lib/weekdays";
+import { listAccountWorkingDays } from "../../store/selectors";
 import { SegmentedControl, SwitchField } from "../common/ui";
 import { Checkbox } from "../ui/checkbox";
 import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "../ui/field";
@@ -37,7 +37,7 @@ export function SettingsSchedulingSection({
   canEdit: boolean;
   schedulingMode: SchedulingMode;
   workingDayOrder: ReturnType<typeof orderedWeekdays>;
-  workingDays: ReturnType<typeof accountWorkingDaysFor>;
+  workingDays: ReturnType<typeof listAccountWorkingDays>;
   workingDaysMinimumId: string;
   updateSetting: (patch: Parameters<StoreState["updateAccount"]>[1]) => void;
   disciplinesEnabled: boolean;
@@ -83,7 +83,7 @@ export function SettingsSchedulingSection({
           ariaLabel={m.settings_scheduling_aria()}
           value={schedulingMode}
           onChange={(value) => updateSetting({ schedulingMode: value })}
-          options={toOptions(labelsFrom(SCHEDULING_MESSAGES))}
+          options={buildLabelOptions(buildLabels(SCHEDULING_MESSAGES))}
           disabled={!canEdit}
         />
       </SettingsSection>
@@ -106,7 +106,7 @@ export function SettingsSchedulingSection({
               <tr>
                 {workingDayOrder.map((day) => (
                   <th key={day} scope="col" className="px-1 pb-2 text-center text-sm font-medium">
-                    {weekdayShortLabel(day)}
+                    {resolveWeekdayShortLabel(day)}
                   </th>
                 ))}
               </tr>
@@ -141,7 +141,7 @@ export function SettingsSchedulingSection({
                           }
                         />
                         <FieldLabel htmlFor={id} className="sr-only">
-                          {weekdayLabel(day)}
+                          {resolveWeekdayLabel(day)}
                         </FieldLabel>
                       </Field>
                     </td>
@@ -199,7 +199,7 @@ export function SettingsSchedulingSection({
           ariaLabel={m.settings_internal_colours_aria()}
           value={internalColourMode}
           onChange={(value) => updateSetting({ internalColourMode: value })}
-          options={toOptions(labelsFrom(INTERNAL_COLOUR_MESSAGES))}
+          options={buildLabelOptions(buildLabels(INTERNAL_COLOUR_MESSAGES))}
           disabled={!canEdit}
         />
       </SettingsSection>

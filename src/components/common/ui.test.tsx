@@ -29,7 +29,7 @@ import { FieldError } from "../ui/field";
 import { Item } from "../ui/item";
 import { Switch } from "../ui/switch";
 import { useStore } from "../../store/useStore";
-import { colorName, SWATCHES } from "../../lib/palette";
+import { resolveColorName, SWATCHES } from "../../lib/palette";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 
 beforeEach(() => {
@@ -505,8 +505,8 @@ describe("Modal", () => {
       </Modal>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: `Colour (${colorName(blue)})` }));
-    fireEvent.click(screen.getByRole("radio", { name: colorName(blue) }));
+    fireEvent.click(screen.getByRole("button", { name: `Colour (${resolveColorName(blue)})` }));
+    fireEvent.click(screen.getByRole("radio", { name: resolveColorName(blue) }));
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -1027,15 +1027,15 @@ describe("ColorField", () => {
 
   it("renders a trigger labelled with the current value and no swatches until opened", () => {
     render(<ColorField label="Brand colour" value={BLUE} onChange={vi.fn()} />);
-    expect(screen.getByRole("button", { name: `Brand colour (${colorName(BLUE)})` })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: `Brand colour (${resolveColorName(BLUE)})` })).toBeInTheDocument();
     // Popup is closed → preset swatches are not in the DOM.
-    expect(screen.queryByRole("radio", { name: colorName(RED) })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
 
   it("opts into the shared responsive label-control row", () => {
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} layout="label-control" />);
     expect(
-      screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }).closest('[data-slot="field"]'),
+      screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }).closest('[data-slot="field"]'),
     ).toHaveAttribute("data-product-layout", "label-control");
   });
 
@@ -1043,7 +1043,7 @@ describe("ColorField", () => {
     const user = userEvent.setup();
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />);
     const trigger = screen.getByRole("button", {
-      name: `Colour (${colorName(BLUE)})`,
+      name: `Colour (${resolveColorName(BLUE)})`,
     });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
     await user.click(trigger);
@@ -1055,41 +1055,41 @@ describe("ColorField", () => {
   it("toggles the swatch grid closed when its expanded trigger is clicked again", async () => {
     const user = userEvent.setup();
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />);
-    const trigger = screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` });
+    const trigger = screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` });
 
     await user.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     await user.click(trigger);
 
     expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("radio", { name: colorName(RED) })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
 
   it("calls onChange with the chosen hex and closes the popup", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<ColorField label="Colour" value={BLUE} onChange={onChange} />);
-    await user.click(screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }));
-    await user.click(screen.getByRole("radio", { name: colorName(RED) }));
+    await user.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
+    await user.click(screen.getByRole("radio", { name: resolveColorName(RED) }));
     expect(onChange).toHaveBeenCalledWith(RED);
     // Picking closes the popup.
-    expect(screen.queryByRole("radio", { name: colorName(RED) })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
 
   it("exposes the swatches as one single-select radio group", async () => {
     const user = userEvent.setup();
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />);
-    await user.click(screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }));
-    expect(screen.getByRole("radio", { name: colorName(BLUE) })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("radio", { name: colorName(RED) })).toHaveAttribute("aria-checked", "false");
+    await user.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
+    expect(screen.getByRole("radio", { name: resolveColorName(BLUE) })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: resolveColorName(RED) })).toHaveAttribute("aria-checked", "false");
   });
 
   it("uses one tab stop and arrow keys to move through the swatch grid", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<ColorField label="Colour" value={BLUE} onChange={onChange} />);
-    await user.click(screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }));
-    const selected = screen.getByRole("radio", { name: colorName(BLUE) });
+    await user.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
+    const selected = screen.getByRole("radio", { name: resolveColorName(BLUE) });
     const swatches = screen.getAllByRole("radio");
     expect(swatches.filter((button) => button.tabIndex === 0)).toEqual([selected]);
     selected.focus();
@@ -1107,10 +1107,10 @@ describe("ColorField", () => {
         <button type="button">Outside</button>
       </div>,
     );
-    await user.click(screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }));
-    expect(screen.getByRole("radio", { name: colorName(RED) })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
+    expect(screen.getByRole("radio", { name: resolveColorName(RED) })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Outside" }));
-    expect(screen.queryByRole("radio", { name: colorName(RED) })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
 
   it("closes the popup on Escape without closing the surrounding Modal", async () => {
@@ -1121,13 +1121,13 @@ describe("ColorField", () => {
         <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
       </Modal>,
     );
-    await user.click(screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }));
+    await user.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
     // Move focus into the grid, then Escape: the popup must close and the keydown must
     // not reach the surrounding handler (the Modal's Escape-to-close in real use).
-    const swatch = screen.getByRole("radio", { name: colorName(RED) });
+    const swatch = screen.getByRole("radio", { name: resolveColorName(RED) });
     swatch.focus();
     await user.keyboard("{Escape}");
-    expect(screen.queryByRole("radio", { name: colorName(RED) })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -1139,11 +1139,11 @@ describe("ColorField", () => {
         <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
       </Modal>,
     );
-    await user.click(screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }));
-    expect(screen.getByRole("radio", { name: colorName(RED) })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
+    expect(screen.getByRole("radio", { name: resolveColorName(RED) })).toBeInTheDocument();
     const backdrop = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!;
     await user.click(backdrop);
-    expect(screen.queryByRole("radio", { name: colorName(RED) })).not.toBeInTheDocument(); // popup closed
+    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument(); // popup closed
     expect(onClose).not.toHaveBeenCalled(); // modal stayed open
   });
 
@@ -1158,12 +1158,12 @@ describe("ColorField", () => {
         </button>
       </Modal>,
     );
-    fireEvent.click(screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }));
-    expect(screen.getByRole("radio", { name: colorName(RED) })).toBeInTheDocument(); // popup open
+    fireEvent.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
+    expect(screen.getByRole("radio", { name: resolveColorName(RED) })).toBeInTheDocument(); // popup open
     // A press on another in-dialog control must reach it while Popover handles dismissal.
     await user.click(screen.getByTestId("sibling"));
     expect(onSiblingDown).toHaveBeenCalledTimes(1); // not swallowed
-    expect(screen.queryByRole("radio", { name: colorName(RED) })).not.toBeInTheDocument(); // popup closed
+    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument(); // popup closed
   });
 });
 

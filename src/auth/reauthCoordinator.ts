@@ -3,7 +3,7 @@
 // event handlers (NOT a hook), so it cannot itself render the "Confirm it's you" dialog. Instead it
 // calls `requestReauth()` here — a module-level singleton that flips a pending flag and hands back a
 // promise — and the React `ReauthMount` (in AuthProvider) subscribes to that flag, renders the
-// dialog, and calls `resolveReauth(true|false)` when the user finishes or cancels.
+// dialog, and calls `completeReauth(true|false)` when the user finishes or cancels.
 //
 // WHY a singleton (not React state / a store): the request originates OUTSIDE React and MUST be
 // awaited by non-React code. A single global pending request is also exactly the semantics we want —
@@ -38,10 +38,10 @@ function emit(): void {
 export function requestReauth(): Promise<boolean> {
   if (pending) return pending.promise;
   let resolve!: Resolver;
-  const promise = new Promise<boolean>((r) => {
-    resolve = r;
+  const promise = new Promise<boolean>((resolvePromise) => {
+    resolve = resolvePromise;
   });
-  const timeout = setTimeout(() => resolveReauth(false), REAUTH_REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => completeReauth(false), REAUTH_REQUEST_TIMEOUT_MS);
   pending = { promise, resolve, timeout };
   emit();
   return promise;
@@ -49,7 +49,7 @@ export function requestReauth(): Promise<boolean> {
 
 /** Fulfil the pending re-auth request. `true` = the session was refreshed (callers retry); `false` =
  *  cancelled (callers surface the original error). No-op when nothing is pending. */
-export function resolveReauth(reauthenticated: boolean): void {
+export function completeReauth(reauthenticated: boolean): void {
   const current = pending;
   if (!current) return;
   pending = null;
@@ -60,12 +60,12 @@ export function resolveReauth(reauthenticated: boolean): void {
 }
 
 /** Last completed step-up, used to collapse late responses from the same request burst. */
-export function reauthResolution(): Readonly<{ epoch: number; outcome: boolean | null }> {
+export function readReauthResolution(): Readonly<{ epoch: number; outcome: boolean | null }> {
   return resolution;
 }
 
 /** Snapshot for useSyncExternalStore — whether a step-up dialog should currently be shown. */
-export function reauthPending(): boolean {
+export function isReauthPending(): boolean {
   return pending !== null;
 }
 

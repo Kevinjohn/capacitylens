@@ -3,10 +3,10 @@ import { todayISO } from "@capacitylens/shared/lib/dateMath";
 import type { Closure } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
-import { errorMessage } from "../../lib/errorMessage";
-import { isStaleEdit } from "../../lib/staleEdit";
+import { resolveErrorMessage } from "../../lib/errorMessage";
+import { isStaleEdit } from "../../lib/isStaleEdit";
 import { validateText } from "../../lib/validation";
-import { timeZoneFor } from "../../store/selectors";
+import { resolveTimeZone } from "../../store/selectors";
 import { useStore } from "../../store/useStore";
 import { DateField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
 import { FieldError } from "../ui/field";
@@ -14,7 +14,7 @@ import { FieldError } from "../ui/field";
 export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: () => void }) {
   const add = useStore((state) => state.addClosure);
   const update = useStore((state) => state.updateClosure);
-  const calendarTimeZone = useStore((state) => timeZoneFor(state.data, state.activeAccountId));
+  const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
   const today = todayISO(calendarTimeZone);
   const [name, setName] = useState(closure?.name ?? "");
   const [startDate, setStartDate] = useState(closure?.startDate ?? today);
@@ -48,7 +48,7 @@ export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: 
       }
       onClose();
     } catch (error) {
-      fail(null, error instanceof Error ? errorMessage(error) : m.form_closure_err_save_failed());
+      fail(null, error instanceof Error ? resolveErrorMessage(error) : m.form_closure_err_save_failed());
     }
   };
 

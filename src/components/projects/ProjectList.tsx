@@ -9,36 +9,36 @@ import { m } from "@/i18n";
 import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
 import { resolveProjectColor } from "@capacitylens/shared/lib/color";
 import { useStore } from "../../store/useStore";
-import { internalColourModeFor } from "../../store/selectors";
+import { resolveInternalColourMode } from "../../store/selectors";
 import { Fragment, useMemo } from "react";
 import { Folder, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
-import { projectArchiveImpactCopy } from "../../lib/archiveImpactCopy";
+import { buildProjectArchiveImpactCopy } from "../../lib/archiveImpactCopy";
 import { byName } from "../../lib/displayOrder";
 
 /** Build the archive-confirm message for a project, appending the allocation-count cascade warning
  *  when the project has active allocations that archiving would pull out of the schedule. */
-function projectArchiveMessage(data: AppData, project: Project): string {
+function buildProjectArchiveMessage(data: AppData, project: Project): string {
   const name = project.isPrivate === true ? nameForQuotedContext(project.name) : project.name;
   const base = m.list_projects_archive_message({ name });
   const impact = archiveImpact(data, "projects", project.id);
-  return impact.phases + impact.allocations > 0 ? `${base} ${projectArchiveImpactCopy(impact)}` : base;
+  return impact.phases + impact.allocations > 0 ? `${base} ${buildProjectArchiveImpactCopy(impact)}` : base;
 }
 
 export function ProjectList() {
   const data = useActiveScopedData();
   const projects = useMemo(() => [...data.projects].sort(byName), [data.projects]);
   const clients = data.clients;
-  const clientById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients]);
-  const internalColourMode = useStore((s) => internalColourModeFor(s.data, s.activeAccountId));
+  const clientsById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients]);
+  const internalColourMode = useStore((state) => resolveInternalColourMode(state.data, state.activeAccountId));
   // The per-row action ARCHIVES (soft-delete is reached later from Settings → Archived & deleted);
   // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
   const { archive } = useLifecycleActions();
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Project>();
 
-  const clientName = (id: string) => {
-    const c = clientById.get(id);
-    return c?.name ?? m.list_projects_no_client();
+  const resolveClientName = (id: string) => {
+    const client = clientsById.get(id);
+    return client?.name ?? m.list_projects_no_client();
   };
 
   return (
@@ -58,20 +58,22 @@ export function ProjectList() {
         </EmptyState>
       ) : (
         <ItemGroup className="rounded-md border bg-card">
-          {projects.map((p, index) => (
-            <Fragment key={p.id}>
+          {projects.map((project, index) => (
+            <Fragment key={project.id}>
               {index > 0 && <ItemSeparator />}
               <Item size="sm" role="listitem" data-testid="project-row" className="rounded-none">
                 <ItemContent className="flex-row items-center gap-2">
-                  <ColorSwatch color={resolveProjectColor(p, clientById.get(p.clientId), internalColourMode)} />
-                  <span className="font-medium">{p.name}</span>
-                  <span className="text-sm text-muted-foreground">· {clientName(p.clientId)}</span>
+                  <ColorSwatch
+                    color={resolveProjectColor(project, clientsById.get(project.clientId), internalColourMode)}
+                  />
+                  <span className="font-medium">{project.name}</span>
+                  <span className="text-sm text-muted-foreground">· {resolveClientName(project.clientId)}</span>
                 </ItemContent>
                 <ItemActions>
-                  <EditButton label={m.list_edit_aria({ name: p.name })} onClick={() => setEditing(p)} />
+                  <EditButton label={m.list_edit_aria({ name: project.name })} onClick={() => setEditing(project)} />
                   <DeleteButton
-                    label={m.list_projects_archive_aria({ name: p.name })}
-                    onClick={() => setConfirming(p)}
+                    label={m.list_projects_archive_aria({ name: project.name })}
+                    onClick={() => setConfirming(project)}
                   />
                 </ItemActions>
               </Item>
@@ -85,7 +87,7 @@ export function ProjectList() {
       {confirming && (
         <ConfirmDialog
           title={m.list_projects_archive_title()}
-          message={projectArchiveMessage(data, confirming)}
+          message={buildProjectArchiveMessage(data, confirming)}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
             void archive("projects", confirming.id);

@@ -17,7 +17,7 @@ export interface PersistenceAdapter {
   /** Persist the whole dataset. `opts.unload` signals a page-teardown flush: an async
    *  adapter must then DISPATCH every write up-front (a sequential await-loop would only
    *  get the first request out before the event loop dies). Synchronous adapters ignore it. */
-  saveAll(data: AppData, opts?: { unload?: boolean }): Promise<void>;
+  saveAll(data: AppData, options?: { unload?: boolean }): Promise<void>;
   /** Optional server-rewrite bridge. Receipts identify the client revision they committed so the
    * persistence coordinator can decline to rewrite a row edited while the batch was in flight. */
   setAllocationRewriteHandler?(handler: ((revisions: readonly AllocationRewriteRevision[]) => void) | null): void;

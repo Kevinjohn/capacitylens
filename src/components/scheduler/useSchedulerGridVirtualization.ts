@@ -2,8 +2,8 @@ import { useEffect, useMemo } from "react";
 import { useStore, type SchedulerUI } from "../../store/useStore";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import type { GroupModel, RowModel } from "./schedulerModel";
-import type { schedulerDensity } from "./layout";
-import { buildLayout, windowFromLayout } from "./virtualWindow";
+import type { buildSchedulerDensity } from "./layout";
+import { buildLayout, resolveVirtualWindow } from "./virtualWindow";
 import type { useSchedulerViewport } from "./useSchedulerViewport";
 
 /**
@@ -12,7 +12,7 @@ import type { useSchedulerViewport } from "./useSchedulerViewport";
  *
  * **1. Vertical virtualization.** The model (groups → rows) is flattened into one ordered
  * `items` list (group headers + the rows of expanded groups), then each item's height is
- * measured (`heights`), prefix-summed by `buildLayout`, and `windowFromLayout` picks the
+ * measured (`heights`), prefix-summed by `buildLayout`, and `resolveVirtualWindow` picks the
  * on-screen slice (`{first, last}`) for the current `scrollTop`/viewport height. Only that slice
  * is in the DOM; the vertical space of every skipped item is RESERVED by an aria-hidden spacer
  * div sized to the gap between consecutive rendered items, so the scrollbar geometry stays
@@ -29,7 +29,7 @@ import type { useSchedulerViewport } from "./useSchedulerViewport";
 export function useSchedulerGridVirtualization(
   model: GroupModel[],
   ui: SchedulerUI,
-  density: ReturnType<typeof schedulerDensity>,
+  density: ReturnType<typeof buildSchedulerDensity>,
   data: AppData,
   {
     days,
@@ -38,8 +38,8 @@ export function useSchedulerGridVirtualization(
     timelineHeight,
   }: Pick<ReturnType<typeof useSchedulerViewport>, "days" | "scrollRef" | "scrollTop" | "timelineHeight">,
 ) {
-  const consumeResourceJump = useStore((s) => s.consumeResourceJump);
-  const draggingAllocationId = useStore((s) => s.draggingAllocationId);
+  const consumeResourceJump = useStore((state) => state.consumeResourceJump);
+  const draggingAllocationId = useStore((state) => state.draggingAllocationId);
   // Flatten the visible model into one ordered list of renderable items (group
   // headers + the rows of expanded groups) so the grid can window them vertically:
   // at small scale everything renders; past a viewport's worth, only the on-screen
@@ -58,9 +58,9 @@ export function useSchedulerGridVirtualization(
   }, [model, ui.collapsedGroups]);
 
   // Heights + their prefix-sum depend only on the item set (model/collapse), NOT on
-  // scroll — memoise so a scroll frame only runs the cheap edge-scan in windowFromLayout.
+  // scroll — memoise so a scroll frame only runs the cheap edge-scan in resolveVirtualWindow.
   const heights = useMemo(
-    () => items.map((it) => (it.kind === "group" ? density.groupHeaderHeight : it.row.rowHeight)),
+    () => items.map((interval) => (interval.kind === "group" ? density.groupHeaderHeight : interval.row.rowHeight)),
     [items, density],
   );
   const layout = useMemo(() => buildLayout(heights), [heights]);
@@ -87,14 +87,16 @@ export function useSchedulerGridVirtualization(
   const scrollToResource = ui.scrollToResource;
   useEffect(() => {
     if (!scrollToResource || scrollToResource.consumed || !scrollRef.current) return;
-    const idx = items.findIndex((it) => it.kind === "row" && it.row.resource.id === scrollToResource.id);
-    if (idx === -1) return;
-    const top = layout.tops[idx] ?? 0;
+    const index = items.findIndex(
+      (interval) => interval.kind === "row" && interval.row.resource.id === scrollToResource.id,
+    );
+    if (index === -1) return;
+    const top = layout.tops[index] ?? 0;
     scrollRef.current.scrollTop = top;
     consumeResourceJump(scrollToResource.token);
   }, [scrollToResource, items, layout, scrollRef, consumeResourceJump]);
 
-  const { first, last } = windowFromLayout(layout, heights, scrollTop, timelineHeight);
+  const { first, last } = resolveVirtualWindow(layout, heights, scrollTop, timelineHeight);
   // Memoised because this scan is O(rows × bars) and the grid re-renders every frame while a drag
   // autoscrolls — the dragged row only changes when the item set or the dragged id changes, never
   // per scroll pixel. Same keying discipline as the neighbouring derived values above.

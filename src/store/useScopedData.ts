@@ -13,24 +13,24 @@ const activeCache = new WeakMap<AppData, AppData>();
  * (`useStore.getState()` inside a gesture handler) hit the SAME cache as the hooks below instead of
  * re-scoping the whole blob per event; the hooks' stability contract is unchanged.
  */
-export function sharedScopedData(data: AppData, accountId: string | null): AppData {
+export function resolveSharedScopedData(data: AppData, accountId: string | null): AppData {
   if (!accountId) return emptyScopedData;
-  let byAccount = scopedCache.get(data);
-  if (!byAccount) {
-    byAccount = new Map();
-    scopedCache.set(data, byAccount);
+  let scopedDataByAccountId = scopedCache.get(data);
+  if (!scopedDataByAccountId) {
+    scopedDataByAccountId = new Map();
+    scopedCache.set(data, scopedDataByAccountId);
   }
-  let scoped = byAccount.get(accountId);
+  let scoped = scopedDataByAccountId.get(accountId);
   if (!scoped) {
     scoped = scopeData(data, accountId);
-    byAccount.set(accountId, scoped);
+    scopedDataByAccountId.set(accountId, scoped);
   }
   return scoped;
 }
 
 /** The active-only projection of an already-scoped slice, memoised on it. Exported alongside
- *  {@link sharedScopedData} for the same imperative-caller reason. */
-export function sharedActiveData(data: AppData): AppData {
+ *  {@link resolveSharedScopedData} for the same imperative-caller reason. */
+export function resolveSharedActiveData(data: AppData): AppData {
   let active = activeCache.get(data);
   if (!active) {
     active = activeOnly(data);
@@ -48,7 +48,7 @@ export function sharedActiveData(data: AppData): AppData {
  * @returns The active account's {@link AppData} slice, or an empty `AppData` when no account is active.
  */
 export function useScopedData(): AppData {
-  return useStore((state) => sharedScopedData(state.data, state.activeAccountId));
+  return useStore((state) => resolveSharedScopedData(state.data, state.activeAccountId));
 }
 
 /**
@@ -66,7 +66,7 @@ export function useScopedData(): AppData {
  */
 export function useActiveScopedData(): AppData {
   const base = useScopedData();
-  return sharedActiveData(base);
+  return resolveSharedActiveData(base);
 }
 
 /**

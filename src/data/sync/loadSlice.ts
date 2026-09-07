@@ -10,8 +10,8 @@ import {
 import { LoadError } from "../PersistenceAdapter";
 import { API_BULK_TIMEOUT_MS } from "../requestTimeout";
 import { diffOps } from "../syncOps";
-import { isRecord, validateAccountSliceWithRepairBase } from "../validateAccountSlice";
-import { referencedMissingTables } from "./fkGraph";
+import { isRecord, parseAccountSliceWithRepairBase } from "../validateAccountSlice";
+import { listReferencedMissingTables } from "./fkGraph";
 import { seedSnapshot } from "./snapshot";
 import type { SyncState } from "./state";
 
@@ -71,14 +71,14 @@ export async function loadAll(
     // DEPLOYMENT CONTRACT (rolling deploy — new client, older server): a version-skewed OLDER
     // server may OMIT a table key this newer client already knows about. A MISSING key is
     // TOLERATED on BOTH read paths — the unscoped migrate()/normalize hydrates it empty, and the
-    // scoped path pre-fills it empty below so validateAccountSlice hydrates it empty too — so a
+    // scoped path pre-fills it empty below so parseAccountSlice hydrates it empty too — so a
     // new-client/old-server skew is not a total outage on every deploy, and an account switch or
     // scoped load during a version-skew window no longer throws "incomplete state payload". But a
     // key that is PRESENT and NOT an array is a corrupt/incomplete payload masquerading as empty
     // data, so it stays a HARD failure on both paths. (Same principle as the import path's
     // hasNonArrayKnownTable: repair within a record, reject a structurally broken one — never coerce
     // a broken table to [] and report it as success.) The cross-tenant (wrong accountId) checks
-    // inside validateAccountSlice keep their FULL strictness regardless.
+    // inside parseAccountSlice keep their FULL strictness regardless.
     if (!isRecord(json)) {
       throw new Error("The server returned an invalid state payload.");
     }
@@ -91,7 +91,7 @@ export async function loadAll(
     // cause; the SAME warning against a same-version server is the signal that a proxy or server bug
     // silently dropped a table — without this it would load as "empty" invisibly and be undiagnosable.
     const missingKeys = KNOWN_KEYS.filter((key) => !(key in record));
-    const referencedMissing = referencedMissingTables(record, missingKeys);
+    const referencedMissing = listReferencedMissingTables(record, missingKeys);
     if (referencedMissing.length > 0) {
       throw new Error(
         `The server returned an incomplete state payload: omitted referenced table(s) [${referencedMissing.join(
@@ -106,9 +106,9 @@ export async function loadAll(
           "server is the SAME version, a proxy or server bug dropped the table(s).",
       );
     }
-    // Scoped path: pre-fill any missing known table as an empty array so validateAccountSlice
+    // Scoped path: pre-fill any missing known table as an empty array so parseAccountSlice
     // hydrates it empty instead of hard-failing "incomplete" (its per-key Array.isArray check treats
-    // an ABSENT key as a reject). We do this in the scoped BRANCH rather than in validateAccountSlice
+    // an ABSENT key as a reject). We do this in the scoped BRANCH rather than in parseAccountSlice
     // itself because other callers of that validator (fetchInactiveSlice's backup/export path) rely
     // on its full-completeness contract. Present-but-non-array was already rejected above; the
     // accountId cross-tenant checks still run at full strictness on the real rows.
@@ -120,9 +120,7 @@ export async function loadAll(
           }
         : record;
     const migrated =
-      accountId === undefined
-        ? migrateWithRepairBase(json)
-        : validateAccountSliceWithRepairBase(scopedInput, accountId);
+      accountId === undefined ? migrateWithRepairBase(json) : parseAccountSliceWithRepairBase(scopedInput, accountId);
     if (!migrated) throw new Error("The server returned a cross-tenant or incomplete state payload.");
     const { data, repairBase } = migrated;
     // Re-seed the diff snapshot to the SLICE we just loaded (atomic with the load — see the

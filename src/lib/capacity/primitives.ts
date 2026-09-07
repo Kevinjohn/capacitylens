@@ -7,7 +7,7 @@ import { FULL_DAY_HOURS, type Allocation } from "@capacitylens/shared/types/enti
 // while comfortably absorbing the few-ULP drift from summing days-mode fractional allocations.
 const CAPACITY_COMPARISON_EPSILON_HOURS = 1e-9;
 
-export function exceedsCapacity(allocated: number, available: number): boolean {
+export function hasOverCapacity(allocated: number, available: number): boolean {
   return allocated - available > CAPACITY_COMPARISON_EPSILON_HOURS;
 }
 
@@ -19,7 +19,7 @@ export function exceedsCapacity(allocated: number, available: number): boolean {
 const BLOCK_PROJECTED_HOURS_PER_DAY = blockHoursPerDay(FULL_DAY_HOURS);
 
 /** Blocks carry placement but no hourly load. Reuse this projection across every capacity surface. */
-export function capacityAllocationsForMode(allocations: Allocation[], blocksMode: boolean): Allocation[] {
+export function applyCapacityMode(allocations: Allocation[], blocksMode: boolean): Allocation[] {
   return blocksMode
     ? allocations.map((allocation) => ({ ...allocation, hoursPerDay: BLOCK_PROJECTED_HOURS_PER_DAY }))
     : allocations;
@@ -40,22 +40,22 @@ export function capacityAllocationsForMode(allocations: Allocation[], blocksMode
 // would read as "never over" — a silently WRONG answer in a multi-tenant scheduler, not a visible
 // failure. We therefore do NOT throw on this per-day × per-allocation hot path (that would swallow
 // or crash in the wrong place); in DEV we WARN so corruption surfaces as a fault to investigate.
-export function devAssertFinite(n: number): void {
-  if (import.meta.env.DEV && !Number.isFinite(n)) {
+export function warnOnNonFiniteCapacity(hours: number): void {
+  if (import.meta.env.DEV && !Number.isFinite(hours)) {
     console.warn(
-      `capacity: allocated hours sum is not a finite number (${String(n)}). Upstream validation ` +
+      `capacity: allocated hours sum is not a finite number (${String(hours)}). Upstream validation ` +
         `(integrity.ts) should have prevented this — over/utilisation results for this resource will be wrong.`,
     );
   }
 }
 
 // Every public helper below takes an `ISODate` and derives its weekday; each `…ForWeekday` twin
-// takes one already derived. `weekdayOf` is a parseISO, and `dayCapacity` — the scheduler's hottest
+// takes one already derived. `weekdayOf` is a parseISO, and `buildDayCapacity` — the scheduler's hottest
 // path, ~27k resource-days per model rebuild — needs the SAME weekday four times over. It derives
 // it ONCE and threads it through the twins; the public signatures stay date-only.
 /** Whether an allocation loads this date. Keep `none` explicit: an empty weekday array has
  * calendar-day semantics in allocationWorksOnDay, which is the opposite of the capacity contract. */
-export function allocationLoadsOnDay(
+export function hasAllocationLoadOnDay(
   effectiveWeek: EffectiveWorkingWeek,
   ignoreWorkingDays: boolean | undefined,
   dayIsWorking: boolean,

@@ -5,7 +5,7 @@ import { useAuth } from "./authContext";
 import { PermissionContext } from "./permissionContext";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { useOfflineState } from "../data/useOfflineState";
-import { offlineStateEpisode } from "../data/offlineCache";
+import { readOfflineStateEpisode } from "../data/offlineCache";
 import { refreshAccountSummaries } from "./useAccountSummaries";
 import { masqueradeApi } from "./masqueradeApi";
 import { masqueradeController } from "./masqueradeController";
@@ -38,11 +38,11 @@ import { masqueradeController } from "./masqueradeController";
  */
 export function PermissionProvider({ children }: { children: ReactNode }) {
   const { authMode } = useAuth();
-  const activeAccountId = useStore((s) => s.activeAccountId);
-  const setActiveRole = useStore((s) => s.setActiveRole);
-  const membershipRevision = useStore((s) => s.membershipRevision);
+  const activeAccountId = useStore((state) => state.activeAccountId);
+  const setActiveRole = useStore((state) => state.setActiveRole);
+  const membershipRevision = useStore((state) => state.membershipRevision);
   const offline = useOfflineState();
-  const offlineEpisode = offlineStateEpisode();
+  const offlineEpisode = readOfflineStateEpisode();
   // The FETCHED role TAGGED with the account it was resolved for. Only ever set behind an `await` in
   // the effect's async IIFE (the MembersSection / AuthProvider idiom) — never synchronously in the
   // effect body — so there's no cascading-render setState-in-effect. Tagging with `accountId` is what

@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../data/apiConfig", () => ({ API_BASE: "https://app.example" }));
 vi.mock("../data/requestTimeout", () => ({ apiFetch: mocks.apiFetch }));
 
-import { listSessions, type SessionView } from "./sessionClient";
+import { readSessions, type SessionView } from "./sessionClient";
 import { jsonResponse } from "../test/fixtures";
 
 const SESSION: SessionView = {
@@ -29,7 +29,7 @@ describe("browser session client", () => {
     const sessions = [SESSION, { ...SESSION, id: "new-current-session", current: true }];
     mocks.apiFetch.mockResolvedValue(jsonResponse({ sessions }));
 
-    expect(await listSessions()).toEqual({ kind: "loaded", sessions });
+    expect(await readSessions()).toEqual({ kind: "loaded", sessions });
     expect(mocks.apiFetch).toHaveBeenCalledExactlyOnceWith("https://app.example/api/account/sessions", {
       credentials: "include",
     });
@@ -37,43 +37,43 @@ describe("browser session client", () => {
 
   it("loads an empty session list", async () => {
     mocks.apiFetch.mockResolvedValue(jsonResponse({ sessions: [] }));
-    expect(await listSessions()).toEqual({ kind: "loaded", sessions: [] });
+    expect(await readSessions()).toEqual({ kind: "loaded", sessions: [] });
   });
 
   it("accepts a null expiry", async () => {
     const sessions = [{ ...SESSION, expiresAt: null }];
     mocks.apiFetch.mockResolvedValue(jsonResponse({ sessions }));
-    expect(await listSessions()).toEqual({ kind: "loaded", sessions });
+    expect(await readSessions()).toEqual({ kind: "loaded", sessions });
   });
 
   it.each(["unreadable JSON", JSON.stringify({ sessions: [SESSION] }), "null"])(
     "returns unauthorized for HTTP 401 regardless of body: %s",
     async (body) => {
       mocks.apiFetch.mockResolvedValue(new Response(body, { status: 401 }));
-      expect(await listSessions()).toEqual({ kind: "unauthorized" });
+      expect(await readSessions()).toEqual({ kind: "unauthorized" });
     },
   );
 
   it.each([403, 404, 503])("returns failed for HTTP %i even with valid sessions", async (status) => {
     mocks.apiFetch.mockResolvedValue(jsonResponse({ sessions: [SESSION] }, status));
-    expect(await listSessions()).toEqual({ kind: "failed" });
+    expect(await readSessions()).toEqual({ kind: "failed" });
   });
 
   it("returns failed when sessions are temporarily unavailable", async () => {
     mocks.apiFetch.mockResolvedValue(jsonResponse({ error: "Sessions are temporarily unavailable." }, 503));
-    expect(await listSessions()).toEqual({ kind: "failed" });
+    expect(await readSessions()).toEqual({ kind: "failed" });
   });
 
   it("returns failed for unreadable JSON", async () => {
     mocks.apiFetch.mockResolvedValue(new Response("not JSON"));
-    expect(await listSessions()).toEqual({ kind: "failed" });
+    expect(await readSessions()).toEqual({ kind: "failed" });
   });
 
   it.each([null, [], "sessions", 42, true, {}, { sessions: null }, { sessions: {} }])(
     "returns failed for a malformed envelope: %j",
     async (body) => {
       mocks.apiFetch.mockResolvedValue(jsonResponse(body));
-      expect(await listSessions()).toEqual({ kind: "failed" });
+      expect(await readSessions()).toEqual({ kind: "failed" });
     },
   );
 
@@ -96,7 +96,7 @@ describe("browser session client", () => {
     ["non-boolean current", { ...SESSION, current: "false" }],
   ])("rejects the whole list for %s", async (_name, row) => {
     mocks.apiFetch.mockResolvedValue(jsonResponse({ sessions: [SESSION, row] }));
-    expect(await listSessions()).toEqual({ kind: "invalid" });
+    expect(await readSessions()).toEqual({ kind: "invalid" });
   });
 
   it("logs transport failures and returns failed without rethrowing", async () => {
@@ -104,7 +104,7 @@ describe("browser session client", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     mocks.apiFetch.mockRejectedValue(cause);
 
-    expect(await listSessions()).toEqual({ kind: "failed" });
+    expect(await readSessions()).toEqual({ kind: "failed" });
     expect(error).toHaveBeenCalledExactlyOnceWith("sessionClient: session list failed", cause);
   });
 });

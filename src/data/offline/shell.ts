@@ -6,12 +6,12 @@ import {
   OFFLINE_WORKER_URL,
   SHELL_ACTIVATION_TIMEOUT_MS,
 } from "./constants";
-import { offlineReadEnabled, publishPreference, setOfflineCacheWriteFailed } from "./state";
-import { webCrypto, deviceKey, initialiseWriteBoundary } from "./crypto";
+import { isOfflineReadEnabled, publishPreference, setOfflineCacheWriteFailed } from "./state";
+import { assertWebCrypto, readOrCreateDeviceKey, initialiseWriteBoundary } from "./crypto";
 import { openOfflineDb } from "./idb";
 import { clearAllOfflineData } from "./cleanup";
 
-export function offlineShellAvailable(environment: { PROD: boolean; MODE: string }): boolean {
+export function isOfflineShellAvailable(environment: { PROD: boolean; MODE: string }): boolean {
   return environment.PROD || environment.MODE === "test";
 }
 
@@ -26,7 +26,7 @@ function isOfflineWorkerRegistration(registration: ServiceWorkerRegistration): b
 /** Revalidate the durable shell promised by the device preference. A browser/site-data cleanup can
  * remove the worker or cache without removing localStorage, so the preference must fail closed. */
 export async function revalidateOfflineShell(): Promise<boolean> {
-  if (!offlineReadEnabled()) return false;
+  if (!isOfflineReadEnabled()) return false;
   try {
     if (!("serviceWorker" in navigator) || typeof caches === "undefined") throw new Error("unsupported");
     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -89,7 +89,7 @@ async function waitForOfflineShellActivation(registration: ServiceWorkerRegistra
 
 /** Enable or disable offline access on this device. Disabling also removes the app-shell worker. */
 export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
-  if (enabled && !offlineShellAvailable(import.meta.env)) {
+  if (enabled && !isOfflineShellAvailable(import.meta.env)) {
     throw new Error("Offline access can only be enabled from a production build.");
   }
   if (enabled && !("serviceWorker" in navigator)) {
@@ -98,10 +98,10 @@ export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
 
   try {
     if (enabled) {
-      webCrypto();
+      assertWebCrypto();
       const db = await openOfflineDb();
       try {
-        await deviceKey(db);
+        await readOrCreateDeviceKey(db);
         await initialiseWriteBoundary(db);
       } finally {
         db.close();

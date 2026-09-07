@@ -21,7 +21,7 @@ export function hasUnsavedPersistenceWrites(): boolean {
  * No-op (returns a no-op resume) when no orchestrator is attached — the demo build's import is a
  * local, undoable store operation with no write pipeline to race.
  */
-export function suspendServerWrites(): (opts?: { dropParkedEdits?: boolean }) => void {
+export function suspendServerWrites(): (options?: { dropParkedEdits?: boolean }) => void {
   return persistenceCoordinator.suspendWrites();
 }
 

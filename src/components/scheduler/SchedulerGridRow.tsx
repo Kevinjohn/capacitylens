@@ -1,13 +1,13 @@
 import type { ComponentProps, Dispatch, SetStateAction } from "react";
 import { Plus } from "lucide-react";
 import { m } from "@/i18n";
-import { formatUtilizationPercent } from "../../lib/utilizationPercent";
+import { formatUtilizationPercent } from "../../lib/formatUtilizationPercent";
 import { UTILIZATION_WINDOW_DAYS } from "../../lib/schedulerConfig";
 import { Avatar } from "../common/ui";
-import { resourceDisplayName } from "../../lib/metadata";
-import { LAYOUT, schedulerDensity } from "./layout";
+import { resolveResourceDisplayName } from "../../lib/metadata";
+import { LAYOUT, buildSchedulerDensity } from "./layout";
 import { ResourceLane } from "./ResourceLane";
-import { rowScreenReaderSummary } from "./rowSummary";
+import { buildRowScreenReaderSummary } from "./buildRowScreenReaderSummary";
 import type { GroupModel, RowModel } from "./schedulerModel";
 import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
 import type { ISODate } from "@capacitylens/shared/types/entities";
@@ -20,7 +20,7 @@ export interface SchedulerGridRowProps {
   group: GroupModel;
   row: RowModel;
   rowIndex: number;
-  density: ReturnType<typeof schedulerDensity>;
+  density: ReturnType<typeof buildSchedulerDensity>;
   utilizationPrefs: StoreState["utilizationPrefs"];
   visibleWeeksLabel: string;
   ui: Pick<SchedulerUI, "drawMode">;
@@ -40,7 +40,7 @@ export function SchedulerGridRow({
   row,
   rowIndex,
   density,
-  utilizationPrefs,
+  utilizationPrefs: utilizationPreferences,
   visibleWeeksLabel,
   ui,
   canEdit,
@@ -48,7 +48,7 @@ export function SchedulerGridRow({
   setModal,
   days,
   todayX,
-  geom,
+  geom: geometry,
   calendarWeekStartsOn,
   handleEdit,
   handleDraw,
@@ -78,8 +78,8 @@ export function SchedulerGridRow({
         {/* Text equivalent of the colour-only capacity cues (over-marker red background, time-off
               tint and half-day tint) — assembled in rowSummary.ts so the wording is unit-testable. */}
         <span className="sr-only">
-          {rowScreenReaderSummary(row, {
-            showPersonalUtilization: utilizationPrefs.showPersonal,
+          {buildRowScreenReaderSummary(row, {
+            showPersonalUtilization: utilizationPreferences.showPersonal,
             visibleSpanLabel: visibleWeeksLabel,
             drawMode: ui.drawMode,
           })}
@@ -104,7 +104,7 @@ export function SchedulerGridRow({
             <span className="flex items-center gap-1 truncate text-sm font-medium">
               {/* A placeholder ("slot") reads as the literal word "Placeholder" — an as-yet-unfilled
                     slot — with its role/discipline shown as secondary text below. */}
-              {resourceDisplayName(resource)}
+              {resolveResourceDisplayName(resource)}
             </span>
             <span className="block truncate text-xs text-muted-foreground">{resource.role}</span>
           </div>
@@ -123,18 +123,18 @@ export function SchedulerGridRow({
               variant="ghost"
               size="icon"
               onClick={() => {
-                const d = visibleStartDate();
+                const day = visibleStartDate();
                 setModal({
                   kind: ui.drawMode === "timeoff" ? "timeoff" : "create",
                   resourceId: resource.id,
-                  startDate: d,
-                  endDate: d,
+                  startDate: day,
+                  endDate: day,
                 });
               }}
               aria-label={
                 ui.drawMode === "timeoff"
-                  ? m.scheduler_add_timeoff_for({ name: resourceDisplayName(resource) })
-                  : m.scheduler_add_allocation_for({ name: resourceDisplayName(resource) })
+                  ? m.scheduler_add_timeoff_for({ name: resolveResourceDisplayName(resource) })
+                  : m.scheduler_add_allocation_for({ name: resolveResourceDisplayName(resource) })
               }
               title={ui.drawMode === "timeoff" ? m.scheduler_add_timeoff() : m.scheduler_add_allocation()}
               className="h-auto w-11 flex-1 rounded-none text-muted-foreground"
@@ -142,7 +142,7 @@ export function SchedulerGridRow({
               <Plus />
             </Button>
           )}
-          {utilizationPrefs.showPersonal && isCapacityTracked(resource) && (
+          {utilizationPreferences.showPersonal && isCapacityTracked(resource) && (
             <span
               data-testid="utilization"
               title={
@@ -171,13 +171,13 @@ export function SchedulerGridRow({
         // previously unnamed. "<name> timeline" names it without duplicating the rowheader's
         // sr-only capacity summary, so the cell reads honestly in the column structure (WCAG 1.3.1).
         ariaLabel={m.scheduler_lane_aria({
-          name: resourceDisplayName(resource),
+          name: resolveResourceDisplayName(resource),
         })}
         days={days}
         dayStates={dayStates}
         timeOff={timeOff}
         todayX={todayX}
-        geom={geom}
+        geom={geometry}
         rowHeight={rowHeight}
         barTop={density.rowPadding}
         bars={bars}

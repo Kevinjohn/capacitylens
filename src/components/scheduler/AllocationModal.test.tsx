@@ -29,12 +29,12 @@ const lastAdvisoryProposal = () =>
   (capacityAdvisoryMock.mock.calls.at(-1) as unknown as unknown[] | undefined)?.[1] as
     { projectId?: string } | undefined;
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
-// (`capacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
+// (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
 // care only about the advisory VERDICTS the modal renders.
 vi.mock("../../lib/capacity", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../lib/capacity")>()),
-  capacityAdvisory: capacityAdvisoryMock,
-  capacityAdvisoryFromLoad: capacityAdvisoryMock,
+  buildCapacityAdvisory: capacityAdvisoryMock,
+  buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));
 
 const ACC = DEFAULT_ACCOUNT_ID;

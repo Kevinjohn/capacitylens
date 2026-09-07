@@ -2,7 +2,7 @@ import { Suspense, type CSSProperties } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { useStore } from "../store/useStore";
-import { disciplinesEnabledFor } from "../store/selectors";
+import { hasDisciplinesEnabled } from "../store/selectors";
 import { useDemoAuthActive } from "../lib/fakeAuth";
 import { CommandPalette } from "./CommandPalette";
 import { PermissionProvider } from "../auth/PermissionProvider";
@@ -22,7 +22,7 @@ import { Button } from "./ui/button";
 
 const masqueradeButtonClassName = "border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white";
 
-function masqueradeBannerContent(masquerade: ReturnType<typeof useStore.getState>["masquerade"]) {
+function buildMasqueradeBannerContent(masquerade: ReturnType<typeof useStore.getState>["masquerade"]) {
   switch (masquerade.phase) {
     case "inactive":
       return null;
@@ -60,44 +60,46 @@ function MobileSidebarTrigger() {
 export function AppShell() {
   const navigate = useNavigate();
   const { paletteOpen, closePalette } = useAppShellController();
-  const hydrated = useStore((s) => s.hydrated);
-  const persistError = useStore((s) => s.persistError);
-  const loadError = useStore((s) => s.loadError);
-  const connectionError = useStore((s) => s.connectionError);
-  const masquerade = useStore((s) => s.masquerade);
-  const masqueradeBanner = masqueradeBannerContent(masquerade);
+  const hydrated = useStore((state) => state.hydrated);
+  const persistError = useStore((state) => state.persistError);
+  const loadError = useStore((state) => state.loadError);
+  const connectionError = useStore((state) => state.connectionError);
+  const masquerade = useStore((state) => state.masquerade);
+  const masqueradeBanner = buildMasqueradeBannerContent(masquerade);
   const offline = useOfflineState();
   // Drives Sonner's theme (see the <Toaster> below). An explicit light|dark pref is passed
   // through as the concrete scheme; a 'system' pref is delegated to Sonner ('system'), which
   // subscribes to prefers-color-scheme itself and so stays live when the OS flips (this shell
   // wouldn't re-render on that, which is why we don't resolve 'system' here).
-  const themePref = useStore((s) => s.theme);
-  const accounts = useStore((s) => s.data.accounts);
-  const accountSummaries = useStore((s) => s.accountSummaries);
-  const activeAccountId = useStore((s) => s.activeAccountId);
+  const themePreference = useStore((state) => state.theme);
+  const accounts = useStore((state) => state.data.accounts);
+  const accountSummaries = useStore((state) => state.accountSummaries);
+  const activeAccountId = useStore((state) => state.activeAccountId);
   // EXISTENCE of the active account from `data.accounts` (after the slice loads, it holds exactly the
   // active account) OR `accountSummaries` (P1.13 — covers the pick→slice-load gap in server mode,
   // where `data` is empty for one frame until the switch orchestrator hydrates the slice). The summary
   // is enough to pass the tenant gate and render the shell; the slice fills in the body a frame later.
   const activeAccount =
-    accounts.find((a) => a.id === activeAccountId) ?? accountSummaries.find((a) => a.id === activeAccountId) ?? null;
+    accounts.find((account) => account.id === activeAccountId) ??
+    accountSummaries.find((a) => a.id === activeAccountId) ??
+    null;
   // Cosmetic demo sign-in (see the gate below). `demoAuthActive` is true only when the real
   // auth seam is OFF, so the demo gate and the real login wall never double-gate.
   const demoAuthActive = useDemoAuthActive();
-  const fakeSignedIn = useStore((s) => s.fakeSignedIn);
-  const setFakeSignedIn = useStore((s) => s.setFakeSignedIn);
-  const signOutDemo = useStore((s) => s.signOutDemo);
+  const fakeSignedIn = useStore((state) => state.fakeSignedIn);
+  const setFakeSignedIn = useStore((state) => state.setFakeSignedIn);
+  const signOutDemo = useStore((state) => state.signOutDemo);
   // Post-login intro gate (see below). Device-global, once-per-device flag.
-  const introSeen = useStore((s) => s.introSeen);
-  const setIntroSeen = useStore((s) => s.setIntroSeen);
+  const introSeen = useStore((state) => state.introSeen);
+  const setIntroSeen = useStore((state) => state.setIntroSeen);
   // Drop the Disciplines destination from the nav when the active account doesn't use
   // disciplines (the route itself is also guarded — see router.tsx).
-  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
+  const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   const navLinks = disciplinesEnabled ? LINKS : LINKS.filter(([to]) => to !== "/disciplines");
 
-  const dirtyForm = useStore((s) => s.dirtyForm);
-  const sidebarOpen = useStore((s) => s.sidebarOpen);
-  const setSidebarOpen = useStore((s) => s.setSidebarOpen);
+  const dirtyForm = useStore((state) => state.dirtyForm);
+  const sidebarOpen = useStore((state) => state.sidebarOpen);
+  const setSidebarOpen = useStore((state) => state.setSidebarOpen);
 
   const loader = (
     <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground" role="status">
@@ -112,7 +114,7 @@ export function AppShell() {
   // toast-error class instead of richColors.
   const toaster = (
     <Toaster
-      theme={themePref === "system" ? "system" : themePref}
+      theme={themePreference === "system" ? "system" : themePreference}
       position="bottom-center"
       closeButton
       toastOptions={{ classNames: { error: "toast-error" } }}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clientArchiveImpactCopy, projectArchiveImpactCopy } from "./archiveImpactCopy";
+import { buildClientArchiveImpactCopy, buildProjectArchiveImpactCopy } from "./archiveImpactCopy";
 
 const impact = (projects: number, phases: number, allocations: number) => ({
   projects,
@@ -15,7 +15,7 @@ describe("archive impact copy", () => {
     [1, "1 project, 1 phase, and 1 allocation"],
     [2, "2 projects, 2 phases, and 2 allocations"],
   ] as const)("formats client cascade count %s", (count, expected) => {
-    const copy = clientArchiveImpactCopy(impact(count, count, count));
+    const copy = buildClientArchiveImpactCopy(impact(count, count, count));
     expect(copy).toContain(expected);
     expect(copy).not.toContain("(s)");
   });
@@ -25,7 +25,7 @@ describe("archive impact copy", () => {
     [1, "1 phase and 1 allocation"],
     [2, "2 phases and 2 allocations"],
   ] as const)("formats project cascade count %s", (count, expected) => {
-    const copy = projectArchiveImpactCopy(impact(0, count, count));
+    const copy = buildProjectArchiveImpactCopy(impact(0, count, count));
     expect(copy).toContain(expected);
     expect(copy).not.toContain("(s)");
   });

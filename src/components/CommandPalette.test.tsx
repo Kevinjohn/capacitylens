@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { CommandPalette } from "./CommandPalette";
-import { useStore, emptyFilters } from "../store/useStore";
+import { useStore, buildEmptyFilters } from "../store/useStore";
 import {
   makeAppData,
   makeAccount,
@@ -456,7 +456,7 @@ describe("CommandPalette", () => {
 
     // Filters must deep-equal { ...emptyFilters(), projectId } — no stale fields survive
     const filters = useStore.getState().ui.filters;
-    expect(filters).toEqual({ ...emptyFilters(), projectId: projectId! });
+    expect(filters).toEqual({ ...buildEmptyFilters(), projectId: projectId! });
   });
 
   it("client selection REPLACES stale filters with only clientId set", () => {
@@ -492,6 +492,6 @@ describe("CommandPalette", () => {
 
     // Filters must deep-equal { ...emptyFilters(), clientId } — no stale fields survive
     const filters = useStore.getState().ui.filters;
-    expect(filters).toEqual({ ...emptyFilters(), clientId: clientId! });
+    expect(filters).toEqual({ ...buildEmptyFilters(), clientId: clientId! });
   });
 });

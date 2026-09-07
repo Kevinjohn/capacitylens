@@ -14,7 +14,7 @@ import { useStore } from "./store/useStore";
 import { persistenceAdapter } from "./data/storageAdapter";
 import { isDemoMode, isServerConfigured } from "./data/apiConfig";
 import { bootstrap, ReloadDiscardedEditError } from "./data/persist";
-import { persistenceErrorNotice } from "./data/persistenceErrorNotice";
+import { resolvePersistenceErrorNotice } from "./data/persistenceErrorNotice";
 import { seedForCurrentWeek } from "@capacitylens/shared/data/seed";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { applyThemeToDom, watchSystemTheme } from "./lib/theme";
@@ -50,17 +50,17 @@ function startPersistence(): void {
     // Per-account hydration (P1.13): in server mode a tenant pick loads ONLY that account's slice and
     // re-seeds the diff snapshot atomically (the switch orchestrator). The demo build leaves it inert.
     serverMode: isServerConfigured(),
-    onError: (e) => {
+    onError: (error) => {
       // Successful reloads rebase edits made during their network window. This typed error is the
       // exceptional case where an older failed write or committed external replacement cannot be
       // safely replayed. It is a discrete loss, not an ongoing transport failure, so its sticky
       // toast is the whole surface — skip the "changes aren't saving" banner.
-      if (e instanceof ReloadDiscardedEditError) {
+      if (error instanceof ReloadDiscardedEditError) {
         useStore.getState().setNotice(m.notice_edit_dropped_reload(), "error");
         return;
       }
       useStore.getState().setPersistError(true);
-      const notice = persistenceErrorNotice(e);
+      const notice = resolvePersistenceErrorNotice(error);
       if (notice) useStore.getState().setNotice(notice, "error");
     },
     // Recovery: once a write lands again (e.g. the server comes back), take the

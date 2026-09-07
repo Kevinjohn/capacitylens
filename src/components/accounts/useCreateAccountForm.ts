@@ -1,15 +1,15 @@
 import { m } from "@/i18n";
 import { useMemo, useState } from "react";
-import { accountClient, accountCommandOutcomeWasUnknown } from "../../account/accountClient";
+import { accountClient, hasUnknownAccountCommandOutcome } from "../../account/accountClient";
 import { transitionAccount } from "../../auth/accountTransition";
 import { useAuth } from "../../auth/authContext";
 import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
 import { isServerConfigured } from "../../data/apiConfig";
 import { useFieldError } from "../../hooks/useFieldError";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { readApiError } from "../../lib/readApiError";
-import { supportedTimeZones, timeZoneOptionLabel } from "../../lib/timezones";
+import { listSupportedTimeZones, resolveTimeZoneOptionLabel } from "../../lib/timezones";
 import { validateName } from "../../lib/validation";
 import { useStore } from "../../store/useStore";
 
@@ -17,14 +17,14 @@ import {
   DEFAULT_LANGUAGE,
   DEFAULT_TIMEZONE,
   DEFAULT_WEEK_STARTS_ON,
-  toCreatedOrg,
+  parseCreatedAccount,
   WEEK_START_OPTIONS,
 } from "./accountPickerDefaults";
 export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<typeof useAuth>["refreshAuth"] }) {
-  const addAccount = useStore((s) => s.addAccount);
-  const setAccountSummaries = useStore((s) => s.setAccountSummaries);
-  const setActiveAccount = useStore((s) => s.setActiveAccount);
-  const setNotice = useStore((s) => s.setNotice);
+  const addAccount = useStore((state) => state.addAccount);
+  const setAccountSummaries = useStore((state) => state.setAccountSummaries);
+  const setActiveAccount = useStore((state) => state.setActiveAccount);
+  const setNotice = useStore((state) => state.setNotice);
   const [creating, setCreating] = useState(false);
   // True while the server-mode create POST is in flight — guards the double-submit a slow /api/orgs
   // round-trip would otherwise allow (two companies from one form). Demo-mode create is synchronous.
@@ -34,17 +34,17 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(DEFAULT_WEEK_STARTS_ON);
   const [timezone, setTimezone] = useState<string>(DEFAULT_TIMEZONE);
   const { error, errorField, errorId, fail, clear } = useFieldError();
-  const tzOptions = supportedTimeZones();
+  const timeZoneOptions = listSupportedTimeZones();
   // Locale-sensitive labels (Paraglide m.*() / Intl), so a stale memo would silently keep a prior
   // locale's text on screen. Currently safe to key on the stable inputs alone: the app ships one
   // locale (project.inlang/settings.json: locales: ["en"]), and this create-company form only
   // renders before an active account exists — the one place `syncLocaleFromAccount` can change the
   // locale (useAppShellController, keyed off the ACTIVE account's language) fires after an account is
-  // picked, by which point this form has unmounted. tzOptions is the module-cached frozen array from
-  // supportedTimeZones() (stable reference across renders), so this only recomputes when it changes.
-  const tzSelectOptions = useMemo(
-    () => tzOptions.map((tz) => ({ value: tz, label: timeZoneOptionLabel(tz) })),
-    [tzOptions],
+  // picked, by which point this form has unmounted. timeZoneOptions is the module-cached frozen array from
+  // listSupportedTimeZones() (stable reference across renders), so this only recomputes when it changes.
+  const timeZoneSelectOptions = useMemo(
+    () => timeZoneOptions.map((timeZone) => ({ value: timeZone, label: resolveTimeZoneOptionLabel(timeZone) })),
+    [timeZoneOptions],
   );
   const weekStartSelectOptions = useMemo(
     () => WEEK_START_OPTIONS.map((o) => ({ value: o.value, label: o.label() })),
@@ -78,7 +78,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
         internalColourMode: "grey",
       });
       if (!res.ok) {
-        if (accountCommandOutcomeWasUnknown(res)) {
+        if (hasUnknownAccountCommandOutcome(res)) {
           // A response can fail after the command commits (proxy timeout, worker restart, or a
           // still-running ledger entry). Close the form and reconcile before allowing a retry.
           const list = await refreshAccountSummaries({ allowCachedFallback: false });
@@ -96,7 +96,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
       // read must NOT be allowed to throw into the transport catch below — that would surface an
       // error over a create that SUCCEEDED and leave the form open for a resubmit (a duplicate
       // company, or a spurious single-company-cap 403). Parse best-effort, validate the shape.
-      const created = toCreatedOrg(await res.json().catch(() => null));
+      const created = parseCreatedAccount(await res.json().catch(() => null));
       if (created === null) {
         // DELIBERATE ASYMMETRY with the !res.ok branch: this is a SUCCESS with an unusable body,
         // not a failure. We can't seed a summary or activate (no trustworthy id — a bogus one
@@ -117,7 +117,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
       // data.accounts ∪ accountSummaries, and the just-created org is in neither yet.
       // Append-if-absent so a concurrent summaries refetch can't duplicate it.
       const summaries = useStore.getState().accountSummaries;
-      if (!summaries.some((a) => a.id === created.id)) {
+      if (!summaries.some((account) => account.id === created.id)) {
         setAccountSummaries([...summaries, { id: created.id, name: created.name, role: "owner" as const }]);
       }
       resetForm();
@@ -133,8 +133,8 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
       resetForm();
       setNotice(
         list !== null
-          ? `${m.picker_create_unknown_refreshed()} ${errorMessage(e)}`
-          : `${m.picker_create_unknown_stale()} ${errorMessage(e)}`,
+          ? `${m.picker_create_unknown_refreshed()} ${resolveErrorMessage(e)}`
+          : `${m.picker_create_unknown_stale()} ${resolveErrorMessage(e)}`,
         "warning",
       );
     } finally {
@@ -172,7 +172,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
       resetForm();
       setActiveAccount(account.id);
     } catch (e) {
-      fail(null, errorMessage(e));
+      fail(null, resolveErrorMessage(e));
     }
   };
 
@@ -191,7 +191,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
       errorField,
       errorId,
       clear,
-      tzSelectOptions,
+      tzSelectOptions: timeZoneSelectOptions,
       weekStartSelectOptions,
     },
     submit,

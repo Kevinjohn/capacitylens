@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { validateHex, validateName } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/staleEdit";
+import { isStaleEdit } from "../../lib/isStaleEdit";
 import { m } from "@/i18n";
 import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
 import { FieldError } from "../ui/field";
@@ -14,14 +14,14 @@ import type { Discipline } from "@capacitylens/shared/types/entities";
 /** Add (no `discipline`) or edit a discipline: name + colour. `sortOrder` is auto-assigned (one past
  *  the current max, not the count — see below). `onClose` fires on save or cancel. */
 export function DisciplineForm({ discipline, onClose }: { discipline?: Discipline; onClose: () => void }) {
-  const add = useStore((s) => s.addDiscipline);
-  const update = useStore((s) => s.updateDiscipline);
+  const add = useStore((state) => state.addDiscipline);
+  const update = useStore((state) => state.updateDiscipline);
   // sortOrder is assigned automatically (no longer user-editable): a new discipline
   // lands one past the current maximum — not the count, which would collide with an
   // existing order after a deletion and fall back to the name tiebreak out of place.
   // An existing discipline keeps whatever order it already had.
   const disciplines = useActiveScopedData().disciplines;
-  const nextSortOrder = disciplines.reduce((max, d) => Math.max(max, d.sortOrder + 1), 0);
+  const nextSortOrder = disciplines.reduce((max, discipline) => Math.max(max, discipline.sortOrder + 1), 0);
   const [name, setName] = useState(discipline?.name ?? "");
   const [color, setColor] = useState(discipline?.color ?? DEFAULT_COLORS.discipline);
   const sortOrder = discipline?.sortOrder ?? nextSortOrder;
@@ -45,7 +45,7 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
       }
       onClose();
     } catch (e) {
-      fail(null, errorMessage(e));
+      fail(null, resolveErrorMessage(e));
     }
   };
 

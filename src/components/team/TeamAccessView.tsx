@@ -2,8 +2,8 @@ import { useState } from "react";
 import { can, canSeePrivateNames, canSeeTimeOffNote, type Role } from "@capacitylens/shared/domain/access";
 import { usePermissionStatus, useRole } from "../../auth/permissionContext";
 import { useAuth } from "../../auth/authContext";
-import { accessLabelFor, accessSummaryFor } from "../../lib/accessCopy";
-import { accessExperienceFor } from "../../lib/accessMode";
+import { resolveAccessLabel, resolveAccessSummary } from "../../lib/accessCopy";
+import { resolveAccessExperience } from "../../lib/resolveAccessExperience";
 import { useOfflineState } from "../../data/useOfflineState";
 import { MembersSection } from "../settings/MembersSection";
 import { Badge } from "../ui/badge";
@@ -17,7 +17,7 @@ interface Capability {
   allowed: boolean;
 }
 
-function capabilities(role: Role): Capability[] {
+function listCapabilities(role: Role): Capability[] {
   return [
     { label: m.access_cap_view_schedule(), allowed: can(role, "read") },
     { label: m.access_cap_edit_schedule(), allowed: can(role, "write") },
@@ -34,7 +34,7 @@ export function TeamAccessView() {
   const permissionStatus = usePermissionStatus();
   const { authMode } = useAuth();
   const offline = useOfflineState();
-  const accessExperience = accessExperienceFor(authMode);
+  const accessExperience = resolveAccessExperience(authMode);
   const authenticated = accessExperience === "authenticated";
   const resolvedRole = authenticated && permissionStatus === "resolved" ? role : null;
   // A cached slice is always the Viewer projection, regardless of the last online role or whether
@@ -48,8 +48,8 @@ export function TeamAccessView() {
     permissionStatus,
     role: resolvedRole,
   };
-  const accessLabel = accessLabelFor(accessCopyInput);
-  const accessSummary = accessSummaryFor(accessCopyInput);
+  const accessLabel = resolveAccessLabel(accessCopyInput);
+  const accessSummary = resolveAccessSummary(accessCopyInput);
   const accessWarning = offline.readOnly
     ? null
     : accessExperience === "demo"
@@ -102,7 +102,7 @@ export function TeamAccessView() {
                   className="mt-3 grid gap-2 sm:grid-cols-2"
                   aria-label={m.access_capabilities_label()}
                 >
-                  {capabilities(effectiveRole).map((capability) => (
+                  {listCapabilities(effectiveRole).map((capability) => (
                     <li key={capability.label} className="flex items-center gap-2 text-sm text-ink">
                       {capability.allowed ? <Check className="text-brand" /> : <X className="text-muted-foreground" />}
                       <span className="sr-only">

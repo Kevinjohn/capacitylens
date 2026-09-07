@@ -144,8 +144,8 @@ export interface SchedulerModelOptions {
     showInternalActivities?: boolean;
   };
   // Vertical geometry for the current density ("Compact view" device pref — see
-  // components/scheduler/layout.ts). It feeds `laneTop` / `rowHeightForLanes` below, so every bar's
-  // `top` and every row's `rowHeight` derive from it. SchedulerGrid passes `laneLayoutFor(compact)`
+  // components/scheduler/layout.ts). It feeds `resolveLaneTop` / `resolveRowHeightForLanes` below, so every bar's
+  // `top` and every row's `rowHeight` derive from it. SchedulerGrid passes `buildLaneLayout(compact)`
   // and lists it as a memo dependency, or a density change would leave stale row heights behind.
   // Defaults to the compact geometry so callers that don't care about density (tests, and any
   // consumer measuring the original layout) keep their existing numbers.

@@ -60,9 +60,10 @@ function Item({
   ...props
 }: React.ComponentProps<"div"> &
   VariantProps<typeof itemVariants> & { asChild?: boolean }) {
-  const Comp = asChild ? Slot.Root : "div";
+  // Local convention: spell out the JSX binding while preserving the primitive props.
+  const Component = asChild ? Slot.Root : "div";
   return (
-    <Comp
+    <Component
       data-slot="item"
       data-variant={variant}
       data-size={size}

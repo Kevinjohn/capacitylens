@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useStore } from "../../store/useStore";
 import { useFieldError } from "../../hooks/useFieldError";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { validateText } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/staleEdit";
+import { isStaleEdit } from "../../lib/isStaleEdit";
 import { m } from "@/i18n";
 import { FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
 import { FieldError } from "../ui/field";
@@ -19,8 +19,8 @@ import type { Resource } from "@capacitylens/shared/types/entities";
  * per DECISIONS.md "external kind". Store rejections surface as a form error, like ResourceForm.
  */
 export function ExternalForm({ resource, onClose }: { resource?: Resource; onClose: () => void }) {
-  const add = useStore((s) => s.addResource);
-  const update = useStore((s) => s.updateResource);
+  const add = useStore((state) => state.addResource);
+  const update = useStore((state) => state.updateResource);
   const [name, setName] = useState(resource?.name ?? "");
   const [role, setRole] = useState(resource?.role ?? "");
   const { error, errorField, errorId, fail } = useFieldError();
@@ -54,7 +54,7 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
       } else add(patch);
       onClose();
     } catch (e) {
-      fail(null, errorMessage(e));
+      fail(null, resolveErrorMessage(e));
     }
   };
 

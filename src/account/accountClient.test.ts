@@ -14,7 +14,7 @@ vi.mock("../data/apiConfig", () => ({ API_BASE: "https://app.example" }));
 vi.mock("../data/requestTimeout", () => ({
   apiFetch: mocks.apiFetch,
   API_BULK_TIMEOUT_MS: 120_000,
-  requestSignal: mocks.requestSignal,
+  createRequestSignal: mocks.requestSignal,
 }));
 vi.mock("../auth/apiFetchReauth", () => ({
   apiFetchReauth: mocks.apiFetchReauth,
@@ -22,11 +22,11 @@ vi.mock("../auth/apiFetchReauth", () => ({
 
 import {
   accountClient,
-  accountCommandOutcomeUnknown,
-  accountCommandOutcomeWasUnknown,
+  readUnknownAccountCommandOutcome,
+  hasUnknownAccountCommandOutcome,
   bindStoredAccountCommandsToIdentity,
   clearStoredAccountCommands,
-  newBrowserAccountCommand,
+  createBrowserAccountCommand,
 } from "./accountClient";
 import { announceAuditWarning, AUDIT_WARNING_EVENT } from "../lib/auditWarning";
 
@@ -56,7 +56,7 @@ describe("browser account client", () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000000")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000001");
-    expect(newBrowserAccountCommand()).toEqual({
+    expect(createBrowserAccountCommand()).toEqual({
       commandId: "00000000-0000-4000-8000-000000000000",
       idempotencyKey: "00000000-0000-4000-8000-000000000001",
     });
@@ -256,7 +256,7 @@ describe("browser account client", () => {
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
     const ambiguous = await accountClient.eraseWorkspace("workspace-1");
-    expect(accountCommandOutcomeWasUnknown(ambiguous)).toBe(true);
+    expect(hasUnknownAccountCommandOutcome(ambiguous)).toBe(true);
     await accountClient.eraseWorkspace("workspace-1");
     await accountClient.eraseWorkspace("workspace-1");
 
@@ -488,21 +488,21 @@ describe("browser account client", () => {
 
   it("classifies server and in-progress responses as unknown without consuming the body", async () => {
     const inProgress = Response.json({ code: "COMMAND_IN_PROGRESS", error: "Still running." }, { status: 409 });
-    await expect(accountCommandOutcomeUnknown(inProgress)).resolves.toBe(true);
+    await expect(readUnknownAccountCommandOutcome(inProgress)).resolves.toBe(true);
     await expect(inProgress.json()).resolves.toMatchObject({
       error: "Still running.",
     });
-    await expect(accountCommandOutcomeUnknown(new Response(null, { status: 408 }))).resolves.toBe(true);
-    await expect(accountCommandOutcomeUnknown(new Response(null, { status: 503 }))).resolves.toBe(true);
+    await expect(readUnknownAccountCommandOutcome(new Response(null, { status: 408 }))).resolves.toBe(true);
+    await expect(readUnknownAccountCommandOutcome(new Response(null, { status: 503 }))).resolves.toBe(true);
     await expect(
-      accountCommandOutcomeUnknown(Response.json({ code: "IDEMPOTENCY_CONFLICT" }, { status: 409 })),
+      readUnknownAccountCommandOutcome(Response.json({ code: "IDEMPOTENCY_CONFLICT" }, { status: 409 })),
     ).resolves.toBe(false);
   });
 
   it.each(["INVITATION_USED", "CONFLICT", "AUTHORITY_CHANGED", "IDEMPOTENCY_CONFLICT"])(
     "classifies the known terminal 409 code %s as final",
     async (code) => {
-      await expect(accountCommandOutcomeUnknown(Response.json({ code }, { status: 409 }))).resolves.toBe(false);
+      await expect(readUnknownAccountCommandOutcome(Response.json({ code }, { status: 409 }))).resolves.toBe(false);
     },
   );
 
@@ -514,10 +514,10 @@ describe("browser account client", () => {
       }),
     } as unknown as Response;
 
-    await expect(accountCommandOutcomeUnknown(new Response("truncated", { status: 409 }))).resolves.toBe(true);
-    await expect(accountCommandOutcomeUnknown(unreadable)).resolves.toBe(true);
+    await expect(readUnknownAccountCommandOutcome(new Response("truncated", { status: 409 }))).resolves.toBe(true);
+    await expect(readUnknownAccountCommandOutcome(unreadable)).resolves.toBe(true);
     await expect(
-      accountCommandOutcomeUnknown(Response.json({ code: "FUTURE_CONFLICT_CODE" }, { status: 409 })),
+      readUnknownAccountCommandOutcome(Response.json({ code: "FUTURE_CONFLICT_CODE" }, { status: 409 })),
     ).resolves.toBe(true);
   });
 });

@@ -1,15 +1,15 @@
 import { m } from "@/i18n";
-import { labelsFrom, toOptions } from "../../lib/metadata";
+import { buildLabels, buildLabelOptions } from "../../lib/metadata";
 import { SegmentedControl, SwitchField } from "../common/ui";
 import { SettingsSection } from "./SettingsSection";
 
 import type { StoreState } from "../../store/useStore";
 import { BAR_LABEL_MESSAGES, THEME_MESSAGES, UTILIZATION_MESSAGES } from "./settingsLabels";
 export function SettingsAppearanceSection({
-  barLabelPrefs,
-  setBarLabelPref,
-  utilizationPrefs,
-  setUtilizationPref,
+  barLabelPrefs: barLabelPreferences,
+  setBarLabelPref: setBarLabelPreference,
+  utilizationPrefs: utilizationPreferences,
+  setUtilizationPref: setUtilizationPreference,
   theme,
   setTheme,
   disciplinesEnabled,
@@ -26,12 +26,12 @@ export function SettingsAppearanceSection({
     <>
       <SettingsSection title={m.settings_bar_labels_heading()} help={m.settings_bar_labels_intro()}>
         <div className="flex flex-col gap-3">
-          {toOptions(labelsFrom(BAR_LABEL_MESSAGES)).map((opt) => (
+          {buildLabelOptions(buildLabels(BAR_LABEL_MESSAGES)).map((option) => (
             <SwitchField
-              key={opt.value}
-              label={opt.label}
-              checked={barLabelPrefs[opt.value]}
-              onChange={(next) => setBarLabelPref(opt.value, next)}
+              key={option.value}
+              label={option.label}
+              checked={barLabelPreferences[option.value]}
+              onChange={(next) => setBarLabelPreference(option.value, next)}
             />
           ))}
         </div>
@@ -40,14 +40,14 @@ export function SettingsAppearanceSection({
       <SettingsSection title={m.settings_utilisation_heading()} help={m.settings_utilisation_intro()}>
         <div className="flex flex-col gap-3">
           {/* The per-discipline figure has nothing to attach to when disciplines are off. */}
-          {toOptions(labelsFrom(UTILIZATION_MESSAGES))
-            .filter((opt) => disciplinesEnabled || opt.value !== "showDiscipline")
-            .map((opt) => (
+          {buildLabelOptions(buildLabels(UTILIZATION_MESSAGES))
+            .filter((option) => disciplinesEnabled || option.value !== "showDiscipline")
+            .map((option) => (
               <SwitchField
-                key={opt.value}
-                label={opt.label}
-                checked={utilizationPrefs[opt.value]}
-                onChange={(next) => setUtilizationPref(opt.value, next)}
+                key={option.value}
+                label={option.label}
+                checked={utilizationPreferences[option.value]}
+                onChange={(next) => setUtilizationPreference(option.value, next)}
               />
             ))}
         </div>
@@ -58,7 +58,7 @@ export function SettingsAppearanceSection({
           ariaLabel={m.settings_appearance_aria()}
           value={theme}
           onChange={setTheme}
-          options={toOptions(labelsFrom(THEME_MESSAGES))}
+          options={buildLabelOptions(buildLabels(THEME_MESSAGES))}
         />
       </SettingsSection>
     </>

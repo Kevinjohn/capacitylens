@@ -8,7 +8,7 @@ import { createResourceSlice } from "./resourceSlice";
 import { createRuntimeSlice } from "./runtimeSlice";
 import { createSchedulerSlice } from "./schedulerSlice";
 import { createStoreInternals } from "../storeInternal";
-import { emptyFilters, useStore } from "../useStore";
+import { buildEmptyFilters, useStore } from "../useStore";
 
 describe("store slice composition", () => {
   it("owns every store key exactly once", () => {
@@ -19,15 +19,15 @@ describe("store slice composition", () => {
       createAccountSlice(internals)(set, get, useStore),
       createHistorySlice(internals)(set, get, useStore),
       createRuntimeSlice(set, get, useStore),
-      createSchedulerSlice(emptyFilters)(set, get, useStore),
+      createSchedulerSlice(buildEmptyFilters)(set, get, useStore),
       createCatalogSlice(internals)(set, get, useStore),
       createResourceSlice(internals)(set, get, useStore),
       createAllocationSlice({
-        guarded: internals.guarded,
-        addAllocationsImpl: internals.addAllocationsImpl,
+        createGuardedAction: internals.createGuardedAction,
+        createAllocations: internals.createAllocations,
         updateOwned: internals.updateOwned,
         assertAllocation: internals.assertAllocation,
-        findOwned: internals.findOwned,
+        resolveOwnedRow: internals.resolveOwnedRow,
         mutate: internals.mutate,
       })(set, get, useStore),
       createLifecycleSlice(internals)(set, get, useStore),

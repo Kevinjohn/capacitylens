@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rowScreenReaderSummary } from "./rowSummary";
+import { buildRowScreenReaderSummary } from "./buildRowScreenReaderSummary";
 import type { RowModel } from "./schedulerModel";
 import type { Resource } from "@capacitylens/shared/types/entities";
 
@@ -37,11 +37,11 @@ const ctx = { showPersonalUtilization: false, visibleSpanLabel: "4 weeks", drawM
 
 describe("rowScreenReaderSummary", () => {
   it("announces only the allocation count for a quiet row", () => {
-    expect(rowScreenReaderSummary(row(), ctx)).toBe("0 allocations.");
+    expect(buildRowScreenReaderSummary(row(), ctx)).toBe("0 allocations.");
   });
 
   it("names every colour-only cue, singular and plural", () => {
-    const summary = rowScreenReaderSummary(
+    const summary = buildRowScreenReaderSummary(
       row({
         overSoon: true,
         conflictDayCount: 1,
@@ -58,16 +58,16 @@ describe("rowScreenReaderSummary", () => {
 
   it("folds in the visible-window utilisation only when the pref is on and the row has capacity", () => {
     const busy = row({ utilization: 0.634 });
-    expect(rowScreenReaderSummary(busy, { ...ctx, showPersonalUtilization: true })).toBe(
+    expect(buildRowScreenReaderSummary(busy, { ...ctx, showPersonalUtilization: true })).toBe(
       "63% utilisation over the visible 4 weeks. 0 allocations.",
     );
     // An external / 3rd party carries no capacity, so a 0% would read as a lie.
     const external = row({ resource: { ...person, kind: "external" }, utilization: 0 });
-    expect(rowScreenReaderSummary(external, { ...ctx, showPersonalUtilization: true })).toBe("0 allocations.");
+    expect(buildRowScreenReaderSummary(external, { ...ctx, showPersonalUtilization: true })).toBe("0 allocations.");
   });
 
   it("drops the allocation count in time-off draw mode", () => {
-    expect(rowScreenReaderSummary(row({ conflictDayCount: 2 }), { ...ctx, drawMode: "timeoff" })).toBe(
+    expect(buildRowScreenReaderSummary(row({ conflictDayCount: 2 }), { ...ctx, drawMode: "timeoff" })).toBe(
       "Over capacity on 2 days. ",
     );
   });

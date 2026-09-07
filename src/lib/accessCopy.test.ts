@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { m } from "@/i18n";
-import { accessLabelFor, accessSummaryFor, roleLabel, roleSummary } from "./accessCopy";
+import { resolveAccessLabel, resolveAccessSummary, resolveRoleLabel, resolveRoleSummary } from "./accessCopy";
 
 const roles: Role[] = ["owner", "admin", "editor", "viewer"];
 
@@ -19,8 +19,8 @@ describe("access copy", () => {
       editor: m.access_role_editor_summary(),
       viewer: m.access_role_viewer_summary(),
     };
-    expect(roleLabel(role)).toBe(labels[role]);
-    expect(roleSummary(role)).toBe(summaries[role]);
+    expect(resolveRoleLabel(role)).toBe(labels[role]);
+    expect(resolveRoleSummary(role)).toBe(summaries[role]);
   });
 
   it("applies offline, demo, open, pending, unavailable and role precedence consistently", () => {
@@ -98,8 +98,8 @@ describe("access copy", () => {
     ] as const;
 
     for (const [input, label, summary] of cases) {
-      expect(accessLabelFor(input)).toBe(label);
-      expect(accessSummaryFor(input)).toBe(summary);
+      expect(resolveAccessLabel(input)).toBe(label);
+      expect(resolveAccessSummary(input)).toBe(summary);
     }
   });
 });

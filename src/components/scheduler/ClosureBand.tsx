@@ -5,7 +5,7 @@ export function ClosureBand({
   closure,
   visibleStart,
   visibleEnd,
-  geom,
+  geom: geometry,
   leftOffset,
   height,
 }: {
@@ -18,7 +18,7 @@ export function ClosureBand({
 }) {
   const start = closure.startDate < visibleStart ? visibleStart : closure.startDate;
   const end = closure.endDate > visibleEnd ? visibleEnd : closure.endDate;
-  const width = geom.widthForDates(start, end);
+  const width = geometry.widthForDates(start, end);
   if (height <= 0 || width <= 0) return null;
 
   return (
@@ -30,7 +30,7 @@ export function ClosureBand({
       aria-hidden="true"
       className="pointer-events-none absolute top-0 flex items-start justify-center overflow-hidden border-x border-line text-2xs font-semibold uppercase tracking-wide text-muted-foreground"
       style={{
-        left: leftOffset + geom.xForDateInGeom(start),
+        left: leftOffset + geometry.xForDateInGeom(start),
         width,
         height,
         background:

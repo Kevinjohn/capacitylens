@@ -3,14 +3,14 @@ import { useStore } from "../store/useStore";
 import { useScopedData } from "../store/useScopedData";
 import { parseData, serializeData } from "@capacitylens/shared/data/transfer";
 import { downloadTextFile } from "../lib/download";
-import { errorMessage } from "../lib/errorMessage";
+import { resolveErrorMessage } from "../lib/errorMessage";
 import { isServerConfigured } from "../data/apiConfig";
 import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "../data/fetchInactiveSlice";
 import { useRole } from "../auth/permissionContext";
 import { can, canSeePrivateNames } from "@capacitylens/shared/domain/access";
 import { ConfirmDialog, Modal } from "./common/ui";
 import { m } from "@/i18n";
-import { undoShortcut } from "../lib/keyboardShortcuts";
+import { buildUndoShortcut } from "../lib/keyboardShortcuts";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { Button } from "./ui/button";
@@ -37,7 +37,7 @@ const SUMMARY: [keyof AppData, () => string][] = [
 ];
 
 function summarize(data: AppData): string {
-  const parts = SUMMARY.filter(([k]) => data[k].length > 0).map(([k, label]) => `${data[k].length} ${label()}`);
+  const parts = SUMMARY.filter(([key]) => data[key].length > 0).map(([k, label]) => `${data[k].length} ${label()}`);
   return parts.length ? parts.join(", ") : m.data_summary_none();
 }
 
@@ -54,8 +54,8 @@ export function ImportExport() {
   // snapshot. Using the raw hook keeps this export decoupled from the view-hiding rule (and complete in
   // the demo build); the normal VIEWS use the active-only projection, this export does not.
   const data = useScopedData();
-  const importData = useStore((s) => s.importData);
-  const setNotice = useStore((s) => s.setNotice);
+  const importData = useStore((state) => state.importData);
+  const setNotice = useStore((state) => state.setNotice);
   const fileRef = useRef<HTMLInputElement>(null);
   // File reads are asynchronous and the hidden input is reset after every selection. Keep a
   // generation so an older, slower read cannot replace the confirmation prepared for the latest
@@ -63,7 +63,7 @@ export function ImportExport() {
   const importSelectionRef = useRef(0);
   const role = useRole();
   const serverMode = isServerConfigured();
-  const activeAccountId = useStore((s) => s.activeAccountId);
+  const activeAccountId = useStore((state) => state.activeAccountId);
   // Import is owner-only in server mode, mirroring the server's own POST /api/import gate: a slice
   // REPLACEMENT is destructive and id-remapping bypasses field-level write pins. In particular, an
   // admin's valid redacted export has no private codeName/real-name fields and must never be accepted
@@ -116,7 +116,7 @@ export function ImportExport() {
       } else if (e instanceof InactiveSliceShapeError) {
         setNotice(m.data_export_incomplete(), "error");
       } else {
-        setNotice(m.data_export_error({ error: errorMessage(e) }), "error");
+        setNotice(m.data_export_error({ error: resolveErrorMessage(e) }), "error");
       }
     } finally {
       exportInFlight.current = false;
@@ -142,7 +142,7 @@ export function ImportExport() {
       // damaged: a data table is not a list.", "This file has too many records (…)", "This file
       // contains no CapacityLens records.") — surface the REAL reason instead of a generic catch-all, so
       // the user (and a contributor) knows why the file was rejected.
-      setNotice(errorMessage(e) || m.data_err_invalid_json({ app: APP_NAME }), "error");
+      setNotice(resolveErrorMessage(e) || m.data_err_invalid_json({ app: APP_NAME }), "error");
     }
   };
 
@@ -166,7 +166,7 @@ export function ImportExport() {
     try {
       ({ imported, skipped } = importData(incoming));
     } catch (e) {
-      setNotice(errorMessage(e) || m.data_import_failed({ status: 0 }), "error");
+      setNotice(resolveErrorMessage(e) || m.data_import_failed({ status: 0 }), "error");
       return;
     }
     // When EVERY record was dropped (imported === 0) the store no-ops — it pushes NO undo
@@ -192,8 +192,8 @@ export function ImportExport() {
         : "";
     setNotice(
       imported === 1
-        ? m.data_imported_one({ count: imported, skipped: skippedNote, shortcut: undoShortcut() })
-        : m.data_imported_other({ count: imported, skipped: skippedNote, shortcut: undoShortcut() }),
+        ? m.data_imported_one({ count: imported, skipped: skippedNote, shortcut: buildUndoShortcut() })
+        : m.data_imported_other({ count: imported, skipped: skippedNote, shortcut: buildUndoShortcut() }),
     );
   };
 
@@ -234,8 +234,8 @@ export function ImportExport() {
           data-testid="import-input"
           className="hidden"
           onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void onImport(f);
+            const file = e.target.files?.[0];
+            if (file) void onImport(file);
             e.target.value = "";
           }}
         />
@@ -282,7 +282,7 @@ export function ImportExport() {
                   the store history never sees, so promising ⌘Z there would be a lie. */}
               {serverMode
                 ? m.data_import_confirm_outro_server()
-                : m.data_import_confirm_outro({ shortcut: undoShortcut() })}
+                : m.data_import_confirm_outro({ shortcut: buildUndoShortcut() })}
             </>
           }
           onConfirm={confirmImport}

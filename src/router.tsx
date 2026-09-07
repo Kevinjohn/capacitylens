@@ -7,41 +7,49 @@ import { SchedulerView } from "./components/scheduler/SchedulerView";
 import { RouteError } from "./components/common/ErrorBoundary";
 import { NotFound } from "./components/common/NotFound";
 import { useStore } from "./store/useStore";
-import { disciplinesEnabledFor } from "./store/selectors";
+import { hasDisciplinesEnabled } from "./store/selectors";
 import { m } from "@/i18n";
 
 // The scheduler is the index route (first paint) so it stays eager. The CRUD list
 // pages are split out — not needed until navigated to, which trims the initial
 // bundle. AppShell wraps <Outlet> in a Suspense boundary for these lazy chunks.
 const ResourceList = lazy(() =>
-  import("./components/resources/ResourceList").then((m) => ({ default: m.ResourceList })),
+  import("./components/resources/ResourceList").then((resource) => ({ default: resource.ResourceList })),
 );
 const DisciplineList = lazy(() =>
-  import("./components/disciplines/DisciplineList").then((m) => ({ default: m.DisciplineList })),
+  import("./components/disciplines/DisciplineList").then((discipline) => ({ default: discipline.DisciplineList })),
 );
-const ClientList = lazy(() => import("./components/clients/ClientList").then((m) => ({ default: m.ClientList })));
-const ProjectList = lazy(() => import("./components/projects/ProjectList").then((m) => ({ default: m.ProjectList })));
+const ClientList = lazy(() =>
+  import("./components/clients/ClientList").then((client) => ({ default: client.ClientList })),
+);
+const ProjectList = lazy(() =>
+  import("./components/projects/ProjectList").then((project) => ({ default: project.ProjectList })),
+);
 const ActivityList = lazy(() =>
-  import("./components/activities/ActivityList").then((m) => ({ default: m.ActivityList })),
+  import("./components/activities/ActivityList").then((activity) => ({ default: activity.ActivityList })),
 );
-const TimeOffList = lazy(() => import("./components/timeoff/TimeOffList").then((m) => ({ default: m.TimeOffList })));
+const TimeOffList = lazy(() =>
+  import("./components/timeoff/TimeOffList").then((timeOffEntry) => ({ default: timeOffEntry.TimeOffList })),
+);
 const TeamAccessView = lazy(() =>
-  import("./components/team/TeamAccessView").then((m) => ({ default: m.TeamAccessView })),
+  import("./components/team/TeamAccessView").then((module) => ({ default: module.TeamAccessView })),
 );
 const SettingsView = lazy(() =>
-  import("./components/settings/SettingsView").then((m) => ({ default: m.SettingsView })),
+  import("./components/settings/SettingsView").then((module) => ({ default: module.SettingsView })),
 );
 // Invite accept: its own top-level route, OUTSIDE AppShell's tenant/account gate so the safe
 // preview and invite-specific onboarding render before a company is selected. AuthProvider carves
 // this route out of the password login wall: an unauthenticated visitor signs in on the invite page,
 // reloads onto the SAME URL, then explicitly accepts as that identity. Lazy so the chunk loads only
 // when an invite link is actually opened.
-const InviteAccept = lazy(() => import("./components/invites/InviteAccept").then((m) => ({ default: m.InviteAccept })));
+const InviteAccept = lazy(() =>
+  import("./components/invites/InviteAccept").then((module) => ({ default: module.InviteAccept })),
+);
 // Password reset (P1.18): like InviteAccept, its own top-level route outside AppShell — but unlike
 // an invite it must render for a visitor with NO session (they're locked out; that's the point), so
 // AuthProvider carves /reset-password/ out of the login wall (see the status 'login' branch there).
 // Lazy for the same bundle reason: the chunk loads only when a reset link is actually opened.
-const ResetPassword = lazy(() => import("./auth/ResetPassword").then((m) => ({ default: m.ResetPassword })));
+const ResetPassword = lazy(() => import("./auth/ResetPassword").then((module) => ({ default: module.ResetPassword })));
 
 export function RouteLoading() {
   return (
@@ -56,7 +64,7 @@ export function RouteLoading() {
 // Disciplines is an optional feature (account.disciplinesEnabled). When off, the nav
 // entry is hidden — guard the route too so a direct URL / bookmark can't reach the page.
 function DisciplineRoute() {
-  const enabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
+  const enabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   return enabled ? <DisciplineList /> : <Navigate to="/" replace />;
 }
 

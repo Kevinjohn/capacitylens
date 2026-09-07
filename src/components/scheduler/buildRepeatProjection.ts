@@ -3,18 +3,18 @@ import { isValidISODate, validateAllocationAssignment } from "@capacitylens/shar
 import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import { MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
-import { projectAllocationDates, repeatPatternForSelection } from "../../lib/repeatingAllocations";
+import { buildRepeatedAllocationDrafts, resolveRepeatPattern } from "../../lib/repeatingAllocations";
 
 import type { AllocationModalSnapshot } from "./allocationModalSnapshot";
 
-export function projectRepeat({
+export function buildRepeatProjection({
   activityId,
   create,
   attributedProjectId,
   daysOfWork,
   daysOver,
-  effEndDate,
-  effHoursPerDay,
+  effEndDate: effectiveEndDate,
+  effHoursPerDay: effectiveHoursPerDay,
   ignoreWeekends,
   isBlocks,
   isDays,
@@ -66,7 +66,7 @@ export function projectRepeat({
   if (!create || repeat === "none" || !selectedResource || !selectedEffectiveWeek || !resourceId || !activityId) {
     return null;
   }
-  if (!isValidISODate(startDate) || !isValidISODate(effEndDate) || effEndDate < startDate) return null;
+  if (!isValidISODate(startDate) || !isValidISODate(effectiveEndDate) || effectiveEndDate < startDate) return null;
   if (
     !isValidISODate(repeatUntil) ||
     repeatUntil < repeatUntilMinimum ||
@@ -74,25 +74,25 @@ export function projectRepeat({
     repeatUntil > repeatUntilMaximum
   )
     return null;
-  if (daysInclusive(startDate, effEndDate) > MAX_SPAN_DAYS) return null;
+  if (daysInclusive(startDate, effectiveEndDate) > MAX_SPAN_DAYS) return null;
   if ((isDays || isBlocks) && (!validDaysOver || !spanFitsDateDomain)) return null;
   if (isDays && !(daysOfWork > 0)) return null;
   if (
     !isExternal &&
     !isBlocks &&
-    !(Number.isFinite(effHoursPerDay) && effHoursPerDay > 0 && effHoursPerDay <= MAX_HOURS_PER_DAY)
+    !(Number.isFinite(effectiveHoursPerDay) && effectiveHoursPerDay > 0 && effectiveHoursPerDay <= MAX_HOURS_PER_DAY)
   )
     return null;
   if (!selectedActivity || !validateAllocationAssignment(selectedResource, selectedEffectiveProjectId).ok) return null;
   try {
-    const { startDates } = generateRepeatingStartDates(startDate, repeatUntil, repeatPatternForSelection(repeat));
-    const drafts = projectAllocationDates(
+    const { startDates } = generateRepeatingStartDates(startDate, repeatUntil, resolveRepeatPattern(repeat));
+    const drafts = buildRepeatedAllocationDrafts(
       {
         resourceId,
         activityId,
         startDate,
-        endDate: effEndDate,
-        hoursPerDay: effHoursPerDay,
+        endDate: effectiveEndDate,
+        hoursPerDay: effectiveHoursPerDay,
         status,
         note: note || undefined,
         ignoreWeekends: isExternal ? true : ignoreWeekends,

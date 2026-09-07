@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { isServerConfigured } from "../../data/apiConfig";
-import { newBrowserAccountCommand, type BrowserAccountCommand } from "../../account/accountClient";
+import { createBrowserAccountCommand, type BrowserAccountCommand } from "../../account/accountClient";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
 import { useAuth, type AuthProviderInfo } from "../../auth/authContext";
@@ -68,7 +68,7 @@ export function useInviteAcceptController(token: string | undefined) {
   // edits the semantic payload, a new idempotency identity is required or the server must correctly
   // reject it as a conflicting reuse of the prior command.
   useEffect(() => {
-    signupCommand.current = newBrowserAccountCommand();
+    signupCommand.current = createBrowserAccountCommand();
   }, [token, name, email, password]);
 
   // Per-route document.title (WCAG 2.4.2). This route renders OUTSIDE AppShell (see router.tsx), so

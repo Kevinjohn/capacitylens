@@ -3,8 +3,8 @@ import type { Resource } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { useStore } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
-import { resourceDisplayName } from "../../lib/metadata";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveResourceDisplayName } from "../../lib/metadata";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 
@@ -16,7 +16,7 @@ export function FavouriteButton({ resource }: { resource: Resource }) {
   if (!canEdit) return null;
 
   const selected = resource.isFavourite === true;
-  const name = resourceDisplayName(resource);
+  const name = resolveResourceDisplayName(resource);
   const label = selected ? m.list_resources_unfavourite_aria({ name }) : m.list_resources_favourite_aria({ name });
 
   return (
@@ -31,7 +31,7 @@ export function FavouriteButton({ resource }: { resource: Resource }) {
         try {
           updateResource(resource.id, { isFavourite: !selected });
         } catch (error) {
-          setNotice(errorMessage(error), "error");
+          setNotice(resolveErrorMessage(error), "error");
         }
       }}
     >

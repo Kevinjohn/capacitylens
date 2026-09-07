@@ -38,7 +38,7 @@ export function setPersistenceSuspended(suspended: boolean): void {
   publish({ ...diagnostics, suspended });
 }
 
-export function persistenceDiagnosticsSnapshot(): PersistenceDiagnostics {
+export function readPersistenceDiagnosticsSnapshot(): PersistenceDiagnostics {
   return diagnostics;
 }
 

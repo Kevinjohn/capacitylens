@@ -1,7 +1,7 @@
 import { isSupportedSocialProviderId, type AuthMode, type AuthProviderInfo, type AuthUser } from "./authContext";
-import { hasDuplicateIdentity } from "../lib/arrayIdentity";
+import { hasDuplicateIdentity } from "../lib/hasDuplicateIdentity";
 
-export type Status =
+export type AuthStatusResult =
   | { kind: "checking" }
   | { kind: "error"; message: string }
   | {
@@ -31,11 +31,11 @@ export type Status =
       hadUnsavedChanges: boolean;
     };
 
-// A 'pass' Status that fails OPEN on the single-company-per-instance fields (see authContext.ts):
+// A 'pass' AuthStatusResult that fails OPEN on the single-company-per-instance fields (see authContext.ts):
 // used for every branch below that can't read a trustworthy canCreateAccount/multiAccount off the
 // wire (an off-spec body, a non-401 non-ok response, or a network failure) — the server 403 remains
 // the real enforcer, so "unknown" must never hide a legitimate "New company" affordance.
-export function passOpen(authMode: AuthMode, user: AuthUser | null): Status {
+export function buildOpenAuthResult(authMode: AuthMode, user: AuthUser | null): AuthStatusResult {
   return {
     kind: "pass",
     authMode,
@@ -51,12 +51,12 @@ export function passOpen(authMode: AuthMode, user: AuthUser | null): Status {
 
 // Narrowing guards for the UNTRUSTED /api/auth/me response body (see fetchAuthStatus). The server
 // is external input — we validate its shape rather than trusting an `as` cast.
-export function isAuthMode(v: unknown): v is AuthMode {
-  return v === "off" || v === "password" || v === "sso";
+export function isAuthMode(value: unknown): value is AuthMode {
+  return value === "off" || value === "password" || value === "sso";
 }
-function isAuthProvider(v: unknown): v is AuthProviderInfo {
-  if (typeof v !== "object" || v === null) return false;
-  const provider = v as Record<string, unknown>;
+function isAuthProvider(value: unknown): value is AuthProviderInfo {
+  if (typeof value !== "object" || value === null) return false;
+  const provider = value as Record<string, unknown>;
   return (
     typeof provider.id === "string" &&
     provider.id.length > 0 &&
@@ -67,10 +67,10 @@ function isAuthProvider(v: unknown): v is AuthProviderInfo {
   );
 }
 
-export function providersFrom(v: unknown): AuthProviderInfo[] {
-  if (!Array.isArray(v)) return [];
+export function parseAuthProviders(value: unknown): AuthProviderInfo[] {
+  if (!Array.isArray(value)) return [];
   const providers: AuthProviderInfo[] = [];
-  for (const candidate of v) {
+  for (const candidate of value) {
     if (isAuthProvider(candidate)) {
       providers.push(candidate);
       continue;
@@ -95,6 +95,6 @@ export function providersFrom(v: unknown): AuthProviderInfo[] {
  *  absent or not a boolean — covers an older server that predates these fields as well as a
  *  malformed response. See `AuthContextValue.canCreateAccount` (authContext.ts) for why "unknown"
  *  means "allowed": the server 403 is the authoritative enforcer, this only gates a UI affordance. */
-export function boolFieldOr(v: unknown, fallback: boolean): boolean {
-  return typeof v === "boolean" ? v : fallback;
+export function resolveBooleanField(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
 }

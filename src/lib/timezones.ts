@@ -1,6 +1,6 @@
 import { m } from "@/i18n";
 
-/** The account default, and the only zone with bespoke display copy (see timeZoneOptionLabel). */
+/** The account default, and the only zone with bespoke display copy (see resolveTimeZoneOptionLabel). */
 export const DEFAULT_TIME_ZONE = "Etc/GMT";
 
 // The engine's zone list is fixed for the lifetime of the page, so it is built once on first use
@@ -14,11 +14,11 @@ let cachedZones: readonly string[] | undefined;
  *
  * Prefers the engine's full `Intl.supportedValuesOf('timeZone')`, ensuring 'Etc/GMT'
  * (the app's default) is present; falls back to a small hand-list on older engines that
- * lack the API. Rendered through {@link timeZoneOptionLabel}, which owns the display copy.
+ * lack the API. Rendered through {@link resolveTimeZoneOptionLabel}, which owns the display copy.
  *
  * The returned array is FROZEN and shared between callers — read it, do not sort or splice it.
  */
-export function supportedTimeZones(): readonly string[] {
+export function listSupportedTimeZones(): readonly string[] {
   cachedZones ??= Object.freeze(buildSupportedTimeZones());
   return cachedZones;
 }
@@ -48,20 +48,20 @@ function buildSupportedTimeZones(): string[] {
 // goes stale. Deliberately NOT caching the resulting label — a zone's offset changes with the
 // date, and a time-based cache has to reason about transitions that can land mid-hour (Lord
 // Howe's half-hour DST step) for a saving the formatter cache already delivers.
-const offsetFormatters = new Map<string, Intl.DateTimeFormat>();
+const offsetFormattersByTimeZone = new Map<string, Intl.DateTimeFormat>();
 
-function offsetFormatter(timeZone: string): Intl.DateTimeFormat {
-  const cached = offsetFormatters.get(timeZone);
+function resolveOffsetFormatter(timeZone: string): Intl.DateTimeFormat {
+  const cached = offsetFormattersByTimeZone.get(timeZone);
   if (cached) return cached;
   const formatter = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "longOffset" });
-  offsetFormatters.set(timeZone, formatter);
+  offsetFormattersByTimeZone.set(timeZone, formatter);
   return formatter;
 }
 
 /** Return the current UTC offset for an IANA zone in a compact, unambiguous form. */
-export function timeZoneOffsetLabel(timeZone: string, date = new Date()): string {
+export function resolveTimeZoneOffsetLabel(timeZone: string, date = new Date()): string {
   try {
-    const value = offsetFormatter(timeZone)
+    const value = resolveOffsetFormatter(timeZone)
       .formatToParts(date)
       .find((part) => part.type === "timeZoneName")?.value;
 
@@ -71,7 +71,7 @@ export function timeZoneOffsetLabel(timeZone: string, date = new Date()): string
     const [, sign, hours, minutes = "00"] = match;
     return `UTC${sign}${hours.padStart(2, "0")}:${minutes}`;
   } catch {
-    // The zone list itself is validated by supportedTimeZones(); this is only a defensive
+    // The zone list itself is validated by listSupportedTimeZones(); this is only a defensive
     // fallback for an older Intl implementation or an unexpected persisted value.
     return "UTC+00:00";
   }
@@ -81,10 +81,10 @@ export function timeZoneOffsetLabel(timeZone: string, date = new Date()): string
  *  'Etc/GMT' — the app default — reads as the localised "GMT" rather than its IANA identifier,
  *  which is the one piece of display copy this list needs; every other zone shows its identifier.
  *  Resolved at CALL time (never at module scope) so the label follows the active locale. */
-export function timeZoneOptionLabel(
+export function resolveTimeZoneOptionLabel(
   timeZone: string,
   displayName = timeZone === DEFAULT_TIME_ZONE ? m.settings_timezone_gmt() : timeZone,
   date = new Date(),
 ): string {
-  return `${displayName} (${timeZoneOffsetLabel(timeZone, date)})`;
+  return `${displayName} (${resolveTimeZoneOffsetLabel(timeZone, date)})`;
 }

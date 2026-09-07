@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   byName,
   compareDisplayNames,
-  engagementFavouriteDisplayNameComparator,
-  favouriteDisplayNameComparator,
+  createEngagementFavouriteDisplayNameComparator,
+  createFavouriteDisplayNameComparator,
 } from "./displayOrder";
 
 describe("display ordering", () => {
@@ -46,12 +46,9 @@ describe("display ordering", () => {
       { id: "favourite-a", name: "alpha", isFavourite: true },
     ];
 
-    expect([...entries].sort(favouriteDisplayNameComparator((entry) => entry.name)).map((entry) => entry.id)).toEqual([
-      "favourite-a",
-      "favourite-b",
-      "normal-a",
-      "normal-b",
-    ]);
+    expect(
+      [...entries].sort(createFavouriteDisplayNameComparator((entry) => entry.name)).map((entry) => entry.id),
+    ).toEqual(["favourite-a", "favourite-b", "normal-a", "normal-b"]);
   });
 
   it("sorts Studio before Supplementary and favourites first within each engagement partition", () => {
@@ -63,7 +60,7 @@ describe("display ordering", () => {
     ];
 
     expect(
-      [...entries].sort(engagementFavouriteDisplayNameComparator((entry) => entry.name)).map((entry) => entry.id),
+      [...entries].sort(createEngagementFavouriteDisplayNameComparator((entry) => entry.name)).map((entry) => entry.id),
     ).toEqual(["studio-favourite", "studio-normal", "supp-favourite", "supp-normal"]);
   });
 });

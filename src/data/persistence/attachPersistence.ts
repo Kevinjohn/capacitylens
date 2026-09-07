@@ -31,7 +31,7 @@ export function attachPersistence(
   store: StoreApi<StoreState>,
   adapter: PersistenceAdapter,
   debounceMs = 300,
-  onError?: (e: unknown) => void,
+  onError?: (error: unknown) => void,
   onSuccess?: () => void,
   serverMode = false,
 ): () => void {
@@ -142,11 +142,11 @@ export function attachPersistence(
   });
   resetPersistenceDiagnostics();
   adapter.setAllocationRewriteHandler?.((revisions) => {
-    const byId = new Map(revisions.map((revision) => [revision.id, revision]));
+    const allocationRevisionsById = new Map(revisions.map((revision) => [revision.id, revision]));
     store.setState((state) => {
       let changed = false;
       const allocations = state.data.allocations.map((allocation) => {
-        const revision = byId.get(allocation.id);
+        const revision = allocationRevisionsById.get(allocation.id);
         if (!revision || allocation.updatedAt !== revision.flushedUpdatedAt) return allocation;
         changed = true;
         return withoutAllocationAttribution(allocation, revision.updatedAt);

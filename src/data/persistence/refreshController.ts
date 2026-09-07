@@ -11,7 +11,7 @@ export function createRefreshController(
   adapter: PersistenceAdapter,
   owner: AttachmentState,
   writes: WriteQueue,
-  onError?: (e: unknown) => void,
+  onError?: (error: unknown) => void,
   onSuccess?: () => void,
 ) {
   const { save } = writes;
@@ -56,9 +56,9 @@ export function createRefreshController(
 
   const refreshActive = async (
     id: string,
-    opts: { abortIfSaveFailed?: boolean } = {},
+    options: { abortIfSaveFailed?: boolean } = {},
   ): Promise<"reloaded" | "skipped" | "failed"> => {
-    const { abortIfSaveFailed = false } = opts;
+    const { abortIfSaveFailed = false } = options;
     // ENTRY GUARD — before the token bump. An out-of-band caller with a STALE id (the lifecycle
     // hook's post-mutation reload resolving after the user switched tenant A→B) must neither
     // reload the wrong tenant NOR cancel a newer switch's in-flight slice load — bumping

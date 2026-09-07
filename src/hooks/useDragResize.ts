@@ -59,23 +59,23 @@ export function useDragResize(args: UseDragResizeArgs) {
 
     // Only react to THIS pointer. Guarded because synthetic/older events may omit
     // pointerId (treat a missing id as "the active pointer").
-    const fromOtherPointer = (ev: PointerEvent) => ev.pointerId !== undefined && ev.pointerId !== pointerId;
+    const isOtherPointer = (event: PointerEvent) => event.pointerId !== undefined && event.pointerId !== pointerId;
 
     // NOTE: the day delta is `indexAtClientX(here) - indexAtClientX(start)`. The
     // divide-by-zero / out-of-range guarding lives in the PURE ColumnGeometry.indexAt (it's
     // total and never returns NaN). This hook intentionally stays guard-free — do NOT wrap
     // these pure calls in try/catch (the guard belongs in the geometry layer). The 4px
     // arm-vs-click test below stays a RAW pixel test, independent of the day snapping.
-    const onMove = (ev: PointerEvent) => {
-      if (fromOtherPointer(ev)) return;
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
+    const onMove = (event: PointerEvent) => {
+      if (isOtherPointer(event)) return;
+      const dx = event.clientX - startX;
+      const dy = event.clientY - startY;
       if (!dragging && Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return;
       dragging = true;
-      const deltaDays = argsRef.current.indexAtClientX(ev.clientX) - argsRef.current.indexAtClientX(startX);
+      const deltaDays = argsRef.current.indexAtClientX(event.clientX) - argsRef.current.indexAtClientX(startX);
       argsRef.current.onPreview(mode, deltaDays, dy, {
-        clientX: ev.clientX,
-        clientY: ev.clientY,
+        clientX: event.clientX,
+        clientY: event.clientY,
       });
     };
     const detach = () => {
@@ -87,20 +87,20 @@ export function useDragResize(args: UseDragResizeArgs) {
       if (captureTarget.hasPointerCapture?.(pointerId)) captureTarget.releasePointerCapture(pointerId);
       teardownRef.current = null;
     };
-    const onUp = (ev: PointerEvent) => {
-      if (fromOtherPointer(ev)) return;
+    const onUp = (event: PointerEvent) => {
+      if (isOtherPointer(event)) return;
       // A mouse shares one pointerId across all buttons. Releasing a secondary button while the
       // primary drag remains held must neither commit nor cancel the armed primary gesture.
-      if (ev.button !== 0) return;
+      if (event.button !== 0) return;
       detach();
       if (!dragging) {
         argsRef.current.onClick?.();
         return;
       }
-      const deltaDays = argsRef.current.indexAtClientX(ev.clientX) - argsRef.current.indexAtClientX(startX);
+      const deltaDays = argsRef.current.indexAtClientX(event.clientX) - argsRef.current.indexAtClientX(startX);
       argsRef.current.onCommit(mode, deltaDays, {
-        clientX: ev.clientX,
-        clientY: ev.clientY,
+        clientX: event.clientX,
+        clientY: event.clientY,
       });
     };
     // THE abandon path, shared by all three ways a gesture can end without committing (pointer
@@ -112,16 +112,16 @@ export function useDragResize(args: UseDragResizeArgs) {
       detach();
       argsRef.current.onCancel?.();
     };
-    const onCancel = (ev: PointerEvent) => {
-      if (fromOtherPointer(ev)) return;
+    const onCancel = (event: PointerEvent) => {
+      if (isOtherPointer(event)) return;
       abort();
     };
     const onLostPointerCapture = () => abort();
     // Keyboard escape hatch: a pointer-only gesture has no way to back out once armed (a
     // resize/move drag has no native "cancel" gesture). Escape takes the same abandon path
     // rather than committing whatever the last preview was.
-    const onKeyDown = (ev: KeyboardEvent) => {
-      if (ev.key !== "Escape") return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
       abort();
     };
 

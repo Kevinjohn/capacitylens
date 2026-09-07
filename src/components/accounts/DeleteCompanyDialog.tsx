@@ -6,7 +6,7 @@ import { todayISO } from "@capacitylens/shared/lib/dateMath";
 import { isServerConfigured } from "../../data/apiConfig";
 import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "../../data/fetchInactiveSlice";
 import { downloadTextFile } from "../../lib/download";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { m } from "@/i18n";
 import { Modal, TextField } from "../common/ui";
 import { Button } from "../ui/button";
@@ -116,7 +116,7 @@ export function DeleteCompanyDialog({
       // Zero-record guard: every real slice carries at least the built-in Internal client, so an
       // all-empty scoped export means the company's data never reached us (or the company is
       // genuinely empty). Refuse to save a file the user would mistake for a real backup.
-      const total = SCOPED_KEYS.reduce((n, key) => n + scoped[key].length, 0);
+      const total = SCOPED_KEYS.reduce((itemCount, key) => itemCount + scoped[key].length, 0);
       if (total === 0) {
         setExportError(null);
         setExportEmpty(true);
@@ -130,7 +130,7 @@ export function DeleteCompanyDialog({
       // the user does NOT proceed to delete believing they have an export they don't. Export and
       // Delete are separate steps, so they can retry or back out.
       setExportEmpty(false);
-      setExportError(errorMessage(e));
+      setExportError(resolveErrorMessage(e));
     } finally {
       setExporting(false);
     }

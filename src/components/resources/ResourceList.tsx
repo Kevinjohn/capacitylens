@@ -2,16 +2,16 @@ import { Fragment, useMemo, useState } from "react";
 import { Plus, Users } from "lucide-react";
 import { useStore } from "../../store/useStore";
 import {
-  disciplinesEnabledFor,
-  externalEnabledFor,
-  groupResourcesByEngagementFor,
-  placeholdersEnabledFor,
+  hasDisciplinesEnabled,
+  hasExternalResourcesEnabled,
+  hasResourceEngagementGrouping,
+  hasPlaceholdersEnabled,
 } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useCrudListState } from "../../hooks/useCrudListState";
 import { AddButton, ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
 import { Separator } from "../ui/separator";
-import { resourceDisplayName } from "../../lib/metadata";
+import { resolveResourceDisplayName } from "../../lib/metadata";
 import { ResourceForm } from "./ResourceForm";
 import { ExternalForm } from "../external/ExternalForm";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
@@ -21,36 +21,38 @@ import { m } from "@/i18n";
 import { Badge } from "../ui/badge";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import {
-  displayNameComparator,
-  engagementFavouriteDisplayNameComparator,
-  favouriteDisplayNameComparator,
+  createDisplayNameComparator,
+  createEngagementFavouriteDisplayNameComparator,
+  createFavouriteDisplayNameComparator,
 } from "../../lib/displayOrder";
 import { FavouriteButton } from "./FavouriteButton";
 import { ExternalResourceSection } from "./ExternalResourceSection";
 
-const byFavouriteResourceDisplayName = favouriteDisplayNameComparator<Resource>(resourceDisplayName);
+const byFavouriteResourceDisplayName = createFavouriteDisplayNameComparator<Resource>(resolveResourceDisplayName);
 const byEngagementFavouriteResourceDisplayName =
-  engagementFavouriteDisplayNameComparator<Resource>(resourceDisplayName);
-const byResourceDisplayName = displayNameComparator<Resource>(resourceDisplayName);
+  createEngagementFavouriteDisplayNameComparator<Resource>(resolveResourceDisplayName);
+const byResourceDisplayName = createDisplayNameComparator<Resource>(resolveResourceDisplayName);
 
 export function ResourceList() {
   const data = useActiveScopedData();
   const resources = data.resources;
   const disciplines = data.disciplines;
-  const disciplineById = useMemo(
+  const disciplinesById = useMemo(
     () => new Map(disciplines.map((discipline) => [discipline.id, discipline])),
     [disciplines],
   );
-  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
-  const groupResourcesByEngagement = useStore((s) => groupResourcesByEngagementFor(s.data, s.activeAccountId));
+  const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
+  const groupResourcesByEngagement = useStore((state) =>
+    hasResourceEngagementGrouping(state.data, state.activeAccountId),
+  );
   // Per-account view pref (default OFF). When off the placeholder feature is hidden, so the
   // Placeholders section and its "Add placeholder" affordance don't render. Existing placeholder
   // resources stay in the data untouched — they simply aren't shown until the pref is turned on.
-  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId));
+  const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
   // Per-account view pref (default OFF), EXACT analog of placeholdersEnabled. When off the External
   // section (rows + "Add external party" affordance) doesn't render; existing externals stay in the
   // data untouched and reappear when re-enabled (Settings → External).
-  const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId));
+  const externalEnabled = useStore((state) => hasExternalResourcesEnabled(state.data, state.activeAccountId));
   // The per-row action now ARCHIVES (soft-delete is reached LATER from Settings → Archived & deleted
   // on an archived row). `archive` branches server/local in useLifecycleActions — and crucially, in
   // SERVER mode it reloads the active slice so the archived row vanishes from this list + the schedule.
@@ -58,7 +60,7 @@ export function ResourceList() {
   const { editing, setEditing, confirming, setConfirming } = useCrudListState<Resource>();
   // External rows get their OWN create/edit/confirm state + the trimmed ExternalForm (no capacity
   // fields), kept separate from the person/placeholder triple above so the two modals never collide.
-  const ext = useCrudListState<Resource>();
+  const externalState = useCrudListState<Resource>();
   // People and placeholders each have their own add button; remember which kind is
   // being created so the right modal opens.
   const [creatingKind, setCreatingKind] = useState<ResourceKind | null>(null);
@@ -72,10 +74,10 @@ export function ResourceList() {
     const people: Resource[] = [];
     const placeholders: Resource[] = [];
     const externals: Resource[] = [];
-    for (const r of resources) {
-      if (r.kind === "person") people.push(r);
-      else if (r.kind === "placeholder") placeholders.push(r);
-      else if (isExternalResource(r)) externals.push(r);
+    for (const resource of resources) {
+      if (resource.kind === "person") people.push(resource);
+      else if (resource.kind === "placeholder") placeholders.push(resource);
+      else if (isExternalResource(resource)) externals.push(resource);
     }
     people.sort(groupResourcesByEngagement ? byEngagementFavouriteResourceDisplayName : byFavouriteResourceDisplayName);
     placeholders.sort(byResourceDisplayName);
@@ -93,32 +95,38 @@ export function ResourceList() {
 
   // A missing or dangling discipline is unassigned. This metadata is appended to the role, so an
   // empty-value glyph would become a misleading trailing "· —" rather than useful information.
-  const disciplineName = (id?: string) => (id ? disciplineById.get(id)?.name : undefined);
+  const resolveDisciplineName = (id?: string) => (id ? disciplinesById.get(id)?.name : undefined);
   // A resource's colour follows its discipline (resources no longer pick their own);
   // fall back to the stored colour for the disciplineless ones — and for everyone when
   // the account doesn't use disciplines.
-  const swatchColor = (r: Resource) =>
-    (disciplinesEnabled && r.disciplineId ? disciplineById.get(r.disciplineId)?.color : undefined) ?? r.color;
+  const resolveSwatchColor = (resource: Resource) =>
+    (disciplinesEnabled && resource.disciplineId ? disciplinesById.get(resource.disciplineId)?.color : undefined) ??
+    resource.color;
 
-  const resourceMetadata = (r: Resource) =>
-    [r.role, disciplinesEnabled ? disciplineName(r.disciplineId) : undefined].filter(Boolean).join(" · ");
+  const buildResourceMetadata = (resource: Resource) =>
+    [resource.role, disciplinesEnabled ? resolveDisciplineName(resource.disciplineId) : undefined]
+      .filter(Boolean)
+      .join(" · ");
 
-  const renderRow = (r: Resource) => {
-    const metadata = resourceMetadata(r);
+  const renderRow = (resource: Resource) => {
+    const metadata = buildResourceMetadata(resource);
     return (
       <Item size="sm" role="listitem" data-testid="resource-row" className="rounded-none">
         <ItemContent className="flex-row flex-wrap items-center gap-2">
-          <ColorSwatch color={swatchColor(r)} />
-          <span className="font-medium">{resourceDisplayName(r)}</span>
-          {r.kind === "placeholder" && <Badge variant="outline">{m.list_resources_placeholder_badge()}</Badge>}
+          <ColorSwatch color={resolveSwatchColor(resource)} />
+          <span className="font-medium">{resolveResourceDisplayName(resource)}</span>
+          {resource.kind === "placeholder" && <Badge variant="outline">{m.list_resources_placeholder_badge()}</Badge>}
           {metadata && <span className="text-sm text-muted-foreground">{` · ${metadata}`}</span>}
         </ItemContent>
         <ItemActions>
-          {r.kind === "person" && <FavouriteButton resource={r} />}
-          <EditButton label={m.list_edit_aria({ name: resourceDisplayName(r) })} onClick={() => setEditing(r)} />
+          {resource.kind === "person" && <FavouriteButton resource={resource} />}
+          <EditButton
+            label={m.list_edit_aria({ name: resolveResourceDisplayName(resource) })}
+            onClick={() => setEditing(resource)}
+          />
           <DeleteButton
-            label={m.list_resources_archive_aria({ name: resourceDisplayName(r) })}
-            onClick={() => setConfirming(r)}
+            label={m.list_resources_archive_aria({ name: resolveResourceDisplayName(resource) })}
+            onClick={() => setConfirming(resource)}
           />
         </ItemActions>
       </Item>
@@ -152,7 +160,7 @@ export function ResourceList() {
       </ItemGroup>
     );
 
-  const engagementSection = (id: string, title: string, rows: Resource[], empty: string, separated = false) => (
+  const renderEngagementSection = (id: string, title: string, rows: Resource[], empty: string, separated = false) => (
     <section aria-labelledby={id}>
       {separated && <Separator className="mt-8" />}
       <h2 id={id} className="mb-4 mt-8 text-lg font-semibold">
@@ -170,13 +178,13 @@ export function ResourceList() {
     >
       {groupResourcesByEngagement && people.length > 0 ? (
         <>
-          {engagementSection(
+          {renderEngagementSection(
             "studio-resources-heading",
             m.list_resources_studio_heading(),
             studioPeople,
             m.list_resources_studio_empty(),
           )}
-          {engagementSection(
+          {renderEngagementSection(
             "supplementary-resources-heading",
             m.list_resources_supplementary_heading(),
             supplementaryPeople,
@@ -220,9 +228,9 @@ export function ResourceList() {
       {externalEnabled && (
         <ExternalResourceSection
           externals={externals}
-          onAdd={() => ext.setCreating(true)}
-          onEdit={(r) => ext.setEditing(r)}
-          onRequestArchive={(r) => ext.setConfirming(r)}
+          onAdd={() => externalState.setCreating(true)}
+          onEdit={(resource) => externalState.setEditing(resource)}
+          onRequestArchive={(resource) => externalState.setConfirming(resource)}
         />
       )}
 
@@ -231,7 +239,7 @@ export function ResourceList() {
       {confirming && (
         <ConfirmDialog
           title={m.list_resources_archive_title()}
-          message={m.list_resources_archive_message({ name: resourceDisplayName(confirming) })}
+          message={m.list_resources_archive_message({ name: resolveResourceDisplayName(confirming) })}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
             void archive("resources", confirming.id);
@@ -243,18 +251,22 @@ export function ResourceList() {
 
       {/* External create/edit reuse the trimmed ExternalForm; the row action archives (soft-delete is
           reached later from Settings → Archived & deleted). */}
-      {ext.creating && <ExternalForm onClose={() => ext.setCreating(false)} />}
-      {ext.editing && <ExternalForm resource={ext.editing} onClose={() => ext.setEditing(null)} />}
-      {ext.confirming && (
+      {externalState.creating && <ExternalForm onClose={() => externalState.setCreating(false)} />}
+      {externalState.editing && (
+        <ExternalForm resource={externalState.editing} onClose={() => externalState.setEditing(null)} />
+      )}
+      {externalState.confirming && (
         <ConfirmDialog
           title={m.list_resources_archive_title()}
-          message={m.list_resources_archive_message({ name: ext.confirming.name ?? ext.confirming.role })}
+          message={m.list_resources_archive_message({
+            name: externalState.confirming.name ?? externalState.confirming.role,
+          })}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
-            void archive("resources", ext.confirming!.id);
-            ext.setConfirming(null);
+            void archive("resources", externalState.confirming!.id);
+            externalState.setConfirming(null);
           }}
-          onCancel={() => ext.setConfirming(null)}
+          onCancel={() => externalState.setConfirming(null)}
         />
       )}
     </ListPage>

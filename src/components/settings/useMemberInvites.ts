@@ -2,18 +2,18 @@ import { useCallback, useState } from "react";
 import { m } from "@/i18n";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import { isAccountEmail } from "@capacitylens/shared/account/validation";
-import { rejectionMessage, teamAccessClient, type TeamInvitation } from "../../account/teamAccessClient";
+import { resolveRejectionMessage, teamAccessClient, type TeamInvitation } from "../../account/teamAccessClient";
 import type { useAuth } from "../../auth/authContext";
 import type { FieldError } from "../../hooks/useFieldError";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import type { MemberActionDependencies } from "./memberActionDependencies";
-import type { memberAccessReconciliation } from "./memberAccessReconciliation";
+import type { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
 
 interface MemberInviteDependencies extends MemberActionDependencies {
   authMode: ReturnType<typeof useAuth>["authMode"];
   clear: FieldError["clear"];
   reloadInvites: () => Promise<void>;
-  reconcileUnknownMutation: ReturnType<typeof memberAccessReconciliation>["reconcileUnknownMutation"];
+  reconcileUnknownMutation: ReturnType<typeof createMemberAccessReconciliation>["reconcileUnknownMutation"];
 }
 
 /** Establish link reconciliation before directory reads, then bind actions to directory outputs. */
@@ -99,7 +99,7 @@ export function useMemberInvites() {
           await reconcileUnknownMutation(
             m.settings_members_error_detail({
               message: m.settings_members_unknown_invite_creation(),
-              error: errorMessage(e),
+              error: resolveErrorMessage(e),
             }),
           );
         }
@@ -116,7 +116,10 @@ export function useMemberInvites() {
               await reconcileUnknownMutation(m.settings_members_unknown_invite_revocation());
               return;
             }
-            fail(null, rejectionMessage(result, m.settings_members_err_revoke_invite({ status: result.status })));
+            fail(
+              null,
+              resolveRejectionMessage(result, m.settings_members_err_revoke_invite({ status: result.status })),
+            );
             return;
           }
           setNotice(m.settings_members_invite_revoked());
@@ -126,7 +129,7 @@ export function useMemberInvites() {
           await reconcileUnknownMutation(
             m.settings_members_error_detail({
               message: m.settings_members_unknown_invite_revocation(),
-              error: errorMessage(e),
+              error: resolveErrorMessage(e),
             }),
           );
         }

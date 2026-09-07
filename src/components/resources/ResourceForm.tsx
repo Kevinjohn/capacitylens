@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { useStore } from "../../store/useStore";
-import { disciplinesEnabledFor } from "../../store/selectors";
+import { hasDisciplinesEnabled } from "../../store/selectors";
 import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { validateText, validateWorkingDays } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/staleEdit";
+import { isStaleEdit } from "../../lib/isStaleEdit";
 import { m } from "@/i18n";
 import {
   FormActions,
@@ -17,7 +17,7 @@ import {
   type Option,
 } from "../common/ui";
 import { FieldError, FieldGroup } from "../ui/field";
-import { resourceEngagementOptions } from "../../lib/metadata";
+import { buildResourceEngagementOptions } from "../../lib/metadata";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import {
   FULL_DAY_HOURS,
@@ -53,12 +53,12 @@ export function ResourceForm({
   kind?: ResourceKind;
   onClose: () => void;
 }) {
-  const add = useStore((s) => s.addResource);
-  const update = useStore((s) => s.updateResource);
+  const add = useStore((state) => state.addResource);
+  const update = useStore((state) => state.updateResource);
   const data = useActiveScopedData();
   // Hide the picker when the account doesn't use disciplines or has none to choose from. Any
   // existing disciplineId on an edited resource is left untouched (the field just isn't shown).
-  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
+  const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   const disciplines = data.disciplines;
   const projects = data.projects;
   const clients = data.clients;
@@ -79,7 +79,10 @@ export function ResourceForm({
   const [projectId, setProjectId] = useState(resource?.projectId ?? "");
   const { error, errorField, errorId, fail } = useFieldError();
 
-  const disciplineOptions: Option[] = disciplines.map((d) => ({ value: d.id, label: d.name }));
+  const disciplineOptions: Option[] = disciplines.map((discipline) => ({
+    value: discipline.id,
+    label: discipline.name,
+  }));
   // The projects×clients join is the only non-trivial cost here (O(n·m) — a `.find` per project);
   // memoised on its actual inputs so it isn't redone on every keystroke elsewhere in the form. The
   // archived-option append below stays OUTSIDE the memo: its label goes through `m.*()`, which must
@@ -87,9 +90,9 @@ export function ResourceForm({
   // validation.ts's "getter, not module-scope const" note), so it's rebuilt un-cached each render.
   const baseProjectOptions: Option[] = useMemo(
     () =>
-      projects.map((p) => {
-        const client = clients.find((c) => c.id === p.clientId);
-        return { value: p.id, label: client ? `${client.name} / ${p.name}` : p.name };
+      projects.map((project) => {
+        const client = clients.find((client) => client.id === project.clientId);
+        return { value: project.id, label: client ? `${client.name} / ${project.name}` : project.name };
       }),
     [projects, clients],
   );
@@ -100,9 +103,9 @@ export function ResourceForm({
   // accepts it), but can't be picked back once the user chooses an active project. (Mirrors
   // ProjectForm's archived-client option.)
   let projectOptions: Option[] = baseProjectOptions;
-  if (resource?.projectId && !projects.some((p) => p.id === resource.projectId)) {
-    const rawProject = raw.projects.find((p) => p.id === resource.projectId);
-    const rawClient = rawProject && raw.clients.find((c) => c.id === rawProject.clientId);
+  if (resource?.projectId && !projects.some((project) => project.id === resource.projectId)) {
+    const rawProject = raw.projects.find((project) => project.id === resource.projectId);
+    const rawClient = rawProject && raw.clients.find((client) => client.id === rawProject.clientId);
     projectOptions = [
       ...baseProjectOptions,
       {
@@ -166,7 +169,7 @@ export function ResourceForm({
       } else add(patch);
       onClose();
     } catch (e) {
-      fail(null, errorMessage(e));
+      fail(null, resolveErrorMessage(e));
     }
   };
 
@@ -218,8 +221,8 @@ export function ResourceForm({
           <SelectField
             label={m.form_resource_engagement_label()}
             value={engagement}
-            onChange={(v) => setEngagement(v as ResourceEngagement)}
-            options={resourceEngagementOptions()}
+            onChange={(value) => setEngagement(value as ResourceEngagement)}
+            options={buildResourceEngagementOptions()}
             layout="label-control"
           />
         )}

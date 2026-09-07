@@ -1,7 +1,7 @@
 import { deleteClientCascade, deleteProjectCascade, deleteResourceCascade } from "@capacitylens/shared/lib/integrity";
 import type { AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
-import { emptyFilters, type LifecycleEntity, type SchedulerUI } from "./types";
-import { nextDataRevision } from "./revisions";
+import { buildEmptyFilters, type LifecycleEntity, type SchedulerUI } from "./types";
+import { readNextDataRevision } from "./revisions";
 
 /** How each tombstone table is physically removed at the END of the lifecycle (purgeEntity): the
  *  row AND its children go together, via the SAME cascades the regular delete* actions use
@@ -9,8 +9,8 @@ import { nextDataRevision } from "./revisions";
  *  nothing, so it alone needs no fresh revision. */
 export const PURGE_CASCADES: Record<LifecycleEntity, (data: AppData, id: ID) => AppData> = {
   resources: (data, id) => deleteResourceCascade(data, id),
-  clients: (data, id) => deleteClientCascade(data, id, nextDataRevision(data)),
-  projects: (data, id) => deleteProjectCascade(data, id, nextDataRevision(data)),
+  clients: (data, id) => deleteClientCascade(data, id, readNextDataRevision(data)),
+  projects: (data, id) => deleteProjectCascade(data, id, readNextDataRevision(data)),
 };
 
 // --- Tenant-boundary resets ----------------------------------------------------------------------
@@ -22,21 +22,21 @@ export const PURGE_CASCADES: Record<LifecycleEntity, (data: AppData, id: ID) => 
 
 /** Every transient, tenant-owned session field, cleared. `notice` is deliberately NOT included:
  *  each boundary has its own message (or none). */
-export const clearedSession = () => ({
+export const buildClearedSession = () => ({
   srAnnouncement: null,
   dirtyForm: false,
   dirtyFormSources: new Set<symbol>(),
   draggingAllocationId: null,
 });
 
-/** The scheduler view blanked for the incoming tenant. Pass an `anchor` ({@link weekAnchor}) to ALSO
+/** The scheduler view blanked for the incoming tenant. Pass an `anchor` ({@link readCurrentWeekAnchor}) to ALSO
  *  open on that account's current week; omit it where the week in view must be preserved. */
 export const resetSchedulerView = (
-  ui: SchedulerUI,
+  schedulerUi: SchedulerUI,
   anchor?: { originDate: ISODate; focusDate: ISODate },
 ): SchedulerUI => ({
-  ...ui,
-  filters: emptyFilters(),
+  ...schedulerUi,
+  filters: buildEmptyFilters(),
   collapsedGroups: [],
   selectedAllocationId: null,
   scrollToResource: null,

@@ -29,7 +29,7 @@ import {
   cacheAccountSlice,
   cacheAuthSnapshot,
   clearAllOfflineData,
-  offlineStateSnapshot,
+  readOfflineStateSnapshot,
   readCachedAccountSlice,
   setOfflineReadState,
   type OfflineAuthSnapshot,
@@ -215,7 +215,7 @@ describe("offline transport fallback", () => {
       const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
 
       await expect(adapter.loadAll()).resolves.toEqual(emptyAppData());
-      expect(offlineStateSnapshot()).toMatchObject({ readOnly: true });
+      expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: true });
     });
   });
 
@@ -231,7 +231,7 @@ describe("offline transport fallback", () => {
       const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
 
       await expect(adapter.loadAll("a1")).rejects.toThrow(/Failed to load state|signal timed out/);
-      expect(offlineStateSnapshot()).toMatchObject({ readOnly: false });
+      expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: false });
     });
   });
 
@@ -243,7 +243,7 @@ describe("offline transport fallback", () => {
         vi.fn(async () => new Response(null, { status: 403 })) as unknown as typeof fetch,
       );
       await expect(clientRejection.loadAll("a1")).rejects.toThrow("Failed to load state (403)");
-      expect(offlineStateSnapshot()).toMatchObject({ readOnly: false });
+      expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: false });
     });
   });
 });
@@ -368,7 +368,7 @@ describe("ServerSyncAdapter.loadAll", () => {
     try {
       await expect(adapter.loadAll()).resolves.toEqual(emptyAppData());
       expect(fetchImpl).toHaveBeenCalledTimes(1);
-      expect(offlineStateSnapshot()).toMatchObject({ readOnly: false });
+      expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: false });
     } finally {
       setOfflineReadState("cleanup", false);
     }
@@ -2329,7 +2329,7 @@ describe("ServerSyncAdapter fault-injection branches", () => {
     setOfflineReadState("tenant", true, 123);
     resolveFirst(new Response(null, { status: 400 }));
     await expect(staleLoad).resolves.toEqual(emptyAppData());
-    expect(offlineStateSnapshot()).toMatchObject({ readOnly: true, lastUpdated: 123 });
+    expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: true, lastUpdated: 123 });
 
     await adapter.saveAll(fresh);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
@@ -2370,8 +2370,8 @@ describe("ServerSyncAdapter fault-injection branches", () => {
         accounts: [{ id: "a1" }],
         clients: expect.arrayContaining([expect.objectContaining({ id: "internal:a1" })]),
       });
-      expect(offlineStateSnapshot().readOnly).toBe(true);
-      expect(offlineStateSnapshot().lastUpdated).toEqual(expect.any(Number));
+      expect(readOfflineStateSnapshot().readOnly).toBe(true);
+      expect(readOfflineStateSnapshot().lastUpdated).toEqual(expect.any(Number));
     });
   });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatUtilizationPercent } from "./utilizationPercent";
+import { formatUtilizationPercent } from "./formatUtilizationPercent";
 
 describe("formatUtilizationPercent", () => {
   it.each([

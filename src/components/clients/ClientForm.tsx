@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useStore } from "../../store/useStore";
 import { useFieldError } from "../../hooks/useFieldError";
-import { errorMessage } from "../../lib/errorMessage";
+import { resolveErrorMessage } from "../../lib/errorMessage";
 import { validateHex, validateName } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/staleEdit";
+import { isStaleEdit } from "../../lib/isStaleEdit";
 import { m } from "@/i18n";
 import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
 import { PrivateNameFields } from "../common/PrivateNameFields";
@@ -14,8 +14,8 @@ import type { Client } from "@capacitylens/shared/types/entities";
 
 /** Add (no `client`) or edit a client: name + preset colour. `onClose` fires on save or cancel. */
 export function ClientForm({ client, onClose }: { client?: Client; onClose: () => void }) {
-  const addClient = useStore((s) => s.addClient);
-  const updateClient = useStore((s) => s.updateClient);
+  const addClient = useStore((state) => state.addClient);
+  const updateClient = useStore((state) => state.updateClient);
   const [name, setName] = useState(client?.name ?? "");
   const [color, setColor] = useState(client?.color ?? DEFAULT_COLORS.client);
   const { error, errorField, errorId, fail } = useFieldError();
@@ -43,7 +43,7 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
       }
       onClose();
     } catch (e) {
-      fail(null, errorMessage(e));
+      fail(null, resolveErrorMessage(e));
     }
   };
 

@@ -4,7 +4,7 @@ import { useStore } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
 import { ensureBarColors } from "@capacitylens/shared/lib/color";
 import { formatDayMonth } from "../../lib/dateDisplay";
-import { allocationStatusLabel } from "../../lib/metadata";
+import { resolveAllocationStatusLabel } from "../../lib/metadata";
 import { LAYOUT } from "./layout";
 import type { ColumnGeometry } from "./columnGeometry";
 import type { ID } from "@capacitylens/shared/types/entities";
@@ -16,7 +16,7 @@ import { Repeat2 } from "lucide-react";
 /** Hours/day for display: days-mode rescaling can yield a repeating decimal
  *  (e.g. 24h over 7 working days = 3.4285…), so round to 2 dp for labels/popovers.
  *  The stored value stays exact; only what's shown is trimmed. */
-const hoursLabel = (n: number) => Math.round(n * 100) / 100;
+const roundDisplayHours = (hours: number) => Math.round(hours * 100) / 100;
 
 /**
  * One draggable/resizable allocation bar in a resource lane.
@@ -25,7 +25,7 @@ const hoursLabel = (n: number) => Math.round(n * 100) / 100;
  * - **Armed on pointerdown.** The gesture controller only sets up side effects once its drag hook
  *   confirms the gesture is armed (left button, not re-entrant) — otherwise the scroll-watch and
  *   lane snapshot would leak with no commit/cancel/click to tear them down.
- * - **Side effects + teardown.** Arming takes a one-time `snapshotLanes()` (cached lane rects, to
+ * - **Side effects + teardown.** Arming takes a one-time `readLaneSnapshots()` (cached lane rects, to
  *   avoid per-move layout thrash) and starts a capture-phase scroll watcher that re-snapshots on
  *   scroll (a drop after a scroll would otherwise hit-test stale rects and reassign to the wrong
  *   row). Both are torn down on commit/cancel/click AND on unmount (the cleanup effect), so a bar
@@ -38,7 +38,7 @@ const hoursLabel = (n: number) => Math.round(n * 100) / 100;
  */
 export const AllocationBar = memo(function AllocationBar({
   bar,
-  geom,
+  geom: geometry,
   indexAtClientX,
   onEdit,
 }: {
@@ -62,7 +62,7 @@ export const AllocationBar = memo(function AllocationBar({
   const canEdit = useCanEdit();
   const { isBlocks, dragging, left, width, translateY, onPointerDown, nudge } = useAllocationGesture({
     bar,
-    geom,
+    geom: geometry,
     indexAtClientX,
     onEdit,
   });
@@ -70,7 +70,7 @@ export const AllocationBar = memo(function AllocationBar({
   // blocks do. The assignee's kind is already on the bar (from the model), so read it there rather
   // than re-scanning the store per render.
   const hideHours = isBlocks || bar.external;
-  const barLabelPrefs = useStore((s) => s.barLabelPrefs);
+  const barLabelPreferences = useStore((state) => state.barLabelPrefs);
   // Hover/focus detail popover (real card, available to keyboard too — replaces the title tooltip).
   // Radix Tooltip owns positioning/collision/portal-layering now; the manual enter/leave/focus/blur
   // handlers below are the SOLE authors of this open flag. We deliberately do NOT wire Radix's
@@ -108,14 +108,14 @@ export const AllocationBar = memo(function AllocationBar({
   // bar.color is always a valid preset hex — resolveBarColor (schedulerModel) returns a preset
   // or discipline-derived swatch, never a user-typed hex ("preset swatches only" invariant) — so
   // the contrast loop is bounded (a malformed hex couldn't send it off the WCAG-step rails).
-  const { bg, ink } = useMemo(() => ensureBarColors(bar.color), [bar.color]);
+  const { bg: background, ink } = useMemo(() => ensureBarColors(bar.color), [bar.color]);
 
   // Client · Project context ahead of the activity name, per the device-global display
   // toggles. A bar without the metadata (e.g. a general activity with no project) skips
   // those parts. The popover keeps its own project/client line, so it stays activity-first.
   const labelText = [
-    barLabelPrefs.showClient ? bar.client : undefined,
-    barLabelPrefs.showProject ? bar.project : undefined,
+    barLabelPreferences.showClient ? bar.client : undefined,
+    barLabelPreferences.showProject ? bar.project : undefined,
     bar.label,
   ]
     .filter(Boolean)
@@ -134,10 +134,10 @@ export const AllocationBar = memo(function AllocationBar({
   // switch rebuilds the allocation, so `bar.allocation` covers that too.
   const ariaLabel = useMemo(() => {
     const shared = {
-      hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) }),
+      hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: roundDisplayHours(bar.allocation.hoursPerDay) }),
       // Speak the HUMANISED status + 'd MMM' dates the popover already shows — a SR must hear
       // "Tentative … 1 Jun to 5 Jun", not the raw enum + ISO ("tentative … 2026-06-01").
-      status: allocationStatusLabel(bar.allocation.status),
+      status: resolveAllocationStatusLabel(bar.allocation.status),
       start: formatDayMonth(bar.allocation.startDate),
       end: formatDayMonth(bar.allocation.endDate),
       series: bar.seriesEnd ? m.scheduler_bar_aria_series({ end: formatDayMonth(bar.seriesEnd) }) : "",
@@ -240,7 +240,7 @@ export const AllocationBar = memo(function AllocationBar({
             width: insetWidth,
             top: bar.top,
             height: LAYOUT.barHeight,
-            backgroundColor: bg,
+            backgroundColor: background,
             color: ink,
             // Tentative is signalled by the dashed border + hatch overlay below — NOT by
             // element opacity, which used to wash out the label and break its contrast.
@@ -288,7 +288,7 @@ export const AllocationBar = memo(function AllocationBar({
             <span className="truncate">
               {completed ? "✓ " : ""}
               {labelText}
-              {hideHours ? "" : m.scheduler_bar_hours_suffix({ hours: hoursLabel(bar.allocation.hoursPerDay) })}
+              {hideHours ? "" : m.scheduler_bar_hours_suffix({ hours: roundDisplayHours(bar.allocation.hoursPerDay) })}
               {bar.allocation.note ? " •" : ""}
             </span>
           </span>
@@ -330,7 +330,7 @@ export const AllocationBar = memo(function AllocationBar({
           <div className="mb-1 flex items-center gap-2">
             <span
               className="inline-block size-2.5 shrink-0 rounded-full ring-1 ring-inset ring-black/10"
-              style={{ backgroundColor: bg }}
+              style={{ backgroundColor: background }}
             />
             <span className="font-semibold">{bar.label}</span>
           </div>
@@ -343,8 +343,10 @@ export const AllocationBar = memo(function AllocationBar({
           )}
           <div className="text-muted-foreground">
             {formatDayMonth(bar.allocation.startDate)} – {formatDayMonth(bar.allocation.endDate)}
-            {hideHours ? "" : m.scheduler_bar_pop_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) })} ·{" "}
-            {allocationStatusLabel(bar.allocation.status)}
+            {hideHours
+              ? ""
+              : m.scheduler_bar_pop_hours({ hours: roundDisplayHours(bar.allocation.hoursPerDay) })} ·{" "}
+            {resolveAllocationStatusLabel(bar.allocation.status)}
           </div>
           {bar.seriesEnd && (
             <div className="mt-1 text-muted-foreground">

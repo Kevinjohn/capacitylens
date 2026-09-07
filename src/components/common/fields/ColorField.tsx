@@ -1,12 +1,18 @@
 import { useState } from "react";
-import { SWATCHES, SWATCH_COLUMNS, swatchLabel, colorName, swatchIndexOf } from "../../../lib/palette";
+import {
+  SWATCHES,
+  SWATCH_COLUMNS,
+  resolveSwatchLabel,
+  resolveColorName,
+  resolveSwatchIndex,
+} from "../../../lib/palette";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
 import { Field, FieldLabel } from "../../ui/field";
 import { Button } from "../../ui/button";
 import { cn } from "@/lib/utils";
 import { m } from "@/i18n";
 import { useMarkFormDirty } from "../formDirty";
-import { productFieldLayoutProps } from "./fieldLayoutProps";
+import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
 import type { ProductFieldLayout } from "./fieldTypes";
 
 // A swatch picker, not a hex/RGB tool: a trigger showing the current colour opens a
@@ -22,7 +28,7 @@ export function ColorField({
 }: {
   label: string;
   value: string;
-  onChange: (v: string) => void;
+  onChange: (value: string) => void;
   invalid?: boolean;
   describedById?: string;
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
@@ -30,10 +36,10 @@ export function ColorField({
 }) {
   const markDirty = useMarkFormDirty();
   const [open, setOpen] = useState(false);
-  const selectedIndex = Math.max(0, swatchIndexOf(value));
+  const selectedIndex = Math.max(0, resolveSwatchIndex(value));
 
   return (
-    <Field data-invalid={invalid || undefined} {...productFieldLayoutProps(layout)}>
+    <Field data-invalid={invalid || undefined} {...buildProductFieldLayoutProps(layout)}>
       <FieldLabel>{label}</FieldLabel>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -42,7 +48,7 @@ export function ColorField({
             variant="outline"
             aria-label={m.swatch_trigger_label({
               label,
-              color: colorName(value),
+              color: resolveColorName(value),
             })}
             aria-invalid={invalid || undefined}
             aria-describedby={invalid ? describedById : undefined}
@@ -71,7 +77,7 @@ export function ColorField({
                 key={hex}
                 type="button"
                 role="radio"
-                aria-label={swatchLabel(i)}
+                aria-label={resolveSwatchLabel(i)}
                 data-form-dirty-managed
                 aria-checked={selected}
                 tabIndex={i === selectedIndex ? 0 : -1}

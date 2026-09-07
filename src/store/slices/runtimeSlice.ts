@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import {
-  defaultSidebarOpen,
+  readDefaultSidebarOpen,
   readStoredBarLabelPrefs,
   readStoredFakeSignedIn,
   readStoredGettingStartedDismissed,
@@ -86,7 +86,7 @@ type PersistedFlagKey =
 
 const legacyDirtyFormSource = Symbol("setDirtyForm");
 
-function dirtyFormState(state: StoreState, source: symbol, dirty: boolean) {
+function applyDirtyFormSource(state: StoreState, source: symbol, dirty: boolean) {
   const dirtyFormSources = new Set(state.dirtyFormSources);
   if (dirty) dirtyFormSources.add(source);
   else dirtyFormSources.delete(source);
@@ -98,7 +98,7 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
   // Every device-global preference setter has the same body — write the pref to its own
   // localStorage key, then publish it — so the shape is declared ONCE here and each setter below
   // names only its key and its writer. setTheme stays bespoke: it also repaints the DOM.
-  const persistedFlag =
+  const createPersistedFlagSetter =
     <K extends PersistedFlagKey>(key: K, write: (value: boolean) => void) =>
     (value: boolean): void => {
       write(value);
@@ -117,7 +117,7 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     theme: readStoredTheme(),
     utilizationPrefs: readStoredUtilizationPrefs(),
     barLabelPrefs: readStoredBarLabelPrefs(),
-    sidebarOpen: readStoredSidebarOpen() ?? defaultSidebarOpen(),
+    sidebarOpen: readStoredSidebarOpen() ?? readDefaultSidebarOpen(),
     minimiseWeekends: readStoredMinimiseWeekends(),
     snapToWeekStart: readStoredSnapToWeekStart(),
     compactView: readStoredCompactView(),
@@ -140,8 +140,8 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
       })),
     // Retain the boolean API as one owned source. Component publishers use setDirtyFormSource so
     // clearing one contribution can never erase another still-dirty owner.
-    setDirtyForm: (value) => set((state) => dirtyFormState(state, legacyDirtyFormSource, value)),
-    setDirtyFormSource: (source, dirty) => set((state) => dirtyFormState(state, source, dirty)),
+    setDirtyForm: (value) => set((state) => applyDirtyFormSource(state, legacyDirtyFormSource, value)),
+    setDirtyFormSource: (source, dirty) => set((state) => applyDirtyFormSource(state, source, dirty)),
     setDraggingAllocation: (id) => set({ draggingAllocationId: id }),
     setTheme: (preference) => {
       writeStoredTheme(preference);
@@ -162,13 +162,16 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
         writeStoredBarLabelPrefs(next);
         return { barLabelPrefs: next };
       }),
-    setSidebarOpen: persistedFlag("sidebarOpen", writeStoredSidebarOpen),
-    setMinimiseWeekends: persistedFlag("minimiseWeekends", writeStoredMinimiseWeekends),
-    setSnapToWeekStart: persistedFlag("snapToWeekStart", writeStoredSnapToWeekStart),
-    setCompactView: persistedFlag("compactView", writeStoredCompactView),
-    setFakeSignedIn: persistedFlag("fakeSignedIn", writeStoredFakeSignedIn),
-    setIntroSeen: persistedFlag("introSeen", writeStoredIntroSeen),
-    setGettingStartedDismissed: persistedFlag("gettingStartedDismissed", writeStoredGettingStartedDismissed),
+    setSidebarOpen: createPersistedFlagSetter("sidebarOpen", writeStoredSidebarOpen),
+    setMinimiseWeekends: createPersistedFlagSetter("minimiseWeekends", writeStoredMinimiseWeekends),
+    setSnapToWeekStart: createPersistedFlagSetter("snapToWeekStart", writeStoredSnapToWeekStart),
+    setCompactView: createPersistedFlagSetter("compactView", writeStoredCompactView),
+    setFakeSignedIn: createPersistedFlagSetter("fakeSignedIn", writeStoredFakeSignedIn),
+    setIntroSeen: createPersistedFlagSetter("introSeen", writeStoredIntroSeen),
+    setGettingStartedDismissed: createPersistedFlagSetter(
+      "gettingStartedDismissed",
+      writeStoredGettingStartedDismissed,
+    ),
     setActiveRole: (role, status = role === null ? "not-applicable" : "resolved") =>
       set({ activeRole: role, activeRoleStatus: status }),
     invalidateMemberships: () => set((state) => ({ membershipRevision: state.membershipRevision + 1 })),

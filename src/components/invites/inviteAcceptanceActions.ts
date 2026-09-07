@@ -2,12 +2,12 @@ import type { Dispatch, SetStateAction, RefObject } from "react";
 import type { InviteAcceptState } from "./InviteAcceptView";
 import {
   accountClient,
-  accountCommandOutcomeUnknown,
-  newBrowserAccountCommand,
+  readUnknownAccountCommandOutcome,
+  createBrowserAccountCommand,
   type BrowserAccountCommand,
 } from "../../account/accountClient";
 import { m } from "@/i18n";
-import { accountFailure, messageForStatus } from "./inviteResponses";
+import { readAccountFailure, resolveMessageForStatus } from "./inviteResponses";
 import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
 import { isAccountRole } from "@capacitylens/shared/account/types";
 import { useStore } from "../../store/useStore";
@@ -37,18 +37,18 @@ export function createInviteAcceptanceActions({
     setBusy(true);
     setState({ kind: "accepting" });
     try {
-      const command = acceptCommand.current ?? (acceptCommand.current = newBrowserAccountCommand());
+      const command = acceptCommand.current ?? (acceptCommand.current = createBrowserAccountCommand());
       const res = await accountClient.acceptInvitation(token, command);
       if (!res.ok) {
-        const outcomeUnknown = await accountCommandOutcomeUnknown(res);
-        const failure = await accountFailure(res);
+        const outcomeUnknown = await readUnknownAccountCommandOutcome(res);
+        const failure = await readAccountFailure(res);
         if (res.status >= 400 && res.status < 500 && !outcomeUnknown) {
-          acceptCommand.current = newBrowserAccountCommand();
+          acceptCommand.current = createBrowserAccountCommand();
         }
         if (res.status === 401) {
           setState({
             kind: "auth",
-            message: messageForStatus(401, failure.message ?? undefined),
+            message: resolveMessageForStatus(401, failure.message ?? undefined),
           });
         } else {
           let reconciliation = "";
@@ -65,7 +65,7 @@ export function createInviteAcceptanceActions({
                 ? m.invite_err_identity_mismatch()
                 : outcomeUnknown
                   ? `${failure.message ?? m.invite_unknown_pending()} ${reconciliation}`
-                  : messageForStatus(res.status, failure.message ?? undefined),
+                  : resolveMessageForStatus(res.status, failure.message ?? undefined),
             retryAccept: outcomeUnknown,
             switchIdentity: failure.code === "INVITATION_EMAIL_MISMATCH",
           });

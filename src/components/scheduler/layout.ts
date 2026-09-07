@@ -61,7 +61,7 @@ const NAV_MENU_GAP_Y = 4;
 const NAV_SECTION_PAD_Y = 8;
 const NAV_SECTION_GAP_Y = 8;
 
-const roomy = (value: number, scale: number = DENSITY_SCALE): number => Math.round(value * scale);
+const resolveRoomySize = (value: number, scale: number = DENSITY_SCALE): number => Math.round(value * scale);
 
 export interface SchedulerDensity {
   laneGap: number;
@@ -70,7 +70,7 @@ export interface SchedulerDensity {
   groupHeaderHeight: number;
   /** Height of the left column's identity band — exactly one lane band, so the name/avatar stays
    *  aligned with the first bar however tall a multi-allocation row grows. Mirrors the single-lane
-   *  case of `rowHeightForLanes`; the two must move together. */
+   *  case of `resolveRowHeightForLanes`; the two must move together. */
   identityBandHeight: number;
   /** Toolbar block padding and wrap-row gap, in px. Y axis only: the toolbar's horizontal gap is
    *  fixed, because widening it would make the row wrap sooner and fight the Reflow behaviour
@@ -86,35 +86,35 @@ export interface SchedulerDensity {
 }
 
 /** Vertical geometry for the current density. `compact` true === today's tight layout. */
-export function schedulerDensity(compact: boolean): SchedulerDensity {
-  const laneGap = compact ? LAYOUT.laneGap : roomy(LAYOUT.laneGap, LANE_GAP_SCALE);
-  const rowPadding = compact ? LAYOUT.rowPadding : roomy(LAYOUT.rowPadding);
+export function buildSchedulerDensity(compact: boolean): SchedulerDensity {
+  const laneGap = compact ? LAYOUT.laneGap : resolveRoomySize(LAYOUT.laneGap, LANE_GAP_SCALE);
+  const rowPadding = compact ? LAYOUT.rowPadding : resolveRoomySize(LAYOUT.rowPadding);
   return {
     laneGap,
     rowPadding,
     groupHeaderHeight: LAYOUT.groupHeaderHeight,
     identityBandHeight: rowPadding * 2 + LAYOUT.barHeight,
-    toolbarPadY: compact ? TOOLBAR_PAD_Y : roomy(TOOLBAR_PAD_Y),
-    toolbarGapY: compact ? TOOLBAR_GAP_Y : roomy(TOOLBAR_GAP_Y),
-    navMenuGapY: compact ? NAV_MENU_GAP_Y : roomy(NAV_MENU_GAP_Y),
-    navSectionPadY: compact ? NAV_SECTION_PAD_Y : roomy(NAV_SECTION_PAD_Y),
-    navSectionGapY: compact ? NAV_SECTION_GAP_Y : roomy(NAV_SECTION_GAP_Y),
+    toolbarPadY: compact ? TOOLBAR_PAD_Y : resolveRoomySize(TOOLBAR_PAD_Y),
+    toolbarGapY: compact ? TOOLBAR_GAP_Y : resolveRoomySize(TOOLBAR_GAP_Y),
+    navMenuGapY: compact ? NAV_MENU_GAP_Y : resolveRoomySize(NAV_MENU_GAP_Y),
+    navSectionPadY: compact ? NAV_SECTION_PAD_Y : resolveRoomySize(NAV_SECTION_PAD_Y),
+    navSectionGapY: compact ? NAV_SECTION_GAP_Y : resolveRoomySize(NAV_SECTION_GAP_Y),
   };
 }
 
 /**
  * The active density, for a component that just wants the numbers. Every consumer otherwise
- * repeated the same two lines — subscribe to `compactView`, call {@link schedulerDensity} — and
+ * repeated the same two lines — subscribe to `compactView`, call {@link buildSchedulerDensity} — and
  * the pref is the ONLY input, so there is nothing for a caller to decide. Memoised on the flag,
  * so the object is referentially stable and safe as a `useMemo`/effect dependency.
  */
 export function useSchedulerDensity(): SchedulerDensity {
   const compact = useStore((state) => state.compactView);
-  return useMemo(() => schedulerDensity(compact), [compact]);
+  return useMemo(() => buildSchedulerDensity(compact), [compact]);
 }
 
-/** The lane-packing projection of `schedulerDensity`, handed to buildSchedulerModel. */
-export function laneLayoutFor(compact: boolean): LaneLayout {
-  const density = schedulerDensity(compact);
+/** The lane-packing projection of `buildSchedulerDensity`, handed to buildSchedulerModel. */
+export function buildLaneLayout(compact: boolean): LaneLayout {
+  const density = buildSchedulerDensity(compact);
   return { barHeight: LAYOUT.barHeight, laneGap: density.laneGap, rowPadding: density.rowPadding };
 }
