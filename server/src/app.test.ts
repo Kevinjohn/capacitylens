@@ -694,13 +694,13 @@ describe("CRUD round-trip", () => {
     // A scoped delete MUST assert its owner; omitting accountId can't prove ownership, so
     // it is a 400 rather than an unscoped delete-by-id (the old tenant-guard bypass).
     expect((await call(app, { method: "DELETE", url: "/api/clients/c1" })).statusCode).toBe(400);
-    expect((await state(app)).clients).toHaveLength(1); // not deleted
+    expect(await readStateClients(app)).toHaveLength(1); // not deleted
   });
 
   it("preserves the immutable createdAt on update (a PUT cannot rewrite it)", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    const original = (await state(app)).clients[0].createdAt;
+    const original = readFirstClient(await readStateClients(app)).createdAt;
     await put({
       app,
       entity: "clients",
@@ -711,7 +711,7 @@ describe("CRUD round-trip", () => {
         createdAt: "2099-01-01T00:00:00.000Z",
       },
     });
-    const after = (await state(app)).clients[0];
+    const after = readFirstClient(await readStateClients(app));
     expect(after.name).toBe("Renamed"); // everything else updates
     expect(after.createdAt).toBe(original); // …but createdAt is preserved
   });
@@ -721,7 +721,7 @@ describe("CRUD round-trip", () => {
     await post(app, "accounts", account("a1"));
     expect((await call(app, { method: "GET", url: "/api/meta" })).json()).toEqual({ hasData: true });
     await del({ app, entity: "accounts", id: "a1" }); // user empties everything
-    expect((await state(app)).accounts).toHaveLength(0);
+    expect((await readValidatedState(app)).accounts).toHaveLength(0);
     // Still "initialised" — a reload must NOT mistake an emptied dataset for a fresh one.
     expect((await call(app, { method: "GET", url: "/api/meta" })).json()).toEqual({ hasData: true });
   });
@@ -750,15 +750,15 @@ describe("CRUD round-trip", () => {
           id: "c1",
           payload: {
             ...c,
-            updatedAt: replay.json().updatedAt,
+            updatedAt: readClientResponse(replay).updatedAt,
             name: "Renamed",
           },
         })
       ).statusCode,
     ).toBe(200);
-    const s = await state(app);
+    const s = await readValidatedState(app);
     expect(s.clients).toHaveLength(1);
-    expect(s.clients[0].name).toBe("Renamed");
+    expect(readFirstClientName(s.clients)).toBe("Renamed");
   });
 
   it("PUT rejects a body id that disagrees with the URL id", async () => {
