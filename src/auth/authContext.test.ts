@@ -26,12 +26,12 @@ describe("strictOidcProvider", () => {
   });
 
   it("ignores social providers entirely", () => {
-    expect(resolveStrictOidcProvider([social])).toBeNull();
+    expect(resolveStrictOidcProvider([social])).toBeUndefined();
     expect(resolveStrictOidcProvider([social, oidc("acme-idp")])).toEqual(oidc("acme-idp"));
   });
 
   it("does not count an experimental OIDC provider as strict", () => {
-    expect(resolveStrictOidcProvider([oidc("lab-idp", true)])).toBeNull();
+    expect(resolveStrictOidcProvider([oidc("lab-idp", true)])).toBeUndefined();
     expect(resolveStrictOidcProvider([oidc("lab-idp", true), oidc("acme-idp")])).toEqual(oidc("acme-idp"));
   });
 
@@ -39,9 +39,9 @@ describe("strictOidcProvider", () => {
     expect(resolveStrictOidcProvider([oidc("first"), oidc("second")])).toEqual(oidc("first"));
   });
 
-  it("yields null for an absent or empty provider list rather than throwing", () => {
-    expect(resolveStrictOidcProvider(undefined)).toBeNull();
-    expect(resolveStrictOidcProvider(null)).toBeNull();
-    expect(resolveStrictOidcProvider([])).toBeNull();
+  it("yields undefined for an absent or empty provider list rather than throwing", () => {
+    expect(resolveStrictOidcProvider(undefined)).toBeUndefined();
+    expect(resolveStrictOidcProvider(null)).toBeUndefined();
+    expect(resolveStrictOidcProvider([])).toBeUndefined();
   });
 });
