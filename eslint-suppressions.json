@@ -374,16 +374,6 @@
       "count": 3
     }
   },
-  "src/lib/capacity/advisory.ts": {
-    "max-params": {
-      "count": 5
-    }
-  },
-  "src/lib/capacity/availability.ts": {
-    "max-params": {
-      "count": 5
-    }
-  },
   "src/lib/displayOrder.ts": {
     "max-params": {
       "count": 1
