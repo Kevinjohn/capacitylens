@@ -13,6 +13,18 @@ import { createServerRevision } from "./revision";
 type ProjectionRow = Record<string, unknown> & { id: string };
 type DeleteAction = "cascade" | "set-null";
 
+interface RelatedRowsInput {
+  parent: AppDataKey;
+  child: AppDataKey;
+  field: string;
+  parentId: string;
+}
+
+interface ReconcileAllocationAttributionForActivityInput {
+  activityId: string;
+  attributionAllowed: boolean;
+}
+
 interface Relationship {
   parent: AppDataKey;
   child: AppDataKey;
@@ -107,7 +119,10 @@ export class BatchStateProjection implements ValidationDataLookup {
   }
 
   /** Restore the attribution invariant now and retain only rewrites still present at commit. */
-  reconcileAllocationAttributionForActivity(activityId: string, attributionAllowed: boolean): void {
+  reconcileAllocationAttributionForActivity({
+    activityId,
+    attributionAllowed,
+  }: ReconcileAllocationAttributionForActivityInput): void {
     if (attributionAllowed) {
       this.attributionClearedActivityIds.delete(activityId);
       return;
@@ -128,7 +143,7 @@ export class BatchStateProjection implements ValidationDataLookup {
     }
   }
 
-  rewrittenAllocationRevisions(): readonly RewrittenAllocationRevision[] {
+  listRewrittenAllocationRevisions(): readonly RewrittenAllocationRevision[] {
     return [...this.attributionRewrites.values()];
   }
 
@@ -176,24 +191,30 @@ export class BatchStateProjection implements ValidationDataLookup {
   }
 
   resourceHasTimeOff(accountId: string, resourceId: string): boolean {
-    return this.relatedRows("resources", "timeOff", "resourceId", resourceId).some(
+    return this.relatedRows({ parent: "resources", child: "timeOff", field: "resourceId", parentId: resourceId }).some(
       (row) => row.accountId === accountId,
     );
   }
 
   allocationsForResource(accountId: string, resourceId: string): readonly Allocation[] {
-    return this.relatedRows("resources", "allocations", "resourceId", resourceId).filter(
-      (row) => row.accountId === accountId,
-    ) as unknown as Allocation[];
+    return this.relatedRows({
+      parent: "resources",
+      child: "allocations",
+      field: "resourceId",
+      parentId: resourceId,
+    }).filter((row) => row.accountId === accountId) as unknown as Allocation[];
   }
 
   allocationsForActivity(accountId: string, activityId: string): readonly Allocation[] {
-    return this.relatedRows("activities", "allocations", "activityId", activityId).filter(
-      (row) => row.accountId === accountId,
-    ) as unknown as Allocation[];
+    return this.relatedRows({
+      parent: "activities",
+      child: "allocations",
+      field: "activityId",
+      parentId: activityId,
+    }).filter((row) => row.accountId === accountId) as unknown as Allocation[];
   }
 
-  private relatedRows(parent: AppDataKey, child: AppDataKey, field: string, parentId: string): ProjectionRow[] {
+  private relatedRows({ parent, child, field, parentId }: RelatedRowsInput): ProjectionRow[] {
     const relationship = this.resolveRelationshipIndex(parent, child, field);
     if (!relationship) return [];
     return [...(relationship.childrenByParent.get(parentId) ?? [])].flatMap((id) => {

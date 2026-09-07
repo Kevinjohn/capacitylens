@@ -1,5 +1,5 @@
 import { chmodSync, closeSync, existsSync, fsyncSync, openSync, renameSync, writeFileSync } from "node:fs";
-import { auditRecovery, type AuditRecoveryState } from "./recovery";
+import { createAuditRecovery, type AuditRecoveryState } from "./createAuditRecovery";
 import {
   AUDIT_RECOVERY_SCAN_BYTES,
   DEFAULT_MAX_BYTES,
@@ -64,13 +64,8 @@ export function createFileAuditSink(
     }
   };
 
-  const { collectDeliveryIds, loadDeliveryState, syncRediscoveredDeliveries, syncParentDirectory } = auditRecovery(
-    file,
-    log,
-    syncFile,
-    recoveryScanBytes,
-    state,
-  );
+  const { collectDeliveryIds, loadDeliveryState, syncRediscoveredDeliveries, syncParentDirectory } =
+    createAuditRecovery({ file, log, syncFile, recoveryScanBytes, state });
 
   const appendMany = (records: readonly AuditEntry[]): boolean => {
     try {

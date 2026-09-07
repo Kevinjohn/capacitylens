@@ -472,7 +472,7 @@ describe("SchedulerGrid filters", () => {
 });
 
 // Feature 2 (the device-global "Snap to week start" pref) — the scroll-idle floor wired through
-// onScroll. The PURE floor math is unit-tested in weekSnap.test.ts; here we pin the COMPONENT
+// onScroll. The PURE floor math is unit-tested in resolveWeekStartSnapTarget.test.ts; here we pin the COMPONENT
 // WIRING: the debounce, the drag-freeze respect, the convergence no-op, and the unmount cleanup.
 //
 // jsdom never lays the grid out (clientWidth === 0), so the geometry effect and the scroll-idle snap

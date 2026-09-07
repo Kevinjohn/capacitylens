@@ -56,13 +56,13 @@ export function createCredentials(
       });
     }
     try {
-      const created = await auth.createCredentialUser(
+      const created = await auth.createCredentialUser({
         email,
-        displayName,
+        name: displayName,
         password,
         emailVerified,
         correlateInTransaction,
-      );
+      });
       return {
         principalId: created.id,
         compensationHandle: makeCompensationHandle(created.id, command.commandId),
