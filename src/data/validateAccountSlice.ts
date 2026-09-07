@@ -17,7 +17,7 @@ export function parseAccountSliceWithRepairBase(value: unknown, accountId: strin
     const rows = value[key] as unknown[];
     if (!rows.every(isRecord)) return null;
     const ids = new Set<string>();
-    for (const row of rows as Array<Record<string, unknown>>) {
+    for (const row of rows) {
       if (typeof row.id !== "string" || row.id.length === 0 || ids.has(row.id)) return null;
       ids.add(row.id);
     }

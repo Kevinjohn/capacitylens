@@ -44,7 +44,7 @@ function assertFourDigitISODate(candidate: string): ISODate {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(candidate)) {
     throw new RangeError("Date falls outside the supported four-digit ISO year range.");
   }
-  return candidate as ISODate;
+  return candidate;
 }
 
 /** Format a Date back to a date-only ISO string within the four-digit product year domain. */

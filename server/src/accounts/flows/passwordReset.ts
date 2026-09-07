@@ -83,7 +83,7 @@ export function createPasswordResetFlows(
           });
           if (!decision.allowed) {
             terminalOutcomeRecorded = true;
-            throw denyIdentityAdminCommand({
+            return denyIdentityAdminCommand({
               scope,
               command,
               reason: decision.reason,

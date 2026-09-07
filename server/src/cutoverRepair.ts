@@ -89,7 +89,7 @@ export async function repairSsoCutover(input: CutoverRepairInput): Promise<Cutov
         .find((candidate) => candidate.workspaceId === operation.workspaceId);
       if (!workspace) throw new Error("No workspace matches that exact id.");
       if (workspace.members.length > 0) throw new Error("Only a workspace with zero active members can be erased.");
-      const occurredAt = new Date().toISOString() as AccountAuditEvent["occurredAt"];
+      const occurredAt = new Date().toISOString();
       const auditId = randomUUID();
       tx(
         db,
@@ -129,8 +129,8 @@ export async function repairSsoCutover(input: CutoverRepairInput): Promise<Cutov
           : "More than one identity matches that address; repair requires an unambiguous target.",
       );
     }
-    const principal = principals[0]!;
-    const occurredAt = new Date().toISOString() as AccountAuditEvent["occurredAt"];
+    const principal = principals[0];
+    const occurredAt = new Date().toISOString();
     const auditId = randomUUID();
 
     if (input.operation.kind === "assign-workspace-owner") {
@@ -201,8 +201,8 @@ export async function repairSsoCutover(input: CutoverRepairInput): Promise<Cutov
       const changed = await identity.removeFederatedLinkForStoppedRepair({
         principalId: principal.id,
         providerId: operation.providerId,
-        rowId: links[0]!.rowId,
-        subject: links[0]!.subject,
+        rowId: links[0].rowId,
+        subject: links[0].subject,
         audit,
       });
       if (!changed) throw new Error("The provider link disappeared before repair completed.");

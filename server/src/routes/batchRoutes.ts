@@ -2,10 +2,9 @@ import type { AuthorizeBasicInput } from "./routeShared";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { LocalAccountFlows } from "../accounts/createLocalAccountFlows";
-import type { AuthMode } from "../auth";
+import type { AccountMode } from "../auth";
 import { type Db } from "../db";
 import { hasGatedFields, type SanitizeWriteOptions } from "../fieldPolicy";
-import { TABLES } from "../tables";
 import type { TenantStore } from "../tenantStore";
 import { SINGLE_COMPANY_CAP_MESSAGE } from "./accountEntityRoutes";
 import { isScopedTable } from "./routeShared";
@@ -20,7 +19,7 @@ export { MAX_BATCH_OPS } from "./batch/types";
 export interface BatchRouteDependencies {
   db: Db;
   store: TenantStore;
-  authMode: AuthMode;
+  authMode: AccountMode;
   multiAccount: boolean;
   optimisticConcurrency: boolean;
   accountFlows: LocalAccountFlows;
@@ -77,7 +76,7 @@ export function registerBatchRoutes(app: FastifyInstance, dependencies: BatchRou
     for (const op of ops) {
       if (op.table === "accounts") {
         affectedAccountIds.add(op.id);
-      } else if (isScopedTable(op.table as keyof typeof TABLES)) {
+      } else if (isScopedTable(op.table)) {
         affectedAccountIds.add(op.method === "PUT" ? (op.row!.accountId as string) : op.accountId!);
       }
     }

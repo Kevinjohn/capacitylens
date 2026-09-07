@@ -155,7 +155,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
             return row;
           },
         });
-        responseRow = provisioned.product as Record<string, unknown>;
+        responseRow = provisioned.product;
         if (!provisioned.replayed) drainProductAudit(reply);
       } else {
         commitProductAudit(reply, auditRecord, () => {

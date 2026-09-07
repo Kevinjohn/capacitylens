@@ -59,7 +59,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
     // Internal exception accepts only the canonical duplicate a client emitted alongside
     // the account create; malformed or re-homed bodies roll the whole batch back.
     if (table === "clients" && existing?.builtin === true && mintedInternalIds.has(id)) {
-      if (!isMatchingMintedInternalClient(existing, row as Record<string, unknown>)) {
+      if (!isMatchingMintedInternalClient(existing, row)) {
         throw new ValidationError("The same-batch built-in Internal client must match the generated server row.");
       }
       revisions.push({
@@ -80,7 +80,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
       verb: "replace",
       entity: table,
       existing,
-      incoming: row as Record<string, unknown>,
+      incoming: row,
     });
     if (builtinRejection) throw new ValidationError(builtinRejection.error);
     if (!ownsRow(existing, (row as { accountId?: unknown }).accountId)) {
@@ -92,7 +92,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
     }
     const sanitizedRow = sanitizeWrite({
       table,
-      row: row as Record<string, unknown>,
+      row: row,
       existing,
       options: fieldVisFor(table, (row as { accountId?: unknown }).accountId),
     });
@@ -113,7 +113,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
     // the WHOLE batch rolls back, and the catch below maps it to the direct route's
     // 409 + { current } shape.
     if (optimisticConcurrency || syncOrder !== null) {
-      const staleWriteInput = { existing: persistedExisting, row: row as Record<string, unknown> };
+      const staleWriteInput = { existing: persistedExisting, row: row };
       if (
         isStaleWrite(staleWriteInput) &&
         !(syncOrder && isSameSessionSuccessor({ db, order: syncOrder, table, id, current: staleWriteInput.existing }))
@@ -190,7 +190,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
       lifecycleArchives.push({ table, id, archived: false });
       return;
     }
-    if (table === "clients" && isBuiltinClient(existing as never)) {
+    if (table === "clients" && isBuiltinClient(existing)) {
       throw new ValidationError("The built-in Internal client cannot be archived.");
     }
     if (
@@ -213,7 +213,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
       updatedAt: now,
     };
     store.writeLifecycleRow(op.accountId!, table, archived);
-    projection.upsert(table as AppDataKey, archived as unknown as Record<string, unknown>);
+    projection.upsert(table, archived);
     lifecycleArchives.push({ table, id, archived: true });
   } else if (method === "DELETE") {
     if (table === "accounts") {

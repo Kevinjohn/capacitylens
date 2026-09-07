@@ -58,7 +58,7 @@ export function sanitizeAccount(record: Record<string, unknown>, storedWeekStart
       delete record.timezone;
     } else {
       try {
-        new Intl.DateTimeFormat(undefined, { timeZone: record.timezone as string });
+        new Intl.DateTimeFormat(undefined, { timeZone: record.timezone });
       } catch {
         delete record.timezone;
       }

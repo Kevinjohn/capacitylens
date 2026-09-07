@@ -1,4 +1,4 @@
-import type { AuthMode } from "../auth/authContext";
+import type { AccountMode } from "../auth/authContext";
 import { isDemoMode } from "../data/apiConfig";
 
 /** Product-facing access posture. Authentication being off on a persisted server is deliberately
@@ -9,7 +9,7 @@ export type AccessExperience = "demo" | "open" | "authenticated";
  *  demo predicate: `useDemoAuthActive` in lib/fakeAuth.ts owns the narrower, purely COSMETIC
  *  question of whether the fake sign-in chrome is on screen (a "demo" experience whose `authMode`
  *  is also "off"). Keep the two apart — this one describes access, that one describes chrome. */
-export function resolveAccessExperience(authMode: AuthMode): AccessExperience {
+export function resolveAccessExperience(authMode: AccountMode): AccessExperience {
   if (isDemoMode()) return "demo";
   return authMode === "off" ? "open" : "authenticated";
 }

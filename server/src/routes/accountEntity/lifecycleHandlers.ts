@@ -95,7 +95,7 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
         },
       });
       if (!provisioned.replayed) drainProductAudit(reply);
-      return reply.code(201).send(provisioned.product as Record<string, unknown>);
+      return reply.code(201).send(provisioned.product);
     } catch (error) {
       return sendAccountRouteFailure(reply, error, dependencies);
     }

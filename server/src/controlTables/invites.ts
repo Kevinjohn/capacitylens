@@ -181,7 +181,7 @@ export function preauthInviteAllows({ preauthEmail, user, passwordMode = false }
   // Password deployments have no outbound verification service: possession of the
   // email-addressed invite is their verification ceremony. SSO still requires the IdP's verified
   // email claim. Both sides are normalized before the exact comparison.
-  return (passwordMode || user.emailVerified === true) && normalizeEmail(user.email) === preauthEmail;
+  return (passwordMode || user.emailVerified) && normalizeEmail(user.email) === preauthEmail;
 }
 
 /**

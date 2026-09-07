@@ -294,7 +294,11 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // Surface a lifecycle-archive failure LAST — after the snapshot advanced — so unrelated ops are
       // never blocked (they committed above and won't replay) and only the un-converged row's delete
       // re-fires on the next diff.
-      if (lifecycleError !== null) throw lifecycleError;
+      if (lifecycleError !== null) {
+        throw lifecycleError instanceof Error
+          ? lifecycleError
+          : new Error("Lifecycle archival failed with a non-Error value.", { cause: lifecycleError });
+      }
     }
   }
 }

@@ -4,7 +4,7 @@ import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, passwordLengthFailure } from 
 import { cleanText } from "@capacitylens/shared/lib/strings";
 import type { Db } from "../db";
 import { tx } from "../txn";
-import type { Auth, AuthMode, CreateCredentialUserInput } from "./authTypes";
+import type { Auth, AccountMode, CreateCredentialUserInput } from "./authTypes";
 import type * as AuthFacade from "../auth";
 import { ensureFederatedIdentitySchema, assertFederatedIdentitySchemaCurrent } from "./federatedIdentitySchema";
 
@@ -146,7 +146,7 @@ export function createBootstrapAdminFactory({
    */
   async function createBootstrapAdmin(
     db: Db,
-    mode: AuthMode,
+    mode: AccountMode,
     auth: Auth | null,
     log: (line: string) => void = console.log,
   ): Promise<"created" | "skipped"> {

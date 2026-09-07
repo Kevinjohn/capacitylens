@@ -20,7 +20,7 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
   if (authMode === "off") return { members: [], signInTrackingEnabled: false };
   try {
     const tracking = memberSignInTracking.snapshot(accountId);
-    const directory = await accountFlows!.listMemberDirectory({
+    const directory = await accountFlows.listMemberDirectory({
       actor: req.accountActor!,
       workspaceId: accountId,
     });

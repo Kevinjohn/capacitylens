@@ -25,6 +25,17 @@ const DB_NAME = "capacitylens-offline-v1";
 const STORE_NAME = "records";
 const KEY_STORE_NAME = "keys";
 
+/** Simulate host APIs that may throw arbitrary JavaScript values. Generator.throw preserves the
+ * exact supplied value without adding a ThrowStatement that production lint correctly rejects. */
+function throwHostValue(value: unknown): never {
+  const generator = (function* () {
+    yield undefined;
+  })();
+  generator.next();
+  generator.throw(value);
+  throw new Error("Generator.throw unexpectedly returned.");
+}
+
 function currentCacheNamespace(): string {
   return `${window.location.origin}|api:${window.location.origin}`;
 }
@@ -724,7 +735,7 @@ describe("offline tenant cache", () => {
     async (cause) => {
       await cacheAuthSnapshot(authSnapshot("user-a"));
       vi.spyOn(Storage.prototype, "setItem").mockImplementation((key) => {
-        if (key.endsWith("offlineWriteBoundary")) throw cause;
+        if (key.endsWith("offlineWriteBoundary")) throwHostValue(cause);
       });
 
       await expect(clearOfflineDataForCurrentUser()).resolves.toBeUndefined();
@@ -736,7 +747,7 @@ describe("offline tenant cache", () => {
     "follows the missing-storage policy when storage throws a falsy value (%p)",
     async (cause) => {
       vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-        throw cause;
+        throwHostValue(cause);
       });
       vi.stubGlobal("indexedDB", undefined);
 

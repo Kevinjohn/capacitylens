@@ -3,6 +3,8 @@ import type { AccountMode, BoundApplication } from "@capacitylens/shared/account
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { PASSWORD_CONTEXT_WORDS } from "../passwordSecurity";
 
+export type { AccountMode } from "@capacitylens/shared/account/types";
+
 /** @deprecated Prefer the provider-neutral AccountMode outside the identity adapter. */
 export type AuthMode = AccountMode;
 

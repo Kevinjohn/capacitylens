@@ -7,7 +7,10 @@ import { createContext, useContext } from "react";
 // auth-off server both resolve to, so consumers rendered without a provider (unit
 // tests, storybook-style isolation) behave exactly like today's app.
 
-export type AuthMode = "off" | "password" | "sso";
+export type AccountMode = "off" | "password" | "sso";
+
+/** @deprecated Prefer the provider-neutral AccountMode. */
+export type AuthMode = AccountMode;
 
 export interface AuthUser {
   id: string;
@@ -60,7 +63,7 @@ export function resolveStrictOidcProvider(
 }
 
 export interface AuthContextValue {
-  authMode: AuthMode;
+  authMode: AccountMode;
   user: AuthUser | null;
   /** Configured public provider metadata. Needed by pre-session invite and re-authentication
    * surfaces so they use the same server-owned provider list as the ordinary login wall. */

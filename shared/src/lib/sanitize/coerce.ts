@@ -85,7 +85,7 @@ export const cleanField = ({ record, field, multiline = false }: CleanFieldOptio
     delete record[field];
     return;
   }
-  record[field] = cleanText(record[field] as string, { multiline });
+  record[field] = cleanText(record[field], { multiline });
 };
 
 // Like cleanField, but for a REQUIRED text column (the server schema marks these NOT NULL).
@@ -94,7 +94,7 @@ export const cleanField = ({ record, field, multiline = false }: CleanFieldOptio
 // yet be REJECTED by the server, diverging the two import paths. Fall back to a placeholder
 // so a required column is never empty and both paths accept the record identically.
 export const cleanRequiredField = (record: Record<string, unknown>, field: string, fallback: string): void => {
-  const cleaned = typeof record[field] === "string" ? cleanText(record[field] as string) : "";
+  const cleaned = typeof record[field] === "string" ? cleanText(record[field]) : "";
   record[field] = cleaned.length > 0 ? cleaned : fallback;
 };
 

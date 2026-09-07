@@ -4,7 +4,7 @@ import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
 import type { ApplicationSession } from "@capacitylens/shared/account/types";
 import { can } from "@capacitylens/shared/domain/access";
 import { isAccountCreateCapped, countAccounts } from "./accountEntityRoutes";
-import { countUsers, DEMO_USER, type Auth, type AuthMode, type SessionUser } from "../auth";
+import { countUsers, DEMO_USER, type Auth, type AccountMode, type SessionUser } from "../auth";
 import type { MasqueradeRegistry } from "../MasqueradeRegistry";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 
@@ -25,7 +25,11 @@ function parseAuthenticationRequestUrl(req: FastifyRequest): URL | null {
 
 /** CapacityLens's complete public seam into Better Auth. New dependency routes remain closed until
  * they are deliberately classified here and covered by the application's own policy surface. */
-function isBetterAuthProxyRouteAllowed(authMode: Exclude<AuthMode, "off">, method: string, pathname: string): boolean {
+function isBetterAuthProxyRouteAllowed(
+  authMode: Exclude<AccountMode, "off">,
+  method: string,
+  pathname: string,
+): boolean {
   const common = new Set(["GET /get-session", "POST /sign-out", "POST /sign-in/oauth2", "POST /sign-in/social"]);
   if (common.has(`${method} ${pathname}`)) return true;
   if (
@@ -102,7 +106,7 @@ function withResponseCookies(requestHeaders: Headers, setCookies: readonly strin
 
 interface CanUserCreateAccountInput {
   administration: AccountAdminPort;
-  authMode: AuthMode;
+  authMode: AccountMode;
   userId: string;
   count: number;
 }
@@ -124,7 +128,7 @@ async function canUserCreateAccount({
 
 export interface AuthProxyRouteDependencies {
   section: "identity" | "proxy";
-  authMode: AuthMode;
+  authMode: AccountMode;
   auth: Auth | null;
   db: Parameters<typeof countAccounts>[0];
   multiAccount: boolean;

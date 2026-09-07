@@ -6,7 +6,6 @@ import type { AccountMode, Role } from "@capacitylens/shared/account/types";
 import type { AccountAuditPort, IdentityPort } from "@capacitylens/shared/account/ports";
 import {
   MASQUERADE_ERROR_CODES,
-  type ClientMasqueradeEndReason,
   type MasqueradeEndReason,
   type MasqueradeState,
 } from "@capacitylens/shared/domain/masquerade";
@@ -166,7 +165,7 @@ export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: Mas
     ) {
       return reply.code(400).send({ error: "A valid token and end reason are required." });
     }
-    const reason = body.reason as ClientMasqueradeEndReason;
+    const reason = body.reason;
     if (request.session) {
       registry.end(request.session.id, body.token, (record) => auditEnd(record, reason));
     }

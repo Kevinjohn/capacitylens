@@ -3,13 +3,13 @@ import type { Db } from "./db";
 import { assertBootstrapClaimCurrent } from "./bootstrapClaim";
 import { resolveAccountConfigKey } from "./accountConfig";
 import { StrictOidcVerificationError } from "./strictOidc";
-import type { Auth, AuthMode } from "./authConfig/authTypes";
+import type { AccountMode, Auth } from "./authConfig/authTypes";
 import { resetTokenCapture } from "./authConfig/captureContexts";
 import { createAuthFromEnvironmentFactory } from "./authConfig/authFromEnv";
 import { createAuthAdapterFactory } from "./authConfig/authAdapter";
 import { createBootstrapAdminFactory } from "./authConfig/bootstrapAdmin";
 
-export type { AuthMode, AuthProviderInfo, Auth, SessionUser } from "./authConfig/authTypes";
+export type { AccountMode, AuthMode, AuthProviderInfo, Auth, SessionUser } from "./authConfig/authTypes";
 export { DEMO_USER, DEFAULT_ACCOUNT_APPLICATION } from "./authConfig/authTypes";
 export {
   RESET_LINK_TTL_SECONDS,
@@ -194,7 +194,7 @@ export function listUserIdsByEmail(db: Db, email: string, limit: number): string
   return rows.map((row) => row.id);
 }
 
-export function parseAuthMode(raw: string | undefined): AuthMode {
+export function parseAuthMode(raw: string | undefined): AccountMode {
   const mode = raw === undefined || raw === "" ? "off" : raw;
   if (mode === "off" || mode === "password" || mode === "sso") return mode;
   throw new AuthConfigError(

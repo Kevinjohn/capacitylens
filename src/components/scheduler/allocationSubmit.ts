@@ -3,7 +3,6 @@ import { newId } from "@capacitylens/shared/lib/id";
 import { validateAllocationAssignment } from "@capacitylens/shared/lib/integrity";
 import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
 import { MAX_NOTE_LENGTH } from "@capacitylens/shared/lib/strings";
-import type { ISODate } from "@capacitylens/shared/types/entities";
 import { resolveDomainErrorMessage, resolveErrorMessage } from "../../lib/errorMessage";
 import { buildRepeatedAllocationDrafts, resolveRepeatPattern } from "../../lib/repeatingAllocations";
 import { validateText } from "../../lib/validation";
@@ -206,11 +205,7 @@ export function createAllocationCommands(input: CommandInput) {
         if (!selectedResource || !selectedEffectiveWeek) {
           throw new Error("The selected resource could not be resolved for repeat projection.");
         }
-        const { startDates } = generateRepeatingStartDates(
-          draft.startDate,
-          repeatUntil as ISODate,
-          resolveRepeatPattern(repeat),
-        );
+        const { startDates } = generateRepeatingStartDates(draft.startDate, repeatUntil, resolveRepeatPattern(repeat));
         const drafts = buildRepeatedAllocationDrafts(draft, startDates, {
           schedulingMode: mode,
           daysOver,

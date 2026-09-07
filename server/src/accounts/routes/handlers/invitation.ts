@@ -216,7 +216,7 @@ export async function signupInvitation(req: FastifyRequest, reply: FastifyReply,
     });
   }
   try {
-    const result = await accountFlows!.acceptInviteWithPasswordSignup({
+    const result = await accountFlows.acceptInviteWithPasswordSignup({
       token,
       email,
       displayName: name,

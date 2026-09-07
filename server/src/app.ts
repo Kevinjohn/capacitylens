@@ -1,7 +1,7 @@
 import type { ServerOptions as HttpsServerOptions } from "node:https";
 import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
-import { type Auth, type AuthMode, type SessionUser } from "./auth";
+import { type Auth, type AccountMode, type SessionUser } from "./auth";
 import { type ActorContext, type ApplicationSession, type BoundApplication } from "@capacitylens/shared/account/types";
 import { type Db } from "./db";
 import { type AuditSink } from "./audit";
@@ -84,7 +84,7 @@ export interface AppOptions {
    *  requireUser attaches that identity and continues, so NO request that succeeds
    *  today may fail. 'password'/'sso' mount opts.auth's handler at /api/auth/* and
    *  401 every other /api/* route (except /api/health) without a valid session. */
-  authMode?: AuthMode;
+  authMode?: AccountMode;
   /** The Better Auth instance — required exactly when authMode ≠ 'off'. */
   auth?: Auth | null;
   /** Require an enrolled and completed TOTP second factor before password users may access tenant

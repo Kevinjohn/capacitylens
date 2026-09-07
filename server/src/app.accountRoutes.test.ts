@@ -32,6 +32,17 @@ async function createAccount(app: FastifyInstance, id: string): Promise<void> {
 }
 
 describe("dedicated /api/accounts routes — route precedence", () => {
+  it.each([
+    ["POST", "/api/not-a-table"],
+    ["PUT", "/api/not-a-table/row"],
+    ["PATCH", "/api/not-a-table/row"],
+    ["DELETE", "/api/not-a-table/row"],
+  ] as const)("preserves the unknown entity diagnostic for %s", async (method, url) => {
+    const response = await call(freshApp(), { method, url });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({ error: "Unknown entity: not-a-table" });
+  });
+
   it("does not shadow the parametric lifecycle routes: POST /api/accounts/:id/archive stays a 404", async () => {
     // `accounts` is not a lifecycle entity (no archivedAt/deletedAt tombstones), so the lifecycle
     // handler must still MATCH and answer its own 404. If the new static /api/accounts/:id node

@@ -63,7 +63,7 @@ export function registerServerFixtureCleanup(): {
 
 /** `app.inject` typed as the light response the suites assert against. */
 export const call = (app: FastifyInstance, options: InjectOptions): Promise<LightMyRequestResponse> =>
-  app.inject(options) as unknown as Promise<LightMyRequestResponse>;
+  app.inject(options);
 
 /** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
 export function readCookies(res: LightMyRequestResponse): string {

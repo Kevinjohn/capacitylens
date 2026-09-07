@@ -1,4 +1,4 @@
-import { isSupportedSocialProviderId, type AuthMode, type AuthProviderInfo, type AuthUser } from "./authContext";
+import { isSupportedSocialProviderId, type AccountMode, type AuthProviderInfo, type AuthUser } from "./authContext";
 import { hasDuplicateIdentity } from "../lib/hasDuplicateIdentity";
 
 export type AuthStatusResult =
@@ -6,7 +6,7 @@ export type AuthStatusResult =
   | { kind: "error"; message: string }
   | {
       kind: "pass";
-      authMode: AuthMode;
+      authMode: AccountMode;
       user: AuthUser | null;
       canCreateAccount: boolean;
       multiAccount: boolean;
@@ -35,7 +35,7 @@ export type AuthStatusResult =
 // used for every branch below that can't read a trustworthy canCreateAccount/multiAccount off the
 // wire (an off-spec body, a non-401 non-ok response, or a network failure) — the server 403 remains
 // the real enforcer, so "unknown" must never hide a legitimate "New company" affordance.
-export function buildOpenAuthResult(authMode: AuthMode, user: AuthUser | null): AuthStatusResult {
+export function buildOpenAuthResult(authMode: AccountMode, user: AuthUser | null): AuthStatusResult {
   return {
     kind: "pass",
     authMode,
@@ -51,7 +51,7 @@ export function buildOpenAuthResult(authMode: AuthMode, user: AuthUser | null): 
 
 // Narrowing guards for the UNTRUSTED /api/auth/me response body (see fetchAuthStatus). The server
 // is external input — we validate its shape rather than trusting an `as` cast.
-export function isAuthMode(value: unknown): value is AuthMode {
+export function isAuthMode(value: unknown): value is AccountMode {
   return value === "off" || value === "password" || value === "sso";
 }
 function isAuthProvider(value: unknown): value is AuthProviderInfo {

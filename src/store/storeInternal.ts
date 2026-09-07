@@ -50,7 +50,7 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
     set((state) => ({ data: producer(state.data), past: [], future: [] }));
 
   const applyPatch = <T extends Entity>(row: T, patch: Partial<Omit<T, keyof Entity>>): T => {
-    const next = { ...row, ...patch } as T;
+    const next = { ...row, ...patch };
     for (const [key, value] of Object.entries(patch)) {
       if (value === undefined) delete (next as Record<string, unknown>)[key];
     }
@@ -112,17 +112,13 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
   }: UpdateOwnedInput<K>): boolean => {
     const existing = resolveOwnedRow(get().data, key, id);
     if (!existing) return false;
-    const effective = prepare
-      ? prepare(applyPatch(existing, patch as Partial<Omit<ScopedRow<K>, keyof Entity>>), existing)
-      : patch;
+    const effective = prepare ? prepare(applyPatch(existing, patch), existing) : patch;
     // The table key is generic here, so TS can't narrow data[key] to a single row type; K pins the row
     // and patch types at every call site above, which is where correctness is actually checked.
     mutate((data) => {
       const rows = updateById(data[key] as Entity[], id, effective as Partial<Entity>);
-      const next = { ...data, [key]: rows } as AppData;
-      return cascade
-        ? cascade(next, applyPatch(existing, effective as Partial<Omit<ScopedRow<K>, keyof Entity>>), existing)
-        : next;
+      const next = { ...data, [key]: rows };
+      return cascade ? cascade(next, applyPatch(existing, effective), existing) : next;
     });
     return true;
   };

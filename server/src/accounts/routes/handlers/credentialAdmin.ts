@@ -28,7 +28,7 @@ export async function resetPassword(req: FastifyRequest, reply: FastifyReply, co
     const command = accountCommand(req);
     const targetMembership = await requireMembership({ reply, accountId, userId, command });
     if (!targetMembership) return;
-    const ceremony = await accountFlows!.issuePasswordReset({
+    const ceremony = await accountFlows.issuePasswordReset({
       actor: req.accountActor!,
       targetPrincipalId: userId,
       command,
@@ -76,7 +76,7 @@ export async function revokeMemberSessions(req: FastifyRequest, reply: FastifyRe
     const command = accountCommand(req);
     const targetMembership = await requireMembership({ reply, accountId, userId, command });
     if (!targetMembership) return;
-    const revoked = await accountFlows!.revokeMemberSessions({
+    const revoked = await accountFlows.revokeMemberSessions({
       actor: req.accountActor!,
       targetPrincipalId: userId,
       command,

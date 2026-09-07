@@ -172,7 +172,11 @@ export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationH
     }
   }
 
-  if (initErrorRef.error !== undefined) throw initErrorRef.error;
+  if (initErrorRef.error !== undefined) {
+    throw initErrorRef.error instanceof Error
+      ? initErrorRef.error
+      : new Error("Database initialization failed with a non-Error value.", { cause: initErrorRef.error });
+  }
 
   const fkViolations = db.prepare("PRAGMA foreign_key_check").all();
   if (fkViolations.length > 0) {
