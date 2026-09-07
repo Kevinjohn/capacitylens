@@ -46,14 +46,14 @@ export function createInvitationClaims(
     assertWorkspaceExists(db, live.accountId);
     if (
       !trustedLocal &&
-      !preauthInviteAllows(
-        live.preauthEmail,
-        {
+      !preauthInviteAllows({
+        preauthEmail: live.preauthEmail,
+        user: {
           email: input.principalEmail,
           emailVerified: input.emailVerified,
         },
-        input.passwordMode,
-      )
+        passwordMode: input.passwordMode,
+      })
     ) {
       throw createAccountFailure(
         "INVITATION_EMAIL_MISMATCH",
