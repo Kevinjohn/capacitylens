@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { AccountContractError, type AccountErrorCode } from "@capacitylens/shared/account/errors";
-import type { CommandIdentity, OperationReceipt, PrincipalId } from "@capacitylens/shared/account/types";
+import type { CommandIdentity, PrincipalId } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 import {
   correlatePendingAccountCommand,
@@ -263,10 +263,6 @@ export function terminatePendingCommand({
   result,
 }: TerminatePendingCommandInput): boolean {
   return finishAccountCommandIfPending(db, buildFinishInput({ scope, command, status, failureCode, result }));
-}
-
-export function buildOperationReceipt(record: AccountCommandRecord): OperationReceipt {
-  return { commandId: record.commandId, completedAt: record.updatedAt };
 }
 
 interface ReadCommandInput {
