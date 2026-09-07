@@ -742,12 +742,18 @@ describe("MembersSection — owner affordances", () => {
 
     const user = userEvent.setup();
     const rows = screen.getAllByTestId("member-row");
-    for (const member of ["Barbara Gordon (alice@example.test)", "James Gordon (bob@example.test)"]) {
+    for (const [name, member] of [
+      ["Barbara Gordon", "Barbara Gordon (alice@example.test)"],
+      ["James Gordon", "James Gordon (bob@example.test)"],
+    ] as const) {
       // Both row affordances name their subject, so a screen reader never hears a bare "Edit".
       expect(screen.getByRole("button", { name: `Edit ${member}` })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: `More actions for ${member}` })).toBeInTheDocument();
 
-      const row = rows.find((candidate) => within(candidate).queryByText(member.split(" (")[0]!))!;
+      const row = requireValue(
+        rows.find((candidate) => within(candidate).queryByText(name)),
+        `the ${name} row in the members table`,
+      );
       await openMemberMenu(user, row);
       for (const action of [
         `Reset password for ${member}`,
@@ -1166,7 +1172,7 @@ describe("MembersSection — member lifecycle", () => {
     const mutations = fetchMock.mock.calls.filter(([, init]) => init?.method && init.method !== "GET");
     expect(mutations).toHaveLength(1);
     expect(String(mutations[0]?.[0])).toContain("/status");
-    release!();
+    requireValue(release, "the pending member mutation release callback")();
     await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(3));
   });
 });
@@ -1957,7 +1963,12 @@ describe("MembersSection — invite mint", () => {
       if (fieldError) expect(alert).toHaveTextContent(expected);
       else await expectNotice(expected);
       expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
-      if (fieldError) expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-describedby", alert!.id);
+      if (fieldError) {
+        expect(screen.getByTestId("invite-preauth")).toHaveAttribute(
+          "aria-describedby",
+          requireValue(alert, "the invitation field error").id,
+        );
+      }
     },
   );
 
@@ -2071,7 +2082,7 @@ describe("MembersSection — invite mint", () => {
     await userEvent.setup().click(screen.getByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/TOKEN_A");
     const revokeButtons = await screen.findAllByTestId("invite-revoke");
-    await userEvent.setup().click(revokeButtons[1]!);
+    await userEvent.setup().click(requireValue(revokeButtons[1], "the second invitation revoke button"));
 
     await waitFor(() => expect(screen.queryByText(/b@example\.test/)).not.toBeInTheDocument());
     expect(screen.getByTestId("invite-link")).toHaveTextContent("/invite/TOKEN_A");
@@ -2329,8 +2340,9 @@ describe("MembersSection — SSO cutover repair", () => {
   it("reloads after correcting the current user's email without refreshing the directory", async () => {
     const reload = stubPageReload();
     const selfReadiness = ssoReadiness(false, "member_not_linked");
-    selfReadiness.members[0]!.principalId = "me";
-    selfReadiness.members[0]!.email = "me@x.io";
+    const selfMember = requireValue(selfReadiness.members[0], "the current member readiness fixture");
+    selfMember.principalId = "me";
+    selfMember.email = "me@x.io";
     let memberReads = 0;
     vi.stubGlobal(
       "fetch",
@@ -2404,8 +2416,9 @@ describe("MembersSection — SSO cutover repair", () => {
   it("reloads after unlinking the current user without bumping readiness", async () => {
     const reload = stubPageReload();
     const selfReadiness = ssoReadiness(true, "unverified_provider_link");
-    selfReadiness.members[0]!.principalId = "me";
-    selfReadiness.members[0]!.email = "me@x.io";
+    const selfMember = requireValue(selfReadiness.members[0], "the current member readiness fixture");
+    selfMember.principalId = "me";
+    selfMember.email = "me@x.io";
     let readinessReads = 0;
     vi.stubGlobal(
       "fetch",
@@ -2444,10 +2457,19 @@ describe("MembersSection — SSO cutover repair", () => {
   });
 
   it.each(["resolve", "reject"])("ignores a readiness request that finishes after unmount (%s)", async (outcome) => {
-    let settle!: (response?: Response) => void;
+    let resolvePending: ((response: Response) => void) | undefined;
+    let rejectPending: ((reason: Error) => void) | undefined;
     const pending = new Promise<Response>((resolve, reject) => {
-      settle = (response) => (outcome === "resolve" ? resolve(response!) : reject(new Error("late readiness")));
+      resolvePending = resolve;
+      rejectPending = reject;
     });
+    const settle = (response?: Response) =>
+      outcome === "resolve"
+        ? requireValue(
+            resolvePending,
+            "the late readiness resolver",
+          )(requireValue(response, "the late readiness response"))
+        : requireValue(rejectPending, "the late readiness rejecter")(new Error("late readiness"));
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal("fetch", mockApi(directory, { "GET /sso-readiness": () => pending }));
     const view = renderSection({ providers });
@@ -2475,7 +2497,8 @@ describe("MembersSection — SSO cutover repair", () => {
 
   it("rejects malformed nested readiness coordinates", async () => {
     const malformed = ssoReadiness(true, "unverified_provider_link");
-    malformed.members[0]!.repairLinks[0]!.subject = "";
+    const member = requireValue(malformed.members[0], "the malformed readiness member fixture");
+    requireValue(member.repairLinks[0], "the malformed readiness repair fixture").subject = "";
     vi.stubGlobal("fetch", mockApi(directory, { "GET /sso-readiness": () => jsonResponse(malformed) }));
     renderSection({ providers });
 
