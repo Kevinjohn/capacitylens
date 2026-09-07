@@ -11,6 +11,7 @@ import { tx } from "../txn";
 import { createAccountAuditWriter, type AccountAuditInput } from "./accountFlowRuntime";
 import type { LocalIdentityPort } from "./betterAuthIdentityPort";
 import { getAccountCommandById, getAccountCommandByIdForReconciliation, terminateCommand } from "./commands";
+import type { DenyIdentityAdminCommandInput } from "./flows/context";
 import { createAuthorityDenial } from "./flows/failures";
 import { createInviteSignupFlows } from "./flows/inviteSignup";
 import { createPasswordResetFlows } from "./flows/passwordReset";
@@ -76,7 +77,7 @@ export interface LocalAccountFlows extends AccountFlows {
 
 /** Cross-port orchestration with explicit transaction and command-ledger ownership. Policy
  * decisions remain inside AccountAdminPort; durable ledger representation remains in commands.ts. */
-export function localAccountFlows(input: {
+export function createLocalAccountFlows(input: {
   applicationId: string;
   db: Db;
   identity: LocalIdentityPort;
@@ -104,15 +105,15 @@ export function localAccountFlows(input: {
   // shape: persist the compensated terminal outcome, then throw denied(). Only the audit action and
   // denied()'s second argument differ between the two callers; their outer catch blocks have real
   // divergence (requiresReconciliation exclusions, non-reconciliation audit action) and stay separate.
-  const denyIdentityAdminCommand = (
-    scope: Pick<Parameters<typeof terminateCommand>[1], "applicationId" | "operation">,
-    command: CommandIdentity,
-    reason: string,
-    actorPrincipalId: string,
-    targetPrincipalId: string,
-    auditAction: AccountAuditInput["action"],
-    deniedAction: "issue-password-reset" | "revoke-sessions",
-  ): never => {
+  const denyIdentityAdminCommand = ({
+    scope,
+    command,
+    reason,
+    actorPrincipalId,
+    targetPrincipalId,
+    auditAction,
+    deniedAction,
+  }: DenyIdentityAdminCommandInput): never => {
     persistTerminalOutcome(
       () =>
         terminateCommand(db, scope, command, "compensated", reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN"),
@@ -130,7 +131,7 @@ export function localAccountFlows(input: {
   // Every live coordinator execution and its reconciliation read share this key. The NUL prefix
   // sorts before all external principal/workspace keys, so invitation signup may safely discover
   // and acquire those keys later without violating KeyedOperationLock's global order.
-  const commandExecutionKey = (command: CommandIdentity): string =>
+  const buildCommandExecutionKey = (command: CommandIdentity): string =>
     `\0account-command:${applicationId}:${command.commandId}`;
 
   const context = {
@@ -144,7 +145,7 @@ export function localAccountFlows(input: {
     persistTerminalOutcome,
     denyIdentityAdminCommand,
     resetReplay,
-    commandExecutionKey,
+    buildCommandExecutionKey,
   };
   return {
     ...createWorkspaceLifecycleFlows(context),
@@ -163,7 +164,7 @@ export function localAccountFlows(input: {
       // executor. After a process restart the process-local lock is absent, which is proof that a
       // stale pending row has no surviving executor in this supported single-process topology.
       if (!matchesRequest(getAccountCommandById(db, applicationId, command.commandId))) return null;
-      return lock.withKeys([commandExecutionKey(command)], () => {
+      return lock.withKeys([buildCommandExecutionKey(command)], () => {
         const row = getAccountCommandByIdForReconciliation(db, applicationId, command.commandId);
         if (!matchesRequest(row) || row === null) return null;
         const receipt = {

@@ -2,7 +2,7 @@ import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { IdentityPort } from "@capacitylens/shared/account/ports";
 import { recordTerminalOutcome } from "../accountFlowRuntime";
 import { beginCommand, completeCommand, markAccountCommandReplay, terminatePendingCommand } from "../commands";
-import type { LocalAccountFlows } from "../localAccountFlows";
+import type { LocalAccountFlows } from "../createLocalAccountFlows";
 import { clearTrackedMemberSignIn } from "../memberSignInTracking";
 import type { LocalAccountFlowContext } from "./context";
 
@@ -17,11 +17,11 @@ export function createSessionRevocationFlows(
     lock,
     persistTerminalOutcome,
     denyIdentityAdminCommand,
-    commandExecutionKey,
+    buildCommandExecutionKey,
   } = context;
   return {
     async revokeMemberSessions({ actor, targetPrincipalId, command }) {
-      return lock.withKeys([commandExecutionKey(command), actor.principalId, targetPrincipalId], async () => {
+      return lock.withKeys([buildCommandExecutionKey(command), actor.principalId, targetPrincipalId], async () => {
         const operation = `session-revocation:actor:${actor.principalId}`;
         const scope = {
           applicationId,
@@ -43,15 +43,15 @@ export function createSessionRevocationFlows(
           });
           if (!decision.allowed) {
             terminalOutcomeRecorded = true;
-            throw denyIdentityAdminCommand(
+            throw denyIdentityAdminCommand({
               scope,
               command,
-              decision.reason,
-              actor.principalId,
+              reason: decision.reason,
+              actorPrincipalId: actor.principalId,
               targetPrincipalId,
-              "identity.sessions_revoked",
-              "revoke-sessions",
-            );
+              auditAction: "identity.sessions_revoked",
+              deniedAction: "revoke-sessions",
+            });
           }
           revocationStarted = true;
           const result = await identity.revokePrincipalSessions({

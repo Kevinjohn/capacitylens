@@ -1,6 +1,6 @@
 import { type AppData } from "@capacitylens/shared/types/entities";
 import type { FastifyRequest } from "fastify";
-import type { LocalAccountFlows } from "../../accounts/localAccountFlows";
+import type { LocalAccountFlows } from "../../accounts/createLocalAccountFlows";
 import type { AuditRecord } from "../../audit";
 import { BatchStateProjection } from "../../batchProjection";
 import { type Db } from "../../db";

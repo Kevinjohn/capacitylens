@@ -8,7 +8,7 @@ import {
   terminateCommand,
   terminatePendingCommand,
 } from "../commands";
-import type { LocalAccountFlows } from "../localAccountFlows";
+import type { LocalAccountFlows } from "../createLocalAccountFlows";
 import { clearTrackedMemberSignIn } from "../memberSignInTracking";
 import type { LocalAccountFlowContext } from "./context";
 import { createAuthorityChangedError, createAuthorityDenial, createReplayCapacityError } from "./failures";
@@ -25,11 +25,11 @@ export function createPasswordResetFlows(
     persistTerminalOutcome,
     denyIdentityAdminCommand,
     resetReplay,
-    commandExecutionKey,
+    buildCommandExecutionKey,
   } = context;
   return {
     async issuePasswordReset({ actor, targetPrincipalId, command }) {
-      return lock.withKeys([commandExecutionKey(command), actor.principalId, targetPrincipalId], async () => {
+      return lock.withKeys([buildCommandExecutionKey(command), actor.principalId, targetPrincipalId], async () => {
         const operation = `password-reset:actor:${actor.principalId}`;
         const scope = {
           applicationId,
@@ -78,15 +78,15 @@ export function createPasswordResetFlows(
           });
           if (!decision.allowed) {
             terminalOutcomeRecorded = true;
-            throw denyIdentityAdminCommand(
+            throw denyIdentityAdminCommand({
               scope,
               command,
-              decision.reason,
-              actor.principalId,
+              reason: decision.reason,
+              actorPrincipalId: actor.principalId,
               targetPrincipalId,
-              "identity.password_reset_issued",
-              "issue-password-reset",
-            );
+              auditAction: "identity.password_reset_issued",
+              deniedAction: "issue-password-reset",
+            });
           }
           const reservation = resetReplay.reserve(command.commandId);
           if (!reservation.accepted) {
