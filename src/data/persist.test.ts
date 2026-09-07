@@ -916,7 +916,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     // Edit lands mid-switch (still inside the debounce window when B's slice arrives).
     const edit = useStore.getState().addClient({ name: "Mid-switch edit", color: "#222222" });
     saveAll.mockClear();
-    releaseB!();
+    requireValue(releaseB, "account B load release")();
     await new Promise((r) => setTimeout(r, 5));
 
     expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["cb", edit.id]);
@@ -1390,7 +1390,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     // abort on A's failed-save flag. Otherwise the adapter snapshot becomes B while data stays A.
     window.dispatchEvent(new Event("focus"));
     await new Promise((resolve) => setTimeout(resolve, 5));
-    releaseB!();
+    requireValue(releaseB, "account B load release")();
     await new Promise((resolve) => setTimeout(resolve, 5));
 
     expect(useStore.getState().activeAccountId).toBe("b1");
@@ -1527,7 +1527,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
     expect(loadAll.mock.calls.filter((c) => c[0] === "a1").length).toBe(aLoadsBefore); // …as a no-op
 
     // B's in-flight load was NOT cancelled: when it resolves, B's slice still lands.
-    releaseB!();
+    requireValue(releaseB, "account B load release")();
     await new Promise((r) => setTimeout(r, 5));
     expect(useStore.getState().activeAccountId).toBe("b1");
     expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["cb"]); // B's slice, never A's
@@ -1588,7 +1588,7 @@ describe("flushPendingWrites (the import seam)", () => {
     expect(saveAll).toHaveBeenCalledTimes(1);
 
     useStore.getState().addClient({ name: "Mid-flush", color: "#333333" }); // lands during A's await
-    releaseFirst!();
+    requireValue(releaseFirst, "first flush release")();
     expect(await flush).toEqual({ kind: "clean" });
     // The flush swept the mid-flush edit too before reporting clean — nothing left on the wire.
     expect(saveAll).toHaveBeenCalledTimes(2);
@@ -1791,7 +1791,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     await new Promise((r) => setTimeout(r, 350)); // longer than the debounce — a re-armed timer WOULD have fired
     expect(saveAll).toHaveBeenCalledTimes(1); // parked instead
 
-    releaseSave!();
+    requireValue(releaseSave, "pending save release")();
     expect(await refresh).toEqual({ kind: "reloaded" });
     await new Promise((r) => setTimeout(r, 350));
     expect(saveAll).toHaveBeenCalledTimes(2);
@@ -1823,7 +1823,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     const refresh = refreshActiveAccountSlice("a2");
     await new Promise((r) => setTimeout(r, 5));
     useStore.getState().addClient({ name: "Mid-failed-reload", color: "#222222" }); // parked
-    release!();
+    requireValue(release, "failed reload release")();
     expect(await refresh).toEqual({ kind: "failed" });
     await new Promise((r) => setTimeout(r, 5));
 
@@ -1861,7 +1861,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     expect(saveAll.mock.calls[0]?.[1]).toEqual({ unload: true });
     expect((saveAll.mock.calls[0]?.[0] as AppData).clients.some((c) => c.name === "Mid-reload")).toBe(true);
 
-    release!();
+    requireValue(release, "reload release")();
     expect(await refresh).toEqual({ kind: "reloaded" });
     // The page survived: the reload rebases the parked edit and performs a normal confirmed save.
     expect(saveAll).toHaveBeenCalledTimes(2);
@@ -1899,7 +1899,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     useStore.getState().addClient({ name: "Hidden-tab edit", color: "#222222" }); // parked
     window.dispatchEvent(new Event("pagehide")); // keepalive dispatched — and REJECTS
 
-    releaseLoad!();
+    requireValue(releaseLoad, "reload release")();
     expect(await refresh).toEqual({ kind: "reloaded" });
     expect(saveAll).toHaveBeenCalledTimes(2);
     expect(requireValue(saveAll.mock.calls[1], "second saveAll call")[1]).toBeUndefined();
@@ -1951,7 +1951,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
       ],
     });
 
-    release!();
+    requireValue(release, "refresh release")();
     expect(await refresh).toEqual({ kind: "skipped" });
     await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).toHaveBeenCalledTimes(1);
@@ -1983,7 +1983,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     const refresh = refreshActiveAccountSlice("a2");
     await new Promise((resolve) => setTimeout(resolve, 5));
     useStore.getState().setActiveAccount(null);
-    release!();
+    requireValue(release, "refresh release")();
 
     expect(await refresh).toEqual({ kind: "skipped" });
     expect(useStore.getState().activeAccountId).toBeNull();
@@ -2043,7 +2043,7 @@ describe("mid-reload edits are rebased onto the fresh server slice", () => {
     await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).not.toHaveBeenCalled(); // …yet nothing was sent: writes are suspended during the load
 
-    release!();
+    requireValue(release, "refresh release")();
     expect(await refresh).toEqual({ kind: "reloaded" });
     await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).toHaveBeenCalledTimes(1);
@@ -2176,7 +2176,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
       await vi.advanceTimersByTimeAsync(5);
       expect(releaseB).not.toBeNull();
       const midSwitchEdit = useStore.getState().addClient({ name: "New in B", color: "#333333" });
-      releaseB!();
+      requireValue(releaseB, "account B load release")();
       await vi.advanceTimersByTimeAsync(5);
 
       // The destination edit is rebased and saved, but that must not hide the older source loss.
@@ -2429,7 +2429,7 @@ describe("batch reconciliation (authoritative reload)", () => {
     await new Promise((r) => setTimeout(r, 5));
     const savesBeforeReloadSettled = saveAll.mock.calls.length;
 
-    release!(); // the reload resolves LAST
+    requireValue(release, "conflict reload release")(); // the reload resolves LAST
     await new Promise((r) => setTimeout(r, 5));
 
     const names = useStore.getState().data.clients.map((c) => c.name);
