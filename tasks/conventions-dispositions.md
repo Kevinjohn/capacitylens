@@ -19,11 +19,11 @@ multiple same-line nodes as source sites.
 
 | Category                          | Occurrences / lines | Terminal disposition                                                                                                                                                                                                         |
 | --------------------------------- | ------------------: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Record<string, unknown>`         |           220 / 196 | Accepted individually. No rule bans unknown-key bags; every manifest row remains subject to narrowing before domain use, but syntax alone proves no leak.                                                                    |
+| `Record<string, unknown>`         |           220 / 196 | Deferred tracked debt owned by C6-RU. Syntax alone proves neither safe boundary narrowing nor a leak; each stable row needs contextual evidence before acceptance or repair.                                                 |
 | Native `throw new Error`          |           258 / 258 | Accepted individually by role. `DEFENSIVE-CODING.md` permits native display-safe enforcement, contextual wrappers with `cause`, and invariant failures; typed errors are required only when callers route by classification. |
 | `console.*`                       |           123 / 123 | Accepted individually as operator/developer diagnostics or documented fallback breadcrumbs. Seven additional grep hits are prose comments, not executable sites. No logging rule bans these references.                      |
 | Async without `await`             |             47 / 47 | Accepted Promise-interface debt. The typed probe identifies Promise-returning ports/adapters whose interface must remain asynchronous; #645 deliberately did not enroll `require-await`.                                     |
-| `as` assertions                   |           771 / 691 | Accepted after #645's production `no-unnecessary-type-assertion` enrollment removed its actionable subset. Each remaining assertion is listed with its asserted type; this issue creates no duplicate baseline.              |
+| `as` assertions                   |           771 / 691 | Deferred tracked debt owned by C6-AS. The #645 rule removes mechanically unnecessary assertions but does not prove the remaining assertions sound; each stable row needs validation/interoperability evidence or removal.    |
 | `satisfies`                       |             32 / 32 | Accepted compile-time conformance checks; `satisfies` does not override the expression's inferred type.                                                                                                                      |
 | Boolean-literal comparisons       |           110 / 107 | Accepted after #645 removed the one typed unnecessary comparison and enrolled `no-unnecessary-boolean-literal-compare`; remaining sites preserve boolean, optional, or unknown narrowing semantics.                          |
 | `String(...)` / `Number(...)`     |           161 / 141 | Accepted individually as explicit conversions. No rule prohibits them, and syntax alone proves no absence, empty-string, zero, `NaN`, or identity-contract defect.                                                           |
@@ -64,7 +64,8 @@ multiple same-line nodes as source sites.
 
 ## Closure
 
-Every #646 syntax candidate now has a stable terminal row. BO204 and BO205 are fixed; BO203 and
-BO211 have explicit #647 ownership; BO207–BO210 and BO212–BO227 have self-contained implementation
-blocks; BO228 is nonviolating. No generic unknown bag, native error, assertion, console reference,
-or coercion is promoted to a defect without a violated rule, and no #645 finding is duplicated.
+Every #646 syntax candidate now has a stable disposition row. BO204 and BO205 are fixed; BO203 and
+BO211 have explicit #647 ownership; RU001–RU220 and AS001–AS771 are deferred to complete C6 owner
+blocks; BO207–BO210 and BO212–BO227 have self-contained implementation blocks; BO228 is
+nonviolating. Closing the disposition issue does not claim that C6-RU or C6-AS implementation is
+done, and no #645 finding is duplicated.

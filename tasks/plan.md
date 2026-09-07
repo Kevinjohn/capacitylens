@@ -365,16 +365,78 @@ These blocks turn BO207–BO210 and BO212–BO227 into bounded future work. They
 change stable wire, route, database, or package contracts. BO203 and BO211 remain assigned to #647;
 BO204 and BO205 are fixed; BO206 is the site ledger; BO228 is accepted/nonviolating.
 
+#### C6-RU — Review every unknown-record boundary
+
+**Facts.** `tasks/conventions-disposition-sites.md` pins RU001–RU220: 220
+`Record<string, unknown>` occurrences on 196 source lines across 68 production files. The type is
+valid for genuinely dynamic or untrusted keyed data only when each value is narrowed before domain
+use. Its syntax proves neither that narrowing occurs nor that the bag leaks beyond its boundary.
+
+**Fixed decisions.** Review every RU row in its containing declaration and trace its producers and
+consumers. Accept a row only with recorded evidence that keys are genuinely dynamic or input is
+untrusted, reads are checked before typed use, and the bag does not replace a stable known shape.
+Replace a row with a named interface, mapped type, schema-derived type, or local narrow type when
+keys are fixed. Repair any unchecked read at the boundary; never use an assertion, placeholder
+default, or wider `unknown`/`any` type to silence it. Preserve wire fields and sanitisation,
+authorization, absence, atomicity, and error-surfacing contracts.
+
+**Files.** Exactly the 68 files named by RU001–RU220 in
+`tasks/conventions-disposition-sites.md`; tests may be added or changed only beside a row whose
+classification requires behavior repair. The manifest and this plan are the central records.
+
+**Tests.** For each changed row, run its nearest parser/sanitiser/API/storage tests with meaningful
+untrusted values, missing keys, wrong primitive/container types, empty strings, zero, and `null` or
+`undefined` as applicable. Run the affected package typecheck, lint every touched directory with
+zero warnings, Prettier, and the manifest reconciliation. Add server authorization/transaction or
+browser tests when that row crosses those boundaries.
+
+**Done.** All RU001–RU220 rows record either (a) accepted boundary evidence naming the validating
+read and bounded consumer, or (b) a landed repair with focused evidence. No row disappears, remains
+generically deferred, or is accepted because the syntax is common; occurrence and line totals are
+regenerated at the accepted evidence SHA.
+
+#### C6-AS — Review every production type assertion
+
+**Facts.** The manifest pins AS001–AS771: 771 `AsExpression` occurrences on 691 operator lines
+across 223 production files. #645's `no-unnecessary-type-assertion` rule detects a mechanical subset;
+a clean lint result does not establish runtime soundness, especially for assertions over network,
+storage, database, environment, parsed JSON, or other untrusted values.
+
+**Fixed decisions.** Review each AS row from asserted expression through its source validation and
+downstream use. Remove assertions when control-flow narrowing, a generic constraint, or a precise
+return type can express the fact. Retain one only when a named prior validator/sanitiser proves it or
+an external-library interoperability contract cannot be represented more precisely; record that
+evidence per row. An `as unknown as`, non-null substitute, or widened type is never an acceptable
+repair. Any untrusted-boundary assertion without prior validation is fixed at that boundary and
+must follow `DEFENSIVE-CODING.md` error surfacing.
+
+**Files.** Exactly the 223 files named by AS001–AS771 in
+`tasks/conventions-disposition-sites.md`; tests change only where removal or boundary repair affects
+a runtime guarantee. The manifest and this plan are the central records.
+
+**Tests.** Run the enrolled assertion rule and affected package typechecks after each bounded group.
+For behavior changes, run nearest tests covering malformed input, absence, empty values, zero, and
+error paths; add server authorization/transaction or browser coverage when applicable. Run lint for
+every touched directory with zero warnings, Prettier, and manifest reconciliation.
+
+**Done.** Every AS001–AS771 row records its validator/interoperability evidence or is removed by a
+verified change. The typed assertion probe is clean, no replacement assertion or broadening hides a
+diagnostic, and regenerated occurrence/line totals match the accepted evidence tree.
+
 #### BO207 — Preserve in-memory lookup absence
 
-**Facts.** `AppShell` converts two `Array.find` misses to `null`, contrary to the in-memory
-`undefined` convention. `AppSidebar` consumes the value for access copy.
+**Facts.** `AppShell` converts the combined two-source `Array.find` miss to `null`. The value is
+consumed by the `AppEntryGate` check `activeAccount !== null` and by the nullable `AppSidebar`
+`activeAccount` prop, which guards account-name rendering.
 
-**Fixed decisions.** Remove only the terminal `?? null`; keep the two-source pick-gap fallback and
-tenant gate unchanged. **Files.** `src/components/AppShell.tsx`, `src/components/AppShell.test.tsx`,
-`src/components/AppSidebar.tsx`. **Tests.** `pnpm exec vitest run src/components/AppShell.test.tsx`;
-app typecheck, lint for the three files, formatter. **Done.** Missing active account remains absent,
-summary fallback still opens the shell, and sidebar/access copy is unchanged.
+**Fixed decisions.** Remove the terminal `?? null`, change the tenant-gate check to
+`activeAccount !== undefined`, and change `AppSidebarProps.activeAccount` to
+`{ name: string } | undefined`. Preserve the account-summaries pick-gap fallback, sidebar conditional
+rendering, access copy, and route behavior. **Files.** `src/components/AppShell.tsx`,
+`src/components/AppShell.test.tsx`, `src/components/AppSidebar.tsx`. **Tests.** `pnpm exec vitest run
+src/components/AppShell.test.tsx`; app typecheck, lint for the three files, formatter. **Done.** Both
+exact null consumers use `undefined`, missing active account still blocks the app, summary fallback
+still opens it, and sidebar/account copy is unchanged.
 
 #### BO208 — Name the storage reset error input
 
@@ -511,14 +573,14 @@ selection effects remain unchanged.
 
 #### BO221 — Name visible-span counts
 
-**Facts.** `visibleSpan` returns numeric `days` and `weeks`; grid/header/row/model consumers depend on
-the shape. **Fixed decisions.** Rename the returned keys to `dayCount` and `weekCount` in one
-migration; do not change zoom-window arithmetic. **Files.**
-`src/components/scheduler/visibleSpan.ts`, `visibleSpan.test.ts`, `SchedulerGrid.tsx`,
-`SchedulerGridHeader.tsx`, `SchedulerGridRow.tsx`, `useSchedulerGridModel.ts`.
-**Tests.** `pnpm exec vitest run src/components/scheduler/visibleSpan.test.ts
-src/components/scheduler/SchedulerGrid.test.tsx`; app typecheck, scheduler lint, formatter.
-**Done.** No old result key remains and every zoom level produces the same date span.
+**Facts.** `buildRealizedVisibleSpan` returns numeric `days` and optional `weeks`; its only result-
+shape consumer is `buildVisibleSpanLabels` in the same file, and the focused test asserts both
+shapes. **Fixed decisions.** Rename only those returned keys to `dayCount` and `weekCount`; preserve
+label text and inclusive-date arithmetic. **Files.** `src/components/scheduler/visibleSpan.ts`,
+`src/components/scheduler/visibleSpan.test.ts`. **Tests.** `pnpm exec vitest run
+src/components/scheduler/visibleSpan.test.ts`; app typecheck, lint the two files, formatter.
+**Done.** The old result keys have no occurrence in `visibleSpan.ts`, the focused shape expectations
+use count names, and every label/date-span assertion remains unchanged in meaning.
 
 #### BO222 — Use `kind` for member confirmation state
 
@@ -620,9 +682,10 @@ cleanup behavior without changing production scheduling.
       dead declaration, `buildOperationReceipt`, remains pending removal with its stale JSDoc consumer
       in a separate reviewed branch; #647 is not complete until that branch lands.
 - [x] #646 all categories reconciled without duplicate findings. The exhaustive AST-backed site
-      manifest and terminal ledger are pinned to `f83d9643`; BO204/BO205 are fixed, BO203/BO211 have
-      explicit #647 owners, BO207–BO210 and BO212–BO227 have complete stable-ID blocks, and BO228 is
-      accepted with a quoted-rule analysis.
+      manifest and terminal ledger are pinned to `f83d9643`; RU001–RU220 and AS001–AS771 are
+      explicitly deferred to complete C6 owner blocks rather than asserted sound, BO204/BO205 are
+      fixed, BO203/BO211 have explicit #647 owners, BO207–BO210 and BO212–BO227 have complete
+      stable-ID blocks, and BO228 is accepted with a quoted-rule analysis.
 - [ ] Complete final review and required local gates pass on the accepted tree.
 - [ ] Separate minor release passes necessary GitHub CI and is verified after merge.
 - [ ] Actual finish, residual debt and any unmet criteria recorded.
