@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { AccountRouteContext } from "../replyHelpers";
+import type { AccountRouteContext } from "../createReplyHelpers";
 
 export async function resetPassword(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
@@ -26,21 +26,25 @@ export async function resetPassword(req: FastifyRequest, reply: FastifyReply, co
   }
   try {
     const command = accountCommand(req);
-    const targetMembership = await requireMembership(reply, accountId, userId, command);
+    const targetMembership = await requireMembership({ reply, accountId, userId, command });
     if (!targetMembership) return;
     const ceremony = await accountFlows!.issuePasswordReset({
       actor: req.accountActor!,
       targetPrincipalId: userId,
       command,
     });
-    auditUnlessReplayed(reply, ceremony, {
-      ts: new Date().toISOString(),
-      userId: req.user!.id,
-      accountId,
-      action: "passwordResetIssue",
-      entity: "identity",
-      id: userId,
-      changedFields: ["credential"],
+    auditUnlessReplayed({
+      reply,
+      result: ceremony,
+      record: {
+        ts: new Date().toISOString(),
+        userId: req.user!.id,
+        accountId,
+        action: "passwordResetIssue",
+        entity: "identity",
+        id: userId,
+        changedFields: ["credential"],
+      },
     });
     return reply.code(201).send({ token: ceremony.token, expiresAt: ceremony.expiresAt });
   } catch (error) {
@@ -70,21 +74,25 @@ export async function revokeMemberSessions(req: FastifyRequest, reply: FastifyRe
   }
   try {
     const command = accountCommand(req);
-    const targetMembership = await requireMembership(reply, accountId, userId, command);
+    const targetMembership = await requireMembership({ reply, accountId, userId, command });
     if (!targetMembership) return;
     const revoked = await accountFlows!.revokeMemberSessions({
       actor: req.accountActor!,
       targetPrincipalId: userId,
       command,
     });
-    auditUnlessReplayed(reply, revoked, {
-      ts: new Date().toISOString(),
-      userId: req.user!.id,
-      accountId,
-      action: "sessionsRevoke",
-      entity: "identity",
-      id: userId,
-      changedFields: ["sessions"],
+    auditUnlessReplayed({
+      reply,
+      result: revoked,
+      record: {
+        ts: new Date().toISOString(),
+        userId: req.user!.id,
+        accountId,
+        action: "sessionsRevoke",
+        entity: "identity",
+        id: userId,
+        changedFields: ["sessions"],
+      },
     });
     return reply.code(204).send();
   } catch (error) {

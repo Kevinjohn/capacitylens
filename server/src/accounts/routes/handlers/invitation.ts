@@ -5,7 +5,7 @@ import { cleanText } from "@capacitylens/shared/lib/strings";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
 import { parseStrictIsoInstant } from "../isoInstant";
-import type { AccountRouteContext } from "../replyHelpers";
+import type { AccountRouteContext } from "../createReplyHelpers";
 
 export async function createInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
@@ -15,7 +15,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
     command: accountCommand,
     fail: accountFail,
     isKnownRole,
-    validationFailed,
+    validationFailed: createValidationFailure,
     auditUnlessReplayed,
   } = context;
 
@@ -26,10 +26,10 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
     preauthEmail?: unknown;
   };
   if (typeof body.accountId !== "string" || body.accountId.length === 0) {
-    return accountFail(reply, validationFailed("accountId must be a non-empty string."));
+    return accountFail(reply, createValidationFailure("accountId must be a non-empty string."));
   }
   if (!isKnownRole(body.role)) {
-    return accountFail(reply, validationFailed(INVALID_ROLE_MESSAGE));
+    return accountFail(reply, createValidationFailure(INVALID_ROLE_MESSAGE));
   }
   // Shape-check preauthEmail here before authorize(): an absent value or a string that is empty
   // after trim means a link invite (null), while any present non-string is invalid. Email syntax
@@ -37,7 +37,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   // transport-independent integrity boundary authoritative without changing 400/403 precedence.
   let preauthEmail: string | null = null;
   if (body.preauthEmail !== undefined && typeof body.preauthEmail !== "string") {
-    return accountFail(reply, validationFailed("preauthEmail must be a valid email address."));
+    return accountFail(reply, createValidationFailure("preauthEmail must be a valid email address."));
   }
   if (typeof body.preauthEmail === "string") {
     const trimmed = body.preauthEmail.trim();
@@ -46,7 +46,10 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
     }
   }
   if (authMode === "sso" && preauthEmail === null) {
-    return accountFail(reply, validationFailed("SSO-only onboarding requires an email-preauthorized invitation."));
+    return accountFail(
+      reply,
+      createValidationFailure("SSO-only onboarding requires an email-preauthorized invitation."),
+    );
   }
   // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
   if (!authorize(req, reply, body.accountId, "manageInvites")) return;
@@ -59,7 +62,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   } else {
     const parsed = typeof requestedExpiry === "string" ? parseStrictIsoInstant(requestedExpiry) : null;
     if (parsed === null) {
-      return accountFail(reply, validationFailed("expiresAt must be a valid ISO-8601 timestamp."));
+      return accountFail(reply, createValidationFailure("expiresAt must be a valid ISO-8601 timestamp."));
     }
     expiresAt = new Date(parsed).toISOString();
   }
@@ -72,14 +75,18 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
       expiresAt,
       command: accountCommand(req),
     });
-    auditUnlessReplayed(reply, invite, {
-      ts: invite.createdAt,
-      userId: req.user!.id,
-      accountId: invite.workspaceId,
-      action: "inviteCreate",
-      entity: "invite",
-      id: invite.id,
-      changedFields: ["role", "preauthEmail", "expiresAt"],
+    auditUnlessReplayed({
+      reply,
+      result: invite,
+      record: {
+        ts: invite.createdAt,
+        userId: req.user!.id,
+        accountId: invite.workspaceId,
+        action: "inviteCreate",
+        entity: "invite",
+        id: invite.id,
+        changedFields: ["role", "preauthEmail", "expiresAt"],
+      },
     });
     // Echo back what the caller needs to build the link — NOT createdAt/usedAt. preauthEmail is
     // echoed (the admin set it; convenient confirmation of the NORMALIZED value), and only to this
@@ -157,14 +164,18 @@ export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply,
             command: accountCommand(req),
           });
     const now = new Date().toISOString();
-    auditUnlessReplayed(reply, accepted, {
-      ts: now,
-      userId: req.user!.id,
-      accountId: accepted.workspaceId,
-      action: "inviteAccept",
-      entity: "membership",
-      id: req.user!.id,
-      changedFields: ["role"],
+    auditUnlessReplayed({
+      reply,
+      result: accepted,
+      record: {
+        ts: now,
+        userId: req.user!.id,
+        accountId: accepted.workspaceId,
+        action: "inviteAccept",
+        entity: "membership",
+        id: req.user!.id,
+        changedFields: ["role"],
+      },
     });
     return reply.code(200).send({ accountId: accepted.workspaceId, role: accepted.role });
   } catch (error) {
@@ -212,14 +223,18 @@ export async function signupInvitation(req: FastifyRequest, reply: FastifyReply,
       password: body.password,
       command: accountCommand(req),
     });
-    auditUnlessReplayed(reply, result, {
-      ts: new Date().toISOString(),
-      userId: result.principalId,
-      accountId: result.membership.workspaceId,
-      action: "inviteAccept",
-      entity: "member",
-      id: result.principalId,
-      changedFields: ["role", "status"],
+    auditUnlessReplayed({
+      reply,
+      result,
+      record: {
+        ts: new Date().toISOString(),
+        userId: result.principalId,
+        accountId: result.membership.workspaceId,
+        action: "inviteAccept",
+        entity: "member",
+        id: result.principalId,
+        changedFields: ["role", "status"],
+      },
     });
     return reply.code(201).send({
       ok: true,
@@ -276,10 +291,10 @@ export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply,
       invitationId: id,
       command: accountCommand(req),
     });
-    auditUnlessReplayed(
+    auditUnlessReplayed({
       reply,
-      revoked,
-      {
+      result: revoked,
+      record: {
         ts: new Date().toISOString(),
         userId: req.user!.id,
         accountId,
@@ -288,8 +303,8 @@ export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply,
         id,
         changedFields: [],
       },
-      revoked.changed,
-    );
+      extra: revoked.changed,
+    });
     return reply.code(204).send();
   } catch (error) {
     return accountFail(reply, error);

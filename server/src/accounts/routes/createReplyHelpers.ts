@@ -7,12 +7,31 @@ import type { AuditRecord } from "../../audit";
 import { wasAccountCommandReplayed } from "../commands";
 import type { AccountRouteDependencies } from "./accountRouteDependencies";
 
-export function replyHelpers(dependencies: AccountRouteDependencies) {
+interface AuditUnlessReplayedInput {
+  reply: FastifyReply;
+  result: unknown;
+  record: AuditRecord;
+  extra?: boolean;
+}
+interface AuthorizeMemberMutationInput {
+  req: FastifyRequest;
+  reply: FastifyReply;
+  accountId: string;
+  action: Action;
+}
+interface RequireMembershipInput {
+  reply: FastifyReply;
+  accountId: string;
+  userId: string;
+  command: CommandIdentity;
+}
+
+export function createReplyHelpers(dependencies: AccountRouteDependencies) {
   const { authMode, administration: accountAdminPort, authorize, audit, fail: accountFail } = dependencies;
 
   const isKnownRole = isAccountRole;
 
-  const validationFailed = (message: string) =>
+  const createValidationFailure = (message: string) =>
     new AccountContractError({ code: "VALIDATION_FAILED", message, retryable: false });
 
   const createMemberNotFoundError = (command: CommandIdentity) =>
@@ -26,7 +45,7 @@ export function replyHelpers(dependencies: AccountRouteDependencies) {
   // Every mutation route audits its own record UNLESS the command was a replay (audit already
   // happened on first execution) — `extra` lets a route fold in one more precondition (e.g.
   // "only if something actually changed") without re-deriving the replay check at each call site.
-  const auditUnlessReplayed = (reply: FastifyReply, result: unknown, record: AuditRecord, extra = true): void => {
+  const auditUnlessReplayed = ({ reply, result, record, extra = true }: AuditUnlessReplayedInput): void => {
     if (extra && !wasAccountCommandReplayed(result)) audit(reply, record);
   };
 
@@ -48,12 +67,7 @@ export function replyHelpers(dependencies: AccountRouteDependencies) {
   // Gate shared by every member-mutation route below: admin-tier authorize() first (it sends its own
   // 403/404 on failure), then OFF mode's "no real member model" refusal. Same order/short-circuit as
   // each call site had inline.
-  const authorizeMemberMutation = (
-    req: FastifyRequest,
-    reply: FastifyReply,
-    accountId: string,
-    action: Action,
-  ): boolean => {
+  const authorizeMemberMutation = ({ req, reply, accountId, action }: AuthorizeMemberMutationInput): boolean => {
     if (!authorize(req, reply, accountId, action)) return false;
     if (authMode === "off") {
       rejectTrustedLocalMemberMutation(reply);
@@ -67,12 +81,7 @@ export function replyHelpers(dependencies: AccountRouteDependencies) {
   // probe, not an authorization one (that is the port's job just below). An admin disables a
   // compromised account first and rotates its password / kills its sessions second, so an
   // active-only probe here would 404 exactly the case these routes exist for.
-  const requireMembership = async (
-    reply: FastifyReply,
-    accountId: string,
-    userId: string,
-    command: CommandIdentity,
-  ) => {
+  const requireMembership = async ({ reply, accountId, userId, command }: RequireMembershipInput) => {
     const membership = await accountAdminPort.getMembership({
       principalId: userId,
       workspaceId: accountId,
@@ -83,7 +92,7 @@ export function replyHelpers(dependencies: AccountRouteDependencies) {
   };
   return {
     isKnownRole,
-    validationFailed,
+    validationFailed: createValidationFailure,
     memberNotFound: createMemberNotFoundError,
     auditUnlessReplayed,
     rejectTrustedLocalMemberMutation,
@@ -92,4 +101,4 @@ export function replyHelpers(dependencies: AccountRouteDependencies) {
   };
 }
 
-export type AccountRouteContext = AccountRouteDependencies & ReturnType<typeof replyHelpers>;
+export type AccountRouteContext = AccountRouteDependencies & ReturnType<typeof createReplyHelpers>;
