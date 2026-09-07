@@ -31,7 +31,7 @@ import {
  * — the getter defers it to render so a locale switch (account change) re-resolves the text on the
  * next render.
  */
-export type NavLinkDef = [to: string, label: () => string, icon: LucideIcon];
+export type NavigationLinkDefinition = { to: string; label: () => string; icon: LucideIcon };
 
 // Every route path below is single-sourced in tourAnchors.ts, so a route rename is ONE edit. That
 // matters most for the destinations the "Show me around" tour spotlights via `[data-nav="<route>"]`
@@ -39,27 +39,27 @@ export type NavLinkDef = [to: string, label: () => string, icon: LucideIcon];
 // missing-element step to a centred popover; getting-started.spec.ts pins every exported tour
 // anchor to a real element in the rendered schedule) — but the rest use the constants too so no
 // reader has to work out which literals are load-bearing.
-export const LINKS: NavLinkDef[] = [
-  [ROUTE_SCHEDULE, () => m.nav_schedule(), CalendarIcon],
-  [ROUTE_RESOURCES, () => m.nav_resources(), UsersIcon],
+export const LINKS: NavigationLinkDefinition[] = [
+  { to: ROUTE_SCHEDULE, label: () => m.nav_schedule(), icon: CalendarIcon },
+  { to: ROUTE_RESOURCES, label: () => m.nav_resources(), icon: UsersIcon },
   // External / 3rd parties moved INTO the Resources tab behind a per-account setting
   // (`externalEnabled` on the Account, default off — Settings → External). They no longer have their
   // own nav link; the old /external route redirects to /resources for saved bookmarks.
-  [ROUTE_DISCIPLINES, () => m.nav_disciplines(), TagIcon],
-  [ROUTE_CLIENTS, () => m.nav_clients(), BriefcaseIcon],
-  [ROUTE_PROJECTS, () => m.nav_projects(), FolderIcon],
-  [ROUTE_ACTIVITIES, () => m.nav_activities(), ClipboardCheckIcon],
-  [ROUTE_TIMEOFF, () => m.nav_timeoff(), SunIcon],
+  { to: ROUTE_DISCIPLINES, label: () => m.nav_disciplines(), icon: TagIcon },
+  { to: ROUTE_CLIENTS, label: () => m.nav_clients(), icon: BriefcaseIcon },
+  { to: ROUTE_PROJECTS, label: () => m.nav_projects(), icon: FolderIcon },
+  { to: ROUTE_ACTIVITIES, label: () => m.nav_activities(), icon: ClipboardCheckIcon },
+  { to: ROUTE_TIMEOFF, label: () => m.nav_timeoff(), icon: SunIcon },
 ];
 
 /**
  * Administration destinations, pinned to the BOTTOM of the sidebar in their own group below a
- * separator (issues #169 / #172). They are the same `NavLinkDef` shape and render through the same
+ * separator (issues #169 / #172). They are the same `NavigationLinkDefinition` shape and render through the same
  * menu markup as `LINKS` — only their placement differs. Team & access is here because it is
  * role-gated in practice (most people never act on it) and Settings because it is rarely visited:
  * neither should compete for the eye with the day-to-day scheduling destinations above.
  */
-export const ADMIN_LINKS: NavLinkDef[] = [
-  [ROUTE_TEAM, () => m.nav_team_access(), ShieldCheckIcon],
-  [ROUTE_SETTINGS, () => m.nav_settings(), SlidersHorizontalIcon],
+export const ADMIN_LINKS: NavigationLinkDefinition[] = [
+  { to: ROUTE_TEAM, label: () => m.nav_team_access(), icon: ShieldCheckIcon },
+  { to: ROUTE_SETTINGS, label: () => m.nav_settings(), icon: SlidersHorizontalIcon },
 ];

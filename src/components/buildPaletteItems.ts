@@ -93,8 +93,8 @@ export function buildPaletteItems({
   // bottom of the sidebar (issues #169/#172) — they are still first-class routes, and dropping them
   // here would quietly remove the keyboard-only way to reach them.
   const pages: PaletteItem[] = [...LINKS, ...ADMIN_LINKS]
-    .filter(([to]) => disciplinesEnabled || to !== "/disciplines")
-    .map(([to, label]) => ({
+    .filter(({ to }) => disciplinesEnabled || to !== "/disciplines")
+    .map(({ to, label }) => ({
       id: `page-${to === "/" ? "schedule" : to.slice(1)}`,
       label: label(),
       sublabel: to,

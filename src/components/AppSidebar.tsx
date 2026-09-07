@@ -9,7 +9,7 @@ import { FAKE_USER } from "../lib/fakeAuth";
 import demoAvatarUrl from "../assets/avatar-demo.svg";
 import { DEFAULT_COLORS } from "../lib/palette";
 import { Avatar } from "./common/ui";
-import type { NavLinkDef } from "../lib/navLinks";
+import type { NavigationLinkDefinition } from "../lib/navLinks";
 import { Badge } from "./ui/badge";
 import {
   Sidebar,
@@ -36,9 +36,9 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 interface AppSidebarProps {
   activeAccount: { name: string } | null;
   /** Administration destinations pinned to the bottom of the nav (Team & access, Settings). */
-  adminLinks: NavLinkDef[];
+  adminLinks: NavigationLinkDefinition[];
   demoAuthActive: boolean;
-  navLinks: NavLinkDef[];
+  navLinks: NavigationLinkDefinition[];
   onSignOut: () => void;
   onSwitchAccount: () => void;
   open: boolean;
@@ -152,10 +152,18 @@ export function AppSidebar({
 /** One menu of nav destinations. Shared by the primary list and the pinned admin group so both
  *  render identical markup — same active matching, same `data-nav` tour anchor, same collapsed-rail
  *  tooltip — and can never drift apart. */
-function NavMenu({ links, onNavigate, pathname }: { links: NavLinkDef[]; onNavigate: () => void; pathname: string }) {
+function NavMenu({
+  links,
+  onNavigate,
+  pathname,
+}: {
+  links: NavigationLinkDefinition[];
+  onNavigate: () => void;
+  pathname: string;
+}) {
   return (
     <SidebarMenu>
-      {links.map(([to, label, NavIcon]) => {
+      {links.map(({ to, label, icon: NavIcon }) => {
         const text = label();
         const isActive = matchPath({ path: to, end: to === "/" }, pathname) !== null;
         return (
