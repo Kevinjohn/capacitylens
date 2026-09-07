@@ -30,22 +30,26 @@ export interface ResourceNoteScrubResult {
   timeOffNotes: boolean;
 }
 
-function getOwnedLifecycleRow(
-  db: Db,
-  accountId: string,
-  entity: LifecycleEntityKey,
-  id: string,
-): LifecycleRow | undefined {
+interface GetOwnedLifecycleRowInput {
+  db: Db;
+  accountId: string;
+  entity: LifecycleEntityKey;
+  id: string;
+}
+
+function getOwnedLifecycleRow({ db, accountId, entity, id }: GetOwnedLifecycleRowInput): LifecycleRow | undefined {
   const row = getRow(db, entity, id) as LifecycleRow | undefined;
   return row?.accountId === accountId ? row : undefined;
 }
 
-function restampRows(
-  db: Db,
-  table: "resources" | "activities" | "allocations",
-  rows: Array<{ id: string; updatedAt: unknown }>,
-  clearedColumn: "projectId" | "phaseId",
-): void {
+interface RestampRowsInput {
+  db: Db;
+  table: "resources" | "activities" | "allocations";
+  rows: Array<{ id: string; updatedAt: unknown }>;
+  clearedColumn: "projectId" | "phaseId";
+}
+
+function restampRows({ db, table, rows, clearedColumn }: RestampRowsInput): void {
   const update = db.prepare(`UPDATE ${table} SET ${clearedColumn} = NULL, updatedAt = ? WHERE id = ?`);
   for (const row of rows) update.run(createServerRevision(row.updatedAt), row.id);
 }
@@ -72,13 +76,15 @@ function readScopedRowCounts(db: Db, accountId: string): Record<ScopedEntityKey,
   return counts;
 }
 
-function purgeLifecycleRow(
-  db: Db,
-  accountId: string,
-  entity: LifecycleEntityKey,
-  id: string,
-): PurgeLifecycleResult | null {
-  if (!getOwnedLifecycleRow(db, accountId, entity, id)) return null;
+interface PurgeLifecycleRowInput {
+  db: Db;
+  accountId: string;
+  entity: LifecycleEntityKey;
+  id: string;
+}
+
+function purgeLifecycleRow({ db, accountId, entity, id }: PurgeLifecycleRowInput): PurgeLifecycleResult | null {
+  if (!getOwnedLifecycleRow({ db, accountId, entity, id })) return null;
   const before = readScopedRowCounts(db, accountId);
 
   if (entity === "projects") {
@@ -97,9 +103,9 @@ function purgeLifecycleRow(
           AND (activities.projectId IS NULL OR activities.projectId <> ?)`,
       )
       .all(accountId, id, id) as Array<{ id: string; updatedAt: unknown }>;
-    restampRows(db, "resources", resources, "projectId");
-    restampRows(db, "activities", activities, "phaseId");
-    restampRows(db, "allocations", allocations, "projectId");
+    restampRows({ db, table: "resources", rows: resources, clearedColumn: "projectId" });
+    restampRows({ db, table: "activities", rows: activities, clearedColumn: "phaseId" });
+    restampRows({ db, table: "allocations", rows: allocations, clearedColumn: "projectId" });
   } else if (entity === "clients") {
     const allocations = db
       .prepare(
@@ -130,9 +136,9 @@ function purgeLifecycleRow(
           )`,
       )
       .all(accountId, id, id) as Array<{ id: string; updatedAt: unknown }>;
-    restampRows(db, "resources", resources, "projectId");
-    restampRows(db, "activities", activities, "phaseId");
-    restampRows(db, "allocations", allocations, "projectId");
+    restampRows({ db, table: "resources", rows: resources, clearedColumn: "projectId" });
+    restampRows({ db, table: "activities", rows: activities, clearedColumn: "phaseId" });
+    restampRows({ db, table: "allocations", rows: allocations, clearedColumn: "projectId" });
   }
 
   deleteRow(db, entity, id);
@@ -237,15 +243,15 @@ export function createSqliteTenantStore(db: Db): TenantStore {
     readSlice: (accountId, options) => readSlice(db, accountId, options),
     readFullSlice: (accountId) => readFullSlice(db, accountId),
     validationLookup: () => validationLookup,
-    readLifecycleRow: (accountId, entity, id) => getOwnedLifecycleRow(db, accountId, entity, id),
+    readLifecycleRow: (accountId, entity, id) => getOwnedLifecycleRow({ db, accountId, entity, id }),
     writeLifecycleRow: (accountId, entity, row) => {
-      if (row.accountId !== accountId || !getOwnedLifecycleRow(db, accountId, entity, row.id)) {
+      if (row.accountId !== accountId || !getOwnedLifecycleRow({ db, accountId, entity, id: row.id })) {
         throw new Error("Lifecycle row does not belong to the requested company.");
       }
       upsertRow(db, entity, row as unknown as Record<string, unknown>);
     },
     scrubResourceNotes: (accountId, resourceId) => {
-      if (!getOwnedLifecycleRow(db, accountId, "resources", resourceId)) {
+      if (!getOwnedLifecycleRow({ db, accountId, entity: "resources", id: resourceId })) {
         throw new Error("Lifecycle row does not belong to the requested company.");
       }
       const scrub = (table: "allocations" | "timeOff") => {
@@ -267,6 +273,6 @@ export function createSqliteTenantStore(db: Db): TenantStore {
         timeOffNotes: scrub("timeOff"),
       };
     },
-    purgeLifecycleRow: (accountId, entity, id) => purgeLifecycleRow(db, accountId, entity, id),
+    purgeLifecycleRow: (accountId, entity, id) => purgeLifecycleRow({ db, accountId, entity, id }),
   };
 }

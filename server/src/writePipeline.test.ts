@@ -7,7 +7,7 @@ describe("transaction-only write helpers", () => {
   it("refuses to replace the generated Internal client outside an existing transaction", () => {
     const db = openDb(":memory:");
 
-    expect(() => replaceGeneratedBuiltin(db, emptyAppData(), "internal:a1", {})).toThrow(
+    expect(() => replaceGeneratedBuiltin({ db, state: emptyAppData(), generatedId: "internal:a1", row: {} })).toThrow(
       "Internal-client replacement must run inside an existing transaction.",
     );
     db.close();

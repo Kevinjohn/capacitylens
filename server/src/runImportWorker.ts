@@ -83,15 +83,15 @@ function executeImportWorker(
 /** Build a bounded runner; exported so cancellation and admission behavior can be tested without
  * starting real threads. Production uses the singleton below, keeping one process-wide cap. */
 export function createImportWorkerRunner(options: ImportWorkerRunnerOptions = {}) {
-  const queue = new BoundedWorkQueue(
-    options.maxActive ?? MAX_CONCURRENT_IMPORT_WORKERS,
-    options.maxQueued ?? MAX_QUEUED_IMPORT_WORKERS,
-    IMPORT_CAPACITY_MESSAGE,
-    {
+  const queue = new BoundedWorkQueue({
+    maxActive: options.maxActive ?? MAX_CONCURRENT_IMPORT_WORKERS,
+    maxQueued: options.maxQueued ?? MAX_QUEUED_IMPORT_WORKERS,
+    fullMessage: IMPORT_CAPACITY_MESSAGE,
+    options: {
       maxWaitMs: options.maxWaitMs ?? MAX_IMPORT_QUEUE_WAIT_MS,
       onSaturated: (reason) => reportCurrentRequestQueueSaturation("import", reason),
     },
-  );
+  });
   const createWorker = options.createWorker ?? createDefaultWorker;
   return (request: ImportWorkerRequest, signal: AbortSignal | undefined = readCurrentRequestAbortSignal()) =>
     queue.run(() => executeImportWorker(request, signal, createWorker), signal);

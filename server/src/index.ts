@@ -77,7 +77,9 @@ const log = process.env.CAPACITYLENS_LOG === "1";
 const healthDeep = process.env.CAPACITYLENS_HEALTH_DEEP === "1";
 const rateLimit = parseRateLimit(process.env.CAPACITYLENS_RATE_LIMIT);
 const requireMfa = accountEnv.CAPACITYLENS_REQUIRE_MFA === "1";
-const internalTls: ReturnType<typeof loadInternalTls> = tryOrRefuse(() => loadInternalTls(process.env));
+const internalTls: ReturnType<typeof loadInternalTls> = tryOrRefuse(() =>
+  loadInternalTls({ environment: process.env }),
+);
 // P1.8 constrained org-creation. An empty/unset value leaves the token path DISABLED (the app
 // treats undefined and '' identically — bootstrapTokenMatches never allows an empty secret), so
 // the secure default holds: POST /api/orgs is first-run-only or an existing Owner/Admin.
@@ -355,12 +357,12 @@ const { app, backups } = (() => {
 // and the listener stops accepting work immediately. SQLite closes only after both any in-flight
 // snapshot and every accepted request have drained (P4.1; a SIGTERM during the start-up shot would
 // otherwise truncate a snapshot mid-write).
-const shutdown = createShutdownHandler(
+const shutdown = createShutdownHandler({
   app,
   db,
-  (code) => process.exit(code),
-  backups ? () => backups.stop() : undefined,
-);
+  exit: (code) => process.exit(code),
+  stopBackgroundWork: backups ? () => backups.stop() : undefined,
+});
 const onSignal = (signal: NodeJS.Signals) => {
   console.log(`capacitylens-server: ${signal} — draining requests, then exiting`);
   void shutdown(0, `signal:${signal}`);
