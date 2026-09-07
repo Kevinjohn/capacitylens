@@ -31,8 +31,21 @@ export function buildDayCapacity(
   // weekday (twice over, for the working-week and half-day tests), and this runs per resource ×
   // per visible day on every model rebuild.
   const weekday = weekdayOf(date);
-  const available = resolveAvailableHoursForWeekday(resource, date, timeOff, closures, weekday, effectiveWeek);
-  const allocated = resolveAllocatedHoursForWeekday(resource, date, allocations, weekday, effectiveWeek);
+  const available = resolveAvailableHoursForWeekday({
+    resource: resource,
+    date: date,
+    timeOff: timeOff,
+    closures: closures,
+    weekday: weekday,
+    effectiveWeek: effectiveWeek,
+  });
+  const allocated = resolveAllocatedHoursForWeekday({
+    resource: resource,
+    date: date,
+    allocations: allocations,
+    weekday: weekday,
+    effectiveWeek: effectiveWeek,
+  });
   return {
     date,
     allocated,

@@ -147,6 +147,12 @@ export function normalizeEmail(email: string): string {
   return normalizeAccountEmail(email);
 }
 
+interface PreauthInviteAllowsInput {
+  preauthEmail: string | null;
+  user: { email: string; emailVerified: boolean };
+  passwordMode?: boolean | undefined;
+}
+
 /**
  * May this signed-in principal accept this invite? The PURE security-matrix decision behind the
  * accept endpoint's email-preauth gate (P1.10) — extracted so the matrix is deterministically
@@ -162,18 +168,15 @@ export function normalizeEmail(email: string): string {
  * result MUST translate to a 403 that binds nothing and consumes nothing (the invite stays live for
  * the genuinely-matching caller). Nothing is ever emailed.
  *
- * @param preauthEmail  The invite's pre-authorised email (already normalized), or `null` for a link
+ * @param input The named inputs for this operation.
+ * @param input.preauthEmail  The invite's pre-authorised email (already normalized), or `null` for a link
  *   invite.
- * @param user          The resolved signed-in principal — its email and, for SSO, the
+ * @param input.user          The resolved signed-in principal — its email and, for SSO, the
  *   load-bearing IdP-asserted `emailVerified` flag.
- * @param passwordMode  Whether invite possession substitutes for email verification.
+ * @param input.passwordMode  Whether invite possession substitutes for email verification.
  * @returns `true` if this principal may accept this invite, `false` otherwise.
  */
-export function preauthInviteAllows(
-  preauthEmail: string | null,
-  user: { email: string; emailVerified: boolean },
-  passwordMode = false,
-): boolean {
+export function preauthInviteAllows({ preauthEmail, user, passwordMode = false }: PreauthInviteAllowsInput): boolean {
   if (preauthEmail === null) return true; // link invite: any signed-in caller (P1.9)
   // Password deployments have no outbound verification service: possession of the
   // email-addressed invite is their verification ceremony. SSO still requires the IdP's verified

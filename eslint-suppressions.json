@@ -104,22 +104,7 @@
       "count": 1
     }
   },
-  "server/src/authConfig/authAdapter.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/authConfig/authTypes.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "server/src/authConfig/bootstrapAdmin.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "server/src/authConfig/providers.ts": {
     "max-params": {
       "count": 1
     }
@@ -129,32 +114,7 @@
       "count": 3
     }
   },
-  "server/src/backup/preMigration.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "server/src/backup/publish.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "server/src/backup/retention.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/backup/scheduler.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "server/src/cascadeParity.test.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/controlTables/members.ts": {
     "max-params": {
       "count": 1
     }
@@ -174,17 +134,7 @@
       "count": 2
     }
   },
-  "server/src/db/introspection.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "server/src/db/migrationLedger.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/db/statementCache.ts": {
     "max-params": {
       "count": 1
     }
@@ -479,11 +429,6 @@
       "count": 1
     }
   },
-  "src/components/scheduler/weekSnap.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "src/components/settings/MembersSection.test.tsx": {
     "max-params": {
       "count": 6
@@ -557,16 +502,6 @@
   "src/lib/capacity.ts": {
     "max-params": {
       "count": 3
-    }
-  },
-  "src/lib/capacity/advisory.ts": {
-    "max-params": {
-      "count": 5
-    }
-  },
-  "src/lib/capacity/availability.ts": {
-    "max-params": {
-      "count": 5
     }
   },
   "src/lib/displayOrder.ts": {

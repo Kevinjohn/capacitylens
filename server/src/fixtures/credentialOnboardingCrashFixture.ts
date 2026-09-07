@@ -26,7 +26,11 @@ if (boundary === "after-user") {
       SELECT capacitylens_crash_now();
     END;
   `);
-  await configured.auth!.createCredentialUser("inner-crash@example.com", "Inner Crash", "a-valid-crash-test-password");
+  await configured.auth!.createCredentialUser({
+    email: "inner-crash@example.com",
+    name: "Inner Crash",
+    password: "a-valid-crash-test-password",
+  });
 } else {
   reserveAccountCommand(db, {
     applicationId: "crash-fixture",
@@ -51,12 +55,12 @@ if (boundary === "after-user") {
       SELECT capacitylens_schedule_crash();
     END;
   `);
-  await configured.auth!.createCredentialUser(
-    "outer-crash@example.com",
-    "Outer Crash",
-    "a-valid-crash-test-password",
-    true,
-    (principalId) =>
+  await configured.auth!.createCredentialUser({
+    email: "outer-crash@example.com",
+    name: "Outer Crash",
+    password: "a-valid-crash-test-password",
+    emailVerified: true,
+    correlateInTransaction: (principalId) =>
       correlatePendingAccountCommand(db, {
         applicationId: "crash-fixture",
         operation: "invite-password-signup",
@@ -64,7 +68,7 @@ if (boundary === "after-user") {
         workspaceId: "workspace-1",
         targetPrincipalId: principalId,
       }),
-  );
+  });
 }
 
 throw new Error(`Crash fixture unexpectedly crossed ${boundary}.`);

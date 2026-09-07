@@ -53,6 +53,13 @@ export function upsertMember(db: Db, member: AccountMember): void {
   bumpSecurityRevision(db, member.userId);
 }
 
+interface SetMemberStatusInput {
+  db: Db;
+  accountId: string;
+  userId: string;
+  status: MembershipStatus;
+}
+
 /**
  * Move an EXISTING membership between lifecycle states, leaving its role and join date untouched.
  *
@@ -64,22 +71,23 @@ export function upsertMember(db: Db, member: AccountMember): void {
  * they were an active member must not redeem into a non-active one) and bump the security revision
  * so live sessions re-resolve their membership instead of coasting on a cached one.
  *
- * @param db         The open SQLite handle.
- * @param accountId  The account whose membership is changing.
- * @param userId     The login whose membership is changing.
- * @param status     The {@link MembershipStatus} to move to.
+ * @param input The named inputs for this operation.
+ * @param input.db         The open SQLite handle.
+ * @param input.accountId  The account whose membership is changing.
+ * @param input.userId     The login whose membership is changing.
+ * @param input.status     The {@link MembershipStatus} to move to.
  * @returns Which of the three outcomes occurred. `"missing"` is NOT_FOUND to callers — an absent
  *   membership must never report a committed lifecycle change. `"unchanged"` is a SUCCESS: the
  *   membership already holds the requested status, so the caller's intent is satisfied. The three
  *   are distinguished rather than collapsed to a boolean precisely because "no row" and "no change"
  *   demand opposite responses, and because a re-applied status must not pay the security cost below.
  */
-export function setMemberStatus(
-  db: Db,
-  accountId: string,
-  userId: string,
-  status: MembershipStatus,
-): "changed" | "unchanged" | "missing" {
+export function setMemberStatus({
+  db,
+  accountId,
+  userId,
+  status,
+}: SetMemberStatusInput): "changed" | "unchanged" | "missing" {
   // `AND status <> ?` makes a same-value write matchless, which is what keeps the security protocol
   // below off the no-op path: SQLite counts a row it MATCHED as changed even when the value written
   // is identical, so an unguarded UPDATE would burn an unrelated admin's freshly-minted reset link
