@@ -588,10 +588,5 @@
     "max-params": {
       "count": 1
     }
-  },
-  "src/store/storeInternal.ts": {
-    "max-params": {
-      "count": 1
-    }
   }
 }
