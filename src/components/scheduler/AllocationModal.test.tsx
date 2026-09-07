@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { AllocationModal } from "./AllocationModal";
 import { AllocationBar } from "./AllocationBar";
 import { useStore } from "../../store/useStore";
-import type { AppData, Weekday } from "@capacitylens/shared/types/entities";
+import type { Activity, AppData, Weekday } from "@capacitylens/shared/types/entities";
 import {
   DEFAULT_ACCOUNT_ID,
   makeActivity,
@@ -18,6 +18,14 @@ import {
 import { PermissionContext } from "../../auth/permissionContext";
 import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { chooseOption, GEOM, indexAtClientX, renderWithTooltip } from "./__tests__/schedulerTestKit";
+
+interface AllocationScopeCaseInput {
+  caseName: string;
+  activityKind: Activity["kind"];
+  allocationProjectId?: "p1" | undefined;
+  expectedScope: string;
+  activityName: string;
+}
 
 type CapacityAdvisoryMockInput =
   | Parameters<typeof import("../../lib/capacity").buildCapacityAdvisory>[0]
@@ -1254,13 +1262,37 @@ describe("AllocationModal blocks mode", () => {
 
 describe("AllocationModal edit", () => {
   it.each([
-    ["attributed All-projects", "repeatable", "p1", "Acme / Lightning", "Planning"],
-    ["legacy unattributed All-projects", "repeatable", undefined, "No specific project", "Planning"],
-    ["internal", "internal", undefined, "Internal", "Operations"],
-    ["project-specific", "project", undefined, "Acme / Lightning", "Wireframes"],
-  ] as const)(
-    "reverse-maps and saves an %s allocation",
-    async (_caseName, activityKind, allocationProjectId, expectedScope, activityName) => {
+    {
+      caseName: "attributed All-projects",
+      activityKind: "repeatable",
+      allocationProjectId: "p1",
+      expectedScope: "Acme / Lightning",
+      activityName: "Planning",
+    },
+    {
+      caseName: "legacy unattributed All-projects",
+      activityKind: "repeatable",
+      allocationProjectId: undefined,
+      expectedScope: "No specific project",
+      activityName: "Planning",
+    },
+    {
+      caseName: "internal",
+      activityKind: "internal",
+      allocationProjectId: undefined,
+      expectedScope: "Internal",
+      activityName: "Operations",
+    },
+    {
+      caseName: "project-specific",
+      activityKind: "project",
+      allocationProjectId: undefined,
+      expectedScope: "Acme / Lightning",
+      activityName: "Wireframes",
+    },
+  ] satisfies readonly AllocationScopeCaseInput[])(
+    "reverse-maps and saves an $caseName allocation",
+    async ({ activityKind, allocationProjectId, expectedScope, activityName }: AllocationScopeCaseInput) => {
       const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
       const activity =
         activityKind === "project"

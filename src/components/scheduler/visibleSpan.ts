@@ -2,6 +2,13 @@ import { daysInclusive } from "@capacitylens/shared/lib/dateMath";
 import { m } from "@/i18n";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 
+interface ResolveVisibleWindowInput {
+  days: ISODate[];
+  leftEdgeIndex: number;
+  zoom: number;
+  focusDate: ISODate;
+}
+
 export interface RealizedVisibleSpan {
   days: number;
   /** Present only when the realized inclusive range is an exact whole number of weeks. */
@@ -47,12 +54,10 @@ export function buildVisibleSpanLabels(start: ISODate, end: ISODate): VisibleSpa
  *  Before the first scroll settles (`leftEdgeIndex === -1`) it anchors at `focusDate` (today by
  *  default), NOT days[0]: that is the PAST_BUFFER_DAYS origin BEHIND today, which would open the
  *  schedule on a window nobody asked about. */
-export function resolveVisibleWindow(
-  days: ISODate[],
-  leftEdgeIndex: number,
-  zoom: number,
-  focusDate: ISODate,
-): { start: ISODate; end: ISODate } {
+export function resolveVisibleWindow({ days, leftEdgeIndex, zoom, focusDate }: ResolveVisibleWindowInput): {
+  start: ISODate;
+  end: ISODate;
+} {
   const lastIndex = days.length - 1;
   const focusIndex = days.indexOf(focusDate);
   const rawIndex = leftEdgeIndex >= 0 ? leftEdgeIndex : focusIndex >= 0 ? focusIndex : 0;

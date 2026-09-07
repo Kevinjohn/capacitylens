@@ -58,12 +58,12 @@ export function SchedulerToolbar() {
   // Hide the discipline filter when the account doesn't use disciplines (buildSchedulerModel
   // also ignores filters.disciplineId in that case, so a stale value can't hide anyone).
   const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
-  const { searchInput, onSearchChange, onClear, filtersOpen, setFiltersOpen, setToolbarFilters } = useToolbarSearch(
+  const { searchInput, onSearchChange, onClear, filtersOpen, setFiltersOpen, setToolbarFilters } = useToolbarSearch({
     filters,
     activeAccountId,
     setFilters,
     clearFilters,
-  );
+  });
   const runHistoryAction = (action: () => void) => {
     try {
       action();

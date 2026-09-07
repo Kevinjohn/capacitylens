@@ -6,6 +6,38 @@ import { FULL_DAY_HOURS, isExternalResource, MAX_HOURS_PER_DAY } from "@capacity
 import type { ISODate, Resource } from "@capacitylens/shared/types/entities";
 import type { ColumnGeometry } from "./columnGeometry";
 
+interface ReconcileReassignedHoursInput {
+  current: number;
+  target: Resource;
+  zeroLoadMode: boolean;
+  startDate: ISODate;
+  effectiveWeek: EffectiveWorkingWeek;
+}
+
+interface ResolveVolumePreservingHoursInput {
+  previousDate: DateRange;
+  next: DateRange;
+  options: GestureOptions;
+  hoursPerDay: number;
+}
+
+interface ResolveGestureInput {
+  mode: DragMode;
+  current: DateRange;
+  deltaDays: number;
+  options: GestureOptions;
+  hoursPerDay: number;
+  isDays: boolean;
+}
+
+interface BuildSnappedBarGeometryInput {
+  mode: DragMode;
+  current: DateRange;
+  deltaDays: number;
+  options: GestureOptions;
+  geometry: ColumnGeometry;
+}
+
 // Pure drag/resize policy for AllocationBar, split out so the gesture math is unit-testable
 // without rendering the bar or driving pointer events. No React, no DOM, no store — the DOM
 // hit-testing (readLaneSnapshots / laneAt / setDropTarget) and the store write + capacity
@@ -16,13 +48,13 @@ import type { ColumnGeometry } from "./columnGeometry";
  *  external is promoted to the target's working day because those forms require positive load.
  *  Blocks mode deliberately permits and preserves zero; existing positive historical values are
  *  also retained for a real→real reassign. A same-resource move never calls this. */
-export function reconcileReassignedHours(
-  current: number,
-  target: Resource,
-  zeroLoadMode: boolean,
-  startDate: ISODate,
-  effectiveWeek: EffectiveWorkingWeek,
-): number {
+export function reconcileReassignedHours({
+  current,
+  target,
+  zeroLoadMode,
+  startDate,
+  effectiveWeek,
+}: ReconcileReassignedHoursInput): number {
   if (isExternalResource(target)) return 0;
   if (current > 0 || zeroLoadMode) return current;
   return resolveScheduledHoursOnDay(target, startDate, effectiveWeek) || FULL_DAY_HOURS;
@@ -36,12 +68,12 @@ export function reconcileReassignedHours(
  *  `clamped` is true ONLY when the raw derived hours exceeded MAX_HOURS_PER_DAY; a
  *  normal in-range resize, a move, the divide-by-zero guard, and the zero-old-span guard
  *  all report false. */
-export function resolveVolumePreservingHours(
-  previousDate: DateRange,
-  next: DateRange,
-  options: GestureOptions,
-  hoursPerDay: number,
-): { hours: number; clamped: boolean } {
+export function resolveVolumePreservingHours({
+  previousDate,
+  next,
+  options,
+  hoursPerDay,
+}: ResolveVolumePreservingHoursInput): { hours: number; clamped: boolean } {
   const oldSpan = spanDays(previousDate.startDate, previousDate.endDate, options);
   const newSpan = spanDays(next.startDate, next.endDate, options);
   // A zero-working-day OLD span (e.g. a weekend-aware allocation currently covering only Sat–Sun)
@@ -61,14 +93,11 @@ export function resolveVolumePreservingHours(
  *  the source and reassign-target both go through one place. `clamped` reports whether a
  *  volume-preserving resize hit the 24h cap (truncating work volume), so the commit can
  *  surface it; it's false for a move and any non-rescaling path. */
-export function resolveGesture(
-  mode: DragMode,
-  current: DateRange,
-  deltaDays: number,
-  options: GestureOptions,
-  hoursPerDay: number,
-  isDays: boolean,
-): { dates: DateRange; hours: number; clamped: boolean } {
+export function resolveGesture({ mode, current, deltaDays, options, hoursPerDay, isDays }: ResolveGestureInput): {
+  dates: DateRange;
+  hours: number;
+  clamped: boolean;
+} {
   // A zero-column move can still be a cross-row reassign. Run move math so the unchanged start is
   // reinterpreted against the target resource's working week; resize no-ops keep their reference.
   const dates =
@@ -76,7 +105,12 @@ export function resolveGesture(
       ? applyGesture({ mode: mode, range: current, deltaDays: deltaDays, options: options })
       : current;
   if (isDays && mode !== "move" && deltaDays !== 0) {
-    const { hours, clamped } = resolveVolumePreservingHours(current, dates, options, hoursPerDay);
+    const { hours, clamped } = resolveVolumePreservingHours({
+      previousDate: current,
+      next: dates,
+      options,
+      hoursPerDay,
+    });
     return { dates, hours, clamped };
   }
   return { dates, hours: hoursPerDay, clamped: false };
@@ -88,13 +122,13 @@ export function resolveGesture(
  *  even when the snapped range crosses a narrowed weekend, the preview is pixel-identical to the
  *  committed bar. Callers apply this only when deltaDays !== 0 (an unchanged drag keeps bar.x /
  *  bar.width). */
-export function buildSnappedBarGeometry(
-  mode: DragMode,
-  current: DateRange,
-  deltaDays: number,
-  options: GestureOptions,
-  geometry: ColumnGeometry,
-): { left: number; width: number } {
+export function buildSnappedBarGeometry({
+  mode,
+  current,
+  deltaDays,
+  options,
+  geometry,
+}: BuildSnappedBarGeometryInput): { left: number; width: number } {
   const snapped = applyGesture({ mode: mode, range: current, deltaDays: deltaDays, options: options });
   return {
     left: geometry.xForDateInGeom(snapped.startDate),

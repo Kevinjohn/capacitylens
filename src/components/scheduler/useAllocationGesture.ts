@@ -147,12 +147,12 @@ export function useAllocationGesture({ bar, geom: geometry, indexAtClientX, onEd
 
   const { onPointerDown: armPointerGesture } = useDragResize({
     indexAtClientX,
-    onPreview: (mode, deltaDays, deltaY, pointer) => {
+    onPreview: ({ mode, deltaDays, deltaY, pointer }) => {
       if (!preview) setDraggingAllocation(bar.allocation.id);
       const target = mode === "move" ? resolveLaneAt(lanesRef.current, pointer.clientX, pointer.clientY) : null;
       const destination = target && target.id !== resourceId ? target : null;
       const previewDays = resolvePreviewWorkingDays(destination?.id ?? resourceId);
-      const { previewImpossible, dates } = buildGesturePreviewDates(bar, mode, deltaDays, previewDays);
+      const { previewImpossible, dates } = buildGesturePreviewDates({ bar, mode, deltaDays, previewDays });
       setPreview({
         mode,
         deltaDays,
@@ -169,12 +169,12 @@ export function useAllocationGesture({ bar, geom: geometry, indexAtClientX, onEd
           !!targetResource &&
           (previewImpossible ||
             (!!dates &&
-              isAllocationMoveStartBlocked(
-                targetResource,
-                dates.startDate,
-                listAccountWorkingDays(state.data, state.activeAccountId),
-                bar.allocation.ignoreWeekends,
-              )));
+              isAllocationMoveStartBlocked({
+                resource: targetResource,
+                date: dates.startDate,
+                accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
+                ignoreWorkingDays: bar.allocation.ignoreWeekends,
+              })));
         setDropTarget(destination && !blocked ? destination.el : null);
       }
     },
@@ -207,17 +207,17 @@ export function useAllocationGesture({ bar, geom: geometry, indexAtClientX, onEd
       if (deltaDays === 0 && !reassignTo) return;
 
       const computeFor = (targetResourceId: ID) => {
-        return resolveGesture(
+        return resolveGesture({
           mode,
           current,
           deltaDays,
-          {
+          options: {
             workingDays: readWorkingDays(targetResourceId),
             ignoreWeekends: bar.allocation.ignoreWeekends,
           },
-          bar.allocation.hoursPerDay,
+          hoursPerDay: bar.allocation.hoursPerDay,
           isDays,
-        );
+        });
       };
 
       const effectiveResourceId = reassignTo ?? resourceId;
@@ -237,25 +237,28 @@ export function useAllocationGesture({ bar, geom: geometry, indexAtClientX, onEd
         : undefined;
       if (effectiveResource && (mode === "move" || dates.startDate !== current.startDate)) {
         if (
-          isAllocationMoveStartBlocked(
-            effectiveResource,
-            dates.startDate,
-            listAccountWorkingDays(state.data, state.activeAccountId),
-            bar.allocation.ignoreWeekends,
-          )
+          isAllocationMoveStartBlocked({
+            resource: effectiveResource,
+            date: dates.startDate,
+            accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
+            ignoreWorkingDays: bar.allocation.ignoreWeekends,
+          })
         ) {
           setNotice(m.scheduler_toast_non_working_drop(), "error");
           return;
         }
       }
       const reconciledHours = targetResource
-        ? reconcileReassignedHours(
-            hours,
-            targetResource,
-            isBlocks,
-            dates.startDate,
-            effectiveWorkingWeek(targetResource, listAccountWorkingDays(state.data, state.activeAccountId)),
-          )
+        ? reconcileReassignedHours({
+            current: hours,
+            target: targetResource,
+            zeroLoadMode: isBlocks,
+            startDate: dates.startDate,
+            effectiveWeek: effectiveWorkingWeek(
+              targetResource,
+              listAccountWorkingDays(state.data, state.activeAccountId),
+            ),
+          })
         : hours;
       const hoursPatch = reconciledHours !== bar.allocation.hoursPerDay ? { hoursPerDay: reconciledHours } : null;
 
@@ -277,7 +280,7 @@ export function useAllocationGesture({ bar, geom: geometry, indexAtClientX, onEd
 
       // The mutation is committed above. Keep pure advisory/feedback work outside its catch so a
       // programmer error cannot be mislabeled as a rejected move or trigger mutation recovery.
-      const advisory = readCapacityGestureAdvisory(bar, effectiveResourceId, isBlocks, dates, reconciledHours);
+      const advisory = readCapacityGestureAdvisory({ bar, effectiveResourceId, isBlocks, dates, reconciledHours });
       const dayCapacity = clamped ? m.scheduler_cap_fragment({ max: MAX_HOURS_PER_DAY }) : "";
       setNotice(
         `${reassignTo ? m.scheduler_toast_reassigned() : m.scheduler_toast_moved()}${advisory}.${dayCapacity}${m.scheduler_toast_undo_hint({ shortcut: buildUndoShortcut() })}`,
@@ -315,12 +318,12 @@ export function useAllocationGesture({ bar, geom: geometry, indexAtClientX, onEd
     if (
       (mode === "move" || next.startDate !== current.startDate) &&
       resource &&
-      isAllocationMoveStartBlocked(
+      isAllocationMoveStartBlocked({
         resource,
-        next.startDate,
-        listAccountWorkingDays(state.data, state.activeAccountId),
-        bar.allocation.ignoreWeekends,
-      )
+        date: next.startDate,
+        accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
+        ignoreWorkingDays: bar.allocation.ignoreWeekends,
+      })
     ) {
       setNotice(m.scheduler_toast_non_working_drop(), "error");
       return;
@@ -334,7 +337,12 @@ export function useAllocationGesture({ bar, geom: geometry, indexAtClientX, onEd
     }
     const rescale =
       isDays && mode !== "move"
-        ? resolveVolumePreservingHours(current, next, options, bar.allocation.hoursPerDay)
+        ? resolveVolumePreservingHours({
+            previousDate: current,
+            next,
+            options,
+            hoursPerDay: bar.allocation.hoursPerDay,
+          })
         : null;
     if (
       next.startDate === current.startDate &&

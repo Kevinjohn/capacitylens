@@ -122,7 +122,7 @@ export function useSchedulerGridModel(
   // +7 (8 days). The end is CLAMPED to the last timeline day so the window never reads past `days[]`.
   // Day-quantized via leftEdgeIndex so a scroll within a column doesn't rebuild the model.
   const { start: visibleStart, end: visibleEnd } = useMemo(
-    () => resolveVisibleWindow(days, leftEdgeIndex, ui.zoom, ui.focusDate),
+    () => resolveVisibleWindow({ days, leftEdgeIndex, zoom: ui.zoom, focusDate: ui.focusDate }),
     [days, leftEdgeIndex, ui.zoom, ui.focusDate],
   );
 
@@ -140,7 +140,10 @@ export function useSchedulerGridModel(
   // prefix-sum below) or a density change would leave stale row heights and bar offsets behind.
   const compactView = useStore((state) => state.compactView);
   const { density, rowLaneLayout } = useMemo(
-    () => ({ density: buildSchedulerDensity(compactView), rowLaneLayout: buildLaneLayout(compactView) }),
+    () => ({
+      density: buildSchedulerDensity({ compact: compactView }),
+      rowLaneLayout: buildLaneLayout({ compact: compactView }),
+    }),
     [compactView],
   );
 
@@ -188,7 +191,15 @@ export function useSchedulerGridModel(
     ],
   );
   const model = useMemo(
-    () => applyVisibleUtilization(staticModel, data, visibleStart, visibleEnd, accountWorkingDays, blocksMode),
+    () =>
+      applyVisibleUtilization({
+        model: staticModel,
+        data,
+        start: visibleStart,
+        end: visibleEnd,
+        accountWorkingDays,
+        blocksMode,
+      }),
     [staticModel, data, visibleStart, visibleEnd, accountWorkingDays, blocksMode],
   );
 

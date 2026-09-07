@@ -40,19 +40,40 @@ describe("visibleWindowFor", () => {
   const days = eachDayISO("2026-06-01", "2026-06-30");
 
   it("spans zoom*7 INCLUSIVE days from the left-edge day", () => {
-    expect(resolveVisibleWindow(days, 0, 1, "2026-06-10")).toEqual({ start: "2026-06-01", end: "2026-06-07" });
-    expect(resolveVisibleWindow(days, 7, 2, "2026-06-10")).toEqual({ start: "2026-06-08", end: "2026-06-21" });
+    expect(resolveVisibleWindow({ days, leftEdgeIndex: 0, zoom: 1, focusDate: "2026-06-10" })).toEqual({
+      start: "2026-06-01",
+      end: "2026-06-07",
+    });
+    expect(resolveVisibleWindow({ days, leftEdgeIndex: 7, zoom: 2, focusDate: "2026-06-10" })).toEqual({
+      start: "2026-06-08",
+      end: "2026-06-21",
+    });
   });
 
   it("anchors on the focus date until the first scroll settles", () => {
-    expect(resolveVisibleWindow(days, -1, 1, "2026-06-10")).toEqual({ start: "2026-06-10", end: "2026-06-16" });
+    expect(resolveVisibleWindow({ days, leftEdgeIndex: -1, zoom: 1, focusDate: "2026-06-10" })).toEqual({
+      start: "2026-06-10",
+      end: "2026-06-16",
+    });
     // A focus date outside the timeline falls back to its first day rather than reading past it.
-    expect(resolveVisibleWindow(days, -1, 1, "2025-01-01")).toEqual({ start: "2026-06-01", end: "2026-06-07" });
+    expect(resolveVisibleWindow({ days, leftEdgeIndex: -1, zoom: 1, focusDate: "2025-01-01" })).toEqual({
+      start: "2026-06-01",
+      end: "2026-06-07",
+    });
   });
 
   it("clamps both edges to the timeline", () => {
-    expect(resolveVisibleWindow(days, 28, 4, "2026-06-10")).toEqual({ start: "2026-06-29", end: "2026-06-30" });
-    expect(resolveVisibleWindow(days, 99, 1, "2026-06-10")).toEqual({ start: "2026-06-30", end: "2026-06-30" });
-    expect(resolveVisibleWindow([], -1, 1, "2026-06-10")).toEqual({ start: "2026-06-10", end: "2026-06-10" });
+    expect(resolveVisibleWindow({ days, leftEdgeIndex: 28, zoom: 4, focusDate: "2026-06-10" })).toEqual({
+      start: "2026-06-29",
+      end: "2026-06-30",
+    });
+    expect(resolveVisibleWindow({ days, leftEdgeIndex: 99, zoom: 1, focusDate: "2026-06-10" })).toEqual({
+      start: "2026-06-30",
+      end: "2026-06-30",
+    });
+    expect(resolveVisibleWindow({ days: [], leftEdgeIndex: -1, zoom: 1, focusDate: "2026-06-10" })).toEqual({
+      start: "2026-06-10",
+      end: "2026-06-10",
+    });
   });
 });
