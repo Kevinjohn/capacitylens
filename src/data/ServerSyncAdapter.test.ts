@@ -2203,115 +2203,126 @@ describe("atomic large diffs and unload behaviour", () => {
   );
 });
 
-describe("snapshot generation guard (superseded loads / in-flight batches)", () => {
-  it("a SUPERSEDED loadAll resolving late does NOT re-seed the snapshot over the newer load", async () => {
-    // The cross-account race: switch a1→a2 while a1's slow load is still in flight. persist.ts
-    // discards a1's late slice from the STORE (token guard) — the adapter must equally refuse to
-    // seed lastSynced from it, or snapshot=a1 under data=a2 and the next save diffs across
-    // tenants (DELETEs for a2's rows + PUTs of a1's).
-    const a1c = client("c1"); // accountId 'a1'
-    const a2c: Client = {
-      id: "c2",
-      accountId: "a2",
-      name: "Beta",
-      color: "#3b82f6",
-      createdAt: TS1,
-      updatedAt: TS1,
-    };
-    const a1Slice = scopedData("a1", { clients: [a1c] });
-    const a2Slice = scopedData("a2", { clients: [a2c] });
-    let releaseA1: (() => void) | undefined;
-    const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
-      if (String(url).includes("accountId=a1")) {
-        return new Promise<Response>((resolve) => {
-          releaseA1 = () => resolve(new Response(JSON.stringify(a1Slice), { status: 200 }));
-        });
-      }
-      if (String(url).includes("accountId=a2"))
-        return Promise.resolve(new Response(JSON.stringify(a2Slice), { status: 200 }));
-      return Promise.resolve(commitReceipt(init));
-    }) as unknown as typeof fetch;
-    const a = new ServerSyncAdapter("http://x", fetchImpl);
-
-    const slowA1 = a.loadAll("a1"); // in flight, held open
-    await a.loadAll("a2"); // newer load wins: snapshot = a2
-    required(releaseA1)();
-    await slowA1; // late resolve — must NOT seed a1 over a2
-    (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
-
-    // An a2 edit must diff against the a2 snapshot: one PUT, and NEVER a delete of a2's rows
-    // (which a stale a1 snapshot would produce).
-    await a.saveAll(
-      scopedData("a2", {
-        clients: [{ ...a2c, name: "Beta II", updatedAt: TS2 }],
-      }),
-    );
-    const ops = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]);
-    expect(ops).toEqual([expect.objectContaining({ method: "PUT", table: "clients", id: "c2" })]);
-  });
-
-  it("an in-flight batch resolving AFTER a reload does not clobber the fresh snapshot seed", async () => {
-    // drain() computes its diff, awaits the POST, then advances lastSynced — if a loadAll
-    // completed in that window, advancing would overwrite the fresh seed with the pre-reload
-    // target (snapshot ≠ store). The generation check makes the reload's seed win; the skipped
-    // advance is safe because the server already holds the batch's idempotent ops.
-    const slice = scopedData("a1", { clients: [client("c1")] });
-    let releaseBatch: (() => void) | undefined;
-    const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
-      if (String(url).endsWith("/api/batch")) {
-        return new Promise<Response>((resolve) => {
-          releaseBatch = () => resolve(commitReceipt(init));
-        });
-      }
-      return Promise.resolve(new Response(JSON.stringify(slice), { status: 200 }));
-    }) as unknown as typeof fetch;
-    const a = new ServerSyncAdapter("http://x", fetchImpl);
-
-    const saving = a.saveAll(withData({ clients: [client("cX")] })); // batch held open
-    await a.loadAll("a1"); // reload completes mid-batch: snapshot = slice (c1)
-    required(releaseBatch)();
-    await saving;
-    (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
-
-    // Re-saving the loaded slice must be a no-op — the reload's seed survived the batch settle.
-    // (Without the guard, snapshot would be the cX target and this would emit c1/cX ops.)
-    await a.saveAll(slice);
-    expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
-  });
-
-  it("a save that STARTS while a loadAll is already in flight cannot clobber that load's seed (same-generation race)", async () => {
-    // The subtle variant a start-generation check misses: loadAll bumps its counter at fetch
-    // START, so a save beginning mid-load captures the same generation the load will seed under.
-    // The guard must key on seeds (seedGen), not load starts — otherwise the batch's settle
-    // re-advances lastSynced to its pre-reload target, snapshot desyncs from store, and the next
-    // save diffs across states (cross-tenant deletes in the switch case).
-    const slice = scopedData("a1", { clients: [client("c1")] });
-    let releaseState: (() => void) | undefined;
-    let releaseBatch: (() => void) | undefined;
-    const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
-      if (String(url).endsWith("/api/batch")) {
-        return new Promise<Response>((resolve) => {
-          releaseBatch = () => resolve(commitReceipt(init));
-        });
-      }
+async function expectSupersededLoadNotToReseedSnapshot(): Promise<void> {
+  // The cross-account race: switch a1→a2 while a1's slow load is still in flight. persist.ts
+  // discards a1's late slice from the STORE (token guard) — the adapter must equally refuse to
+  // seed lastSynced from it, or snapshot=a1 under data=a2 and the next save diffs across
+  // tenants (DELETEs for a2's rows + PUTs of a1's).
+  const a1c = client("c1"); // accountId 'a1'
+  const a2c: Client = {
+    id: "c2",
+    accountId: "a2",
+    name: "Beta",
+    color: "#3b82f6",
+    createdAt: TS1,
+    updatedAt: TS1,
+  };
+  const a1Slice = scopedData("a1", { clients: [a1c] });
+  const a2Slice = scopedData("a2", { clients: [a2c] });
+  let releaseA1: (() => void) | undefined;
+  const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
+    if (String(url).includes("accountId=a1")) {
       return new Promise<Response>((resolve) => {
-        releaseState = () => resolve(new Response(JSON.stringify(slice), { status: 200 }));
+        releaseA1 = () => resolve(new Response(JSON.stringify(a1Slice), { status: 200 }));
       });
-    }) as unknown as typeof fetch;
-    const a = new ServerSyncAdapter("http://x", fetchImpl);
+    }
+    if (String(url).includes("accountId=a2"))
+      return Promise.resolve(new Response(JSON.stringify(a2Slice), { status: 200 }));
+    return Promise.resolve(commitReceipt(init));
+  }) as unknown as typeof fetch;
+  const a = new ServerSyncAdapter("http://x", fetchImpl);
 
-    const loading = a.loadAll("a1"); // fetch held — generation already bumped
-    const saving = a.saveAll(withData({ clients: [client("cX")] })); // starts mid-load, batch held
-    required(releaseState)(); // the load seeds lastSynced = slice
-    await loading;
-    required(releaseBatch)(); // the batch settles AFTER the seed
-    await saving;
-    (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
+  const slowA1 = a.loadAll("a1"); // in flight, held open
+  await a.loadAll("a2"); // newer load wins: snapshot = a2
+  required(releaseA1)();
+  await slowA1; // late resolve — must NOT seed a1 over a2
+  (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
 
-    // The seed survived: re-saving the loaded slice is a no-op.
-    await a.saveAll(slice);
-    expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
-  });
+  // An a2 edit must diff against the a2 snapshot: one PUT, and NEVER a delete of a2's rows
+  // (which a stale a1 snapshot would produce).
+  await a.saveAll(
+    scopedData("a2", {
+      clients: [{ ...a2c, name: "Beta II", updatedAt: TS2 }],
+    }),
+  );
+  const ops = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]);
+  expect(ops).toEqual([expect.objectContaining({ method: "PUT", table: "clients", id: "c2" })]);
+}
+
+async function expectInFlightBatchNotToClobberReloadSeed(): Promise<void> {
+  // drain() computes its diff, awaits the POST, then advances lastSynced — if a loadAll
+  // completed in that window, advancing would overwrite the fresh seed with the pre-reload
+  // target (snapshot ≠ store). The generation check makes the reload's seed win; the skipped
+  // advance is safe because the server already holds the batch's idempotent ops.
+  const slice = scopedData("a1", { clients: [client("c1")] });
+  let releaseBatch: (() => void) | undefined;
+  const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
+    if (String(url).endsWith("/api/batch")) {
+      return new Promise<Response>((resolve) => {
+        releaseBatch = () => resolve(commitReceipt(init));
+      });
+    }
+    return Promise.resolve(new Response(JSON.stringify(slice), { status: 200 }));
+  }) as unknown as typeof fetch;
+  const a = new ServerSyncAdapter("http://x", fetchImpl);
+
+  const saving = a.saveAll(withData({ clients: [client("cX")] })); // batch held open
+  await a.loadAll("a1"); // reload completes mid-batch: snapshot = slice (c1)
+  required(releaseBatch)();
+  await saving;
+  (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
+
+  // Re-saving the loaded slice must be a no-op — the reload's seed survived the batch settle.
+  // (Without the guard, snapshot would be the cX target and this would emit c1/cX ops.)
+  await a.saveAll(slice);
+  expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+}
+
+async function expectMidLoadSaveNotToClobberSeed(): Promise<void> {
+  // A save beginning mid-load captures the same generation the load will seed under, so the guard
+  // must key on seeds rather than load starts.
+  const slice = scopedData("a1", { clients: [client("c1")] });
+  let releaseState: (() => void) | undefined;
+  let releaseBatch: (() => void) | undefined;
+  const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
+    if (String(url).endsWith("/api/batch")) {
+      return new Promise<Response>((resolve) => {
+        releaseBatch = () => resolve(commitReceipt(init));
+      });
+    }
+    return new Promise<Response>((resolve) => {
+      releaseState = () => resolve(new Response(JSON.stringify(slice), { status: 200 }));
+    });
+  }) as unknown as typeof fetch;
+  const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+
+  const loading = adapter.loadAll("a1"); // fetch held — generation already bumped
+  const saving = adapter.saveAll(withData({ clients: [client("cX")] })); // starts mid-load, batch held
+  required(releaseState)(); // the load seeds lastSynced = slice
+  await loading;
+  required(releaseBatch)(); // the batch settles AFTER the seed
+  await saving;
+  (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
+
+  await adapter.saveAll(slice);
+  expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+}
+
+describe("snapshot generation guard (superseded loads / in-flight batches)", () => {
+  it(
+    "a SUPERSEDED loadAll resolving late does NOT re-seed the snapshot over the newer load",
+    expectSupersededLoadNotToReseedSnapshot,
+  );
+
+  it(
+    "an in-flight batch resolving AFTER a reload does not clobber the fresh snapshot seed",
+    expectInFlightBatchNotToClobberReloadSeed,
+  );
+
+  it(
+    "a save that STARTS while a loadAll is already in flight cannot clobber that load's seed (same-generation race)",
+    expectMidLoadSaveNotToClobberSeed,
+  );
 
   it("a queued save parked before a reload seed rejects without dispatching against the new basis", async () => {
     // Coalesce-to-latest parks a second save while the first is in flight. If a reload seeds the
