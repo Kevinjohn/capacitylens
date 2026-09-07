@@ -5,7 +5,7 @@ import type { Role } from "@capacitylens/shared/domain/access";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
-import type { AuthMode, AuthProviderInfo, AuthUser } from "../../auth/authContext";
+import type { AccountMode, AuthProviderInfo, AuthUser } from "../../auth/authContext";
 import { resolveRoleLabel, resolveRoleSummary } from "../../lib/accessCopy";
 import { m } from "@/i18n";
 import { TextField } from "../common/ui";
@@ -40,7 +40,7 @@ interface InviteAcceptViewProps {
   state: InviteAcceptState;
   preview: InvitePreview | null;
   user: AuthUser | null;
-  authMode: AuthMode;
+  authMode: AccountMode;
   providers: readonly AuthProviderInfo[];
   busy: boolean;
   errorId: string;

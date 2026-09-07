@@ -82,25 +82,31 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
           id: id,
           patch: patch,
           prepare: (merged, existing) => {
-            patch = isPlaceholderResource(merged) ? { ...patch, ...placeholderCapacityDefaults() } : patch;
-            merged = { ...existing, ...patch };
+            const preparedPatch = isPlaceholderResource(merged)
+              ? { ...patch, ...placeholderCapacityDefaults() }
+              : patch;
+            const preparedResource = { ...existing, ...preparedPatch };
             // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
             // placeholder projectId whose project is ARCHIVED (absent from the server-mode active-only
             // slice) must not block an unrelated edit; a CHANGED projectId is still validated strictly.
-            assertScopedRefs(get().data, existing.accountId, "resources", patch, existing);
+            assertScopedRefs(get().data, existing.accountId, "resources", preparedPatch, existing);
             // Flipping a resource to external while it still owns loaded work / time-off would orphan
             // those dependents (the scheduler hides external capacity + time-off). A no-op when the
             // resource isn't becoming external. Mirrors the server's validateWrite resources branch.
-            assertResourceProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
-            assertResourceKindAllowsDependents(get().data, existing.accountId, id, merged.kind);
-            if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays);
-            if (patch.workingDays !== undefined || patch.halfDays !== undefined) {
-              assertHalfDays(merged.halfDays, merged.workingDays);
+            assertResourceProjectAllowsDependents(get().data, existing.accountId, id, preparedResource, existing);
+            assertResourceKindAllowsDependents(get().data, existing.accountId, id, preparedResource.kind);
+            if (preparedPatch.workingDays !== undefined) assertWorkingDays(preparedPatch.workingDays);
+            if (preparedPatch.workingDays !== undefined || preparedPatch.halfDays !== undefined) {
+              assertHalfDays(preparedResource.halfDays, preparedResource.workingDays);
             }
-            const engagementPatch = merged.kind !== "person" ? { ...patch, engagement: "studio" as const } : patch;
-            const colorPatch = applySnappedColor({ patch: engagementPatch, allowNeutral: merged.kind === "external" });
-            return patch.workingHoursPerDay !== undefined
-              ? { ...colorPatch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) }
+            const engagementPatch =
+              preparedResource.kind !== "person" ? { ...preparedPatch, engagement: "studio" as const } : preparedPatch;
+            const colorPatch = applySnappedColor({
+              patch: engagementPatch,
+              allowNeutral: preparedResource.kind === "external",
+            });
+            return preparedPatch.workingHoursPerDay !== undefined
+              ? { ...colorPatch, workingHoursPerDay: clampWorkingHoursPerDay(preparedPatch.workingHoursPerDay) }
               : colorPatch;
           },
         });

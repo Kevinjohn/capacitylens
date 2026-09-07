@@ -2,7 +2,7 @@ import type { AuthorizeBasicInput } from "./routeShared";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { LocalAccountFlows } from "../accounts/createLocalAccountFlows";
-import type { AuthMode } from "../auth";
+import type { AccountMode } from "../auth";
 import { type Db } from "../db";
 import { hasGatedFields, type SanitizeWriteOptions } from "../fieldPolicy";
 import { TABLES } from "../tables";
@@ -20,7 +20,7 @@ export { MAX_BATCH_OPS } from "./batch/types";
 export interface BatchRouteDependencies {
   db: Db;
   store: TenantStore;
-  authMode: AuthMode;
+  authMode: AccountMode;
   multiAccount: boolean;
   optimisticConcurrency: boolean;
   accountFlows: LocalAccountFlows;

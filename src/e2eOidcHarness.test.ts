@@ -53,7 +53,7 @@ async function waitForDexStart(child: ChildProcess, calls: string): Promise<void
   child.once("error", recordSpawnError);
   try {
     while (Date.now() < deadline) {
-      if (spawnError) throw spawnError;
+      if (spawnError) throw new Error("OIDC harness child process failed to spawn.", { cause: spawnError });
       try {
         if (readFileSync(calls, "utf8").startsWith("run ")) return;
       } catch {

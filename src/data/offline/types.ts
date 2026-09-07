@@ -1,4 +1,4 @@
-import type { AuthMode, AuthUser } from "../../auth/authContext";
+import type { AccountMode, AuthUser } from "../../auth/authContext";
 import type { Role } from "@capacitylens/shared/account/types";
 
 export interface CachedRecord<T> {
@@ -16,7 +16,7 @@ export interface EncryptedRecord {
 }
 
 export interface OfflineAuthSnapshot {
-  authMode: AuthMode;
+  authMode: AccountMode;
   user: AuthUser;
   canCreateAccount: boolean;
   multiAccount: boolean;

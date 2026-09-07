@@ -1,11 +1,835 @@
 {
+  "server/scripts/generate-database-fixtures.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/scripts/rehearse-migrations.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/scripts/rehearse/anonymise.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "server/scripts/rehearse/rehearsalChecks.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "server/scripts/reset-owner-password.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "server/src/BatchStateProjection.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/BatchStateProjection.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/accounts/accountFlowRuntime.test.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    }
+  },
+  "server/src/accounts/adminPort/authority.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "server/src/accounts/adminPort/membership.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    }
+  },
+  "server/src/accounts/commands.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 4
+    }
+  },
+  "server/src/accounts/conformance/accountFlows.conformance.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 27
+    },
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 13
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 9
+    }
+  },
+  "server/src/accounts/conformance/architecture.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "server/src/accounts/conformance/identityPort.contract.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 9
+    }
+  },
+  "server/src/accounts/conformance/localIdentityPort.conformance.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    }
+  },
+  "server/src/accounts/createLocalAccountFlows.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "server/src/accounts/flows/actorContext.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 2
+    }
+  },
+  "server/src/accounts/flows/failures.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "server/src/accounts/flows/inviteSignup.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "server/src/accounts/flows/passwordReset.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "server/src/accounts/flows/reconciliationRepair.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "server/src/accounts/identityPort/credentials.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "server/src/accounts/identityPort/federatedLinks.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "server/src/accounts/identityPort/sessions.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 5
+    },
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "server/src/accounts/routes/handlers/credentialAdmin.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 6
+    }
+  },
+  "server/src/accounts/routes/handlers/invitation.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 13
+    }
+  },
+  "server/src/accounts/routes/handlers/memberAdmin.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 12
+    }
+  },
+  "server/src/accounts/routes/handlers/session.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "server/src/accounts/routes/isoInstant.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "server/src/accounts/sqliteAccountAdminPort.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 3
+    }
+  },
+  "server/src/accounts/ssoCutover.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/accounts/ssoCutover.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 5
+    }
+  },
+  "server/src/accounts/ssoCutoverRoutes.test.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "server/src/accounts/ssoCutoverRoutes.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 9
+    }
+  },
+  "server/src/accounts/state.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 14
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 5
+    }
+  },
+  "server/src/accounts/state/commandLedgerWrites.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "server/src/accounts/state/schema.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/app.accountRoutes.test.ts": {
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 4
+    }
+  },
+  "server/src/app.accounts.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 3
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 10
+    }
+  },
+  "server/src/app.auth.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 46
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 21
+    },
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "server/src/app.authz.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 6
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 20
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "server/src/app.cspReport.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/app.erasure.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "server/src/app.export.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/app.health.test.ts": {
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "server/src/app.invites.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 17
+    },
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 12
+    }
+  },
+  "server/src/app.lifecycle.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 7
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 41
+    }
+  },
+  "server/src/app.logging.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 5
+    }
+  },
+  "server/src/app.masquerade.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 6
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 15
+    }
+  },
+  "server/src/app.members.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 10
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 6
+    }
+  },
+  "server/src/app.orgs.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 12
+    }
+  },
+  "server/src/app.resetPassword.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "server/src/app.retire-open-dataset.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 2
+    }
+  },
+  "server/src/app.routes.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    }
+  },
+  "server/src/app.singleCompanyCap.test.ts": {
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 7
+    }
+  },
+  "server/src/app.syncOrdering.integration.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/app.test.ts": {
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 20
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 109
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 277
+    }
+  },
+  "server/src/audit.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "server/src/audit.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "server/src/audit/createAuditRecovery.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "server/src/audit/createFileAuditSink.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    }
+  },
+  "server/src/audit/sinks.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "server/src/auditOutbox.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 8
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "server/src/auditOutbox.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/auditOutboxDrainer.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/auditOutboxRecovery.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/auth.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 59
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 7
+    }
+  },
+  "server/src/authConfig/authAdapter.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "server/src/authConfig/authFromEnv.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
   "server/src/authConfig/bootstrapAdmin.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    },
     "max-params": {
+      "count": 1
+    }
+  },
+  "server/src/authConfig/captureContexts.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    }
+  },
+  "server/src/authConfig/captureContexts.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 3
+    }
+  },
+  "server/src/authConfig/databaseHooks.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "server/src/authConfig/providers.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 5
+    }
+  },
+  "server/src/authConfig/requestHooks.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "server/src/authConfig/sessionActivity.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 3
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "server/src/authConfig/strictOidcFetch.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "server/src/backup.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "server/src/batchAttribution.model.test.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "server/src/controlTables.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "server/src/controlTables/assert.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "server/src/controlTables/inviteRetention.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "server/src/credentialOnboardingDurability.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "server/src/cutoverRepair.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/cutoverRepair.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    }
+  },
+  "server/src/db.migrate.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 5
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "server/src/db.permissions.test.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    }
+  },
+  "server/src/db/initialization.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "server/src/db/introspection.ts": {
+    "no-nested-ternary": {
       "count": 1
     }
   },
   "server/src/db/migrationLedger.ts": {
     "max-params": {
+      "count": 1
+    }
+  },
+  "server/src/db/open.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "server/src/db/slices.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 2
+    }
+  },
+  "server/src/documentation.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/fixtures/credentialOnboardingCrashFixture.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    }
+  },
+  "server/src/importWorker.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "server/src/index.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/index.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "server/src/internalTls.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "server/src/migrationPreservation.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 6
+    }
+  },
+  "server/src/passwordSecurity.test.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 3
+    }
+  },
+  "server/src/passwordSecurity.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "server/src/rehearseAnonymise.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "server/src/rehearseMigrations.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "server/src/rehearseRedaction.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 16
+    }
+  },
+  "server/src/resetOwnerPassword.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 5
+    }
+  },
+  "server/src/resetOwnerPassword.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/routes/accountEntity/guards.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/routes/accountEntity/lifecycleHandlers.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 5
+    }
+  },
+  "server/src/routes/accountEntity/writeHandlers.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    }
+  },
+  "server/src/routes/appAuthorization.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    }
+  },
+  "server/src/routes/appLogging.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "server/src/routes/appSessionResolution.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/routes/batch/applyOperation.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "server/src/routes/batch/authorize.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "server/src/routes/batch/runBatch.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 7
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "server/src/routes/batch/validateRequest.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "server/src/routes/batchRoutes.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "server/src/routes/entityRoutes.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    }
+  },
+  "server/src/routes/importRoutes.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "server/src/routes/lifecycleRoutes.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "server/src/routes/masqueradeRoutes.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "server/src/routes/stateRoutes.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "server/src/routes/systemRoutes.ts": {
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "server/src/runImportWorker.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    }
+  },
+  "server/src/runImportWorker.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    }
+  },
+  "server/src/schema/assert.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "server/src/strictOidc.test.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "server/src/strictOidc.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "server/src/tables/columns.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
       "count": 1
     }
   },
@@ -17,15 +841,106 @@
   "server/src/tenantIntegrity.ts": {
     "max-params": {
       "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "server/src/testHelpers.ts": {
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "server/src/tlsRenewalVerifier.test.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 5
     }
   },
   "server/src/txn.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
     "max-params": {
       "count": 1
     }
   },
+  "server/src/validate.allocationProject.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "server/src/validate.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "server/src/validate/fields.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "server/src/validate/sanitize.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "server/src/workQueue.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    }
+  },
+  "server/src/workQueue.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
   "shared/src/account/policy.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 4
+    },
     "max-params": {
+      "count": 1
+    }
+  },
+  "shared/src/account/validation.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "shared/src/data/internalClient.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    }
+  },
+  "shared/src/data/internalClient.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 6
+    }
+  },
+  "shared/src/data/migrate/steps/v1-v6.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 3
+    }
+  },
+  "shared/src/data/transfer.test.ts": {
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "shared/src/data/transfer.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
       "count": 1
     }
   },
@@ -44,6 +959,11 @@
       "count": 1
     }
   },
+  "shared/src/domain/lifecycle.test.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    }
+  },
   "shared/src/domain/tenancy.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 1
@@ -51,6 +971,810 @@
   },
   "shared/src/lib/dateMath.ts": {
     "max-params": {
+      "count": 1
+    }
+  },
+  "shared/src/lib/integrity.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 18
+    }
+  },
+  "shared/src/lib/integrity.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "shared/src/lib/repeatingDates.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "shared/src/lib/sanitize/coerce.ts": {
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 1
+    }
+  },
+  "src/account/accountClient.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 7
+    }
+  },
+  "src/account/commandOutcome.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/auth/AuthProvider.test.tsx": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    }
+  },
+  "src/auth/LoginScreen.tsx": {
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "src/auth/MfaEnrollmentScreen.tsx": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    }
+  },
+  "src/auth/PermissionProvider.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/auth/PermissionProvider.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 5
+    },
+    "no-nested-ternary": {
+      "count": 3
+    }
+  },
+  "src/auth/apiFetchReauth.test.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "src/auth/fetchAuthStatus.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/auth/resetPasswordFailure.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 3
+    }
+  },
+  "src/auth/useAccountSummaries.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/auth/useAuthContextValue.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/bundleBudgetGate.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "src/components/AppEntryGate.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/components/AppSidebar.tsx": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/CommandPalette.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 7
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 5
+    }
+  },
+  "src/components/GettingStarted.tsx": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/ImportExport.persistence.test.tsx": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 3
+    }
+  },
+  "src/components/ImportExport.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "src/components/ImportExport.tsx": {
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "src/components/StorageRecovery.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/components/StorageRecovery.tsx": {
+    "no-nested-ternary": {
+      "count": 3
+    }
+  },
+  "src/components/accounts/AccountPicker.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    }
+  },
+  "src/components/accounts/AccountPicker.tsx": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/buildPaletteItems.ts": {
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "src/components/clients/ClientList.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "src/components/common/ErrorBoundary.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/components/common/dialogs.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/components/common/fields/ColorField.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/common/fields/SelectField.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 4
+    }
+  },
+  "src/components/common/fields/WorkingDayPicker.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/common/fields/textFields.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 11
+    }
+  },
+  "src/components/common/fields/toggleFields.tsx": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/common/focus.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/components/common/ui.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 6
+    }
+  },
+  "src/components/import-export/useServerImport.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "src/components/invites/InviteAccept.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 6
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    }
+  },
+  "src/components/invites/InviteAcceptView.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 3
+    }
+  },
+  "src/components/invites/externalSignIn.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/components/invites/inviteAcceptanceActions.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/invites/invitePreviewActions.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 3
+    }
+  },
+  "src/components/invites/inviteSignInActions.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/invites/inviteSignupActions.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/resources/ExternalResourceSection.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/components/resources/ResourceForm.tsx": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/resources/ResourceList.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 7
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/components/resources/ResourceList.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/AllocationBar.interaction.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 28
+    }
+  },
+  "src/components/scheduler/AllocationBar.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "src/components/scheduler/AllocationFooter.tsx": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/AllocationModal.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 10
+    }
+  },
+  "src/components/scheduler/AllocationModal.tsx": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/AllocationTargetFields.tsx": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/DateHeader.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/ResourceLane.test.tsx": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    }
+  },
+  "src/components/scheduler/ResourceLane.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 3
+    }
+  },
+  "src/components/scheduler/SchedulerGrid.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/SchedulerGrid.tsx": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/SchedulerGridGroupHeader.tsx": {
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "src/components/scheduler/SchedulerGridRows.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/components/scheduler/SchedulerToolbar.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/activityOptions.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/allocationDrag.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/buildAllocationModalSeed.ts": {
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "src/components/scheduler/columnGeometry.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 3
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/gestureAnnouncements.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "src/components/scheduler/schedulerModel.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 81
+    }
+  },
+  "src/components/scheduler/schedulerModel.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/schedulerModelFilters.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/schedulerModelIndexing.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "src/components/scheduler/schedulerRowModel.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/components/scheduler/useAllocationGesture.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/useAllocationModalState.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/useAllocationTargetState.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/useSchedulerViewport.test.tsx": {
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/virtualWindow.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "src/components/scheduler/visibleSpan.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/settings/ArchivedSection.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "src/components/settings/ArchivedSection.tsx": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/settings/InviteMemberPanel.tsx": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/settings/MemberRow.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/components/settings/MembersSection.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 45
+    }
+  },
+  "src/components/settings/MembersSection.tsx": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/components/settings/SecuritySection.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/components/settings/SecuritySection.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/components/settings/SettingsView.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/components/settings/SsoReadinessPanel.tsx": {
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "src/components/settings/createMemberCredentialMutations.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/components/settings/memberConfirmationCopy.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 2
+    }
+  },
+  "src/components/settings/useMemberInvites.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/components/settings/useWorkspaceReadiness.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/components/team/TeamAccessView.tsx": {
+    "no-nested-ternary": {
+      "count": 3
+    }
+  },
+  "src/components/ui/field.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/components/ui/toggle-group.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 4
+    }
+  },
+  "src/components/useAppShellController.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/data/ServerSyncAdapter.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 22
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 6
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 3
+    }
+  },
+  "src/data/apiConfig.ts": {
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 1
+    }
+  },
+  "src/data/buildInfo.ts": {
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 3
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 3
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 5
+    }
+  },
+  "src/data/offline/crypto.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/data/offlineCache.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    }
+  },
+  "src/data/offlineWorker.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/data/persist.overlap.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "src/data/persist.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 20
+    }
+  },
+  "src/data/persistence/accountSwitch.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/data/persistence/attachPersistence.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 3
+    }
+  },
+  "src/data/persistence/refreshController.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 3
+    }
+  },
+  "src/data/sync/lifecycleOps.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/data/sync/snapshot.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/data/syncOps.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/e2eOidcHarness.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/hooks/useDragResize.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 3
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/hooks/useLifecycleActions.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "src/lib/auditWarning.test.ts": {
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "src/lib/auditWarning.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/lib/displayOrder.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/lib/lanePacking.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/lib/lanePacking.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/lib/metadata.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/lib/repeatingAllocations.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/lib/repeatingAllocations.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/lib/tour.test.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 4
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 8
+    }
+  },
+  "src/playwrightServerScope.test.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/store/filters.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 2
+    }
+  },
+  "src/store/importHardening.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "src/store/internalClient.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 11
+    }
+  },
+  "src/store/multitenancy.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 9
+    }
+  },
+  "src/store/selectors.extra.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    }
+  },
+  "src/store/selectors.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/store/selectors.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/store/slices/accountSlice.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/store/slices/schedulerSlice.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "src/store/storeGuards.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/store/useStore.allocations.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/store/useStore.crud.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    }
+  },
+  "src/store/useStore.lifecycle.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 14
+    }
+  },
+  "src/store/useStore.tenancy.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    }
+  },
+  "src/store/useStore.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/test/docs-lightbox.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "src/test/privacy-posture.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/test/setup.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
     }
   }

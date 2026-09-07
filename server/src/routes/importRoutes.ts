@@ -8,7 +8,7 @@ import { seed } from "@capacitylens/shared/data/seed";
 import { parseData, MAX_IMPORT_RECORDS } from "@capacitylens/shared/data/transfer";
 import { APP_DATA_KEYS, type AppData } from "@capacitylens/shared/types/entities";
 import type { AuditRecord } from "../audit";
-import type { AuthMode } from "../auth";
+import type { AccountMode } from "../auth";
 import { insertAll, replaceAccountSlice, type Db, buildCompleteAccountSlice, wipe } from "../db";
 import { readCurrentRequestAbortSignal } from "../requestAbort";
 import type { runImportWorker } from "../runImportWorker";
@@ -54,7 +54,7 @@ function buildImportSnapshotFingerprint(slice: AppData): string {
 export interface ImportRouteDependencies {
   db: Db;
   store: TenantStore;
-  authMode: AuthMode;
+  authMode: AccountMode;
   allowReset: boolean;
   accountAdminPort: ImportAccountAdministration;
   authorize: (input: AuthorizeImportInput) => boolean;

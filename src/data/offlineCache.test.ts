@@ -724,6 +724,8 @@ describe("offline tenant cache", () => {
     async (cause) => {
       await cacheAuthSnapshot(authSnapshot("user-a"));
       vi.spyOn(Storage.prototype, "setItem").mockImplementation((key) => {
+        // Host storage APIs can throw arbitrary JavaScript values; exercise the falsy-value boundary.
+        // eslint-disable-next-line @typescript-eslint/only-throw-error
         if (key.endsWith("offlineWriteBoundary")) throw cause;
       });
 
@@ -736,6 +738,8 @@ describe("offline tenant cache", () => {
     "follows the missing-storage policy when storage throws a falsy value (%p)",
     async (cause) => {
       vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+        // Host storage APIs can throw arbitrary JavaScript values; exercise the falsy-value boundary.
+        // eslint-disable-next-line @typescript-eslint/only-throw-error
         throw cause;
       });
       vi.stubGlobal("indexedDB", undefined);

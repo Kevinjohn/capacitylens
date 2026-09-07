@@ -18,7 +18,11 @@ async function clearOfflineRecords(
   const boundary = advanceWriteBoundary();
   if (typeof indexedDB === "undefined") {
     resetOfflineState();
-    if (boundary.kind === "storageFailed" && boundary.storageError) throw boundary.storageError;
+    if (boundary.kind === "storageFailed" && boundary.storageError) {
+      throw boundary.storageError instanceof Error
+        ? boundary.storageError
+        : new Error("Offline storage failed with a non-Error value.", { cause: boundary.storageError });
+    }
     // The caller must know that no durable records were removed. Sign-out uses this rejection to
     // remove the offline opt-in, so records left behind while browser storage is unavailable can
     // never be accepted on a later networkless boot.
@@ -36,7 +40,11 @@ async function clearOfflineRecords(
     resetOfflineState();
   }
   afterCommit();
-  if (boundary.kind === "storageFailed" && boundary.storageError) throw boundary.storageError;
+  if (boundary.kind === "storageFailed" && boundary.storageError) {
+    throw boundary.storageError instanceof Error
+      ? boundary.storageError
+      : new Error("Offline storage failed with a non-Error value.", { cause: boundary.storageError });
+  }
 }
 
 /** Remove this user's cached identity, account list and slices. Called before every sign-out. */

@@ -6,7 +6,7 @@ import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { CommandIdentity, Role } from "@capacitylens/shared/account/types";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { isMatchingSecretToken, type Auth, type AuthMode } from "../auth";
+import { isMatchingSecretToken, type Auth, type AccountMode } from "../auth";
 import type { Db } from "../db";
 import { insertRow, listAccountSummaries, readState } from "../db";
 import type { LocalAccountFlows } from "../accounts/createLocalAccountFlows";
@@ -37,7 +37,7 @@ export interface StateRouteDependencies {
   section: "read" | "org";
   db: Db;
   store: TenantStore;
-  authMode: AuthMode;
+  authMode: AccountMode;
   auth: Auth | null;
   multiAccount: boolean;
   bootstrapToken?: string;

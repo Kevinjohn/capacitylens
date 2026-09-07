@@ -26,7 +26,7 @@ describe("boot refusal helpers", () => {
     for (const failure of [new Error("bad option"), "bad option"]) {
       expect(() =>
         tryOrRefuse(() => {
-          throw failure;
+          throw failure instanceof Error ? failure : new Error(String(failure), { cause: failure });
         }),
       ).toThrow("exit intercepted");
       expect(error).toHaveBeenLastCalledWith("capacitylens-server: refusing to start — bad option");
