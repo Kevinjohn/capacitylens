@@ -12,6 +12,8 @@ interface RefreshCallerAccessInput {
   knownRemoved?: boolean | undefined;
 }
 
+type CallerAccessRefreshResult = { kind: "active" } | { kind: "left" } | { kind: "failed" };
+
 interface MemberAccessDependencies extends Pick<
   MemberActionDependencies,
   "requestAccountId" | "isActiveAccount" | "fail" | "setNotice"
@@ -41,41 +43,41 @@ export function createMemberAccessReconciliation({
   /** Re-resolve every caller-owned projection after a possible self-role mutation. The role badge
    * and affordances fail closed immediately via membershipRevision; the tenant slice is then fetched
    * again under the new server role so confidential fields from the old projection cannot linger. */
-  const refreshCallerAccess = async ({ knownRemoved = false }: RefreshCallerAccessInput = {}): Promise<
-    "active" | "left" | "failed"
-  > => {
+  const refreshCallerAccess = async ({
+    knownRemoved = false,
+  }: RefreshCallerAccessInput = {}): Promise<CallerAccessRefreshResult> => {
     const accountId = activeAccountId;
-    if (!accountId) return "failed";
+    if (!accountId) return { kind: "failed" };
     invalidateMemberships();
     await refreshAuth();
-    if (!isActiveAccount(accountId)) return "left";
+    if (!isActiveAccount(accountId)) return { kind: "left" };
     const summaries = await refreshAccountSummaries({
       allowCachedFallback: false,
     });
-    if (!isActiveAccount(accountId)) return "left";
+    if (!isActiveAccount(accountId)) return { kind: "left" };
     // A cached fallback is useful for ordinary offline viewing but is not evidence of the caller's
     // post-mutation role. Fail closed instead of accepting a stale membership list as authority.
     if (summaries === null || readOfflineStateSnapshot().readOnly) {
       closeActiveAccount();
       setNotice(m.settings_members_access_refresh_failed(), "error");
-      return "failed";
+      return { kind: "failed" };
     }
     const stillMember = !knownRemoved && summaries.some((account) => account.id === accountId);
     if (!stillMember) {
       closeActiveAccount();
-      return "left";
+      return { kind: "left" };
     }
     const outcome = await refreshActiveAccountSlice(accountId);
-    if (!isActiveAccount(accountId)) return "left";
+    if (!isActiveAccount(accountId)) return { kind: "left" };
     // `refreshActiveAccountSlice` can report `reloaded` after restoring an offline snapshot. That is
     // still not an authoritative post-role projection: close the tenant so confidential fields
     // from the caller's previous role cannot remain visible under an unverified role badge.
-    if (outcome === "reloaded" && !readOfflineStateSnapshot().readOnly) return "active";
+    if (outcome === "reloaded" && !readOfflineStateSnapshot().readOnly) return { kind: "active" };
     // A user-initiated tenant switch can legitimately supersede this refresh. Never close the new
     // tenant or replace its notice because a stale operation finished late.
     closeActiveAccount();
     setNotice(m.settings_members_access_refresh_failed(), "error");
-    return "failed";
+    return { kind: "failed" };
   };
 
   const reconcileUnknownMutation = async (
@@ -86,8 +88,8 @@ export function createMemberAccessReconciliation({
     if (!isActiveAccount(accountId)) return;
     const accessResult = callerAccessMayHaveChanged ? await refreshCallerAccess() : null;
     if (!isActiveAccount(accountId)) return;
-    if (accessResult === "failed") return;
-    if (accessResult === "left") {
+    if (accessResult?.kind === "failed") return;
+    if (accessResult?.kind === "left") {
       setNotice(m.settings_members_reconcile_company_access({ message }), "warning");
       return;
     }
@@ -107,7 +109,7 @@ export function createMemberAccessReconciliation({
       setNotice(m.settings_members_reconcile_directory({ message }), "warning");
     } catch (reloadError) {
       if (!isActiveAccount(accountId)) return;
-      if (accessResult === "active") {
+      if (accessResult?.kind === "active") {
         setNotice(m.settings_members_reconcile_access({ message }), "warning");
       } else {
         fail(
