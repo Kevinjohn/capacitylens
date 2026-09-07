@@ -118,6 +118,13 @@ const createInviteReq = (
   headers: Record<string, string> = {},
 ) => call(app, { method: "POST", url: "/api/invites", payload, headers });
 
+function parseCommandId(value: unknown): string {
+  if (typeof value !== "object" || value === null || !("commandId" in value) || typeof value.commandId !== "string") {
+    throw new Error("Expected response body to contain a string commandId");
+  }
+  return value.commandId;
+}
+
 describe("GET /api/accounts/:id/members — gate", () => {
   it("owner and admin may list; editor/viewer/non-member are 403", async () => {
     for (const [role, allowed] of [
@@ -739,7 +746,7 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
     });
     expect(patch.statusCode).toBe(404);
     expect(patch.json()).toMatchObject(expectedNotFound);
-    expect(patch.json().commandId).toEqual(expect.any(String));
+    expect(parseCommandId(patch.json())).toEqual(expect.any(String));
     const remove = await removeReq({
       app,
       accountId: "a1",
@@ -750,7 +757,7 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
     });
     expect(remove.statusCode).toBe(404);
     expect(remove.json()).toMatchObject(expectedNotFound);
-    expect(remove.json().commandId).toEqual(expect.any(String));
+    expect(parseCommandId(remove.json())).toEqual(expect.any(String));
     const revoke = await revokeSessionsReq({
       app,
       accountId: "a1",
@@ -761,7 +768,7 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
     });
     expect(revoke.statusCode).toBe(404);
     expect(revoke.json()).toMatchObject(expectedNotFound);
-    expect(revoke.json().commandId).toEqual(expect.any(String));
+    expect(parseCommandId(revoke.json())).toEqual(expect.any(String));
     const ed = await signUp(app, "ed-400@capacitylens.dev");
     upsertMember(db, {
       accountId: "a1",
