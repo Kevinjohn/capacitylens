@@ -63,7 +63,7 @@ export function activeOnly(data: AppData): AppData {
   const lookup: LifecycleAncestryLookup = (table, id) => indexes[table]?.get(id);
   const memo: LifecycleAncestryMemo = new Map();
   const hasVisibleAncestry = (table: AppDataKey, row: object): boolean =>
-    inspectAncestry(table, row as LifecycleAncestryRow, lookup, memo).visible;
+    inspectAncestry({ table, row: row as LifecycleAncestryRow, lookup, memo }).visible;
   const resources = data.resources.filter(isActive);
   const clients = data.clients.filter(isActive);
   // Parent lifecycle is inherited by the read projection. An active child beneath an archived or
