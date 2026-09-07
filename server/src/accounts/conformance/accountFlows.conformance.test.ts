@@ -309,6 +309,28 @@ describe("AccountFlows conformance", () => {
     return db;
   }
 
+  function expectStoredSignupCommandExcludesSecrets(input: { token: string; password: string }): void {
+    const stored = currentDb()
+      .prepare(
+        `
+      SELECT payloadHash, resultJson, workspaceId, targetPrincipalId
+        FROM account_commands
+       WHERE operation = 'invite-password-signup'
+    `,
+      )
+      .get() as {
+      payloadHash: string;
+      resultJson: string;
+      workspaceId: string;
+      targetPrincipalId: string;
+    };
+    expect(stored.payloadHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(stored.resultJson).not.toContain(input.token);
+    expect(stored.resultJson).not.toContain(input.password);
+    expect(stored.workspaceId).toBe("workspace-1");
+    expect(stored.targetPrincipalId).toBe("principal-1");
+  }
+
   function harness(
     options: {
       identity?: LocalIdentityPort;
@@ -553,25 +575,7 @@ describe("AccountFlows conformance", () => {
       }),
     ).rejects.toMatchObject({ failure: { code: "IDEMPOTENCY_CONFLICT" } });
 
-    const stored = currentDb()
-      .prepare(
-        `
-      SELECT payloadHash, resultJson, workspaceId, targetPrincipalId
-        FROM account_commands
-       WHERE operation = 'invite-password-signup'
-    `,
-      )
-      .get() as {
-      payloadHash: string;
-      resultJson: string;
-      workspaceId: string;
-      targetPrincipalId: string;
-    };
-    expect(stored.payloadHash).toMatch(/^[a-f0-9]{64}$/);
-    expect(stored.resultJson).not.toContain(input.token);
-    expect(stored.resultJson).not.toContain(input.password);
-    expect(stored.workspaceId).toBe("workspace-1");
-    expect(stored.targetPrincipalId).toBe("principal-1");
+    expectStoredSignupCommandExcludesSecrets(input);
   });
 
   it("leaves invitation audit ownership with AccountAdminPort rather than duplicating it", async () => {
