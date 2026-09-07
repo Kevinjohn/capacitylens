@@ -112,6 +112,14 @@ function parseErrorMessage(res: LightMyRequestResponse): string {
   return value.error;
 }
 
+function parseResponseUrl(res: LightMyRequestResponse): string {
+  const value = parseJsonObject(res);
+  if (!("url" in value) || typeof value.url !== "string") {
+    throw new Error("Expected response body to include a string URL.");
+  }
+  return value.url;
+}
+
 function parseBackupCodes(res: LightMyRequestResponse): string[] {
   const value = parseJsonObject(res);
   if (!("backupCodes" in value) || !Array.isArray(value.backupCodes)) {
@@ -694,7 +702,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().url).toContain("/api/auth/oidc/authorize/sso");
+    expect(parseResponseUrl(response)).toContain("/api/auth/oidc/authorize/sso");
     expect(response.headers["set-cookie"]).toBeDefined();
     expect(cookiesOf(response)).toMatch(/state=/);
     expect(db.prepare(`SELECT principalId, providerId FROM capacitylens_federated_link_ceremonies`).all()).toHaveLength(
@@ -739,7 +747,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expect(response.json().error).toMatch(/no strict OIDC provider/i);
+    expect(parseErrorMessage(response)).toMatch(/no strict OIDC provider/i);
     expect(db.prepare(`SELECT email FROM user WHERE id = ?`).get(principalId)).toEqual({
       email: "owner@example.com",
     });
