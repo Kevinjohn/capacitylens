@@ -63,6 +63,17 @@ describe("resolveTheme", () => {
     }));
     expect(resolveTheme("system")).toBe("dark");
   });
+
+  it("warns and falls back to light when matchMedia throws", () => {
+    const failure = new Error("media queries unavailable");
+    vi.stubGlobal("matchMedia", () => {
+      throw failure;
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    expect(resolveTheme("system")).toBe("light");
+    expect(warn).toHaveBeenCalledWith("Unable to read the system colour scheme; using light", failure);
+  });
 });
 
 describe("applyThemeToDom", () => {
@@ -83,6 +94,19 @@ describe("watchSystemTheme", () => {
   it("returns a no-op unsubscribe when matchMedia is unavailable (jsdom)", () => {
     const unsubscribe = watchSystemTheme(() => "system");
     expect(() => unsubscribe()).not.toThrow();
+  });
+
+  it("warns and returns a no-op unsubscribe when matchMedia throws", () => {
+    const failure = new Error("media queries unavailable");
+    vi.stubGlobal("matchMedia", () => {
+      throw failure;
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const unsubscribe = watchSystemTheme(() => "system");
+
+    expect(() => unsubscribe()).not.toThrow();
+    expect(warn).toHaveBeenCalledWith("Unable to read the system colour scheme; using light", failure);
   });
 
   it('re-applies the theme on an OS scheme change while the pref is "system"', () => {
