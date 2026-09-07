@@ -74,6 +74,44 @@ function parseErrorCode(res: LightMyRequestResponse): string {
   return value.code;
 }
 
+function parseAuthUser(value: object) {
+  if (
+    !("email" in value) ||
+    typeof value.email !== "string" ||
+    !("emailVerified" in value) ||
+    typeof value.emailVerified !== "boolean"
+  ) {
+    throw new Error("Expected a valid authenticated user.");
+  }
+  return { email: value.email, emailVerified: value.emailVerified };
+}
+
+function parseAuthMeResponse(res: LightMyRequestResponse) {
+  const value = parseJsonObject(res);
+  if (!("authMode" in value) || typeof value.authMode !== "string") {
+    throw new Error("Expected authenticated response body to include authMode.");
+  }
+  if (!("mfaRequired" in value) || typeof value.mfaRequired !== "boolean") {
+    throw new Error("Expected authenticated response body to include mfaRequired.");
+  }
+  if (!("user" in value) || typeof value.user !== "object" || value.user === null || Array.isArray(value.user)) {
+    throw new Error("Expected authenticated response body to include a user.");
+  }
+  return {
+    authMode: value.authMode,
+    mfaRequired: value.mfaRequired,
+    user: parseAuthUser(value.user),
+  };
+}
+
+function parseErrorMessage(res: LightMyRequestResponse): string {
+  const value = parseJsonObject(res);
+  if (!("error" in value) || typeof value.error !== "string") {
+    throw new Error("Expected response body to include a string error message.");
+  }
+  return value.error;
+}
+
 function totpCode(secret: string, at = Date.now()): string {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   let bits = "";
@@ -881,13 +919,13 @@ describe("CAPACITYLENS_AUTH password", () => {
       headers: { cookie },
     });
     expect(me.statusCode).toBe(200);
-    expect(me.json().authMode).toBe("password");
-    expect(me.json().user.email).toBe("tester@capacitylens.dev");
-    expect(me.json().mfaRequired).toBe(false);
+    expect(parseAuthMeResponse(me).authMode).toBe("password");
+    expect(parseAuthMeResponse(me).user.email).toBe("tester@capacitylens.dev");
+    expect(parseAuthMeResponse(me).mfaRequired).toBe(false);
     // P1.7a: emailVerified flows through to /api/auth/me. A fresh email+password sign-up has no
     // verification infra, so Better Auth leaves the flag false — confirming the normalized flag
     // is present and defaults correctly (the P1.10 invite-bind gate depends on it).
-    expect(me.json().user.emailVerified).toBe(false);
+    expect(parseAuthMeResponse(me).user.emailVerified).toBe(false);
 
     // The GENERIC account create is CLOSED auth-on (403 → POST /api/orgs): the bare row write never
     // minted a membership, so it could only produce orphan accounts — /api/orgs is the atomic path.
@@ -899,7 +937,7 @@ describe("CAPACITYLENS_AUTH password", () => {
       headers: { cookie },
     });
     expect(write.statusCode).toBe(403);
-    expect(write.json().error).toContain("/api/orgs");
+    expect(parseErrorMessage(write)).toContain("/api/orgs");
     // P1.13: the no-arg whole read is CLOSED in auth-on (tenant isolation — the P1.4 carry-forward).
     // A logged-in user must hydrate PER ACCOUNT via ?accountId=, so the bare GET /api/state now 400s.
     const noArg = await call(app, {
