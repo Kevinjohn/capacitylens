@@ -54,13 +54,13 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
       // Single-company cap (create-time only; OFF mode only here — the auth-on create was already
       // refused just above). Checked BEFORE the account-write gate below (which only ever fires for
       // the UPDATE case) so the two never overlap. An UPDATE is NEVER capped.
-      if (!existing && isAccountCreateCapped(db, multiAccount)) {
+      if (!existing && isAccountCreateCapped({ db, multiAccount })) {
         return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE });
       }
       // P1.5 account-write gate. `accounts` is not scoped, so there is no body accountId to gate on:
       // an UPDATE requires membership + write tier for the account's OWN id, mirroring the DELETE
       // route. A CREATE is OPEN only in OFF mode (both refusals above). OFF: authorize no-ops.
-      if (existing && !authorize(req, reply, id, "write")) return;
+      if (existing && !authorize({ req, reply, accountId: id, action: "write" })) return;
       // accountId is immutable (ownsRow). An `accounts` row stores no accountId, so this refuses a
       // body that asserts ownership by another company rather than silently ignoring the claim.
       // Compare the sanitised candidate so malformed frozen values are ignored and an absent legacy
@@ -188,7 +188,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
       if (!existing) return reply.code(404).send({ error: "Not found" });
       // P1.5 account-write gate (see the PUT route): always an UPDATE, so always membership + write
       // tier for the account's own id. OFF: no-op allow.
-      if (!authorize(req, reply, id, "write")) return;
+      if (!authorize({ req, reply, accountId: id, action: "write" })) return;
       const assertedAccountId = (req.body as { accountId?: unknown }).accountId;
       const visibility = fieldVisibility(req, "accounts", assertedAccountId ?? existing.accountId);
       const merged = sanitizeWrite(

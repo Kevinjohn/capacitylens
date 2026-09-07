@@ -44,9 +44,15 @@ export function readCapacityAnnouncement(resourceId: ID): string {
 
   const timeOff = listTimeOffApplyingTo(resourceId, data.timeOff);
   const effectiveWeek = effectiveWorkingWeek(resource, listAccountWorkingDays(storedData, activeAccountId));
-  const overDays = buildCapacityWindow(resource, allocations, timeOff, start, end, effectiveWeek, data.closures).filter(
-    (day) => day.over,
-  ).length;
+  const overDays = buildCapacityWindow({
+    resource: resource,
+    allocations: allocations,
+    timeOff: timeOff,
+    start: start,
+    end: end,
+    effectiveWeek: effectiveWeek,
+    closures: data.closures,
+  }).filter((day) => day.over).length;
   if (overDays === 0) return m.scheduler_sr_announce_clear({ name });
   return overDays === 1
     ? m.scheduler_sr_announce_over_one({ name, count: overDays })

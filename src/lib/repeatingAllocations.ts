@@ -24,6 +24,15 @@ import {
   type CapacityAllocationInput,
 } from "./capacity";
 
+interface BuildRepeatingAllocationAdvisoryInput {
+  resource: Resource;
+  existingLoad: readonly CapacityAllocationInput[];
+  timeOff: TimeOff[];
+  proposedDrafts: readonly Draft<Allocation>[];
+  effectiveWeek: EffectiveWorkingWeek;
+  closures: Closure[];
+}
+
 /** Transient choice shown only while creating an allocation. */
 export type RepeatSelection =
   "none" | "weekly" | "every-two-weeks" | "every-three-weeks" | "every-four-weeks" | "monthly";
@@ -117,14 +126,14 @@ export function buildRepeatedAllocationDrafts(
  * Earlier drafts are added to the comparison set before later drafts are checked, so internal batch
  * overlaps are visible without inventing entity ids or persisting anything.
  */
-export function buildRepeatingAllocationAdvisory(
-  resource: Resource,
-  existingLoad: readonly CapacityAllocationInput[],
-  timeOff: TimeOff[],
-  proposedDrafts: readonly Draft<Allocation>[],
-  effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[],
-): RepeatingAllocationAdvisory {
+export function buildRepeatingAllocationAdvisory({
+  resource,
+  existingLoad,
+  timeOff,
+  proposedDrafts,
+  effectiveWeek,
+  closures,
+}: BuildRepeatingAllocationAdvisoryInput): RepeatingAllocationAdvisory {
   if (!isCapacityTracked(resource)) {
     return { overCapacityAllocations: 0, timeOffAllocations: 0, nonEffectiveStartAllocations: 0 };
   }
