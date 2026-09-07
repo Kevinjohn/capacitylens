@@ -295,6 +295,43 @@ describe("offline transport fallback", () => {
   });
 });
 
+function expectCompensatingFinalStateOps(): void {
+  const before = withData({ clients: [client("c1", TS1)] });
+  const dispatched = withData({
+    clients: [{ ...client("c1", TS2), name: "In flight" }],
+    disciplines: [
+      {
+        id: "d1",
+        accountId: "a1",
+        name: "Temporary",
+        color: "#3b82f6",
+        sortOrder: 0,
+        createdAt: TS1,
+        updatedAt: TS1,
+      },
+    ],
+  });
+  const latest = before; // both the c1 rename and d1 creation were undone before acknowledgement
+
+  const ops = diffOpsFromPossibleBases([before, dispatched], latest);
+
+  expect(ops).toEqual([
+    expect.objectContaining({
+      method: "PUT",
+      table: "clients",
+      id: "c1",
+      row: before.clients[0],
+    }),
+    expect.objectContaining({
+      method: "DELETE",
+      table: "disciplines",
+      id: "d1",
+      accountId: "a1",
+      updatedAt: TS1,
+    }),
+  ]);
+}
+
 describe("diffOps", () => {
   it("emits PUT for new rows, parent-before-child", () => {
     const next = withData({
@@ -352,42 +389,10 @@ describe("diffOps", () => {
     expect(ops.find((o) => o.table === "accounts")?.accountId).toBeUndefined();
   });
 
-  it("builds compensating final-state ops against both sides of an unacknowledged request", () => {
-    const before = withData({ clients: [client("c1", TS1)] });
-    const dispatched = withData({
-      clients: [{ ...client("c1", TS2), name: "In flight" }],
-      disciplines: [
-        {
-          id: "d1",
-          accountId: "a1",
-          name: "Temporary",
-          color: "#3b82f6",
-          sortOrder: 0,
-          createdAt: TS1,
-          updatedAt: TS1,
-        },
-      ],
-    });
-    const latest = before; // both the c1 rename and d1 creation were undone before acknowledgement
-
-    const ops = diffOpsFromPossibleBases([before, dispatched], latest);
-
-    expect(ops).toEqual([
-      expect.objectContaining({
-        method: "PUT",
-        table: "clients",
-        id: "c1",
-        row: before.clients[0],
-      }),
-      expect.objectContaining({
-        method: "DELETE",
-        table: "disciplines",
-        id: "d1",
-        accountId: "a1",
-        updatedAt: TS1,
-      }),
-    ]);
-  });
+  it(
+    "builds compensating final-state ops against both sides of an unacknowledged request",
+    expectCompensatingFinalStateOps,
+  );
 });
 
 describe("applyOps", () => {
