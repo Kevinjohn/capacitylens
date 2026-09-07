@@ -3,9 +3,9 @@ import { AccountContractError, statusForAccountFailure } from "@capacitylens/sha
 import { CSP_REPORT_BODY_LIMIT } from "./systemRoutes";
 import { runWithRequestAbortSignal } from "../requestAbort";
 import { type Db } from "../db";
-import { MAX_SERVER_CONNECTIONS, safeClientError } from "./appLimits";
+import { MAX_SERVER_CONNECTIONS, resolveSafeClientError } from "./appLimits";
 import { redactSecretUrl } from "./appLogging";
-import { requestClientIp, fail } from "./appErrors";
+import { resolveRequestClientIp, fail } from "./appErrors";
 import type { resolveAppConfig } from "./appConfig";
 import type { createAppRuntime } from "./appRuntime";
 import { DEFAULT_CORS } from "./appConfig";
@@ -17,7 +17,7 @@ export function installRootHooks(
   db: Db,
   runtime: ReturnType<typeof createAppRuntime>,
   config: ReturnType<typeof resolveAppConfig>,
-  opts: AppOptions,
+  options: AppOptions,
 ) {
   const { auditDrainer, repliesWithAuditDrain } = runtime;
   const { logOn, rateLimitMax } = config;
@@ -36,7 +36,7 @@ export function installRootHooks(
         reason,
         method: request.method,
         path: request.url.split("?", 1)[0],
-        remoteIp: requestClientIp(request, opts.trustProxyHeaders === true),
+        remoteIp: resolveRequestClientIp(request, options.trustProxyHeaders === true),
       });
     });
   });
@@ -44,7 +44,7 @@ export function installRootHooks(
   // instead of allowing unbounded accepted connections to consume memory/file descriptors.
   app.server.maxConnections = MAX_SERVER_CONNECTIONS;
   // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, NOT a wildcard.
-  const corsOrigin = opts.corsOrigin ?? DEFAULT_CORS;
+  const corsOrigin = options.corsOrigin ?? DEFAULT_CORS;
   const corsOrigins = new Set(
     corsOrigin
       .split(",")
@@ -79,22 +79,22 @@ export function installRootHooks(
   );
   // 500s with logging ON go through the request-scoped logger (one parseable JSON line,
   // correlated with the request); OFF keeps today's bare console.error.
-  const sendFail = (reply: FastifyReply, err: unknown) =>
-    fail(reply, err, logOn ? (e: unknown) => reply.log.error(e) : undefined);
-  const accountFail = (reply: FastifyReply, err: unknown) => {
-    if (!(err instanceof AccountContractError)) return sendFail(reply, err);
+  const sendFail = (reply: FastifyReply, error: unknown) =>
+    fail(reply, error, logOn ? (e: unknown) => reply.log.error(e) : undefined);
+  const accountFail = (reply: FastifyReply, error: unknown) => {
+    if (!(error instanceof AccountContractError)) return sendFail(reply, error);
     const retryAfterSeconds =
-      typeof err.failure.retryAfterSeconds === "number" &&
-      Number.isFinite(err.failure.retryAfterSeconds) &&
-      err.failure.retryAfterSeconds >= 0
-        ? err.failure.retryAfterSeconds
+      typeof error.failure.retryAfterSeconds === "number" &&
+      Number.isFinite(error.failure.retryAfterSeconds) &&
+      error.failure.retryAfterSeconds >= 0
+        ? error.failure.retryAfterSeconds
         : undefined;
     if (retryAfterSeconds !== undefined) reply.header("retry-after", String(Math.ceil(retryAfterSeconds)));
-    return reply.code(statusForAccountFailure(err.failure)).send({
-      error: err.failure.message,
-      code: err.failure.code,
-      retryable: err.failure.retryable,
-      ...(err.failure.commandId ? { commandId: err.failure.commandId } : {}),
+    return reply.code(statusForAccountFailure(error.failure)).send({
+      error: error.failure.message,
+      code: error.failure.code,
+      retryable: error.failure.retryable,
+      ...(error.failure.commandId ? { commandId: error.failure.commandId } : {}),
       ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
     });
   };
@@ -104,7 +104,7 @@ export function installRootHooks(
       // rate-limit refusals. A caller cannot accidentally bypass invite-token redaction by logging
       // the raw request path instead of remembering to sanitize it at each event site.
       const safeEvent = typeof event.path === "string" ? { ...event, path: redactSecretUrl(event.path) } : event;
-      opts.securityLog?.(safeEvent);
+      options.securityLog?.(safeEvent);
     } catch (error) {
       // A monitoring transport must never turn a safe refusal into an application outage.
       if (logOn) app.log.error(error, "security event logging failed");
@@ -131,8 +131,8 @@ export function installRootHooks(
   // SQLITE_BUSY thrown mid-statement). Positively identified parsing errors carry safe messages.
   // A duck-typed statusCode alone proves nothing about message safety; unknown errors route through
   // fail() so a 500 stays generic and a 400 DB-constraint message cannot leak schema internals.
-  app.setErrorHandler((err, req, reply) => {
-    const errorStatus = (err as { statusCode?: unknown }).statusCode;
+  app.setErrorHandler((error, req, reply) => {
+    const errorStatus = (error as { statusCode?: unknown }).statusCode;
     if (typeof errorStatus === "number" && Number.isInteger(errorStatus) && errorStatus >= 500 && errorStatus <= 599) {
       securityEvent({
         event: "unexpected_error",
@@ -141,15 +141,15 @@ export function installRootHooks(
         path: req.url,
         status: errorStatus,
       });
-      if (logOn) req.log.error(err);
-      else console.error(err);
+      if (logOn) req.log.error(error);
+      else console.error(error);
       return reply.code(errorStatus).send({ error: "Internal server error" });
     }
-    const safe = safeClientError(err);
+    const safe = resolveSafeClientError(error);
     if (safe) {
       return reply.code(safe.status).send({ error: safe.message });
     }
-    return sendFail(reply, err);
+    return sendFail(reply, error);
   });
 
   // Browsers use non-JSON media types for CSP reports. Parse them as bounded JSON so malformed or
@@ -172,7 +172,7 @@ export function installRootHooks(
     },
   );
 
-  installSecurityPlugins(app, opts, rateLimitMax);
+  installSecurityPlugins(app, options, rateLimitMax);
 
   // ASVS v5.0.0 V14.3.2: authenticated/API data must never be retained by a browser,
   // intermediary, or shared cache. Apply this at the root so Better Auth responses, errors,
@@ -204,7 +204,7 @@ export function installRootHooks(
         method: req.method,
         path,
         status: reply.statusCode,
-        remoteIp: requestClientIp(req, opts.trustProxyHeaders === true),
+        remoteIp: resolveRequestClientIp(req, options.trustProxyHeaders === true),
         ...(req.authenticationUserId === null ? {} : { userId: req.authenticationUserId }),
       });
     } else if (reply.statusCode === 429) {
@@ -214,7 +214,7 @@ export function installRootHooks(
         method: req.method,
         path,
         status: 429,
-        remoteIp: requestClientIp(req, opts.trustProxyHeaders === true),
+        remoteIp: resolveRequestClientIp(req, options.trustProxyHeaders === true),
       });
     }
   });

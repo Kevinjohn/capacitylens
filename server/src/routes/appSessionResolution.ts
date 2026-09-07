@@ -1,11 +1,11 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { DEMO_USER } from "../auth";
 import { type ApplicationSession } from "@capacitylens/shared/account/types";
-import { actorContextFromSession } from "../accounts/localAccountFlows";
+import { buildActorContextFromSession } from "../accounts/localAccountFlows";
 import { enqueueMasqueradeEndAudit } from "./masqueradeRoutes";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
-import { toWebHeaders, sessionUserFromApplicationSession, sessionSatisfiesRequiredMfa } from "./appRequestAdapters";
-import { requestClientIp } from "./appErrors";
+import { toWebHeaders, buildSessionUser, hasRequiredSessionMfa } from "./appRequestAdapters";
+import { resolveRequestClientIp } from "./appErrors";
 import type { resolveAppConfig } from "./appConfig";
 import type { createAppRuntime } from "./appRuntime";
 import type { AppOptions } from "../app";
@@ -14,7 +14,7 @@ export function installSessionResolution(
   app: FastifyInstance,
   runtime: ReturnType<typeof createAppRuntime>,
   config: ReturnType<typeof resolveAppConfig>,
-  opts: AppOptions,
+  options: AppOptions,
   securityEvent: (event: Record<string, unknown>) => void,
 ) {
   const { accountAudit, identityPort, masquerades } = runtime;
@@ -30,19 +30,19 @@ export function installSessionResolution(
   app.decorateRequest("authenticationUserId", null);
   app.decorateRequest("authenticationProviderId", null);
   app.decorateRequest("session", null);
-  type SessionResolution =
+  type SessionResolutionResult =
     | { kind: "absent_or_invalid" }
     | { kind: "verified"; session: ApplicationSession }
     | { kind: "backend_failure"; error: unknown };
-  const incomingSessionResolutions = new WeakMap<FastifyRequest, Promise<SessionResolution>>();
-  const resolveIncomingSession = (req: FastifyRequest, force = false): Promise<SessionResolution> => {
+  const incomingSessionResolutions = new WeakMap<FastifyRequest, Promise<SessionResolutionResult>>();
+  const resolveIncomingSession = (req: FastifyRequest, force = false): Promise<SessionResolutionResult> => {
     const existing = incomingSessionResolutions.get(req);
     if (existing) return existing;
     const credentialsPresent = req.headers.cookie !== undefined || req.headers.authorization !== undefined;
     if (authMode === "off" || (!credentialsPresent && !force)) {
       return Promise.resolve({ kind: "absent_or_invalid" });
     }
-    const resolution = (async (): Promise<SessionResolution> => {
+    const resolution = (async (): Promise<SessionResolutionResult> => {
       try {
         const session = await identityPort!.verifyApplicationSession({ headers: toWebHeaders(req.headers) });
         return session ? { kind: "verified", session } : { kind: "absent_or_invalid" };
@@ -54,10 +54,10 @@ export function installSessionResolution(
     return resolution;
   };
   const attachVerifiedSession = (req: FastifyRequest, session: ApplicationSession): void => {
-    const user = sessionUserFromApplicationSession(session);
+    const user = buildSessionUser(session);
     req.session = session;
     req.user = user;
-    req.accountActor = actorContextFromSession(session);
+    req.accountActor = buildActorContextFromSession(session);
     req.authenticationProviderId = session.assurance === "federated" ? session.providerId : null;
   };
   app.addHook("preHandler", async (req: FastifyRequest, reply: FastifyReply) => {
@@ -131,13 +131,13 @@ export function installSessionResolution(
         outcome: "blocked",
         method: req.method,
         path,
-        remoteIp: requestClientIp(req, opts.trustProxyHeaders === true),
+        remoteIp: resolveRequestClientIp(req, options.trustProxyHeaders === true),
       });
       return reply.code(401).send({ error: "Sign in to continue." });
     }
     const session = resolution.session;
-    const user = sessionUserFromApplicationSession(session);
-    if (authMode === "password" && opts.requireMfa === true && !sessionSatisfiesRequiredMfa(session)) {
+    const user = buildSessionUser(session);
+    if (authMode === "password" && options.requireMfa === true && !hasRequiredSessionMfa(session)) {
       securityEvent({
         event: "mfa_required",
         outcome: "blocked",

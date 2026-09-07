@@ -7,7 +7,7 @@ export class MalformedVerificationStateError extends Error {
   override name = "MalformedVerificationStateError";
 }
 
-export function invalidVerificationState(
+export function createInvalidVerificationStateError(
   commandId: string,
   cause: MalformedVerificationStateError,
 ): AccountContractError {
@@ -28,7 +28,7 @@ export function invalidVerificationState(
  * An object-shaped value is different: if it cannot be decoded, erasure cannot prove that it is
  * unrelated, so throw and let the caller's transaction roll back instead of reporting completion.
  */
-export function accountLinkUserId(value: string): string | null {
+export function parseAccountLinkUserId(value: string): string | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(value);

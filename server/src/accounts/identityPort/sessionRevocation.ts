@@ -1,5 +1,5 @@
 import type { Db } from "../../db";
-import { applicationSessionHandle } from "../sessionHandle";
+import { buildApplicationSessionHandle } from "../buildApplicationSessionHandle";
 import { removePrincipalSessionAssurance, removeSessionAssurance } from "../state";
 import type { IdentityTableProbes } from "./contracts";
 import type { MasqueradeSessionLifecycle } from "./contracts";
@@ -25,7 +25,7 @@ export function createSessionRevocation(tables: Pick<IdentityTableProbes, "sessi
     }>;
     db.prepare(`DELETE FROM session WHERE userId = ?`).run(principalId);
     for (const { token } of sessions) {
-      removeSessionAssurance(db, applicationSessionHandle(applicationId, token));
+      removeSessionAssurance(db, buildApplicationSessionHandle(applicationId, token));
     }
     removePrincipalSessionAssurance(db, principalId);
     return masqueradeHandles;

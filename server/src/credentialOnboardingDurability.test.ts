@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { openDb } from "./db";
-import { authFromEnv, runAuthMigrations } from "./auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { getAccountCommand, getAccountCommandByIdForReconciliation, reserveAccountCommand } from "./accounts/state";
 
 const serverDirectory = dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
@@ -38,7 +38,7 @@ function runCrash(boundary: "after-user" | "after-correlation-commit"): string {
 describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
   it("rolls back both credential rows when command correlation fails", async () => {
     const db = openDb(":memory:");
-    const configured = authFromEnv(db, {
+    const configured = createAuthFromEnvironment(db, {
       NODE_ENV: "test",
       CAPACITYLENS_AUTH: "password",
       BETTER_AUTH_SECRET: "correlation-test-secret-0123456789abcdef",

@@ -1,12 +1,12 @@
-import { buildApp, DEFAULT_CORS, parseRateLimit } from "./app";
+import { createApp, DEFAULT_CORS, parseRateLimit } from "./app";
 import { initializeOpenDb, openDbConnection, planDatabaseMigrations, seedIfUninitialized, type Db } from "./db";
 import { seedForCurrentWeek } from "@capacitylens/shared/data/seed";
 import { createLastResortErrorHandler, createShutdownHandler, handleListenFailure } from "./shutdown";
 import { installStartupSignalHandlers } from "./startupSignals";
-import { resetForbidden } from "./bootGuard";
+import { isResetForbidden } from "./bootGuard";
 import { evaluateProductionPosture } from "./productionGuard";
 import {
-  authFromEnv,
+  createAuthFromEnvironment,
   runAuthMigrations,
   createBootstrapAdmin,
   countUsers,
@@ -16,16 +16,22 @@ import {
   planAuthSchemaMigrations,
 } from "./auth";
 import { parseBackupConfig, startBackups, formatBackupStartupFailure, writePreMigrationBackup } from "./backup";
-import { compositeAuditSink, fileAuditSink, noopAuditSink, parseAuditConfig, streamAuditSink } from "./audit";
+import {
+  createCompositeAuditSink,
+  createFileAuditSink,
+  createNoopAuditSink,
+  parseAuditConfig,
+  createStreamAuditSink,
+} from "./audit";
 import { loadInternalTls } from "./internalTls";
 import { resolveAccountEnvironment } from "./accountConfig";
 import type { BoundApplication } from "@capacitylens/shared/account/types";
-import { localExternalIdentityAdmission } from "./accounts/externalIdentityAdmission";
+import { canAdmitLocalExternalIdentity } from "./accounts/externalIdentityAdmission";
 import { hasLivePreauthorizedInvitation } from "./accounts/sqliteAccountAdminPort";
-import { legacyProxyTrustWarning, trustProxyHeadersFrom } from "./proxyTrust";
-import { betterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
-import { sqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
-import { KeyedOperationLock } from "./accounts/operationLock";
+import { resolveLegacyProxyTrustWarning, canTrustProxyHeaders } from "./proxyTrust";
+import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
+import { createSqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
+import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
 import { formatSsoCutoverRefusal, ssoCutoverReadiness } from "./accounts/ssoCutover";
 
 import { refuseToStart, tryOrRefuse, closeDbSafely, parsePort, parseAuditMaxMb } from "./boot/refusals";
@@ -42,7 +48,7 @@ process.umask(0o077);
 
 // Safety interlock before anything opens: the test-only reset route must be impossible
 // in production (see bootGuard.ts).
-if (resetForbidden(process.env)) {
+if (isResetForbidden(process.env)) {
   console.error(
     "capacitylens-server: refusing to start — CAPACITYLENS_ALLOW_RESET=1 with NODE_ENV=production would expose the destructive test-only reset route. Unset one of them.",
   );
@@ -85,8 +91,8 @@ const bootstrapAdmin =
 // Forwarded client identity and public-origin scheme are one trusted-proxy deployment fact. On a
 // loopback listener only the local proxy can reach the API; a directly exposed listener trusts
 // neither client-spoofable header unless the operator explicitly opts in.
-const trustProxyHeaders = trustProxyHeadersFrom(process.env, host);
-const proxyTrustWarning = legacyProxyTrustWarning(process.env);
+const trustProxyHeaders = canTrustProxyHeaders(process.env, host);
+const proxyTrustWarning = resolveLegacyProxyTrustWarning(process.env);
 if (proxyTrustWarning) console.warn(`capacitylens-server: configuration warning — ${proxyTrustWarning}`);
 const backupConfig: ReturnType<typeof parseBackupConfig> = tryOrRefuse(() =>
   parseBackupConfig(process.env, (message) => console.warn(message)),
@@ -133,14 +139,14 @@ const stopStartupIfRequested = (openDb?: Db) => {
 // rollback snapshot before the first schema mutation. Existing databases fail closed when that
 // snapshot cannot be written; fresh/in-memory databases have nothing to roll back.
 let db!: Db;
-let authMode!: ReturnType<typeof authFromEnv>["mode"];
-let auth!: ReturnType<typeof authFromEnv>["auth"];
+let authMode!: ReturnType<typeof createAuthFromEnvironment>["mode"];
+let auth!: ReturnType<typeof createAuthFromEnvironment>["auth"];
 try {
   db = openDbConnection(dbPath);
   const migrationPlan = planDatabaseMigrations(db);
   // Resolve every auth/provider option while the database is still at its original version.
   // Auth-control verification and lease maintenance are deferred until app migration succeeds.
-  ({ mode: authMode, auth } = authFromEnv(db, accountEnv, {
+  ({ mode: authMode, auth } = createAuthFromEnvironment(db, accountEnv, {
     trustedOrigins: corsOrigin
       .split(",")
       .map((s) => s.trim())
@@ -148,7 +154,7 @@ try {
     deferDatabaseSetup: true,
     application: ACCOUNT_APPLICATION,
     externalIdentityAdmission: (candidate) =>
-      localExternalIdentityAdmission({
+      canAdmitLocalExternalIdentity({
         bootstrapEmails: accountEnv.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS,
         candidate,
         identityHasAnyPrincipal: () => countUsers(db) !== 0,
@@ -207,13 +213,13 @@ try {
   if (auth && authMode === "sso" && (accountProfile === "self-hosted-sso-only" || accountProfile === null)) {
     const provider = auth.strictProvider;
     if (!provider) throw new AuthConfigError("The SSO-only cutover has no configured strict OIDC provider.");
-    const identity = betterAuthIdentityPort({
+    const identity = createBetterAuthIdentityPort({
       applicationId: ACCOUNT_APPLICATION.applicationId,
       auth,
       authMode,
       db,
     });
-    const administration = sqliteAccountAdminPort({
+    const administration = createSqliteAccountAdminPort({
       applicationId: ACCOUNT_APPLICATION.applicationId,
       db,
       lock: new KeyedOperationLock(),
@@ -286,17 +292,17 @@ const { app, backups } = (() => {
     const auditCfg = parseAuditConfig(process.env, dbPath);
     const auditMaxBytes = parseAuditMaxMb(process.env.CAPACITYLENS_AUDIT_MAX_MB) * 1024 * 1024;
     const auditFileSink = auditCfg.enabled
-      ? fileAuditSink(auditCfg.file, (m) => console.error(m), {
+      ? createFileAuditSink(auditCfg.file, (m) => console.error(m), {
           maxBytes: auditMaxBytes,
         })
-      : noopAuditSink();
+      : createNoopAuditSink();
     const auditSink =
       process.env.CAPACITYLENS_AUDIT_STDOUT === "1"
-        ? compositeAuditSink(auditFileSink, streamAuditSink(console.log))
+        ? createCompositeAuditSink(auditFileSink, createStreamAuditSink(console.log))
         : auditFileSink;
 
     let backupController: ReturnType<typeof startBackups> | null = null;
-    const app = buildApp(db, {
+    const app = createApp(db, {
       application: ACCOUNT_APPLICATION,
       internalTls: internalTls
         ? {
@@ -364,9 +370,9 @@ const shutdown = createShutdownHandler(
   (code) => process.exit(code),
   backups ? () => backups.stop() : undefined,
 );
-const onSignal = (sig: NodeJS.Signals) => {
-  console.log(`capacitylens-server: ${sig} — draining requests, then exiting`);
-  void shutdown(0, `signal:${sig}`);
+const onSignal = (signal: NodeJS.Signals) => {
+  console.log(`capacitylens-server: ${signal} — draining requests, then exiting`);
+  void shutdown(0, `signal:${signal}`);
 };
 // No event-loop turn occurs between removing the startup listeners and installing these handlers,
 // so a queued signal is observed by one phase or the other, never by neither.
@@ -386,7 +392,7 @@ process.on("unhandledRejection", (reason) => {
 
 app
   .listen({ port, host })
-  .then((addr) => console.log(`capacitylens-server listening on ${addr} (db=${dbPath}, reset=${allowReset})`))
-  .catch((err) => {
-    void handleListenFailure(err, shutdown);
+  .then((address) => console.log(`capacitylens-server listening on ${address} (db=${dbPath}, reset=${allowReset})`))
+  .catch((error) => {
+    void handleListenFailure(error, shutdown);
   });

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { buildApp as buildAppRaw } from "./app";
-import { openDb as openDbRaw, insertAll, loadState, type Db } from "./db";
+import { createApp as buildAppRaw } from "./app";
+import { openDb as openDbRaw, insertAll, readState, type Db } from "./db";
 import {
   createInvite,
   getInvite,
@@ -10,10 +10,10 @@ import {
   normalizeEmail,
   preauthInviteAllows,
 } from "./controlTables";
-import { authFromEnv, runAuthMigrations, DEMO_USER } from "./auth";
-import { PASSWORD_ENV, call, cookiesOf, signUp, registerServerFixtureCleanup } from "./testHelpers";
+import { createAuthFromEnvironment, runAuthMigrations, DEMO_USER } from "./auth";
+import { PASSWORD_ENV, call, readCookies, signUp, registerServerFixtureCleanup } from "./testHelpers";
 import { recordSessionAssurance } from "./accounts/state";
-import { applicationSessionHandle } from "./accounts/sessionHandle";
+import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessionHandle";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 
@@ -53,7 +53,7 @@ function seedOne(db: Db): void {
 /** Build an auth-on (password) app over a fresh in-memory DB. */
 async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
-  const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
   await runAuthMigrations(auth!);
   return { app: buildApp(db, { authMode: mode, auth }), db };
 }
@@ -653,7 +653,7 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
 
   it("creates, binds, and signs in a genuinely new preauthorized user while public signup is closed", async () => {
     const db = openDb(":memory:");
-    const { mode, auth } = authFromEnv(db, {
+    const { mode, auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
       CAPACITYLENS_ALLOW_OPEN_SIGNUP: undefined,
       CAPACITYLENS_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
@@ -684,7 +684,7 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
         role: "editor",
         preauthEmail: "new-person@capacitylens.dev",
       },
-      { cookie: cookiesOf(signInInviter) },
+      { cookie: readCookies(signInInviter) },
     );
     const token = (created.json() as { token: string }).token;
 
@@ -730,12 +730,12 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
     const me = await call(app, {
       method: "GET",
       url: "/api/auth/me",
-      headers: { cookie: cookiesOf(signedIn) },
+      headers: { cookie: readCookies(signedIn) },
     });
     expect(me.json().user.emailVerified).toBe(true);
     expect(me.json().user.name).toBe("New Person");
     expect(getMemberRole(db, "a1", me.json().user.id)).toBe("editor");
-    expect((await acceptReq(app, token, { cookie: cookiesOf(signedIn) })).statusCode).toBe(409);
+    expect((await acceptReq(app, token, { cookie: readCookies(signedIn) })).statusCode).toBe(409);
   });
 });
 
@@ -897,7 +897,7 @@ describe("POST /api/invites (P1.10 create) — preauthEmail", () => {
 describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
   it("requires the strict provider before an SSO-only session can create a membership", async () => {
     const db = openDb(":memory:");
-    const configured = authFromEnv(db, {
+    const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
       CAPACITYLENS_SSO_CLIENT_ID: "client-id",
       CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
@@ -918,7 +918,7 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
        VALUES (?, ?, ?, ?, ?, ?)`,
     ).run("github-link", "github", "github-subject", joiner.userId, timestamp, timestamp);
     const session = db.prepare(`SELECT token FROM session WHERE userId = ?`).get(joiner.userId) as { token: string };
-    const sessionHandle = applicationSessionHandle("capacitylens", session.token);
+    const sessionHandle = buildApplicationSessionHandle("capacitylens", session.token);
     recordSessionAssurance(db, sessionHandle, joiner.userId, "federated", "github");
     const ssoApp = buildApp(db, { authMode: "sso", auth: configured.auth });
 
@@ -1138,7 +1138,7 @@ describe("invites are excluded from the AppData path", () => {
     // Belt-and-braces: the table name AND the token secret must appear NOWHERE in the wire state.
     expect(JSON.stringify(state)).not.toContain("invites");
     expect(JSON.stringify(state)).not.toContain("secret-invite-token");
-    expect(loadState(db) as unknown as Record<string, unknown>).not.toHaveProperty("invites");
+    expect(readState(db) as unknown as Record<string, unknown>).not.toHaveProperty("invites");
   });
 
   it("is not a known entity for generic CRUD (GET 404, POST 404 — never a listing/persist)", async () => {

@@ -131,12 +131,12 @@ type PreparedStatement = ReturnType<Db["prepare"]>;
 function cachedStatement(sql: string): (db: Db) => PreparedStatement {
   const cache = new WeakMap<Db, PreparedStatement>();
   return (db: Db): PreparedStatement => {
-    let stmt = cache.get(db);
-    if (!stmt) {
-      stmt = db.prepare(sql);
-      cache.set(db, stmt);
+    let statement = cache.get(db);
+    if (!statement) {
+      statement = db.prepare(sql);
+      cache.set(db, statement);
     }
-    return stmt;
+    return statement;
   };
 }
 

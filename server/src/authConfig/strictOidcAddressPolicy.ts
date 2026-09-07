@@ -31,7 +31,7 @@ function isPrivateOrReservedIPv4(address: string): boolean {
  * (e.g. `::ffff:127.0.0.1`). Returns null for anything that is not a well-formed IPv6 address, so
  * callers fail closed. Spelling — hex vs dotted, compressed vs full — cannot change the octets, which
  * is the whole point: `::ffff:7f00:1` and `::ffff:127.0.0.1` must classify identically. */
-function ipv6ToBytes(address: string): number[] | null {
+function parseIpv6Bytes(address: string): number[] | null {
   let text = address.toLowerCase();
   const dotted = text.match(/^(.*:)(\d+\.\d+\.\d+\.\d+)$/); // fold a trailing IPv4 quad into two hextets
   if (dotted) {
@@ -68,17 +68,18 @@ function ipv6ToBytes(address: string): number[] | null {
  * is classified by that embedded address, and anything outside global unicast (2000::/3) fails closed,
  * so a compromised IdP cannot smuggle loopback/RFC1918 past the guard by choosing an exotic spelling. */
 function isPrivateOrReservedIPv6(address: string): boolean {
-  const bytes = ipv6ToBytes(address);
+  const bytes = parseIpv6Bytes(address);
   if (!bytes) return true; // unparseable → fail closed
-  const embeddedV4 = (offset: number): boolean => isPrivateOrReservedIPv4(bytes.slice(offset, offset + 4).join("."));
-  const zeroPrefix = (count: number): boolean => bytes.slice(0, count).every((octet) => octet === 0);
+  const isEmbeddedIpv4PrivateOrReserved = (offset: number): boolean =>
+    isPrivateOrReservedIPv4(bytes.slice(offset, offset + 4).join("."));
+  const hasZeroPrefix = (count: number): boolean => bytes.slice(0, count).every((octet) => octet === 0);
 
-  if (zeroPrefix(15)) return true; // ::/120 covers unspecified (::) and loopback (::1)
-  if (zeroPrefix(10) && bytes[10] === 0xff && bytes[11] === 0xff) return embeddedV4(12); // ::ffff:0:0/96 mapped
-  if (zeroPrefix(12)) return embeddedV4(12); // ::/96 deprecated IPv4-compatible
-  if (bytes[0] === 0x00 && bytes[1] === 0x64 && bytes[2] === 0xff && bytes[3] === 0x9b && zeroPrefix(12))
-    return embeddedV4(12); // 64:ff9b::/96 NAT64
-  if (bytes[0] === 0x20 && bytes[1] === 0x02) return embeddedV4(2); // 2002::/16 6to4 embeds v4 at octets 2-5
+  if (hasZeroPrefix(15)) return true; // ::/120 covers unspecified (::) and loopback (::1)
+  if (hasZeroPrefix(10) && bytes[10] === 0xff && bytes[11] === 0xff) return isEmbeddedIpv4PrivateOrReserved(12); // ::ffff:0:0/96 mapped
+  if (hasZeroPrefix(12)) return isEmbeddedIpv4PrivateOrReserved(12); // ::/96 deprecated IPv4-compatible
+  if (bytes[0] === 0x00 && bytes[1] === 0x64 && bytes[2] === 0xff && bytes[3] === 0x9b && hasZeroPrefix(12))
+    return isEmbeddedIpv4PrivateOrReserved(12); // 64:ff9b::/96 NAT64
+  if (bytes[0] === 0x20 && bytes[1] === 0x02) return isEmbeddedIpv4PrivateOrReserved(2); // 2002::/16 6to4 embeds v4 at octets 2-5
   if ((bytes[0] & 0xfe) === 0xfc) return true; // fc00::/7 unique local
   if (bytes[0] === 0xfe && (bytes[1] & 0xc0) === 0x80) return true; // fe80::/10 link-local
   if (bytes[0] === 0xff) return true; // ff00::/8 multicast
@@ -115,7 +116,7 @@ async function resolveHostAddresses(host: string, field: string): Promise<string
  * an intentionally internal deployment, where off-origin internal endpoints are legitimate rather than
  * an SSRF pivot. A public issuer (any globally routable address) returns false so containment stays on.
  * Resolution failures fail safe: unknown means "treat as public", keeping the guard active. */
-export async function issuerIsInternal(issuer: URL): Promise<boolean> {
+export async function isInternalIssuer(issuer: URL): Promise<boolean> {
   const bare = issuer.hostname.replace(/^\[|\]$/g, "");
   try {
     if (isIP(bare)) return isPrivateOrReservedAddress(bare);
@@ -135,7 +136,7 @@ export async function issuerIsInternal(issuer: URL): Promise<boolean> {
  * instance metadata, or an RFC 1918 service (SSRF). Public split-origin providers keep working. The
  * browser-only `authorization_endpoint` is exempt: the user agent, not this server, dereferences it.
  *
- * Containment is skipped wholesale when the issuer itself is internal (see {@link issuerIsInternal}):
+ * Containment is skipped wholesale when the issuer itself is internal (see {@link isInternalIssuer}):
  * a deployment whose IdP is already on a private network gains nothing from blocking private endpoints,
  * and split-origin on-prem providers (issuer and endpoints on distinct internal hosts) keep working
  * with zero configuration. Because the issuer is operator-set, not attacker-controlled, a compromised

@@ -1,6 +1,6 @@
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 
-export function providerFailure(message: string, cause: unknown): AccountContractError {
+export function createProviderFailure(message: string, cause: unknown): AccountContractError {
   return new AccountContractError(
     {
       code: "DEPENDENCY_UNAVAILABLE",
@@ -11,7 +11,7 @@ export function providerFailure(message: string, cause: unknown): AccountContrac
   );
 }
 
-export function invalidProviderSession(message: string): AccountContractError {
+export function createInvalidProviderSessionError(message: string): AccountContractError {
   return new AccountContractError({
     code: "DEPENDENCY_INVALID_RESPONSE",
     message,
@@ -19,7 +19,7 @@ export function invalidProviderSession(message: string): AccountContractError {
   });
 }
 
-export function providerErrorCode(error: unknown): string | null {
+export function parseProviderErrorCode(error: unknown): string | null {
   if (!error || typeof error !== "object") return null;
   const body = (error as { body?: unknown }).body;
   if (!body || typeof body !== "object") return null;

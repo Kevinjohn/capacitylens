@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { buildApp as buildAppRaw } from "./app";
+import { createApp as buildAppRaw } from "./app";
 import { openDb as openDbRaw, insertAll, type Db } from "./db";
 import { upsertMember, createInvite, newInviteId } from "./controlTables";
-import { authFromEnv, runAuthMigrations } from "./auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { PASSWORD_ENV, signUp, registerServerFixtureCleanup } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 
@@ -52,7 +52,7 @@ const TOMBSTONE = { archivedAt: TS, deletedAt: "2026-01-02T00:00:00.000Z" };
 /** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
 async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
-  const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
   await runAuthMigrations(auth!);
   return { app: buildApp(db, { authMode: mode, auth }), db };
 }

@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { buildApp as buildAppRaw } from "./app";
+import { createApp as buildAppRaw } from "./app";
 import { openDb as openDbRaw, insertAll, type Db } from "./db";
 import { upsertMember } from "./controlTables";
-import { authFromEnv, runAuthMigrations } from "./auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { PASSWORD_ENV, call, signUp, registerServerFixtureCleanup } from "./testHelpers";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
@@ -53,7 +53,7 @@ async function appWith(
   opts: { multiAccount?: boolean } = {},
 ): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
-  const { mode, auth } = authFromEnv(db, env);
+  const { mode, auth } = createAuthFromEnvironment(db, env);
   await runAuthMigrations(auth!);
   return {
     app: buildApp(db, {

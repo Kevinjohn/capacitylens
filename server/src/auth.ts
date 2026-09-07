@@ -1,13 +1,13 @@
 import { timingSafeEqual } from "node:crypto";
 import type { Db } from "./db";
 import { assertBootstrapClaimCurrent } from "./bootstrapClaim";
-import { accountConfigKey } from "./accountConfig";
+import { resolveAccountConfigKey } from "./accountConfig";
 import { StrictOidcVerificationError } from "./strictOidc";
 import type { Auth, AuthMode } from "./authConfig/authTypes";
 import { resetTokenCapture } from "./authConfig/captureContexts";
-import { buildAuthFromEnv } from "./authConfig/authFromEnv";
-import { buildAuthAdapter } from "./authConfig/authAdapter";
-import { buildCreateBootstrapAdmin } from "./authConfig/bootstrapAdmin";
+import { createAuthFromEnvironmentFactory } from "./authConfig/authFromEnv";
+import { createAuthAdapterFactory } from "./authConfig/authAdapter";
+import { createBootstrapAdminFactory } from "./authConfig/bootstrapAdmin";
 
 export type { AuthMode, AuthProviderInfo, Auth, SessionUser } from "./authConfig/authTypes";
 export { DEMO_USER, DEFAULT_ACCOUNT_APPLICATION } from "./authConfig/authTypes";
@@ -22,7 +22,7 @@ export {
   MIN_BETTER_AUTH_SECRET_LENGTH,
 } from "./authConfig/authConstants";
 export { verifyPasswordWithBackpressure, hashPasswordWithBackpressure } from "./authConfig/passwordBackpressure";
-export { enforceSessionActivity, normalizeSessionUser } from "./authConfig/sessionActivity";
+export { enforceSessionActivity, buildSessionUser } from "./authConfig/sessionActivity";
 export {
   FEDERATED_IDENTITY_V25_DEFINITION,
   migrateFederatedIdentityV25,
@@ -57,7 +57,7 @@ export class AuthConfigError extends Error {}
 // doesn't reveal the secret's length by timing (timingSafeEqual itself requires equal-length
 // buffers). Headers arrive as string | string[] | undefined from Fastify, or string | null
 // from a Better Auth ctx; `unknown` covers both — only a single string can match.
-export function secretTokenMatches(configured: string | undefined, presented: unknown): boolean {
+export function isMatchingSecretToken(configured: string | undefined, presented: unknown): boolean {
   if (!configured || typeof presented !== "string" || presented.length === 0) return false;
   const a = Buffer.from(configured, "utf8");
   const b = Buffer.from(presented, "utf8");
@@ -145,7 +145,7 @@ export function revokeFederatedLinkStateInTx(db: Db, principalId: string): void 
  * runs on that same handle. Caching a pre-migration `false` would make every later call on that
  * handle read "table absent" forever, which is the specific hazard each call site below documents.
  */
-export function cachedTableExists(table: string): (db: Db) => boolean {
+export function createTableExistenceProbe(table: string): (db: Db) => boolean {
   const presence = new WeakMap<Db, true>();
   return (db: Db): boolean => {
     if (presence.get(db)) return true;
@@ -161,18 +161,18 @@ export function cachedTableExists(table: string): (db: Db) => boolean {
 // Application migration v12 may probe this table before runAuthMigrations creates it on the same
 // handle when an existing auth-off database first enables password auth; caching that pre-auth
 // `false` would permanently suppress reset-token revocation for the rest of the process.
-const verificationTableExists = cachedTableExists("verification");
+const verificationTableExists = createTableExistenceProbe("verification");
 
 // {@link countUsers} is consulted BEFORE runAuthMigrations as well as after it — authFromEnv makes
 // its boot-time minPasswordLength decision on the pre-migration handle, where the table does not
 // exist yet. Caching that pre-migration `false` would make every later per-request call read
 // "zero users" forever, holding first-run sign-up open on a populated instance.
-const userTableExists = cachedTableExists("user");
+const userTableExists = createTableExistenceProbe("user");
 
 /**
  * Count Better Auth `user` rows — the first-run signal. Zero means "no one can sign in yet", which
  * is what opens the one-time bootstrap paths: the live sign-up gate (hooks.before in
- * {@link authFromEnv}), the `needsSetup` flag on /api/auth/me's 401, and the
+ * {@link createAuthFromEnvironment}), the `needsSetup` flag on /api/auth/me's 401, and the
  * {@link createBootstrapAdmin} escape hatch all key on this. Safe to call before runAuthMigrations:
  * a missing `user` table (pre-migration, or an off-mode DB that never grows one) counts as zero
  * rather than throwing a confusing "no such table" (same probe posture as verificationTableExists).
@@ -189,7 +189,7 @@ export function countUsers(db: Db): number {
 /** Identity-storage-owned lookup for the operator recovery tool: the ids of every credential
  * identity registered under this normalized address. The caller passes a limit one higher than
  * the count it accepts so ambiguity is detectable without walking the whole table. */
-export function findUserIdsByEmail(db: Db, email: string, limit: number): string[] {
+export function listUserIdsByEmail(db: Db, email: string, limit: number): string[] {
   const rows = db.prepare(`SELECT id FROM user WHERE email = ? LIMIT ?`).all(email, limit) as Array<{ id: string }>;
   return rows.map((row) => row.id);
 }
@@ -204,17 +204,17 @@ export function parseAuthMode(raw: string | undefined): AuthMode {
 
 type Env = Record<string, string | undefined>;
 
-function required(env: Env, key: string, context: string): string {
-  const value = env[key];
-  if (!value) throw new AuthConfigError(`${accountConfigKey(key)} is required when ${context}.`);
+function readRequiredSetting(environment: Env, key: string, context: string): string {
+  const value = environment[key];
+  if (!value) throw new AuthConfigError(`${resolveAccountConfigKey(key)} is required when ${context}.`);
   return value;
 }
 
-function externalIdentityPath(path: string | undefined): boolean {
+function isExternalIdentityPath(path: string | undefined): boolean {
   return path?.startsWith("/callback/") === true || path?.startsWith("/oauth2/callback/") === true;
 }
 
-export function providerIdFromExternalContext(
+export function parseProviderIdFromExternalContext(
   context:
     | {
         path?: string;
@@ -223,7 +223,7 @@ export function providerIdFromExternalContext(
     | null
     | undefined,
 ): string | null {
-  if (!externalIdentityPath(context?.path)) return null;
+  if (!isExternalIdentityPath(context?.path)) return null;
   // Better Auth's database-hook context uses the route template as `path` and carries the concrete
   // provider in params. Older/custom adapters may provide a concrete path instead, so retain that
   // safe fallback while explicitly refusing template placeholders.
@@ -270,12 +270,12 @@ export function assertStrictOidcEmailAdmission(
 
 /** Verify and maintain CapacityLens's versioned first-owner claim control after application
  * migrations have succeeded. Schema changes belong exclusively to the application migration ledger. */
-export function ensureAuthControlTables(db: Db, env: Env): void {
+export function ensureAuthControlTables(db: Db, environment: Env): void {
   // Open registration applies only to email credentials. A first external identity still needs
   // the single-winner bootstrap claim, so this table is required in both registration postures.
   // Keep `env` in the signature because auth setup deliberately shares the same contract as the
   // other auth controls, even though this control is unconditional in auth-on.
-  void env;
+  void environment;
   assertBootstrapClaimCurrent(db);
   // A crash before user creation must not permanently strand first-run setup.
   const now = Date.now();
@@ -300,21 +300,25 @@ function isSqliteConstraintCollision(sqlite: { code?: unknown; errcode?: unknown
   return sqlite.errcode === 19 || (typeof sqlite.code === "string" && sqlite.code.startsWith("SQLITE_CONSTRAINT"));
 }
 
-export const authFromEnv = buildAuthFromEnv({
+export const createAuthFromEnvironment = createAuthFromEnvironmentFactory({
   AuthConfigError,
   parseAuthMode,
-  required,
+  required: readRequiredSetting,
   assertStrictOidcEmailAdmission,
   isSqliteConstraintCollision,
-  providerIdFromExternalContext,
+  providerIdFromExternalContext: parseProviderIdFromExternalContext,
   countUsers,
-  externalIdentityPath,
-  secretTokenMatches,
+  externalIdentityPath: isExternalIdentityPath,
+  secretTokenMatches: isMatchingSecretToken,
   ensureAuthControlTables,
-  createAuthAdapter: buildAuthAdapter({ revokeFederatedLinkStateInTx, AuthConfigError, providerIdFromExternalContext }),
+  createAuthAdapter: createAuthAdapterFactory({
+    revokeFederatedLinkStateInTx,
+    AuthConfigError,
+    providerIdFromExternalContext: parseProviderIdFromExternalContext,
+  }),
 });
 
-export const createBootstrapAdmin = buildCreateBootstrapAdmin({
+export const createBootstrapAdmin = createBootstrapAdminFactory({
   AuthConfigError,
   countUsers,
   isSqliteConstraintCollision,

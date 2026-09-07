@@ -9,15 +9,15 @@ export type PreparedStatement = ReturnType<Db["prepare"]>;
  * importer allow-list and the coordinator-persistence transitive scan). WeakMap keyed by the Db
  * handle so test `:memory:` handles never leak.
  */
-export function cachedStatement(sql: string): (db: Db) => PreparedStatement {
+export function createCachedStatement(sql: string): (db: Db) => PreparedStatement {
   const cache = new WeakMap<Db, PreparedStatement>();
   return (db: Db): PreparedStatement => {
-    let stmt = cache.get(db);
-    if (!stmt) {
-      stmt = db.prepare(sql);
-      cache.set(db, stmt);
+    let statement = cache.get(db);
+    if (!statement) {
+      statement = db.prepare(sql);
+      cache.set(db, statement);
     }
-    return stmt;
+    return statement;
   };
 }
 
@@ -32,5 +32,6 @@ export const lastAssuranceSweep = new WeakMap<Db, number>();
 // durable retention can advance across downtime; operators must still keep startup time sane.
 const PROCESS_WALL_ORIGIN_MS = Date.now();
 const PROCESS_MONOTONIC_ORIGIN_MS = performance.now();
-export const stableNowMs = (): number => PROCESS_WALL_ORIGIN_MS + (performance.now() - PROCESS_MONOTONIC_ORIGIN_MS);
-export const stableNowIso = (): string => new Date(stableNowMs()).toISOString();
+export const readStableNowMilliseconds = (): number =>
+  PROCESS_WALL_ORIGIN_MS + (performance.now() - PROCESS_MONOTONIC_ORIGIN_MS);
+export const readStableNowIso = (): string => new Date(readStableNowMilliseconds()).toISOString();

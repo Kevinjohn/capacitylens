@@ -70,7 +70,7 @@ export function ensureAccountBoundaryState(db: Db): void {
  * memberSignInTracking.ts's schema assertion, which derived this identically before extraction. Do
  * NOT converge with schema.ts's normalizeSchemaObjectSql — that helper has different semantics
  * (case-preserving, strips IF NOT EXISTS/`;`). */
-export function normalizedTableCreateSql(db: Db, table: string): string {
+export function readNormalizedTableCreateSql(db: Db, table: string): string {
   return String(
     (
       db.prepare(`SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = ?`).get(table) as
@@ -174,7 +174,7 @@ export function assertAccountBoundaryStateCurrent(db: Db): void {
     ],
   };
   for (const [table, fragments] of Object.entries(requiredSql)) {
-    const sql = normalizedTableCreateSql(db, table);
+    const sql = readNormalizedTableCreateSql(db, table);
     for (const required of fragments) {
       if (!sql.includes(required)) problems.push(`${table} is missing constraint: ${required}`);
     }

@@ -3,10 +3,10 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
-import { buildApp as buildAppRaw } from "./app";
+import { createApp as buildAppRaw } from "./app";
 import { openDb as openDbRaw, openDbConnection, insertAll, type Db } from "./db";
 import { upsertMember } from "./controlTables";
-import { authFromEnv, runAuthMigrations } from "./auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { isAuditEntry } from "./auditOutbox";
 import { PASSWORD_ENV, call, signUp, registerServerFixtureCleanup } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
@@ -50,7 +50,7 @@ async function seededInstance(opts: { withAdmin?: boolean; ownerStatus?: string 
 }> {
   const databasePath = tempDbPath();
   const db = openDb(databasePath);
-  const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
   await runAuthMigrations(auth!);
   const app: FastifyInstance = buildApp(db, { authMode: mode, auth });
   seedAccount(db, "a1");
@@ -183,7 +183,7 @@ describe("resetOwnerPassword ceremony", () => {
 
     // Redeem through the real server the Owner would start afterwards.
     const db = openDb(databasePath);
-    const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+    const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
     const app = buildApp(db, { authMode: mode, auth });
     const redeem = await call(app, {
       method: "POST",

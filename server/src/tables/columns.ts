@@ -33,21 +33,21 @@ type Assert<T extends true> = T;
 // Each real table instantiates the constraint, so missing, extra or duplicate
 // names fail type-checking without adding runtime schema checks.
 /* eslint-disable @typescript-eslint/no-unused-vars */
-declare const _checkAccounts: Assert<CheckColumns<Account, typeof COLS_accounts>>;
-declare const _checkClients: Assert<CheckColumns<Client, typeof COLS_clients>>;
-declare const _checkDisciplines: Assert<CheckColumns<Discipline, typeof COLS_disciplines>>;
-declare const _checkProjects: Assert<CheckColumns<Project, typeof COLS_projects>>;
-declare const _checkPhases: Assert<CheckColumns<Phase, typeof COLS_phases>>;
-declare const _checkResources: Assert<CheckColumns<Resource, typeof COLS_resources>>;
-declare const _checkActivities: Assert<CheckColumns<Activity, typeof COLS_activities>>;
-declare const _checkAllocations: Assert<CheckColumns<Allocation, typeof COLS_allocations>>;
-declare const _checkTimeOff: Assert<CheckColumns<TimeOff, typeof COLS_timeOff>>;
-declare const _checkClosures: Assert<CheckColumns<Closure, typeof COLS_closures>>;
+declare const _checkAccounts: Assert<CheckColumns<Account, typeof accountsColumns>>;
+declare const _checkClients: Assert<CheckColumns<Client, typeof clientsColumns>>;
+declare const _checkDisciplines: Assert<CheckColumns<Discipline, typeof disciplinesColumns>>;
+declare const _checkProjects: Assert<CheckColumns<Project, typeof projectsColumns>>;
+declare const _checkPhases: Assert<CheckColumns<Phase, typeof phasesColumns>>;
+declare const _checkResources: Assert<CheckColumns<Resource, typeof resourcesColumns>>;
+declare const _checkActivities: Assert<CheckColumns<Activity, typeof activitiesColumns>>;
+declare const _checkAllocations: Assert<CheckColumns<Allocation, typeof allocationsColumns>>;
+declare const _checkTimeOff: Assert<CheckColumns<TimeOff, typeof timeOffColumns>>;
+declare const _checkClosures: Assert<CheckColumns<Closure, typeof closuresColumns>>;
 /* eslint-enable @typescript-eslint/no-unused-vars */
 
 const META = [{ name: "createdAt" }, { name: "updatedAt" }] as const;
 
-const COLS_accounts = [
+const accountsColumns = [
   { name: "id" },
   { name: "name" },
   { name: "color" },
@@ -69,7 +69,7 @@ const COLS_accounts = [
   ...META,
 ] as const satisfies ColumnSpec[];
 
-const COLS_clients = [
+const clientsColumns = [
   { name: "id" },
   { name: "accountId" },
   { name: "name" },
@@ -87,7 +87,7 @@ const COLS_clients = [
   ...META,
 ] as const satisfies ColumnSpec[];
 
-const COLS_disciplines = [
+const disciplinesColumns = [
   { name: "id" },
   { name: "accountId" },
   { name: "name" },
@@ -96,7 +96,7 @@ const COLS_disciplines = [
   ...META,
 ] as const satisfies ColumnSpec[];
 
-const COLS_projects = [
+const projectsColumns = [
   { name: "id" },
   { name: "accountId" },
   { name: "name" },
@@ -111,7 +111,7 @@ const COLS_projects = [
   ...META,
 ] as const satisfies ColumnSpec[];
 
-const COLS_phases = [
+const phasesColumns = [
   { name: "id" },
   { name: "accountId" },
   { name: "name" },
@@ -119,7 +119,7 @@ const COLS_phases = [
   ...META,
 ] as const satisfies ColumnSpec[];
 
-const COLS_resources = [
+const resourcesColumns = [
   { name: "id" },
   { name: "accountId" },
   { name: "kind" },
@@ -140,7 +140,7 @@ const COLS_resources = [
   ...META,
 ] as const satisfies ColumnSpec[];
 
-const COLS_activities = [
+const activitiesColumns = [
   { name: "id" },
   { name: "accountId" },
   { name: "name" },
@@ -150,7 +150,7 @@ const COLS_activities = [
   ...META,
 ] as const satisfies ColumnSpec[];
 
-const COLS_allocations = [
+const allocationsColumns = [
   { name: "id" },
   { name: "accountId" },
   { name: "resourceId" },
@@ -168,7 +168,7 @@ const COLS_allocations = [
   ...META,
 ] as const satisfies ColumnSpec[];
 
-const COLS_timeOff = [
+const timeOffColumns = [
   { name: "id" },
   { name: "accountId" },
   { name: "resourceId" },
@@ -179,7 +179,7 @@ const COLS_timeOff = [
   ...META,
 ] as const satisfies ColumnSpec[];
 
-const COLS_closures = [
+const closuresColumns = [
   { name: "id" },
   { name: "accountId" },
   { name: "name" },
@@ -191,42 +191,42 @@ const COLS_closures = [
 export const TABLE_DEFINITIONS = {
   accounts: {
     key: "accounts",
-    columns: COLS_accounts,
+    columns: accountsColumns,
   },
   clients: {
     key: "clients",
-    columns: COLS_clients,
+    columns: clientsColumns,
   },
   disciplines: {
     key: "disciplines",
-    columns: COLS_disciplines,
+    columns: disciplinesColumns,
   },
   projects: {
     key: "projects",
-    columns: COLS_projects,
+    columns: projectsColumns,
   },
   phases: {
     key: "phases",
-    columns: COLS_phases,
+    columns: phasesColumns,
   },
   resources: {
     key: "resources",
-    columns: COLS_resources,
+    columns: resourcesColumns,
   },
   activities: {
     key: "activities",
-    columns: COLS_activities,
+    columns: activitiesColumns,
   },
   allocations: {
     key: "allocations",
-    columns: COLS_allocations,
+    columns: allocationsColumns,
   },
   timeOff: {
     key: "timeOff",
-    columns: COLS_timeOff,
+    columns: timeOffColumns,
   },
   closures: {
     key: "closures",
-    columns: COLS_closures,
+    columns: closuresColumns,
   },
 } satisfies Record<AppDataKey, TableSpec>;

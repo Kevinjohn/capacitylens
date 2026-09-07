@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authFromEnv, mintPasswordResetToken, runAuthMigrations, type Auth } from "../auth";
+import { createAuthFromEnvironment, mintPasswordResetToken, runAuthMigrations, type Auth } from "../auth";
 import { openDb } from "../db";
 import { PASSWORD_ENV, registerServerFixtureCleanup } from "../testHelpers";
 import { captureResetToken, resetTokenCapture } from "./captureContexts";
@@ -34,7 +34,7 @@ describe("reset-token capture across the auth facade", () => {
 
   it("captures the real configured Better Auth reset hook through the facade", async () => {
     const db = fixtures.trackDb(openDb(":memory:"));
-    const { auth } = authFromEnv(db, PASSWORD_ENV);
+    const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
     await runAuthMigrations(auth!);
     await auth!.createCredentialUser("bruce@example.com", "Bruce Wayne", "unique-passphrase-2026");
 

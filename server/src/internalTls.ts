@@ -30,14 +30,18 @@ type InternalTlsEnv = {
   CAPACITYLENS_INTERNAL_TLS_GENERATION?: string;
 };
 
-const certificateExpiresAt = (certificate: Buffer): string => {
+const parseCertificateExpiry = (certificate: Buffer): string => {
   const parsed = Date.parse(new X509Certificate(certificate).validTo);
   if (!Number.isFinite(parsed)) throw new Error("certificate expiry is invalid");
   return new Date(parsed).toISOString();
 };
 
 /** Constant-work health projection over the certificate metadata parsed once at startup. */
-export function internalTlsHealth(expiresAt: string, now = Date.now(), fingerprintSha256?: string): InternalTlsHealth {
+export function buildInternalTlsHealth(
+  expiresAt: string,
+  now = Date.now(),
+  fingerprintSha256?: string,
+): InternalTlsHealth {
   const parsedExpiry = Date.parse(expiresAt);
   const remainingMs = Number.isFinite(parsedExpiry) ? parsedExpiry - now : 0;
   return {
@@ -55,16 +59,16 @@ export function internalTlsHealth(expiresAt: string, now = Date.now(), fingerpri
  * both are absent, while the default Compose deployment supplies a per-install certificate set.
  */
 export function loadInternalTls(
-  env: InternalTlsEnv,
+  environment: InternalTlsEnv,
   read: (path: string) => Buffer = (path) => readFileSync(path),
-  expiry: (certificate: Buffer) => string = certificateExpiresAt,
+  expiry: (certificate: Buffer) => string = parseCertificateExpiry,
   validateIdentity: (certificate: Buffer, privateKey: Buffer) => void = (certificate, privateKey) => {
     createSecureContext({ cert: certificate, key: privateKey });
   },
 ): InternalTlsOptions | undefined {
-  const rawCertPath = env.CAPACITYLENS_INTERNAL_TLS_CERT;
-  const rawKeyPath = env.CAPACITYLENS_INTERNAL_TLS_KEY;
-  const rawGenerationPath = env.CAPACITYLENS_INTERNAL_TLS_GENERATION;
+  const rawCertPath = environment.CAPACITYLENS_INTERNAL_TLS_CERT;
+  const rawKeyPath = environment.CAPACITYLENS_INTERNAL_TLS_KEY;
+  const rawGenerationPath = environment.CAPACITYLENS_INTERNAL_TLS_GENERATION;
   const certPath = rawCertPath?.trim();
   const keyPath = rawKeyPath?.trim();
   const generationPath = rawGenerationPath?.trim();

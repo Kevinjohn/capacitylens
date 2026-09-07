@@ -12,7 +12,7 @@ import { tx } from "./txn";
  * literal exactly: enqueueAudit persists `JSON.stringify(record)`, so key order is part of the
  * durable payload, not just cosmetic.
  */
-export function cutoverAuditEvent(
+export function buildCutoverAuditEvent(
   id: string,
   occurredAt: AccountAuditEvent["occurredAt"],
   overrides: {
@@ -122,7 +122,7 @@ export function reconcileObservedFederatedLinks(
         const auditId = `identity-link:${observation.accountRowId}`;
         enqueueAudit(
           db,
-          cutoverAuditEvent(auditId, observation.verifiedAt, {
+          buildCutoverAuditEvent(auditId, observation.verifiedAt, {
             applicationId,
             workspaceId: null,
             actorPrincipalId: observation.principalId,

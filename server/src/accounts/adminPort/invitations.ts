@@ -13,7 +13,7 @@ import {
   revokeInvite,
 } from "../../controlTables";
 import type { Db } from "../../db";
-import { receipt } from "../accountFlowRuntime";
+import { createOperationReceipt } from "../accountFlowRuntime";
 import {
   assertAccountAuthority,
   assertAdministrativeAssurance,
@@ -22,7 +22,12 @@ import {
 } from "./authority";
 import type { AdminPortContext } from "./contracts";
 import { MAX_INVITATION_TTL_MS, SsoCutoverAccountAdminPort } from "./contracts";
-import { assertInvitationRole, assertRedeemableInvitationRole, failure, replayCapacityFailure } from "./failures";
+import {
+  assertInvitationRole,
+  assertRedeemableInvitationRole,
+  createAccountFailure,
+  createReplayCapacityFailure,
+} from "./failures";
 
 /** Narrow admission fact for the identity creation hook. It exposes only a boolean; invitation
  * rows, bearer hashes and preauthorized addresses remain account-adapter-owned. */
@@ -75,9 +80,10 @@ export function createInvitations(
     },
     async previewInvitation({ token }) {
       const invite = getInvite(db, token);
-      if (!invite) throw failure("NOT_FOUND", "Invite not found.");
-      if (invite.usedAt !== null) throw failure("INVITATION_USED", "This invite has already been used.");
-      if (inviteIsExpired(invite.expiresAt)) throw failure("INVITATION_EXPIRED", "This invite has expired.");
+      if (!invite) throw createAccountFailure("NOT_FOUND", "Invite not found.");
+      if (invite.usedAt !== null) throw createAccountFailure("INVITATION_USED", "This invite has already been used.");
+      if (inviteIsExpired(invite.expiresAt))
+        throw createAccountFailure("INVITATION_EXPIRED", "This invite has expired.");
       assertRedeemableInvitationRole(invite.role);
       const workspace = assertWorkspaceExists(db, invite.accountId);
       return {
@@ -88,13 +94,17 @@ export function createInvitations(
     },
     async preparePasswordInvitationClaim({ token, normalizedEmail }) {
       const invite = getInvite(db, token);
-      if (!invite) throw failure("NOT_FOUND", "Invite not found.");
-      if (invite.usedAt !== null) throw failure("INVITATION_USED", "This invite has already been used.");
-      if (inviteIsExpired(invite.expiresAt)) throw failure("INVITATION_EXPIRED", "This invite has expired.");
+      if (!invite) throw createAccountFailure("NOT_FOUND", "Invite not found.");
+      if (invite.usedAt !== null) throw createAccountFailure("INVITATION_USED", "This invite has already been used.");
+      if (inviteIsExpired(invite.expiresAt))
+        throw createAccountFailure("INVITATION_EXPIRED", "This invite has expired.");
       assertRedeemableInvitationRole(invite.role);
       assertWorkspaceExists(db, invite.accountId);
       if (invite.preauthEmail !== null && normalizeEmail(normalizedEmail) !== invite.preauthEmail) {
-        throw failure("INVITATION_EMAIL_MISMATCH", "This invite is reserved for a different email address.");
+        throw createAccountFailure(
+          "INVITATION_EMAIL_MISMATCH",
+          "This invite is reserved for a different email address.",
+        );
       }
       return {
         emailVerifiedByInvitation: invite.preauthEmail !== null,
@@ -139,7 +149,7 @@ export function createInvitations(
         replayResult: (_stored, commandId) => {
           const replay = invitationSecretReplay.get(commandId);
           if (replay) return replay;
-          throw failure(
+          throw createAccountFailure(
             "CONFLICT",
             "The invitation command already completed; its write-once token is no longer available.",
             commandId,
@@ -162,14 +172,18 @@ export function createInvitations(
           const effectiveExpiresAt = expiresAt ?? new Date(nowMs + 7 * 24 * 60 * 60 * 1000).toISOString();
           const expiry = parseISOTimestamp(effectiveExpiresAt);
           if (expiry === null || expiry <= nowMs) {
-            throw failure("VALIDATION_FAILED", "expiresAt must be in the future.", command.commandId);
+            throw createAccountFailure("VALIDATION_FAILED", "expiresAt must be in the future.", command.commandId);
           }
           if (expiry > nowMs + MAX_INVITATION_TTL_MS) {
-            throw failure("VALIDATION_FAILED", "Invitations may be valid for at most 30 days.", command.commandId);
+            throw createAccountFailure(
+              "VALIDATION_FAILED",
+              "Invitations may be valid for at most 30 days.",
+              command.commandId,
+            );
           }
           const normalized = preauthorizedEmail === null ? null : normalizeAccountEmail(preauthorizedEmail);
           if (normalized !== null && !isAccountEmail(normalized)) {
-            throw failure(
+            throw createAccountFailure(
               "VALIDATION_FAILED",
               "The preauthorized invitation email address is invalid.",
               command.commandId,
@@ -178,7 +192,7 @@ export function createInvitations(
           pruneInvites(db, nowMs, workspaceId);
           const reservation = invitationSecretReplay.reserve(command.commandId, nowMs);
           if (!reservation.accepted) {
-            throw replayCapacityFailure(command.commandId, reservation.retryAfterMs);
+            throw createReplayCapacityFailure(command.commandId, reservation.retryAfterMs);
           }
           const token = randomBytes(32).toString("base64url");
           const now = new Date().toISOString();
@@ -225,7 +239,7 @@ export function createInvitations(
           assertAccountAuthority(db, actor, workspaceId, "manage-invitations", trustedLocal);
           const changed = listInvitesForAccount(db, workspaceId).some((invite) => invite.id === invitationId);
           revokeInvite(db, workspaceId, invitationId);
-          return receipt(command.commandId, changed);
+          return createOperationReceipt(command.commandId, changed);
         },
       });
       return revoked;

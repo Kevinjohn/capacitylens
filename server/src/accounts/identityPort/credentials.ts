@@ -5,12 +5,12 @@ import { validateCredentialInput } from "@capacitylens/shared/account/validation
 import { createHash } from "node:crypto";
 import { RESET_LINK_TTL_SECONDS, mintPasswordResetToken, revokeResetTokensForUser } from "../../auth";
 import { tx } from "../../txn";
-import { receipt } from "../accountFlowRuntime";
+import { createOperationReceipt } from "../accountFlowRuntime";
 import { erasePrincipalCommandHistoryInTx } from "../state";
 import type { IdentityPortContext } from "./contracts";
 import type { SsoCutoverIdentityPort } from "./contracts";
-import { isDuplicateCredentialEmailError, providerErrorCode, providerFailure } from "./vendorErrors";
-import { MalformedVerificationStateError, invalidVerificationState } from "./verificationState";
+import { isDuplicateCredentialEmailError, parseProviderErrorCode, createProviderFailure } from "./vendorErrors";
+import { MalformedVerificationStateError, createInvalidVerificationStateError } from "./verificationState";
 
 export function createCredentials(
   context: Pick<
@@ -68,7 +68,7 @@ export function createCredentials(
         compensationHandle: makeCompensationHandle(created.id, command.commandId),
       };
     } catch (error) {
-      if (["PASSWORD_COMPROMISED", "PASSWORD_CONTEXT_REJECTED"].includes(providerErrorCode(error) ?? "")) {
+      if (["PASSWORD_COMPROMISED", "PASSWORD_CONTEXT_REJECTED"].includes(parseProviderErrorCode(error) ?? "")) {
         throw new AccountContractError(
           {
             code: "VALIDATION_FAILED",
@@ -93,7 +93,7 @@ export function createCredentials(
           { cause: error },
         );
       }
-      throw providerFailure("Identity creation is temporarily unavailable.", error);
+      throw createProviderFailure("Identity creation is temporarily unavailable.", error);
     }
   };
   return {
@@ -116,9 +116,9 @@ export function createCredentials(
         input.masqueradeSessions?.commit(masqueradeHandles);
       } catch (error) {
         if (error instanceof MalformedVerificationStateError) {
-          throw invalidVerificationState(command.commandId, error);
+          throw createInvalidVerificationStateError(command.commandId, error);
         }
-        throw providerFailure("Provisional identity compensation failed.", error);
+        throw createProviderFailure("Provisional identity compensation failed.", error);
       }
     },
     async deprovisionLocalPrincipal({ principalId, command }): Promise<OperationReceipt> {
@@ -130,12 +130,12 @@ export function createCredentials(
           return eraseLocalPrincipalsInTx(db, [principalId], input.masqueradeSessions);
         });
         input.masqueradeSessions?.commit(masqueradeHandles);
-        return receipt(command.commandId);
+        return createOperationReceipt(command.commandId);
       } catch (error) {
         if (error instanceof MalformedVerificationStateError) {
-          throw invalidVerificationState(command.commandId, error);
+          throw createInvalidVerificationStateError(command.commandId, error);
         }
-        throw providerFailure("Local identity deprovisioning failed.", error);
+        throw createProviderFailure("Local identity deprovisioning failed.", error);
       }
     },
     async issuePasswordReset({ targetPrincipalId, command }) {
@@ -177,7 +177,7 @@ export function createCredentials(
         };
       } catch (error) {
         if (error instanceof AccountContractError) throw error;
-        throw providerFailure("Password-reset issuance is temporarily unavailable.", error);
+        throw createProviderFailure("Password-reset issuance is temporarily unavailable.", error);
       }
     },
     async revokePasswordResetCeremony({ targetPrincipalId }): Promise<void> {
@@ -186,7 +186,7 @@ export function createCredentials(
         // Conservatively revoking every outstanding ceremony for this principal is fail-closed.
         revokeResetTokensForUser(db, targetPrincipalId);
       } catch (error) {
-        throw providerFailure("Password-reset ceremony revocation failed.", error);
+        throw createProviderFailure("Password-reset ceremony revocation failed.", error);
       }
     },
   };

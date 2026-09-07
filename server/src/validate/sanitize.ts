@@ -8,7 +8,7 @@ import { isScopedEntityKey, SCHEDULING_MODES } from "@capacitylens/shared/types/
 import { pinGatedFields, type SanitizeWriteOptions } from "../fieldPolicy";
 import { TABLES } from "../tables";
 import { assertIdPresent, ValidationError } from "./errors";
-import { acceptedWriteFields } from "./fields";
+import { buildAcceptedWriteFields } from "./fields";
 /** Account calendar/locale facts become immutable after their first valid stored value. */
 export const IMMUTABLE_ACCOUNT_FIELDS = ["language", "weekStartsOn", "timezone"] as const;
 
@@ -48,13 +48,13 @@ export function sanitizeWrite(
   table: string,
   row: Record<string, unknown>,
   existing?: Record<string, unknown>,
-  opts: SanitizeWriteOptions = {},
+  options: SanitizeWriteOptions = {},
 ): Record<string, unknown> {
   assertIdPresent(row);
   if (table === "closures" && Object.hasOwn(row, "resourceId")) {
     throw new ValidationError("Company closures cannot reference a resource.");
   }
-  const copy = acceptedWriteFields(table, row);
+  const copy = buildAcceptedWriteFields(table, row);
   const nullRequiredFields =
     TABLES[table]?.columns.filter((column) => column.optional !== true && copy[column.name] === null) ?? [];
   if (nullRequiredFields.length > 0) {
@@ -112,7 +112,7 @@ export function sanitizeWrite(
     // cover name silently. Check before the import sanitiser applies its fail-closed fallback.
     if (
       (table === "clients" || table === "projects") &&
-      opts.canSeePrivateNames !== false &&
+      options.canSeePrivateNames !== false &&
       !hasUsablePrivateCodeName(copy)
     ) {
       throw new ValidationError("A private client or project requires a code name.");
@@ -154,7 +154,7 @@ export function sanitizeWrite(
     // it from every row they ever received), their write body is missing that key BY CONSTRUCTION —
     // pin it to the stored value on an UPDATE, strip it on a CREATE. A writer who CAN see the field
     // (owner/admin, or auth OFF) passes through untouched.
-    pinGatedFields(table, cleaned, existing, opts);
+    pinGatedFields(table, cleaned, existing, options);
     return cleaned;
   }
   return copy;

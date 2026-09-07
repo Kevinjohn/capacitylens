@@ -3,10 +3,14 @@ import type { PrincipalSummary } from "@capacitylens/shared/account/types";
 import { enqueueAudit } from "../../auditOutbox";
 import { revokeFederatedLinkStateInTx, revokeResetTokensForUser } from "../../auth";
 import { tx } from "../../txn";
-import { providerIdForIssuer } from "../state";
+import { getProviderIdForIssuer } from "../state";
 import type { IdentityPortContext } from "./contracts";
 import type { FederatedLinkRemoval, SsoCutoverIdentityPort } from "./contracts";
-import { invalidProviderSession, isDuplicateCredentialEmailError, providerFailure } from "./vendorErrors";
+import {
+  createInvalidProviderSessionError,
+  isDuplicateCredentialEmailError,
+  createProviderFailure,
+} from "./vendorErrors";
 
 export function createFederatedLinks(
   context: Pick<
@@ -111,7 +115,7 @@ export function createFederatedLinks(
       return removed;
     } catch (error) {
       if (error instanceof AccountContractError) throw error;
-      throw providerFailure("Federated identity repair failed.", error);
+      throw createProviderFailure("Federated identity repair failed.", error);
     }
   };
   return {
@@ -125,7 +129,7 @@ export function createFederatedLinks(
       try {
         // The identity key is the provider/issuer plus upstream subject pair. Email is deliberately
         // absent from this lookup and can never correlate two product identities.
-        const providerId = providerIdForIssuer(db, applicationId, subject.issuer);
+        const providerId = getProviderIdForIssuer(db, applicationId, subject.issuer);
         if (!providerId) return null;
         const rows = db
           .prepare(
@@ -143,13 +147,13 @@ export function createFederatedLinks(
           email: string | null;
         }>;
         if (rows.length > 1) {
-          throw invalidProviderSession("The federated subject maps to more than one local principal.");
+          throw createInvalidProviderSessionError("The federated subject maps to more than one local principal.");
         }
         const row = rows[0];
         return row ? { id: row.id, displayName: row.name, email: row.email } : null;
       } catch (error) {
         if (error instanceof AccountContractError) throw error;
-        throw providerFailure("Federated identity lookup is temporarily unavailable.", error);
+        throw createProviderFailure("Federated identity lookup is temporarily unavailable.", error);
       }
     },
     async correctPrincipalEmail({ principalId, email, audit, authorizeInTransaction }) {
@@ -207,7 +211,7 @@ export function createFederatedLinks(
             { cause: error },
           );
         }
-        throw providerFailure("Identity email correction failed.", error);
+        throw createProviderFailure("Identity email correction failed.", error);
       }
     },
   };

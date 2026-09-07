@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
 import { anonymise, remapIds, scrubDanglingReferences } from "../scripts/rehearse/anonymise";
 import { KNOWN_COLUMNS, KNOWN_TABLES } from "../scripts/rehearse/knownColumns";
-import { authFromEnv, runAuthMigrations } from "./auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { openDb } from "./db";
 import { PASSWORD_ENV } from "./testHelpers";
 
@@ -128,7 +128,7 @@ describe("rehearsal schema coverage", () => {
   it("classifies every live app and auth column while allowing historical ledger entries", async () => {
     const db = openDb(":memory:");
     try {
-      const { auth } = authFromEnv(db, { ...PASSWORD_ENV, CAPACITYLENS_REQUIRE_MFA: "1" });
+      const { auth } = createAuthFromEnvironment(db, { ...PASSWORD_ENV, CAPACITYLENS_REQUIRE_MFA: "1" });
       await runAuthMigrations(auth!);
       const tables = db
         .prepare("SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")

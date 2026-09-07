@@ -654,7 +654,7 @@ fail closed rather than start half-cut-over.
 rows where `assurance IN ('password','mfa')` and their sessions. That is wrong in three ways:
 
 1. **The order is backwards.** The assurance table is keyed by a one-way handle
-   (`server/src/accounts/sessionHandle.ts`, a SHA-256 of application id plus session token), so
+   (`server/src/accounts/buildApplicationSessionHandle.ts`, a SHA-256 of application id plus session token), so
    deleting assurance first destroys the mapping needed to find the corresponding session rows. The
    existing code resolves the relation by loading tokens and re-hashing
    (`betterAuthIdentityPort.ts`).
@@ -1334,7 +1334,7 @@ erasure `:166`, `:201`, `:206-207` · credential-creation gate `:253-259`, `:612
 duplicate-subject detection `:357-368`, `:445-458` · freshness derivation `:406` · `listSessions`
 `:529-532` · `revokeOwnSession` `:549-566` · `deprovisionLocalPrincipal` `:594` (unused) ·
 `revokePrincipalSessions` `:664-677`
-`sessionHandle.ts`
+`buildApplicationSessionHandle.ts`
 
 **Routes** — `accountRoutes.ts`: invites `:197-274`, preview `:279-291`, accept `:303-339`, signup
 `:344-394` (mode gate `:345-347`) · members `:414`, `mayResetPassword` `:442`, patch `:454`, delete

@@ -12,9 +12,9 @@ export function refuseToStart(reason: string): never {
 // options below (each just parses/validates one env-derived value with no extra cleanup on
 // failure). Larger boot phases that must also close the database or dispose signal handlers on
 // failure keep their own explicit try/catch instead of this helper.
-export function tryOrRefuse<T>(fn: () => T): T {
+export function tryOrRefuse<T>(callback: () => T): T {
   try {
-    return fn();
+    return callback();
   } catch (error) {
     refuseToStart(error instanceof Error ? error.message : String(error));
   }

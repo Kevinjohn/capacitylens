@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from "vitest";
 import { openDb, type Db } from "../../db";
-import { cachedStatement } from "./runtime";
+import { createCachedStatement } from "./runtime";
 
 const databases: Db[] = [];
 
@@ -14,8 +14,8 @@ it("keeps each statement closure's cache independent and keyed by database handl
   databases.push(db);
   const otherDb = openDb(":memory:");
   databases.push(otherDb);
-  const first = cachedStatement("SELECT 1 AS value");
-  const second = cachedStatement("SELECT 1 AS value");
+  const first = createCachedStatement("SELECT 1 AS value");
+  const second = createCachedStatement("SELECT 1 AS value");
 
   expect(first(db)).toBe(first(db));
   expect(first(otherDb)).not.toBe(first(db));

@@ -4,7 +4,7 @@ import { cleanText } from "@capacitylens/shared/lib/strings";
 import type { BoundApplication } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 import { recordSessionAssurance, removeSessionAssurance } from "../accounts/state";
-import { applicationSessionHandle } from "../accounts/sessionHandle";
+import { buildApplicationSessionHandle } from "../accounts/buildApplicationSessionHandle";
 import { confirmTrackedMemberSignIn } from "../accounts/memberSignInTracking";
 
 export function buildDatabaseHooks({
@@ -109,7 +109,7 @@ export function buildDatabaseHooks({
             }
             recordSessionAssurance(
               db,
-              applicationSessionHandle(application.applicationId, String(session.token)),
+              buildApplicationSessionHandle(application.applicationId, String(session.token)),
               String(session.userId),
               assurance,
               providerId,
@@ -135,7 +135,7 @@ export function buildDatabaseHooks({
         },
         delete: {
           after: async (session) => {
-            removeSessionAssurance(db, applicationSessionHandle(application.applicationId, String(session.token)));
+            removeSessionAssurance(db, buildApplicationSessionHandle(application.applicationId, String(session.token)));
           },
         },
       },

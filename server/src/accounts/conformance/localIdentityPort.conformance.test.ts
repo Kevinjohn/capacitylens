@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { authFromEnv, runAuthMigrations, type Auth, type SessionUser } from "../../auth";
+import { createAuthFromEnvironment, runAuthMigrations, type Auth, type SessionUser } from "../../auth";
 import { openDb, type Db } from "../../db";
 import { PASSWORD_ENV } from "../../testHelpers";
-import { betterAuthIdentityPort } from "../betterAuthIdentityPort";
+import { createBetterAuthIdentityPort } from "../betterAuthIdentityPort";
 import { tx } from "../../txn";
 import { bindFederatedProvider, getAccountCommand, recordSessionAssurance, reserveAccountCommand } from "../state";
-import { applicationSessionHandle } from "../sessionHandle";
+import { buildApplicationSessionHandle } from "../buildApplicationSessionHandle";
 
 const sessionUser: SessionUser = {
   id: "principal-1",
@@ -36,7 +36,7 @@ const NOW = "2026-07-18T00:00:00.000Z";
 const LATER = "2099-07-18T00:00:00.000Z";
 
 async function identityTables(db: Db): Promise<void> {
-  const { auth: realAuth } = authFromEnv(db, PASSWORD_ENV);
+  const { auth: realAuth } = createAuthFromEnvironment(db, PASSWORD_ENV);
   await runAuthMigrations(realAuth!);
 }
 
@@ -100,10 +100,10 @@ describe("local IdentityPort conformance", () => {
   });
 
   function identityPort(
-    overrides: Partial<Parameters<typeof betterAuthIdentityPort>[0]> &
-      Pick<Parameters<typeof betterAuthIdentityPort>[0], "auth">,
-  ): ReturnType<typeof betterAuthIdentityPort> {
-    return betterAuthIdentityPort({
+    overrides: Partial<Parameters<typeof createBetterAuthIdentityPort>[0]> &
+      Pick<Parameters<typeof createBetterAuthIdentityPort>[0], "auth">,
+  ): ReturnType<typeof createBetterAuthIdentityPort> {
+    return createBetterAuthIdentityPort({
       applicationId: "conformance-app",
       authMode: "password",
       db,
@@ -736,7 +736,13 @@ describe("local IdentityPort conformance", () => {
       `INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
        VALUES (?, ?, ?, ?, ?, ?)`,
     ).run("provider-session-1", LATER, token, NOW, NOW, "principal-1");
-    recordSessionAssurance(db, applicationSessionHandle("conformance-app", token), "principal-1", "federated", "sso");
+    recordSessionAssurance(
+      db,
+      buildApplicationSessionHandle("conformance-app", token),
+      "principal-1",
+      "federated",
+      "sso",
+    );
     const port = identityPort({
       auth: auth(async () => null),
       authMode: "sso",
@@ -756,7 +762,13 @@ describe("local IdentityPort conformance", () => {
       `INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
        VALUES (?, ?, ?, ?, ?, ?)`,
     ).run("provider-session-1", LATER, token, NOW, NOW, "principal-1");
-    recordSessionAssurance(db, applicationSessionHandle("conformance-app", token), "principal-1", "federated", "sso");
+    recordSessionAssurance(
+      db,
+      buildApplicationSessionHandle("conformance-app", token),
+      "principal-1",
+      "federated",
+      "sso",
+    );
     insertVerification(
       db,
       "oauth-state-1",
@@ -1229,23 +1241,23 @@ describe("local IdentityPort conformance", () => {
   it.each([
     [
       "summaries",
-      (port: ReturnType<typeof betterAuthIdentityPort>) => port.getPrincipalSummaries({ principalIds: ["p"] }),
+      (port: ReturnType<typeof createBetterAuthIdentityPort>) => port.getPrincipalSummaries({ principalIds: ["p"] }),
     ],
     [
       "federated lookup",
-      (port: ReturnType<typeof betterAuthIdentityPort>) =>
+      (port: ReturnType<typeof createBetterAuthIdentityPort>) =>
         port.findPrincipalByFederatedSubject({ subject: { issuer: "https://issuer.example", subject: "subject" } }),
     ],
     [
       "session listing",
-      (port: ReturnType<typeof betterAuthIdentityPort>) =>
+      (port: ReturnType<typeof createBetterAuthIdentityPort>) =>
         port.listSessions({
           actor: { principalId: "p", sessionId: "s", assurance: "password", fresh: true, mfaSatisfied: false },
         }),
     ],
     [
       "session revocation",
-      (port: ReturnType<typeof betterAuthIdentityPort>) =>
+      (port: ReturnType<typeof createBetterAuthIdentityPort>) =>
         port.revokeOwnSession({
           actor: { principalId: "p", sessionId: "s", assurance: "password", fresh: true, mfaSatisfied: false },
           sessionId: "s",
@@ -1254,12 +1266,12 @@ describe("local IdentityPort conformance", () => {
     ],
     [
       "password reset issuance",
-      (port: ReturnType<typeof betterAuthIdentityPort>) =>
+      (port: ReturnType<typeof createBetterAuthIdentityPort>) =>
         port.issuePasswordReset({ targetPrincipalId: "p", command: { commandId: "c", idempotencyKey: "k" } }),
     ],
     [
       "password reset revocation",
-      (port: ReturnType<typeof betterAuthIdentityPort>) =>
+      (port: ReturnType<typeof createBetterAuthIdentityPort>) =>
         port.revokePasswordResetCeremony({
           targetPrincipalId: "p",
           ceremonyId: "ceremony",
@@ -1268,7 +1280,7 @@ describe("local IdentityPort conformance", () => {
     ],
     [
       "principal session revocation",
-      (port: ReturnType<typeof betterAuthIdentityPort>) =>
+      (port: ReturnType<typeof createBetterAuthIdentityPort>) =>
         port.revokePrincipalSessions({ targetPrincipalId: "p", command: { commandId: "c", idempotencyKey: "k" } }),
     ],
   ])("maps a closed identity database during %s", async (_name, invoke) => {

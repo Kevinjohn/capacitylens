@@ -11,9 +11,11 @@ import {
 import type { LocalAccountFlows } from "../localAccountFlows";
 import { clearTrackedMemberSignIn } from "../memberSignInTracking";
 import type { LocalAccountFlowContext } from "./context";
-import { authorityChanged, denied, replayCapacityExceeded } from "./failures";
+import { createAuthorityChangedError, createAuthorityDenial, createReplayCapacityError } from "./failures";
 
-export function passwordReset(context: LocalAccountFlowContext): Pick<LocalAccountFlows, "issuePasswordReset"> {
+export function createPasswordResetFlows(
+  context: LocalAccountFlowContext,
+): Pick<LocalAccountFlows, "issuePasswordReset"> {
   const {
     applicationId,
     db,
@@ -47,7 +49,7 @@ export function passwordReset(context: LocalAccountFlowContext): Pick<LocalAccou
             action: "issue-password-reset",
           });
           if (!decision.allowed) {
-            throw denied(decision.reason, "issue-password-reset", begun.record.commandId);
+            throw createAuthorityDenial(decision.reason, "issue-password-reset", begun.record.commandId);
           }
           const confirmed = await administration.confirmIdentityAdminAuthority({
             actor,
@@ -55,7 +57,7 @@ export function passwordReset(context: LocalAccountFlowContext): Pick<LocalAccou
             action: "issue-password-reset",
             expectedRevision: decision.revision,
           });
-          if (!confirmed) throw authorityChanged(begun.record.commandId);
+          if (!confirmed) throw createAuthorityChangedError(begun.record.commandId);
           const replay = resetReplay.get(begun.record.commandId);
           if (replay) return markAccountCommandReplay(replay);
           throw new AccountContractError({
@@ -88,7 +90,7 @@ export function passwordReset(context: LocalAccountFlowContext): Pick<LocalAccou
           }
           const reservation = resetReplay.reserve(command.commandId);
           if (!reservation.accepted) {
-            const capacityError = replayCapacityExceeded(command.commandId, reservation.retryAfterMs);
+            const capacityError = createReplayCapacityError(command.commandId, reservation.retryAfterMs);
             persistTerminalOutcome(() => terminateCommand(db, scope, command, "compensated", "RATE_LIMITED"), {
               action: "identity.password_reset_issued",
               outcome: "failed",
@@ -111,7 +113,7 @@ export function passwordReset(context: LocalAccountFlowContext): Pick<LocalAccou
             expectedRevision: decision.revision,
           });
           if (!confirmed) {
-            const changed = authorityChanged(command.commandId);
+            const changed = createAuthorityChangedError(command.commandId);
             const ceremonyId = ceremony.ceremonyId;
             try {
               await identity.revokePasswordResetCeremony({

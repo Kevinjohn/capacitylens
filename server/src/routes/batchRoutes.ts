@@ -4,7 +4,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { LocalAccountFlows } from "../accounts/localAccountFlows";
 import type { AuthMode } from "../auth";
 import { type Db } from "../db";
-import { tableHasGatedFields, type SanitizeWriteOptions } from "../fieldPolicy";
+import { hasGatedFields, type SanitizeWriteOptions } from "../fieldPolicy";
 import { TABLES } from "../tables";
 import type { TenantStore } from "../tenantStore";
 import { SINGLE_COMPANY_CAP_MESSAGE } from "./accountEntityRoutes";
@@ -14,7 +14,7 @@ import { authorizeBatchOperations, projectBatchAccounts } from "./batch/authoriz
 import { BatchAuthorizationResponseSent, StaleWriteError } from "./batch/errors";
 import { runBatch } from "./batch/runBatch";
 import { type BatchRevision } from "./batch/types";
-import { validateBatchRequest } from "./batch/validateRequest";
+import { parseBatchRequest } from "./batch/validateRequest";
 export { MAX_BATCH_OPS } from "./batch/types";
 
 export interface BatchRouteDependencies {
@@ -26,7 +26,7 @@ export interface BatchRouteDependencies {
   accountFlows: LocalAccountFlows;
   authorize: (req: FastifyRequest, reply: FastifyReply, accountId: string, action: Action) => boolean;
   fieldVisibility: (req: FastifyRequest, table: string, accountId: unknown) => SanitizeWriteOptions;
-  redact: (table: string, row: Record<string, unknown>, vis: SanitizeWriteOptions) => Record<string, unknown>;
+  redact: (table: string, row: Record<string, unknown>, visibility: SanitizeWriteOptions) => Record<string, unknown>;
   drainProductAudit: (reply: FastifyReply) => boolean;
   fail: (reply: FastifyReply, error: unknown) => FastifyReply;
   accountFail: (reply: FastifyReply, error: unknown) => FastifyReply;
@@ -58,7 +58,7 @@ export function registerBatchRoutes(app: FastifyInstance, dependencies: BatchRou
   // per-entity routes use; one request-scoped state projection is loaded inside the transaction
   // and advanced after each op, so a child validates against a parent a sibling op just upserted.
   app.post("/api/batch", async (req, reply) => {
-    const parsed = validateBatchRequest(req, reply);
+    const parsed = parseBatchRequest(req, reply);
     if (!parsed) return;
     const { ops, syncOrder } = parsed;
     if (ops.length === 0 && syncOrder === null) {
@@ -120,14 +120,14 @@ export function registerBatchRoutes(app: FastifyInstance, dependencies: BatchRou
     // (in practice: one) ever populate the cache.
     const fieldVisCache = new Map<string, SanitizeWriteOptions>();
     const fieldVisFor = (table: string, accountId: unknown): SanitizeWriteOptions => {
-      if (!tableHasGatedFields(table) || typeof accountId !== "string") {
+      if (!hasGatedFields(table) || typeof accountId !== "string") {
         return fieldVisibilityFor(req, table, accountId); // no-lookup short-circuits; nothing to cache
       }
       const cached = fieldVisCache.get(accountId);
       if (cached) return cached;
-      const vis = fieldVisibilityFor(req, table, accountId);
-      fieldVisCache.set(accountId, vis);
-      return vis;
+      const visibility = fieldVisibilityFor(req, table, accountId);
+      fieldVisCache.set(accountId, visibility);
+      return visibility;
     };
     const revisions: BatchRevision[] = [];
     const lifecycleArchives: Array<{ table: string; id: string; archived: boolean }> = [];
@@ -174,16 +174,16 @@ export function registerBatchRoutes(app: FastifyInstance, dependencies: BatchRou
         archives: lifecycleArchives,
         auditWarning: auditFailed,
       });
-    } catch (err) {
-      if (err instanceof BatchAuthorizationResponseSent) return;
+    } catch (error) {
+      if (error instanceof BatchAuthorizationResponseSent) return;
       // Stale-write conflict (optimistic concurrency): mirror the direct PUT route's 409 +
       // `current` payload. tx() has already rolled the WHOLE batch back by the time this runs
       // (all-or-nothing), so no op from the conflicted batch persisted — the client re-syncs
       // from `current`. Checked BEFORE sendFail, which would misclassify it as a 500.
-      if (err instanceof StaleWriteError) {
-        return reply.code(409).send({ error: err.message, current: err.current });
+      if (error instanceof StaleWriteError) {
+        return reply.code(409).send({ error: error.message, current: error.current });
       }
-      return err instanceof AccountContractError ? accountFail(reply, err) : sendFail(reply, err);
+      return error instanceof AccountContractError ? accountFail(reply, error) : sendFail(reply, error);
     }
   });
 }

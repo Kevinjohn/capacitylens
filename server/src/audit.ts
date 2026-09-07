@@ -1,6 +1,6 @@
 import { dirname, join } from "node:path";
-export { fileAuditSink } from "./audit/fileSink";
-export { compositeAuditSink, noopAuditSink, streamAuditSink } from "./audit/sinks";
+export { createFileAuditSink } from "./audit/createFileAuditSink";
+export { createCompositeAuditSink, createNoopAuditSink, createStreamAuditSink } from "./audit/sinks";
 export { AUDIT_RECOVERY_SCAN_BYTES, MAX_AUDIT_BYTES } from "./audit/types";
 export type { AuditDeliveryMetadata, AuditEntry, AuditRecord, AuditSink, FileAuditSinkOptions } from "./audit/types";
 // Append-only JSONL audit sink (P1.15, flag CAPACITYLENS_AUDIT — ON BY DEFAULT, opt-out =off).
@@ -23,20 +23,20 @@ export type { AuditDeliveryMetadata, AuditEntry, AuditRecord, AuditSink, FileAud
  * (`capacitylens-audit.jsonl` in the DB's directory); a `:memory:` DB (dirname '.') falls back to a
  * CWD-relative file.
  *
- * @param env    process.env (or a test stub)
+ * @param environment    process.env (or a test stub)
  * @param dbPath the resolved DB path, used only to site the default audit file
  * @returns `{ enabled, file }` — index.ts builds a fileAuditSink when enabled, else a noopAuditSink
  */
 export function parseAuditConfig(
-  env: Record<string, string | undefined>,
+  environment: Record<string, string | undefined>,
   dbPath: string,
 ): { enabled: boolean; file: string } {
-  const enabled = env.CAPACITYLENS_AUDIT !== "off";
+  const enabled = environment.CAPACITYLENS_AUDIT !== "off";
   // dirname(':memory:') is '.', which join() resolves to CWD-relative — exactly the fallback we
   // want for an in-memory DB (no on-disk DB to sit beside).
   // Compose mapping pass-throughs define omitted values as ''. Treat that generated empty value as
   // absent so deployments outside the packaged Compose file cannot accidentally create a sink at an
   // unusable path. Deliberately do not trim: spaces can be valid in an explicitly configured path.
-  const file = env.CAPACITYLENS_AUDIT_FILE || join(dirname(dbPath), "capacitylens-audit.jsonl");
+  const file = environment.CAPACITYLENS_AUDIT_FILE || join(dirname(dbPath), "capacitylens-audit.jsonl");
   return { enabled, file };
 }

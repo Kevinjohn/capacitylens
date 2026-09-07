@@ -4,7 +4,7 @@ import { openDb, type Db } from "../db";
 import {
   clearTrackedMemberSignIn,
   confirmTrackedMemberSignIn,
-  memberSignInTrackingSnapshot,
+  readMemberSignInTrackingSnapshot,
   setMemberSignInTracking,
 } from "./memberSignInTracking";
 
@@ -37,7 +37,7 @@ describe("privacy-preserving member sign-in confirmation", () => {
 
   it("is off by default and retains no confirmation", () => {
     const current = setup();
-    expect(memberSignInTrackingSnapshot(current, "account-a")).toEqual({
+    expect(readMemberSignInTrackingSnapshot(current, "account-a")).toEqual({
       enabled: false,
       confirmations: new Map(),
     });
@@ -53,7 +53,7 @@ describe("privacy-preserving member sign-in confirmation", () => {
       enabled: true,
       changed: true,
     });
-    expect(memberSignInTrackingSnapshot(current, "account-a")).toEqual({
+    expect(readMemberSignInTrackingSnapshot(current, "account-a")).toEqual({
       enabled: true,
       confirmations: new Map([
         ["owner", true],
@@ -62,7 +62,7 @@ describe("privacy-preserving member sign-in confirmation", () => {
     });
 
     confirmTrackedMemberSignIn(current, "editor");
-    expect(memberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(true);
+    expect(readMemberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(true);
     const trackingSql = current
       .prepare("SELECT sql FROM sqlite_schema WHERE name = 'account_member_sign_in_tracking'")
       .get() as { sql: string };
@@ -77,7 +77,7 @@ describe("privacy-preserving member sign-in confirmation", () => {
       enabled: true,
       changed: false,
     });
-    expect(memberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(true);
+    expect(readMemberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(true);
   });
 
   it("clears a confirmation after a deliberate access reset", () => {
@@ -85,7 +85,7 @@ describe("privacy-preserving member sign-in confirmation", () => {
     setMemberSignInTracking(current, "account-a", "owner", true);
     confirmTrackedMemberSignIn(current, "editor");
     clearTrackedMemberSignIn(current, "editor");
-    expect(memberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(false);
+    expect(readMemberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(false);
   });
 
   it("starts a new window when membership access is disabled or restored", () => {
@@ -93,9 +93,9 @@ describe("privacy-preserving member sign-in confirmation", () => {
     setMemberSignInTracking(current, "account-a", "owner", true);
     confirmTrackedMemberSignIn(current, "editor");
     expect(setMemberStatus(current, "account-a", "editor", "disabled")).toBe("changed");
-    expect(memberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(false);
+    expect(readMemberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(false);
     expect(setMemberStatus(current, "account-a", "editor", "active")).toBe("changed");
-    expect(memberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(false);
+    expect(readMemberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(false);
   });
 
   it("erases every observation when the owner turns tracking off", () => {
@@ -106,7 +106,7 @@ describe("privacy-preserving member sign-in confirmation", () => {
       enabled: false,
       changed: true,
     });
-    expect(memberSignInTrackingSnapshot(current, "account-a")).toEqual({
+    expect(readMemberSignInTrackingSnapshot(current, "account-a")).toEqual({
       enabled: false,
       confirmations: new Map(),
     });

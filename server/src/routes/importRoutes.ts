@@ -8,8 +8,8 @@ import { parseData, MAX_IMPORT_RECORDS } from "@capacitylens/shared/data/transfe
 import { APP_DATA_KEYS, type AppData } from "@capacitylens/shared/types/entities";
 import type { AuditRecord } from "../audit";
 import type { AuthMode } from "../auth";
-import { insertAll, replaceAccountSlice, type Db, validatedCompleteAccountSlice, wipe } from "../db";
-import { currentRequestAbortSignal } from "../requestAbort";
+import { insertAll, replaceAccountSlice, type Db, buildCompleteAccountSlice, wipe } from "../db";
+import { readCurrentRequestAbortSignal } from "../requestAbort";
 import type { runImportWorker } from "../runImportWorker";
 import type { TenantStore } from "../tenantStore";
 import { tx } from "../txn";
@@ -29,23 +29,23 @@ class ImportSnapshotConflictError extends Error {
   }
 }
 
-function canonicalJson(value: unknown): string {
+function buildCanonicalJson(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "undefined";
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (Array.isArray(value)) return `[${value.map(buildCanonicalJson).join(",")}]`;
   const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right));
-  return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`).join(",")}}`;
+  return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${buildCanonicalJson(child)}`).join(",")}}`;
 }
 
 /** Fingerprint only the scoped rows an import replaces. Row and field ordering are normalized so
  * equivalent SQLite reads compare equal while any accepted tenant mutation changes the token. */
-function importSnapshotFingerprint(slice: AppData): string {
+function buildImportSnapshotFingerprint(slice: AppData): string {
   const scoped = Object.fromEntries(
     APP_DATA_KEYS.filter((table) => table !== "accounts").map((table) => [
       table,
       [...slice[table]].sort((left, right) => left.id.localeCompare(right.id)),
     ]),
   );
-  return createHash("sha256").update(canonicalJson(scoped)).digest("base64url");
+  return createHash("sha256").update(buildCanonicalJson(scoped)).digest("base64url");
 }
 
 export interface ImportRouteDependencies {
@@ -110,9 +110,9 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
     let incoming;
     try {
       incoming = parseData(JSON.stringify(body.data ?? {}));
-    } catch (err) {
+    } catch (error) {
       return reply.code(400).send({
-        error: err instanceof Error ? err.message : "Invalid import data",
+        error: error instanceof Error ? error.message : "Invalid import data",
       });
     }
     // remapAndValidateImport drops/repairs dangling refs so the slice is FK-clean
@@ -121,7 +121,7 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
     // uncaught 500.
     try {
       const currentSlice = store.readFullSlice(body.accountId);
-      const expectedSnapshot = importSnapshotFingerprint(currentSlice);
+      const expectedSnapshot = buildImportSnapshotFingerprint(currentSlice);
       const result = await executeImportWorker(
         {
           current: currentSlice,
@@ -129,7 +129,7 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
           incoming,
           now: new Date().toISOString(),
         },
-        currentRequestAbortSignal(),
+        readCurrentRequestAbortSignal(),
       );
       // Refuse a zero-record import rather than wiping the account's slice (mirrors the
       // client store guard — replacing a company's data with nothing is never intended).
@@ -154,10 +154,10 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
         // The worker runs outside SQLite so ordinary writes stay responsive. Recheck the exact
         // tenant slice after BEGIN IMMEDIATE and before replacement: a same-account commit in the
         // worker window must conflict, never be silently erased by this destructive import.
-        if (importSnapshotFingerprint(store.readFullSlice(body.accountId!)) !== expectedSnapshot) {
+        if (buildImportSnapshotFingerprint(store.readFullSlice(body.accountId!)) !== expectedSnapshot) {
           throw new ImportSnapshotConflictError();
         }
-        replaceAccountSlice(db, body.accountId!, validatedCompleteAccountSlice(result.data));
+        replaceAccountSlice(db, body.accountId!, buildCompleteAccountSlice(result.data));
       });
       return {
         imported: result.imported,
@@ -165,18 +165,18 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
         maxRecords: MAX_IMPORT_RECORDS,
         auditWarning: !auditOk,
       };
-    } catch (err) {
-      if (err instanceof WorkQueueFullError) {
+    } catch (error) {
+      if (error instanceof WorkQueueFullError) {
         reply.header("retry-after", "1");
-        return reply.code(503).send({ error: err.message, code: "IMPORT_BUSY", retryable: true });
+        return reply.code(503).send({ error: error.message, code: "IMPORT_BUSY", retryable: true });
       }
-      if (err instanceof ImportSnapshotConflictError) {
+      if (error instanceof ImportSnapshotConflictError) {
         return reply.code(409).send({
-          error: err.message,
+          error: error.message,
           code: "IMPORT_SNAPSHOT_STALE",
         });
       }
-      return sendFail(reply, err);
+      return sendFail(reply, error);
     }
   });
 

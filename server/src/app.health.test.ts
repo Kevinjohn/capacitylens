@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildApp } from "./app";
+import { createApp } from "./app";
 import { openDb } from "./db";
 import type { AuditSink } from "./audit";
 import { AUDIT_DRAIN_PAGE_SIZE, enqueueAudit } from "./auditOutbox";
@@ -12,7 +12,7 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
   it("reports { ok, db: true, audit: ok } while the DB answers and the audit sink is healthy", async () => {
     // P1.15: deep-health also surfaces the audit sink state. The factory default is a noop sink
     // (never degraded), so a healthy server reports audit:'ok'.
-    const app = buildApp(openDb(":memory:"), { healthDeep: true });
+    const app = createApp(openDb(":memory:"), { healthDeep: true });
     const res = await app.inject({ method: "GET", url: "/api/health" });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ ok: true, db: true, audit: "ok", auditPending: 0 });
@@ -24,7 +24,7 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
     // monitor can see the latched write failure without the server lying healthy OR going 503.
     // The fake matches the real AuditSink contract (append + the degraded latch).
     const degradedSink: AuditSink = { append: () => false, degraded: true };
-    const app = buildApp(openDb(":memory:"), {
+    const app = createApp(openDb(":memory:"), {
       healthDeep: true,
       audit: degradedSink,
     });
@@ -35,7 +35,7 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
 
   it("reports a healthy backlog as recovering with its pending row count", async () => {
     const db = openDb(":memory:");
-    const app = buildApp(db, { healthDeep: true });
+    const app = createApp(db, { healthDeep: true });
     await app.ready();
     for (let index = 0; index < AUDIT_DRAIN_PAGE_SIZE + 1; index += 1) {
       enqueueAudit(
@@ -70,7 +70,7 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
       degraded: false,
       lastSuccessAt: null,
     };
-    const app = buildApp(openDb(":memory:"), {
+    const app = createApp(openDb(":memory:"), {
       healthDeep: true,
       backupHealth: () => backupHealth,
     });
@@ -101,7 +101,7 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
 
   it("surfaces an internal certificate inside the renewal window without failing readiness", async () => {
     const expiresAt = new Date(Date.now() + 29 * 24 * 60 * 60 * 1_000).toISOString();
-    const app = buildApp(openDb(":memory:"), {
+    const app = createApp(openDb(":memory:"), {
       healthDeep: true,
       internalTlsExpiresAt: expiresAt,
       internalTlsFingerprintSha256: "a".repeat(64),
@@ -125,7 +125,7 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
 
   it("returns 503 { ok: false } when the DB read throws", async () => {
     const db = openDb(":memory:");
-    const app = buildApp(db, { healthDeep: true });
+    const app = createApp(db, { healthDeep: true });
     db.close();
     const res = await app.inject({ method: "GET", url: "/api/health" });
     expect(res.statusCode).toBe(503);
@@ -136,7 +136,7 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
 describe("CAPACITYLENS_HEALTH_DEEP off (default)", () => {
   it("returns exactly the current body, even with the DB closed", async () => {
     const db = openDb(":memory:");
-    const app = buildApp(db);
+    const app = createApp(db);
     db.close();
     const res = await app.inject({ method: "GET", url: "/api/health" });
     expect(res.statusCode).toBe(200);

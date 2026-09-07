@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { AuditSink } from "../audit";
-import { internalTlsHealth } from "../internalTls";
+import { buildInternalTlsHealth } from "../internalTls";
 
 export const CSP_REPORT_BODY_LIMIT = 64 * 1024;
 const MAX_CSP_REPORTS_PER_REQUEST = 1;
@@ -8,12 +8,12 @@ const MAX_CSP_REPORTS_PER_REQUEST = 1;
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const safeCspDirective = (value: unknown): string | undefined =>
+const parseCspDirective = (value: unknown): string | undefined =>
   typeof value === "string" && /^[a-z][a-z0-9-]{0,63}$/i.test(value) ? value : undefined;
 
 // CSP fields can contain full URLs, including query/fragment secrets. Security telemetry needs only
 // the origin; special browser values such as "inline" are retained as a bounded classification.
-const safeCspOrigin = (value: unknown): string | undefined => {
+const parseCspOrigin = (value: unknown): string | undefined => {
   if (typeof value !== "string" || value.length > 2048) return undefined;
   if (["inline", "eval", "self", "data", "blob"].includes(value)) return value;
   try {
@@ -24,7 +24,7 @@ const safeCspOrigin = (value: unknown): string | undefined => {
   }
 };
 
-function normalizedCspReports(payload: unknown): Record<string, unknown>[] {
+function parseCspReports(payload: unknown): Record<string, unknown>[] {
   const candidates = Array.isArray(payload) ? payload.slice(0, MAX_CSP_REPORTS_PER_REQUEST) : [payload];
   const reports: Record<string, unknown>[] = [];
   for (const candidate of candidates) {
@@ -36,10 +36,10 @@ function normalizedCspReports(payload: unknown): Record<string, unknown>[] {
     reports.push({
       event: "csp_violation",
       outcome: "reported",
-      documentOrigin: safeCspOrigin(body["document-uri"] ?? body.documentURL),
-      blockedOrigin: safeCspOrigin(body["blocked-uri"] ?? body.blockedURL),
-      effectiveDirective: safeCspDirective(body["effective-directive"] ?? body.effectiveDirective),
-      violatedDirective: safeCspDirective(body["violated-directive"]),
+      documentOrigin: parseCspOrigin(body["document-uri"] ?? body.documentURL),
+      blockedOrigin: parseCspOrigin(body["blocked-uri"] ?? body.blockedURL),
+      effectiveDirective: parseCspDirective(body["effective-directive"] ?? body.effectiveDirective),
+      violatedDirective: parseCspDirective(body["violated-directive"]),
       disposition: body.disposition === "report" || body.disposition === "enforce" ? body.disposition : undefined,
     });
   }
@@ -77,7 +77,7 @@ export function registerSystemRoutes(app: FastifyInstance, dependencies: SystemR
   // than attacker-controlled full URLs. Authentication cannot be required because a CSP failure
   // can occur before a session exists.
   app.post("/api/security/csp-report", { bodyLimit: CSP_REPORT_BODY_LIMIT }, (req, reply) => {
-    for (const report of normalizedCspReports(req.body)) dependencies.securityEvent(report);
+    for (const report of parseCspReports(req.body)) dependencies.securityEvent(report);
     return reply.code(204).send();
   });
 
@@ -112,7 +112,7 @@ export function registerSystemRoutes(app: FastifyInstance, dependencies: SystemR
           : {}),
         ...(dependencies.internalTlsExpiresAt
           ? {
-              internalTls: internalTlsHealth(
+              internalTls: buildInternalTlsHealth(
                 dependencies.internalTlsExpiresAt,
                 Date.now(),
                 dependencies.internalTlsFingerprintSha256,

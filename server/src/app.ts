@@ -7,7 +7,7 @@ import { type Db } from "./db";
 import { type AuditSink } from "./audit";
 import { runImportWorker } from "./runImportWorker";
 import { BODY_LIMIT, REQUEST_TIMEOUT_MS, CONNECTION_TIMEOUT_MS } from "./routes/appLimits";
-import { requestLoggerOptions } from "./routes/appLogging";
+import { createRequestLoggerOptions } from "./routes/appLogging";
 import { resolveAppConfig } from "./routes/appConfig";
 import { createAppRuntime } from "./routes/appRuntime";
 import { installRootHooks } from "./routes/appRootHooks";
@@ -16,8 +16,8 @@ import { createAuthorization } from "./routes/appAuthorization";
 import { registerApiRoutes } from "./routes/appRouteTree";
 export { MAX_BATCH_OPS } from "./routes/batchRoutes";
 export { MAX_RATE_LIMIT, parseRateLimit } from "./rateLimit";
-export { statusFor, requestClientIp } from "./routes/appErrors";
-export { requestLoggerOptions } from "./routes/appLogging";
+export { resolveErrorStatus, resolveRequestClientIp } from "./routes/appErrors";
+export { createRequestLoggerOptions } from "./routes/appLogging";
 export { MAX_SERVER_CONNECTIONS } from "./routes/appLimits";
 
 // The identity requireUser attaches to every gated request. Session/identity
@@ -147,11 +147,11 @@ export interface AppOptions {
   importWorker?: typeof runImportWorker;
 }
 
-export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
-  const config = resolveAppConfig(opts);
-  const runtime = createAppRuntime(db, config, opts);
+export function createApp(db: Db, options: AppOptions = {}): FastifyInstance {
+  const config = resolveAppConfig(options);
+  const runtime = createAppRuntime(db, config, options);
   const app = Fastify({
-    ...(opts.internalTls ? { https: opts.internalTls } : {}),
+    ...(options.internalTls ? { https: options.internalTls } : {}),
     bodyLimit: BODY_LIMIT,
     requestTimeout: REQUEST_TIMEOUT_MS,
     connectionTimeout: CONNECTION_TIMEOUT_MS,
@@ -160,11 +160,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // logs — see LOG_REDACT_PATHS. Off ⇒ logger disabled entirely — today's behaviour, byte for byte.
     // requestLoggerOptions also owns invite/query URL masking and reconstructs Fastify's request
     // serializer so method/hostname/remote address remain available without emitting headers.
-    logger: config.logOn ? requestLoggerOptions(opts.logStream) : false,
+    logger: config.logOn ? createRequestLoggerOptions(options.logStream) : false,
   });
-  const rootHelpers = installRootHooks(app, db, runtime, config, opts);
-  const sessionResolution = installSessionResolution(app, runtime, config, opts, rootHelpers.securityEvent);
-  const authorization = createAuthorization(app, runtime, config, opts, rootHelpers);
-  registerApiRoutes(app, db, runtime, config, opts, rootHelpers, sessionResolution, authorization);
+  const rootHelpers = installRootHooks(app, db, runtime, config, options);
+  const sessionResolution = installSessionResolution(app, runtime, config, options, rootHelpers.securityEvent);
+  const authorization = createAuthorization(app, runtime, config, options, rootHelpers);
+  registerApiRoutes(app, db, runtime, config, options, rootHelpers, sessionResolution, authorization);
   return app;
 }

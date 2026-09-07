@@ -11,7 +11,7 @@ import type {
 } from "@capacitylens/shared/account/types";
 import type { Db } from "../../db";
 import type { SynchronousCallback } from "../../txn";
-import type { WriteOnceSecretReplay } from "../writeOnceSecretReplay";
+import type { WriteOnceSecretReplay } from "../WriteOnceSecretReplay";
 
 export interface LocalAccountAdminPort extends AccountAdminPort {
   roleForPrincipalInWorkspace(principalId: string, workspaceId: string): Role | null;

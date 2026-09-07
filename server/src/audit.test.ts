@@ -4,15 +4,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
-import { buildApp } from "./app";
+import { createApp } from "./app";
 import { openDb, upsertRow } from "./db";
-import { KeyedOperationLock } from "./accounts/operationLock";
+import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
 import {
-  compositeAuditSink,
-  fileAuditSink,
-  noopAuditSink,
+  createCompositeAuditSink,
+  createFileAuditSink,
+  createNoopAuditSink,
   parseAuditConfig,
-  streamAuditSink,
+  createStreamAuditSink,
   type AuditRecord,
   type AuditSink,
 } from "./audit";
@@ -71,10 +71,10 @@ function fileApp(): { app: FastifyInstance; file: string; lines: () => AuditReco
   const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-test-"));
   const file = join(dir, "audit.jsonl");
   const log = vi.fn();
-  const app = buildApp(openDb(":memory:"), {
+  const app = createApp(openDb(":memory:"), {
     allowReset: true,
     optimisticConcurrency: false,
-    audit: fileAuditSink(file, log),
+    audit: createFileAuditSink(file, log),
   });
   const lines = () =>
     existsSync(file)
@@ -141,7 +141,7 @@ describe("AuditRecord shape (1)", () => {
     writeFileSync(priorFile, "", { mode: 0o666 });
     chmodSync(file, 0o666);
     chmodSync(priorFile, 0o666);
-    const sink = fileAuditSink(file, vi.fn());
+    const sink = createFileAuditSink(file, vi.fn());
 
     expect(
       sink.append({
@@ -346,7 +346,7 @@ describe("parseAuditConfig + default deploy (4)", () => {
   });
 
   it("factory with NO opts.audit (noop) writes no file and sets no warning header", async () => {
-    const app = buildApp(openDb(":memory:"), { allowReset: true }); // no audit → noopAuditSink()
+    const app = createApp(openDb(":memory:"), { allowReset: true }); // no audit → noopAuditSink()
     const res = await post(app, "accounts", account("a1"));
     expect(res.statusCode).toBe(201);
     expect(res.headers["x-capacitylens-audit-warning"]).toBeUndefined();
@@ -370,7 +370,7 @@ describe("failure contract (5)", () => {
 
   it("still 2xx, sets the warning header, latches deep-health degraded", async () => {
     const sink = brokenSink();
-    const app = buildApp(openDb(":memory:"), { allowReset: true, healthDeep: true, audit: sink });
+    const app = createApp(openDb(":memory:"), { allowReset: true, healthDeep: true, audit: sink });
     const res = await post(app, "accounts", account("a1"));
     expect(res.statusCode).toBe(201); // the mutation committed; audit failure never blocks it
     expect(res.headers["x-capacitylens-audit-warning"]).toBe("true");
@@ -384,7 +384,7 @@ describe("failure contract (5)", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-fail-"));
     // A directory path used as a FILE → appendFileSync throws → the sink catches it.
     const log = vi.fn();
-    const sink = fileAuditSink(dir, log); // dir is a directory, not a file
+    const sink = createFileAuditSink(dir, log); // dir is a directory, not a file
     expect(() =>
       sink.append({
         ts: TS,
@@ -424,7 +424,7 @@ describe("failure contract (5)", () => {
     const pinPermissions = vi.fn(() => {
       throw new Error("operation not permitted");
     });
-    const sink = fileAuditSink(file, log, { pinPermissions });
+    const sink = createFileAuditSink(file, log, { pinPermissions });
     const first: AuditRecord = {
       ts: TS,
       userId: "demo",
@@ -505,10 +505,10 @@ describe("batch → one line per op (6)", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-lock-test-"));
     const file = join(dir, "audit.jsonl");
     const db = openDb(":memory:");
-    const app = buildApp(db, {
+    const app = createApp(db, {
       allowReset: true,
       optimisticConcurrency: false,
-      audit: fileAuditSink(file, vi.fn()),
+      audit: createFileAuditSink(file, vi.fn()),
     });
     await scaffold(app);
     const lines = () =>
@@ -669,7 +669,7 @@ describe("rolled-back batch → ZERO new audit lines (8) — proves transaction-
 
 describe("noopAuditSink", () => {
   it("append always succeeds and degraded is always false", () => {
-    const sink = noopAuditSink();
+    const sink = createNoopAuditSink();
     expect(
       sink.append({
         ts: TS,
@@ -698,7 +698,7 @@ describe("central audit forwarding", () => {
 
   it("emits a typed one-line JSON envelope suitable for an external collector", () => {
     const lines: string[] = [];
-    const sink = streamAuditSink((line) => lines.push(line));
+    const sink = createStreamAuditSink((line) => lines.push(line));
     expect(sink.append(record)).toBe(true);
     expect(lines).toHaveLength(1);
     expect(JSON.parse(lines[0])).toEqual({ type: "capacitylens.audit", ...record });
@@ -707,11 +707,11 @@ describe("central audit forwarding", () => {
   });
 
   it("latches a stream failure and makes a composite destination fail closed visibly", () => {
-    const healthy = noopAuditSink();
-    const failed = streamAuditSink(() => {
+    const healthy = createNoopAuditSink();
+    const failed = createStreamAuditSink(() => {
       throw new Error("collector unavailable");
     });
-    const composite = compositeAuditSink(healthy, failed);
+    const composite = createCompositeAuditSink(healthy, failed);
     expect(() => composite.append(record)).not.toThrow();
     expect(composite.append(record)).toBe(false);
     expect(composite.degraded).toBe(true);
@@ -732,7 +732,7 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
   it("appends a multi-record batch through one file operation", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-batch-"));
     const file = join(dir, "audit.jsonl");
-    const sink = fileAuditSink(file, vi.fn());
+    const sink = createFileAuditSink(file, vi.fn());
 
     expect(sink.appendMany?.([rec("r1"), rec("r2")])).toBe(true);
     expect(readFileSync(file, "utf8").trim().split("\n")).toHaveLength(2);
@@ -745,7 +745,7 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
     // maxBytes pinned to the size of exactly one line (every id here is 2 chars, so every line is
     // the same length) — the SECOND append is therefore always the one that finds the cap reached.
     const lineBytes = Buffer.byteLength(JSON.stringify(rec("r1")) + "\n", "utf8");
-    const sink = fileAuditSink(file, log, { maxBytes: lineBytes });
+    const sink = createFileAuditSink(file, log, { maxBytes: lineBytes });
 
     expect(sink.append(rec("r1"))).toBe(true); // file didn't exist (size 0 < cap) — no rotation
     expect(existsSync(`${file}.1`)).toBe(false);
@@ -769,7 +769,7 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
     const file = join(dir, "audit.jsonl");
     const delivered = (auditId: string) => ({ ...rec("r1"), auditId });
     const lineBytes = Buffer.byteLength(JSON.stringify(delivered("audit-a")) + "\n", "utf8");
-    const sink = fileAuditSink(file, vi.fn(), { maxBytes: lineBytes });
+    const sink = createFileAuditSink(file, vi.fn(), { maxBytes: lineBytes });
 
     expect(sink.append(delivered("audit-a"))).toBe(true);
     expect(sink.append(delivered("audit-b"))).toBe(true);
@@ -787,7 +787,7 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
     const recent = { ...rec("recent"), auditId: "audit-recent" };
     const existing = `${JSON.stringify(old)}\n${JSON.stringify(recent)}\n`;
     writeFileSync(file, existing);
-    const sink = fileAuditSink(file, vi.fn(), {
+    const sink = createFileAuditSink(file, vi.fn(), {
       maxBytes: Buffer.byteLength(existing) + 1024,
       recoveryScanBytes: 256,
     });
@@ -803,7 +803,7 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
     const file = join(dir, "audit.jsonl");
     const lineBytes = Buffer.byteLength(JSON.stringify(rec("r1")) + "\n", "utf8");
     const maxBytes = lineBytes * 2 - 1;
-    const sink = fileAuditSink(file, vi.fn(), { maxBytes });
+    const sink = createFileAuditSink(file, vi.fn(), { maxBytes });
 
     expect(sink.append(rec("r1"))).toBe(true);
     expect(existsSync(`${file}.1`)).toBe(false);
@@ -820,7 +820,7 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
     const file = join(dir, "audit.jsonl");
     const log = vi.fn();
     const lineBytes = Buffer.byteLength(JSON.stringify(rec("r1")) + "\n", "utf8");
-    const sink = fileAuditSink(file, log, { maxBytes: lineBytes - 1 });
+    const sink = createFileAuditSink(file, log, { maxBytes: lineBytes - 1 });
 
     expect(sink.append(rec("r1"))).toBe(false);
     expect(sink.append(rec("r2"))).toBe(false);
@@ -839,7 +839,7 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
     const original = firstLine + JSON.stringify(rec("r2")) + "\n";
     writeFileSync(file, original);
     const log = vi.fn();
-    const sink = fileAuditSink(file, log, { maxBytes: Buffer.byteLength(firstLine, "utf8") });
+    const sink = createFileAuditSink(file, log, { maxBytes: Buffer.byteLength(firstLine, "utf8") });
 
     expect(sink.append(rec("r3"))).toBe(false);
     expect(readFileSync(file, "utf8")).toBe(original);
@@ -855,7 +855,7 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
     writeFileSync(`${file}.1`, "STALE_UNRELATED_CONTENT_FROM_A_PRIOR_GENERATION");
     const log = vi.fn();
     const lineBytes = Buffer.byteLength(JSON.stringify(rec("r1")) + "\n", "utf8");
-    const sink = fileAuditSink(file, log, { maxBytes: lineBytes });
+    const sink = createFileAuditSink(file, log, { maxBytes: lineBytes });
 
     sink.append(rec("r1"));
     sink.append(rec("r2")); // triggers the rotation
@@ -867,7 +867,7 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
   it("defaults maxBytes to 64 MiB — an ordinary run of appends never rotates", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-rotate-"));
     const file = join(dir, "audit.jsonl");
-    const sink = fileAuditSink(file, vi.fn()); // no opts — default applies
+    const sink = createFileAuditSink(file, vi.fn()); // no opts — default applies
     for (let i = 0; i < 50; i++) sink.append(rec(`r${i}`));
     expect(existsSync(`${file}.1`)).toBe(false);
   });
@@ -877,7 +877,7 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
     const file = join(dir, "audit.jsonl");
     const log = vi.fn();
     const lineBytes = Buffer.byteLength(JSON.stringify(rec("r1")) + "\n", "utf8");
-    const sink = fileAuditSink(file, log, { maxBytes: lineBytes });
+    const sink = createFileAuditSink(file, log, { maxBytes: lineBytes });
     expect(sink.append(rec("r1"))).toBe(true); // creates the file, under cap
 
     // Pre-create a DIRECTORY at the rotation destination, so renameSync(file, `${file}.1`) fails

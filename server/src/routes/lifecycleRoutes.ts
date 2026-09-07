@@ -14,7 +14,7 @@ import {
 import { isBuiltinClient } from "@capacitylens/shared/data/internalClient";
 import type { AuditRecord } from "../audit";
 import type { LifecycleRow, TenantStore } from "../tenantStore";
-import { nextServerRevision } from "../revision";
+import { createServerRevision } from "../revision";
 
 class LifecycleResponseError extends Error {
   constructor(
@@ -40,7 +40,11 @@ interface LifecycleRouteDependencies {
   ) => Record<string, unknown>;
 }
 
-function lifecycleFailure(reply: FastifyReply, error: unknown, fail: LifecycleRouteDependencies["fail"]): FastifyReply {
+function sendLifecycleFailure(
+  reply: FastifyReply,
+  error: unknown,
+  fail: LifecycleRouteDependencies["fail"],
+): FastifyReply {
   if (error instanceof LifecycleResponseError) {
     return reply.code(error.statusCode).send({
       ...(error.code ? { code: error.code } : {}),
@@ -132,7 +136,7 @@ function registerTransition(
       if (spec.successStatus === 204) return reply.code(204).send();
       return reply.code(200).send(response);
     } catch (error) {
-      return lifecycleFailure(reply, error, dependencies.fail);
+      return sendLifecycleFailure(reply, error, dependencies.fail);
     }
   });
 }
@@ -145,7 +149,7 @@ export function registerLifecycleRoutes(app: FastifyInstance, dependencies: Life
     protectedVerb: "archived",
     auditAction: "archive",
     apply: (row) => {
-      const now = nextServerRevision(row.updatedAt);
+      const now = createServerRevision(row.updatedAt);
       const next = { ...archive(row, now), updatedAt: now };
       return { next, changedFields: ["archivedAt"] };
     },
@@ -157,7 +161,7 @@ export function registerLifecycleRoutes(app: FastifyInstance, dependencies: Life
     protectedVerb: "unarchived",
     auditAction: "unarchive",
     apply: (row) => {
-      const next = { ...unarchive(row), updatedAt: nextServerRevision(row.updatedAt) };
+      const next = { ...unarchive(row), updatedAt: createServerRevision(row.updatedAt) };
       return { next, changedFields: ["archivedAt"] };
     },
   });
@@ -168,7 +172,7 @@ export function registerLifecycleRoutes(app: FastifyInstance, dependencies: Life
     protectedVerb: "deleted",
     auditAction: "softDelete",
     apply: (row, entity) => {
-      const now = nextServerRevision(row.updatedAt);
+      const now = createServerRevision(row.updatedAt);
       const tombstone = softDelete(row, now);
       const deleted = { ...tombstone, updatedAt: tombstone.deletedAt ?? now };
       const next = entity === "resources" ? obfuscateResource(deleted as Resource) : deleted;

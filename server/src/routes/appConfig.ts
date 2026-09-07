@@ -1,7 +1,7 @@
 import { MAX_RATE_LIMIT, normalizeRateLimit } from "../rateLimit";
 import { DEFAULT_ACCOUNT_APPLICATION } from "../auth";
 import { boundApplicationFailure } from "@capacitylens/shared/account/validation";
-import { noopAuditSink } from "../audit";
+import { createNoopAuditSink } from "../audit";
 import { runImportWorker } from "../runImportWorker";
 import { MIN_BOOTSTRAP_TOKEN_BYTES } from "./appLimits";
 import type { AppOptions } from "../app";
@@ -13,10 +13,10 @@ import type { AppOptions } from "../app";
 // CAPACITYLENS_CORS_ORIGIN override it for a deliberate deploy.
 export const DEFAULT_CORS = "http://localhost:5173,http://localhost:5273,http://127.0.0.1:5173,http://127.0.0.1:5273";
 
-export function resolveAppConfig(opts: AppOptions) {
-  const authMode = opts.authMode ?? "off";
-  const auth = opts.auth ?? null;
-  const configuredRateLimit = opts.rateLimit ?? 0;
+export function resolveAppConfig(options: AppOptions) {
+  const authMode = options.authMode ?? "off";
+  const auth = options.auth ?? null;
+  const configuredRateLimit = options.rateLimit ?? 0;
   const rateLimitMax = normalizeRateLimit(configuredRateLimit);
   if (configuredRateLimit !== 0 && rateLimitMax === 0) {
     throw new RangeError(
@@ -27,17 +27,17 @@ export function resolveAppConfig(opts: AppOptions) {
   if (authMode !== "off" && !auth) {
     throw new Error(`buildApp: authMode '${authMode}' requires a Better Auth instance (opts.auth)`);
   }
-  if (opts.bootstrapToken && Buffer.byteLength(opts.bootstrapToken, "utf8") < MIN_BOOTSTRAP_TOKEN_BYTES) {
+  if (options.bootstrapToken && Buffer.byteLength(options.bootstrapToken, "utf8") < MIN_BOOTSTRAP_TOKEN_BYTES) {
     throw new Error(`CAPACITYLENS_BOOTSTRAP_TOKEN must be at least ${MIN_BOOTSTRAP_TOKEN_BYTES} bytes.`);
   }
-  const application = opts.application ?? DEFAULT_ACCOUNT_APPLICATION;
+  const application = options.application ?? DEFAULT_ACCOUNT_APPLICATION;
   const applicationFailure = boundApplicationFailure(application);
   if (applicationFailure) throw new Error(`buildApp: ${applicationFailure}`);
-  const executeImportWorker = opts.importWorker ?? runImportWorker;
+  const executeImportWorker = options.importWorker ?? runImportWorker;
   // One fail-never sink receives both legacy product mutation records and normalized account-flow
   // events. Construct it before the account boundary so the coordinator—not its HTTP caller—owns
   // audit correlation for cross-port commands.
-  const auditSink = opts.audit ?? noopAuditSink();
-  const logOn = opts.log === true;
+  const auditSink = options.audit ?? createNoopAuditSink();
+  const logOn = options.log === true;
   return { authMode, auth, rateLimitMax, application, executeImportWorker, auditSink, logOn };
 }

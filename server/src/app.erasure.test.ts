@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { buildApp } from "./app";
+import { createApp } from "./app";
 import { openDb, insertAll, type Db } from "./db";
 import { upsertMember, createInvite } from "./controlTables";
-import { authFromEnv, countUsers, runAuthMigrations } from "./auth";
+import { createAuthFromEnvironment, countUsers, runAuthMigrations } from "./auth";
 import { PASSWORD_ENV, call, signUp } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { finishAccountCommand, reserveAccountCommand } from "./accounts/state";
@@ -26,9 +26,9 @@ const client = (id: string, accountId: string) => ({ id, accountId, name: "Acme"
 /** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
 async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
-  const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
   await runAuthMigrations(auth!);
-  return { app: buildApp(db, { authMode: mode, auth }), db };
+  return { app: createApp(db, { authMode: mode, auth }), db };
 }
 
 const deleteAccountRoute = (
@@ -496,7 +496,7 @@ describe("P2.6b erasure — (e) atomic rollback (fail-closed)", () => {
 describe("P2.6b erasure — (f) OFF mode deletes the account WITHOUT touching auth tables", () => {
   it('an OFF-mode account delete succeeds (no "no such table: user") and the AppData is gone', async () => {
     const db = openDb(":memory:"); // OFF mode: no auth migrations → no user/account/session tables
-    const app = buildApp(db); // authMode defaults to 'off'
+    const app = createApp(db); // authMode defaults to 'off'
     insertAll(db, {
       ...emptyAppData(),
       accounts: [account("a1")],

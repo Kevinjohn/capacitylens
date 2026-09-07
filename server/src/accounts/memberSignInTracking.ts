@@ -1,7 +1,7 @@
 import type { Db } from "../db";
 import { hasColumn } from "../schema";
 import { tx } from "../txn";
-import { normalizedTableCreateSql } from "./state";
+import { readNormalizedTableCreateSql } from "./state";
 
 const TRACKING_TABLE = "account_member_sign_in_tracking";
 const OBSERVATION_COLUMN = "signInConfirmed";
@@ -41,7 +41,7 @@ export function assertMemberSignInTrackingSchemaCurrent(db: Db): void {
     notnull: number;
     pk: number;
   }>;
-  const trackingSql = normalizedTableCreateSql(db, TRACKING_TABLE);
+  const trackingSql = readNormalizedTableCreateSql(db, TRACKING_TABLE);
   const problems: string[] = [];
   if (!observation) problems.push(`missing account_members.${OBSERVATION_COLUMN}`);
   else {
@@ -69,7 +69,7 @@ export interface MemberSignInTrackingSnapshot {
 }
 
 /** Read only the coarse yes/no facts for one account. No identity timestamps are consulted. */
-export function memberSignInTrackingSnapshot(db: Db, accountId: string): MemberSignInTrackingSnapshot {
+export function readMemberSignInTrackingSnapshot(db: Db, accountId: string): MemberSignInTrackingSnapshot {
   const enabled = db.prepare(`SELECT 1 FROM ${TRACKING_TABLE} WHERE accountId = ?`).get(accountId) !== undefined;
   if (!enabled) return { enabled: false, confirmations: new Map() };
   const rows = db

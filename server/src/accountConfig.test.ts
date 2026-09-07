@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  accountConfigKey,
+  resolveAccountConfigKey,
   AccountConfigError,
   resetAccountConfigWarningStateForTests,
   resolveAccountEnvironment,
@@ -19,9 +19,9 @@ describe("neutral account configuration", () => {
   beforeEach(() => resetAccountConfigWarningStateForTests());
 
   it("keeps adapter compatibility keys out of operator-facing configuration errors", () => {
-    expect(accountConfigKey("BETTER_AUTH_SECRET")).toBe("SMALLSASS_ACCOUNT_SECRET");
-    expect(accountConfigKey("CAPACITYLENS_SSO_DISCOVERY_URL")).toBe("SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL");
-    expect(accountConfigKey("CAPACITYLENS_RATE_LIMIT")).toBe("CAPACITYLENS_RATE_LIMIT");
+    expect(resolveAccountConfigKey("BETTER_AUTH_SECRET")).toBe("SMALLSASS_ACCOUNT_SECRET");
+    expect(resolveAccountConfigKey("CAPACITYLENS_SSO_DISCOVERY_URL")).toBe("SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL");
+    expect(resolveAccountConfigKey("CAPACITYLENS_RATE_LIMIT")).toBe("CAPACITYLENS_RATE_LIMIT");
   });
 
   it("maps canonical names onto the compatibility environment without a warning", () => {

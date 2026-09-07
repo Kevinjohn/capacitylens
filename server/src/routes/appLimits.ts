@@ -42,7 +42,7 @@ const SAFE_CLIENT_ERRORS = new Map<string, { status: number; message: string }>(
   ["CAPACITYLENS_RATE_LIMITED", { status: 429, message: "Rate limit exceeded" }],
 ]);
 
-export function safeClientError(error: unknown): { status: number; message: string } | null {
+export function resolveSafeClientError(error: unknown): { status: number; message: string } | null {
   if (!(error instanceof Error)) return null;
   const candidate = error as Error & { code?: unknown; statusCode?: unknown };
   if (typeof candidate.code !== "string") return null;

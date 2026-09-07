@@ -24,7 +24,7 @@ export interface WorkQueueOptions {
   onSaturated?: (reason: WorkQueueFullError["reason"]) => void;
 }
 
-export function abortReason(signal: AbortSignal): unknown {
+export function readAbortReason(signal: AbortSignal): unknown {
   return signal.reason ?? new DOMException("The queued work was cancelled.", "AbortError");
 }
 
@@ -51,7 +51,7 @@ export class BoundedWorkQueue {
       throw new RangeError("maxWaitMs must be a positive safe integer.");
   }
 
-  private saturated(reason: WorkQueueFullError["reason"]): WorkQueueFullError {
+  private createSaturationError(reason: WorkQueueFullError["reason"]): WorkQueueFullError {
     this.options.onSaturated?.(reason);
     return new WorkQueueFullError(this.fullMessage, reason);
   }
@@ -70,13 +70,13 @@ export class BoundedWorkQueue {
   }
 
   run<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
-    if (signal?.aborted) return Promise.reject(abortReason(signal));
+    if (signal?.aborted) return Promise.reject(readAbortReason(signal));
     if (this.active < this.maxActive) {
       this.active += 1;
       return this.execute(work);
     }
     if (this.waiting.length >= this.maxQueued) {
-      return Promise.reject(this.saturated("full"));
+      return Promise.reject(this.createSaturationError("full"));
     }
     return new Promise<T>((resolve, reject) => {
       const waiting: WaitingWork = {
@@ -89,7 +89,7 @@ export class BoundedWorkQueue {
         waiting.abort = () => {
           if (!this.removeFromWaiting(waiting)) return;
           if (waiting.waitTimer) clearTimeout(waiting.waitTimer);
-          reject(abortReason(signal));
+          reject(readAbortReason(signal));
         };
         signal.addEventListener("abort", waiting.abort, { once: true });
       }
@@ -97,7 +97,7 @@ export class BoundedWorkQueue {
         waiting.waitTimer = setTimeout(() => {
           if (!this.removeFromWaiting(waiting)) return;
           if (waiting.signal && waiting.abort) waiting.signal.removeEventListener("abort", waiting.abort);
-          reject(this.saturated("wait_timeout"));
+          reject(this.createSaturationError("wait_timeout"));
         }, this.options.maxWaitMs);
         waiting.waitTimer.unref?.();
       }

@@ -2,11 +2,17 @@ import { describe, expect, it, vi } from "vitest";
 import { existsSync, fsyncSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileAuditSink, streamAuditSink, type AuditEntry, type AuditRecord, type AuditSink } from "./audit";
-import { AUDIT_DRAIN_PAGE_SIZE, drainAuditOutbox, enqueueAudit, isAuditEntry, pendingAuditCount } from "./auditOutbox";
+import { createFileAuditSink, createStreamAuditSink, type AuditEntry, type AuditRecord, type AuditSink } from "./audit";
+import {
+  AUDIT_DRAIN_PAGE_SIZE,
+  drainAuditOutbox,
+  enqueueAudit,
+  isAuditEntry,
+  readPendingAuditCount,
+} from "./auditOutbox";
 import { openDb } from "./db";
 import { tx } from "./txn";
-import { buildApp } from "./app";
+import { createApp } from "./app";
 
 const record = (): AuditRecord => ({
   ts: "2026-07-26T12:00:00.000Z",
@@ -33,13 +39,13 @@ describe("durable audit outbox", () => {
       enqueueAudit(db, { ...record(), id: `project-${index}` }, `startup-audit-${index}`);
     }
     const appendMany = vi.fn((entries: readonly AuditEntry[]) => entries.length > 0);
-    const app = buildApp(db, {
+    const app = createApp(db, {
       audit: { append: () => true, appendMany, degraded: false },
     });
 
     expect(appendMany).toHaveBeenCalledOnce();
     expect(appendMany.mock.calls[0]![0]).toHaveLength(AUDIT_DRAIN_PAGE_SIZE);
-    expect(pendingAuditCount(db)).toBe(1);
+    expect(readPendingAuditCount(db)).toBe(1);
     await app.close();
     db.close();
   });
@@ -50,7 +56,7 @@ describe("durable audit outbox", () => {
     const auditPath = join(dir, "audit.jsonl");
     const firstDb = openDb(dbPath);
     const failedSink: AuditSink = { append: () => false, degraded: true };
-    const firstApp = buildApp(firstDb, {
+    const firstApp = createApp(firstDb, {
       optimisticConcurrency: false,
       audit: failedSink,
     });
@@ -69,16 +75,16 @@ describe("durable audit outbox", () => {
     expect(response.statusCode).toBe(201);
     expect(response.headers["x-capacitylens-audit-warning"]).toBe("true");
     expect(firstDb.prepare(`SELECT name FROM accounts WHERE id = ?`).get("account-1")).toEqual({ name: "Studio" });
-    expect(pendingAuditCount(firstDb)).toBe(2);
+    expect(readPendingAuditCount(firstDb)).toBe(2);
     await firstApp.close();
     firstDb.close();
 
     const recoveredDb = openDb(dbPath);
-    const recoveredApp = buildApp(recoveredDb, {
+    const recoveredApp = createApp(recoveredDb, {
       optimisticConcurrency: false,
-      audit: fileAuditSink(auditPath, vi.fn()),
+      audit: createFileAuditSink(auditPath, vi.fn()),
     });
-    expect(pendingAuditCount(recoveredDb)).toBe(0);
+    expect(readPendingAuditCount(recoveredDb)).toBe(0);
     expect(lines(auditPath)).toEqual([
       expect.objectContaining({ action: "create", entity: "accounts", id: "account-1" }),
       expect.objectContaining({
@@ -105,9 +111,9 @@ describe("durable audit outbox", () => {
     first.close();
 
     const recovered = openDb(dbPath);
-    expect(pendingAuditCount(recovered)).toBe(1);
-    expect(drainAuditOutbox(recovered, fileAuditSink(auditPath, vi.fn()))).toBe(true);
-    expect(pendingAuditCount(recovered)).toBe(0);
+    expect(readPendingAuditCount(recovered)).toBe(1);
+    expect(drainAuditOutbox(recovered, createFileAuditSink(auditPath, vi.fn()))).toBe(true);
+    expect(readPendingAuditCount(recovered)).toBe(0);
     expect(recovered.prepare(`SELECT value FROM crash_probe`).get()).toEqual({ value: "committed" });
     recovered.close();
     expect(lines(auditPath)).toEqual([expect.objectContaining({ auditId: "audit-recovery-1", id: "project-1" })]);
@@ -121,7 +127,7 @@ describe("durable audit outbox", () => {
         throw new Error("abort mutation");
       }),
     ).toThrow("abort mutation");
-    expect(pendingAuditCount(db)).toBe(0);
+    expect(readPendingAuditCount(db)).toBe(0);
     db.close();
   });
 
@@ -132,11 +138,11 @@ describe("durable audit outbox", () => {
     enqueueAudit(db, record(), "audit-replay-1");
 
     // Model a crash after fileAuditSink returned from its fsync, but before drain deleted the row.
-    expect(fileAuditSink(file, vi.fn()).append({ ...record(), auditId: "audit-replay-1" })).toBe(true);
-    expect(pendingAuditCount(db)).toBe(1);
+    expect(createFileAuditSink(file, vi.fn()).append({ ...record(), auditId: "audit-replay-1" })).toBe(true);
+    expect(readPendingAuditCount(db)).toBe(1);
 
-    expect(drainAuditOutbox(db, fileAuditSink(file, vi.fn()))).toBe(true);
-    expect(pendingAuditCount(db)).toBe(0);
+    expect(drainAuditOutbox(db, createFileAuditSink(file, vi.fn()))).toBe(true);
+    expect(readPendingAuditCount(db)).toBe(0);
     expect(lines(file)).toHaveLength(1);
     db.close();
   });
@@ -152,22 +158,22 @@ describe("durable audit outbox", () => {
       if (syncAttempts <= 2) throw new Error("injected fsync failure");
       fsyncSync(fd);
     });
-    const sink = () => fileAuditSink(file, vi.fn(), { syncFile });
+    const sink = () => createFileAuditSink(file, vi.fn(), { syncFile });
 
     // The first write completes, but its explicit durability flush fails.
     expect(drainAuditOutbox(db, sink())).toBe(false);
-    expect(pendingAuditCount(db)).toBe(1);
+    expect(readPendingAuditCount(db)).toBe(1);
     expect(lines(file)).toHaveLength(1);
 
     // A fresh sink rediscovers the complete line. Its retry flush still fails, so the durable
     // SQLite copy remains and the JSONL line is not duplicated.
     expect(drainAuditOutbox(db, sink())).toBe(false);
-    expect(pendingAuditCount(db)).toBe(1);
+    expect(readPendingAuditCount(db)).toBe(1);
     expect(lines(file)).toHaveLength(1);
 
     // Only a successful file flush plus parent-directory flush permits outbox deletion.
     expect(drainAuditOutbox(db, sink())).toBe(true);
-    expect(pendingAuditCount(db)).toBe(0);
+    expect(readPendingAuditCount(db)).toBe(0);
     expect(lines(file)).toHaveLength(1);
     expect(syncFile).toHaveBeenCalledTimes(4);
     db.close();
@@ -179,7 +185,7 @@ describe("durable audit outbox", () => {
     const sink: AuditSink = { append: () => false, degraded: true };
 
     expect(drainAuditOutbox(db, sink)).toBe(false);
-    expect(pendingAuditCount(db)).toBe(1);
+    expect(readPendingAuditCount(db)).toBe(1);
     db.close();
   });
 
@@ -194,7 +200,7 @@ describe("durable audit outbox", () => {
     expect(appendMany).toHaveBeenCalledOnce();
     expect(appendMany.mock.calls[0]![0].map((entry) => entry.auditId)).toEqual(["audit-batch-1", "audit-batch-2"]);
     expect(sink.append).not.toHaveBeenCalled();
-    expect(pendingAuditCount(db)).toBe(0);
+    expect(readPendingAuditCount(db)).toBe(0);
     db.close();
   });
 
@@ -209,7 +215,7 @@ describe("durable audit outbox", () => {
 
     expect(() => drainAuditOutbox(db, sink)).toThrow(/does not contain a valid audit payload/);
     expect(sink.append).not.toHaveBeenCalled();
-    expect(pendingAuditCount(db)).toBe(1);
+    expect(readPendingAuditCount(db)).toBe(1);
     db.close();
   });
 
@@ -243,7 +249,7 @@ describe("durable audit outbox", () => {
 
     expect(() => drainAuditOutbox(db, sink)).toThrow(/does not contain a valid audit payload/);
     expect(sink.append).not.toHaveBeenCalled();
-    expect(pendingAuditCount(db)).toBe(1);
+    expect(readPendingAuditCount(db)).toBe(1);
     db.close();
   });
 
@@ -301,7 +307,7 @@ describe("durable audit outbox", () => {
 
     expect(drainAuditOutbox(db, firstSink)).toBe(false);
     expect(attempted).toEqual(["audit-batch-1", "audit-batch-2"]);
-    expect(pendingAuditCount(db)).toBe(2);
+    expect(readPendingAuditCount(db)).toBe(2);
 
     const recovered: string[] = [];
     const recoveredSink: AuditSink = {
@@ -313,7 +319,7 @@ describe("durable audit outbox", () => {
     };
     expect(drainAuditOutbox(db, recoveredSink)).toBe(true);
     expect(recovered).toEqual(["audit-batch-2", "audit-batch-3"]);
-    expect(pendingAuditCount(db)).toBe(0);
+    expect(readPendingAuditCount(db)).toBe(0);
     db.close();
   });
 
@@ -325,7 +331,7 @@ describe("durable audit outbox", () => {
     const db = openDb(":memory:");
     enqueueAudit(db, record(), "audit-tail-1");
 
-    expect(drainAuditOutbox(db, fileAuditSink(file, log))).toBe(true);
+    expect(drainAuditOutbox(db, createFileAuditSink(file, log))).toBe(true);
     expect(lines(file)).toEqual([expect.objectContaining({ auditId: "audit-tail-1" })]);
     expect(log).toHaveBeenCalledWith(expect.stringContaining("unterminated tail"));
     db.close();
@@ -338,7 +344,7 @@ describe("audit recovery corruption surfacing", () => {
     const file = join(dir, "audit.jsonl");
     writeFileSync(file, '{"auditId":"a-1"}\n{"auditId":"a-2","broken":\n');
     const errors: string[] = [];
-    const sink = fileAuditSink(file, (m) => errors.push(m));
+    const sink = createFileAuditSink(file, (m) => errors.push(m));
     expect(sink.degraded).toBe(false); // nothing latched before first use
     const delivered: AuditEntry[] = [
       {
@@ -362,7 +368,7 @@ describe("audit recovery corruption surfacing", () => {
     const file = join(dir, "audit.jsonl");
     writeFileSync(file, '{"noAuditIdHere":true}\n');
     const errors: string[] = [];
-    const sink = fileAuditSink(file, (m) => errors.push(m));
+    const sink = createFileAuditSink(file, (m) => errors.push(m));
     expect(
       sink.append({
         ts: "2026-01-01T00:00:00.000Z",
@@ -384,7 +390,7 @@ describe("audit recovery corruption surfacing", () => {
     const file = join(dir, "audit.jsonl");
     writeFileSync(file, '{"auditId":"a-1"}\n{"auditId":"a-2"}\n');
     const errors: string[] = [];
-    const sink = fileAuditSink(file, (m) => errors.push(m));
+    const sink = createFileAuditSink(file, (m) => errors.push(m));
     expect(
       sink.append({
         ts: "2026-01-01T00:00:00.000Z",
@@ -416,7 +422,7 @@ describe("stream sink retry idempotence", () => {
 
   it("does not re-emit a record it already delivered when the outbox retries", () => {
     const lines: string[] = [];
-    const sink = streamAuditSink((line) => lines.push(line));
+    const sink = createStreamAuditSink((line) => lines.push(line));
     expect(sink.appendMany!([entry("x-1"), entry("x-2")])).toBe(true);
     expect(lines).toHaveLength(2);
     // Retry of the same delivery (e.g. a sibling file sink failed on the first pass):
@@ -426,7 +432,7 @@ describe("stream sink retry idempotence", () => {
 
   it("emits distinct new records after deduped retries", () => {
     const lines: string[] = [];
-    const sink = streamAuditSink((line) => lines.push(line));
+    const sink = createStreamAuditSink((line) => lines.push(line));
     sink.appendMany!([entry("y-1")]);
     sink.appendMany!([entry("y-1")]); // retry — skipped
     sink.appendMany!([entry("y-2")]); // fresh record — emitted

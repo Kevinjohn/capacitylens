@@ -1,9 +1,9 @@
 import { enqueueAudit } from "../../auditOutbox";
 import { tx } from "../../txn";
-import { applicationSessionHandle } from "../sessionHandle";
+import { buildApplicationSessionHandle } from "../buildApplicationSessionHandle";
 import type { IdentityPortContext } from "./contracts";
 import type { SsoCutoverIdentityPort } from "./contracts";
-import { timestampMs } from "./instants";
+import { parseTimestampMilliseconds } from "./instants";
 
 export function createCutover(
   context: Pick<
@@ -51,7 +51,7 @@ export function createCutover(
             : [];
           const principalIds = new Set(principals);
           const activeCutoverCeremonies = verificationRows.filter(({ value, expiresAt }) => {
-            const expiry = timestampMs(expiresAt);
+            const expiry = parseTimestampMilliseconds(expiresAt);
             return principalIds.has(value) && (!Number.isFinite(expiry) || expiry > now);
           }).length;
           const activated =
@@ -74,7 +74,8 @@ export function createCutover(
             !activated ||
             activeCutoverCeremonies > 0 ||
             sessionRows.some(
-              ({ token }) => assuranceBySession.get(applicationSessionHandle(applicationId, token)) !== "federated",
+              ({ token }) =>
+                assuranceBySession.get(buildApplicationSessionHandle(applicationId, token)) !== "federated",
             );
           if (!requiresCutover) return { sessions: 0, ceremonies: 0 };
           for (const principalId of principals) {

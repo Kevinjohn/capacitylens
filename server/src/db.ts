@@ -18,11 +18,11 @@ export {
   getRow,
 } from "./db/rows";
 export {
-  loadState,
+  readState,
   listAccountSummaries,
   type ProjectedAccountSlice,
   type CompleteAccountSlice,
-  validatedCompleteAccountSlice,
+  buildCompleteAccountSlice,
   readSlice,
   readFullSlice,
 } from "./db/slices";

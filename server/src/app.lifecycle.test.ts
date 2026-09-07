@@ -3,11 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it, expect, vi } from "vitest";
 import Fastify, { type FastifyInstance } from "fastify";
-import { buildApp } from "./app";
+import { createApp } from "./app";
 import { openDb, insertAll, type CompleteAccountSlice, type Db, type ProjectedAccountSlice } from "./db";
 import { upsertMember } from "./controlTables";
-import { authFromEnv, runAuthMigrations } from "./auth";
-import { fileAuditSink, type AuditRecord } from "./audit";
+import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
+import { createFileAuditSink, type AuditRecord } from "./audit";
 import { PASSWORD_ENV, call, signUp } from "./testHelpers";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import {
@@ -168,9 +168,9 @@ async function appWithAuth(
   securityLog?: (event: Record<string, unknown>) => void,
 ): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
-  const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
   await runAuthMigrations(auth!);
-  return { app: buildApp(db, { authMode: mode, auth, securityLog }), db };
+  return { app: createApp(db, { authMode: mode, auth, securityLog }), db };
 }
 
 // ---- Lifecycle action requests (cookie carries the session in auth-on; omit it for OFF). ----
@@ -673,7 +673,7 @@ describe("P2.5a lifecycle — resource soft-delete obfuscation persists (P2.3 ca
   it("re-stamps only dependent rows whose notes are scrubbed, without moving future revisions backwards", async () => {
     const futureRevision = "2099-01-01T00:00:00.000Z";
     const db = openDb(":memory:");
-    const app = buildApp(db, { optimisticConcurrency: false });
+    const app = createApp(db, { optimisticConcurrency: false });
     const d = emptyAppData() as unknown as Record<string, unknown[]>;
     d.accounts = [account("a1")];
     d.resources = [person("rNotes", "a1", justArchived)];
@@ -752,7 +752,7 @@ describe("P2.5a lifecycle — built-in Internal client cannot be archived/delete
 describe("P2.5a lifecycle — OFF mode is allow-all (the #1 invariant)", () => {
   function offApp(): { app: FastifyInstance; db: Db } {
     const db = openDb(":memory:");
-    const app = buildApp(db, { optimisticConcurrency: false });
+    const app = createApp(db, { optimisticConcurrency: false });
     seedStates(db);
     return { app, db };
   }
@@ -769,7 +769,7 @@ describe("P2.5a lifecycle — OFF mode is allow-all (the #1 invariant)", () => {
   it("advances a deletion revision past a future archive timestamp", async () => {
     const futureArchive = "2099-01-01T00:00:00.000Z";
     const db = openDb(":memory:");
-    const app = buildApp(db, { optimisticConcurrency: false });
+    const app = createApp(db, { optimisticConcurrency: false });
     insertAll(db, {
       ...emptyAppData(),
       accounts: [account("a1")],
@@ -815,7 +815,7 @@ describe("P2.5a lifecycle — targeted writes preserve unrelated siblings", () =
 
   it("archiving one active row leaves an unrelated archived row, a tombstone, and a time-off note intact", async () => {
     const db = openDb(":memory:");
-    const app = buildApp(db); // OFF mode: allow-all, and the read returns the time-off note (includeTimeOffNote)
+    const app = createApp(db); // OFF mode: allow-all, and the read returns the time-off note (includeTimeOffNote)
     const d = emptyAppData() as unknown as Record<string, unknown[]>;
     d.accounts = [account("a1")];
     d.resources = [
@@ -862,7 +862,7 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-lc-audit-"));
     const file = join(dir, "audit.jsonl");
     const db = openDb(":memory:");
-    const app = buildApp(db, { audit: fileAuditSink(file, () => {}) });
+    const app = createApp(db, { audit: createFileAuditSink(file, () => {}) });
     // A resource whose name is a sentinel — to prove the audit line carries the field NAME, not the value.
     const SENTINEL = "AUDIT_SENTINEL_NAME";
     const d = emptyAppData() as unknown as Record<string, unknown[]>;
@@ -894,7 +894,7 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-lc-audit-del-"));
     const file = join(dir, "audit.jsonl");
     const db = openDb(":memory:");
-    const app = buildApp(db, { audit: fileAuditSink(file, () => {}) });
+    const app = createApp(db, { audit: createFileAuditSink(file, () => {}) });
     // An ALREADY-ARCHIVED resource (delete requires prior archival) whose name is a unique sentinel —
     // the delete route both obfuscates the name AND audits 'name' as a field NAME; neither must leak the value.
     const SENTINEL = "AUDIT_DELETE_SENTINEL_NAME";
@@ -947,7 +947,7 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-lc-audit-purge-"));
     const file = join(dir, "audit.jsonl");
     const db = openDb(":memory:");
-    const app = buildApp(db, { audit: fileAuditSink(file, () => {}) });
+    const app = createApp(db, { audit: createFileAuditSink(file, () => {}) });
     const SENTINEL = "PURGED_CUSTOMER_VALUE_MUST_NOT_APPEAR";
     const data = emptyAppData() as unknown as Record<string, unknown[]>;
     data.accounts = [account("a1")];
@@ -992,7 +992,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
 
   const offAppWith = (data: Partial<Record<string, unknown[]>>): { app: FastifyInstance; db: Db } => {
     const db = openDb(":memory:");
-    const app = buildApp(db, { optimisticConcurrency: false });
+    const app = createApp(db, { optimisticConcurrency: false });
     insertAll(db, { ...emptyAppData(), ...data } as unknown as AppData);
     return { app, db };
   };

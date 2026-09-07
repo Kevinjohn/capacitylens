@@ -14,7 +14,7 @@ import { tx } from "./txn";
 import { eraseWorkspaceProductDataInTx } from "./erasure";
 import { eraseWorkspaceCommandHistoryInTx } from "./accounts/state";
 import { mixedModeCutoverContext } from "./cutoverContext";
-import { cutoverAuditEvent } from "./federatedLinkLifecycle";
+import { buildCutoverAuditEvent } from "./federatedLinkLifecycle";
 
 /** Exact stopped-server mutation selected by the cutover repair CLI. */
 export type CutoverRepairOperation =
@@ -99,7 +99,7 @@ export async function repairSsoCutover(input: CutoverRepairInput): Promise<Cutov
           eraseWorkspaceCommandHistoryInTx(db, workspace.workspaceId);
           enqueueAudit(
             db,
-            cutoverAuditEvent(auditId, occurredAt, {
+            buildCutoverAuditEvent(auditId, occurredAt, {
               applicationId: DEFAULT_ACCOUNT_APPLICATION.applicationId,
               workspaceId: workspace.workspaceId,
               actorPrincipalId: null,
@@ -153,7 +153,7 @@ export async function repairSsoCutover(input: CutoverRepairInput): Promise<Cutov
           }
           enqueueAudit(
             db,
-            cutoverAuditEvent(auditId, occurredAt, {
+            buildCutoverAuditEvent(auditId, occurredAt, {
               applicationId: DEFAULT_ACCOUNT_APPLICATION.applicationId,
               workspaceId: workspace.workspaceId,
               actorPrincipalId: null,
@@ -190,7 +190,7 @@ export async function repairSsoCutover(input: CutoverRepairInput): Promise<Cutov
       if (links.length !== 1) {
         throw new Error("The email, provider id, and exact subject do not resolve one provider link.");
       }
-      const audit: AccountAuditEvent = cutoverAuditEvent(auditId, occurredAt, {
+      const audit: AccountAuditEvent = buildCutoverAuditEvent(auditId, occurredAt, {
         applicationId: DEFAULT_ACCOUNT_APPLICATION.applicationId,
         workspaceId: null,
         actorPrincipalId: null,
@@ -228,7 +228,7 @@ export async function repairSsoCutover(input: CutoverRepairInput): Promise<Cutov
         "The target is not a providerless or credential-only principal with zero active workspace memberships.",
       );
     }
-    const audit: AccountAuditEvent = cutoverAuditEvent(auditId, occurredAt, {
+    const audit: AccountAuditEvent = buildCutoverAuditEvent(auditId, occurredAt, {
       applicationId: DEFAULT_ACCOUNT_APPLICATION.applicationId,
       workspaceId: null,
       actorPrincipalId: null,

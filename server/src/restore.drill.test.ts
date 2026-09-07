@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, copyFileSync, rmSync, existsSync, chmodSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startBackups } from "./backup";
-import { openDb as openDbRaw, loadState, insertAll } from "./db";
+import { openDb as openDbRaw, readState, insertAll } from "./db";
 import { seed } from "@capacitylens/shared/data/seed";
 
 const temporaryDirectories = new Set<string>();
@@ -59,7 +59,7 @@ describe("P3.3 restore drill", () => {
     // 1. Seed the live DB on disk (sanity: the seeded 'Wayne Enterprises' account is present).
     const live = openDb(livePath);
     insertAll(live, seed());
-    expect(loadState(live).accounts.map((a) => a.name)).toContain("Wayne Enterprises");
+    expect(readState(live).accounts.map((a) => a.name)).toContain("Wayne Enterprises");
 
     // 2. Snapshot S1 — the point we will recover to. Then stop the daemon's timer.
     const backups = startBackups(live, { dir: backupsDir, intervalMin: 60, keep: 48 }, () => {}, tickingClock());
@@ -69,7 +69,7 @@ describe("P3.3 restore drill", () => {
 
     // 3. An edit made AFTER the snapshot — work the backup cannot have captured (the RPO loss).
     live.exec("UPDATE accounts SET name = 'POST-SNAPSHOT-EDIT' WHERE name = 'Wayne Enterprises'");
-    const afterEdit = loadState(live).accounts.map((a) => a.name);
+    const afterEdit = readState(live).accounts.map((a) => a.name);
     expect(afterEdit).toContain("POST-SNAPSHOT-EDIT");
     expect(afterEdit).not.toContain("Wayne Enterprises");
 
@@ -88,7 +88,7 @@ describe("P3.3 restore drill", () => {
     try {
       expect(() => {
         corrupt = new DatabaseSync(livePath);
-        loadState(corrupt);
+        readState(corrupt);
       }).toThrow();
     } finally {
       if (corrupt?.isOpen) corrupt.close();
@@ -112,7 +112,7 @@ describe("P3.3 restore drill", () => {
     //    open would still throw → test fails), and the post-snapshot edit is GONE — point-in-time
     //    RPO behaviour, i.e. the live file was genuinely replaced by the snapshot.
     const restored = openDb(livePath);
-    const names = loadState(restored).accounts.map((a) => a.name);
+    const names = readState(restored).accounts.map((a) => a.name);
     const quickCheck = restored.prepare("PRAGMA quick_check").all();
     const foreignKeyViolations = restored.prepare("PRAGMA foreign_key_check").all();
     restored.close(); // on-disk handle — close it to be tidy (unlike the :memory: handles in backup.test.ts)

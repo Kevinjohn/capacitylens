@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { authFromEnv, runAuthMigrations } from "./auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { DATABASE_MIGRATION_TABLE, DB_SCHEMA_VERSION, openDb } from "./db";
 import { repairSsoCutover } from "./cutoverRepair";
 import { inspectSsoCutoverPreflight } from "./cutoverPreflight";
@@ -26,7 +26,7 @@ async function database() {
   directory = mkdtempSync(join(tmpdir(), "capacitylens-cutover-repair-"));
   const path = join(directory, "capacitylens.db");
   const db = openDb(path);
-  const configured = authFromEnv(db, env);
+  const configured = createAuthFromEnvironment(db, env);
   await runAuthMigrations(configured.auth!);
   return { path, db };
 }

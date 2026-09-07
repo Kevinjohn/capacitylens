@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { authFromEnv, runAuthMigrations } from "./auth";
-import { buildApp } from "./app";
+import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
+import { createApp } from "./app";
 import { openDb } from "./db";
 import { PASSWORD_ENV } from "./testHelpers";
 
@@ -13,9 +13,9 @@ describe("CSP violation reporting", () => {
 
   it("accepts a legacy browser report without a session and strips URL paths and queries", async () => {
     const db = openDb(":memory:");
-    const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+    const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
     await runAuthMigrations(auth!);
-    const app = buildApp(db, {
+    const app = createApp(db, {
       authMode: mode,
       auth,
       securityLog: (event) => events.push(event),
@@ -59,7 +59,7 @@ describe("CSP violation reporting", () => {
   });
 
   it("accepts the Reporting API array format and bounds one request to one event", async () => {
-    const app = buildApp(openDb(":memory:"), { securityLog: (event) => events.push(event) });
+    const app = createApp(openDb(":memory:"), { securityLog: (event) => events.push(event) });
     const reports = Array.from({ length: 25 }, () => ({
       type: "csp-violation",
       body: {
@@ -83,7 +83,7 @@ describe("CSP violation reporting", () => {
   });
 
   it("rejects malformed, oversized and cross-site report submissions", async () => {
-    const app = buildApp(openDb(":memory:"), { securityLog: (event) => events.push(event) });
+    const app = createApp(openDb(":memory:"), { securityLog: (event) => events.push(event) });
     const malformed = await app.inject({
       method: "POST",
       url: "/api/security/csp-report",

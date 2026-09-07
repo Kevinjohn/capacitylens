@@ -5,14 +5,14 @@ import type { BoundApplication } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 import type * as AuthFacade from "../auth";
 import { bindFederatedProvider } from "../accounts/state";
-import { applicationSessionHandle } from "../accounts/sessionHandle";
+import { buildApplicationSessionHandle } from "../accounts/buildApplicationSessionHandle";
 import {
   createFederatedLinkCeremony,
   deleteFederatedLinkCeremony,
   reconcileObservedFederatedLinks,
 } from "../federatedLinkLifecycle";
 import { buildProviders } from "./providers";
-import { buildErrorRedirect } from "./errorRedirect";
+import { createErrorRedirect } from "./errorRedirect";
 import type { Auth, AuthProviderInfo, RawSessionUser } from "./authTypes";
 import { SESSION_ABSOLUTE_TTL_SECONDS } from "./authConstants";
 import {
@@ -20,19 +20,19 @@ import {
   passwordResetSessionCapture,
   isFederatedAccountCoordinateConstraint,
 } from "./captureContexts";
-import { normalizeSessionUser } from "./sessionActivity";
+import { buildSessionUser } from "./sessionActivity";
 import { verifiedUnauditedFederatedLinks, sqliteTableExists } from "./federatedIdentitySchema";
 import { createCredentialUserWith } from "./bootstrapAdmin";
 
 // The reset-state SQL stays in the facade; bind it without a runtime back-edge.
-export function buildAuthAdapter({
+export function createAuthAdapterFactory({
   revokeFederatedLinkStateInTx,
   AuthConfigError,
   providerIdFromExternalContext,
 }: {
   revokeFederatedLinkStateInTx: typeof AuthFacade.revokeFederatedLinkStateInTx;
   AuthConfigError: typeof AuthFacade.AuthConfigError;
-  providerIdFromExternalContext: typeof AuthFacade.providerIdFromExternalContext;
+  providerIdFromExternalContext: typeof AuthFacade.parseProviderIdFromExternalContext;
 }) {
   function createAuthAdapter({
     db,
@@ -98,7 +98,7 @@ export function buildAuthAdapter({
 
     // raw.api.getSession runs through the same hooks.before pipeline as HTTP routes, so the session is
     // already idle-checked and touched once before it reaches this provider-neutral adapter.
-    const activeSession = (headers: Headers) => raw.api.getSession({ headers });
+    const readActiveSession = (headers: Headers) => raw.api.getSession({ headers });
     const strictProvider = configuredProviderInfo.find((provider) => provider.kind === "oidc") ?? null;
     const trustedLinkOrigins = new Set([
       publicUrl.origin,
@@ -111,7 +111,7 @@ export function buildAuthAdapter({
       }),
     ]);
 
-    const linkReturnUrl = (value: string, parameter: string, ceremonyId: string): URL => {
+    const parseLinkReturnUrl = (value: string, parameter: string, ceremonyId: string): URL => {
       let url: URL;
       try {
         url = new URL(value);
@@ -140,7 +140,7 @@ export function buildAuthAdapter({
         .all(storedIdentifier) as Array<{ value: string }>;
       return rows.map((row) => row.value);
     };
-    const callbackErrorUrl = buildErrorRedirect({
+    const callbackErrorUrl = createErrorRedirect({
       browserAuthErrorUrl,
       trustedLinkOrigins,
       readVerificationValues,
@@ -249,18 +249,18 @@ export function buildAuthAdapter({
       },
       api: {
         async getSession(input) {
-          const session = await activeSession(input.headers);
+          const session = await readActiveSession(input.headers);
           if (!session) return null;
           return {
             user: {
-              ...normalizeSessionUser(session.user),
+              ...buildSessionUser(session.user),
               sessionCreatedAt: new Date(session.session.createdAt).toISOString(),
             },
             session: {
               // Better Auth exposes the bearer token rather than its database row id here. Hash it
               // before it crosses our identity boundary; callers receive a stable opaque handle,
               // never a credential that could authenticate a request.
-              id: applicationSessionHandle(application.applicationId, session.session.token),
+              id: buildApplicationSessionHandle(application.applicationId, session.session.token),
               createdAt: new Date(session.session.createdAt).toISOString(),
               expiresAt: new Date(
                 new Date(session.session.createdAt).getTime() + SESSION_ABSOLUTE_TTL_SECONDS * 1000,
@@ -272,11 +272,12 @@ export function buildAuthAdapter({
         requestPasswordReset: (input) => raw.api.requestPasswordReset(input),
       },
       createCredentialUser: (email, name, password, emailVerified = false, correlateInTransaction) =>
-        raw.$context.then((ctx) =>
-          createCredentialUserWith(ctx, db, email, name, password, emailVerified, correlateInTransaction),
+        raw.$context.then((context) =>
+          createCredentialUserWith(context, db, email, name, password, emailVerified, correlateInTransaction),
         ),
-      deleteCredentialUser: (userId) => raw.$context.then((ctx) => ctx.internalAdapter.deleteUser(userId)),
-      revokeUserSessions: (userId) => raw.$context.then((ctx) => ctx.internalAdapter.deleteUserSessions(userId)),
+      deleteCredentialUser: (userId) => raw.$context.then((context) => context.internalAdapter.deleteUser(userId)),
+      revokeUserSessions: (userId) =>
+        raw.$context.then((context) => context.internalAdapter.deleteUserSessions(userId)),
       setSessionDeletionLifecycle(lifecycle) {
         sessionDeletionLifecycleRef.current = lifecycle;
       },
@@ -291,7 +292,7 @@ export function buildAuthAdapter({
         // Repair that durable observation before starting another mutating link ceremony. Readiness
         // reads remain side-effect free.
         auth.reconcileFederatedLinks?.();
-        const session = await activeSession(headers);
+        const session = await readActiveSession(headers);
         if (!session || String(session.user.id) !== principalId) {
           throw APIError.from("UNAUTHORIZED", {
             message: "The identity-link session no longer matches the signed-in user.",
@@ -311,8 +312,8 @@ export function buildAuthAdapter({
           });
         }
         const ceremonyId = randomBytes(24).toString("base64url");
-        const success = linkReturnUrl(callbackURL, "capacitylensSsoLinked", ceremonyId);
-        const failure = linkReturnUrl(errorCallbackURL, "capacitylensSsoLinkFailed", ceremonyId);
+        const success = parseLinkReturnUrl(callbackURL, "capacitylensSsoLinked", ceremonyId);
+        const failure = parseLinkReturnUrl(errorCallbackURL, "capacitylensSsoLinkFailed", ceremonyId);
         const ceremony = createFederatedLinkCeremony(db, principalId, strictProvider.id, ceremonyId, () =>
           revokeFederatedLinkStateInTx(db, principalId),
         );

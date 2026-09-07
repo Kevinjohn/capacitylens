@@ -1,18 +1,18 @@
 import type { FastifyReply } from "fastify";
 import { DEMO_USER } from "../auth";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
-import { betterAuthIdentityPort } from "../accounts/betterAuthIdentityPort";
-import { sqliteAccountAdminPort } from "../accounts/sqliteAccountAdminPort";
+import { createBetterAuthIdentityPort } from "../accounts/betterAuthIdentityPort";
+import { createSqliteAccountAdminPort } from "../accounts/sqliteAccountAdminPort";
 import { localAccountFlows } from "../accounts/localAccountFlows";
-import { KeyedOperationLock } from "../accounts/operationLock";
-import { trustedLocalIdentityPort } from "../accounts/trustedLocalIdentityPort";
-import { applicationSessionHandle } from "../accounts/sessionHandle";
+import { KeyedOperationLock } from "../accounts/KeyedOperationLock";
+import { createTrustedLocalIdentityPort } from "../accounts/createTrustedLocalIdentityPort";
+import { buildApplicationSessionHandle } from "../accounts/buildApplicationSessionHandle";
 import { enqueueMasqueradeEndAudit } from "./masqueradeRoutes";
-import { MasqueradeRegistry, type StoredMasqueradeRecord } from "../masqueradeRegistry";
+import { MasqueradeRegistry, type StoredMasqueradeRecord } from "../MasqueradeRegistry";
 import { type MasqueradeEndReason } from "@capacitylens/shared/domain/masquerade";
 import { eraseWorkspaceProductDataInTx } from "../erasure";
 import { type Db } from "../db";
-import { sqliteTenantStore } from "../tenantStore";
+import { createSqliteTenantStore } from "../tenantStore";
 import { tx } from "../txn";
 import { type AuditRecord } from "../audit";
 import { enqueueAudit } from "../auditOutbox";
@@ -20,7 +20,7 @@ import { createAuditOutboxDrainer } from "../auditOutboxDrainer";
 import type { resolveAppConfig } from "./appConfig";
 import type { AppOptions } from "../app";
 
-export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppConfig>, opts: AppOptions) {
+export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppConfig>, options: AppOptions) {
   const { authMode, auth, application, auditSink } = config;
   // Recover records committed before a prior process stopped between SQLite COMMIT and delivery.
   // A sink failure remains a soft health signal and leaves the oldest row queued for the next
@@ -44,7 +44,7 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
     expired: (record) => enqueueMasqueradeEndAudit(accountAudit, application.applicationId, record, "session_expired"),
   });
   const prepareMasqueradeUsers = (userIds: readonly string[], reason: "session_revoked"): readonly string[] => {
-    const handles = [...new Set(userIds.flatMap((userId) => masquerades.sessionHandlesForUser(userId)))];
+    const handles = [...new Set(userIds.flatMap((userId) => masquerades.listSessionHandlesForUser(userId)))];
     for (const sessionHandle of handles) {
       masquerades.prepareEnd(sessionHandle, null, (record) =>
         enqueueMasqueradeEndAudit(accountAudit, application.applicationId, record, reason),
@@ -65,7 +65,7 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
   };
   auth?.setSessionDeletionLifecycle?.({
     prepareSession: (sessionToken, reason) => {
-      const handle = applicationSessionHandle(application.applicationId, sessionToken);
+      const handle = buildApplicationSessionHandle(application.applicationId, sessionToken);
       masqueradeSessionLifecycle.prepare([handle], reason);
       return [handle];
     },
@@ -75,26 +75,26 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
   const accountLock = new KeyedOperationLock();
   const identityPort =
     auth && authMode !== "off"
-      ? betterAuthIdentityPort({
+      ? createBetterAuthIdentityPort({
           applicationId: application.applicationId,
           auth,
           authMode,
           db,
           masqueradeSessions: masqueradeSessionLifecycle,
         })
-      : trustedLocalIdentityPort({
+      : createTrustedLocalIdentityPort({
           id: DEMO_USER.id,
           displayName: DEMO_USER.name,
           email: DEMO_USER.email,
           emailVerified: true,
           linkedSubject: null,
         });
-  const accountAdminPort = sqliteAccountAdminPort({
+  const accountAdminPort = createSqliteAccountAdminPort({
     applicationId: application.applicationId,
     db,
     lock: accountLock,
     trustedLocal: authMode === "off",
-    requireMfa: authMode === "password" && opts.requireMfa === true,
+    requireMfa: authMode === "password" && options.requireMfa === true,
     audit: accountAudit,
   });
   const accountFlows = localAccountFlows({
@@ -111,7 +111,7 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
   // the DB is known-open; a later closed/corrupt/locked DB makes get() throw at request
   // time, which is exactly the signal the uptime monitor needs (a bare { ok: true } from
   // a server whose DB is broken is a lie).
-  const healthStmt = opts.healthDeep === true ? db.prepare("SELECT 1") : null;
+  const healthStmt = options.healthDeep === true ? db.prepare("SELECT 1") : null;
 
   // Forward coordinator-owned account/control events that do not represent AppData mutations.
   // Product mutations use commitProductAudit below so their audit row shares the data transaction.
@@ -142,7 +142,7 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
   // The tenant-scoping storage seam: account-keyed reads, validation projections and lifecycle
   // operations enforce the no-cross-tenant contract in one shared-SQLite implementation. Built once
   // here (factory state, like healthStmt) so the same instance backs every request.
-  const store = sqliteTenantStore(db);
+  const store = createSqliteTenantStore(db);
 
   const endMasquerade = (record: Readonly<StoredMasqueradeRecord>, reason: MasqueradeEndReason): void => {
     masquerades.end(record.sessionHandle, null, (ending) =>

@@ -3,20 +3,20 @@ import { buildInternalClient, isBuiltinClient } from "@capacitylens/shared/data/
 import { archive } from "@capacitylens/shared/domain/lifecycle";
 import { type AppDataKey } from "@capacitylens/shared/types/entities";
 import { deleteRow, getRow, upsertRow } from "../../db";
-import { nextServerRevision } from "../../revision";
+import { createServerRevision } from "../../revision";
 import { isSameSessionSuccessor } from "../../syncOrdering";
 import type { LifecycleRow } from "../../tenantStore";
-import { appliedRequestedFieldNames, sanitizeWrite, validateWrite, ValidationError } from "../../validate";
+import { listAppliedRequestedFieldNames, sanitizeWrite, assertValidWrite, ValidationError } from "../../validate";
 import {
-  builtinInternalWriteGuard,
-  generatedBuiltinReplacement,
+  resolveBuiltinWriteRejection,
+  resolveGeneratedBuiltinReplacement,
   replaceGeneratedBuiltin,
   stampServerRevision,
 } from "../../writePipeline";
-import { ACCOUNT_FROZEN_FIELDS_MESSAGE, accountFieldsFrozen } from "../accountEntityRoutes";
+import { ACCOUNT_FROZEN_FIELDS_MESSAGE, hasFrozenAccountFieldChanges } from "../accountEntityRoutes";
 import { isLifecycleEntity, isScopedTable, isStaleWrite, ownsRow, writeActivityRow } from "../routeShared";
 
-import { matchesMintedInternalClient } from "./appData";
+import { isMatchingMintedInternalClient } from "./appData";
 import { StaleWriteError } from "./errors";
 import { type ApplyBatchOperationParameters } from "./types";
 
@@ -59,7 +59,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
     // Internal exception accepts only the canonical duplicate a client emitted alongside
     // the account create; malformed or re-homed bodies roll the whole batch back.
     if (table === "clients" && existing?.builtin === true && mintedInternalIds.has(id)) {
-      if (!matchesMintedInternalClient(existing, row as Record<string, unknown>)) {
+      if (!isMatchingMintedInternalClient(existing, row as Record<string, unknown>)) {
         throw new ValidationError("The same-batch built-in Internal client must match the generated server row.");
       }
       revisions.push({
@@ -76,7 +76,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
       }
       return;
     }
-    const builtinRejection = builtinInternalWriteGuard("replace", table, existing, row as Record<string, unknown>);
+    const builtinRejection = resolveBuiltinWriteRejection("replace", table, existing, row as Record<string, unknown>);
     if (builtinRejection) throw new ValidationError(builtinRejection.error);
     if (!ownsRow(existing, (row as { accountId?: unknown }).accountId)) {
       throw new AccountContractError({
@@ -94,7 +94,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
     // language/weekStartsOn/timezone are FROZEN after creation (P1.14). Match the
     // direct routes' 409 so the sync client takes its authoritative-reload path
     // instead of retrying the same state-dependent conflict indefinitely.
-    if (table === "accounts" && accountFieldsFrozen(existing, sanitizedRow)) {
+    if (table === "accounts" && hasFrozenAccountFieldChanges(existing, sanitizedRow)) {
       throw new AccountContractError({
         code: "CONFLICT",
         message: ACCOUNT_FROZEN_FIELDS_MESSAGE,
@@ -124,9 +124,9 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
     const clean = stampServerRevision(sanitizedRow, existing);
     const auditRecord = auditRecords[opIndex];
     if (auditRecord) {
-      auditRecord.changedFields = appliedRequestedFieldNames(table, row, existing, clean);
+      auditRecord.changedFields = listAppliedRequestedFieldNames(table, row, existing, clean);
     }
-    const generatedReplacement = generatedBuiltinReplacement(state, table, clean);
+    const generatedReplacement = resolveGeneratedBuiltinReplacement(state, table, clean);
     if (table === "accounts" && !existing) {
       // Evaluate provisioning policy before inserting the account, against the final
       // count of the whole atomic batch. The surrounding application-wide lock is shared
@@ -143,7 +143,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
       replaceGeneratedBuiltin(db, state, generatedReplacement, clean);
       projection.replaceGeneratedBuiltin(generatedReplacement, clean);
     } else {
-      validateWrite(state, table, clean, existing, projection);
+      assertValidWrite(state, table, clean, existing, projection);
       if (table === "activities") {
         writeActivityRow(db, projection, clean, existing);
       } else {
@@ -196,7 +196,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
       lifecycleArchives.push({ table, id, archived: existing.archivedAt != null });
       return;
     }
-    const now = nextServerRevision(existing.updatedAt);
+    const now = createServerRevision(existing.updatedAt);
     const archived = {
       ...archive(existing as unknown as LifecycleRow, now),
       updatedAt: now,

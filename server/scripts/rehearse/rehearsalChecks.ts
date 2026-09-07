@@ -1,50 +1,50 @@
 import type { DatabaseSync } from "node:sqlite";
 import { createHash } from "node:crypto";
 import { DATABASE_MIGRATION_TABLE } from "../../src/db";
-import { quoteIdentifier, tableNames, columns, hasTable } from "./sqliteIntrospection";
+import { quoteIdentifier, listTableNames, readColumnNames, hasTable } from "./sqliteIntrospection";
 
 /** Count rows in every persistent user table for migration-preservation checks. */
-export function rowCounts(db: DatabaseSync): Record<string, number> {
+export function readRowCountsByTable(db: DatabaseSync): Record<string, number> {
   return Object.fromEntries(
-    tableNames(db).map((table) => [
+    listTableNames(db).map((table) => [
       table,
       Number((db.prepare(`SELECT COUNT(*) AS n FROM ${quoteIdentifier(table)}`).get() as { n: number }).n),
     ]),
   );
 }
 
-function serialisable(value: unknown): unknown {
+function buildSerializableValue(value: unknown): unknown {
   if (typeof value === "bigint") return value.toString();
   if (value instanceof Uint8Array) return Buffer.from(value).toString("base64");
-  if (Array.isArray(value)) return value.map(serialisable);
+  if (Array.isArray(value)) return value.map(buildSerializableValue);
   if (value && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([key, item]) => [key, serialisable(item)]),
+        .map(([key, item]) => [key, buildSerializableValue(item)]),
     );
   }
   return value;
 }
 
 /** Digest schema, rows and version stamps so rollback scenarios detect more than row-count drift. */
-export function databaseDigest(db: DatabaseSync): string {
+export function readDatabaseDigest(db: DatabaseSync): string {
   const hash = createHash("sha256");
   const version = db.prepare("PRAGMA user_version").get();
   const applicationId = db.prepare("PRAGMA application_id").get();
-  hash.update(JSON.stringify(serialisable({ version, applicationId })));
+  hash.update(JSON.stringify(buildSerializableValue({ version, applicationId })));
   const schemas = db
     .prepare(`SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name`)
     .all();
-  hash.update(JSON.stringify(serialisable(schemas)));
-  for (const table of tableNames(db)) {
-    const orderedColumns = [...columns(db, table)].map(quoteIdentifier);
+  hash.update(JSON.stringify(buildSerializableValue(schemas)));
+  for (const table of listTableNames(db)) {
+    const orderedColumns = [...readColumnNames(db, table)].map(quoteIdentifier);
     const rows = db
       .prepare(`SELECT * FROM ${quoteIdentifier(table)} ORDER BY ${orderedColumns.join(", ")}`)
       .iterate() as Iterable<Record<string, unknown>>;
     hash.update(table);
     for (const row of rows) {
-      const encoded = JSON.stringify(serialisable(row));
+      const encoded = JSON.stringify(buildSerializableValue(row));
       hash
         .update(String(Buffer.byteLength(encoded)))
         .update(":")
@@ -67,9 +67,9 @@ export function checkIntegrity(db: DatabaseSync, label: string): void {
 /** Exact destructive effects that the current migration chain is expected to have. Calculate
  * these before anonymisation so accidentally severing a migration join cannot turn its expected
  * deletion into a rehearsal-approved no-op. */
-export function expectedPostMigrationRowCounts(db: DatabaseSync, fromVersion: number): Record<string, number> {
+export function readExpectedPostMigrationRowCounts(db: DatabaseSync, fromVersion: number): Record<string, number> {
   const expected: Record<string, number> = {};
-  const inviteColumns = hasTable(db, "invites") ? columns(db, "invites") : new Set<string>();
+  const inviteColumns = hasTable(db, "invites") ? readColumnNames(db, "invites") : new Set<string>();
   if (fromVersion < 10 && inviteColumns.has("role") && inviteColumns.has("usedAt")) {
     expected.invites = Number(
       (
@@ -85,8 +85,8 @@ export function expectedPostMigrationRowCounts(db: DatabaseSync, fromVersion: nu
       ).n,
     );
   }
-  const verificationColumns = hasTable(db, "verification") ? columns(db, "verification") : new Set<string>();
-  const memberColumns = hasTable(db, "account_members") ? columns(db, "account_members") : new Set<string>();
+  const verificationColumns = hasTable(db, "verification") ? readColumnNames(db, "verification") : new Set<string>();
+  const memberColumns = hasTable(db, "account_members") ? readColumnNames(db, "account_members") : new Set<string>();
   if (
     fromVersion < 14 &&
     verificationColumns.has("value") &&

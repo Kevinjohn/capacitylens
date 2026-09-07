@@ -2,7 +2,7 @@ import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { SINGLE_COMPANY_CAP_MESSAGE } from "@capacitylens/shared/account/policy";
 import type { MemberDirectoryEntry } from "@capacitylens/shared/account/ports";
 import type { ActorContext } from "@capacitylens/shared/account/types";
-import { KeyedOperationLock } from "../operationLock";
+import { KeyedOperationLock } from "../KeyedOperationLock";
 import type { LocalAccountAdminPort } from "../sqliteAccountAdminPort";
 
 const WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS = 3;
@@ -16,7 +16,7 @@ const WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS = 3;
  * of both steps being fused into one helper call). */
 export function assertWorkspaceProvisioningAllowedInTx(
   administration: LocalAccountAdminPort,
-  params: {
+  input: {
     actor: ActorContext;
     multiWorkspace: boolean;
     bootstrapAuthorized: boolean;
@@ -25,17 +25,17 @@ export function assertWorkspaceProvisioningAllowedInTx(
   },
 ): void {
   const decision = administration.evaluateWorkspaceProvisioningAuthorityInTx({
-    actor: params.actor,
-    multiWorkspace: params.multiWorkspace,
-    bootstrapAuthorized: params.bootstrapAuthorized,
-    projectedWorkspaceCount: params.projectedWorkspaceCount,
+    actor: input.actor,
+    multiWorkspace: input.multiWorkspace,
+    bootstrapAuthorized: input.bootstrapAuthorized,
+    projectedWorkspaceCount: input.projectedWorkspaceCount,
   });
   if (!decision.allowed) {
     throw new AccountContractError({
       code: "FORBIDDEN",
       message: decision.reason === "single-workspace-cap" ? SINGLE_COMPANY_CAP_MESSAGE : "Forbidden.",
       retryable: false,
-      commandId: params.commandId,
+      commandId: input.commandId,
     });
   }
 }
@@ -43,12 +43,12 @@ export function assertWorkspaceProvisioningAllowedInTx(
 /** The name a directory entry sorts under: display name, else email, else the principal id — the
  *  same fallback chain the UI labels the row with, so the rendered list is visibly in order even
  *  for a member who signed up without a name. */
-export function directorySortName(entry: MemberDirectoryEntry): string {
+export function resolveDirectorySortName(entry: MemberDirectoryEntry): string {
   const principal = entry.principal;
   return principal?.displayName?.trim() || principal?.email?.trim() || entry.membership.principalId;
 }
 
-export function actorContextFromSession(
+export function buildActorContextFromSession(
   input: {
     id: string;
     principal: { id: string };

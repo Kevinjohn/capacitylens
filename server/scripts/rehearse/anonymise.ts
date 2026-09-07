@@ -1,10 +1,10 @@
 import type { DatabaseSync } from "node:sqlite";
 import { tx } from "../../src/txn";
 import { KNOWN_COLUMNS, KNOWN_TABLES } from "./knownColumns";
-import { quoteIdentifier, tableNames, columns, hasTable } from "./sqliteIntrospection";
+import { quoteIdentifier, listTableNames, readColumnNames, hasTable } from "./sqliteIntrospection";
 
 function updateIfPresent(db: DatabaseSync, table: string, column: string, expression: string): void {
-  if (!hasTable(db, table) || !columns(db, table).has(column)) return;
+  if (!hasTable(db, table) || !readColumnNames(db, table).has(column)) return;
   db.exec(`UPDATE ${quoteIdentifier(table)} SET ${quoteIdentifier(column)} = ${expression}`);
 }
 
@@ -18,7 +18,7 @@ let remapSequence = 0;
 /** Remap opaque ids as well as visible text. This preserves relationships while ensuring a
  * retained rehearsal directory cannot be joined back to ids from the source installation. */
 export function remapIds(db: DatabaseSync, table: string, idColumn: string, references: Reference[]): void {
-  if (!hasTable(db, table) || !columns(db, table).has(idColumn)) return;
+  if (!hasTable(db, table) || !readColumnNames(db, table).has(idColumn)) return;
   const values = db
     .prepare(
       `SELECT ${quoteIdentifier(idColumn)} AS id FROM ${quoteIdentifier(table)} ORDER BY ${quoteIdentifier(idColumn)}`,
@@ -49,7 +49,7 @@ export function remapIds(db: DatabaseSync, table: string, idColumn: string, refe
     const targets = [
       { table, column: idColumn },
       ...references.filter(
-        (reference) => hasTable(db, reference.table) && columns(db, reference.table).has(reference.column),
+        (reference) => hasTable(db, reference.table) && readColumnNames(db, reference.table).has(reference.column),
       ),
     ];
     for (const target of targets) {
@@ -80,11 +80,11 @@ export function scrubDanglingReferences(
   label: string,
 ): void {
   for (const reference of references) {
-    if (!hasTable(db, reference.table) || !columns(db, reference.table).has(reference.column)) continue;
+    if (!hasTable(db, reference.table) || !readColumnNames(db, reference.table).has(reference.column)) continue;
     const table = quoteIdentifier(reference.table);
     const column = quoteIdentifier(reference.column);
     const replacement = `'rehearsal-dangling-${label}-' || rowid`;
-    if (!hasTable(db, parentTable) || !columns(db, parentTable).has(parentColumn)) {
+    if (!hasTable(db, parentTable) || !readColumnNames(db, parentTable).has(parentColumn)) {
       db.exec(`UPDATE ${table} SET ${column} = ${replacement} WHERE ${column} IS NOT NULL`);
       continue;
     }
@@ -103,12 +103,12 @@ export function scrubDanglingReferences(
 /** Sanitise only a temporary online snapshot. Unknown tables fail closed so a new auth/plugin table
  * cannot carry secrets into a kept rehearsal directory until the redaction policy covers it. */
 export function anonymise(db: DatabaseSync): void {
-  const unknown = tableNames(db).filter((table) => !KNOWN_TABLES.has(table));
+  const unknown = listTableNames(db).filter((table) => !KNOWN_TABLES.has(table));
   if (unknown.length > 0) {
     throw new Error(`anonymiser does not cover table(s): ${unknown.join(", ")}`);
   }
-  const unknownColumns = tableNames(db).flatMap((table) =>
-    [...columns(db, table)]
+  const unknownColumns = listTableNames(db).flatMap((table) =>
+    [...readColumnNames(db, table)]
       .filter((column) => !KNOWN_COLUMNS[table]?.has(column))
       .map((column) => `${table}.${column}`),
   );
@@ -129,7 +129,7 @@ export function anonymise(db: DatabaseSync): void {
       for (const trigger of triggers) db.exec(`DROP TRIGGER ${quoteIdentifier(trigger.name)}`);
       const hasProviderCoordinates =
         hasTable(db, "account") &&
-        ["id", "accountId", "userId", "providerId"].every((column) => columns(db, "account").has(column));
+        ["id", "accountId", "userId", "providerId"].every((column) => readColumnNames(db, "account").has(column));
       // Preserve the original admission proof before remapping any identity coordinates.
       // A stale subject, principal or provider must never become a valid proof after scrubbing.
       updateIfPresent(
@@ -278,7 +278,7 @@ export function anonymise(db: DatabaseSync): void {
         db,
         "clients",
         "name",
-        columns(db, "clients").has("builtin")
+        readColumnNames(db, "clients").has("builtin")
           ? `CASE WHEN builtin = 'true' THEN 'Internal' ELSE 'Rehearsal Client ' || rowid END`
           : `'Rehearsal Client ' || rowid`,
       );

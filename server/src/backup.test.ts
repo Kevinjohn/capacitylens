@@ -26,7 +26,7 @@ import {
   DB_SCHEMA_VERSION,
   initializeOpenDb,
   insertAll,
-  loadState,
+  readState,
   openDb as openDbRaw,
   openDbConnection as openDbConnectionRaw,
   planDatabaseMigrations,
@@ -399,7 +399,7 @@ describe("startBackups", () => {
 
     expect(snapshots(dir).length).toBeGreaterThanOrEqual(1);
     // The snapshot opens through the SAME openDb (schema assert included) and holds the data.
-    const restored = loadState(openDb(file));
+    const restored = readState(openDb(file));
     expect(restored.accounts.length).toBeGreaterThan(0);
     expect(restored.accounts.map((a) => a.name)).toContain("Wayne Enterprises");
     expect(log).toHaveBeenCalledWith(expect.stringContaining("backup written"));
@@ -523,13 +523,13 @@ describe("startBackups", () => {
     await backups.stop();
 
     expect(existsSync(livePath)).toBe(true);
-    expect(loadState(db).accounts.map((account) => account.name)).toContain("Wayne Enterprises");
+    expect(readState(db).accounts.map((account) => account.name)).toContain("Wayne Enterprises");
     const files = snapshots(dir);
     expect(files).toContain(basename(livePath));
     expect(files.filter((file) => file !== basename(livePath))).toHaveLength(1);
     db.close();
     const reopened = openDb(livePath);
-    expect(loadState(reopened).accounts.map((account) => account.name)).toContain("Wayne Enterprises");
+    expect(readState(reopened).accounts.map((account) => account.name)).toContain("Wayne Enterprises");
     reopened.close();
   });
 
@@ -646,7 +646,7 @@ describe("startBackups", () => {
     const files = snapshots(dir);
     expect(files).toHaveLength(1);
     // The file was COMPLETE before stop() resolved — it opens and holds the data.
-    const restored = loadState(openDb(join(dir, files[0])));
+    const restored = readState(openDb(join(dir, files[0])));
     expect(restored.accounts.map((a) => a.name)).toContain("Wayne Enterprises");
   });
 
@@ -809,7 +809,7 @@ describe("startBackups", () => {
     const files = snapshots(dir);
     expect(files).toHaveLength(3);
     for (const f of files) {
-      expect(loadState(openDb(join(dir, f))).accounts.map((x) => x.name)).toContain("Wayne Enterprises");
+      expect(readState(openDb(join(dir, f))).accounts.map((x) => x.name)).toContain("Wayne Enterprises");
     }
   });
 

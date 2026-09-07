@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { emptyAppData, type Allocation, type AppData } from "@capacitylens/shared/types/entities";
-import { clearAllocationAttributionForActivities, insertAll, loadState, openDb, upsertRow } from "./db";
-import { validateWrite } from "./validate";
+import { clearAllocationAttributionForActivities, insertAll, readState, openDb, upsertRow } from "./db";
+import { assertValidWrite } from "./validate";
 
 const TS = "2026-01-01T00:00:00.000Z";
 const meta = { accountId: "a1", createdAt: TS, updatedAt: TS };
@@ -68,15 +68,21 @@ function allocation(overrides: Partial<Allocation> = {}): Allocation {
 describe("server allocation project attribution", () => {
   it("enforces activity kind, project existence and placeholder scope", () => {
     const data = state();
-    expect(() => validateWrite(data, "allocations", allocation() as unknown as Record<string, unknown>)).not.toThrow();
     expect(() =>
-      validateWrite(data, "allocations", allocation({ activityId: "internal" }) as unknown as Record<string, unknown>),
+      assertValidWrite(data, "allocations", allocation() as unknown as Record<string, unknown>),
+    ).not.toThrow();
+    expect(() =>
+      assertValidWrite(
+        data,
+        "allocations",
+        allocation({ activityId: "internal" }) as unknown as Record<string, unknown>,
+      ),
     ).toThrow(/only an all-projects activity/i);
     expect(() =>
-      validateWrite(data, "allocations", allocation({ projectId: "missing" }) as unknown as Record<string, unknown>),
+      assertValidWrite(data, "allocations", allocation({ projectId: "missing" }) as unknown as Record<string, unknown>),
     ).toThrow(/active project/i);
     expect(() =>
-      validateWrite(
+      assertValidWrite(
         data,
         "allocations",
         allocation({ resourceId: "placeholder", projectId: "p2" }) as unknown as Record<string, unknown>,
@@ -91,10 +97,10 @@ describe("server allocation project attribution", () => {
     insertAll(db, data);
 
     upsertRow(db, "activities", { ...data.activities[0], kind: "internal", updatedAt: "2026-01-02T00:00:00.000Z" });
-    expect(loadState(db).allocations[0]).toHaveProperty("projectId", "p1");
+    expect(readState(db).allocations[0]).toHaveProperty("projectId", "p1");
     clearAllocationAttributionForActivities(db, new Set([data.activities[0]!.id]));
-    expect(loadState(db).allocations[0]).not.toHaveProperty("projectId");
-    expect(Date.parse(loadState(db).allocations[0]!.updatedAt)).toBeGreaterThan(Date.parse(TS));
+    expect(readState(db).allocations[0]).not.toHaveProperty("projectId");
+    expect(Date.parse(readState(db).allocations[0]!.updatedAt)).toBeGreaterThan(Date.parse(TS));
     db.close();
   });
 });

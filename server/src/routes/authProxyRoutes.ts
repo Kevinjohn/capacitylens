@@ -2,19 +2,19 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
 import type { ApplicationSession } from "@capacitylens/shared/account/types";
 import { can } from "@capacitylens/shared/domain/access";
-import { accountCreateCapped, countAccounts } from "./accountEntityRoutes";
+import { isAccountCreateCapped, countAccounts } from "./accountEntityRoutes";
 import { countUsers, DEMO_USER, type Auth, type AuthMode, type SessionUser } from "../auth";
-import type { MasqueradeRegistry } from "../masqueradeRegistry";
+import type { MasqueradeRegistry } from "../MasqueradeRegistry";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 
-type SessionResolution =
+type SessionResolutionResult =
   | { kind: "absent_or_invalid" }
   | { kind: "verified"; session: ApplicationSession }
   | { kind: "backend_failure"; error: unknown };
 
 /** Build the absolute URL Better Auth requires from Fastify's relative request URL. Host is
  * proxy/client input, so malformed authority syntax is a bounded caller error, not an exception. */
-function authenticationRequestUrl(req: FastifyRequest): URL | null {
+function parseAuthenticationRequestUrl(req: FastifyRequest): URL | null {
   try {
     return new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
   } catch {
@@ -24,7 +24,7 @@ function authenticationRequestUrl(req: FastifyRequest): URL | null {
 
 /** CapacityLens's complete public seam into Better Auth. New dependency routes remain closed until
  * they are deliberately classified here and covered by the application's own policy surface. */
-function betterAuthProxyRouteAllowed(authMode: Exclude<AuthMode, "off">, method: string, pathname: string): boolean {
+function isBetterAuthProxyRouteAllowed(authMode: Exclude<AuthMode, "off">, method: string, pathname: string): boolean {
   const common = new Set(["GET /get-session", "POST /sign-out", "POST /sign-in/oauth2", "POST /sign-in/social"]);
   if (common.has(`${method} ${pathname}`)) return true;
   if (
@@ -92,7 +92,7 @@ function withResponseCookies(requestHeaders: Headers, setCookies: readonly strin
   return headers;
 }
 
-async function userMayCreateAccount(
+async function canUserCreateAccount(
   administration: AccountAdminPort,
   authMode: AuthMode,
   userId: string,
@@ -116,7 +116,7 @@ export interface AuthProxyRouteDependencies {
   requireMfa: boolean;
   accountAdminPort: AccountAdminPort;
   masquerades: MasqueradeRegistry;
-  resolveIncomingSession: (req: FastifyRequest, force?: boolean) => Promise<SessionResolution>;
+  resolveIncomingSession: (req: FastifyRequest, force?: boolean) => Promise<SessionResolutionResult>;
   sessionUserFromApplicationSession: (session: ApplicationSession) => SessionUser;
   sessionSatisfiesRequiredMfa: (session: ApplicationSession) => boolean;
   toWebHeaders: (raw: FastifyRequest["headers"]) => Headers;
@@ -155,7 +155,7 @@ export function registerAuthProxyRoutes(app: FastifyInstance, dependencies: Auth
       // account facts for a caller who isn't authenticated / whose session state is unknown) — an
       // anon caller on an auth-on instance is never told it can create.
       // The cap arm (WHETHER a new company may exist at all) — POST /api/orgs' GATE 0.
-      const capAllows = !accountCreateCapped(db, multiAccount);
+      const capAllows = !isAccountCreateCapped(db, multiAccount);
       if (authMode === "off") {
         // OFF mode: userMayCreateAccount is trivially true (its authMode arm), so the cap decides.
         return {
@@ -202,7 +202,7 @@ export function registerAuthProxyRoutes(app: FastifyInstance, dependencies: Auth
             capAllows &&
             (authMode !== "sso" ||
               (session.assurance === "federated" && session.providerId === auth?.strictProvider?.id)) &&
-            (await userMayCreateAccount(accountAdminPort, authMode, user.id, countAccounts(db))),
+            (await canUserCreateAccount(accountAdminPort, authMode, user.id, countAccounts(db))),
         };
       } catch (e) {
         // The auth backend failed — NOT "no session". Surface a 503 with a clear, DISTINCT message
@@ -226,10 +226,10 @@ export function registerAuthProxyRoutes(app: FastifyInstance, dependencies: Auth
       method: ["GET", "POST"],
       url: "/api/auth/*",
       handler: async (req, reply) => {
-        const url = authenticationRequestUrl(req);
+        const url = parseAuthenticationRequestUrl(req);
         if (!url) return reply.code(400).send({ error: "Invalid request authority." });
         const authPath = new URL(url).pathname.slice("/api/auth".length);
-        if (!betterAuthProxyRouteAllowed(authMode, req.method, authPath)) {
+        if (!isBetterAuthProxyRouteAllowed(authMode, req.method, authPath)) {
           return reply.code(404).send({ error: "Not found." });
         }
         if (

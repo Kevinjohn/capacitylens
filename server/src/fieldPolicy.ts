@@ -115,7 +115,7 @@ export const GATED_FIELD_POLICIES: readonly GatedFieldPolicy[] = [
 
 /** True when any gated-field policy governs `table` (drives the write funnel's no-lookup short-circuit
  *  and the read-echo/pin fast paths). */
-export function tableHasGatedFields(table: string): boolean {
+export function hasGatedFields(table: string): boolean {
   return GATED_FIELD_POLICIES.some((policy) => policy.tables.includes(table));
 }
 
@@ -124,11 +124,11 @@ export function tableHasGatedFields(table: string): boolean {
 export function redactGatedEcho(
   table: string,
   row: Record<string, unknown>,
-  vis: SanitizeWriteOptions,
+  visibility: SanitizeWriteOptions,
 ): Record<string, unknown> {
   let visible = row;
   for (const policy of GATED_FIELD_POLICIES) {
-    if (policy.tables.includes(table) && vis[policy.visKey] === false) {
+    if (policy.tables.includes(table) && visibility[policy.visKey] === false) {
       visible = policy.redactEcho(visible);
     }
   }
@@ -141,10 +141,10 @@ export function pinGatedFields(
   table: string,
   cleaned: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
-  opts: SanitizeWriteOptions,
+  options: SanitizeWriteOptions,
 ): void {
   for (const policy of GATED_FIELD_POLICIES) {
-    if (policy.tables.includes(table) && opts[policy.visKey] === false) {
+    if (policy.tables.includes(table) && options[policy.visKey] === false) {
       policy.pin(cleaned, existing);
     }
   }
@@ -154,23 +154,23 @@ export function pinGatedFields(
  *  "no membership" (fail-closed: every gated field hidden). Each policy's predicate is applied to
  *  its own {@link SanitizeWriteOptions} flag, so the include/exclude decision can never disagree with
  *  the redact/pin decision. */
-export function visibilityForRole(role: Role | null): SanitizeWriteOptions {
-  const vis: SanitizeWriteOptions = {};
+export function resolveVisibilityForRole(role: Role | null): SanitizeWriteOptions {
+  const visibility: SanitizeWriteOptions = {};
   for (const policy of GATED_FIELD_POLICIES) {
-    vis[policy.visKey] = role !== null && policy.visibleTo(role);
+    visibility[policy.visKey] = role !== null && policy.visibleTo(role);
   }
-  return vis;
+  return visibility;
 }
 
 /** Project the policy catalogue onto readSlice's include flags. Adding a gated-field policy now
  * requires declaring its read projection beside its redact and pin behaviour. */
-export function readSliceVisibility(vis: SanitizeWriteOptions): ReadSliceFieldVisibility {
+export function buildReadSliceVisibility(visibility: SanitizeWriteOptions): ReadSliceFieldVisibility {
   const includes: ReadSliceFieldVisibility = {
     includeTimeOffNote: true,
     includePrivateNames: true,
   };
   for (const policy of GATED_FIELD_POLICIES) {
-    includes[policy.includeKey] = vis[policy.visKey] !== false;
+    includes[policy.includeKey] = visibility[policy.visKey] !== false;
   }
   return includes;
 }

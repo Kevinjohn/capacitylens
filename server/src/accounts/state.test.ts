@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { openDb, type Db } from "../db";
-import { accountPayloadHash, beginCommand, resumeExistingCommand, terminatePendingCommand } from "./commands";
+import { buildAccountPayloadHash, beginCommand, resumeExistingCommand, terminatePendingCommand } from "./commands";
 import {
   assertAccountBoundaryStateCurrent,
   bindFederatedProvider,
@@ -27,9 +27,9 @@ describe("account boundary durable state", () => {
   });
 
   it("canonicalizes object order while retaining array positions in payload hashes", () => {
-    expect(accountPayloadHash({ b: 2, a: 1 })).toBe(accountPayloadHash({ a: 1, b: 2 }));
-    expect(accountPayloadHash([undefined])).toBe(accountPayloadHash([null]));
-    expect(accountPayloadHash([undefined])).not.toBe(accountPayloadHash([]));
+    expect(buildAccountPayloadHash({ b: 2, a: 1 })).toBe(buildAccountPayloadHash({ a: 1, b: 2 }));
+    expect(buildAccountPayloadHash([undefined])).toBe(buildAccountPayloadHash([null]));
+    expect(buildAccountPayloadHash([undefined])).not.toBe(buildAccountPayloadHash([]));
   });
 
   it("canonically records a terminal outcome only while the command is pending", () => {
@@ -185,7 +185,7 @@ describe("account boundary durable state", () => {
       operation: "operation",
       ...command,
       actorPrincipalId: "first-actor",
-      payloadHash: accountPayloadHash(payload),
+      payloadHash: buildAccountPayloadHash(payload),
       now: "2026-01-01T00:00:00.000Z",
     });
 

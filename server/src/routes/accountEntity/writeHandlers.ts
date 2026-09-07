@@ -4,12 +4,12 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AuditRecord } from "../../audit";
 import { getRow, upsertRow } from "../../db";
-import { appliedRequestedFieldNames, sanitizeWrite, validateWrite } from "../../validate";
+import { listAppliedRequestedFieldNames, sanitizeWrite, assertValidWrite } from "../../validate";
 import { checkEntityWriteBody, prepareScopedWrite, stampServerRevision } from "../../writePipeline";
 
 import type { AccountEntityRouteDependencies } from "./dependencies";
-import { accountRouteFailure, accountWriteGuards } from "./guards";
-import { ACCOUNT_CREATE_CLOSED_MESSAGE, accountCreateCapped, canonicalAccountProductPayload } from "./policy";
+import { sendAccountRouteFailure, enforceAccountWriteGuards } from "./guards";
+import { ACCOUNT_CREATE_CLOSED_MESSAGE, isAccountCreateCapped, buildCanonicalAccountProductPayload } from "./policy";
 
 export function createAccountWriteHandlers(dependencies: AccountEntityRouteDependencies) {
   const {
@@ -48,7 +48,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
       // Single-company cap (create-time only; OFF mode only here — the auth-on create was already
       // refused just above). Checked BEFORE the account-write gate below (which only ever fires for
       // the UPDATE case) so the two never overlap. An UPDATE is NEVER capped.
-      if (!existing && accountCreateCapped(db, multiAccount)) {
+      if (!existing && isAccountCreateCapped(db, multiAccount)) {
         return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE });
       }
       // P1.5 account-write gate. `accounts` is not scoped, so there is no body accountId to gate on:
@@ -62,7 +62,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
       // PATCH — see accountWriteGuards; the stale-write guard runs separately below, after the
       // trusted-local replay attempt it must not preempt.)
       if (
-        accountWriteGuards({
+        enforceAccountWriteGuards({
           reply,
           existing,
           ownsRow,
@@ -73,7 +73,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
         })
       )
         return;
-      const vis = fieldVisibility(req, "accounts", body.accountId);
+      const visibility = fieldVisibility(req, "accounts", body.accountId);
       // Only trusted-local compatibility creates can arrive here as a completed provisioning replay.
       // Authenticated account creation is closed on this route, so awaiting the coordinator during an
       // ordinary authenticated update would introduce a yield between the role decision above and the
@@ -83,21 +83,23 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
           actor: req.accountActor!,
           workspaceId: id,
           command: workspaceCommand,
-          canonicalProductPayload: canonicalAccountProductPayload(sanitizeWrite("accounts", body, existing, vis)),
+          canonicalProductPayload: buildCanonicalAccountProductPayload(
+            sanitizeWrite("accounts", body, existing, visibility),
+          ),
         });
-        if (replay) return reply.code(200).send(redact("accounts", replay.product, vis));
+        if (replay) return reply.code(200).send(redact("accounts", replay.product, visibility));
       }
       // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row — the predicate is
       // isStaleWrite, SHARED with the batch loop so the two paths can't drift. (Guard sequence
       // shared with PATCH — see accountWriteGuards.)
       if (
-        accountWriteGuards({
+        enforceAccountWriteGuards({
           reply,
           existing,
           ownsRow,
           isStaleWrite,
           redact,
-          checkStale: { optimisticConcurrency, candidateRow: body, vis },
+          checkStale: { optimisticConcurrency, candidateRow: body, vis: visibility },
         })
       )
         return;
@@ -109,7 +111,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
         entity: "accounts",
         body,
         existing,
-        vis,
+        vis: visibility,
         verb: "replace",
       });
       const auditRecord: AuditRecord = {
@@ -122,7 +124,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
         action: existing ? "update" : "create",
         entity: "accounts",
         id,
-        changedFields: appliedRequestedFieldNames("accounts", body, existing, row),
+        changedFields: listAppliedRequestedFieldNames("accounts", body, existing, row),
       };
       let responseRow = row;
       if (!existing) {
@@ -134,9 +136,9 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
           command: workspaceCommand,
           multiWorkspace: multiAccount,
           bootstrapAuthorized: false,
-          canonicalProductPayload: canonicalAccountProductPayload(row),
+          canonicalProductPayload: buildCanonicalAccountProductPayload(row),
           provisionProductData: () => {
-            validateWrite(scopedState, "accounts", row, existing);
+            assertValidWrite(scopedState, "accounts", row, existing);
             upsertRow(db, "accounts", row);
             upsertRow(
               db,
@@ -156,9 +158,9 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
         });
       }
       // A write response is a read: apply the same projections as /api/state.
-      return reply.code(200).send(redact("accounts", responseRow, vis));
-    } catch (err) {
-      return accountRouteFailure(reply, err, dependencies);
+      return reply.code(200).send(redact("accounts", responseRow, visibility));
+    } catch (error) {
+      return sendAccountRouteFailure(reply, error, dependencies);
     }
   };
 
@@ -176,12 +178,12 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
       // tier for the account's own id. OFF: no-op allow.
       if (!authorize(req, reply, id, "write")) return;
       const assertedAccountId = (req.body as { accountId?: unknown }).accountId;
-      const vis = fieldVisibility(req, "accounts", assertedAccountId ?? existing.accountId);
+      const visibility = fieldVisibility(req, "accounts", assertedAccountId ?? existing.accountId);
       const merged = sanitizeWrite(
         "accounts",
         { ...existing, ...(req.body as Record<string, unknown>), id },
         existing,
-        vis,
+        visibility,
       );
       // accountId is immutable (ownsRow). `accounts` is unscoped, so sanitisation drops any
       // asserted accountId from `merged`; like PUT, the ownsRow guard receives the CALLER's raw
@@ -190,7 +192,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
       // values may be set once, different valid stored values stay frozen. Guard sequence shared
       // with PUT — see accountWriteGuards.
       if (
-        accountWriteGuards({
+        enforceAccountWriteGuards({
           reply,
           existing,
           ownsRow,
@@ -202,7 +204,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
             optimisticConcurrency,
             candidateRow: req.body as Record<string, unknown>,
             requirePrecondition: false,
-            vis,
+            vis: visibility,
           },
         })
       )
@@ -212,7 +214,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
       // custom stores retain the complete-slice fallback. An account keys its own slice by id.
       const lookup = store.validationLookup?.();
       const validationState = lookup === undefined ? store.readFullSlice(id) : emptyAppData();
-      validateWrite(validationState, "accounts", stamped, existing, lookup);
+      assertValidWrite(validationState, "accounts", stamped, existing, lookup);
       // Record only requested keys whose sanitized, pinned result actually differs from storage.
       commitProductAudit(
         reply,
@@ -223,13 +225,13 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
           action: "patch",
           entity: "accounts",
           id,
-          changedFields: appliedRequestedFieldNames("accounts", req.body, existing, stamped),
+          changedFields: listAppliedRequestedFieldNames("accounts", req.body, existing, stamped),
         },
         () => upsertRow(db, "accounts", stamped),
       );
-      return reply.code(200).send(redact("accounts", stamped, vis));
-    } catch (err) {
-      return dependencies.fail(reply, err);
+      return reply.code(200).send(redact("accounts", stamped, visibility));
+    } catch (error) {
+      return dependencies.fail(reply, error);
     }
   };
 

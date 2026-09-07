@@ -1,9 +1,9 @@
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { LocalPrincipal } from "@capacitylens/shared/account/types";
-import { receipt } from "./accountFlowRuntime";
+import { createOperationReceipt } from "./accountFlowRuntime";
 import type { LocalIdentityPort } from "./betterAuthIdentityPort";
 
-function unsupported(commandId?: string): never {
+function throwUnsupportedOperation(commandId?: string): never {
   throw new AccountContractError({
     code: "UNSUPPORTED_CAPABILITY",
     message: "This identity operation is unavailable in trusted-local mode.",
@@ -13,7 +13,7 @@ function unsupported(commandId?: string): never {
 }
 
 /** Zero-provider identity implementation for the open-source trusted-local profile. */
-export function trustedLocalIdentityPort(principal: LocalPrincipal): LocalIdentityPort {
+export function createTrustedLocalIdentityPort(principal: LocalPrincipal): LocalIdentityPort {
   return {
     deprovisionLocalPrincipalInTx: () => [],
     deprovisionLocalPrincipalsInTx: () => [],
@@ -50,28 +50,28 @@ export function trustedLocalIdentityPort(principal: LocalPrincipal): LocalIdenti
       return [];
     },
     async revokeOwnSession({ command }) {
-      return receipt(command.commandId, false);
+      return createOperationReceipt(command.commandId, false);
     },
     async createProvisionalCredentialPrincipal({ command }) {
-      return unsupported(command.commandId);
+      return throwUnsupportedOperation(command.commandId);
     },
     async createCorrelatedProvisionalCredentialPrincipal({ command }) {
-      return unsupported(command.commandId);
+      return throwUnsupportedOperation(command.commandId);
     },
     async compensateProvisionalPrincipal({ command }) {
-      return unsupported(command.commandId);
+      return throwUnsupportedOperation(command.commandId);
     },
     async deprovisionLocalPrincipal({ command }) {
-      return receipt(command.commandId);
+      return createOperationReceipt(command.commandId);
     },
     async issuePasswordReset({ command }) {
-      return unsupported(command.commandId);
+      return throwUnsupportedOperation(command.commandId);
     },
     async revokePasswordResetCeremony({ command }) {
-      return unsupported(command.commandId);
+      return throwUnsupportedOperation(command.commandId);
     },
     async revokePrincipalSessions({ command }) {
-      return unsupported(command.commandId);
+      return throwUnsupportedOperation(command.commandId);
     },
   };
 }

@@ -42,17 +42,17 @@ export const MAX_BACKUP_KEEP = 10_000;
  *  knobs are only read when backups are on; junk/low values use the documented defaults while
  *  over-limit values clamp to the published operator-safety ceiling. */
 export function parseBackupConfig(
-  env: Record<string, string | undefined>,
+  environment: Record<string, string | undefined>,
   log: (message: string) => void = () => {},
 ): BackupConfig | null {
-  const dir = env.CAPACITYLENS_BACKUP_DIR;
+  const dir = environment.CAPACITYLENS_BACKUP_DIR;
   if (!dir) return null;
   const reportSubstitution = (name: string, raw: string, applied: number, bound: string) => {
     log(
       `capacitylens-server: backup configuration warning — ${name} requested ${JSON.stringify(raw)}; applied ${applied} (${bound}).`,
     );
   };
-  const boundedInteger = (name: string, raw: string | undefined, fallback: number, max: number) => {
+  const parseBoundedInteger = (name: string, raw: string | undefined, fallback: number, max: number) => {
     if (raw === undefined) return fallback;
     const n = Number(raw);
     if (!Number.isSafeInteger(n) || n < 1) {
@@ -62,7 +62,7 @@ export function parseBackupConfig(
     if (n > max) reportSubstitution(name, raw, max, `maximum ${max}`);
     return Math.min(n, max);
   };
-  const boundedFloor = (name: string, raw: string | undefined, fallback: number, max: number) => {
+  const parseBoundedFloor = (name: string, raw: string | undefined, fallback: number, max: number) => {
     if (raw === undefined) return fallback;
     const floored = Math.floor(Number(raw));
     if (!Number.isSafeInteger(floored) || floored < 1) {
@@ -75,16 +75,16 @@ export function parseBackupConfig(
   };
   return {
     dir,
-    intervalMin: boundedInteger(
+    intervalMin: parseBoundedInteger(
       "CAPACITYLENS_BACKUP_INTERVAL_MIN",
-      env.CAPACITYLENS_BACKUP_INTERVAL_MIN,
+      environment.CAPACITYLENS_BACKUP_INTERVAL_MIN,
       60,
       MAX_BACKUP_INTERVAL_MIN,
     ),
     // Released compatibility contract: a bounded fractional retention value means its floor. Do
     // not route it through the whole-minute parser above: falling back from e.g. 100.5 to 48 would
     // silently prune 52 restore points the operator asked to keep.
-    keep: boundedFloor("CAPACITYLENS_BACKUP_KEEP", env.CAPACITYLENS_BACKUP_KEEP, 48, MAX_BACKUP_KEEP),
+    keep: parseBoundedFloor("CAPACITYLENS_BACKUP_KEEP", environment.CAPACITYLENS_BACKUP_KEEP, 48, MAX_BACKUP_KEEP),
   };
 }
 export function formatBackupStartupFailure(dir: string, error: unknown): string {
