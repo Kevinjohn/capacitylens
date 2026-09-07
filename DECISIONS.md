@@ -344,6 +344,14 @@ This is the short, present-tense record of decisions that constrain future work.
   tools retain required entry names, and shipped migrations/fixtures remain immutable. Other
   existing naming differences are tracked migration debt. Enforcement must baseline exact paths
   and reject new unclassified debt; documenting a convention does not itself make lint enforce it.
+- The existing `eslint-suppressions.json` file/rule counts only shrink: each change prunes what it
+  can, never increases an existing count, and new code meets the rules. A newly introduced rule
+  may have one reviewed initial baseline with classified residual findings; that baseline then only
+  shrinks.
+- A new verb, abbreviation or result shape enters `docs-src/reference/conventions.md` in the same
+  pull request as its first use, with a tree example, and is reviewed like code.
+- Debt a batch declines to fix is recorded in `tasks/conventions-audit.md` as `D` with a reason,
+  never dropped; issue #638 links to that record for untouched deviations.
 
 ## Structural checks kept after the 2026-09 tooling removal
 
