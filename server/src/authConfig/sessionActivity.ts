@@ -4,15 +4,13 @@ import { tx } from "../txn";
 import type { RawSessionUser, SessionUser } from "./authTypes";
 import { SESSION_INACTIVITY_TTL_SECONDS, SESSION_ACTIVITY_WRITE_INTERVAL_SECONDS } from "./authConstants";
 
-/** Parse a stored `session.updatedAt` without assuming its representation: Better Auth's
- *  node:sqlite adapter stores ISO-8601 text (the column is declared `date`, NUMERIC affinity),
- *  while test fixtures historically wrote integer epoch milliseconds. Anything else is NaN,
- *  which every caller treats as fail-closed. */
-function parseSessionTimestamp(value: string | number | null | undefined): number {
-  if (typeof value === "number") return value;
-  if (typeof value === "string") return Date.parse(value);
-  return Number.NaN;
+/** Parse stored activity as epoch milliseconds or ISO text; malformed values have no timestamp. */
+function parseSessionTimestamp(value: string | number | null | undefined): number | null {
+  const milliseconds = typeof value === "number" ? value : typeof value === "string" ? Date.parse(value) : null;
+  return milliseconds !== null && Number.isFinite(milliseconds) ? milliseconds : null;
 }
+
+type SessionActivityResult = { kind: "deleted" } | { kind: "active"; currentMs: number };
 
 /**
  * Apply the app's idle timeout to a session Better Auth has already resolved.
@@ -92,7 +90,7 @@ export async function enforceSessionActivity<
     const row = readRaw();
     if (!row) return null;
     const rowMs = parseSessionTimestamp(row.updatedAt);
-    if (!Number.isFinite(rowMs)) return destroy();
+    if (rowMs === null) return destroy();
     if (rowMs === lastActivity) {
       if (!lifecycle) {
         const removed = stmts.casDelete.run(token, row.updatedAt as string | number);
@@ -101,29 +99,29 @@ export async function enforceSessionActivity<
         const current = readRaw();
         if (!current) return null;
         const currentMs = parseSessionTimestamp(current.updatedAt);
-        if (!Number.isFinite(currentMs)) return destroy();
+        if (currentMs === null) return destroy();
         session.session.updatedAt = new Date(currentMs);
         return session;
       }
       let sessionHandles: readonly string[] = [];
       const result = tx(
         db,
-        () => {
+        (): SessionActivityResult => {
           // Re-read after taking the writer reservation. Another process may have touched the row
           // between the optimistic read above and this transaction.
           const current = readRaw();
-          if (!current) return { deleted: true as const, currentMs: null };
+          if (!current) return { kind: "deleted" };
           const currentMs = parseSessionTimestamp(current.updatedAt);
-          if (Number.isFinite(currentMs) && currentMs !== lastActivity) {
-            return { deleted: false as const, currentMs };
+          if (currentMs !== null && currentMs !== lastActivity) {
+            return { kind: "active", currentMs };
           }
           sessionHandles = lifecycle?.prepare(token, "session_expired") ?? [];
           stmts.destroy.run(token);
-          return { deleted: true as const, currentMs: null };
+          return { kind: "deleted" };
         },
         "immediate",
       );
-      if (result.deleted) {
+      if (result.kind === "deleted") {
         lifecycle?.commit(sessionHandles);
         return null;
       }
@@ -139,7 +137,7 @@ export async function enforceSessionActivity<
     const row = readRaw();
     if (!row) return null;
     const rowMs = parseSessionTimestamp(row.updatedAt);
-    if (!Number.isFinite(rowMs)) return destroy();
+    if (rowMs === null) return destroy();
     let adopted = rowMs;
     if (rowMs < now) {
       const next: string | number = typeof row.updatedAt === "number" ? now : new Date(now).toISOString();
@@ -150,7 +148,7 @@ export async function enforceSessionActivity<
         const current = readRaw();
         if (!current) return null;
         const currentMs = parseSessionTimestamp(current.updatedAt);
-        if (!Number.isFinite(currentMs)) return destroy();
+        if (currentMs === null) return destroy();
         adopted = currentMs;
       }
     }
