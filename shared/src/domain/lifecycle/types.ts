@@ -42,9 +42,9 @@ export interface LifecycleFields {
  */
 export const LIFECYCLE_ENTITY_KEYS = Object.freeze(["resources", "clients", "projects"] as const);
 export type LifecycleEntityKey = (typeof LIFECYCLE_ENTITY_KEYS)[number];
-/** Narrowing guard: is `e` one of the tombstone-carrying tables? */
-export const isLifecycleEntityKey = (e: string): e is LifecycleEntityKey =>
-  (LIFECYCLE_ENTITY_KEYS as readonly string[]).includes(e);
+/** Narrowing guard: is `entityKey` one of the tombstone-carrying tables? */
+export const isLifecycleEntityKey = (entityKey: string): entityKey is LifecycleEntityKey =>
+  (LIFECYCLE_ENTITY_KEYS as readonly string[]).includes(entityKey);
 
 /**
  * The minimum age (in days) a soft-deleted tombstone must reach before it may be HARD-purged

@@ -1,15 +1,15 @@
 import type { AppData } from "../../types/entities";
 import { externalCapacityDefaults } from "../../types/entities";
 import { NEUTRAL_COLOR } from "../../lib/color";
-import { TS, STUDIO, LOFT } from "./constants";
+import { SEED_TIMESTAMP, STUDIO, LOFT } from "./constants";
 
 export function createResources(): AppData["resources"] {
   return [
     {
       id: "r-tyler",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       kind: "person",
       name: "Bruce Wayne",
       role: "Designer",
@@ -24,8 +24,8 @@ export function createResources(): AppData["resources"] {
     {
       id: "r-pam",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       kind: "person",
       name: "Diana Prince",
       role: "PR & Brand",
@@ -40,8 +40,8 @@ export function createResources(): AppData["resources"] {
     {
       id: "r-nike",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       kind: "person",
       name: "Clark Kent",
       role: "Web Developer",
@@ -56,8 +56,8 @@ export function createResources(): AppData["resources"] {
     {
       id: "r-alex",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       kind: "person",
       name: "Barry Allen",
       role: "Front End (freelance)",
@@ -72,8 +72,8 @@ export function createResources(): AppData["resources"] {
     {
       id: "r-ph-designer",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       kind: "placeholder",
       role: "Senior Designer",
       disciplineId: "d-design",
@@ -91,8 +91,8 @@ export function createResources(): AppData["resources"] {
     {
       id: "r-ext-northstar",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       kind: "external",
       name: "Kord Industries",
       role: "Partner studio",
@@ -102,8 +102,8 @@ export function createResources(): AppData["resources"] {
     {
       id: "r-jo",
       accountId: LOFT,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       kind: "person",
       name: "Steve Rogers",
       role: "Product Designer",

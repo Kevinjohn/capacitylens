@@ -31,9 +31,9 @@ export class InvalidSchemaVersionError extends Error {
   }
 }
 
-export function schemaVersion(obj: Record<string, unknown>): number {
-  if (!Object.hasOwn(obj, "schemaVersion")) return 0;
-  const value = obj.schemaVersion;
+export function parseSchemaVersion(record: Record<string, unknown>): number {
+  if (!Object.hasOwn(record, "schemaVersion")) return 0;
+  const value = record.schemaVersion;
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
     throw new InvalidSchemaVersionError();
   }
@@ -44,10 +44,10 @@ export function schemaVersion(obj: Record<string, unknown>): number {
 // the `data` field of a { schemaVersion, data } export. Returns null if not a plain object.
 export function importCandidate(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const obj = value as Record<string, unknown>;
-  if (!("data" in obj)) return obj;
-  return obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)
-    ? (obj.data as Record<string, unknown>)
+  const record = value as Record<string, unknown>;
+  if (!("data" in record)) return record;
+  return record.data && typeof record.data === "object" && !Array.isArray(record.data)
+    ? (record.data as Record<string, unknown>)
     : null;
 }
 
@@ -60,11 +60,11 @@ export function looksLikeCapacityLens(value: unknown): boolean {
   const candidate = importCandidate(value);
   // Accept legacy keys too (e.g. pre-rename `tasks`) so a valid older export — even one
   // whose only array is a renamed table — passes the guard and reaches migrate().
-  return !!candidate && RECOGNISED_KEYS.some((k) => Array.isArray(candidate[k]));
+  return !!candidate && RECOGNISED_KEYS.some((key) => Array.isArray(candidate[key]));
 }
 
 // A KNOWN table PRESENT but not an array (e.g. `resources: {…}` from a truncated or
-// hand-edited export) is structural damage. migrate()'s asArray() would silently coerce
+// hand-edited export) is structural damage. migrate()'s resolveArray() would silently coerce
 // it to [], and the "imported N" count — computed post-migrate — would report the lost
 // table as success. So REJECT it, matching every other load path,
 // which routes the same blob to recovery. Principle: repair within a record, reject a
@@ -73,25 +73,25 @@ export function hasNonArrayKnownTable(value: unknown): boolean {
   const candidate = importCandidate(value);
   // Legacy keys count too: a pre-rename `tasks: {…}` (object, not array) is the same
   // structural damage as a current key — reject it rather than coerce it to [] and lose it.
-  return !!candidate && RECOGNISED_KEYS.some((k) => k in candidate && !Array.isArray(candidate[k]));
+  return !!candidate && RECOGNISED_KEYS.some((key) => key in candidate && !Array.isArray(candidate[key]));
 }
 
-function asArray<T>(v: unknown): T[] {
-  return Array.isArray(v) ? (v as T[]) : [];
+function resolveArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
 }
 
 export function normalize(data: Partial<AppData> | undefined): AppData {
   if (!data || typeof data !== "object") return emptyAppData();
   return {
-    accounts: asArray(data.accounts),
-    disciplines: asArray(data.disciplines),
-    resources: asArray(data.resources),
-    clients: asArray(data.clients),
-    projects: asArray(data.projects),
-    phases: asArray(data.phases),
-    activities: asArray(data.activities),
-    allocations: asArray(data.allocations),
-    timeOff: asArray(data.timeOff),
-    closures: asArray(data.closures),
+    accounts: resolveArray(data.accounts),
+    disciplines: resolveArray(data.disciplines),
+    resources: resolveArray(data.resources),
+    clients: resolveArray(data.clients),
+    projects: resolveArray(data.projects),
+    phases: resolveArray(data.phases),
+    activities: resolveArray(data.activities),
+    allocations: resolveArray(data.allocations),
+    timeOff: resolveArray(data.timeOff),
+    closures: resolveArray(data.closures),
   };
 }

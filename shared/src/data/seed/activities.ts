@@ -1,13 +1,13 @@
 import type { AppData } from "../../types/entities";
-import { TS, STUDIO, LOFT } from "./constants";
+import { SEED_TIMESTAMP, STUDIO, LOFT } from "./constants";
 
 export function createActivities(): AppData["activities"] {
   return [
     {
       id: "t-wires",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       name: "Wireframes",
       kind: "project",
       projectId: "p-acme",
@@ -16,8 +16,8 @@ export function createActivities(): AppData["activities"] {
     {
       id: "t-visual",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       name: "Visual Design",
       kind: "project",
       projectId: "p-acme",
@@ -26,8 +26,8 @@ export function createActivities(): AppData["activities"] {
     {
       id: "t-cms",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       name: "CMS Review",
       kind: "project",
       projectId: "p-acme",
@@ -35,8 +35,8 @@ export function createActivities(): AppData["activities"] {
     {
       id: "t-brand",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       name: "Brand System",
       kind: "project",
       projectId: "p-brand",
@@ -45,8 +45,8 @@ export function createActivities(): AppData["activities"] {
     {
       id: "t-admin",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       name: "Admin / Internal",
       kind: "internal",
     },
@@ -55,24 +55,24 @@ export function createActivities(): AppData["activities"] {
     {
       id: "t-design",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       name: "Design",
       kind: "repeatable",
     },
     {
       id: "t-workshop",
       accountId: STUDIO,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       name: "Workshop",
       kind: "repeatable",
     },
     {
       id: "t-loft-screens",
       accountId: LOFT,
-      createdAt: TS,
-      updatedAt: TS,
+      createdAt: SEED_TIMESTAMP,
+      updatedAt: SEED_TIMESTAMP,
       name: "App Screens",
       kind: "project",
       projectId: "p-loft-app",

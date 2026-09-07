@@ -54,9 +54,9 @@ type MissingImportedField = {
 const importedFieldsAreComplete: MissingImportedField extends never ? true : never = true;
 void importedFieldsAreComplete;
 
-export const stripUnknownFields = (key: ScopedEntityKey, rec: Record<string, unknown>): void => {
+export const stripUnknownFields = (key: ScopedEntityKey, record: Record<string, unknown>): void => {
   const allowed: readonly string[] = IMPORTED_FIELDS[key];
-  for (const field of Object.keys(rec)) {
-    if (!allowed.includes(field)) delete rec[field];
+  for (const field of Object.keys(record)) {
+    if (!allowed.includes(field)) delete record[field];
   }
 };

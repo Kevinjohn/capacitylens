@@ -31,12 +31,12 @@ export { remapAndValidateImport } from "./importFold";
 export function deleteAccountCascade(data: AppData, accountId: ID): AppData {
   const next: AppData = {
     ...data,
-    accounts: data.accounts.filter((a) => a.id !== accountId),
+    accounts: data.accounts.filter((account) => account.id !== accountId),
   };
-  const src = scopedTables(data);
-  const dst = scopedTables(next);
+  const sourceTables = scopedTables(data);
+  const destinationTables = scopedTables(next);
   for (const key of SCOPED_KEYS) {
-    dst[key] = src[key].filter(notInAccount(accountId));
+    destinationTables[key] = sourceTables[key].filter(notInAccount(accountId));
   }
   return next;
 }
