@@ -78,6 +78,12 @@ export interface ColumnGeometryOptions {
   targetWeekWidth?: number;
 }
 
+function requireDenseValue<T>(values: T[], index: number, invariant: string): T {
+  const value = values[index];
+  if (value === undefined) throw new Error(invariant);
+  return value;
+}
+
 /**
  * Build the column geometry for `days` at `dayWidth`.
  *
@@ -113,15 +119,17 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: 
   const offsets: number[] = new Array(dayCount + 1);
   const weekdays: number[] = new Array(dayCount);
   offsets[0] = 0;
-  for (let i = 0; i < dayCount; i++) {
-    const weekday = weekdayOf(days[i]);
-    weekdays[i] = weekday;
+  for (let index = 0; index < dayCount; index++) {
+    const day = requireDenseValue(days, index, "Column geometry day window must be dense.");
+    const weekday = weekdayOf(day);
+    weekdays[index] = weekday;
     const isWeekend = weekday === 0 || weekday === 6;
     const extra = minimiseActive ? !isWeekend && weekday - 1 < extraPixels : weekday < extraPixels;
-    widths[i] = minimiseActive && isWeekend ? narrowWidth : dayWidth + (extra ? 1 : 0);
-    offsets[i + 1] = offsets[i] + widths[i];
+    const width = minimiseActive && isWeekend ? narrowWidth : dayWidth + (extra ? 1 : 0);
+    widths[index] = width;
+    offsets[index + 1] = requireDenseValue(offsets, index, "Column geometry offsets must be dense.") + width;
   }
-  const totalWidth = offsets[dayCount];
+  const totalWidth = requireDenseValue(offsets, dayCount, "Column geometry offsets must align with the day window.");
   const origin = days[0]; // undefined only when n === 0 (an empty window)
 
   const clampEdge = (i: number): number => (i < 0 ? 0 : i > dayCount ? dayCount : i);
@@ -131,7 +139,7 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: 
   const xForDayIndex = (i: number): number => {
     if (i < 0) return i * dayWidth;
     if (i > dayCount) return totalWidth + (i - dayCount) * dayWidth;
-    return offsets[i];
+    return requireDenseValue(offsets, i, "Column geometry offsets must align with the day window.");
   };
 
   const indexAt = (px: number): number => {
@@ -143,7 +151,8 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: 
     let upperIndex = dayCount - 1;
     while (lowerIndex < upperIndex) {
       const middleIndex = (lowerIndex + upperIndex + 1) >> 1;
-      if (offsets[middleIndex] <= px) lowerIndex = middleIndex;
+      if (requireDenseValue(offsets, middleIndex, "Column geometry offsets must be dense.") <= px)
+        lowerIndex = middleIndex;
       else upperIndex = middleIndex - 1;
     }
     return lowerIndex;
@@ -157,9 +166,17 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: 
     perDayColumns,
     showWeekdayLabels: dayWidth >= WEEKDAY_LABEL_MIN_WIDTH,
     minimiseActive,
-    x: (index) => offsets[clampEdge(index)],
-    widthOf: (index) => (index >= 0 && index < dayCount ? widths[index] : 0),
-    spanWidth: (startIndex, endIndex) => Math.max(0, offsets[clampEdge(endIndex + 1)] - offsets[clampEdge(startIndex)]),
+    x: (index) => requireDenseValue(offsets, clampEdge(index), "Column geometry offsets must be dense."),
+    widthOf: (index) =>
+      index >= 0 && index < dayCount
+        ? requireDenseValue(widths, index, "Column geometry widths must align with the day window.")
+        : 0,
+    spanWidth: (startIndex, endIndex) =>
+      Math.max(
+        0,
+        requireDenseValue(offsets, clampEdge(endIndex + 1), "Column geometry offsets must be dense.") -
+          requireDenseValue(offsets, clampEdge(startIndex), "Column geometry offsets must be dense."),
+      ),
     indexAt,
     indexAtScroll: (scrollLeft) => indexAt(Math.round(scrollLeft)),
     xForDateInGeom: (date) => {
@@ -187,10 +204,16 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: 
  * those answers is a view that jumps. Goes through {@link ColumnGeometry.indexAtScroll}, so the
  * HiDPI sub-pixel rounding applies here too.
  *
- * `?? days[0]` covers an out-of-range index from a custom geometry implementation; on an EMPTY
- * window there is no such date and the result is undefined at runtime (callers that can be handed
- * one — `visibleStartDate` — keep their own final fallback).
+ * An empty window has no date and returns undefined. A geometry that resolves outside a non-empty
+ * day window violates the alignment invariant and throws.
  */
-export function resolveLeftEdgeDate(geometry: ColumnGeometry, days: ISODate[], scrollLeft: number): ISODate {
-  return days[geometry.indexAtScroll(scrollLeft)] ?? days[0];
+export function resolveLeftEdgeDate(
+  geometry: ColumnGeometry,
+  days: ISODate[],
+  scrollLeft: number,
+): ISODate | undefined {
+  if (days.length === 0) return undefined;
+  const day = days[geometry.indexAtScroll(scrollLeft)];
+  if (day === undefined) throw new Error("Column geometry index is outside the day window.");
+  return day;
 }

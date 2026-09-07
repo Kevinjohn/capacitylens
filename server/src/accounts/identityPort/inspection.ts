@@ -92,7 +92,7 @@ export function createInspection(
               )
                 .filter(({ expiresAt }) => {
                   const expiry = parseTimestampMilliseconds(expiresAt);
-                  return !Number.isFinite(expiry) || expiry > Date.now();
+                  return expiry === null || expiry > Date.now();
                 })
                 .map(({ value }) => value)
                 .filter((value) => principalIds.has(value)),

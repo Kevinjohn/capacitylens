@@ -3,6 +3,14 @@ import { m } from "@/i18n";
 import type { Option } from "../common/ui";
 import { compareDisplayNames } from "@/lib/displayOrder";
 
+interface BuildActivityOptionsInput {
+  activities: readonly Activity[];
+  phases: readonly Phase[];
+  projects: readonly Project[];
+  kind: Activity["kind"];
+  projectId?: string | undefined;
+}
+
 export type ActivityGroupKey = "all-projects" | "project";
 
 export function resolveGroupKeyForKind(kind: Activity["kind"]): ActivityGroupKey {
@@ -27,13 +35,13 @@ export function sortGroupedOptions(options: readonly Option[]): Option[] {
 }
 
 /** Build alphabetized, distinct activity labels from pre-indexed project and phase metadata. */
-export function buildActivityOptions(
-  activities: readonly Activity[],
-  phases: readonly Phase[],
-  projects: readonly Project[],
-  kind: Activity["kind"],
-  projectId?: string,
-): Option[] {
+export function buildActivityOptions({
+  activities,
+  phases,
+  projects,
+  kind,
+  projectId,
+}: BuildActivityOptionsInput): Option[] {
   const groupedProjectScope = kind === "project" && projectId !== undefined;
   const eligible = activities.filter((activity) =>
     groupedProjectScope

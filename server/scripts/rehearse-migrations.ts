@@ -4,14 +4,7 @@ import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
-import {
-  DB_SCHEMA_VERSION,
-  initializeOpenDb,
-  openDb,
-  openDbConnection,
-  planDatabaseMigrations,
-  type Db,
-} from "../src/db";
+import { DB_SCHEMA_VERSION, initializeOpenDb, openDb, openDbConnection, planDatabaseMigrations } from "../src/db";
 import { writePreMigrationBackup } from "../src/backup";
 import { assertMigrationValuesPreserved, captureMigrationValues } from "../src/migrationPreservation";
 
@@ -83,9 +76,9 @@ async function expectKilledMigrationRollsBack(path: string, targetVersion: numbe
         `process termination reached database v${recoveredVersion}; expected the target v${targetVersion} transaction to roll back to v${targetVersion - 1}`,
       );
     }
-    initializeOpenDb(recovered as Db, path);
+    initializeOpenDb(recovered, path);
     checkIntegrity(recovered, "process-termination resumed upgrade");
-    if (planDatabaseMigrations(recovered as Db).migrations.length !== 0) {
+    if (planDatabaseMigrations(recovered).migrations.length !== 0) {
       throw new Error("process-termination recovery did not complete the remaining migration chain");
     }
   } finally {
@@ -174,7 +167,7 @@ async function main(): Promise<void> {
       beforeCounts = readRowCountsByTable(sanitising);
       beforeValues = captureMigrationValues(sanitising);
       beforeDigest = readDatabaseDigest(sanitising);
-      plan = planDatabaseMigrations(sanitising as Db);
+      plan = planDatabaseMigrations(sanitising);
     } finally {
       sanitising.close();
     }
@@ -272,11 +265,12 @@ async function main(): Promise<void> {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv[2] === "--worker-kill") {
+    const sourcePath = process.argv[3];
     const targetVersion = Number(process.argv[4]);
-    if (!Number.isSafeInteger(targetVersion) || targetVersion <= 0) {
+    if (!sourcePath || !Number.isSafeInteger(targetVersion) || targetVersion <= 0) {
       throw new Error("--worker-kill requires a positive target migration version");
     }
-    await runKilledMigrationWorker(resolve(process.argv[3]), targetVersion);
+    await runKilledMigrationWorker(resolve(sourcePath), targetVersion);
   } else {
     await main();
   }

@@ -218,6 +218,9 @@ export function assertMigrationValuesPreserved(
           );
         }
         const afterValue = afterRow[column];
+        if (afterValue === undefined) {
+          throw new Error(`migration comparison could not resolve ${tableName}.${column} in row ${key}`);
+        }
         if (canonicalCell(beforeValue) === canonicalCell(afterValue)) continue;
         if (
           approvedCellChange({

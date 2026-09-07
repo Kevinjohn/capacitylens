@@ -71,9 +71,9 @@ export function usePermissionStatus(): NonNullable<PermissionContextValue["statu
  * @returns `true` when the affordance should be shown.
  */
 export function useCan(action: Action): boolean {
-  const masqueradePhase = useStore((state) => state.masquerade.phase);
+  const masqueradeKind = useStore((state) => state.masquerade.kind);
   const role = useRole();
-  if (action !== "read" && masqueradePhase !== "inactive") return false;
+  if (action !== "read" && masqueradeKind !== "inactive") return false;
   return role === null ? true : can(role, action);
 }
 

@@ -63,7 +63,12 @@ describe("generateRepeatingStartDates weekly", () => {
     expect(result.startDates).toHaveLength(count);
     expect(result.startDates[0]).toBe("2026-04-01");
     expect(result.startDates.every((date) => weekdayOf(date) === weekdayOf("2026-04-01"))).toBe(true);
-    expect(result.startDates.every((date, index, dates) => index === 0 || date > dates[index - 1])).toBe(true);
+    expect(
+      result.startDates.every((date, index, dates) => {
+        const previous = dates[index - 1];
+        return previous === undefined || date > previous;
+      }),
+    ).toBe(true);
   });
 
   it("includes a candidate exactly on the window end and excludes the next", () => {

@@ -1,7 +1,7 @@
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import type { IdentityPort } from "@capacitylens/shared/account/ports";
 import type { ProvisionalPrincipal } from "@capacitylens/shared/account/types";
-import { type Auth, type AuthMode } from "../../auth";
+import { type Auth, type AccountMode } from "../../auth";
 import type { Db } from "../../db";
 
 export interface MasqueradeSessionLifecycle {
@@ -98,7 +98,7 @@ export interface IdentityTableProbes {
 export type IdentityPortInput = {
   applicationId: string;
   auth: Auth;
-  authMode: Exclude<AuthMode, "off">;
+  authMode: Exclude<AccountMode, "off">;
   db: Db;
   publicBaseUrl?: string;
   masqueradeSessions?: MasqueradeSessionLifecycle;

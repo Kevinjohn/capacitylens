@@ -32,7 +32,12 @@ export function applyBatch(
   ops: Op[],
   options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
 ): Promise<BatchCommitReceipt> {
-  return dispatchPreparedBatch(state, prepareBatchBody(state, ops, options), ops, options);
+  return dispatchPreparedBatch({
+    state: state,
+    body: prepareBatchBody(state, ops, options),
+    ops: ops,
+    ...(options ? { options } : {}),
+  });
 }
 
 /** Validate and serialize before a teardown dispatches any ordering-dependent sibling request. */
@@ -58,15 +63,22 @@ export function prepareBatchBody(
   return body;
 }
 
-export function dispatchPreparedBatch(
-  state: SyncState,
-  body: string,
-  ops: Op[],
-  options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
-): Promise<BatchCommitReceipt> {
+interface DispatchPreparedBatchInput {
+  state: SyncState;
+  body: string;
+  ops: Op[];
+  options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean };
+}
+
+export function dispatchPreparedBatch({
+  state,
+  body,
+  ops,
+  options,
+}: DispatchPreparedBatchInput): Promise<BatchCommitReceipt> {
   const sequence = state.nextSyncSequence;
   state.nextSyncSequence += 1;
-  return postBatch(state, body, ops, sequence, options);
+  return postBatch({ state: state, body: body, ops: ops, sequence: sequence, ...(options ? { options } : {}) });
 }
 
 // updatedAt on the wire is a concurrency precondition: rebase each PUT onto the last authoritative
@@ -91,31 +103,35 @@ export function rebaseForWire(state: SyncState, ops: Op[]): Op[] {
   });
 }
 
+interface PostBatchInput {
+  state: SyncState;
+  body: string;
+  ops: Op[];
+  sequence: number;
+  options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean };
+}
+
 // POST the complete ≤MAX_OPS_PER_BATCH diff to /api/batch; the server applies it in one
 // transaction (upserts parent-first, then deletes child-first — see syncOps.diffOps), so a
 // mid-batch failure rolls the whole transaction back. keepalive (unload) lets the request outlive
 // the page. `body` is the already-serialized, PUT-rebased wire payload; `ops` supplies the exact
 // PUT identities that a non-superseded server receipt must cover.
-export async function postBatch(
-  state: SyncState,
-  body: string,
-  ops: Op[],
-  sequence: number,
-  options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
-): Promise<BatchCommitReceipt> {
-  const res = await sendBatch(state, body, sequence, options);
+export async function postBatch({ state, body, ops, sequence, options }: PostBatchInput): Promise<BatchCommitReceipt> {
+  const res = await sendBatch({ state: state, body: body, sequence: sequence, ...(options ? { options } : {}) });
   await throwForBatchStatus(res);
   return readBatchReceipt(res, ops, options);
 }
 
+interface SendBatchInput {
+  state: SyncState;
+  body: string;
+  sequence: number;
+  options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean };
+}
+
 /** Dispatch stage: build and send the request, mapping a transport-level failure to the typed
  *  uncertain-commit error (the request may have been applied before the connection died). */
-export async function sendBatch(
-  state: SyncState,
-  body: string,
-  sequence: number,
-  options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
-): Promise<Response> {
+export async function sendBatch({ state, body, sequence, options }: SendBatchInput): Promise<Response> {
   let res: Response;
   try {
     res = await state.request(
@@ -128,7 +144,7 @@ export async function sendBatch(
           "X-CapacityLens-Sync-Sequence": String(sequence),
         },
         body,
-        keepalive: options?.keepalive,
+        ...(options?.keepalive === undefined ? {} : { keepalive: options.keepalive }),
         credentials: "include",
       },
       // The atomic write is a BULK op: give it the long bound so a big-but-healthy batch isn't

@@ -46,7 +46,7 @@ function startPersistence(): void {
     // fresh real deploy now deliberately starts EMPTY at the create-your-company picker rather than
     // fabricating a "Wayne Enterprises". `undefined` here means bootstrap() only loads whatever the
     // server already has (possibly nothing).
-    seedIfEmpty: isDemoMode() ? seedForCurrentWeek() : undefined,
+    ...(isDemoMode() ? { seedIfEmpty: seedForCurrentWeek() } : {}),
     // Per-account hydration (P1.13): in server mode a tenant pick loads ONLY that account's slice and
     // re-seeds the diff snapshot atomically (the switch orchestrator). The demo build leaves it inert.
     serverMode: isServerConfigured(),

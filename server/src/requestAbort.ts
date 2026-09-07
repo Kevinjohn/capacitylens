@@ -12,7 +12,10 @@ export function runWithRequestAbortSignal<T>(
   callback: () => T,
   reportQueueSaturation?: RequestWorkContext["reportQueueSaturation"],
 ): T {
-  return requestAbortContext.run({ signal, reportQueueSaturation }, callback);
+  return requestAbortContext.run(
+    { signal, ...(reportQueueSaturation === undefined ? {} : { reportQueueSaturation }) },
+    callback,
+  );
 }
 
 export function readCurrentRequestAbortSignal(): AbortSignal | undefined {

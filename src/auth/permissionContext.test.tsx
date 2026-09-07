@@ -29,7 +29,7 @@ const ACTIONS = [
 
 const ROLES: readonly Role[] = ["owner", "admin", "editor", "viewer"];
 
-beforeEach(() => useStore.getState().setMasquerade({ phase: "inactive" }));
+beforeEach(() => useStore.getState().setMasquerade({ kind: "inactive" }));
 
 const withRole =
   (role: Role | null) =>
@@ -70,7 +70,7 @@ describe("useCan", () => {
   it("permits reads but denies every other action throughout a masquerade transition", () => {
     act(() =>
       useStore.getState().setMasquerade({
-        phase: "starting",
+        kind: "starting",
         pending: { accountId: "a-studio", targetUserId: "u-viewer" },
         generation: 1,
       }),

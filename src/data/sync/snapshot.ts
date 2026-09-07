@@ -70,12 +70,14 @@ export function seedSnapshot(state: SyncState, data: AppData, accountId?: string
   state.archivedBySync.clear();
 }
 
-export function rememberRevisions(
-  state: SyncState,
-  ops: Op[],
-  revisions: CommittedRevision[],
-  committedSnapshot: AppData,
-): void {
+interface RememberRevisionsInput {
+  state: SyncState;
+  ops: Op[];
+  revisions: CommittedRevision[];
+  committedSnapshot: AppData;
+}
+
+export function rememberRevisions({ state, ops, revisions, committedSnapshot }: RememberRevisionsInput): void {
   const revisionsByRowKey = new Map(
     revisions
       .filter((revision) => revision.rewrite !== true)

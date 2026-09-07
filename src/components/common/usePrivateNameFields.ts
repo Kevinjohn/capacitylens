@@ -11,8 +11,8 @@ interface PrivateNameSource {
 }
 
 interface PrivacyPatch {
-  isPrivate?: true;
-  codeName?: string;
+  isPrivate?: true | undefined;
+  codeName?: string | undefined;
 }
 
 export function usePrivateNameFields(source: PrivateNameSource | undefined, fail: FormFieldError["fail"]) {

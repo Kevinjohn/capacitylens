@@ -48,95 +48,118 @@ export interface AllocationDraftValidationInput {
   } | null;
 }
 
+type CountFieldInput = Pick<
+  AllocationDraftValidationInput,
+  "startDate" | "validDaysOver" | "spanFitsDateDomain" | "spanLimitedByDateDomain" | "maximumDaysOver"
+>;
+type Fail = (field: AllocationDraftProblem["field"], message: AllocationDraftProblem["message"]) => void;
+
 /** The Start + "Days over" pair the two span modes share. The date-domain message is distinct from
  *  the plain range one: near year 9999 the cap is the calendar itself, not MAX_SPAN_DAYS, and
  *  telling the user "max 36,500" there would be a lie. */
-function validateCountField({
-  startDate,
-  validDaysOver,
-  spanFitsDateDomain,
-  spanLimitedByDateDomain,
-  maximumDaysOver,
-}: AllocationDraftValidationInput): AllocationDraftProblem | null {
-  if (!startDate) return { field: "dates", message: m.form_allocation_err_start_required() };
+function validateCountField(
+  { startDate, validDaysOver, spanFitsDateDomain, spanLimitedByDateDomain, maximumDaysOver }: CountFieldInput,
+  fail: Fail,
+): boolean {
+  if (!startDate) {
+    fail("dates", m.form_allocation_err_start_required());
+    return false;
+  }
   if (!validDaysOver) {
-    return { field: "daysOver", message: m.form_allocation_err_days_over_range({ max: MAX_SPAN_DAYS }) };
+    fail("daysOver", m.form_allocation_err_days_over_range({ max: MAX_SPAN_DAYS }));
+    return false;
   }
   if (!spanFitsDateDomain) {
-    return {
-      field: "daysOver",
-      message: spanLimitedByDateDomain
+    fail(
+      "daysOver",
+      spanLimitedByDateDomain
         ? m.form_allocation_err_days_over_date_domain()
         : m.form_allocation_err_days_over_range({ max: maximumDaysOver }),
-    };
+    );
+    return false;
   }
-  return null;
+  return true;
 }
 
 /** Every rule the visible allocation draft must satisfy before it may be written, in the order the
- *  user should hear about them. Returns the FIRST problem, or `null` when the draft is persistable.
+ *  user should hear about them. Reports the FIRST problem and returns whether the draft is persistable.
  *  Save and Duplicate both run this so Duplicate cannot persist a shape Save would reject. */
-export function validateAllocationDraft(input: AllocationDraftValidationInput): AllocationDraftProblem | null {
+export function validateAllocationDraft(input: AllocationDraftValidationInput, fail: Fail): boolean {
   const { startDate, endDate, isBlocks, isDays, isExternal, effHoursPerDay: effectiveHoursPerDay } = input;
-  if (!input.resourceId) return { field: "resource", message: m.form_allocation_err_choose_resource() };
-  if (!input.activityId) return { field: "activity", message: m.form_allocation_err_choose_activity() };
+  if (!input.resourceId) {
+    fail("resource", m.form_allocation_err_choose_resource());
+    return false;
+  }
+  if (!input.activityId) {
+    fail("activity", m.form_allocation_err_choose_activity());
+    return false;
+  }
   if (input.usesTypedDateRange) {
     // External and hourly allocations both use the raw Start/End inputs. Validate this once so
     // neither mode can persist a range the advisory deliberately refuses to enumerate.
-    if (!startDate || !endDate) return { field: "dates", message: m.form_allocation_err_dates_required() };
-    if (endDate < startDate) return { field: "dates", message: m.form_allocation_err_end_before_start() };
+    if (!startDate || !endDate) {
+      fail("dates", m.form_allocation_err_dates_required());
+      return false;
+    }
+    if (endDate < startDate) {
+      fail("dates", m.form_allocation_err_end_before_start());
+      return false;
+    }
     if (input.typedDateSpanTooLong) {
-      return {
-        field: "dates",
-        message: m.form_allocation_err_date_span_range({ max: MAX_SPAN_DAYS.toLocaleString("en-GB") }),
-      };
+      fail("dates", m.form_allocation_err_date_span_range({ max: MAX_SPAN_DAYS.toLocaleString("en-GB") }));
+      return false;
     }
   }
   if (isBlocks || isDays) {
     // Blocks and days derive their end date from the SAME (start, days-over) pair, so they reject
     // it identically. Days then adds its own work-volume field on top.
-    const countProblem = validateCountField(input);
-    if (countProblem) return countProblem;
+    if (!validateCountField(input, fail)) return false;
     if (isDays && !(input.daysOfWork > 0)) {
-      return { field: "daysOfWork", message: m.form_allocation_err_days_of_work_gt_zero() };
+      fail("daysOfWork", m.form_allocation_err_days_of_work_gt_zero());
+      return false;
     }
   } else if (!isExternal) {
-    if (!(input.hoursPerDay > 0)) return { field: "hours", message: m.form_allocation_err_hours_gt_zero() };
+    if (!(input.hoursPerDay > 0)) {
+      fail("hours", m.form_allocation_err_hours_gt_zero());
+      return false;
+    }
   }
   const { repeat } = input;
   if (repeat) {
     if (!repeat.until || !isValidISODate(repeat.until)) {
-      return { field: "repeatUntil", message: m.form_allocation_err_repeat_until_required() };
+      fail("repeatUntil", m.form_allocation_err_repeat_until_required());
+      return false;
     }
     if (repeat.until < repeat.today) {
-      return { field: "repeatUntil", message: m.form_allocation_err_repeat_until_past() };
+      fail("repeatUntil", m.form_allocation_err_repeat_until_past());
+      return false;
     }
     if (repeat.until < startDate) {
-      return { field: "repeatUntil", message: m.form_allocation_err_repeat_until_before_start() };
+      fail("repeatUntil", m.form_allocation_err_repeat_until_before_start());
+      return false;
     }
-    if (!repeat.maximum) return { field: "repeatUntil", message: m.form_allocation_err_repeat_date_domain() };
+    if (!repeat.maximum) {
+      fail("repeatUntil", m.form_allocation_err_repeat_date_domain());
+      return false;
+    }
     if (repeat.until > repeat.maximum) {
-      return {
-        field: "repeatUntil",
-        message: m.form_allocation_err_repeat_until_after_max({ max: formatShortDate(repeat.maximum) }),
-      };
+      fail("repeatUntil", m.form_allocation_err_repeat_until_after_max({ max: formatShortDate(repeat.maximum) }));
+      return false;
     }
     try {
       generateRepeatingStartDates(startDate, repeat.until, resolveRepeatPattern(repeat.selection));
     } catch (error) {
       if (error instanceof RepeatingDateError) {
-        return {
-          field: "repeatUntil",
-          message:
-            error.code === "no-repeat"
-              ? m.form_allocation_err_repeat_until_no_occurrence()
-              : m.form_allocation_err_repeat_date_domain(),
-        };
+        fail(
+          "repeatUntil",
+          error.code === "no-repeat"
+            ? m.form_allocation_err_repeat_until_no_occurrence()
+            : m.form_allocation_err_repeat_date_domain(),
+        );
+        return false;
       }
-      return {
-        field: null,
-        message: error instanceof Error ? resolveErrorMessage(error) : m.form_allocation_err_save_failed(),
-      };
+      fail(null, error instanceof Error ? resolveErrorMessage(error) : m.form_allocation_err_save_failed());
+      return false;
     }
   }
   // Single anti-silent-clamp guard for every load-carrying mode (days + hourly; external is a
@@ -151,11 +174,15 @@ export function validateAllocationDraft(input: AllocationDraftValidationInput): 
     !isBlocks &&
     !(Number.isFinite(effectiveHoursPerDay) && effectiveHoursPerDay > 0 && effectiveHoursPerDay <= MAX_HOURS_PER_DAY)
   ) {
-    return isDays
-      ? { field: "daysOfWork", message: m.form_allocation_err_days_over_max({ max: MAX_HOURS_PER_DAY }) }
-      : { field: "hours", message: m.form_allocation_err_hours_over_max({ max: MAX_HOURS_PER_DAY }) };
+    fail(
+      isDays ? "daysOfWork" : "hours",
+      isDays
+        ? m.form_allocation_err_days_over_max({ max: MAX_HOURS_PER_DAY })
+        : m.form_allocation_err_hours_over_max({ max: MAX_HOURS_PER_DAY }),
+    );
+    return false;
   }
-  return null;
+  return true;
 }
 
 export interface EndDateInput {

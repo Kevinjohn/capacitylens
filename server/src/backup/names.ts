@@ -21,6 +21,8 @@ export function buildSnapshotName(now: Date): string {
 export function parseSnapshotTimestamp(name: string): number {
   const m = /^capacitylens-(utc-)?(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})(?:-(\d{3}))?\.db$/.exec(name);
   if (!m) return 0;
-  const parts = [+m[2], +m[3] - 1, +m[4], +m[5], +m[6], +m[7], m[8] ? +m[8] : 0] as const;
-  return m[1] ? Date.UTC(...parts) : new Date(...parts).getTime();
+  const [, utcMarker, year, month, day, hour, minute, second, milliseconds] = m;
+  if (!year || !month || !day || !hour || !minute || !second) return 0;
+  const parts = [+year, +month - 1, +day, +hour, +minute, +second, milliseconds ? +milliseconds : 0] as const;
+  return utcMarker ? Date.UTC(...parts) : new Date(...parts).getTime();
 }

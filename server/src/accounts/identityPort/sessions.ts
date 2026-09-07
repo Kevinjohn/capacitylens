@@ -169,9 +169,9 @@ export function createSessions(
             const updatedAt = parseTimestampMilliseconds(row.updatedAt);
             const providerExpiry = row.expiresAt === null ? null : parseTimestampMilliseconds(row.expiresAt);
             const stale =
-              !Number.isFinite(createdAt) ||
-              !Number.isFinite(updatedAt) ||
-              (providerExpiry !== null && !Number.isFinite(providerExpiry)) ||
+              createdAt === null ||
+              updatedAt === null ||
+              (row.expiresAt !== null && providerExpiry === null) ||
               now >= createdAt + SESSION_ABSOLUTE_TTL_SECONDS * 1000 ||
               now >= updatedAt + SESSION_INACTIVITY_TTL_SECONDS * 1000 ||
               (providerExpiry !== null && now >= providerExpiry);

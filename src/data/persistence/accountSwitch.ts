@@ -5,19 +5,22 @@ import type { WriteQueue } from "./writeQueue";
 import type { RefreshController } from "./refreshController";
 import type { RefreshOutcome } from "./facades";
 
-export function attachAccountSwitch(
-  store: StoreApi<StoreState>,
-  owner: AttachmentState,
-  writes: WriteQueue,
-  refresh: RefreshController,
-  serverMode: boolean,
-) {
+interface AttachAccountSwitchInput {
+  store: StoreApi<StoreState>;
+  owner: AttachmentState;
+  writes: WriteQueue;
+  refresh: RefreshController;
+  serverMode: boolean;
+}
+
+export function attachAccountSwitch({ store, owner, writes, refresh, serverMode }: AttachAccountSwitchInput) {
   const { save } = writes;
   const { refreshActive } = refresh;
   const { cancelDebounce } = owner;
   const settleSwitch = (id: string | null, outcome: RefreshOutcome) => {
     for (let index = owner.current.switchWaiters.length - 1; index >= 0; index -= 1) {
-      const waiter = owner.current.switchWaiters[index]!;
+      const waiter = owner.current.switchWaiters[index];
+      if (!waiter) continue;
       if (waiter.id !== id) continue;
       owner.current.switchWaiters.splice(index, 1);
       waiter.resolve(outcome);
@@ -47,14 +50,14 @@ export function attachAccountSwitch(
               save(owner.current.pending);
               if (owner.current.inFlightSave) await owner.current.inFlightSave;
             }
-            settleSwitch(null, "reloaded");
+            settleSwitch(null, { kind: "reloaded" });
           })();
           return;
         }
         void refreshActive(newId).then((outcome) => {
           // A successful company switch just loaded this same slice. Count it as a refresh so a
           // focus event delivered by the picker transition cannot immediately load it again.
-          if (outcome === "reloaded") owner.update({ lastRefreshAt: Date.now() });
+          if (outcome.kind === "reloaded") owner.update({ lastRefreshAt: Date.now() });
           settleSwitch(newId, outcome);
         });
       })
@@ -65,12 +68,12 @@ export function attachAccountSwitch(
         new Promise<RefreshOutcome>((resolve) => {
           const previousId = store.getState().activeAccountId;
           if (previousId === id) {
-            resolve("skipped");
+            resolve({ kind: "skipped" });
             return;
           }
           owner.current.switchWaiters.push({ id, resolve });
           store.getState().setActiveAccount(id);
-          if (store.getState().activeAccountId !== id) settleSwitch(id, "skipped");
+          if (store.getState().activeAccountId !== id) settleSwitch(id, { kind: "skipped" });
         })
     : null;
 

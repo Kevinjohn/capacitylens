@@ -8,6 +8,7 @@ import { attachPersistence } from "../data/persist";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { setOfflineReadState } from "../data/offlineCache";
 import { markCompanyPickerForNextReload } from "../lib/companyPickerEntry";
+import { m } from "@/i18n";
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
 vi.mock("@/i18n", async (importOriginal) => ({
@@ -39,7 +40,7 @@ beforeEach(() => {
   // Clear any leftover transient notice so a prior test's Sonner toast can't bleed in (the
   // toast layer is module-global; the store notice is the source of truth the bridge reads).
   useStore.getState().setNotice(null);
-  useStore.getState().setMasquerade({ phase: "inactive" });
+  useStore.getState().setMasquerade({ kind: "inactive" });
   // Most shell tests exercise the post-hydration UI; the dedicated handoff test overrides this.
   useStore.getState().setHydrated(true);
   setOfflineReadState("cleanup", false);
@@ -74,7 +75,7 @@ function LocationProbe() {
 
 it("shows the session-scoped masquerade banner above ordinary app alerts", () => {
   useStore.getState().setMasquerade({
-    phase: "active",
+    kind: "active",
     generation: 1,
     state: {
       accountId: DEFAULT_ACCOUNT_ID,
@@ -99,7 +100,7 @@ it("shows the session-scoped masquerade banner above ordinary app alerts", () =>
 
 it("shows a fail-closed banner while a member view is starting", () => {
   useStore.getState().setMasquerade({
-    phase: "starting",
+    kind: "starting",
     generation: 1,
     pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
   });
@@ -113,7 +114,7 @@ it("shows a fail-closed banner while a member view is starting", () => {
 
 it("offers projection recovery after the server has prepared a starting member view", () => {
   useStore.getState().setMasquerade({
-    phase: "starting",
+    kind: "starting",
     generation: 1,
     pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
     state: {
@@ -345,11 +346,11 @@ it("does not reactivate a sole company after its loaded slice proves missing", a
 });
 
 it("guards navigation while a persistence write is still unacknowledged", () => {
-  const detachPersistence = attachPersistence(
-    useStore,
-    { loadAll: async () => emptyAppData(), saveAll: async () => {} },
-    300,
-  );
+  const detachPersistence = attachPersistence({
+    store: useStore,
+    adapter: { loadAll: async () => emptyAppData(), saveAll: async () => {} },
+    debounceMs: 300,
+  });
   const { unmount } = renderAppShell();
   act(() => {
     useStore.getState().addClient({ name: "Unsaved client", color: "#111111" });
@@ -377,9 +378,28 @@ describe("AppShell navigation links", () => {
     await waitFor(() => expect(document.title).toBe("Resources · CapacityLens"));
   });
 
+  it("resolves navigation labels again after the account locale changes", async () => {
+    let secondLocale = false;
+    vi.spyOn(m, "nav_resources").mockImplementation(
+      () => (secondLocale ? "Ressources" : "Resources") as ReturnType<typeof m.nav_resources>,
+    );
+
+    renderAppShell(["/resources"]);
+    await waitFor(() => expect(screen.getByRole("link", { name: "Resources" })).toBeInTheDocument());
+    expect(document.title).toBe("Resources · CapacityLens");
+
+    secondLocale = true;
+    act(() => {
+      useStore.setState({ data: makeAppData({ accounts: [makeAccount({ language: "fr" })] }) });
+    });
+
+    await waitFor(() => expect(screen.getByRole("link", { name: "Ressources" })).toBeInTheDocument());
+    expect(document.title).toBe("Ressources · CapacityLens");
+  });
+
   it("preserves the last locale while a selected company's slice is still loading", async () => {
     const currentAccount = makeAccount({ language: "en" });
-    const destinationAccount = makeAccount({ id: "acct-other", name: "Other Co", language: undefined });
+    const destinationAccount = makeAccount({ id: "acct-other", name: "Other Co" });
     useStore.getState().replaceAll(makeAppData({ accounts: [currentAccount] }));
     renderAppShell();
     await waitFor(() => expect(i18nMocks.syncLocaleFromAccount).toHaveBeenCalledWith("en"));

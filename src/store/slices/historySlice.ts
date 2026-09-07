@@ -86,7 +86,9 @@ export function createHistorySlice(internals: StoreInternals): StateCreator<Stor
       undo: createGuardedAction(() => {
         set((state) => {
           if (state.past.length === 0) return {};
-          const previous = prepareHistoryTarget(state.data, state.past[state.past.length - 1]);
+          const snapshot = state.past[state.past.length - 1];
+          if (!snapshot) return {};
+          const previous = prepareHistoryTarget(state.data, snapshot);
           return {
             data: previous,
             past: state.past.slice(0, -1),
@@ -97,7 +99,9 @@ export function createHistorySlice(internals: StoreInternals): StateCreator<Stor
       redo: createGuardedAction(() => {
         set((state) => {
           if (state.future.length === 0) return {};
-          const next = prepareHistoryTarget(state.data, state.future[0]);
+          const snapshot = state.future[0];
+          if (!snapshot) return {};
+          const next = prepareHistoryTarget(state.data, snapshot);
           return {
             data: next,
             future: state.future.slice(1),

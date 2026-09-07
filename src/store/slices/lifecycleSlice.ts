@@ -74,20 +74,20 @@ export function createLifecycleSlice(internals: StoreInternals): StateCreator<St
             ? {
                 allocations: data.allocations.map((allocation) =>
                   allocation.resourceId === id && allocation.note != null
-                    ? {
-                        ...allocation,
-                        note: undefined,
-                        updatedAt: touchAfter(allocation.updatedAt),
-                      }
+                    ? (() => {
+                        const scrubbed = { ...allocation, updatedAt: touchAfter(allocation.updatedAt) };
+                        delete scrubbed.note;
+                        return scrubbed;
+                      })()
                     : allocation,
                 ),
                 timeOff: data.timeOff.map((timeOff) =>
                   timeOff.resourceId === id && timeOff.note != null
-                    ? {
-                        ...timeOff,
-                        note: undefined,
-                        updatedAt: touchAfter(timeOff.updatedAt),
-                      }
+                    ? (() => {
+                        const scrubbed = { ...timeOff, updatedAt: touchAfter(timeOff.updatedAt) };
+                        delete scrubbed.note;
+                        return scrubbed;
+                      })()
                     : timeOff,
                 ),
               }

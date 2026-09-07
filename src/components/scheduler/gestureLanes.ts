@@ -15,7 +15,7 @@ export function readLaneSnapshots(): LaneSnapshot[] {
   }));
 }
 
-export function resolveLaneAt(lanes: LaneSnapshot[], clientX: number, clientY: number): LaneSnapshot | null {
+export function resolveLaneAt(lanes: LaneSnapshot[], clientX: number, clientY: number): LaneSnapshot | undefined {
   for (const lane of lanes) {
     const { rect } = lane;
     // Vertical lane intervals are half-open so adjacent rows cannot both own their shared edge.
@@ -24,7 +24,7 @@ export function resolveLaneAt(lanes: LaneSnapshot[], clientX: number, clientY: n
       return lane;
     }
   }
-  return null;
+  return undefined;
 }
 
 // Reuses the hooks' memoised scoping/active-only caches (useScopedData) rather than re-deriving the

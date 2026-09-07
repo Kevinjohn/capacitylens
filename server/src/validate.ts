@@ -70,7 +70,7 @@ export function assertValidWrite({ state, table, row, existing, lookup }: Assert
   }
   const accountId = row.accountId as string;
   const ancestryLookup: LifecycleAncestryLookup = lookup
-    ? (parentTable, id) => lookup.row(parentTable, id) as LifecycleAncestryRow | undefined
+    ? (parentTable, id) => lookup.row(parentTable, id)
     : (parentTable, id) => (state[parentTable] as unknown as LifecycleAncestryRow[]).find((parent) => parent.id === id);
   const ancestry = inspectLifecycleAncestry(table as AppDataKey, row as LifecycleAncestryRow, ancestryLookup);
   if (ancestry.inactiveAncestor) {
@@ -185,7 +185,7 @@ export function assertValidWrite({ state, table, row, existing, lookup }: Assert
     // errors are still re-tagged only because this catch encloses curated validation calls.
     throw new ValidationError(e instanceof Error ? e.message : String(e), {
       cause: e,
-      code: e instanceof DomainError ? e.code : undefined,
+      ...(e instanceof DomainError ? { code: e.code } : {}),
     });
   }
 }

@@ -26,12 +26,25 @@ async function createAccount(app: FastifyInstance, id: string): Promise<void> {
   const res = await call(app, {
     method: "POST",
     url: "/api/accounts",
-    payload: { id, name: `Studio ${id}`, color: "#3b82f6", createdAt: TS, updatedAt: TS } as InjectOptions["payload"],
+    payload: { id, name: `Studio ${id}`, color: "#3b82f6", createdAt: TS, updatedAt: TS } as NonNullable<
+      InjectOptions["payload"]
+    >,
   });
   expect(res.statusCode).toBe(201);
 }
 
 describe("dedicated /api/accounts routes — route precedence", () => {
+  it.each([
+    ["POST", "/api/not-a-table"],
+    ["PUT", "/api/not-a-table/row"],
+    ["PATCH", "/api/not-a-table/row"],
+    ["DELETE", "/api/not-a-table/row"],
+  ] as const)("preserves the unknown entity diagnostic for %s", async (method, url) => {
+    const response = await call(freshApp(), { method, url });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({ error: "Unknown entity: not-a-table" });
+  });
+
   it("does not shadow the parametric lifecycle routes: POST /api/accounts/:id/archive stays a 404", async () => {
     // `accounts` is not a lifecycle entity (no archivedAt/deletedAt tombstones), so the lifecycle
     // handler must still MATCH and answer its own 404. If the new static /api/accounts/:id node
@@ -42,7 +55,7 @@ describe("dedicated /api/accounts routes — route precedence", () => {
     const res = await call(app, {
       method: "POST",
       url: "/api/accounts/a1/archive",
-      payload: { accountId: "a1" } as InjectOptions["payload"],
+      payload: { accountId: "a1" } as NonNullable<InjectOptions["payload"]>,
     });
     expect(res.statusCode).toBe(404);
     expect(res.json().error).toBe("Unknown entity: accounts");
@@ -100,14 +113,14 @@ describe("dedicated /api/accounts routes — no scoped-entity fallback", () => {
         language: "en",
         createdAt: TS,
         updatedAt: TS,
-      } as InjectOptions["payload"],
+      } as NonNullable<InjectOptions["payload"]>,
     });
     expect(res.statusCode).toBe(201);
 
     const frozen = await call(app, {
       method: "PATCH",
       url: "/api/accounts/a1",
-      payload: { weekStartsOn: 0 } as InjectOptions["payload"],
+      payload: { weekStartsOn: 0 } as NonNullable<InjectOptions["payload"]>,
     });
     expect(frozen.statusCode).toBe(409);
     expect(frozen.json().error).toContain("cannot be changed");
@@ -116,7 +129,7 @@ describe("dedicated /api/accounts routes — no scoped-entity fallback", () => {
     const renamed = await call(app, {
       method: "PATCH",
       url: "/api/accounts/a1",
-      payload: { name: "Renamed" } as InjectOptions["payload"],
+      payload: { name: "Renamed" } as NonNullable<InjectOptions["payload"]>,
     });
     expect(renamed.statusCode).toBe(200);
     expect(renamed.json().name).toBe("Renamed");
@@ -127,7 +140,7 @@ describe("dedicated /api/accounts routes — no scoped-entity fallback", () => {
     const res = await call(app, {
       method: "PATCH",
       url: "/api/accounts/missing",
-      payload: { name: "Ghost" } as InjectOptions["payload"],
+      payload: { name: "Ghost" } as NonNullable<InjectOptions["payload"]>,
     });
     expect(res.statusCode).toBe(404);
     expect((await call(app, { method: "GET", url: "/api/accounts" })).json()).toEqual([]);

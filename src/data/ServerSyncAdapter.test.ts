@@ -145,11 +145,16 @@ const commitReceipt = (init?: RequestInit): Response => {
   );
 };
 
+const required = <T>(value: T | undefined, message = "expected test value to be present"): T => {
+  if (value === undefined) throw new Error(message);
+  return value;
+};
+
 describe("auth-awareness (P3.4)", () => {
   it("sends credentials on every request so a session cookie reaches an auth-enabled server", async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = [];
     const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-      calls.push({ url: String(url), init });
+      calls.push({ url: String(url), ...(init ? { init } : {}) });
       if (String(url).endsWith("/api/state")) return new Response(JSON.stringify(emptyAppData()), { status: 200 });
       if (String(url).endsWith("/api/meta"))
         return new Response(JSON.stringify({ hasData: false }), {
@@ -378,7 +383,7 @@ describe("ServerSyncAdapter.loadAll", () => {
     const raw = withData({ accounts: [account("a1")] });
     const calls: Array<{ url: string; init?: RequestInit }> = [];
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
-      calls.push({ url, init });
+      calls.push({ url, ...(init ? { init } : {}) });
       if (url.includes("/api/state")) return new Response(JSON.stringify(raw), { status: 200 });
       return commitReceipt(init);
     }) as unknown as typeof fetch;
@@ -721,8 +726,8 @@ describe("ServerSyncAdapter.loadAll", () => {
       await a.loadAll();
       const warned = warn.mock.calls.filter((c) => String(c[0]).includes("omitted known table"));
       expect(warned).toHaveLength(1); // ONE warn per load, not one per missing key
-      expect(String(warned[0][0])).toContain("disciplines");
-      expect(String(warned[0][0])).toContain("resources");
+      expect(String(warned[0]?.[0])).toContain("disciplines");
+      expect(String(warned[0]?.[0])).toContain("resources");
     } finally {
       warn.mockRestore();
     }
@@ -746,8 +751,12 @@ describe("ServerSyncAdapter.loadAll", () => {
 });
 
 // Helper: pull the parsed ops array out of a recorded /api/batch POST.
-const batchOps = (call: unknown[]): Array<{ method: string; table: string; id: string; accountId?: string }> =>
-  JSON.parse((call[1] as RequestInit).body as string).ops;
+const batchOps = (
+  call: unknown[] | undefined,
+): Array<{ method: string; table: string; id: string; accountId?: string }> => {
+  if (!call) throw new Error("expected a recorded batch call");
+  return JSON.parse((call[1] as RequestInit).body as string).ops;
+};
 
 describe("ServerSyncAdapter.saveAll", () => {
   it("announces an audit warning returned by the batch endpoint", async () => {
@@ -772,8 +781,8 @@ describe("ServerSyncAdapter.saveAll", () => {
     await a.saveAll(withData({ clients: [client("c1")], projects: [project("p1", "c1")] }));
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls).toHaveLength(1);
-    expect(calls[0][0]).toBe("http://x/api/batch");
-    expect((calls[0][1] as RequestInit).method).toBe("POST");
+    expect(calls[0]?.[0]).toBe("http://x/api/batch");
+    expect((calls[0]?.[1] as RequestInit).method).toBe("POST");
     expect(batchOps(calls[0]).map((o) => `${o.method} ${o.table}/${o.id}`)).toEqual([
       "PUT clients/c1", // upserts parent-first
       "PUT projects/p1",
@@ -849,8 +858,8 @@ describe("ServerSyncAdapter.saveAll", () => {
     await a.saveAll(withData({ clients: [client("c1")], projects: [project("p1", "c1")] }), { unload: true });
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls).toHaveLength(1);
-    expect(calls[0][0]).toBe("http://x/api/batch");
-    const init = calls[0][1] as RequestInit;
+    expect(calls[0]?.[0]).toBe("http://x/api/batch");
+    const init = calls[0]?.[1] as RequestInit;
     expect(init.keepalive).toBe(true);
     expect(batchOps(calls[0])).toHaveLength(2); // all ops in one ordered request
   });
@@ -875,10 +884,10 @@ describe("ServerSyncAdapter.saveAll", () => {
     // ordinary response because the document may be terminated first.
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls).toHaveLength(2);
-    expect((calls[1][1] as RequestInit).keepalive).toBe(true);
+    expect((calls[1]?.[1] as RequestInit).keepalive).toBe(true);
     expect(batchOps(calls[1]).map((op) => op.id)).toEqual(["c1", "c2"]);
-    const firstHeaders = new Headers((calls[0][1] as RequestInit).headers);
-    const secondHeaders = new Headers((calls[1][1] as RequestInit).headers);
+    const firstHeaders = new Headers((calls[0]?.[1] as RequestInit).headers);
+    const secondHeaders = new Headers((calls[1]?.[1] as RequestInit).headers);
     expect(secondHeaders.get("X-CapacityLens-Sync-Session")).toBe(firstHeaders.get("X-CapacityLens-Sync-Session"));
     expect(firstHeaders.get("X-CapacityLens-Sync-Sequence")).toBe("1");
     expect(secondHeaders.get("X-CapacityLens-Sync-Sequence")).toBe("2");
@@ -1046,11 +1055,11 @@ describe("ServerSyncAdapter.saveAll", () => {
   it.each([
     ["omitted", () => ({})],
     ["empty", () => ({ revisions: [] })],
-    ["partial", (ops: ReceiptOp[]) => ({ revisions: [revisionFor(ops[0])] })],
+    ["partial", (ops: ReceiptOp[]) => ({ revisions: [revisionFor(required(ops[0]))] })],
     [
       "duplicate",
       (ops: ReceiptOp[]) => ({
-        revisions: [revisionFor(ops[0]), revisionFor(ops[0])],
+        revisions: [revisionFor(required(ops[0])), revisionFor(required(ops[0]))],
       }),
     ],
   ])(
@@ -1093,7 +1102,7 @@ describe("ServerSyncAdapter.saveAll", () => {
       return Response.json({
         ok: true,
         applied: ops.length,
-        revisions: [...ops.map(revisionFor), { ...revisionFor(ops[0]), id: "unexpected" }],
+        revisions: [...ops.map(revisionFor), { ...revisionFor(required(ops[0])), id: "unexpected" }],
       });
     }) as unknown as typeof fetch;
     const a = new ServerSyncAdapter("http://x", fetchImpl);
@@ -1109,7 +1118,7 @@ describe("ServerSyncAdapter.saveAll", () => {
       return Response.json({
         ok: true,
         applied: ops.length,
-        revisions: [revisionFor(ops[0]), { ...revisionFor(ops[0]), updatedAt: rewrittenAt }],
+        revisions: [revisionFor(required(ops[0])), { ...revisionFor(required(ops[0])), updatedAt: rewrittenAt }],
       });
     }) as unknown as typeof fetch;
     const adapter = new ServerSyncAdapter("http://x", fetchImpl);
@@ -1121,13 +1130,17 @@ describe("ServerSyncAdapter.saveAll", () => {
     await adapter.saveAll(target);
     await adapter.saveAll(
       withData({
-        allocations: [{ ...target.allocations[0], note: "Edited", updatedAt: TS2 }],
+        allocations: [{ ...required(target.allocations[0]), note: "Edited", updatedAt: TS2 }],
       }),
     );
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
-    expect((batchOps(calls[1]) as unknown as Array<{ row: Allocation }>)[0].row.updatedAt).not.toBe(rewrittenAt);
+    const retriedOperation = required(
+      (batchOps(calls[1]) as unknown as Array<{ row: Allocation }>)[0],
+      "retried allocation operation",
+    );
+    expect(retriedOperation.row.updatedAt).not.toBe(rewrittenAt);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected or duplicate"));
   });
 
@@ -1152,7 +1165,7 @@ describe("ServerSyncAdapter.saveAll", () => {
         ok: true,
         applied: ops.length,
         revisions: [
-          revisionFor(ops[0]),
+          revisionFor(required(ops[0])),
           {
             table: "allocations",
             id: "allocation",
@@ -1175,13 +1188,13 @@ describe("ServerSyncAdapter.saveAll", () => {
     await adapter.saveAll(
       withData({
         ...target,
-        allocations: [{ ...target.allocations[0], projectId: undefined, note: "Edited", updatedAt: TS2 }],
+        allocations: [{ ...withoutAllocationAttribution(required(target.allocations[0]), TS2), note: "Edited" }],
       }),
     );
 
     expect(fetchImpl).toHaveBeenCalledTimes(3);
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
-    expect((batchOps(calls[2]) as unknown as Array<{ row: Allocation }>)[0].row.updatedAt).toBe(rewrittenAt);
+    expect((batchOps(calls[2]) as unknown as Array<{ row: Allocation }>)[0]?.row.updatedAt).toBe(rewrittenAt);
   });
 
   it("remembers a tagged rewrite from the committed snapshot without a phantom follow-up PUT", async () => {
@@ -1226,17 +1239,17 @@ describe("ServerSyncAdapter.saveAll", () => {
 
     visible = {
       ...visible,
-      allocations: [{ ...visible.allocations[0], note: "Tab edit", updatedAt: TS2 }],
+      allocations: [{ ...required(visible.allocations[0]), note: "Tab edit", updatedAt: TS2 }],
     };
     await adapter.saveAll(visible);
     visible = {
       ...visible,
-      activities: [{ ...visible.activities[0], kind: "internal", updatedAt: "2026-01-03T00:00:00.000Z" }],
+      activities: [{ ...required(visible.activities[0]), kind: "internal", updatedAt: "2026-01-03T00:00:00.000Z" }],
     };
     await adapter.saveAll(visible);
 
     expect(visible.allocations[0]).not.toHaveProperty("projectId");
-    expect(visible.allocations[0].updatedAt).toBe(rewrittenAt);
+    expect(visible.allocations[0]?.updatedAt).toBe(rewrittenAt);
     await adapter.saveAll(visible);
     expect(batchNumber).toBe(2);
   });
@@ -1290,20 +1303,20 @@ describe("ServerSyncAdapter.saveAll", () => {
     );
     const flushed = withData({
       ...visible,
-      activities: [{ ...visible.activities[0], kind: "internal", updatedAt: TS2 }],
+      activities: [{ ...required(visible.activities[0]), kind: "internal", updatedAt: TS2 }],
     });
 
     const saving = adapter.saveAll(flushed, options);
     visible = {
       ...flushed,
-      allocations: [{ ...flushed.allocations[0], projectId: "p2", updatedAt: "2026-01-03T00:00:00.000Z" }],
+      allocations: [{ ...required(flushed.allocations[0]), projectId: "p2", updatedAt: "2026-01-03T00:00:00.000Z" }],
     };
     releaseReceipt!(
       Response.json({
         ok: true,
         applied: 1,
         revisions: [
-          revisionFor({ method: "PUT", table: "activities", id: activity.id, row: flushed.activities[0] }),
+          revisionFor({ method: "PUT", table: "activities", id: activity.id, row: required(flushed.activities[0]) }),
           {
             table: "allocations",
             id: allocationRow.id,
@@ -1335,7 +1348,7 @@ describe("ServerSyncAdapter.saveAll", () => {
       return Response.json({
         ok: true,
         applied: ops.length,
-        revisions: [revisionFor(ops[0]), revisionFor(ops[0])],
+        revisions: [revisionFor(required(ops[0])), revisionFor(required(ops[0]))],
       });
     }) as unknown as typeof fetch;
     const adapter = new ServerSyncAdapter("http://x", fetchImpl);
@@ -1428,8 +1441,8 @@ describe("ServerSyncAdapter.saveAll", () => {
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls).toHaveLength(2);
     const queuedWire = batchOps(calls[1]) as unknown as Array<{ row: Client }>;
-    expect(queuedWire[0].row.name).toBe("Queued edit");
-    expect(queuedWire[0].row.updatedAt).toBe("2030-01-01T00:00:00.000Z");
+    expect(queuedWire[0]?.row.name).toBe("Queued edit");
+    expect(queuedWire[0]?.row.updatedAt).toBe("2030-01-01T00:00:00.000Z");
     // Saving the unchanged local object again canonicalizes its acknowledged client revision and
     // does not emit a third, timestamp-only batch.
     await adapter.saveAll(second);
@@ -1549,7 +1562,7 @@ describe("ServerSyncAdapter — durable acknowledged-revision translation (phant
       row: Client;
     }>;
     expect(wire.map((o) => o.id)).toEqual(["c1"]);
-    expect(wire[0].row.updatedAt).toBe(TS1); // NOT 'TS1::server' — the stale translation was cleared
+    expect(wire[0]?.row.updatedAt).toBe(TS1); // NOT 'TS1::server' — the stale translation was cleared
   });
 
   it("prunes a translation after committed deletion so an id can reuse its client stamp safely", async () => {
@@ -1572,7 +1585,7 @@ describe("ServerSyncAdapter — durable acknowledged-revision translation (phant
     const wire = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]) as unknown as Array<{
       row: Discipline;
     }>;
-    expect(wire[0].row.updatedAt).toBe(TS1);
+    expect(wire[0]?.row.updatedAt).toBe(TS1);
   });
 });
 
@@ -1600,19 +1613,21 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       calls.push({
         url,
-        body: init?.body as string | undefined,
-        keepalive: init?.keepalive,
+        ...(typeof init?.body === "string" ? { body: init.body } : {}),
+        ...(init?.keepalive === undefined ? {} : { keepalive: init.keepalive }),
       });
       return onCall?.(url) ?? commitReceipt(init);
     }) as unknown as typeof fetch;
     return { calls, fetchImpl };
   };
-  const opsOf = (call: { body?: string }) =>
-    JSON.parse(call.body as string).ops as Array<{
+  const opsOf = (call: { body?: string } | undefined) => {
+    if (!call?.body) throw new Error("expected a recorded request body");
+    return JSON.parse(call.body).ops as Array<{
       method: string;
       table: string;
       id: string;
     }>;
+  };
 
   it("(a) undo of a synced create converges via ARCHIVE (no /delete) and does NOT poison later saves", async () => {
     const { calls, fetchImpl } = recordingFetch();
@@ -1940,7 +1955,7 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
     // The batch carries both the ordinary edit and its lifecycle archive on one keepalive request.
     const batchCalls = calls.filter((c) => c.url.endsWith("/api/batch"));
     expect(batchCalls).toHaveLength(1);
-    expect(batchCalls[0].keepalive).toBe(true);
+    expect(batchCalls[0]?.keepalive).toBe(true);
     expect(opsOf(batchCalls[0])).toEqual([
       expect.objectContaining({
         method: "PUT",
@@ -1965,8 +1980,8 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
     const controlledFetch = vi.fn((url: string, init?: RequestInit): Promise<Response> => {
       calls.push({
         url,
-        body: init?.body as string | undefined,
-        keepalive: init?.keepalive,
+        ...(typeof init?.body === "string" ? { body: init.body } : {}),
+        ...(init?.keepalive === undefined ? {} : { keepalive: init.keepalive }),
       });
       if (url.endsWith("/api/batch") && init?.keepalive) {
         return new Promise((_resolve, reject) => {
@@ -2135,7 +2150,7 @@ describe("atomic large diffs and unload behaviour", () => {
     await a.saveAll(emptyAppData(), { unload: true });
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls).toHaveLength(1);
-    expect((calls[0][1] as RequestInit).keepalive).toBe(true);
+    expect((calls[0]?.[1] as RequestInit).keepalive).toBe(true);
     expect(batchOps(calls[0]).map((o) => o.method)).toEqual(["DELETE", "DELETE"]);
   });
 });

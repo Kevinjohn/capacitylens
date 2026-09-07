@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildColumnGeometry } from "./columnGeometry";
+import { buildColumnGeometry, resolveLeftEdgeDate } from "./columnGeometry";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { resolveColumnFit } from "../../lib/schedulerConfig";
 
@@ -7,6 +7,23 @@ import { resolveColumnFit } from "../../lib/schedulerConfig";
 const WEEK = eachDayISO("2026-06-01", "2026-06-07");
 const OFF = { minimiseWeekends: false, weekendWidth: 20 };
 const ON = { minimiseWeekends: true, weekendWidth: 20 };
+
+describe("resolveLeftEdgeDate", () => {
+  const geom = buildColumnGeometry(WEEK, 48, OFF);
+
+  it("returns undefined for an empty day window", () => {
+    expect(resolveLeftEdgeDate(buildColumnGeometry([], 48, OFF), [], 0)).toBeUndefined();
+  });
+
+  it("rejects a custom geometry index beyond the day window", () => {
+    const customGeom = { ...geom, indexAtScroll: () => WEEK.length };
+    expect(() => resolveLeftEdgeDate(customGeom, WEEK, 0)).toThrow("outside the day window");
+  });
+
+  it("uses the rounded column for a fractional position below a valid boundary", () => {
+    expect(resolveLeftEdgeDate(geom, WEEK, 47.6)).toBe(WEEK[1]);
+  });
+});
 
 describe("buildColumnGeometry — minimise OFF reproduces the uniform index*dayWidth grid", () => {
   const geom = buildColumnGeometry(WEEK, 48, OFF);
@@ -27,7 +44,10 @@ describe("buildColumnGeometry — minimise OFF reproduces the uniform index*dayW
 
   it("xForDateInGeom / widthForDates reproduce the uniform index*dayWidth pixel values", () => {
     for (let i = 0; i < WEEK.length; i++) {
-      expect(geom.xForDateInGeom(WEEK[i])).toBe(i * 48);
+      const day = WEEK[i];
+      expect(day).toBeDefined();
+      if (!day) throw new Error("Expected a date for every week index.");
+      expect(geom.xForDateInGeom(day)).toBe(i * 48);
     }
     // Inclusive ranges, including ones that span the (uniform) weekend.
     expect(geom.widthForDates("2026-06-01", "2026-06-02")).toBe(2 * 48);
@@ -120,6 +140,15 @@ describe("buildColumnGeometry — indexAt is the exact inverse of x() at every b
   }
 });
 
+describe("buildColumnGeometry — malformed windows", () => {
+  it("rejects a sparse day window instead of collapsing the missing column", () => {
+    const sparseDays = [...WEEK];
+    delete sparseDays[3];
+
+    expect(() => buildColumnGeometry(sparseDays, 48, OFF)).toThrow("day window must be dense");
+  });
+});
+
 describe("buildColumnGeometry — gating + degenerate windows", () => {
   it("does NOT narrow below the per-day-column threshold (header shows week blocks there)", () => {
     const geom = buildColumnGeometry(WEEK, 12, ON); // 12 < DAY_COLUMN_MIN_WIDTH (18)
@@ -184,6 +213,6 @@ describe("buildColumnGeometry — gating + degenerate windows", () => {
     });
 
     expect(totalWidths).toEqual([110, 112, 114, 116, 118, 120]);
-    expect(totalWidths.every((width, index) => index === 0 || width >= totalWidths[index - 1])).toBe(true);
+    expect(totalWidths.every((width, index) => index === 0 || width >= (totalWidths[index - 1] ?? 0))).toBe(true);
   });
 });

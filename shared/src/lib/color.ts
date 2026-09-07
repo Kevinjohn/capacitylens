@@ -71,7 +71,7 @@ const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
  *  deterministic tie-break) is preserved. An entry is `null` only if a palette member were not a
  *  valid 6-digit hex — unreachable (pinned by a test), but kept nullable so such an entry is
  *  SKIPPED rather than poisoning every distance with NaN. */
-const PRESET_RGB: readonly ([number, number, number] | null)[] = PRESET_COLORS.map((preset) => parseRgb(preset));
+const PRESET_RGB: readonly (RgbChannels | null)[] = PRESET_COLORS.map((preset) => parseRgb(preset));
 
 export function isPresetColor(value: unknown): value is string {
   return typeof value === "string" && PRESET_COLOR_SET.has(value.trim().toLowerCase());
@@ -103,20 +103,20 @@ export function snapToPresetColor(value: unknown): string {
   if (PRESET_COLOR_SET.has(normalized)) return normalized;
   const channels = parseRgb(normalized);
   if (!channels) return FALLBACK_PRESET_COLOR;
-  const [r, g, b] = channels;
-  let nearest: string = PRESET_COLORS[0];
+  const { red: r, green: g, blue: b } = channels;
+  let nearest: string = FALLBACK_PRESET_COLOR;
   let nearestDistance = Infinity;
-  for (let i = 0; i < PRESET_COLORS.length; i++) {
+  for (const [i, preset] of PRESET_COLORS.entries()) {
     const presetRgb = PRESET_RGB[i];
     if (!presetRgb) continue; // unreachable: every PRESET_COLORS entry is a valid 6-digit hex (pinned by a test)
-    const [pr, pg, pb] = presetRgb;
+    const { red: pr, green: pg, blue: pb } = presetRgb;
     // Squared Euclidean distance in RGB space — no sqrt needed since we only compare magnitudes.
     const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
     // Strict `<` (not `<=`) so the FIRST minimal-distance preset wins on a tie — palette order
     // is the deterministic tie-break.
     if (distance < nearestDistance) {
       nearestDistance = distance;
-      nearest = PRESET_COLORS[i];
+      nearest = preset;
     }
   }
   return nearest;
@@ -175,17 +175,27 @@ function normalizeLinearChannel(channel: number): number {
   return normalizedChannel <= 0.03928 ? normalizedChannel / 12.92 : Math.pow((normalizedChannel + 0.055) / 1.055, 2.4);
 }
 
-function parseRgb(hex: string): [number, number, number] | null {
+interface RgbChannels {
+  red: number;
+  green: number;
+  blue: number;
+}
+
+function parseRgb(hex: string): RgbChannels | null {
   const normalized = hex.trim();
   if (!HEX_COLOR_RE.test(normalized)) return null;
   const body = normalized.slice(1);
-  return [parseInt(body.slice(0, 2), 16), parseInt(body.slice(2, 4), 16), parseInt(body.slice(4, 6), 16)];
+  return {
+    red: parseInt(body.slice(0, 2), 16),
+    green: parseInt(body.slice(2, 4), 16),
+    blue: parseInt(body.slice(4, 6), 16),
+  };
 }
 
 function calculateRelativeLuminance(hex: string): number | null {
   const channels = parseRgb(hex);
   if (!channels) return null;
-  const [r, g, b] = channels;
+  const { red: r, green: g, blue: b } = channels;
   return 0.2126 * normalizeLinearChannel(r) + 0.7152 * normalizeLinearChannel(g) + 0.0722 * normalizeLinearChannel(b);
 }
 
@@ -228,7 +238,7 @@ export function ensureBarColors(hex: string): { bg: string; ink: string } {
   const channels = parseRgb(hex);
   const ink = readableTextColor(hex);
   if (!channels) return { bg: NEUTRAL_COLOR, ink: readableTextColor(NEUTRAL_COLOR) };
-  let [r, g, b] = channels;
+  let { red: r, green: g, blue: b } = channels;
   const darken = ink === LIGHT_INK;
   // The ink never changes inside the loop, so linearise it ONCE. Previously each iteration
   // re-formatted the candidate to hex and re-parsed BOTH it and the ink through contrastRatio;

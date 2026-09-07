@@ -96,6 +96,46 @@ describe("useExclusiveAction", () => {
     expect(result.current.locked()).toBe(false);
   });
 
+  it("surfaces a synchronous action throw and still reopens the gate", async () => {
+    const onError = vi.fn();
+    const failure = new Error("the action threw before returning a promise");
+    const { result } = renderHook(() => useExclusiveAction());
+
+    expect(() =>
+      act(() =>
+        result.current.run(() => {
+          throw failure;
+        }, onError),
+      ),
+    ).not.toThrow();
+    await act(async () => Promise.resolve());
+
+    expect(onError).toHaveBeenCalledWith(failure);
+    expect(result.current.busy).toBe(false);
+    expect(result.current.locked()).toBe(false);
+  });
+
+  it("reports a throwing error handler and still reopens the gate", async () => {
+    const actionFailure = new Error("the action failed");
+    const handlerFailure = new Error("the error surface failed");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { result } = renderHook(() => useExclusiveAction());
+
+    act(() =>
+      result.current.run(
+        () => Promise.reject(actionFailure),
+        () => {
+          throw handlerFailure;
+        },
+      ),
+    );
+    await act(async () => Promise.resolve());
+
+    expect(consoleError).toHaveBeenCalledWith("Exclusive action error handler failed", handlerFailure);
+    expect(result.current.busy).toBe(false);
+    expect(result.current.locked()).toBe(false);
+  });
+
   it("keeps run and locked stable across renders so they are safe effect/callback dependencies", () => {
     const { result, rerender } = renderHook(() => useExclusiveAction());
     const { run, locked } = result.current;

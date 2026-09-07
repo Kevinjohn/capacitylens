@@ -50,12 +50,14 @@ export function assertMemberSignInTrackingSchemaCurrent(db: Db): void {
     }
     if (observation.notnull !== 0) problems.push(`account_members.${OBSERVATION_COLUMN} must be nullable`);
   }
+  const trackingColumn = trackingColumns[0];
   if (
     trackingColumns.length !== 1 ||
-    trackingColumns[0]?.name !== "accountId" ||
-    trackingColumns[0]?.type.toUpperCase() !== "TEXT" ||
-    trackingColumns[0]?.notnull !== 1 ||
-    trackingColumns[0]?.pk !== 1
+    !trackingColumn ||
+    trackingColumn.name !== "accountId" ||
+    trackingColumn.type.toUpperCase() !== "TEXT" ||
+    trackingColumn.notnull !== 1 ||
+    trackingColumn.pk !== 1
   ) {
     problems.push(`${TRACKING_TABLE} must contain only its TEXT accountId primary key`);
   }

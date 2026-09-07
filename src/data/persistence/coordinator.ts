@@ -1,7 +1,7 @@
-import type { RefreshOutcome } from "./facades";
+import type { FlushPendingWritesResult, RefreshOutcome } from "./facades";
 export interface PersistenceRegistration {
-  refreshActive?: (id: string) => Promise<"reloaded" | "skipped" | "failed">;
-  flushPending?: () => Promise<boolean>;
+  refreshActive?: (id: string) => Promise<Exclude<RefreshOutcome, { kind: "unattached" }>>;
+  flushPending?: () => Promise<FlushPendingWritesResult>;
   suspendWrites?: () => (options?: { dropParkedEdits?: boolean }) => void;
   switchAndAwaitHydration?: (id: string | null) => Promise<RefreshOutcome>;
   hasUnsavedWrites: () => boolean;
@@ -32,16 +32,16 @@ class PersistenceCoordinator {
     return this.registration?.suspendWrites?.() ?? (() => {});
   }
 
-  async flushPending(): Promise<boolean> {
-    return this.registration?.flushPending?.() ?? true;
+  async flushPending(): Promise<FlushPendingWritesResult> {
+    return this.registration?.flushPending?.() ?? { kind: "clean" };
   }
 
   async refreshActive(id: string): Promise<RefreshOutcome> {
-    return this.registration?.refreshActive?.(id) ?? "unattached";
+    return this.registration?.refreshActive?.(id) ?? { kind: "unattached" };
   }
 
   async switchAndAwaitHydration(id: string | null): Promise<RefreshOutcome> {
-    return this.registration?.switchAndAwaitHydration?.(id) ?? "unattached";
+    return this.registration?.switchAndAwaitHydration?.(id) ?? { kind: "unattached" };
   }
 }
 

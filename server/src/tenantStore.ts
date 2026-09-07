@@ -21,7 +21,7 @@ import {
 } from "./db";
 import { createServerRevision } from "./revision";
 import { fromRow, type Row } from "./rowCodec";
-import { TABLES } from "./tables";
+import { resolveTable } from "./db/introspection";
 
 export type LifecycleRow = Resource | Client | Project;
 
@@ -37,9 +37,9 @@ interface GetOwnedLifecycleRowInput {
   id: string;
 }
 
-function getOwnedLifecycleRow({ db, accountId, entity, id }: GetOwnedLifecycleRowInput): LifecycleRow | undefined {
-  const row = getRow(db, entity, id) as LifecycleRow | undefined;
-  return row?.accountId === accountId ? row : undefined;
+function getOwnedLifecycleRow({ db, accountId, entity, id }: GetOwnedLifecycleRowInput): LifecycleRow | null {
+  const row = getRow(db, entity, id) as LifecycleRow | null;
+  return row?.accountId === accountId ? row : null;
 }
 
 interface RestampRowsInput {
@@ -197,7 +197,7 @@ export interface TenantStore {
   /** Indexed point/reverse lookups for validating one generic write without materialising a slice. */
   validationLookup?(): ValidationDataLookup;
   /** Read one lifecycle row, concealed as absent unless it belongs to `accountId`. */
-  readLifecycleRow(accountId: string, entity: LifecycleEntityKey, id: string): LifecycleRow | undefined;
+  readLifecycleRow(accountId: string, entity: LifecycleEntityKey, id: string): LifecycleRow | null;
   /** Replace one owned lifecycle row without rewriting its tenant siblings. */
   writeLifecycleRow(accountId: string, entity: LifecycleEntityKey, row: LifecycleRow): void;
   /** Remove sensitive notes attached to one soft-deleted resource. */
@@ -224,11 +224,11 @@ export function createSqliteTenantStore(db: Db): TenantStore {
   // form carries an ORDER BY of its own.
   const listRelatedAllocations = (field: "resourceId" | "activityId", accountId: string, id: string): Allocation[] =>
     (db.prepare(`SELECT * FROM allocations WHERE accountId = ? AND ${field} = ?`).all(accountId, id) as Row[]).map(
-      (row) => fromRow(TABLES.allocations, row) as unknown as Allocation,
+      (row) => fromRow(resolveTable("allocations"), row) as unknown as Allocation,
     );
   const validationLookup: ValidationDataLookup = {
     row: (table: AppDataKey, id: string) =>
-      getRow(db, table, id) as (Record<string, unknown> & { id: string }) | undefined,
+      (getRow(db, table, id) ?? undefined) as (Record<string, unknown> & { id: string }) | undefined,
     allocationsForResource: (accountId, resourceId) => listRelatedAllocations("resourceId", accountId, resourceId),
     allocationsForActivity: (accountId, activityId) => listRelatedAllocations("activityId", accountId, activityId),
     resourceHasLoadedAllocation: (accountId, resourceId) =>

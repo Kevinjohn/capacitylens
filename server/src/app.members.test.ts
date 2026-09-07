@@ -942,9 +942,11 @@ describe("GET /api/accounts/:id/invites — list omits the token", () => {
     expect(res.body).not.toContain(token);
     const invites = (res.json() as { invites: Array<Record<string, unknown>> }).invites;
     expect(invites).toHaveLength(1);
-    expect(invites[0]).not.toHaveProperty("token");
-    expect(invites[0].role).toBe("editor");
-    expect(typeof invites[0].id).toBe("string");
+    const invite = invites[0];
+    if (!invite) throw new Error("Expected one invitation.");
+    expect(invite).not.toHaveProperty("token");
+    expect(invite.role).toBe("editor");
+    expect(typeof invite.id).toBe("string");
 
     // editor of the account is denied (below manageInvites tier).
     const ed = await signUp(app, "inv-list-ed@capacitylens.dev");
@@ -1894,7 +1896,9 @@ describe("member listing order (#175)", () => {
     // one the id happens to produce, so a passing assertion cannot be an accident of insertion.
     const later = "2026-02-01T00:00:00.000Z";
     for (const name of ["Clark Kent", "alfred Pennyworth", "Barry Allen"]) {
-      const user = await signUp(app, `${name.split(" ")[0].toLowerCase()}-order@capacitylens.dev`);
+      const firstName = name.split(" ")[0];
+      if (!firstName) throw new Error("Expected a member first name.");
+      const user = await signUp(app, `${firstName.toLowerCase()}-order@capacitylens.dev`);
       db.prepare(`UPDATE user SET name = ? WHERE id = ?`).run(name, user.userId);
       upsertMember(db, { accountId: "a1", userId: user.userId, role: "editor", status: "active", createdAt: later });
     }

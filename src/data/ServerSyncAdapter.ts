@@ -153,12 +153,22 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       );
     }
     if (batchBody === null) return;
-    const receipt = await dispatchPreparedBatch(this.state, batchBody, orderedOps, {
-      keepalive: true,
-      archiveLifecycleDeletes: true,
+    const receipt = await dispatchPreparedBatch({
+      state: this.state,
+      body: batchBody,
+      ops: orderedOps,
+      options: {
+        keepalive: true,
+        archiveLifecycleDeletes: true,
+      },
     });
     if (!receipt.superseded) {
-      rememberRevisions(this.state, batchOps, receipt.revisions, canonicalTarget);
+      rememberRevisions({
+        state: this.state,
+        ops: batchOps,
+        revisions: receipt.revisions,
+        committedSnapshot: canonicalTarget,
+      });
       publishAllocationRewrites(this.state, receipt.revisions, canonicalTarget);
       rememberLifecycleArchives(this.state, lifecycleDeletes, receipt.archivedLifecycleKeys);
     }
@@ -238,7 +248,12 @@ export class ServerSyncAdapter implements PersistenceAdapter {
           continue;
         }
         if (targetSeedGen === this.state.seedGen) {
-          rememberRevisions(this.state, batchOps, receipt.revisions, canonicalTarget);
+          rememberRevisions({
+            state: this.state,
+            ops: batchOps,
+            revisions: receipt.revisions,
+            committedSnapshot: canonicalTarget,
+          });
           publishAllocationRewrites(this.state, receipt.revisions, canonicalTarget);
           committedTarget = applyCommittedRevisions(canonicalTarget, receipt.revisions);
         }
@@ -279,7 +294,11 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // Surface a lifecycle-archive failure LAST — after the snapshot advanced — so unrelated ops are
       // never blocked (they committed above and won't replay) and only the un-converged row's delete
       // re-fires on the next diff.
-      if (lifecycleError !== null) throw lifecycleError;
+      if (lifecycleError !== null) {
+        throw lifecycleError instanceof Error
+          ? lifecycleError
+          : new Error("Lifecycle archival failed with a non-Error value.", { cause: lifecycleError });
+      }
     }
   }
 }

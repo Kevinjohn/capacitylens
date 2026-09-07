@@ -44,6 +44,12 @@ function tableSpecsFromHistoricalSql(sql: string): Record<string, TableSpec> {
   }
 }
 
+function liveTableSpec(table: string): TableSpec {
+  const spec = TABLES[table];
+  if (!spec) throw new Error(`Missing live table specification for "${table}".`);
+  return spec;
+}
+
 export const V8_TABLES = tableSpecsFromHistoricalSql(SCHEMA_V8_SQL);
 export const V9_TABLES = tableSpecsFromHistoricalSql(`${SCHEMA_V8_SQL}
 ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;`);
@@ -55,26 +61,28 @@ ALTER TABLE accounts ADD COLUMN inlineActivityCreateEnabled TEXT;`);
 // Historical contracts let released migrations validate their own result without accidentally
 // requiring columns owned by a later migration.
 const V29_ACCOUNTS: TableSpec = {
-  ...TABLES.accounts,
-  columns: TABLES.accounts.columns.filter(
+  ...liveTableSpec("accounts"),
+  columns: liveTableSpec("accounts").columns.filter(
     (column) => column.name !== "groupResourcesByEngagement" && column.name !== "workingDays",
   ),
 };
 const V30_ACCOUNTS: TableSpec = {
-  ...TABLES.accounts,
-  columns: TABLES.accounts.columns.filter((column) => column.name !== "workingDays"),
+  ...liveTableSpec("accounts"),
+  columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "workingDays"),
 };
 const PRE_V35_ALLOCATIONS: TableSpec = {
-  ...TABLES.allocations,
-  columns: TABLES.allocations.columns.filter((column) => column.name !== "projectId"),
+  ...liveTableSpec("allocations"),
+  columns: liveTableSpec("allocations").columns.filter((column) => column.name !== "projectId"),
 };
 const V31_ALLOCATIONS: TableSpec = {
   ...PRE_V35_ALLOCATIONS,
   columns: PRE_V35_ALLOCATIONS.columns.filter((column) => column.name !== "seriesId"),
 };
 const V32_TIME_OFF: TableSpec = {
-  ...TABLES.timeOff,
-  columns: TABLES.timeOff.columns.map((column) => (column.name === "resourceId" ? { name: column.name } : column)),
+  ...liveTableSpec("timeOff"),
+  columns: liveTableSpec("timeOff").columns.map((column) =>
+    column.name === "resourceId" ? { name: column.name } : column,
+  ),
 };
 const PRE_V34_TABLES = Object.fromEntries(Object.entries(TABLES).filter(([key]) => key !== "closures")) as Record<
   string,
@@ -87,8 +95,10 @@ export const V27_TABLES: Record<string, TableSpec> = {
   allocations: V31_ALLOCATIONS,
   timeOff: V32_TIME_OFF,
   resources: {
-    ...TABLES.resources,
-    columns: TABLES.resources.columns.filter((column) => column.name !== "halfDays" && column.name !== "engagement"),
+    ...liveTableSpec("resources"),
+    columns: liveTableSpec("resources").columns.filter(
+      (column) => column.name !== "halfDays" && column.name !== "engagement",
+    ),
   },
 };
 export const V28_TABLES: Record<string, TableSpec> = {
@@ -97,8 +107,8 @@ export const V28_TABLES: Record<string, TableSpec> = {
   allocations: V31_ALLOCATIONS,
   timeOff: V32_TIME_OFF,
   resources: {
-    ...TABLES.resources,
-    columns: TABLES.resources.columns.filter((column) => column.name !== "engagement"),
+    ...liveTableSpec("resources"),
+    columns: liveTableSpec("resources").columns.filter((column) => column.name !== "engagement"),
   },
 };
 export const V29_TABLES: Record<string, TableSpec> = {
@@ -125,8 +135,8 @@ export const V32_TABLES: Record<string, TableSpec> = {
 export const V33_TABLES: Record<string, TableSpec> = {
   ...PRE_V34_TABLES,
   timeOff: {
-    ...TABLES.timeOff,
-    columns: TABLES.timeOff.columns.map((column) =>
+    ...liveTableSpec("timeOff"),
+    columns: liveTableSpec("timeOff").columns.map((column) =>
       column.name === "resourceId" ? { name: column.name, optional: true, preserveNull: true } : column,
     ),
   },

@@ -216,7 +216,7 @@ export async function signupInvitation(req: FastifyRequest, reply: FastifyReply,
     });
   }
   try {
-    const result = await accountFlows!.acceptInviteWithPasswordSignup({
+    const result = await accountFlows.acceptInviteWithPasswordSignup({
       token,
       email,
       displayName: name,
@@ -303,7 +303,7 @@ export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply,
         id,
         changedFields: [],
       },
-      extra: revoked.changed,
+      ...(revoked.changed === undefined ? {} : { extra: revoked.changed }),
     });
     return reply.code(204).send();
   } catch (error) {

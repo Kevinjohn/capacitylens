@@ -63,7 +63,7 @@ export function DateRangeFields({
         onChange={onStartChange}
         required
         invalid={invalid}
-        describedById={describedById}
+        {...(describedById ? { describedById } : {})}
       />
       <DateField
         label={m.form_allocation_end_label()}
@@ -71,7 +71,7 @@ export function DateRangeFields({
         onChange={onEndChange}
         required
         invalid={invalid}
-        describedById={describedById}
+        {...(describedById ? { describedById } : {})}
       />
     </>
   );

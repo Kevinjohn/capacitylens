@@ -61,12 +61,11 @@ Counterexamples that are now tracked debt:
 - `validateAuthUser(value: unknown, requireEmail = false)` returns `AuthUser | null`. It takes
   untrusted input and returns the typed value, so it is a `parse`, and its flag parameter is
   parameter debt too.
-- `validate*` functions return four shapes across the tree: `ValidationResult`, a problem or
-  `null` (`validateAllocationDraft`), a boolean (`validateHex`) and the typed value or `null`.
-  The last group are parses; the audit decides the rest.
+- `validate*` functions return three shapes across the tree: `ValidationResult`, a boolean
+  (`validateHex`) and the typed value or `null`. The last group are parses; the audit decides
+  the rest. `validateAllocationDraft` reports its first problem through a `fail` callback and
+  returns a boolean, matching the validation convention.
 - `ensureBarColors(hex)` returns a colour pair. It derives a value, so it is a `resolve`.
-- `getRow` in `server/src/db/rows.ts` returns `undefined` for a missing database row where
-  the other storage lookups return `null`.
 
 ## Variables
 
@@ -110,7 +109,8 @@ Counterexamples that are now tracked debt:
   `src/components/scheduler/schedulerGridModal.ts` use the same `kind` discriminant without
   the suffix. `Status` in `src/auth/authStatus.ts`
   discriminates on `kind` but carries a lifecycle name, and `OfflineCacheWriteResult` in
-  `src/data/offline/types.ts` discriminates on `status`; both are tracked debt.
+  `src/data/offline/types.ts` now discriminates on `kind`; `Status` remains tracked debt because
+  its `kind` carries a lifecycle name rather than an outcome name.
 - **`status` is the lifecycle state of a thing**, such as a membership or a command, never
   the outcome of a call. The `status` union on operation receipts in
   `shared/src/account/ports.ts` is an existing portable contract and stays as it is.
@@ -133,8 +133,15 @@ Counterexamples that are now tracked debt:
 
 ## What lint enforces
 
-Only the mechanical part of this page is enforced by `pnpm run lint`, in the typed packages
-(`src`, `shared/src`, `server/src`, `server/scripts`):
+The compiler checks indexed reads and optional properties in each TypeScript project with
+`noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`. Check an indexed value before using
+it. Omit an absent optional property instead of passing `undefined`; reserve explicit `undefined`
+for contracts that include it as a value. Do not add assertions, placeholder defaults or wider
+types merely to satisfy either check.
+
+The mechanical part of this page is enforced by `pnpm run lint` in the typed packages (`src`,
+`shared/src`, `server/src`, `server/scripts`). The structural rules also cover `e2e`; that separate
+Playwright project does not enable the typed project-service rules:
 
 - casing, through `@typescript-eslint/naming-convention`: camelCase for `let` variables,
   camelCase, UPPER_CASE or PascalCase for `const`, camelCase or PascalCase for functions and
@@ -143,10 +150,15 @@ Only the mechanical part of this page is enforced by `pnpm run lint`, in the typ
 - negated names, through the same rule: a variable or parameter starting with `hasNo`,
   `not` followed by a capital, or `isNot` (other than `isNotNull`) fails
 - `max-params` at three, so a fourth parameter fails
+- `complexity` at 12 and nesting depth at three
+- `max-lines-per-function` at 60 authored lines, excluding blank lines and comments
 
-Existing violations are recorded as a count per file and rule in `eslint-suppressions.json`
-at the repository root. A count that rises fails lint. A count that falls also fails, until
-the entry is pruned with
+Existing violations, including the reviewed initial baseline for a newly adopted rule, are
+recorded as a count per file and rule in `eslint-suppressions.json` at the repository root. The
+[#645 enforcement baseline](https://github.com/Kevinjohn/capacitylens/blob/main/tasks/conventions-enforcement-baseline.md)
+and [#647 structural baseline](https://github.com/Kevinjohn/capacitylens/blob/main/tasks/strictness-structure-baseline.md)
+record each declaration and its disposition. A count that rises fails lint. A count that falls
+also fails, until the entry is pruned with
 
 ```
 pnpm exec eslint . --prune-suppressions

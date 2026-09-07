@@ -54,7 +54,7 @@ function countDaysInMonth(year: number, month: number): number {
 }
 
 function buildIsoDate(year: number, month: number, day: number): ISODate {
-  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` as ISODate;
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 function parseDateParts(date: ISODate): { year: number; month: number; day: number } {
@@ -141,7 +141,8 @@ export function generateRepeatingStartDates(
   }
   const startDates: ISODate[] = [];
   const append = (candidate: ISODate) => {
-    if (startDates.length > 0 && candidate <= startDates[startDates.length - 1]) {
+    const previous = startDates.at(-1);
+    if (previous !== undefined && candidate <= previous) {
       throw new Error("Repeating allocation dates must be strictly increasing.");
     }
     if (startDates.length >= GENERATED_ALLOCATION_LIMIT) {

@@ -1,3 +1,4 @@
+import type { EffectiveRoleResult } from "./appAuthorization";
 import type { AuthorizeBasicInput } from "./routeShared";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
@@ -5,7 +6,6 @@ import type { AccountMode, Role } from "@capacitylens/shared/account/types";
 import type { AccountAuditPort, IdentityPort } from "@capacitylens/shared/account/ports";
 import {
   MASQUERADE_ERROR_CODES,
-  type ClientMasqueradeEndReason,
   type MasqueradeEndReason,
   type MasqueradeState,
 } from "@capacitylens/shared/domain/masquerade";
@@ -26,7 +26,7 @@ export interface MasqueradeRouteDependencies {
   identity: IdentityPort;
   authorize(input: AuthorizeBasicInput): boolean;
   roleForPrincipal(principalId: string, accountId: string): Role | null;
-  effectiveRole(request: FastifyRequest, accountId: string): { role: Role | null; ended: boolean };
+  effectiveRole(request: FastifyRequest, accountId: string): EffectiveRoleResult;
 }
 
 interface EnqueueMasqueradeEndAuditInput {
@@ -148,7 +148,7 @@ export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: Mas
     const record = registry.lookup(session.id);
     if (!record) return { active: false };
     const resolved = effectiveRole(request, record.accountId);
-    if (resolved.ended) {
+    if (resolved.kind === "ended") {
       return reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
     }
     if (resolved.role === null) return reply.code(403).send({ error: "Forbidden." });
@@ -165,7 +165,7 @@ export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: Mas
     ) {
       return reply.code(400).send({ error: "A valid token and end reason are required." });
     }
-    const reason = body.reason as ClientMasqueradeEndReason;
+    const reason = body.reason;
     if (request.session) {
       registry.end(request.session.id, body.token, (record) => auditEnd(record, reason));
     }

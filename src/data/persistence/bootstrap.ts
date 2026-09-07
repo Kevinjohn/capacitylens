@@ -81,12 +81,12 @@ export async function bootstrap(
     }
   }
 
-  return attachPersistence(
-    store,
-    adapter,
-    options.debounceMs ?? 300,
-    options.onError,
-    options.onSuccess,
-    options.serverMode,
-  );
+  return attachPersistence({
+    store: store,
+    adapter: adapter,
+    debounceMs: options.debounceMs ?? 300,
+    ...(options.onError ? { onError: options.onError } : {}),
+    ...(options.onSuccess ? { onSuccess: options.onSuccess } : {}),
+    ...(options.serverMode === undefined ? {} : { serverMode: options.serverMode }),
+  });
 }

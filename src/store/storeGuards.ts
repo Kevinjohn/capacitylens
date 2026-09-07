@@ -7,6 +7,16 @@ import type { AppData, ID, ScopedEntityKey, Weekday } from "@capacitylens/shared
 import { isWeekdaySet } from "@capacitylens/shared/lib/accountWorkingDays";
 import type { StoreState } from "./types";
 
+interface SnapColorInput {
+  color: unknown;
+  allowNeutral?: boolean | undefined;
+}
+
+interface ApplySnappedColorInput<T extends { color?: unknown }> {
+  patch: T;
+  allowNeutral?: boolean | undefined;
+}
+
 export function createGuards(get: StoreApi<StoreState>["getState"], set: StoreApi<StoreState>["setState"]) {
   // Notices use the store action; retain the factory's get/set dependency boundary.
   void set;
@@ -37,7 +47,7 @@ export function createGuards(get: StoreApi<StoreState>["getState"], set: StoreAp
   // throw would read as corruption and could crash a drag handler), we just refuse + inform.
   const blockedByViewer = (): boolean => {
     const state = get();
-    if (state.masquerade.phase !== "inactive") {
+    if (state.masquerade.kind !== "inactive") {
       state.setNotice(m.notice_masquerade_read_only(), "error");
       return true;
     }
@@ -102,15 +112,20 @@ export function createGuards(get: StoreApi<StoreState>["getState"], set: StoreAp
   // mutate()/updateById below) — never before a reject check (blockedByViewer / a stale-id no-op /
   // an assert* throw). A rejected write must not silently substitute a colour the caller never
   // asked for onto an entity that was never saved; see the CRUD contract note on StoreState.
-  const snapColor = (color: unknown, allowNeutral = false): string =>
-    allowNeutral && color === NEUTRAL_COLOR ? (color as string) : snapToPresetColor(color);
+  const snapColor = ({ color, allowNeutral = false }: SnapColorInput): string =>
+    allowNeutral && color === NEUTRAL_COLOR ? color : snapToPresetColor(color);
 
   // Collapses the `patch.color === undefined ? patch : { ...patch, color: snapColor(...) }`
   // idiom that used to be copy-pasted across every update* action (P#: colour-repair
   // consolidation). Returns the SAME object reference when there's no colour to repair, so a
   // colourless edit doesn't pay for a needless clone.
-  const applySnappedColor = <T extends { color?: unknown }>(patch: T, allowNeutral = false): T =>
-    patch.color === undefined ? patch : { ...patch, color: snapColor(patch.color, allowNeutral) };
+  const applySnappedColor = <T extends { color?: unknown }>({
+    patch,
+    allowNeutral = false,
+  }: ApplySnappedColorInput<T>): T =>
+    patch.color === undefined
+      ? patch
+      : { ...patch, color: snapColor({ color: patch.color, allowNeutral: allowNeutral }) };
 
   return {
     requireAccount,

@@ -18,7 +18,13 @@ interface ParseOptionalCredentialPairInput {
   label: string;
   E: AuthConfigErrorConstructor;
 }
-function parseOptionalCredentialPair({ environment, idKey, secretKey, label, E }: ParseOptionalCredentialPairInput) {
+function parseOptionalCredentialPair({
+  environment,
+  idKey,
+  secretKey,
+  label,
+  E,
+}: ParseOptionalCredentialPairInput): [clientId: string, clientSecret: string] | null {
   const id = environment[idKey];
   const secret = environment[secretKey];
   if (!id && !secret) return null;
@@ -73,17 +79,21 @@ function parseSocialProvidersFromEnvironment(
     "CAPACITYLENS_GOOGLE_CLIENT_SECRET",
     "Google sign-in",
   );
-  if (google) providers.google = { clientId: google[0], clientSecret: google[1] };
+  if (google) {
+    const [clientId, clientSecret] = google;
+    providers.google = { clientId, clientSecret };
+  }
   const microsoft = parseConfiguredPair(
     "CAPACITYLENS_MICROSOFT_CLIENT_ID",
     "CAPACITYLENS_MICROSOFT_CLIENT_SECRET",
     "Microsoft sign-in",
   );
   if (microsoft) {
+    const [clientId, clientSecret] = microsoft;
     // tenantId defaults to 'common' (multi-tenant) when not pinned to a single Entra tenant.
     providers.microsoft = {
-      clientId: microsoft[0],
-      clientSecret: microsoft[1],
+      clientId,
+      clientSecret,
       tenantId: environment.CAPACITYLENS_MICROSOFT_TENANT_ID || "common",
     };
   }
@@ -92,7 +102,10 @@ function parseSocialProvidersFromEnvironment(
     "CAPACITYLENS_GITHUB_CLIENT_SECRET",
     "GitHub sign-in",
   );
-  if (github) providers.github = { clientId: github[0], clientSecret: github[1] };
+  if (github) {
+    const [clientId, clientSecret] = github;
+    providers.github = { clientId, clientSecret };
+  }
   return providers;
 }
 
@@ -250,10 +263,18 @@ export function prepareProviders({
           // accepting any identity claims.
           requireIssuerValidation: false,
           pkce: true,
-          getToken: oidcClient.exchangeCode,
+          getToken: ({ code, redirectURI, codeVerifier }) =>
+            oidcClient.exchangeCode({
+              code,
+              redirectURI,
+              ...(codeVerifier === undefined ? {} : { codeVerifier }),
+            }),
           getUserInfo: async (tokens) => {
             try {
-              const profile = await oidcClient.getUserInfo(tokens);
+              const profile = await oidcClient.getUserInfo({
+                ...(tokens.accessToken === undefined ? {} : { accessToken: tokens.accessToken }),
+                ...(tokens.idToken === undefined ? {} : { idToken: tokens.idToken }),
+              });
               assertStrictOidcEmailAdmission(db, genericProviderId, profile);
               return profile;
             } catch (error) {

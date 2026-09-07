@@ -375,7 +375,9 @@ describe("sqliteTenantStore", () => {
     }
     const store = createSqliteTenantStore(db);
     const row = store.readLifecycleRow("a1", "resources", "r1");
-    expect(row).toBeDefined();
+    expect(row).toMatchObject({ id: "r1", accountId: "a1" });
+    expect(store.readLifecycleRow("a1", "resources", "missing")).toBeNull();
+    expect(store.readLifecycleRow("a1", "resources", "r2")).toBeNull();
 
     store.writeLifecycleRow("a1", "resources", {
       ...(row as AppData["resources"][number]),
@@ -420,8 +422,8 @@ describe("sqliteTenantStore", () => {
     const a1 = store.readSlice("a1", FULL);
     expect(a1.allocations[0]).not.toHaveProperty("note");
     expect(a1.timeOff[0]).not.toHaveProperty("note");
-    expect(Date.parse(a1.allocations[0].updatedAt)).toBeGreaterThan(Date.parse(TS));
-    expect(Date.parse(a1.timeOff[0].updatedAt)).toBeGreaterThan(Date.parse(TS));
+    expect(Date.parse(a1.allocations[0]?.updatedAt ?? "")).toBeGreaterThan(Date.parse(TS));
+    expect(Date.parse(a1.timeOff[0]?.updatedAt ?? "")).toBeGreaterThan(Date.parse(TS));
     expect(store.readSlice("a2", FULL).allocations[0]?.note).toBe("hi");
     expect(store.readSlice("a2", FULL).timeOff[0]?.note).toBe("private-a2");
   });
@@ -472,7 +474,9 @@ describe("readSlice — P1.6 time-off note redaction", () => {
       includeInactive: true,
       includePrivateNames: true,
     });
-    expect("note" in slice.timeOff[0]).toBe(false);
+    const timeOff = slice.timeOff[0];
+    if (!timeOff) throw new Error("Expected the seeded time-off row.");
+    expect("note" in timeOff).toBe(false);
     expect((slice.timeOff[0] as { note?: string }).note).toBeUndefined();
   });
 });

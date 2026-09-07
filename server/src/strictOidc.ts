@@ -231,15 +231,25 @@ export function createStrictOidcClient(input: {
     ) {
       throw new StrictOidcVerificationError("OIDC user-info response has a missing or invalid name.");
     }
-    return {
+    const image = parseOptionalPictureUrl(profile.picture);
+    const result: StrictOidcProfile = {
       ...profile,
       id: profile.sub,
       sub: profile.sub,
       email,
       emailVerified: profile.email_verified === true,
       name: profile.name.trim(),
-      image: parseOptionalPictureUrl(profile.picture),
     };
+    // The established response shape owns `image` even when the provider picture is unusable.
+    // Define it explicitly without widening the optional public contract to permit assignments of
+    // `undefined`; callers may still distinguish the stable own-property shape at runtime.
+    Object.defineProperty(result, "image", {
+      value: image ?? undefined,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
+    return result;
   };
 
   return { metadata: readMetadata, exchangeCode, getUserInfo };

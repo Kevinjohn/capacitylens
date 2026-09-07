@@ -186,8 +186,8 @@ export function SchedulerGridRow({
         // Viewer (P1.12): pass NO edit/draw callbacks — the lane then bails its draw gesture and
         // drops the hover "+" hint (display-only). Editable (null/owner/admin/editor, incl.
         // OFF/local) gets the stable memoised callbacks, byte-identical to today.
-        onEdit={canEdit ? handleEdit : undefined}
-        onDraw={canEdit ? handleDraw : undefined}
+        {...(canEdit && handleEdit ? { onEdit: handleEdit } : {})}
+        {...(canEdit && handleDraw ? { onDraw: handleDraw } : {})}
       />
     </div>
   );

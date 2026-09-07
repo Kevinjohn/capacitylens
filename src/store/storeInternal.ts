@@ -7,7 +7,7 @@ import {
   clearEntityLenses,
   type Draft,
   type ImportSummary,
-  type ScopedPatch,
+  type Patch,
   type ScopedRow,
   type StoreState,
 } from "./types";
@@ -15,6 +15,14 @@ import { stamp, touch, touchAfter } from "./revisions";
 import { HISTORY_LIMIT } from "./history";
 import { resetSchedulerView } from "./storeConstants";
 import { createGuards } from "./storeGuards";
+
+interface UpdateOwnedInput<K extends ScopedEntityKey> {
+  key: K;
+  id: ID;
+  patch: Patch<ScopedRow<K>>;
+  prepare?: ((merged: ScopedRow<K>, existing: ScopedRow<K>) => Patch<ScopedRow<K>>) | undefined;
+  cascade?: ((data: AppData, merged: ScopedRow<K>, existing: ScopedRow<K>) => AppData) | undefined;
+}
 
 export * from "./revisions";
 export * from "./history";
@@ -41,14 +49,14 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
   const mutateIrreversible = (producer: (data: AppData) => AppData) =>
     set((state) => ({ data: producer(state.data), past: [], future: [] }));
 
-  const applyPatch = <T extends Entity>(row: T, patch: Partial<Omit<T, keyof Entity>>): T => {
-    const next = { ...row, ...patch } as T;
+  const applyPatch = <T extends Entity>(row: T, patch: Patch<T>): T => {
+    const next = { ...row, ...patch };
     for (const [key, value] of Object.entries(patch)) {
       if (value === undefined) delete (next as Record<string, unknown>)[key];
     }
     return next;
   };
-  const updateById = <T extends Entity>(list: T[], id: ID, patch: Partial<Omit<T, keyof Entity>>): T[] =>
+  const updateById = <T extends Entity>(list: T[], id: ID, patch: Patch<T>): T[] =>
     list.map((row) => (row.id === id ? { ...applyPatch(row, patch), updatedAt: touchAfter(row.updatedAt) } : row));
 
   const {
@@ -95,26 +103,22 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
    *  which always merges before it validates — rejected the full row, diverging local from synced
    *  state. `prepare` may also throw (surface, don't swallow) and may repair the patch it returns;
    *  `cascade` adds dependent table writes to that same mutation/history entry. */
-  const updateOwned = <K extends ScopedEntityKey>(
-    key: K,
-    id: ID,
-    patch: ScopedPatch<K>,
-    prepare?: (merged: ScopedRow<K>, existing: ScopedRow<K>) => ScopedPatch<K>,
-    cascade?: (data: AppData, merged: ScopedRow<K>, existing: ScopedRow<K>) => AppData,
-  ): boolean => {
+  const updateOwned = <K extends ScopedEntityKey>({
+    key,
+    id,
+    patch,
+    prepare,
+    cascade,
+  }: UpdateOwnedInput<K>): boolean => {
     const existing = resolveOwnedRow(get().data, key, id);
     if (!existing) return false;
-    const effective = prepare
-      ? prepare(applyPatch(existing, patch as Partial<Omit<ScopedRow<K>, keyof Entity>>), existing)
-      : patch;
+    const effective = prepare ? prepare(applyPatch(existing, patch), existing) : patch;
     // The table key is generic here, so TS can't narrow data[key] to a single row type; K pins the row
     // and patch types at every call site above, which is where correctness is actually checked.
     mutate((data) => {
       const rows = updateById(data[key] as Entity[], id, effective as Partial<Entity>);
-      const next = { ...data, [key]: rows } as AppData;
-      return cascade
-        ? cascade(next, applyPatch(existing, effective as Partial<Omit<ScopedRow<K>, keyof Entity>>), existing)
-        : next;
+      const next = { ...data, [key]: rows };
+      return cascade ? cascade(next, applyPatch(existing, effective), existing) : next;
     });
     return true;
   };

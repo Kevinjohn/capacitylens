@@ -64,7 +64,7 @@ export const AllocationBar = memo(function AllocationBar({
     bar,
     geom: geometry,
     indexAtClientX,
-    onEdit,
+    ...(onEdit ? { onEdit } : {}),
   });
   // External / 3rd-party work carries no hours either (hoursPerDay 0); hide the load the same way
   // blocks do. The assignee's kind is already on the bar (from the model), so read it there rather

@@ -69,7 +69,10 @@ export function useAllocationTargetState({
   );
   const attributedProjectId = resolveAttributedProject(selectedActivity, projectSelection);
   const selectedEffectiveProjectId = useMemo(
-    () => (selectedActivity ? effectiveProjectId({ projectId: attributedProjectId }, selectedActivity) : undefined),
+    () =>
+      selectedActivity
+        ? effectiveProjectId(attributedProjectId ? { projectId: attributedProjectId } : {}, selectedActivity)
+        : undefined,
     [attributedProjectId, selectedActivity],
   );
   const selectedResource = resourcesById.get(resourceId);
@@ -131,7 +134,13 @@ export function useAllocationTargetState({
   const activityScope = buildActivityScope(projectSelection);
   const baseActivityOptions = useMemo(
     () =>
-      buildActivityOptions(data.activities, data.phases, data.projects, activityScope.kind, activityScope.projectId),
+      buildActivityOptions({
+        activities: data.activities,
+        phases: data.phases,
+        projects: data.projects,
+        kind: activityScope.kind,
+        projectId: activityScope.projectId,
+      }),
     [activityScope.kind, activityScope.projectId, data.activities, data.phases, data.projects],
   );
   const activityOptions = useMemo(() => {
@@ -182,7 +191,7 @@ export function useAllocationTargetState({
           value: activity.id,
           label: activity.name,
           kind: activity.kind,
-          projectId: activity.projectId,
+          ...(activity.projectId ? { projectId: activity.projectId } : {}),
         });
       });
       setActivityId(activity.id);

@@ -519,7 +519,9 @@ describe("startBackups", () => {
     expect(kept).toHaveLength(2);
     // Names sort chronologically, so the two NEWEST stamps survive (clock started at 00:00:00,
     // start-up shot + 4 manual = stamps :01..:05; kept = :04 and :05).
-    expect(kept[0] < kept[1]).toBe(true);
+    const [older, newer] = kept;
+    if (!older || !newer) throw new Error("Expected two retained snapshots.");
+    expect(older < newer).toBe(true);
     expect(readdirSync(dir)).toContain("not-a-snapshot.txt");
   });
 
@@ -527,9 +529,13 @@ describe("startBackups", () => {
     vi.stubEnv("TZ", "Europe/London");
     const dir = tempDir();
     const db = openDb(":memory:");
-    const instants = ["2026-10-25T00:59:59.900Z", "2026-10-25T01:00:00.100Z"];
+    const instants: [string, string] = ["2026-10-25T00:59:59.900Z", "2026-10-25T01:00:00.100Z"];
     let nextInstant = 0;
-    const clock = () => new Date(instants[Math.min(nextInstant++, instants.length - 1)]);
+    const clock = () => {
+      const instant = instants[Math.min(nextInstant++, instants.length - 1)];
+      if (!instant) throw new Error("Expected a backup clock instant.");
+      return new Date(instant);
+    };
     const backups = startBackups({ db, config: { dir, intervalMin: 60, keep: 1 }, log: () => {}, now: clock });
     try {
       const newest = await backups.snapshotNow();
@@ -679,8 +685,10 @@ describe("startBackups", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("backup written"));
     const files = snapshots(dir);
     expect(files).toHaveLength(1);
+    const snapshot = files[0];
+    if (!snapshot) throw new Error("Expected one completed snapshot.");
     // The file was COMPLETE before stop() resolved — it opens and holds the data.
-    const restored = readState(openDb(join(dir, files[0])));
+    const restored = readState(openDb(join(dir, snapshot)));
     expect(restored.accounts.map((a) => a.name)).toContain("Wayne Enterprises");
   });
 

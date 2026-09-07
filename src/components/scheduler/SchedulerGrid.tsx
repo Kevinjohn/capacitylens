@@ -80,7 +80,7 @@ export function SchedulerGrid() {
   } = viewport;
   const { model, density, today, todayX, visibleWeeksLabel, visibleSpanCompact, overallUtil, filtersActive } =
     useSchedulerGridModel(preferences, viewport);
-  const virtualization = useSchedulerGridVirtualization(model, ui, density, data, viewport);
+  const virtualization = useSchedulerGridVirtualization({ model, ui, density, data, viewport });
   const { items, visibleClosures } = virtualization;
 
   // Stable callbacks so the memoised ResourceLane can skip re-rendering on
@@ -107,13 +107,13 @@ export function SchedulerGrid() {
     // identical entry. Personal overlaps and non-working days still gate the draw.
     const gateTimeOff = scopedData.timeOff;
     if (
-      isCreationStartBlocked(
+      isCreationStartBlocked({
         resource,
-        startDate,
-        gateTimeOff,
-        listAccountWorkingDays(state.data, state.activeAccountId),
-        drawMode === "timeoff" ? [] : scopedData.closures,
-      )
+        date: startDate,
+        timeOff: gateTimeOff,
+        accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
+        closures: drawMode === "timeoff" ? [] : scopedData.closures,
+      })
     ) {
       return;
     }
@@ -250,7 +250,7 @@ export function SchedulerGrid() {
           {modal && (
             <Suspense fallback={null}>
               {modal.kind === "edit" ? (
-                <AllocationModal allocationId={modal.allocationId} onClose={() => setModal(null)} />
+                <AllocationModal kind="edit" allocationId={modal.allocationId} onClose={() => setModal(null)} />
               ) : modal.kind === "timeoff" ? (
                 <TimeOffForm
                   defaults={{
@@ -262,6 +262,7 @@ export function SchedulerGrid() {
                 />
               ) : (
                 <AllocationModal
+                  kind="create"
                   create={{
                     resourceId: modal.resourceId,
                     startDate: modal.startDate,

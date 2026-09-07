@@ -4,7 +4,7 @@ import type { CommandIdentity } from "@capacitylens/shared/account/types";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { LocalAccountFlows } from "../../accounts/createLocalAccountFlows";
 import type { AuditRecord } from "../../audit";
-import type { AuthMode } from "../../auth";
+import type { AccountMode } from "../../auth";
 import { type Db } from "../../db";
 import type { SanitizeWriteOptions } from "../../fieldPolicy";
 import type { TenantStore } from "../../tenantStore";
@@ -12,7 +12,7 @@ import type { TenantStore } from "../../tenantStore";
 export interface AccountEntityRouteDependencies {
   db: Db;
   store: TenantStore;
-  authMode: AuthMode;
+  authMode: AccountMode;
   multiAccount: boolean;
   /** Already resolved from AppOptions (`opts.optimisticConcurrency !== false`). */
   optimisticConcurrency: boolean;

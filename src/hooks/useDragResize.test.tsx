@@ -1,18 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { useDragResize } from "./useDragResize";
+import { type DragResizePreviewInput, useDragResize } from "./useDragResize";
 import type { DragMode } from "../lib/gestureMath";
 
 interface HarnessProps {
   // A uniform-grid stand-in for the lane's geometry inverse: clientX → day index at 48px/day,
   // origin at clientX 0. So a 48px move snaps to a 1-day delta, exactly as before.
   indexAtClientX?: (clientX: number) => number;
-  onPreview?: (
-    mode: DragMode,
-    deltaDays: number,
-    deltaY: number,
-    pointer: { clientX: number; clientY: number },
-  ) => void;
+  onPreview?: (input: DragResizePreviewInput) => void;
   onCommit: (mode: DragMode, deltaDays: number, pointer: { clientX: number; clientY: number }) => void;
   onClick?: () => void;
   onCancel?: () => void;
@@ -25,7 +20,13 @@ function Harness({
   onClick,
   onCancel,
 }: HarnessProps) {
-  const { onPointerDown } = useDragResize({ indexAtClientX, onPreview, onCommit, onClick, onCancel });
+  const { onPointerDown } = useDragResize({
+    indexAtClientX,
+    onPreview,
+    onCommit,
+    ...(onClick ? { onClick } : {}),
+    ...(onCancel ? { onCancel } : {}),
+  });
   return (
     <div data-testid="drag-target" onPointerDown={onPointerDown}>
       <span data-handle="start" data-testid="handle-start">
@@ -47,18 +48,29 @@ describe("useDragResize", () => {
   it('(a) pointerDown on the body + pointermove >4px + pointerup calls onCommit with mode "move" and deltaDays=1 for 48px', () => {
     const onCommit = vi.fn();
     const onClick = vi.fn();
-    render(<Harness onCommit={onCommit} onClick={onClick} />);
+    const onPreview = vi.fn();
+    render(<Harness onCommit={onCommit} onClick={onClick} onPreview={onPreview} />);
 
     const body = screen.getByTestId("body");
 
     // Start drag on the body span (no data-handle => 'move' mode)
-    fireEvent.pointerDown(body, { clientX: 0, button: 0 });
+    fireEvent.pointerDown(body, { clientX: 0, clientY: 10, button: 0 });
 
-    // Move >4px threshold
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, bubbles: true }));
+    // Movement below the threshold does not preview.
+    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 3, clientY: 12, bubbles: true }));
+    expect(onPreview).not.toHaveBeenCalled();
+
+    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, clientY: 25, bubbles: true }));
+    expect(onPreview).toHaveBeenCalledTimes(1);
+    expect(onPreview).toHaveBeenCalledWith({
+      mode: "move",
+      deltaDays: 1,
+      deltaY: 15,
+      pointer: { clientX: 48, clientY: 25 },
+    });
 
     // Release
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, bubbles: true }));
+    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, clientY: 25, bubbles: true }));
 
     expect(onCommit).toHaveBeenCalledWith("move", 1, expect.objectContaining({ clientX: 48 }));
     expect(onClick).not.toHaveBeenCalled();

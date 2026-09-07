@@ -91,6 +91,7 @@ export function SchedulerGridRows({
           {renderedIndices.length > 0 &&
             (() => {
               const finalIndex = renderedIndices[renderedIndices.length - 1];
+              if (finalIndex === undefined) return null;
               const renderedBottom = (layout.tops[finalIndex] ?? 0) + (heights[finalIndex] ?? 0);
               const gap = Math.max(0, layout.total - renderedBottom);
               return gap > 0 ? <div aria-hidden style={{ height: gap }} /> : null;

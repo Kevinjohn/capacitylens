@@ -1,6 +1,10 @@
 import type { AuthorizeRouteInput } from "./routeShared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { type IdentityAdminAction, type IdentityAdminAuthorityDecision } from "@capacitylens/shared/account/types";
+import {
+  type Role,
+  type IdentityAdminAction,
+  type IdentityAdminAuthorityDecision,
+} from "@capacitylens/shared/account/types";
 import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
 import { ALL_FIELDS_VISIBLE } from "./routeShared";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
@@ -11,6 +15,9 @@ import type { resolveAppConfig } from "./appConfig";
 import type { createAppRuntime } from "./appRuntime";
 import type { installRootHooks } from "./appRootHooks";
 import type { AppOptions } from "../app";
+
+export type AuthorizationResult = { kind: "allowed"; role: Role | null } | { kind: "denied" };
+export type EffectiveRoleResult = { kind: "resolved"; role: Role | null } | { kind: "ended" };
 
 interface CreateAuthorizationInput {
   app: FastifyInstance;
@@ -25,23 +32,20 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
   const { authMode } = config;
   const { corsOrigins, securityEvent } = rootHelpers;
   /** Resolve the real membership first, then substitute only the active account's target read role. */
-  function resolveEffectiveRole(
-    req: FastifyRequest,
-    accountId: string,
-  ): { role: ReturnType<typeof accountAdminPort.roleForPrincipalInWorkspace>; ended: boolean } {
+  function resolveEffectiveRole(req: FastifyRequest, accountId: string): EffectiveRoleResult {
     const realRole = accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId);
     const record = req.session ? masquerades.lookup(req.session.id) : null;
-    if (!record || record.accountId !== accountId) return { role: realRole, ended: false };
+    if (!record || record.accountId !== accountId) return { kind: "resolved", role: realRole };
     if (realRole === null || !can(realRole, "masquerade")) {
       endMasquerade(record, "caller_invalidated");
-      return { role: null, ended: true };
+      return { kind: "ended" };
     }
     const targetRole = accountAdminPort.roleForPrincipalInWorkspace(record.targetUserId, accountId);
     if (targetRole === null) {
       endMasquerade(record, "target_invalidated");
-      return { role: null, ended: true };
+      return { kind: "ended" };
     }
-    return { role: targetRole, ended: false };
+    return { kind: "resolved", role: targetRole };
   }
 
   function readMemberProjection(
@@ -64,8 +68,8 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
 
   /**
    * The authorization seam (P1.5 requirePermission): "may THIS request perform `action` on
-   * `accountId`?". Returns the resolved role to proceed; otherwise it has already sent the route's denial and returns
-   * `false`, so a caller guards with `if (!authorize(...)) return`.
+   * `accountId`?". Returns `kind: "allowed"` with the resolved role to proceed;
+   * otherwise it sends the route's denial and returns `kind: "denied"`.
    *
    * OFF mode (the default, trusted-local) is a NO-OP allow-all: it returns a successful null-role result
    * on the FIRST line, BEFORE any membership read — `req.user` is the synthetic DEMO_USER and the account
@@ -84,20 +88,14 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
    * @param accountId  The account the action targets (each route derives this as it does today).
    * @param action     The coarse capability being attempted (see {@link AuthorizeRouteInput.action}).
    * @param options    Row-addressed routes may conceal non-membership as the same 404 as an absent id.
-   * @returns The resolved role if allowed; `false` after sending the route's denial response.
+   * @returns An allowed result with the resolved role, or a denied result after sending the response.
    */
-  function authorize({
-    req,
-    reply,
-    accountId,
-    action,
-    options = {},
-  }: AuthorizeRouteInput): { role: ReturnType<typeof accountAdminPort.roleForPrincipalInWorkspace> } | false {
-    if (authMode === "off") return { role: null }; // OFF = allow-all; the account port / can NEVER run.
+  function authorize({ req, reply, accountId, action, options = {} }: AuthorizeRouteInput): AuthorizationResult {
+    if (authMode === "off") return { kind: "allowed", role: null }; // OFF = allow-all; the account port / can NEVER run.
     const resolved = resolveEffectiveRole(req, accountId);
-    if (resolved.ended) {
+    if (resolved.kind === "ended") {
       reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
-      return false;
+      return { kind: "denied" };
     }
     const role = resolved.role;
     if (role === null) {
@@ -110,7 +108,7 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
       });
       if (options.concealNonMembership) reply.code(404).send({ error: "Not found" });
       else reply.code(403).send({ error: "Forbidden." });
-      return false;
+      return { kind: "denied" };
     }
     if (!can(role, action)) {
       securityEvent({
@@ -122,7 +120,7 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
         role,
       });
       reply.code(403).send({ error: "Forbidden." }); // member, but role tier too low for action
-      return false;
+      return { kind: "denied" };
     }
     if (action !== "read" && action !== "write") {
       // Freshness gate for privileged (above-write) actions — FAIL CLOSED (mirrors the CSRF-parse
@@ -153,14 +151,14 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
           error: "Sign in again before performing this security-sensitive action.",
           code: "SESSION_NOT_FRESH",
         });
-        return false;
+        return { kind: "denied" };
       }
     }
-    return { role };
+    return { kind: "allowed", role };
   }
 
   const authorizeAllowed = ({ req, reply, accountId, action, options = {} }: AuthorizeRouteInput): boolean =>
-    authorize({ req, reply, accountId, action, options }) !== false;
+    authorize({ req, reply, accountId, action, options }).kind === "allowed";
 
   /** Writer visibility for the two field-level confidentiality policies. Only time off and
    * client/project writes pay the membership lookup; a non-string account id fails closed. */
@@ -169,7 +167,8 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
     if (!hasGatedFields(table) || authMode === "off") {
       return ALL_FIELDS_VISIBLE;
     }
-    const role = typeof accountId === "string" ? resolveEffectiveRole(req, accountId).role : null; // a non-string account id fails closed (every gated field hidden)
+    const resolved = typeof accountId === "string" ? resolveEffectiveRole(req, accountId) : null;
+    const role = resolved?.kind === "resolved" ? resolved.role : null; // invalid or ended context hides every gated field
     return resolveVisibilityForRole(role);
   }
 

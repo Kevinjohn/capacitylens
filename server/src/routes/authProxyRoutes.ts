@@ -4,7 +4,7 @@ import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
 import type { ApplicationSession } from "@capacitylens/shared/account/types";
 import { can } from "@capacitylens/shared/domain/access";
 import { isAccountCreateCapped, countAccounts } from "./accountEntityRoutes";
-import { countUsers, DEMO_USER, type Auth, type AuthMode, type SessionUser } from "../auth";
+import { countUsers, DEMO_USER, type Auth, type AccountMode, type SessionUser } from "../auth";
 import type { MasqueradeRegistry } from "../MasqueradeRegistry";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 
@@ -25,7 +25,11 @@ function parseAuthenticationRequestUrl(req: FastifyRequest): URL | null {
 
 /** CapacityLens's complete public seam into Better Auth. New dependency routes remain closed until
  * they are deliberately classified here and covered by the application's own policy surface. */
-function isBetterAuthProxyRouteAllowed(authMode: Exclude<AuthMode, "off">, method: string, pathname: string): boolean {
+function isBetterAuthProxyRouteAllowed(
+  authMode: Exclude<AccountMode, "off">,
+  method: string,
+  pathname: string,
+): boolean {
   const common = new Set(["GET /get-session", "POST /sign-out", "POST /sign-in/oauth2", "POST /sign-in/social"]);
   if (common.has(`${method} ${pathname}`)) return true;
   if (
@@ -86,6 +90,7 @@ function withResponseCookies(requestHeaders: Headers, setCookies: readonly strin
   }
   for (const setCookie of setCookies) {
     const pair = setCookie.split(";", 1)[0];
+    if (!pair) continue;
     const separator = pair.indexOf("=");
     if (separator < 1) continue;
     const name = pair.slice(0, separator).trim();
@@ -102,7 +107,7 @@ function withResponseCookies(requestHeaders: Headers, setCookies: readonly strin
 
 interface CanUserCreateAccountInput {
   administration: AccountAdminPort;
-  authMode: AuthMode;
+  authMode: AccountMode;
   userId: string;
   count: number;
 }
@@ -124,7 +129,7 @@ async function canUserCreateAccount({
 
 export interface AuthProxyRouteDependencies {
   section: "identity" | "proxy";
-  authMode: AuthMode;
+  authMode: AccountMode;
   auth: Auth | null;
   db: Parameters<typeof countAccounts>[0];
   multiAccount: boolean;
@@ -203,7 +208,7 @@ export function registerAuthProxyRoutes(app: FastifyInstance, dependencies: Auth
       try {
         const session = resolution.session;
         const user = sessionUserFromApplicationSession(session);
-        const masquerading = masquerades.lookup(session.id) !== null;
+        const masquerading = masquerades.lookup(session.id) !== undefined;
         return {
           authMode,
           user,
@@ -272,7 +277,7 @@ export function registerAuthProxyRoutes(app: FastifyInstance, dependencies: Auth
           new Request(url, {
             method: req.method,
             headers: requestHeaders,
-            body: req.body === undefined || req.body === null ? undefined : JSON.stringify(req.body),
+            ...(req.body === undefined || req.body === null ? {} : { body: JSON.stringify(req.body) }),
           }),
         );
         reply.status(response.status);

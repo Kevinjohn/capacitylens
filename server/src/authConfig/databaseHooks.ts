@@ -52,7 +52,12 @@ export function buildDatabaseHooks({
 
             // Open EMAIL registration never opens external identity creation as a side effect.
             // Social/OIDC remains verified-email + invitation/allow-list gated in every posture.
-            const externalProviderId = externalSignup ? providerIdFromExternalContext(context) : null;
+            const externalProviderId = externalSignup
+              ? providerIdFromExternalContext({
+                  path: context.path,
+                  ...(context.params === undefined ? {} : { params: context.params }),
+                })
+              : null;
             if (externalSignup && mode === "sso" && externalProviderId !== genericProviderId) {
               // Named social providers remain compatibility sign-in doors for principals that
               // already exist. Letting one create a new principal after cutover would immediately
@@ -98,12 +103,19 @@ export function buildDatabaseHooks({
       session: {
         create: {
           after: async (session, context) => {
-            const assurance = externalIdentityPath(context?.path)
+            const path = context?.path;
+            const assurance = externalIdentityPath(path)
               ? "federated"
-              : context?.path?.startsWith("/two-factor/")
+              : path?.startsWith("/two-factor/")
                 ? "mfa"
                 : "password";
-            const providerId = assurance === "federated" ? providerIdFromExternalContext(context) : null;
+            const providerId =
+              assurance === "federated" && path
+                ? providerIdFromExternalContext({
+                    path,
+                    ...(context?.params === undefined ? {} : { params: context.params }),
+                  })
+                : null;
             if (assurance === "federated" && (!providerId || !configuredFederatedIssuers.has(providerId))) {
               throw new Error("External session creation did not resolve a configured provider id.");
             }

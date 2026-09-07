@@ -30,7 +30,7 @@ export function normalizeAccountWorkingDays(value: unknown, weekStartsOn: 0 | 1 
   if (!Array.isArray(value) || value.length === 0 || !value.every(isWeekday)) {
     return defaultAccountWorkingDays(weekStartsOn);
   }
-  return canonicalWeekdaySet(value as Weekday[]);
+  return canonicalWeekdaySet(value);
 }
 
 /** Weekdays ordered for presentation, beginning with the company's configured week start. */

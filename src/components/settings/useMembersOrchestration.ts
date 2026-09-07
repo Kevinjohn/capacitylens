@@ -208,8 +208,11 @@ export function useMembersOrchestration(activeAccountId: string | null) {
       case "revokeSessions":
         void revokeSessions(pending.member);
         return;
-      default:
+      case "disable":
+      case "archive":
+      case "restore":
         void changeStatus(pending.member, STATUS_FOR_ACTION[pending.action]);
+        return;
     }
   };
 

@@ -95,7 +95,7 @@ describe("SSO cutover routes", () => {
     ["SOMETHING_NEW", 500],
   ])("maps beginFederatedLink %s failures to %i", async (code, status) => {
     const beginFederatedLink = vi.fn(async () => {
-      throw { body: { code, message: `failure ${code}` } };
+      throw Object.assign(new Error(`failure ${code}`), { body: { code, message: `failure ${code}` } });
     });
     const app = authenticatedApp({ auth: { strictProvider: provider, beginFederatedLink } as unknown as Auth });
     const response = await app.inject({

@@ -4,13 +4,15 @@ import type { AttachmentState } from "./attachmentState";
 import type { WriteQueue } from "./writeQueue";
 import type { RefreshController } from "./refreshController";
 
-export function attachDomListeners(
-  store: StoreApi<StoreState>,
-  owner: AttachmentState,
-  writes: WriteQueue,
-  refresh: RefreshController,
-  serverMode: boolean,
-) {
+interface AttachDomListenersInput {
+  store: StoreApi<StoreState>;
+  owner: AttachmentState;
+  writes: WriteQueue;
+  refresh: RefreshController;
+  serverMode: boolean;
+}
+
+export function attachDomListeners({ store, owner, writes, refresh, serverMode }: AttachDomListenersInput) {
   const { retryStrandedWrite, flushOnUnload, flushWhileAlive } = writes;
   const { refreshActive, startAuthoritativeReload } = refresh;
   const REFRESH_MIN_INTERVAL_MS = 30_000;
@@ -53,7 +55,7 @@ export function attachDomListeners(
       .then((outcome) => {
         // Only a real server reload consumes the throttle. Skipped attempts (failed-save guard,
         // superseded owner) remain immediately recoverable on the next focus/online event.
-        if (outcome === "reloaded") owner.update({ lastRefreshAt: Date.now() });
+        if (outcome.kind === "reloaded") owner.update({ lastRefreshAt: Date.now() });
       })
       .finally(() => {
         owner.update({ focusRefreshInFlight: false });

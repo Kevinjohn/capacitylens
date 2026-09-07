@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { AccountContractError, type AccountErrorCode } from "@capacitylens/shared/account/errors";
-import type { CommandIdentity, OperationReceipt, PrincipalId } from "@capacitylens/shared/account/types";
+import type { CommandIdentity, PrincipalId } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 import {
   correlatePendingAccountCommand,
@@ -52,7 +52,7 @@ function buildCanonicalJson(value: unknown): string {
  * audit event for a request that merely re-read an already committed result. */
 export function markAccountCommandReplay<T>(result: T): T {
   if ((typeof result === "object" && result !== null) || typeof result === "function") {
-    replayedCommandResults.add(result as object);
+    replayedCommandResults.add(result);
   }
   return result;
 }
@@ -60,7 +60,7 @@ export function markAccountCommandReplay<T>(result: T): T {
 export function wasAccountCommandReplayed(result: unknown): boolean {
   return (
     ((typeof result === "object" && result !== null) || typeof result === "function") &&
-    replayedCommandResults.has(result as object)
+    replayedCommandResults.has(result)
   );
 }
 
@@ -263,10 +263,6 @@ export function terminatePendingCommand({
   result,
 }: TerminatePendingCommandInput): boolean {
   return finishAccountCommandIfPending(db, buildFinishInput({ scope, command, status, failureCode, result }));
-}
-
-export function buildOperationReceipt(record: AccountCommandRecord): OperationReceipt {
-  return { commandId: record.commandId, completedAt: record.updatedAt };
 }
 
 interface ReadCommandInput {

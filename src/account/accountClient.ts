@@ -31,11 +31,11 @@ export const accountClient = {
   me(signal?: AbortSignal): Promise<Response> {
     // apiFetch (not raw fetch) so the audit-degradation header gets the same announceAuditWarning
     // surfacing as every other account/sync request path.
-    return apiFetch(`${API_BASE}/api/auth/me`, { credentials: "include", signal });
+    return apiFetch(`${API_BASE}/api/auth/me`, { credentials: "include", ...(signal ? { signal } : {}) });
   },
 
   listWorkspaces(signal?: AbortSignal): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/accounts`, { credentials: "include", signal });
+    return apiFetch(`${API_BASE}/api/accounts`, { credentials: "include", ...(signal ? { signal } : {}) });
   },
 
   signOut(): Promise<Response> {
@@ -247,9 +247,7 @@ export const accountClient = {
 
   async createInvitation(body: unknown, command?: BrowserAccountCommand): Promise<Response> {
     const accountId =
-      typeof body === "object" && body !== null && "accountId" in body
-        ? String((body as { accountId: unknown }).accountId)
-        : "unknown";
+      typeof body === "object" && body !== null && "accountId" in body ? String(body.accountId) : "unknown";
     return runCommand({
       operationKey: await buildPayloadOperationKey(`invitation-create:${accountId}`, body),
       explicit: command,

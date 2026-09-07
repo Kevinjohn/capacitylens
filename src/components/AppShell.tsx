@@ -23,7 +23,7 @@ import { Button } from "./ui/button";
 const masqueradeButtonClassName = "border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white";
 
 function buildMasqueradeBannerContent(masquerade: ReturnType<typeof useStore.getState>["masquerade"]) {
-  switch (masquerade.phase) {
+  switch (masquerade.kind) {
     case "inactive":
       return null;
     case "starting":
@@ -95,7 +95,7 @@ export function AppShell() {
   // Drop the Disciplines destination from the nav when the active account doesn't use
   // disciplines (the route itself is also guarded — see router.tsx).
   const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
-  const navLinks = disciplinesEnabled ? LINKS : LINKS.filter(([to]) => to !== "/disciplines");
+  const navLinks = disciplinesEnabled ? LINKS : LINKS.filter(({ to }) => to !== "/disciplines");
 
   const dirtyForm = useStore((state) => state.dirtyForm);
   const sidebarOpen = useStore((state) => state.sidebarOpen);

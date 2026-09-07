@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { AllocationModal } from "./AllocationModal";
 import { AllocationBar } from "./AllocationBar";
 import { useStore } from "../../store/useStore";
-import type { AppData, Weekday } from "@capacitylens/shared/types/entities";
+import type { Activity, AppData, Weekday } from "@capacitylens/shared/types/entities";
 import {
   DEFAULT_ACCOUNT_ID,
   makeActivity,
@@ -18,6 +18,21 @@ import {
 import { PermissionContext } from "../../auth/permissionContext";
 import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { chooseOption, GEOM, indexAtClientX, renderWithTooltip } from "./__tests__/schedulerTestKit";
+
+function first<T>(values: T[]): T {
+  const value = values[0];
+  expect(value).toBeDefined();
+  if (value === undefined) throw new Error("Expected a non-empty test result.");
+  return value;
+}
+
+interface AllocationScopeCaseInput {
+  caseName: string;
+  activityKind: Activity["kind"];
+  allocationProjectId?: "p1" | undefined;
+  expectedScope: string;
+  activityName: string;
+}
 
 type CapacityAdvisoryMockInput =
   | Parameters<typeof import("../../lib/capacity").buildCapacityAdvisory>[0]
@@ -33,7 +48,7 @@ const lastAdvisoryOthers = () => {
   const input = capacityAdvisoryMock.mock.calls.at(-1)?.[0];
   return input && "otherAllocations" in input ? input.otherAllocations : undefined;
 };
-const lastAdvisoryProposal = () => capacityAdvisoryMock.mock.calls.at(-1)?.[0].proposal;
+const lastAdvisoryProposal = () => capacityAdvisoryMock.mock.calls.at(-1)?.[0]?.proposal;
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
 // (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
 // care only about the advisory VERDICTS the modal renders.
@@ -90,6 +105,7 @@ describe("AllocationModal create", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2026-06-02", endDate: "2026-06-02" }}
         onClose={vi.fn()}
       />,
@@ -135,6 +151,7 @@ describe("AllocationModal create", () => {
       .addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5], halfDays: [2] });
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2026-06-02", endDate: "2026-06-02" }}
         onClose={vi.fn()}
       />,
@@ -149,6 +166,7 @@ describe("AllocationModal create", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{
           resourceId: resource.id,
           startDate: "2026-06-01",
@@ -167,11 +185,15 @@ describe("AllocationModal create", () => {
 
   it("creates an allocation for a person after picking project + activity", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = useStore.getState().data.resources[0].id;
+    const resourceId = first(useStore.getState().data.resources).id;
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
-      <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={onClose} />,
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={onClose}
+      />,
     );
 
     await chooseOption(user, "Project", "Acme / Lightning");
@@ -201,6 +223,7 @@ describe("AllocationModal create", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
         onClose={vi.fn()}
       />,
@@ -227,10 +250,14 @@ describe("AllocationModal create", () => {
     ["8 h - full day", 8],
   ] as const)("creates an allocation with the %s hours option", async (option, expectedHours) => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = useStore.getState().data.resources[0].id;
+    const resourceId = first(useStore.getState().data.resources).id;
     const user = userEvent.setup();
     render(
-      <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={vi.fn()} />,
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
     );
 
     await chooseOption(user, "Project", "Acme / Lightning");
@@ -244,10 +271,14 @@ describe("AllocationModal create", () => {
 
   it("rejects an empty date instead of saving a broken allocation", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = useStore.getState().data.resources[0].id;
+    const resourceId = first(useStore.getState().data.resources).id;
     const user = userEvent.setup();
     render(
-      <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={vi.fn()} />,
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
     );
 
     await chooseOption(user, "Project", "Acme / Lightning");
@@ -281,6 +312,7 @@ describe("AllocationModal create", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{
           resourceId: ph.id,
           startDate: "2026-06-01",
@@ -332,6 +364,7 @@ describe("AllocationModal create", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: placeholder.id, startDate: "2026-06-01", endDate: "2026-06-02" }}
         onClose={vi.fn()}
       />,
@@ -381,6 +414,7 @@ describe("AllocationModal compact layout", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={vi.fn()}
       />,
@@ -421,7 +455,7 @@ describe("AllocationModal compact layout", () => {
       hoursPerDay: 8,
       status: "confirmed",
     });
-    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     expectLabelControl(screen.getByRole("combobox", { name: "Assignee" }));
     expect(screen.queryByRole("combobox", { name: "Repeat" })).not.toBeInTheDocument();
@@ -440,6 +474,7 @@ describe("AllocationModal compact layout", () => {
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
         onClose={vi.fn()}
       />,
@@ -463,6 +498,7 @@ describe("AllocationModal compact layout", () => {
     });
     const externalView = render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: external.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
         onClose={vi.fn()}
       />,
@@ -484,6 +520,7 @@ describe("AllocationModal compact layout", () => {
     });
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: placeholder.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
         onClose={vi.fn()}
       />,
@@ -497,6 +534,7 @@ describe("AllocationModal advisory work bounds", () => {
     const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     render(
       <AllocationModal
+        kind="create"
         create={{
           resourceId: resource.id,
           startDate: "2026-06-01",
@@ -521,6 +559,7 @@ describe("AllocationModal advisory work bounds", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{
           resourceId: resource.id,
           startDate: "2026-06-01",
@@ -563,6 +602,7 @@ describe("AllocationModal advisory work bounds", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{
           resourceId: resource.id,
           startDate: "2026-06-01",
@@ -599,6 +639,7 @@ describe("AllocationModal advisory work bounds", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-04" }}
         onClose={vi.fn()}
       />,
@@ -628,6 +669,7 @@ describe("AllocationModal days mode", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-05" }}
         onClose={vi.fn()}
       />,
@@ -653,6 +695,7 @@ describe("AllocationModal days mode", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "9999-12-27", endDate: "9999-12-27" }}
         onClose={vi.fn()}
       />,
@@ -663,9 +706,12 @@ describe("AllocationModal days mode", () => {
     const daysOver = screen.getByLabelText("Days over");
     expect(daysOver).toHaveAttribute("max", "4");
     fireEvent.change(daysOver, { target: { value: "5" } });
+    fireEvent.change(screen.getByLabelText("Days of work"), { target: { value: "0" } });
     fireEvent.submit(daysOver.closest("form")!);
 
     expect(screen.getByRole("alert")).toHaveTextContent(/cannot extend beyond 31 December 9999/i);
+    expect(daysOver).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Days of work")).not.toHaveAttribute("aria-invalid", "true");
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 
@@ -675,6 +721,7 @@ describe("AllocationModal days mode", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
         onClose={vi.fn()}
       />,
@@ -699,6 +746,7 @@ describe("AllocationModal days mode", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
         onClose={vi.fn()}
       />,
@@ -721,6 +769,7 @@ describe("AllocationModal days mode", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-01" }}
         onClose={vi.fn()}
       />,
@@ -746,6 +795,7 @@ describe("AllocationModal days mode", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-01" }}
         onClose={vi.fn()}
       />,
@@ -779,7 +829,7 @@ describe("AllocationModal days mode", () => {
       ignoreWeekends: true,
     });
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     expect(screen.getByRole("checkbox", { name: "Ignore working days" })).toBeChecked();
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -800,6 +850,7 @@ describe("AllocationModal days mode", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{
           resourceId: r.id,
           startDate: "2026-06-01",
@@ -840,6 +891,7 @@ describe("AllocationModal days mode", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{
           resourceId: r.id,
           startDate: "2026-06-01",
@@ -867,6 +919,7 @@ describe("AllocationModal days mode", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{
           resourceId: r.id,
           startDate: "9999-12-31",
@@ -896,6 +949,7 @@ describe("AllocationModal days mode", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{
           resourceId: r.id,
           startDate: "2026-06-01",
@@ -932,6 +986,7 @@ describe("AllocationModal days mode", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{
           resourceId: r.id,
           startDate: "2026-06-01",
@@ -966,6 +1021,7 @@ describe("AllocationModal days mode", () => {
     // The grid hands the modal a 5-working-day span (Mon 06-01 … Fri 06-05).
     render(
       <AllocationModal
+        kind="create"
         create={{
           resourceId: r.id,
           startDate: "2026-06-01",
@@ -996,6 +1052,7 @@ describe("AllocationModal days mode", () => {
       .addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5], halfDays: [2] });
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2026-06-02", endDate: "2026-06-02" }}
         onClose={vi.fn()}
       />,
@@ -1018,7 +1075,7 @@ describe("AllocationModal days mode", () => {
       status: "confirmed",
     });
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: "Save" }));
     const after = useStore.getState().data.allocations.find((a) => a.id === alloc.id)!;
@@ -1038,7 +1095,7 @@ describe("AllocationModal days mode", () => {
       status: "confirmed",
     });
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -1059,7 +1116,7 @@ describe("AllocationModal days mode", () => {
       hoursPerDay: 4,
       status: "confirmed",
     });
-    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     expect(screen.getByLabelText("Days of work")).toHaveValue(5);
     expect(screen.getByLabelText("Days over")).toHaveValue(10);
@@ -1076,6 +1133,7 @@ describe("AllocationModal blocks mode", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{
           resourceId: r.id,
           startDate: "2026-06-01",
@@ -1122,6 +1180,7 @@ describe("AllocationModal blocks mode", () => {
     const renderCreate = () =>
       render(
         <AllocationModal
+          kind="create"
           create={{
             resourceId: r.id,
             startDate: "2026-06-01",
@@ -1151,6 +1210,7 @@ describe("AllocationModal blocks mode", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{
           resourceId: r.id,
           startDate: "9999-12-31",
@@ -1179,6 +1239,7 @@ describe("AllocationModal blocks mode", () => {
     // Grid hands a 5-working-day span (Mon 06-01 … Fri 06-05).
     render(
       <AllocationModal
+        kind="create"
         create={{
           resourceId: r.id,
           startDate: "2026-06-01",
@@ -1213,7 +1274,7 @@ describe("AllocationModal blocks mode", () => {
     });
     enableBlocks();
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     await user.type(screen.getByLabelText("Note"), "Still scheduled");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -1231,6 +1292,7 @@ describe("AllocationModal blocks mode", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{
           resourceId: resource.id,
           startDate: "2026-06-01",
@@ -1254,13 +1316,37 @@ describe("AllocationModal blocks mode", () => {
 
 describe("AllocationModal edit", () => {
   it.each([
-    ["attributed All-projects", "repeatable", "p1", "Acme / Lightning", "Planning"],
-    ["legacy unattributed All-projects", "repeatable", undefined, "No specific project", "Planning"],
-    ["internal", "internal", undefined, "Internal", "Operations"],
-    ["project-specific", "project", undefined, "Acme / Lightning", "Wireframes"],
-  ] as const)(
-    "reverse-maps and saves an %s allocation",
-    async (_caseName, activityKind, allocationProjectId, expectedScope, activityName) => {
+    {
+      caseName: "attributed All-projects",
+      activityKind: "repeatable",
+      allocationProjectId: "p1",
+      expectedScope: "Acme / Lightning",
+      activityName: "Planning",
+    },
+    {
+      caseName: "legacy unattributed All-projects",
+      activityKind: "repeatable",
+      allocationProjectId: undefined,
+      expectedScope: "No specific project",
+      activityName: "Planning",
+    },
+    {
+      caseName: "internal",
+      activityKind: "internal",
+      allocationProjectId: undefined,
+      expectedScope: "Internal",
+      activityName: "Operations",
+    },
+    {
+      caseName: "project-specific",
+      activityKind: "project",
+      allocationProjectId: undefined,
+      expectedScope: "Acme / Lightning",
+      activityName: "Wireframes",
+    },
+  ] satisfies readonly AllocationScopeCaseInput[])(
+    "reverse-maps and saves an $caseName allocation",
+    async ({ activityKind, allocationProjectId, expectedScope, activityName }: AllocationScopeCaseInput) => {
       const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
       const activity =
         activityKind === "project"
@@ -1276,7 +1362,7 @@ describe("AllocationModal edit", () => {
         status: "confirmed",
       });
       const user = userEvent.setup();
-      render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+      render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
       expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent(expectedScope);
       expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent(activityName);
@@ -1301,7 +1387,7 @@ describe("AllocationModal edit", () => {
       status: "confirmed",
     });
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     await chooseOption(user, "Project", "No specific project");
     await chooseOption(user, "Activity", "Planning");
@@ -1323,7 +1409,7 @@ describe("AllocationModal edit", () => {
       status: "confirmed",
     });
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     const hours = screen.getByRole("combobox", { name: "Hours / day" });
     expect(hours).toHaveTextContent("6.4");
@@ -1355,7 +1441,7 @@ describe("AllocationModal edit", () => {
       status: "confirmed",
     });
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     expect(screen.getByRole("combobox", { name: "Hours / day" })).toHaveTextContent("5");
     await chooseOption(user, "Hours / day", "4 h - half day");
@@ -1377,7 +1463,7 @@ describe("AllocationModal edit", () => {
       note: "First line\nSecond line",
     });
     const user = userEvent.setup();
-    const view = render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    const view = render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     const note = screen.getByLabelText("Note");
     expect(note.tagName).toBe("INPUT");
@@ -1389,7 +1475,7 @@ describe("AllocationModal edit", () => {
     );
 
     view.unmount();
-    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
     fireEvent.change(screen.getByLabelText("Note"), { target: { value: "First line Second line" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)?.note).toBe(
@@ -1414,7 +1500,7 @@ describe("AllocationModal edit", () => {
     const user = userEvent.setup();
 
     try {
-      render(<AllocationModal allocationId={allocation.id} onClose={onClose} />);
+      render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
       await user.click(screen.getByRole("button", { name: "Delete" }));
       await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Delete" }));
 
@@ -1460,9 +1546,13 @@ describe("AllocationModal edit", () => {
         seriesId,
       },
     ]);
+    expect(earlier).toBeDefined();
+    expect(selected).toBeDefined();
+    expect(later).toBeDefined();
+    if (!earlier || !selected || !later) throw new Error("Expected all repeated allocations to be created.");
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={selected.id} onClose={onClose} />);
+    render(<AllocationModal kind="edit" allocationId={selected.id} onClose={onClose} />);
 
     await user.click(screen.getByRole("button", { name: "Delete" }));
     const dialog = screen.getByRole("alertdialog", { name: "Delete repeated allocation?" });
@@ -1498,9 +1588,12 @@ describe("AllocationModal edit", () => {
         seriesId: "series-weekly",
       },
     ]);
+    expect(selected).toBeDefined();
+    expect(later).toBeDefined();
+    if (!selected || !later) throw new Error("Expected both repeated allocations to be created.");
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={selected.id} onClose={onClose} />);
+    render(<AllocationModal kind="edit" allocationId={selected.id} onClose={onClose} />);
 
     await user.click(screen.getByRole("button", { name: "Delete" }));
     await user.click(
@@ -1525,7 +1618,7 @@ describe("AllocationModal edit", () => {
       status: "confirmed",
     });
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     await chooseOption(user, "Assignee", "Bob");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -1547,7 +1640,7 @@ describe("AllocationModal edit", () => {
     });
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={allocation.id} onClose={onClose} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
 
     await chooseOption(user, "Assignee", "Bob");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -1576,7 +1669,7 @@ describe("AllocationModal edit", () => {
       ignoreWeekends: true,
     });
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     await chooseOption(user, "Assignee", "Bob");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -1612,7 +1705,7 @@ describe("AllocationModal edit", () => {
       status: "confirmed",
     });
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     await chooseOption(user, "Assignee", "Placeholder (slot)");
     expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Acme / Other");
@@ -1646,7 +1739,7 @@ describe("AllocationModal edit", () => {
     // Turn placeholders OFF — they're hidden everywhere, but an allocation already on one must not
     // silently reassign when edited: the picker keeps the currently-selected (hidden) placeholder.
     setPlaceholdersEnabled(false);
-    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     const assignee = screen.getByRole("combobox", { name: "Assignee" });
     expect(assignee).toHaveTextContent("Placeholder (slot)");
@@ -1681,7 +1774,7 @@ describe("AllocationModal edit", () => {
     // External pref OFF (its default) — hidden everywhere, but an allocation already on one must not
     // silently reassign when edited: the picker keeps the currently-selected (hidden) external.
     setExternalEnabled(false);
-    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     const assignee = screen.getByRole("combobox", { name: "Assignee" });
     expect(assignee).toHaveTextContent("Kord Industries (external)");
@@ -1713,7 +1806,7 @@ describe("AllocationModal edit", () => {
       status: "confirmed",
     });
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("No specific project");
     expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent("Admin");
@@ -1755,7 +1848,7 @@ describe("AllocationModal edit", () => {
       },
     }));
 
-    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Acme / Lightning");
   });
@@ -1773,7 +1866,7 @@ describe("AllocationModal edit", () => {
     });
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={alloc.id} onClose={onClose} />);
+    render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={onClose} />);
 
     fireEvent.change(screen.getByLabelText("End"), {
       target: { value: "2026-06-05" },
@@ -1821,11 +1914,11 @@ describe("AllocationModal edit", () => {
       seriesId: "series-weekly",
     });
 
-    const oneOffView = render(<AllocationModal allocationId={oneOff.id} onClose={vi.fn()} />);
+    const oneOffView = render(<AllocationModal kind="edit" allocationId={oneOff.id} onClose={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Duplicate" })).toBeInTheDocument();
     oneOffView.unmount();
 
-    render(<AllocationModal allocationId={linked.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={linked.id} onClose={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Duplicate" })).not.toBeInTheDocument();
   });
 
@@ -1843,7 +1936,7 @@ describe("AllocationModal edit", () => {
     useStore.getState().updateAccount(ACC, { schedulingMode: "hourly" });
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={alloc.id} onClose={onClose} />);
+    render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={onClose} />);
 
     await user.click(screen.getByRole("button", { name: "Duplicate" }));
 
@@ -1866,7 +1959,7 @@ describe("#257: modal and gesture effective-week agreement", () => {
       status: "confirmed",
     });
     const user = userEvent.setup();
-    const modal = render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    const modal = render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "5" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -1916,7 +2009,7 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
     });
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={allocation.id} onClose={onClose} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
 
     await user.type(screen.getByLabelText("Note"), "Still editable");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -1938,6 +2031,7 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2026-06-05", endDate: "2026-06-05" }}
         onClose={onClose}
       />,
@@ -1968,7 +2062,7 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
     });
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={allocation.id} onClose={onClose} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
 
     await user.click(screen.getByRole("button", { name: "Duplicate" }));
 
@@ -1992,7 +2086,7 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
       ignoreWeekends: true,
     });
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: "Duplicate" }));
 
@@ -2014,7 +2108,7 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
       status: "confirmed",
     });
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: "Duplicate" }));
 
@@ -2028,13 +2122,17 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
 describe("AllocationModal inline activity creation pref", () => {
   const addPerson = () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    return useStore.getState().data.resources[0].id;
+    return first(useStore.getState().data.resources).id;
   };
 
   it('renders the inline "Add activity" input + button by default (pref absent → enabled)', () => {
     const resourceId = addPerson();
     render(
-      <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={vi.fn()} />,
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
     );
     expect(screen.getByLabelText("New activity name")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add activity" })).toBeInTheDocument();
@@ -2045,7 +2143,11 @@ describe("AllocationModal inline activity creation pref", () => {
     const resourceId = addPerson();
     const user = userEvent.setup();
     render(
-      <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={vi.fn()} />,
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
     );
 
     await chooseOption(user, "Project", "Acme / Lightning");
@@ -2068,7 +2170,11 @@ describe("AllocationModal inline activity creation pref", () => {
     const resourceId = addPerson();
     useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: false });
     render(
-      <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={vi.fn()} />,
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
     );
     // The inline creator is gone…
     expect(screen.queryByLabelText("New activity name")).not.toBeInTheDocument();
@@ -2082,14 +2188,22 @@ describe("AllocationModal inline activity creation pref", () => {
     const user = userEvent.setup();
     const view = render(
       <PermissionContext.Provider value={{ role: "editor" }}>
-        <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={vi.fn()} />
+        <AllocationModal
+          kind="create"
+          create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+          onClose={vi.fn()}
+        />
       </PermissionContext.Provider>,
     );
     await user.type(screen.getByLabelText("New activity name"), "Unsaved viewer activity");
 
     view.rerender(
       <PermissionContext.Provider value={{ role: "viewer" }}>
-        <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={vi.fn()} />
+        <AllocationModal
+          kind="create"
+          create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+          onClose={vi.fn()}
+        />
       </PermissionContext.Provider>,
     );
 
@@ -2102,11 +2216,15 @@ describe("AllocationModal inline activity creation pref", () => {
 describe("AllocationModal Enter key submission", () => {
   it("operates the Hours / day select with the keyboard", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = useStore.getState().data.resources[0].id;
+    const resourceId = first(useStore.getState().data.resources).id;
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
-      <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={onClose} />,
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={onClose}
+      />,
     );
 
     await chooseOption(user, "Project", "Acme / Lightning");
@@ -2125,11 +2243,15 @@ describe("AllocationModal Enter key submission", () => {
 
   it("submits when Enter is pressed in the single-line Note input", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = useStore.getState().data.resources[0].id;
+    const resourceId = first(useStore.getState().data.resources).id;
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
-      <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={onClose} />,
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={onClose}
+      />,
     );
 
     await chooseOption(user, "Project", "Acme / Lightning");
@@ -2146,11 +2268,15 @@ describe("AllocationModal Enter key submission", () => {
 
   it("pressing Enter in the new-activity input calls onAddActivity, not submit", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = useStore.getState().data.resources[0].id;
+    const resourceId = first(useStore.getState().data.resources).id;
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
-      <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={onClose} />,
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={onClose}
+      />,
     );
 
     // Type an activity name into the inline "add new activity" input and press Enter
@@ -2179,6 +2305,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     const resource = addPerson();
     const { unmount } = render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={vi.fn()}
       />,
@@ -2206,7 +2333,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
       hoursPerDay: 8,
       status: "confirmed",
     });
-    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
     expect(screen.queryByRole("combobox", { name: "Repeat" })).not.toBeInTheDocument();
   });
 
@@ -2215,6 +2342,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2027-12-03", endDate: "2027-12-05" }}
         onClose={vi.fn()}
       />,
@@ -2240,6 +2368,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "9999-11-15", endDate: "9999-11-16" }}
         onClose={vi.fn()}
       />,
@@ -2257,6 +2386,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={onClose}
       />,
@@ -2282,7 +2412,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(oneSpy).not.toHaveBeenCalled();
     expect(bulkSpy).toHaveBeenCalledTimes(1);
-    const drafts = bulkSpy.mock.calls[0][0];
+    const drafts = bulkSpy.mock.calls[0]?.[0];
+    expect(drafts).toBeDefined();
+    if (!drafts) throw new Error("Expected repeated allocation drafts.");
     expect(drafts).toHaveLength(14);
     expect(drafts[0]).toMatchObject({ startDate: "2099-06-01", endDate: "2099-06-03" });
     expect(drafts.at(-1)).toMatchObject({ startDate: "2099-08-31", endDate: "2099-09-02" });
@@ -2308,6 +2440,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
       const user = userEvent.setup();
       render(
         <AllocationModal
+          kind="create"
           create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
           onClose={vi.fn()}
         />,
@@ -2318,7 +2451,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
       await chooseOption(user, "Repeat", "Weekly");
       await user.click(screen.getByRole("button", { name: "Save" }));
 
-      const drafts = bulkSpy.mock.calls[0][0];
+      const drafts = bulkSpy.mock.calls[0]?.[0];
+      expect(drafts).toBeDefined();
+      if (!drafts) throw new Error("Expected repeated allocation drafts.");
       expect(drafts.length).toBeGreaterThan(1);
       for (const draft of drafts) {
         if (projectId) expect(draft).toHaveProperty("projectId", projectId);
@@ -2338,6 +2473,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2099-01-31", endDate: "2099-02-02" }}
         onClose={vi.fn()}
       />,
@@ -2351,7 +2487,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(/clamp|month-end|fallback/i)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(bulkSpy.mock.calls[0][0].map(({ startDate, endDate }) => [startDate, endDate])).toEqual([
+    expect(bulkSpy.mock.calls[0]?.[0]?.map(({ startDate, endDate }) => [startDate, endDate])).toEqual([
       ["2099-01-31", "2099-02-02"],
       ["2099-02-28", "2099-03-02"],
       ["2099-03-31", "2099-04-02"],
@@ -2373,6 +2509,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
       const user = userEvent.setup();
       render(
         <AllocationModal
+          kind="create"
           create={{ resourceId: resource.id, startDate: "9999-09-30", endDate: "9999-10-02" }}
           onClose={onClose}
         />,
@@ -2403,6 +2540,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={onClose}
       />,
@@ -2427,6 +2565,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     const user = userEvent.setup();
     const first = render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={vi.fn()}
       />,
@@ -2446,6 +2585,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     const onClose = vi.fn();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={onClose}
       />,
@@ -2468,6 +2608,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={vi.fn()}
       />,
@@ -2512,6 +2653,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={vi.fn()}
       />,
@@ -2538,6 +2680,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={vi.fn()}
       />,
@@ -2566,6 +2709,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-01" }}
         onClose={vi.fn()}
       />,
@@ -2593,7 +2737,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     const oneSpy = vi.spyOn(useStore.getState(), "addAllocation");
     const bulkSpy = vi.spyOn(useStore.getState(), "addAllocations");
     const user = userEvent.setup();
-    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
     expect(screen.queryByRole("combobox", { name: "Repeat" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Duplicate" }));
     expect(oneSpy).toHaveBeenCalledTimes(1);
@@ -2616,7 +2760,7 @@ describe("AllocationModal lifecycle", () => {
       status: "confirmed",
     });
     const onClose = vi.fn();
-    render(<AllocationModal allocationId={allocation.id} onClose={onClose} />);
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
 
     act(() => useStore.getState().deleteAllocation(allocation.id));
 
@@ -2628,6 +2772,7 @@ describe("AllocationModal lifecycle", () => {
     const onClose = vi.fn();
     const view = render(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
         onClose={onClose}
       />,
@@ -2638,6 +2783,7 @@ describe("AllocationModal lifecycle", () => {
 
     view.rerender(
       <AllocationModal
+        kind="create"
         create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
         onClose={onClose}
       />,

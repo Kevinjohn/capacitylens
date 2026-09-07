@@ -71,7 +71,7 @@ export const resolveOwnedRow = <T extends ScopedEntity>({
   accountId,
   lookup,
 }: OwnedRowOptions): T | undefined => {
-  const row = resolveValidationRow({ data, table, id, lookup }) as T | undefined;
+  const row = resolveValidationRow({ data, table, id, ...(lookup === undefined ? {} : { lookup }) }) as T | undefined;
   return row && belongsToAccount(row, accountId) ? row : undefined;
 };
 
@@ -100,22 +100,31 @@ export const listValidationAllocations = ({
  * in the same step, so `!validation.ok` always implies non-empty arrays. (Documented coupling between
  * ValidationResult.ok and errors — don't split the two without revisiting this read.) */
 export const assertValid = (validation: ValidationResult): void => {
-  if (!validation.ok) domainError(validation.codes[0], validation.errors[0]);
+  if (validation.ok) return;
+  const code = validation.codes[0];
+  const message = validation.errors[0];
+  if (code === undefined || message === undefined) {
+    throw new Error("Invalid validation result must include a code and message.");
+  }
+  domainError(code, message);
 };
 
 /** Match normal-read lifecycle closure at the shared active-write boundary. Indexed server batch
  * callers retain O(depth) point lookups; browser/store callers traverse the same bounded graph over
  * their local arrays. Inactive rows or ancestors return false; missing, malformed or cross-account
  * ancestors do not imply lifecycle state and are handled separately by integrity validation. */
-export const isEffectivelyActive = ({ data, table, row, lookup }: IsEffectivelyActiveOptions): boolean =>
-  lifecycleStatus(row) === "active" &&
-  inspectLifecycleAncestry(
-    table,
-    // The ONE named seam for the single cast the ancestry walk needs: an interface-typed entity
-    // carries no implicit index signature, so TypeScript can't see it as the loose
-    // LifecycleAncestryRow the walk reads by field name. Every field the walk touches
-    // (id / accountId / tombstones / FK ids) is present on these rows.
-    row as unknown as LifecycleAncestryRow,
-    (parentTable, id) =>
-      resolveValidationRow({ data, table: parentTable, id, lookup }) as LifecycleAncestryRow | undefined,
-  ).visible;
+export const isEffectivelyActive = ({ data, table, row, lookup }: IsEffectivelyActiveOptions): boolean => {
+  const lookupOptions = lookup === undefined ? {} : { lookup };
+  return (
+    lifecycleStatus(row) === "active" &&
+    inspectLifecycleAncestry(
+      table,
+      // The ONE named seam for the single cast the ancestry walk needs: an interface-typed entity
+      // carries no implicit index signature, so TypeScript can't see it as the loose
+      // LifecycleAncestryRow the walk reads by field name. Every field the walk touches
+      // (id / accountId / tombstones / FK ids) is present on these rows.
+      row as unknown as LifecycleAncestryRow,
+      (parentTable, id) => resolveValidationRow({ data, table: parentTable, id, ...lookupOptions }),
+    ).visible
+  );
+};

@@ -18,7 +18,8 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 // before initialization") — mirrors ArchivedSection.test.tsx's pattern.
 const cfg = vi.hoisted(() => ({ base: "http://api.test" }));
 const refreshControl = vi.hoisted(() => ({
-  outcome: "unattached" as "reloaded" | "skipped" | "failed" | "unattached",
+  outcome: { kind: "unattached" } as
+    { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "unattached" },
   call: vi.fn(async (accountId: string) => {
     void accountId;
     return refreshControl.outcome;
@@ -59,7 +60,7 @@ beforeEach(() => {
   resetStoreWithAccount(); // seeds + activates DEFAULT_ACCOUNT_ID (the hook reads activeAccountId from it)
   loadAll.mockClear();
   loadAll.mockResolvedValue(reloadedSlice);
-  refreshControl.outcome = "unattached";
+  refreshControl.outcome = { kind: "unattached" };
   refreshControl.call.mockClear();
 });
 afterEach(() => {
@@ -132,7 +133,7 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
   );
 
   it("delegates a successful lifecycle reload to the attached persistence orchestrator", async () => {
-    refreshControl.outcome = "reloaded";
+    refreshControl.outcome = { kind: "reloaded" };
     const onReloaded = vi.fn();
     stubFetch({ ok: true, status: 200, json: async () => ({}) });
     const { result } = renderHook(() => useLifecycleActions(onReloaded));
@@ -159,7 +160,7 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
     async ({ outcome, expectedGuidance }) => {
       const accountId = `acct-confirmed-${outcome}`;
       resetStoreWithAccount(accountId);
-      refreshControl.outcome = outcome;
+      refreshControl.outcome = { kind: outcome };
       const onReloaded = vi.fn();
       const fetchMock = stubFetch({ ok: true, status: 200, json: async () => ({}) });
       const firstSurface = renderHook(() => useLifecycleActions(onReloaded));
@@ -193,7 +194,7 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
   );
 
   it("does not reconcile or misreport a callback failure after a confirmed mutation and reload", async () => {
-    refreshControl.outcome = "reloaded";
+    refreshControl.outcome = { kind: "reloaded" };
     const onReloaded = vi.fn(() => {
       throw new Error("inactive-list refresh failed");
     });
@@ -279,7 +280,7 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
 
     await result.current.purge("clients", "c-old");
 
-    expect(fetchMock.mock.calls[0][0]).toBe("http://api.test/api/clients/c-old/purge");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("http://api.test/api/clients/c-old/purge");
     expect(loadAll).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
     expect(useStore.getState().data.clients.some((c) => c.id === "c-reloaded")).toBe(true);
     expect(useStore.getState().notice).toBeNull(); // no body-parse error surfaced
@@ -352,7 +353,7 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
       const current = useStore.getState().data;
       useStore.getState().replaceAll({ ...current, accounts: [...current.accounts, account] });
       useStore.getState().setActiveAccount(account.id);
-      refreshControl.outcome = outcome;
+      refreshControl.outcome = { kind: outcome };
       const onReloaded = vi.fn();
       const fetchMock = vi.fn(async () => {
         throw new TypeError("connection lost");

@@ -6,6 +6,14 @@ import type { buildSchedulerDensity } from "./layout";
 import { buildLayout, resolveVirtualWindow } from "./virtualWindow";
 import type { useSchedulerViewport } from "./useSchedulerViewport";
 
+interface UseSchedulerGridVirtualizationInput {
+  model: GroupModel[];
+  ui: SchedulerUI;
+  density: ReturnType<typeof buildSchedulerDensity>;
+  data: AppData;
+  viewport: Pick<ReturnType<typeof useSchedulerViewport>, "days" | "scrollRef" | "scrollTop" | "timelineHeight">;
+}
+
 /**
  * The week-grid scheduler: the helicopter view of who's busy/free. Two non-obvious
  * mechanisms run here — read this before touching the scroll/render path.
@@ -26,18 +34,13 @@ import type { useSchedulerViewport } from "./useSchedulerViewport";
  * pointer listeners mounted without rendering every intervening row. Horizontal date geometry
  * remains frozen until the gesture ends.
  */
-export function useSchedulerGridVirtualization(
-  model: GroupModel[],
-  ui: SchedulerUI,
-  density: ReturnType<typeof buildSchedulerDensity>,
-  data: AppData,
-  {
-    days,
-    scrollRef,
-    scrollTop,
-    timelineHeight,
-  }: Pick<ReturnType<typeof useSchedulerViewport>, "days" | "scrollRef" | "scrollTop" | "timelineHeight">,
-) {
+export function useSchedulerGridVirtualization({
+  model,
+  ui,
+  density,
+  data,
+  viewport: { days, scrollRef, scrollTop, timelineHeight },
+}: UseSchedulerGridVirtualizationInput) {
   const consumeResourceJump = useStore((state) => state.consumeResourceJump);
   const draggingAllocationId = useStore((state) => state.draggingAllocationId);
   // Flatten the visible model into one ordered list of renderable items (group
@@ -96,7 +99,7 @@ export function useSchedulerGridVirtualization(
     consumeResourceJump(scrollToResource.token);
   }, [scrollToResource, items, layout, scrollRef, consumeResourceJump]);
 
-  const { first, last } = resolveVirtualWindow(layout, heights, scrollTop, timelineHeight);
+  const { first, last } = resolveVirtualWindow({ layout, heights, scrollTop, viewportHeight: timelineHeight });
   // Memoised because this scan is O(rows × bars) and the grid re-renders every frame while a drag
   // autoscrolls — the dragged row only changes when the item set or the dragged id changes, never
   // per scroll pixel. Same keying discipline as the neighbouring derived values above.

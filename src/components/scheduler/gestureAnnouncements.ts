@@ -16,6 +16,14 @@ import { listAccountWorkingDays, resolveSchedulingMode, buildVisibleRange } from
 import { useStore } from "../../store/useStore";
 import { buildActiveGestureData } from "./gestureLanes";
 
+interface ReadCapacityGestureAdvisoryInput {
+  bar: BarLayout;
+  effectiveResourceId: ID;
+  isBlocks: boolean;
+  dates: DateRange;
+  reconciledHours: number;
+}
+
 /** Builds the screen-reader status from the same visible-range capacity signal as the grid. */
 export function readCapacityAnnouncement(resourceId: ID): string {
   const { data: storedData, ui, activeAccountId } = useStore.getState();
@@ -31,8 +39,10 @@ export function readCapacityAnnouncement(resourceId: ID): string {
   });
   if (allocations.length === 0) return m.scheduler_sr_announce_clear({ name });
 
-  let start = allocations[0]!.startDate;
-  let end = allocations[0]!.endDate;
+  const firstAllocation = allocations[0];
+  if (!firstAllocation) return m.scheduler_sr_announce_clear({ name });
+  let start = firstAllocation.startDate;
+  let end = firstAllocation.endDate;
   for (const allocation of allocations) {
     if (allocation.startDate < start) start = allocation.startDate;
     if (allocation.endDate > end) end = allocation.endDate;
@@ -59,13 +69,13 @@ export function readCapacityAnnouncement(resourceId: ID): string {
     : m.scheduler_sr_announce_over_other({ name, count: overDays });
 }
 
-export function readCapacityGestureAdvisory(
-  bar: BarLayout,
-  effectiveResourceId: ID,
-  isBlocks: boolean,
-  dates: DateRange,
-  reconciledHours: number,
-) {
+export function readCapacityGestureAdvisory({
+  bar,
+  effectiveResourceId,
+  isBlocks,
+  dates,
+  reconciledHours,
+}: ReadCapacityGestureAdvisoryInput) {
   const { data: storedData, activeAccountId } = useStore.getState();
   const data = buildActiveGestureData(storedData, activeAccountId);
   const resource = data.resources.find((candidate) => candidate.id === effectiveResourceId);
@@ -88,7 +98,7 @@ export function readCapacityGestureAdvisory(
         // (`blockHoursPerDay`) rather than hardcoding its current 0, exactly as the grid's
         // own `applyCapacityMode` projection does.
         hoursPerDay: isBlocks ? blockHoursPerDay(FULL_DAY_HOURS) : reconciledHours,
-        ignoreWeekends: bar.allocation.ignoreWeekends,
+        ...(bar.allocation.ignoreWeekends !== undefined ? { ignoreWeekends: bar.allocation.ignoreWeekends } : {}),
       },
       otherAllocations: others,
       timeOff: timeOff,

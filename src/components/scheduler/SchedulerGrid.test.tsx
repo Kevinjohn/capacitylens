@@ -76,15 +76,20 @@ describe("SchedulerGrid", () => {
 
   it("keeps the dragged source mounted while vertical windowing exposes a distant target", () => {
     const base = dataset();
+    const baseResource = base.resources[0];
+    const baseAllocation = base.allocations[0];
+    expect(baseResource).toBeDefined();
+    expect(baseAllocation).toBeDefined();
+    if (!baseResource || !baseAllocation) throw new Error("Expected the scheduler fixture rows.");
     const resources = Array.from({ length: 100 }, (_, index) => ({
-      ...base.resources[0],
+      ...baseResource,
       id: `r${index}`,
       name: `Person ${index}`,
     }));
     useStore.getState().replaceAll({
       ...base,
       resources,
-      allocations: [{ ...base.allocations[0], resourceId: "r0" }],
+      allocations: [{ ...baseAllocation, resourceId: "r0" }],
     });
     Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 1200 });
     Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get: () => 180 });
@@ -214,12 +219,16 @@ describe("SchedulerGrid", () => {
 
     const band = screen.getByTestId("scheduler-closure-band");
     const rows = screen.getAllByTestId("scheduler-row");
+    expect(rows).toHaveLength(2);
+    const firstRow = rows[0];
+    const secondRow = rows[1];
+    if (!firstRow || !secondRow) throw new Error("Expected two scheduler rows.");
     expect(screen.getAllByTestId("scheduler-closure-band")).toHaveLength(1);
     expect(band).toHaveTextContent("Long weekend");
-    expect(within(rows[0]).getByTestId("timeoff-block")).toBeInTheDocument();
-    expect(within(rows[1]).queryByTestId("timeoff-block")).not.toBeInTheDocument();
+    expect(within(firstRow).getByTestId("timeoff-block")).toBeInTheDocument();
+    expect(within(secondRow).queryByTestId("timeoff-block")).not.toBeInTheDocument();
     expect(band.style.height).toBe(
-      `${buildSchedulerDensity(false).groupHeaderHeight + Number.parseInt(rows[0].style.height, 10)}px`,
+      `${buildSchedulerDensity({ compact: false }).groupHeaderHeight + Number.parseInt(firstRow.style.height, 10)}px`,
     );
   });
 
@@ -250,7 +259,7 @@ describe("SchedulerGrid", () => {
     act(() => useStore.getState().jumpToResource("r1"));
     // The first row sits directly under one discipline header, whose height follows the active
     // density — the store default is Compact OFF (roomy), so assert the roomy geometry.
-    expect(grid.scrollTop).toBe(buildSchedulerDensity(false).groupHeaderHeight);
+    expect(grid.scrollTop).toBe(buildSchedulerDensity({ compact: false }).groupHeaderHeight);
     expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
 
     act(() => {
@@ -276,7 +285,7 @@ describe("SchedulerGrid", () => {
 
     act(() => useStore.getState().jumpToResource("r1"));
     expect(useStore.getState().ui.collapsedGroups).not.toContain("d1");
-    expect(grid.scrollTop).toBe(buildSchedulerDensity(false).groupHeaderHeight);
+    expect(grid.scrollTop).toBe(buildSchedulerDensity({ compact: false }).groupHeaderHeight);
     expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
   });
 

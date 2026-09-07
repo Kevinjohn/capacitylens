@@ -58,7 +58,12 @@ export function SelectField({
     const previous = groups.at(-1);
     const key = option.groupKey ?? option.groupLabel;
     if (previous && previous.key === key) previous.options.push(option);
-    else groups.push({ key, label: option.groupLabel, options: [option] });
+    else
+      groups.push({
+        ...(key ? { key } : {}),
+        ...(option.groupLabel ? { label: option.groupLabel } : {}),
+        options: [option],
+      });
     return groups;
   }, []);
   return (
@@ -67,10 +72,10 @@ export function SelectField({
       data-disabled={disabled || undefined}
       {...buildProductFieldLayoutProps(layout)}
     >
-      <RequiredFieldLabel htmlFor={id} label={label} required={required} />
+      <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
       <Select
         value={selectedOption || unresolvedValue ? encodeSelectValue(value) : ""}
-        disabled={disabled}
+        {...(disabled !== undefined ? { disabled } : {})}
         onValueChange={(next) => {
           const resolved = decodeSelectValue(next);
           if (resolved === value) return;
@@ -96,7 +101,11 @@ export function SelectField({
               {group.options.map((o) => (
                 <Fragment key={o.value}>
                   {o.separatorBefore && <SelectSeparator />}
-                  <SelectItem value={encodeSelectValue(o.value)} data-value={o.value} disabled={o.disabled}>
+                  <SelectItem
+                    value={encodeSelectValue(o.value)}
+                    data-value={o.value}
+                    {...(o.disabled !== undefined ? { disabled: o.disabled } : {})}
+                  >
                     {o.label}
                   </SelectItem>
                 </Fragment>

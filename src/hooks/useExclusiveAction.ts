@@ -53,12 +53,23 @@ export function useExclusiveAction(): ExclusiveAction {
     if (actionLock.current) return;
     actionLock.current = true;
     setBusy(true);
-    void action()
-      .catch(onError)
-      .finally(() => {
-        actionLock.current = false;
-        setBusy(false);
-      });
+    const reopen = () => {
+      actionLock.current = false;
+      setBusy(false);
+    };
+    const report = (error: unknown) => {
+      try {
+        onError(error);
+      } catch (reportingError) {
+        console.error("Exclusive action error handler failed", reportingError);
+      }
+    };
+    try {
+      void action().catch(report).finally(reopen);
+    } catch (error) {
+      report(error);
+      reopen();
+    }
   }, []);
 
   const locked = useCallback(() => actionLock.current, []);

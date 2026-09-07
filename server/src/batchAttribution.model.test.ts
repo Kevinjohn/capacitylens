@@ -146,7 +146,7 @@ function enumerateSequences(): ModelOperation[][] {
 }
 
 const batch = (app: FastifyInstance, ops: unknown[]) =>
-  call(app, { method: "POST", url: "/api/batch", payload: { ops } as InjectOptions["payload"] });
+  call(app, { method: "POST", url: "/api/batch", payload: { ops } as NonNullable<InjectOptions["payload"]> });
 
 const requestOperation = (operation: ModelOperation) => {
   if (operation.type === "kind") {
@@ -226,7 +226,7 @@ describe("POST /api/batch allocation attribution model", () => {
       try {
         expect(response.statusCode).toBe(expected.accepted ? 200 : 400);
         expect(actualActivity).toEqual(expected.state.activity);
-        expect(actualAllocation).toEqual(expected.state.allocation);
+        expect(actualAllocation).toEqual(expected.state.allocation ?? null);
         expect(receiptRewrites).toEqual(expected.state.rewrite ? [expected.state.rewrite] : []);
       } catch (error) {
         failures.push(

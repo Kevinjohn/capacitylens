@@ -13,13 +13,20 @@ export interface Pointer {
   clientY: number;
 }
 
+export interface DragResizePreviewInput {
+  mode: DragMode;
+  deltaDays: number;
+  deltaY: number;
+  pointer: Pointer;
+}
+
 export interface UseDragResizeArgs {
   /** Maps a document clientX to a snapped day index (the ColumnGeometry inverse, applied
    *  against the live lane rect — supplied by the lane). The day delta is the difference of
    *  the two endpoints' indices, so each end snaps to a column independently — correct even
    *  when the pointer crosses narrowed weekend columns of unequal width. */
   indexAtClientX: (clientX: number) => number;
-  onPreview: (mode: DragMode, deltaDays: number, deltaY: number, pointer: Pointer) => void;
+  onPreview: (input: DragResizePreviewInput) => void;
   onCommit: (mode: DragMode, deltaDays: number, pointer: Pointer) => void;
   onClick?: () => void;
   /** Pointer was cancelled mid-gesture (e.g. the browser took over for scrolling). */
@@ -73,9 +80,14 @@ export function useDragResize(args: UseDragResizeArgs) {
       if (!dragging && Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return;
       dragging = true;
       const deltaDays = argsRef.current.indexAtClientX(event.clientX) - argsRef.current.indexAtClientX(startX);
-      argsRef.current.onPreview(mode, deltaDays, dy, {
-        clientX: event.clientX,
-        clientY: event.clientY,
+      argsRef.current.onPreview({
+        mode,
+        deltaDays,
+        deltaY: dy,
+        pointer: {
+          clientX: event.clientX,
+          clientY: event.clientY,
+        },
       });
     };
     const detach = () => {

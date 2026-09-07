@@ -43,7 +43,9 @@ export function ensureInternalClients(db: Db): void {
         insertRowRaw(db, "clients", buildInternalClient(id, now, internalId) as unknown as Row);
         continue;
       }
-      const retainedId = builtins[0].id;
+      const retained = builtins[0];
+      if (!retained) continue;
+      const retainedId = retained.id;
       db.prepare(`UPDATE clients SET name = ?, color = ?, builtin = 'true' WHERE id = ? AND accountId = ?`).run(
         INTERNAL_CLIENT_NAME,
         INTERNAL_CLIENT_COLOR,
@@ -121,7 +123,7 @@ function snapToFrozenPresetV13(value: string | null): string {
   const rgb = hexToRgbV13(normalized);
   if (!rgb) return V13_FALLBACK_PRESET_COLOR;
   const [r, g, b] = rgb;
-  let nearest = V13_FROZEN_PRESET_COLORS[0];
+  let nearest = V13_FALLBACK_PRESET_COLOR;
   let nearestDistance = Infinity;
   for (const preset of V13_FROZEN_PRESET_COLORS) {
     const presetRgb = hexToRgbV13(preset);

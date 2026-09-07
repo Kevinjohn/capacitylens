@@ -9,7 +9,7 @@ export class ValidationError extends Error {
   constructor(message: string, options?: ErrorOptions & { code?: DomainErrorCode }) {
     super(message, options);
     this.name = "ValidationError";
-    this.code = options?.code;
+    if (options?.code !== undefined) this.code = options.code;
   }
 }
 

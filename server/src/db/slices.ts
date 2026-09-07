@@ -2,8 +2,8 @@ import type { Db } from "../db";
 import { type AppData, emptyAppData } from "@capacitylens/shared/types/entities";
 import { type Row, fromRow } from "../rowCodec";
 import { createStatementCache, createCachedTableStatement } from "./statementCache";
-import { CREATE_ORDER, TABLES, SCOPED_ORDER } from "../tables";
-import { tableExists } from "./introspection";
+import { CREATE_ORDER, SCOPED_ORDER } from "../tables";
+import { resolveTable, tableExists } from "./introspection";
 import { tx } from "../txn";
 import { type SanitizeWriteOptions, hasGatedFields, redactGatedEcho } from "../fieldPolicy";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
@@ -16,7 +16,7 @@ export function readState(db: Db): AppData {
     // until their explicit migration creates them; the post-migration schema assertion still
     // rejects a missing table at the current version.
     if (!tableExists(db, table)) continue;
-    const spec = TABLES[table];
+    const spec = resolveTable(table);
     const statement = createCachedTableStatement({ cache, table, db, sql: `SELECT * FROM ${table}` });
     data[table] = statement.all().map((r) => fromRow(spec, r));
   }
@@ -137,12 +137,12 @@ function readSliceFromSnapshot(
   const data = emptyAppData() as unknown as Record<string, Row[]>;
   const cache = createStatementCache(db);
   // The single global table: read the ONE account by id (0 or 1 row), via the same codec loadState uses.
-  const accountsSpec = TABLES["accounts"];
+  const accountsSpec = resolveTable("accounts");
   if (!cache.accountByIdSelect) cache.accountByIdSelect = db.prepare(`SELECT * FROM accounts WHERE id = ?`);
   data["accounts"] = cache.accountByIdSelect.all(accountId).map((r) => fromRow(accountsSpec, r));
   // Every scoped table: WHERE accountId = ? — never an unpredicated read (the no-cross-tenant invariant).
   for (const table of SCOPED_ORDER) {
-    const spec = TABLES[table];
+    const spec = resolveTable(table);
     const statement = createCachedTableStatement({
       cache: cache.scopedSelect,
       table,
@@ -169,7 +169,9 @@ function readSliceFromSnapshot(
   };
   for (const table of Object.keys(data)) {
     if (!hasGatedFields(table)) continue;
-    data[table] = data[table].map((row) => redactGatedEcho(table, row as Record<string, unknown>, visibility) as Row);
+    const rows = data[table];
+    if (!rows) throw new Error(`Missing application data collection for "${table}".`);
+    data[table] = rows.map((row) => redactGatedEcho(table, row as Record<string, unknown>, visibility) as Row);
   }
   const visibleData = data as unknown as AppData;
   // P2.4 lifecycle projection: for the NORMAL app read (includeInactive:false), drop every NON-active

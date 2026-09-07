@@ -107,11 +107,11 @@ export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
   // Internal client. This also captures current-version bare server slices (which have no schema
   // wrapper and therefore follow the legacy version path) without treating the synthetic row as
   // already acknowledged.
-  const repairBase = normalize(data as Partial<AppData> | undefined);
+  const repairBase = normalize(data);
   runSteps(POST_REPAIR_BASE_STEPS);
 
   return {
-    data: ensureInternalClients(normalize(data as Partial<AppData> | undefined), "2026-01-01T00:00:00.000Z"),
+    data: ensureInternalClients(normalize(data), "2026-01-01T00:00:00.000Z"),
     repairBase,
   };
 }

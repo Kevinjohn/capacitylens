@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { AuthMode } from "../../auth/authContext";
+import type { AccountMode } from "../../auth/authContext";
 import type { SsoReadinessReason } from "@capacitylens/shared/account/ssoCutover";
 import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
 import { m } from "@/i18n";
@@ -65,7 +65,7 @@ export function SsoReadinessPanel({
   onCorrectEmail,
   onRemoveLink,
 }: {
-  authMode: AuthMode;
+  authMode: AccountMode;
   readiness: WorkspaceReadiness;
   busy: boolean;
   emailRepair: { member: ReadinessMember; email: string } | null;

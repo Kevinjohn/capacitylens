@@ -1,3 +1,4 @@
+import type { FlushPendingWritesResult } from "./facades";
 import type { StoreApi } from "zustand";
 import type { StoreState } from "../../store/useStore";
 import type { PersistenceAdapter } from "../PersistenceAdapter";
@@ -9,6 +10,15 @@ import { createWriteQueue } from "./writeQueue";
 import { createRefreshController } from "./refreshController";
 import { attachAccountSwitch } from "./accountSwitch";
 import { attachDomListeners } from "./domListeners";
+
+interface AttachPersistenceInput {
+  store: StoreApi<StoreState>;
+  adapter: PersistenceAdapter;
+  debounceMs?: number;
+  onError?: (error: unknown) => void;
+  onSuccess?: () => void;
+  serverMode?: boolean;
+}
 
 /**
  * Wire the store to a PersistenceAdapter (OUTSIDE the store) and return a hard-detach function.
@@ -27,24 +37,31 @@ import { attachDomListeners } from "./domListeners";
  *  5. `visibilitychange→hidden` flushes through the normal serialized path while the page survives;
  *     `pagehide` uses the adapter's keepalive teardown path.
  */
-export function attachPersistence(
-  store: StoreApi<StoreState>,
-  adapter: PersistenceAdapter,
+export function attachPersistence({
+  store,
+  adapter,
   debounceMs = 300,
-  onError?: (error: unknown) => void,
-  onSuccess?: () => void,
+  onError,
+  onSuccess,
   serverMode = false,
-): () => void {
+}: AttachPersistenceInput): () => void {
   const owner = createAttachmentState(store, onError, onSuccess);
-  const writes = createWriteQueue(
-    store,
-    adapter,
-    owner,
-    serverMode,
-    (id) => refresh.startAuthoritativeReload(id),
-    onError,
-  );
-  const refresh = createRefreshController(store, adapter, owner, writes, onError, onSuccess);
+  const writes = createWriteQueue({
+    store: store,
+    adapter: adapter,
+    owner: owner,
+    serverMode: serverMode,
+    startAuthoritativeReload: (id) => refresh.startAuthoritativeReload(id),
+    ...(onError ? { onError } : {}),
+  });
+  const refresh = createRefreshController({
+    store: store,
+    adapter: adapter,
+    owner: owner,
+    writes: writes,
+    ...(onError ? { onError } : {}),
+    ...(onSuccess ? { onSuccess } : {}),
+  });
   const { save } = writes;
   const { cancelDebounce, cancelRetry } = owner;
   const { refreshActive, beginSuspension } = refresh;
@@ -73,7 +90,13 @@ export function attachPersistence(
     owner.update({ timer: setTimeout(() => save(state.data), debounceMs) });
   });
 
-  const { unsubscribeSwitch, myRegisteredSwitch } = attachAccountSwitch(store, owner, writes, refresh, serverMode);
+  const { unsubscribeSwitch, myRegisteredSwitch } = attachAccountSwitch({
+    store: store,
+    owner: owner,
+    writes: writes,
+    refresh: refresh,
+    serverMode: serverMode,
+  });
   // Register the orchestrator-backed refresh for out-of-band server writers (see
   // refreshActiveAccountSlice above). Server mode only — the demo build's lifecycle actions mutate
   // the store directly and never reload. abortIfSaveFailed for the same reason as focus-refresh:
@@ -82,17 +105,17 @@ export function attachPersistence(
 
   // Flush-pending seam for out-of-band whole-slice writers (the server-mode import): land any
   // still-debounced edit against the CURRENT state, in order, and report whether writes are clean.
-  // Returning false (a write is still failed) tells the caller its precondition — "local edits are
+  // Returning blocked (a write is still failed) tells the caller its precondition — "local edits are
   // persisted or knowingly abandoned" — does not hold; the import path refuses to proceed rather
   // than let its post-import reload wipe an unsaved edit or its retry replay a stale diff over the
   // freshly imported slice.
   const myRegisteredFlush = serverMode
-    ? async (): Promise<boolean> => {
-        if (owner.current.disposed) return false;
-        if (owner.current.authoritativeReloadRequiredFor !== null) return false;
+    ? async (): Promise<FlushPendingWritesResult> => {
+        if (owner.current.disposed) return { kind: "blocked" };
+        if (owner.current.authoritativeReloadRequiredFor !== null) return { kind: "blocked" };
         // Suspended: another slice replacement is already in flight — writes are NOT clean and
         // flushing the parked edit would push it against a mid-replacement snapshot. Refuse.
-        if (owner.current.suspendDepth > 0) return false;
+        if (owner.current.suspendDepth > 0) return { kind: "blocked" };
         // Loop until QUIESCENT, not just one round: writes are unsuspended during the await, so
         // an edit landing mid-flush arms a fresh debounce whose save can outlive a single await —
         // a one-shot flush would then return "clean" while that save is still on the wire, and
@@ -110,22 +133,22 @@ export function attachPersistence(
           cancelDebounce();
           if (owner.current.pending) save(owner.current.pending); // consumes pending, sets inFlightSave synchronously
           if (owner.current.inFlightSave) await owner.current.inFlightSave;
-          if (owner.current.suspendDepth > 0) return false;
+          if (owner.current.suspendDepth > 0) return { kind: "blocked" };
         }
-        return (
-          !owner.current.disposed &&
+        return !owner.current.disposed &&
           owner.current.suspendDepth === 0 &&
           !owner.current.timer &&
           !owner.current.pending &&
           !owner.current.inFlightSave &&
           !owner.current.failedSinceSuccess &&
           owner.current.unacknowledged === null
-        );
+          ? { kind: "clean" }
+          : { kind: "blocked" };
       }
     : null;
   // Write-suspension seam (see suspendServerWrites' doc for the resume contract) — the EXTERNAL
   // variant of beginSuspension, registered for the server-mode import.
-  const myRegisteredSuspend = serverMode ? () => beginSuspension(true) : null;
+  const myRegisteredSuspend = serverMode ? () => beginSuspension({ external: true }) : null;
   const myRegisteredHasUnsaved = () =>
     !owner.current.disposed &&
     (owner.current.unacknowledged !== null ||
@@ -155,7 +178,13 @@ export function attachPersistence(
     });
   });
 
-  const detachDomListeners = attachDomListeners(store, owner, writes, refresh, serverMode);
+  const detachDomListeners = attachDomListeners({
+    store: store,
+    owner: owner,
+    writes: writes,
+    refresh: refresh,
+    serverMode: serverMode,
+  });
   return () => {
     if (owner.current.disposed) return;
     owner.dispose();

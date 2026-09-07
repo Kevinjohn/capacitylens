@@ -41,7 +41,9 @@ export const normalizeISODate = (value: unknown): unknown => {
   if (typeof value !== "string") return value;
   const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(value.trim());
   if (!match) return value;
-  return `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`;
+  const [, year, month, day] = match;
+  if (year === undefined || month === undefined || day === undefined) return value;
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 };
 
 // DE-DUPLICATE: the scheduling math keys weekend-awareness on workingDays.length (a
@@ -83,7 +85,7 @@ export const cleanField = ({ record, field, multiline = false }: CleanFieldOptio
     delete record[field];
     return;
   }
-  record[field] = cleanText(record[field] as string, { multiline });
+  record[field] = cleanText(record[field], { multiline });
 };
 
 // Like cleanField, but for a REQUIRED text column (the server schema marks these NOT NULL).
@@ -92,7 +94,7 @@ export const cleanField = ({ record, field, multiline = false }: CleanFieldOptio
 // yet be REJECTED by the server, diverging the two import paths. Fall back to a placeholder
 // so a required column is never empty and both paths accept the record identically.
 export const cleanRequiredField = (record: Record<string, unknown>, field: string, fallback: string): void => {
-  const cleaned = typeof record[field] === "string" ? cleanText(record[field] as string) : "";
+  const cleaned = typeof record[field] === "string" ? cleanText(record[field]) : "";
   record[field] = cleaned.length > 0 ? cleaned : fallback;
 };
 

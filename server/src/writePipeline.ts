@@ -257,7 +257,7 @@ export function replaceGeneratedBuiltin({ db, state, generatedId, row }: Replace
       ...project,
       createdAt: existing.createdAt,
       updatedAt: createServerRevision(existing.updatedAt),
-    } as unknown as Record<string, unknown>);
+    });
   }
   deleteRow(db, "clients", generatedId);
 }

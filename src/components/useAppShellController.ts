@@ -109,14 +109,15 @@ export function useAppShellController() {
       (demoAuthActive && !fakeSignedIn) ||
       !accountSummariesComplete ||
       accountSummaries.length !== 1 ||
-      accountSummaries[0].roleStatus === "unavailable"
+      accountSummaries[0]?.roleStatus === "unavailable"
     ) {
       return;
     }
 
     // activeAccountId remains session-only. A browser reload with one unambiguous membership may
     // safely reopen it without remembering a tenant choice or changing the requested route.
-    void transitionAccount(accountSummaries[0].id);
+    const account = accountSummaries[0];
+    if (account) void transitionAccount(account.id);
   }, [
     accountSummaries,
     accountSummariesComplete,
@@ -142,8 +143,8 @@ export function useAppShellController() {
     // BOTH nav groups (issues #169/#172): the admin destinations are pinned to the bottom of the
     // sidebar but are still routes, and omitting them here would silently regress /team and
     // /settings to the bare brand title (WCAG 2.4.2).
-    const match = [...LINKS, ...ADMIN_LINKS].find(([to]) => matchPath({ path: to, end: true }, pathname) !== null);
-    document.title = match ? `${match[1]()} · ${APP_NAME}` : APP_NAME;
+    const match = [...LINKS, ...ADMIN_LINKS].find(({ to }) => matchPath({ path: to, end: true }, pathname) !== null);
+    document.title = match ? `${match.label()} · ${APP_NAME}` : APP_NAME;
   }, [pathname, activeLanguage, activeLanguagePending]);
 
   useEffect(() => {

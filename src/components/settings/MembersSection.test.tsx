@@ -9,6 +9,48 @@ import { refreshActiveAccountSlice } from "../../data/persist";
 import { setOfflineReadState } from "../../data/offlineCache";
 import { m } from "@/i18n";
 
+interface ConfirmMemberActionInput {
+  user: User;
+  row: HTMLElement;
+  testId: string;
+  confirmationName: RegExp | string;
+}
+
+interface RoleFailureCaseInput {
+  status: number;
+  body: { error: string };
+  expected: RegExp;
+  reconciles: boolean;
+}
+
+interface MemberRemovalFailureCaseInput {
+  status: number;
+  body: { error: string };
+  expected: RegExp;
+  reconciles: boolean;
+}
+
+interface MemberReloadCaseInput {
+  status: number;
+  self: boolean;
+  reloads: boolean;
+  expected: RegExp | null;
+}
+
+interface InviteFailureCaseInput {
+  status: number;
+  body: { error: string };
+  expected: RegExp;
+  fieldError: boolean;
+}
+
+interface InviteReconciliationCaseInput {
+  status: number;
+  body: { error: string };
+  expected: RegExp;
+  reconciles: boolean;
+}
+
 const accountTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
 }));
@@ -30,12 +72,12 @@ vi.mock("../../data/apiConfig", () => ({
 }));
 
 vi.mock("../../data/persist", () => ({
-  refreshActiveAccountSlice: vi.fn(async () => "reloaded"),
-  flushPendingWrites: vi.fn(async () => true),
+  refreshActiveAccountSlice: vi.fn(async () => ({ kind: "reloaded" })),
+  flushPendingWrites: vi.fn(async () => ({ kind: "clean" })),
   suspendServerWrites: vi.fn(() => vi.fn()),
   switchAndAwaitHydration: vi.fn(async (id: string | null) => {
     useStore.getState().setActiveAccount(id);
-    return "reloaded";
+    return { kind: "reloaded" };
   }),
 }));
 
@@ -158,12 +200,7 @@ async function findMemberRow(email: RegExp): Promise<HTMLElement> {
   return (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(email))!;
 }
 
-async function confirmMemberAction(
-  user: User,
-  row: HTMLElement,
-  testId: string,
-  confirmationName: RegExp | string,
-): Promise<void> {
+async function confirmMemberAction({ user, row, testId, confirmationName }: ConfirmMemberActionInput): Promise<void> {
   await chooseMemberAction(user, row, testId);
   await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: confirmationName }));
 }
@@ -193,7 +230,7 @@ beforeEach(() => {
   accountTransitionMocks.startMasquerade.mockClear();
   resetStoreWithAccount(); // sets activeAccountId = DEFAULT_ACCOUNT_ID
   setOfflineReadState("cleanup", false);
-  vi.mocked(refreshActiveAccountSlice).mockResolvedValue("reloaded");
+  vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
   setOfflineReadState("cleanup", false);
@@ -671,7 +708,7 @@ describe("MembersSection — admin affordances", () => {
     vi.stubGlobal("fetch", mockApi(members));
     vi.mocked(refreshActiveAccountSlice).mockImplementationOnce(async () => {
       setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
-      return "reloaded";
+      return { kind: "reloaded" };
     });
     renderSection();
 
@@ -1133,7 +1170,7 @@ describe("MembersSection — member lifecycle", () => {
 
     const mutations = fetchMock.mock.calls.filter(([, init]) => init?.method && init.method !== "GET");
     expect(mutations).toHaveLength(1);
-    expect(String(mutations[0][0])).toContain("/status");
+    expect(String(mutations[0]?.[0])).toContain("/status");
     release!();
     await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(3));
   });
@@ -1160,7 +1197,12 @@ describe("MembersSection — mutation failure reconciliation", () => {
     vi.stubGlobal("fetch", mockApi(ownerAndEditor));
     renderSection();
 
-    await confirmMemberAction(userEvent.setup(), await findMemberRow(/me@x\.io/), "member-remove", "Remove");
+    await confirmMemberAction({
+      user: userEvent.setup(),
+      row: await findMemberRow(/me@x\.io/),
+      testId: "member-remove",
+      confirmationName: "Remove",
+    });
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
     expect(useStore.getState().notice).toBeNull();
@@ -1307,54 +1349,70 @@ describe("MembersSection — mutation failure reconciliation", () => {
   });
 
   it.each([
-    [503, { error: "Uncertain." }, /unknown outcome/i, true],
-    [403, { error: "Role forbidden." }, /Role forbidden\./, false],
-  ])("handles a %s role-change response without claiming success", async (status, body, expected, reconciles) => {
-    let memberReads = 0;
-    vi.stubGlobal(
-      "fetch",
-      mockApi(ownerAndEditor, {
-        "GET /members": () => {
-          memberReads += 1;
-          return jsonResponse({ members: ownerAndEditor.map((member) => rawMember(member)) });
-        },
-        "PATCH /members/ed": () => jsonResponse(body, status),
-      }),
-    );
-    renderSection();
+    { status: 503, body: { error: "Uncertain." }, expected: /unknown outcome/i, reconciles: true },
+    { status: 403, body: { error: "Role forbidden." }, expected: /Role forbidden\./, reconciles: false },
+  ])(
+    "handles a $status role-change response without claiming success",
+    async ({ status, body, expected, reconciles }: RoleFailureCaseInput) => {
+      let memberReads = 0;
+      vi.stubGlobal(
+        "fetch",
+        mockApi(ownerAndEditor, {
+          "GET /members": () => {
+            memberReads += 1;
+            return jsonResponse({ members: ownerAndEditor.map((member) => rawMember(member)) });
+          },
+          "PATCH /members/ed": () => jsonResponse(body, status),
+        }),
+      );
+      renderSection();
 
-    await saveRoleVia(userEvent.setup(), await findMemberRow(/ed@x\.io/), "Viewer");
+      await saveRoleVia(userEvent.setup(), await findMemberRow(/ed@x\.io/), "Viewer");
 
-    if (reconciles) await expectNotice(expected);
-    else expect(await screen.findByRole("alert")).toHaveTextContent(expected);
-    expect(useStore.getState().notice?.message).not.toBe(m.settings_members_role_updated());
-    expect(memberReads).toBe(reconciles ? 2 : 1);
-  });
+      if (reconciles) await expectNotice(expected);
+      else expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+      expect(useStore.getState().notice?.message).not.toBe(m.settings_members_role_updated());
+      expect(memberReads).toBe(reconciles ? 2 : 1);
+    },
+  );
 
   it.each([
-    [503, { error: "Uncertain." }, /unknown outcome/i, true],
-    [403, { error: "Last owner cannot be removed." }, /Last owner cannot be removed\./, false],
-  ])("handles a %s member-removal response without removing the row", async (status, body, expected, reconciles) => {
-    let memberReads = 0;
-    vi.stubGlobal(
-      "fetch",
-      mockApi(ownerAndEditor, {
-        "GET /members": () => {
-          memberReads += 1;
-          return jsonResponse({ members: ownerAndEditor.map((member) => rawMember(member)) });
-        },
-        "DELETE /members/ed": () => jsonResponse(body, status),
-      }),
-    );
-    renderSection();
+    { status: 503, body: { error: "Uncertain." }, expected: /unknown outcome/i, reconciles: true },
+    {
+      status: 403,
+      body: { error: "Last owner cannot be removed." },
+      expected: /Last owner cannot be removed\./,
+      reconciles: false,
+    },
+  ])(
+    "handles a $status member-removal response without removing the row",
+    async ({ status, body, expected, reconciles }: MemberRemovalFailureCaseInput) => {
+      let memberReads = 0;
+      vi.stubGlobal(
+        "fetch",
+        mockApi(ownerAndEditor, {
+          "GET /members": () => {
+            memberReads += 1;
+            return jsonResponse({ members: ownerAndEditor.map((member) => rawMember(member)) });
+          },
+          "DELETE /members/ed": () => jsonResponse(body, status),
+        }),
+      );
+      renderSection();
 
-    await confirmMemberAction(userEvent.setup(), await findMemberRow(/ed@x\.io/), "member-remove", "Remove");
+      await confirmMemberAction({
+        user: userEvent.setup(),
+        row: await findMemberRow(/ed@x\.io/),
+        testId: "member-remove",
+        confirmationName: "Remove",
+      });
 
-    if (reconciles) await expectNotice(expected);
-    else expect(await screen.findByRole("alert")).toHaveTextContent(expected);
-    expect(screen.getByText(/ed@x\.io/)).toBeInTheDocument();
-    expect(memberReads).toBe(reconciles ? 2 : 1);
-  });
+      if (reconciles) await expectNotice(expected);
+      else expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+      expect(screen.getByText(/ed@x\.io/)).toBeInTheDocument();
+      expect(memberReads).toBe(reconciles ? 2 : 1);
+    },
+  );
 
   it("reconciles a 503 status change without claiming success", async () => {
     vi.stubGlobal(
@@ -1363,7 +1421,12 @@ describe("MembersSection — mutation failure reconciliation", () => {
     );
     renderSection();
 
-    await confirmMemberAction(userEvent.setup(), await findMemberRow(/ed@x\.io/), "member-disable", /disable/i);
+    await confirmMemberAction({
+      user: userEvent.setup(),
+      row: await findMemberRow(/ed@x\.io/),
+      testId: "member-disable",
+      confirmationName: /disable/i,
+    });
 
     await expectNotice(/unknown outcome.*reloaded/i);
     expect(useStore.getState().notice?.message).not.toBe(m.settings_members_status_changed());
@@ -1378,7 +1441,12 @@ describe("MembersSection — mutation failure reconciliation", () => {
     );
     renderSection();
 
-    await confirmMemberAction(userEvent.setup(), await findMemberRow(/ed@x\.io/), "member-disable", /disable/i);
+    await confirmMemberAction({
+      user: userEvent.setup(),
+      row: await findMemberRow(/ed@x\.io/),
+      testId: "member-disable",
+      confirmationName: /disable/i,
+    });
 
     await expectNotice(/unknown outcome.*status connection lost.*reloaded/i);
   });
@@ -1386,12 +1454,12 @@ describe("MembersSection — mutation failure reconciliation", () => {
 
 describe("MembersSection — password reset and session failures", () => {
   async function requestReset(): Promise<void> {
-    await confirmMemberAction(
-      userEvent.setup(),
-      await findMemberRow(/ed@x\.io/),
-      "member-reset-password",
-      "Reset password",
-    );
+    await confirmMemberAction({
+      user: userEvent.setup(),
+      row: await findMemberRow(/ed@x\.io/),
+      testId: "member-reset-password",
+      confirmationName: "Reset password",
+    });
   }
 
   it.each([
@@ -1434,25 +1502,33 @@ describe("MembersSection — password reset and session failures", () => {
   });
 
   it.each([
-    [503, false, false, /unknown outcome/i],
-    [503, true, true, null],
-  ])("handles a 503 session revocation (status=%s, self=%s)", async (status, self, reloads, expected) => {
-    const reload = stubPageReload();
-    vi.stubGlobal(
-      "fetch",
-      mockApi(ownerAndEditor, {
-        [`POST /members/${self ? "me" : "ed"}/revoke-sessions`]: () => jsonResponse({}, status),
-      }),
-    );
-    renderSection();
-    const row = await findMemberRow(self ? /me@x\.io/ : /ed@x\.io/);
+    { status: 503, self: false, reloads: false, expected: /unknown outcome/i },
+    { status: 503, self: true, reloads: true, expected: null },
+  ])(
+    "handles a 503 session revocation (status=$status, self=$self)",
+    async ({ status, self, reloads, expected }: MemberReloadCaseInput) => {
+      const reload = stubPageReload();
+      vi.stubGlobal(
+        "fetch",
+        mockApi(ownerAndEditor, {
+          [`POST /members/${self ? "me" : "ed"}/revoke-sessions`]: () => jsonResponse({}, status),
+        }),
+      );
+      renderSection();
+      const row = await findMemberRow(self ? /me@x\.io/ : /ed@x\.io/);
 
-    await confirmMemberAction(userEvent.setup(), row, "member-revoke-sessions", "Revoke sessions");
+      await confirmMemberAction({
+        user: userEvent.setup(),
+        row: row,
+        testId: "member-revoke-sessions",
+        confirmationName: "Revoke sessions",
+      });
 
-    await waitFor(() => expect(reload).toHaveBeenCalledTimes(reloads ? 1 : 0));
-    if (expected) await expectNotice(expected);
-    else expect(useStore.getState().notice).toBeNull();
-  });
+      await waitFor(() => expect(reload).toHaveBeenCalledTimes(reloads ? 1 : 0));
+      if (expected) await expectNotice(expected);
+      else expect(useStore.getState().notice).toBeNull();
+    },
+  );
 
   it.each([
     [true, true],
@@ -1468,12 +1544,12 @@ describe("MembersSection — password reset and session failures", () => {
     );
     renderSection();
 
-    await confirmMemberAction(
-      userEvent.setup(),
-      await findMemberRow(self ? /me@x\.io/ : /ed@x\.io/),
-      "member-revoke-sessions",
-      "Revoke sessions",
-    );
+    await confirmMemberAction({
+      user: userEvent.setup(),
+      row: await findMemberRow(self ? /me@x\.io/ : /ed@x\.io/),
+      testId: "member-revoke-sessions",
+      confirmationName: "Revoke sessions",
+    });
 
     await waitFor(() => expect(reload).toHaveBeenCalledTimes(reloads ? 1 : 0));
     if (!self) await expectNotice(/unknown outcome.*session transport lost/i);
@@ -1869,25 +1945,28 @@ describe("MembersSection — invite mint", () => {
   });
 
   it.each([
-    [503, { error: "Invite uncertain." }, /unknown outcome.*reloaded/i, false],
-    [403, { error: "Invite forbidden." }, /Invite forbidden\./, true],
-  ])("handles a %s invite-create response on the current account", async (status, body, expected, fieldError) => {
-    vi.stubGlobal(
-      "fetch",
-      mockApi(ownerAndEditor, {
-        "POST /api/invites": () => jsonResponse(body, status),
-      }),
-    );
-    renderSection();
+    { status: 503, body: { error: "Invite uncertain." }, expected: /unknown outcome.*reloaded/i, fieldError: false },
+    { status: 403, body: { error: "Invite forbidden." }, expected: /Invite forbidden\./, fieldError: true },
+  ])(
+    "handles a $status invite-create response on the current account",
+    async ({ status, body, expected, fieldError }: InviteFailureCaseInput) => {
+      vi.stubGlobal(
+        "fetch",
+        mockApi(ownerAndEditor, {
+          "POST /api/invites": () => jsonResponse(body, status),
+        }),
+      );
+      renderSection();
 
-    await userEvent.setup().click(await screen.findByTestId("invite-submit"));
+      await userEvent.setup().click(await screen.findByTestId("invite-submit"));
 
-    const alert = fieldError ? await screen.findByRole("alert") : null;
-    if (fieldError) expect(alert).toHaveTextContent(expected);
-    else await expectNotice(expected);
-    expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
-    if (fieldError) expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-describedby", alert!.id);
-  });
+      const alert = fieldError ? await screen.findByRole("alert") : null;
+      if (fieldError) expect(alert).toHaveTextContent(expected);
+      else await expectNotice(expected);
+      expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
+      if (fieldError) expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-describedby", alert!.id);
+    },
+  );
 
   it("reconciles a thrown invite creation without minting a link", async () => {
     vi.stubGlobal(
@@ -1905,37 +1984,40 @@ describe("MembersSection — invite mint", () => {
   });
 
   it.each([
-    [503, { error: "Revoke uncertain." }, /unknown outcome.*reloaded/i, true],
-    [403, { error: "Revoke forbidden." }, /Revoke forbidden\./, false],
-  ])("handles a %s invite-revoke response without dropping the row", async (status, body, expected, reconciles) => {
-    let inviteReads = 0;
-    const invite = {
-      id: "inv-existing",
-      role: "editor",
-      preauthEmail: "existing@example.test",
-      expiresAt: "2026-12-01T00:00:00.000Z",
-      usedAt: null,
-      createdAt: "2026-07-17T00:00:00.000Z",
-    };
-    vi.stubGlobal(
-      "fetch",
-      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
-        "GET /invites": () => {
-          inviteReads += 1;
-          return jsonResponse({ invites: [invite] });
-        },
-        "DELETE /invites/inv-existing": () => jsonResponse(body, status),
-      }),
-    );
-    renderSection();
+    { status: 503, body: { error: "Revoke uncertain." }, expected: /unknown outcome.*reloaded/i, reconciles: true },
+    { status: 403, body: { error: "Revoke forbidden." }, expected: /Revoke forbidden\./, reconciles: false },
+  ])(
+    "handles a $status invite-revoke response without dropping the row",
+    async ({ status, body, expected, reconciles }: InviteReconciliationCaseInput) => {
+      let inviteReads = 0;
+      const invite = {
+        id: "inv-existing",
+        role: "editor",
+        preauthEmail: "existing@example.test",
+        expiresAt: "2026-12-01T00:00:00.000Z",
+        usedAt: null,
+        createdAt: "2026-07-17T00:00:00.000Z",
+      };
+      vi.stubGlobal(
+        "fetch",
+        mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+          "GET /invites": () => {
+            inviteReads += 1;
+            return jsonResponse({ invites: [invite] });
+          },
+          "DELETE /invites/inv-existing": () => jsonResponse(body, status),
+        }),
+      );
+      renderSection();
 
-    await userEvent.setup().click(await screen.findByTestId("invite-revoke"));
+      await userEvent.setup().click(await screen.findByTestId("invite-revoke"));
 
-    if (reconciles) await expectNotice(expected);
-    else expect(await screen.findByRole("alert")).toHaveTextContent(expected);
-    expect(screen.getByText(/existing@example\.test/)).toBeInTheDocument();
-    expect(inviteReads).toBe(reconciles ? 2 : 1);
-  });
+      if (reconciles) await expectNotice(expected);
+      else expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+      expect(screen.getByText(/existing@example\.test/)).toBeInTheDocument();
+      expect(inviteReads).toBe(reconciles ? 2 : 1);
+    },
+  );
 
   it("warns and rereads invitations after a thrown revoke", async () => {
     let inviteReads = 0;

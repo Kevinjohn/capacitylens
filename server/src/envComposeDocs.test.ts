@@ -12,7 +12,8 @@ const appSource = readFileSync(fileURLToPath(new URL("./routes/appLogging.ts", i
 /** The invite sub-actions whose bearer rides in the URL path, as enumerated at a `.../(a|b|c)` site. */
 const inviteActionsAt = (source: string, anchor: RegExp): string[] => {
   const alternation = source.match(anchor);
-  return alternation ? [...new Set(alternation[1].split("|").map((value) => value.trim()))].sort() : [];
+  const actions = alternation?.[1];
+  return actions ? [...new Set(actions.split("|").map((value) => value.trim()))].sort() : [];
 };
 
 describe("Compose exceptions in the environment register", () => {

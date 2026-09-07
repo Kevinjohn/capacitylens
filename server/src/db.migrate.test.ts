@@ -2427,7 +2427,7 @@ describe("schema migration of an existing on-disk DB", () => {
         )?.notnull,
       ).toBe(1);
       expect(upgraded.prepare(`SELECT * FROM timeOff ORDER BY id`).all()).toEqual(beforeRows);
-      expect(getRow(upgraded, "timeOff", "to-v33-company-wide")).toBeUndefined();
+      expect(getRow(upgraded, "timeOff", "to-v33-company-wide")).toBeNull();
       expect(upgraded.prepare(`SELECT * FROM closures`).all()).toEqual([]);
       expect(timeOffSecondaryObjects(upgraded)).toEqual(beforeObjects);
       expect(
@@ -2468,7 +2468,7 @@ describe("schema migration of an existing on-disk DB", () => {
       upgraded.close();
 
       const reopened = openDb(copied.path);
-      expect(getRow(reopened, "timeOff", "to-company")).toBeUndefined();
+      expect(getRow(reopened, "timeOff", "to-company")).toBeNull();
       expect(planDatabaseMigrations(reopened).migrations).toEqual([]);
       reopened.close();
     } finally {
@@ -2604,6 +2604,7 @@ describe("schema migration of an existing on-disk DB", () => {
   it("keeps the v8 migration independent from later additions to the live table model", () => {
     const copied = copyFixture("v7-off.db");
     const originalAccounts = TABLES.accounts;
+    if (!originalAccounts) throw new Error("Expected the live accounts table specification.");
     let db: Db | undefined;
     try {
       TABLES.accounts = {
@@ -2636,6 +2637,7 @@ describe("schema migration of an existing on-disk DB", () => {
   it("keeps migration v16 independent from a future required live-model column", () => {
     const copied = copyFixture("v15-off.db");
     const originalPhases = TABLES.phases;
+    if (!originalPhases) throw new Error("Expected the live phases table specification.");
     let db: Db | undefined;
     try {
       TABLES.phases = {

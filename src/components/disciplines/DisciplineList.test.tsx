@@ -56,7 +56,7 @@ describe("DisciplineList", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByText("Product")).toBeInTheDocument();
     expect(useStore.getState().data.disciplines).toHaveLength(1);
-    expect(useStore.getState().data.disciplines[0].name).toBe("Product");
+    expect(useStore.getState().data.disciplines[0]?.name).toBe("Product");
   });
 
   it("shows a validation error when trying to save without a name", async () => {
@@ -90,7 +90,7 @@ describe("DisciplineList", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.queryByText("OldName")).not.toBeInTheDocument();
     expect(screen.getByText("NewName")).toBeInTheDocument();
-    expect(useStore.getState().data.disciplines[0].name).toBe("NewName");
+    expect(useStore.getState().data.disciplines[0]?.name).toBe("NewName");
   });
 
   it("delete opens a ConfirmDialog and removes it on confirm", async () => {

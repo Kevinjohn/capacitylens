@@ -55,7 +55,7 @@ export function createAccountSlice(internals: StoreInternals): StateCreator<Stor
           internalColourMode: "grey",
           ...input,
           workingDays: normalizeAccountWorkingDays(input.workingDays, weekStartsOn),
-          color: snapColor(input.color),
+          color: snapColor({ color: input.color }),
           id: newId(),
           ...timestamps,
         };
@@ -99,7 +99,7 @@ export function createAccountSlice(internals: StoreInternals): StateCreator<Stor
               };
         mutate((data) => ({
           ...data,
-          accounts: updateById(data.accounts, id, applySnappedColor(safePatch)),
+          accounts: updateById(data.accounts, id, applySnappedColor({ patch: safePatch })),
         }));
       }),
       // Cascade-drop every scoped entity belonging to this account; if it was the

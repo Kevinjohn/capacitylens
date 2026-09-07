@@ -124,7 +124,7 @@ async function appWithAuth(
     app: createApp(db, {
       authMode: mode,
       auth,
-      multiAccount: opts.multiAccount,
+      ...(opts.multiAccount === undefined ? {} : { multiAccount: opts.multiAccount }),
       optimisticConcurrency: opts.optimisticConcurrency ?? false,
     }),
     db,
@@ -290,7 +290,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
       const response = await writeClosure({ app, accountId: "a1", id, cookie, batched });
 
       expect(response.statusCode, role).toBe(role === "viewer" ? 403 : batched ? 200 : 201);
-      if (role === "viewer") expect(getRow(db, "closures", id), role).toBeUndefined();
+      if (role === "viewer") expect(getRow(db, "closures", id), role).toBeNull();
       else {
         expect(getRow(db, "closures", id), role).toMatchObject({
           accountId: "a1",
@@ -419,7 +419,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
 
       expect((await replaceGeneratedInternal(app, editor.cookie, batched)).statusCode).toBe(403);
       expect(getRow(db, "clients", "internal:a1")?.builtin).toBe(true);
-      expect(getRow(db, "clients", "legacy-internal")).toBeUndefined();
+      expect(getRow(db, "clients", "legacy-internal")).toBeNull();
       expect(getRow(db, "projects", "internal-project")?.clientId).toBe("internal:a1");
 
       const admin = await signUp(app, `internal-admin-${batched}@capacitylens.dev`);
@@ -439,11 +439,11 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
       expect(stale.statusCode).toBe(403);
       expect(stale.json()).toMatchObject({ code: "SESSION_NOT_FRESH" });
       expect(getRow(db, "clients", "internal:a1")?.builtin).toBe(true);
-      expect(getRow(db, "clients", "legacy-internal")).toBeUndefined();
+      expect(getRow(db, "clients", "legacy-internal")).toBeNull();
 
       db.prepare("UPDATE session SET createdAt = ? WHERE userId = ?").run(new Date().toISOString(), admin.userId);
       expect((await replaceGeneratedInternal(app, admin.cookie, batched)).statusCode).toBe(200);
-      expect(getRow(db, "clients", "internal:a1")).toBeUndefined();
+      expect(getRow(db, "clients", "internal:a1")).toBeNull();
       expect(getRow(db, "clients", "legacy-internal")?.builtin).toBe(true);
       expect(getRow(db, "projects", "internal-project")?.clientId).toBe("legacy-internal");
     },
@@ -1407,7 +1407,7 @@ describe("private client/project names — owner-only server projection", () => 
     });
     expect(rejected.statusCode).toBe(400);
     expect(rejected.json()).toEqual({ error: "A private client or project requires a code name." });
-    expect(getRow(ownerSetup.db, "projects", "owner-private-missing-code")).toBeUndefined();
+    expect(getRow(ownerSetup.db, "projects", "owner-private-missing-code")).toBeNull();
 
     const updated = await call(ownerSetup.app, {
       method: "PATCH",

@@ -13,7 +13,7 @@ import { buildDatabaseHooks } from "./databaseHooks";
 import { buildRequestHooks } from "./requestHooks";
 import { buildSessionPolicy } from "./sessionPolicy";
 import { buildPlugins } from "./plugins";
-import { DEFAULT_ACCOUNT_APPLICATION, type Auth, type AuthMode } from "./authTypes";
+import { DEFAULT_ACCOUNT_APPLICATION, type Auth, type AccountMode } from "./authTypes";
 import {
   MIN_BETTER_AUTH_SECRET_LENGTH,
   RESET_LINK_TTL_SECONDS,
@@ -75,19 +75,19 @@ export function createAuthFromEnvironmentFactory({
         emailVerified?: boolean;
       }) => boolean | Promise<boolean>;
     } = {},
-  ): { mode: AuthMode; auth: Auth | null } {
+  ): { mode: AccountMode; auth: Auth | null } {
     const runtimeEnvironment = environment.NODE_ENV ?? process.env.NODE_ENV;
-    environment = resolveAccountEnvironment(environment, {
+    const resolvedEnvironment = resolveAccountEnvironment(environment, {
       ...(runtimeEnvironment === "test" ? { warn: () => {} } : {}),
     }).env;
-    const mode = parseAuthMode(environment.CAPACITYLENS_AUTH);
+    const mode = parseAuthMode(resolvedEnvironment.CAPACITYLENS_AUTH);
     if (mode === "off") return { mode, auth: null };
-    const requirePasswordMfa = mode === "password" && environment.CAPACITYLENS_REQUIRE_MFA === "1";
+    const requirePasswordMfa = mode === "password" && resolvedEnvironment.CAPACITYLENS_REQUIRE_MFA === "1";
     const application = options.application ?? DEFAULT_ACCOUNT_APPLICATION;
     const applicationFailure = boundApplicationFailure(application);
     if (applicationFailure) throw new AuthConfigError(applicationFailure);
 
-    const secret = required(environment, "BETTER_AUTH_SECRET", `SMALLSASS_ACCOUNT_MODE=${mode}`);
+    const secret = required(resolvedEnvironment, "BETTER_AUTH_SECRET", `SMALLSASS_ACCOUNT_MODE=${mode}`);
     // Fail closed + loud on a weak secret (message states the requirement + actual length,
     // never the secret value itself — no leak into logs/exit output).
     if (secret.length < MIN_BETTER_AUTH_SECRET_LENGTH) {
@@ -95,7 +95,7 @@ export function createAuthFromEnvironmentFactory({
         `SMALLSASS_ACCOUNT_SECRET must be at least ${MIN_BETTER_AUTH_SECRET_LENGTH} characters when SMALLSASS_ACCOUNT_MODE=${mode} (got ${secret.length}).`,
       );
     }
-    const baseURL = required(environment, "BETTER_AUTH_URL", `SMALLSASS_ACCOUNT_MODE=${mode}`);
+    const baseURL = required(resolvedEnvironment, "BETTER_AUTH_URL", `SMALLSASS_ACCOUNT_MODE=${mode}`);
 
     let publicUrl: URL;
     try {
@@ -131,7 +131,7 @@ export function createAuthFromEnvironmentFactory({
 
     const preparedProviderConfig = prepareProviders({
       db,
-      env: environment,
+      env: resolvedEnvironment,
       mode,
       publicUrl,
       authHandlerErrorCapture,
@@ -155,13 +155,13 @@ export function createAuthFromEnvironmentFactory({
     // (a hole). CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 keeps its meaning — an INTERIM trusted-instance/dev
     // escape that re-opens signup unconditionally. With neither condition, POST
     // /api/auth/sign-up/email returns the same 400 EMAIL_PASSWORD_SIGN_UP_DISABLED as before.
-    const allowOpenSignup = environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1";
-    const setupToken = environment.CAPACITYLENS_SETUP_TOKEN || undefined;
+    const allowOpenSignup = resolvedEnvironment.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1";
+    const setupToken = resolvedEnvironment.CAPACITYLENS_SETUP_TOKEN || undefined;
     if (mode === "password" && setupToken && Buffer.byteLength(setupToken, "utf8") < 32) {
       throw new AuthConfigError("SMALLSASS_ACCOUNT_SETUP_TOKEN must be at least 32 bytes.");
     }
     const providerConfig = buildProviders({
-      env: environment,
+      env: resolvedEnvironment,
       defaultProviderLabel: application.branding.defaultProviderLabel,
       trustedOrigins: options.trustedOrigins,
       prepared: preparedProviderConfig,
@@ -202,7 +202,7 @@ export function createAuthFromEnvironmentFactory({
     };
 
     const passwordPolicy = buildPasswordPolicy({
-      env: environment,
+      env: resolvedEnvironment,
       mode,
       runtimeEnvironment,
       passwordContextWords: application.branding.passwordContextWords,
@@ -235,7 +235,9 @@ export function createAuthFromEnvironmentFactory({
       configuredFederatedIssuers,
       allowOpenSignup,
       requirePasswordMfa,
-      externalIdentityAdmission: options.externalIdentityAdmission,
+      ...(options.externalIdentityAdmission === undefined
+        ? {}
+        : { externalIdentityAdmission: options.externalIdentityAdmission }),
       providerIdFromExternalContext,
       countUsers,
       twoFactorEnabledLookupStatement: createTwoFactorEnabledLookupStatement,
@@ -278,7 +280,7 @@ export function createAuthFromEnvironmentFactory({
     });
     // betterAuth construction validates its resolved options but does not own this app-specific
     // table. Verify and expire its leases only after configuration and app migrations have succeeded.
-    if (!options.deferDatabaseSetup) ensureAuthControlTables(db, environment);
+    if (!options.deferDatabaseSetup) ensureAuthControlTables(db, resolvedEnvironment);
     const auth = createAuthAdapter({
       db,
       application,

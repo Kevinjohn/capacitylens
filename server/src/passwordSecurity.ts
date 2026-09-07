@@ -76,15 +76,17 @@ export function createScryptPasswordHasher(n = SCRYPT_N): PasswordHasher {
     async verify({ hash, password }): Promise<boolean> {
       const fields = hash.split("$");
       if (fields.length === 6 && fields[0] === "scrypt-v1") {
-        const parsedN = Number(fields[1]);
-        const r = Number(fields[2]);
-        const p = Number(fields[3]);
+        const [, rawN, rawR, rawP, rawSalt, rawExpected] = fields;
+        if (!rawN || !rawR || !rawP || !rawSalt || !rawExpected) return false;
+        const parsedN = Number(rawN);
+        const r = Number(rawR);
+        const p = Number(rawP);
         if (![parsedN, r, p].every(Number.isSafeInteger) || parsedN < 2 || r < 1 || p < 1) return false;
         let salt: Buffer;
         let expected: Buffer;
         try {
-          salt = Buffer.from(fields[4], "base64url");
-          expected = Buffer.from(fields[5], "base64url");
+          salt = Buffer.from(rawSalt, "base64url");
+          expected = Buffer.from(rawExpected, "base64url");
         } catch {
           // Stored representation failure is a safe credential non-match. Derivation happens
           // outside this guard so operational queue/crypto failures remain loud and retryable.
@@ -107,12 +109,19 @@ export function createScryptPasswordHasher(n = SCRYPT_N): PasswordHasher {
       // password to NFKC before hashing. Compatibility is verify-only; every new/change/reset hash
       // uses the exact password bytes and the stronger versioned profile above.
       const legacy = hash.split(":");
-      if (legacy.length !== 2 || !/^[0-9a-f]{32}$/i.test(legacy[0]) || !/^[0-9a-f]{128}$/i.test(legacy[1]))
+      const [legacySalt, legacyExpected] = legacy;
+      if (
+        !legacySalt ||
+        !legacyExpected ||
+        legacy.length !== 2 ||
+        !/^[0-9a-f]{32}$/i.test(legacySalt) ||
+        !/^[0-9a-f]{128}$/i.test(legacyExpected)
+      )
         return false;
-      const expected = Buffer.from(legacy[1], "hex");
+      const expected = Buffer.from(legacyExpected, "hex");
       const actual = await derive({
         password: password.normalize("NFKC"),
-        salt: Buffer.from(legacy[0], "utf8"),
+        salt: Buffer.from(legacySalt, "utf8"),
         n: 2 ** 14,
         r: 16,
         p: 1,

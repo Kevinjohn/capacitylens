@@ -26,7 +26,7 @@ export function suspendServerWrites(): (options?: { dropParkedEdits?: boolean })
 }
 
 /**
- * Outcome of {@link refreshActiveAccountSlice} (and the orchestrator's internal refreshActive):
+ * Result kinds from {@link refreshActiveAccountSlice} (and the orchestrator's internal refreshActive):
  *  - 'reloaded'   — the server's slice was fetched AND installed; the UI shows committed state.
  *  - 'skipped'    — deliberately not performed (stale account id — the user switched tenants —
  *                   or a save is in a failed state under abortIfSaveFailed, or a newer
@@ -35,18 +35,19 @@ export function suspendServerWrites(): (options?: { dropParkedEdits?: boolean })
  *  - 'unattached' — no orchestrator (demo build / unit tests); the caller may fall back to a
  *                   bare loadAll+replaceAll, safe ONLY because there is no debounce state.
  */
-export type RefreshOutcome = "reloaded" | "skipped" | "failed" | "unattached";
+export type RefreshOutcome = { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "unattached" };
+export type FlushPendingWritesResult = { kind: "clean" } | { kind: "blocked" };
 
 /**
  * Flush any pending debounced write through the orchestrator and await the round-trip.
  *
- * @returns true when writes are CLEAN afterwards (nothing pending, last write landed); false when
- *          a write is still in the failed state — the caller must not proceed with an operation
- *          (e.g. a server-side import) that assumes the local edits it just tried to land are
- *          either persisted or knowingly abandoned. Also true when no orchestrator is attached
- *          (demo build / tests): there is no debounce state to flush.
+ * @returns a clean result when writes are acknowledged, or a blocked result otherwise. A caller
+ *          must not proceed with an operation (e.g. a server-side import) that assumes the local
+ *          edits it just tried to land are either persisted or knowingly abandoned while blocked.
+ *          Also returns clean when no orchestrator is attached (demo build / tests): there is no
+ *          debounce state to flush.
  */
-export async function flushPendingWrites(): Promise<boolean> {
+export async function flushPendingWrites(): Promise<FlushPendingWritesResult> {
   return persistenceCoordinator.flushPending();
 }
 

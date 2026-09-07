@@ -95,7 +95,7 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
         },
       });
       if (!provisioned.replayed) drainProductAudit(reply);
-      return reply.code(201).send(provisioned.product as Record<string, unknown>);
+      return reply.code(201).send(provisioned.product);
     } catch (error) {
       return sendAccountRouteFailure(reply, error, dependencies);
     }
@@ -144,7 +144,7 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
         actor: req.accountActor!,
         workspaceId: id,
         command: command(req),
-        auditProductMutationInTx: targetExisted ? () => enqueueAudit(auditRecord) : undefined,
+        ...(targetExisted ? { auditProductMutationInTx: () => enqueueAudit(auditRecord) } : {}),
       });
       if (targetExisted) drainProductAudit(reply);
       return reply.code(204).send();

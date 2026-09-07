@@ -22,7 +22,7 @@ export function isScopedEntityKey(key: string): key is ScopedEntityKey {
  *  TypeScript can't infer through a heterogeneous-union index — replacing the
  *  scattered `as never` / `as unknown as` casts the loops used to need. */
 export function scopedTables(data: AppData): Record<ScopedEntityKey, ScopedEntity[]> {
-  return data as Record<ScopedEntityKey, ScopedEntity[]>;
+  return data;
 }
 
 /** Clamp an ALLOCATION's hours/day into [0, MAX_HOURS_PER_DAY]; a non-finite value → 0. The

@@ -22,38 +22,49 @@ export function createAllocationSlice(
     const { createGuardedAction, createAllocations, updateOwned, assertAllocation, resolveOwnedRow, mutate } =
       internals;
     return {
-      addAllocation: (input) => createAllocations([input])[0],
+      addAllocation: (input) => {
+        const allocation = createAllocations([input])[0];
+        if (!allocation) throw new Error("Allocation creation produced no row.");
+        return allocation;
+      },
       addAllocations: createAllocations,
       updateAllocation: createGuardedAction(
         (id: ID, patch: Patch<Allocation>) =>
-          updateOwned("allocations", id, patch, (merged, existing) => {
-            // Clamp FIRST (same shared clamp as creation and import) so validation sees the value
-            // that would actually be stored — a drag-resize rescale past 24h must land on 24 like
-            // every other write boundary, not reject after the fact.
-            const clampedPatch: Patch<Allocation> =
-              patch.hoursPerDay !== undefined ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) } : patch;
-            const effective = { ...merged, ...clampedPatch } as Allocation;
-            // The server re-runs assertAllocationRefs on the full merged row on EVERY write, so a
-            // note/status/date-only edit of an allocation whose resource is now EXTERNAL with a
-            // non-zero load (legacy pre-v0.8.1 data, or after a resource kind-flip) would 400 there
-            // while succeeding here. Validating `effective` rejects exactly what the server rejects;
-            // a note-only patch on a valid (non-external) row still passes.
-            assertAllocation(
-              get().data,
-              existing.accountId,
-              effective.resourceId,
-              effective.activityId,
-              effective.hoursPerDay,
-              effective.projectId,
-              existing,
-            );
-            assertDateRange(effective.startDate, effective.endDate);
-            // Repeat-series membership is system-owned at creation. An ordinary edit may change every
-            // visible allocation field but cannot link, unlink or move the row between series.
-            const safePatch = { ...clampedPatch };
-            if (existing.seriesId === undefined) delete safePatch.seriesId;
-            else safePatch.seriesId = existing.seriesId;
-            return safePatch;
+          updateOwned({
+            key: "allocations",
+            id: id,
+            patch: patch,
+            prepare: (merged, existing) => {
+              // Clamp FIRST (same shared clamp as creation and import) so validation sees the value
+              // that would actually be stored — a drag-resize rescale past 24h must land on 24 like
+              // every other write boundary, not reject after the fact.
+              const clampedPatch: Patch<Allocation> =
+                patch.hoursPerDay !== undefined
+                  ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) }
+                  : patch;
+              const effective = { ...merged, ...clampedPatch };
+              // The server re-runs assertAllocationRefs on the full merged row on EVERY write, so a
+              // note/status/date-only edit of an allocation whose resource is now EXTERNAL with a
+              // non-zero load (legacy pre-v0.8.1 data, or after a resource kind-flip) would 400 there
+              // while succeeding here. Validating `effective` rejects exactly what the server rejects;
+              // a note-only patch on a valid (non-external) row still passes.
+              assertAllocation(
+                get().data,
+                existing.accountId,
+                effective.resourceId,
+                effective.activityId,
+                effective.hoursPerDay,
+                effective.projectId,
+                existing,
+              );
+              assertDateRange(effective.startDate, effective.endDate);
+              // Repeat-series membership is system-owned at creation. An ordinary edit may change every
+              // visible allocation field but cannot link, unlink or move the row between series.
+              const safePatch = { ...clampedPatch };
+              if (existing.seriesId === undefined) delete safePatch.seriesId;
+              else safePatch.seriesId = existing.seriesId;
+              return safePatch;
+            },
           }),
         false,
       ),

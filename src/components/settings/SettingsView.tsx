@@ -171,7 +171,7 @@ export function SettingsView() {
                 <Avatar
                   name={user?.name ?? user?.email ?? m.settings_signed_in_unknown()}
                   color={DEFAULT_COLORS.account}
-                  imageUrl={user?.image ?? undefined}
+                  {...(user?.image ? { imageUrl: user.image } : {})}
                 />
                 <p className="text-sm text-muted-foreground">
                   {m.settings_signed_in_as({

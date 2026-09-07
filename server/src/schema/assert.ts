@@ -160,6 +160,8 @@ export function assertSchemaVersion(
     }
   }
   const problems: string[] = [];
+  const allocationsSpec = tableSpecs.allocations;
+  if (!allocationsSpec) throw new Error("Missing allocations table specification.");
   const expectedForeignKeys: Record<string, Array<[string, string, string, string]>> = {
     clients: [["accountId", "accounts", "id", "CASCADE"]],
     disciplines: [["accountId", "accounts", "id", "CASCADE"]],
@@ -182,7 +184,7 @@ export function assertSchemaVersion(
       ["accountId", "accounts", "id", "CASCADE"],
     ],
     allocations: [
-      ...(tableSpecs.allocations.columns.some((column) => column.name === "projectId") ||
+      ...(allocationsSpec.columns.some((column) => column.name === "projectId") ||
       (allowCompatibleExtensions && hasColumn(db, "allocations", "projectId"))
         ? [["projectId", "projects", "id", "SET NULL"] as [string, string, string, string]]
         : []),

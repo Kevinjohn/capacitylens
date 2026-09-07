@@ -8,7 +8,7 @@ function throwUnsupportedOperation(commandId?: string): never {
     code: "UNSUPPORTED_CAPABILITY",
     message: "This identity operation is unavailable in trusted-local mode.",
     retryable: false,
-    commandId,
+    ...(commandId === undefined ? {} : { commandId }),
   });
 }
 

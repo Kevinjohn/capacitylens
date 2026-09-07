@@ -31,7 +31,7 @@ describe("buildActivityOptions", () => {
     const projects = [project];
     const projectFind = vi.spyOn(projects, "find");
 
-    const options = buildActivityOptions(activities, phases, projects, "project", project.id);
+    const options = buildActivityOptions({ activities, phases, projects, kind: "project", projectId: project.id });
 
     expect(options).toHaveLength(200);
     expect(options.slice(0, 2)).toEqual([
@@ -61,15 +61,17 @@ describe("buildActivityOptions", () => {
       { ...row, id: "project", name: "Briefing", kind: "project", projectId: "project" },
     ];
 
-    expect(buildActivityOptions(activities, [], [], "internal")).toEqual([
+    expect(buildActivityOptions({ activities, phases: [], projects: [], kind: "internal" })).toEqual([
       { value: "internal-a", label: "Admin" },
       { value: "internal-z", label: "Support" },
     ]);
-    expect(buildActivityOptions(activities, [], [], "repeatable")).toEqual([
+    expect(buildActivityOptions({ activities, phases: [], projects: [], kind: "repeatable" })).toEqual([
       { value: "repeat-a", label: "Retrospective" },
       { value: "repeat-z", label: "Strategy" },
     ]);
-    expect(buildActivityOptions(activities, [], [], "project", "project")).toEqual([
+    expect(
+      buildActivityOptions({ activities, phases: [], projects: [], kind: "project", projectId: "project" }),
+    ).toEqual([
       { value: "repeat-a", label: "Retrospective", groupKey: "all-projects", groupLabel: "All projects" },
       { value: "repeat-z", label: "Strategy", groupKey: "all-projects", groupLabel: "All projects" },
       { value: "project", label: "Briefing", groupKey: "project", groupLabel: "Project-specific" },
@@ -82,9 +84,9 @@ describe("buildActivityOptions", () => {
       { ...row, id: "stark", name: "Briefing", kind: "project", projectId: "stark-project" },
     ];
 
-    expect(buildActivityOptions(activities, [], [], "project", "wayne-project")).toEqual([
-      { value: "wayne", label: "Briefing", groupKey: "project", groupLabel: "Project-specific" },
-    ]);
+    expect(
+      buildActivityOptions({ activities, phases: [], projects: [], kind: "project", projectId: "wayne-project" }),
+    ).toEqual([{ value: "wayne", label: "Briefing", groupKey: "project", groupLabel: "Project-specific" }]);
   });
 
   it("does not apply the project id filter to non-project activities", () => {
@@ -96,9 +98,15 @@ describe("buildActivityOptions", () => {
       projectId: "legacy-project",
     } as Activity;
 
-    expect(buildActivityOptions([malformed], [], [], "internal", "another-project")).toEqual([
-      { value: malformed.id, label: "Support" },
-    ]);
+    expect(
+      buildActivityOptions({
+        activities: [malformed],
+        phases: [],
+        projects: [],
+        kind: "internal",
+        projectId: "another-project",
+      }),
+    ).toEqual([{ value: malformed.id, label: "Support" }]);
   });
 
   it.each([
@@ -110,7 +118,7 @@ describe("buildActivityOptions", () => {
       { ...row, id: `${kind}-a`, name: "Planning", kind },
     ];
 
-    expect(buildActivityOptions(activities, [], [], kind)).toEqual([
+    expect(buildActivityOptions({ activities, phases: [], projects: [], kind })).toEqual([
       { value: `${kind}-a`, label: `Planning / ${context} (1)` },
       { value: `${kind}-b`, label: `Planning / ${context} (2)` },
     ]);
@@ -138,7 +146,15 @@ describe("buildActivityOptions", () => {
       { ...row, id: "without-metadata", name: "Workshop", kind: "project", projectId: project.id },
     ];
 
-    expect(buildActivityOptions(activities, [phase], [project], "project", project.id)).toEqual([
+    expect(
+      buildActivityOptions({
+        activities,
+        phases: [phase],
+        projects: [project],
+        kind: "project",
+        projectId: project.id,
+      }),
+    ).toEqual([
       {
         value: "with-phase",
         label: "Workshop / Discovery",
@@ -159,7 +175,9 @@ describe("buildActivityOptions", () => {
       },
     ]);
 
-    expect(buildActivityOptions(activities, [], [], "project", project.id)).toEqual([
+    expect(
+      buildActivityOptions({ activities, phases: [], projects: [], kind: "project", projectId: project.id }),
+    ).toEqual([
       {
         value: "with-phase",
         label: "Workshop / Project (1)",
@@ -196,7 +214,9 @@ describe("buildActivityOptions", () => {
       { ...row, id: "project-build", name: "Build", kind: "project", projectId: project.id },
     ];
 
-    expect(buildActivityOptions(activities, [], [project], "project", project.id)).toEqual([
+    expect(
+      buildActivityOptions({ activities, phases: [], projects: [project], kind: "project", projectId: project.id }),
+    ).toEqual([
       { value: "repeat-admin", label: "Admin", groupKey: "all-projects", groupLabel: "All projects" },
       {
         value: "repeat-design",
@@ -220,7 +240,7 @@ describe("buildActivityOptions", () => {
       { ...row, id: "project-b", name: "Workshop", kind: "project" },
     ] as Activity[];
 
-    expect(buildActivityOptions(activities, [], [], "project")).toEqual([
+    expect(buildActivityOptions({ activities, phases: [], projects: [], kind: "project" })).toEqual([
       { value: "project-a", label: "Workshop / Project (1)" },
       { value: "project-b", label: "Workshop / Project (2)" },
     ]);
@@ -233,7 +253,7 @@ describe("buildActivityOptions", () => {
       { ...row, id: "a", name: "Alpha", kind: "internal" },
     ];
 
-    expect(buildActivityOptions(activities, [], [], "internal")).toEqual([
+    expect(buildActivityOptions({ activities, phases: [], projects: [], kind: "internal" })).toEqual([
       { value: "z", label: "alpha" },
       { value: "a", label: "Alpha / Internal (1)" },
       { value: "b", label: "Alpha / Internal (2)" },
@@ -246,7 +266,7 @@ describe("buildActivityOptions", () => {
       { ...row, id: "a", name: "Résumé", kind: "internal" },
     ];
 
-    expect(buildActivityOptions(activities, [], [], "internal")).toEqual([
+    expect(buildActivityOptions({ activities, phases: [], projects: [], kind: "internal" })).toEqual([
       { value: "a", label: "Résumé" },
       { value: "z", label: "resume" },
     ]);

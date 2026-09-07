@@ -113,6 +113,21 @@ export default defineConfig([
       // un-awaited / un-voided promise instead of letting it float silently.
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/no-unnecessary-boolean-literal-compare": "error",
+      "@typescript-eslint/no-unnecessary-condition": "error",
+      "@typescript-eslint/no-unsafe-argument": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/only-throw-error": "error",
+      "@typescript-eslint/prefer-nullish-coalescing": "error",
+      "@typescript-eslint/restrict-template-expressions": "error",
+      "@typescript-eslint/switch-exhaustiveness-check": "error",
+      "no-nested-ternary": "error",
+      "no-param-reassign": "error",
+      complexity: ["error", { max: 12 }],
+      "max-depth": ["error", 3],
+      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
     },
   },
 
@@ -129,6 +144,21 @@ export default defineConfig([
     rules: {
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/no-unnecessary-boolean-literal-compare": "error",
+      "@typescript-eslint/no-unnecessary-condition": "error",
+      "@typescript-eslint/no-unsafe-argument": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/only-throw-error": "error",
+      "@typescript-eslint/prefer-nullish-coalescing": "error",
+      "@typescript-eslint/restrict-template-expressions": "error",
+      "@typescript-eslint/switch-exhaustiveness-check": "error",
+      "no-nested-ternary": "error",
+      "no-param-reassign": "error",
+      complexity: ["error", { max: 12 }],
+      "max-depth": ["error", 3],
+      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
     },
   },
 
@@ -139,6 +169,24 @@ export default defineConfig([
       "no-restricted-globals": ["error", { globals: forbiddenSharedGlobals, checkGlobalObject: true }],
       "no-restricted-imports": ["error", { paths: builtinModules, patterns: ["node:*"] }],
     },
+  },
+
+  // End-to-end scenarios share the structural limits even though their Playwright project is
+  // separate from the typed app/server lint projects. Tests are not exempt from the baseline.
+  {
+    files: ["e2e/**/*.{ts,tsx,mts,cts}"],
+    rules: {
+      complexity: ["error", { max: 12 }],
+      "max-depth": ["error", 3],
+      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
+    },
+  },
+
+  // The reviewed no-unnecessary-type-assertion probe covered authored production code, not tests.
+  {
+    files: ["src/**/*.{ts,tsx}", "server/src/**/*.ts", "server/scripts/**/*.ts", "shared/src/**/*.{ts,tsx,mts,cts}"],
+    ignores: ["**/*.{test,spec}.{ts,tsx,mts,cts}", "**/__tests__/**/*.{ts,tsx,mts,cts}"],
+    rules: { "@typescript-eslint/no-unnecessary-type-assertion": "error" },
   },
 
   // The mechanical part of docs-src/reference/conventions.md: identifier casing, no negated

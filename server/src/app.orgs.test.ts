@@ -41,9 +41,9 @@ async function appWithAuth(
     app: createApp(db, {
       authMode: mode,
       auth,
-      bootstrapToken: opts.bootstrapToken,
-      multiAccount: opts.multiAccount,
-      audit: opts.audit,
+      ...(opts.bootstrapToken === undefined ? {} : { bootstrapToken: opts.bootstrapToken }),
+      ...(opts.multiAccount === undefined ? {} : { multiAccount: opts.multiAccount }),
+      ...(opts.audit === undefined ? {} : { audit: opts.audit }),
     }),
     db,
   };

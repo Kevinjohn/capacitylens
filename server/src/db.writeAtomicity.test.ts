@@ -30,7 +30,7 @@ describe("single-row write atomicity", () => {
 
     expect(() => insertRow(db, "accounts", account("Inserted"))).toThrow(/simulated meta failure/i);
 
-    expect(getRow(db, "accounts", "account-atomicity")).toBeUndefined();
+    expect(getRow(db, "accounts", "account-atomicity")).toBeNull();
     expect(isInitialized(db)).toBe(false);
     expect(db.isTransaction).toBe(false);
     db.close();
@@ -65,7 +65,7 @@ describe("single-row write atomicity", () => {
       db.prepare(`INSERT INTO _meta (key, value) VALUES ('outer-work', 'committed')`).run();
     });
 
-    expect(getRow(db, "accounts", "account-atomicity")).toBeUndefined();
+    expect(getRow(db, "accounts", "account-atomicity")).toBeNull();
     expect(db.prepare(`SELECT value FROM _meta WHERE key = 'outer-work'`).get()).toEqual({ value: "committed" });
     expect(db.isTransaction).toBe(false);
     db.close();

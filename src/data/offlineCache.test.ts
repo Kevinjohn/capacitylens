@@ -25,6 +25,17 @@ const DB_NAME = "capacitylens-offline-v1";
 const STORE_NAME = "records";
 const KEY_STORE_NAME = "keys";
 
+/** Simulate host APIs that may throw arbitrary JavaScript values. Generator.throw preserves the
+ * exact supplied value without adding a ThrowStatement that production lint correctly rejects. */
+function throwHostValue(value: unknown): never {
+  const generator = (function* () {
+    yield undefined;
+  })();
+  generator.next();
+  generator.throw(value);
+  throw new Error("Generator.throw unexpectedly returned.");
+}
+
 function currentCacheNamespace(): string {
   return `${window.location.origin}|api:${window.location.origin}`;
 }
@@ -503,24 +514,38 @@ describe("offline tenant cache", () => {
 
   it("reports why writes are skipped instead of resolving ambiguously", async () => {
     localStorage.removeItem("capacitylens/offlineRead");
-    await expect(cacheAccountSummaries([])).resolves.toEqual({ status: "skipped", reason: "disabled" });
+    await expect(cacheAccountSummaries([])).resolves.toEqual({ kind: "skipped", reason: "disabled" });
 
     localStorage.setItem("capacitylens/offlineRead", "on");
-    await expect(cacheAccountSummaries([])).resolves.toEqual({ status: "skipped", reason: "unscoped" });
+    await expect(cacheAccountSummaries([])).resolves.toEqual({ kind: "skipped", reason: "unscoped" });
   });
 
   it("does not repeatedly encrypt an unchanged tenant slice during live refreshes", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     const slice = accountSlice("a-studio");
 
-    await expect(cacheAccountSlice("a-studio", slice)).resolves.toEqual({ status: "written" });
+    await expect(cacheAccountSlice("a-studio", slice)).resolves.toEqual({ kind: "written" });
     await expect(cacheAccountSlice("a-studio", structuredClone(slice))).resolves.toEqual({
-      status: "skipped",
+      kind: "skipped",
       reason: "unchanged",
     });
 
     slice.accounts[0]!.updatedAt = "2026-07-30T10:00:00.000Z";
-    await expect(cacheAccountSlice("a-studio", slice)).resolves.toEqual({ status: "written" });
+    await expect(cacheAccountSlice("a-studio", slice)).resolves.toEqual({ kind: "written" });
+  });
+
+  it("does not suppress a retry after a failed slice write", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const slice = accountSlice("a-studio");
+    const cause = new Error("slice encryption failed");
+    vi.spyOn(crypto.subtle, "encrypt").mockRejectedValueOnce(cause);
+
+    await expect(cacheAccountSlice("a-studio", slice)).rejects.toBe(cause);
+    await expect(cacheAccountSlice("a-studio", structuredClone(slice))).resolves.toEqual({ kind: "written" });
+    await expect(cacheAccountSlice("a-studio", structuredClone(slice))).resolves.toEqual({
+      kind: "skipped",
+      reason: "unchanged",
+    });
   });
 
   it("preserves and reports the cause when a generated device key cannot be persisted", async () => {
@@ -564,7 +589,7 @@ describe("offline tenant cache", () => {
       return originalAdd.call(this, value, key);
     });
 
-    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ status: "written" });
+    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ kind: "written" });
     await expect(readCachedAuthSnapshot()).resolves.toMatchObject({ value: { user: { id: "user-a" } } });
   });
 
@@ -623,7 +648,7 @@ describe("offline tenant cache", () => {
       return "on";
     });
 
-    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ status: "written" });
+    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ kind: "written" });
     await expect(getRaw(`auth:${currentCacheNamespace()}`)).resolves.toBeUndefined();
     expect(warning).toHaveBeenCalledWith(
       "offlineCache: the offline write boundary could not be read; rejecting cache writes",
@@ -705,6 +730,32 @@ describe("offline tenant cache", () => {
     await expect(getRaw(`auth:${currentCacheNamespace()}`)).resolves.toBeUndefined();
   });
 
+  it.each([null, undefined, false, 0, ""])(
+    "completes cleanup when storage throws a falsy value (%p)",
+    async (cause) => {
+      await cacheAuthSnapshot(authSnapshot("user-a"));
+      vi.spyOn(Storage.prototype, "setItem").mockImplementation((key) => {
+        if (key.endsWith("offlineWriteBoundary")) throwHostValue(cause);
+      });
+
+      await expect(clearOfflineDataForCurrentUser()).resolves.toBeUndefined();
+      await expect(getRaw(`auth:${currentCacheNamespace()}`)).resolves.toBeUndefined();
+    },
+  );
+
+  it.each([null, undefined, false, 0, ""])(
+    "follows the missing-storage policy when storage throws a falsy value (%p)",
+    async (cause) => {
+      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+        throwHostValue(cause);
+      });
+      vi.stubGlobal("indexedDB", undefined);
+
+      await expect(clearOfflineDataForCurrentUser()).rejects.toThrow("IndexedDB is unavailable");
+      await expect(clearAllOfflineData()).resolves.toBeUndefined();
+    },
+  );
+
   it("drops writes whose generation changes during encryption", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     const originalEncrypt = crypto.subtle.encrypt.bind(crypto.subtle);
@@ -714,7 +765,7 @@ describe("offline tenant cache", () => {
     });
 
     await expect(cacheAccountSummaries([{ id: "a-studio", name: "Studio", role: "owner" }])).resolves.toEqual({
-      status: "written",
+      kind: "written",
     });
     await expect(getRaw(`accounts:${currentCacheNamespace()}:user-a`)).resolves.toBeUndefined();
   });
@@ -853,11 +904,11 @@ describe("offline tenant cache", () => {
     const projectId = slice.projects[0]?.id;
     expect(original).toBeDefined();
     expect(projectId).toBeDefined();
+    if (!original || !projectId) throw new Error("expected seeded allocation and project");
     slice.allocations = [
-      { ...original!, id: "attributed", projectId: projectId! },
-      { ...original!, id: "unattributed", projectId: undefined },
+      { ...original, id: "attributed", projectId },
+      { ...original, id: "unattributed" },
     ];
-    delete slice.allocations[1].projectId;
 
     await cacheAccountSlice("a-studio", slice);
     const restored = await readCachedAccountSlice("a-studio");
@@ -959,6 +1010,7 @@ describe("offline tenant cache", () => {
     expect(Object.prototype.toString.call(raw.ciphertext)).toBe("[object ArrayBuffer]");
 
     const tampered = new Uint8Array(raw.ciphertext).slice();
+    if (tampered[0] === undefined) throw new Error("expected encrypted cache bytes");
     tampered[0] ^= 1;
     await putRaw({ ...raw, ciphertext: tampered.buffer });
     await expect(readCachedAccountSummaries()).resolves.toBeNull();
@@ -999,6 +1051,7 @@ describe("offline tenant cache", () => {
     const key = `accounts:${currentCacheNamespace()}:user-a`;
     const raw = (await getRaw(key)) as { ciphertext: ArrayBuffer };
     const tampered = new Uint8Array(raw.ciphertext).slice();
+    if (tampered[0] === undefined) throw new Error("expected encrypted cache bytes");
     tampered[0] ^= 1;
     await putRaw({ ...raw, key, ciphertext: tampered.buffer });
 
@@ -1209,7 +1262,7 @@ describe("offline tenant cache", () => {
     expect(readOfflineStateSnapshot().cacheWriteFailed).toBe(true);
     await clearAllOfflineData();
 
-    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ status: "written" });
+    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ kind: "written" });
     expect(readOfflineStateSnapshot().cacheWriteFailed).toBe(false);
     await expect(readCachedAuthSnapshot()).resolves.toMatchObject({
       value: { user: { id: "user-a" } },

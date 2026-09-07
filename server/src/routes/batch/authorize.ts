@@ -1,6 +1,6 @@
 import type { Action } from "@capacitylens/shared/domain/access";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { AuthMode } from "../../auth";
+import type { AccountMode } from "../../auth";
 import { getRow, type Db } from "../../db";
 import { ACCOUNT_CREATE_CLOSED_MESSAGE, countAccounts } from "../accountEntityRoutes";
 import { isScopedTable } from "../routeShared";
@@ -33,7 +33,7 @@ export function projectBatchAccounts(db: Db, ops: BatchOp[]): { count: number; c
 export function authorizeBatchOperations(parameters: {
   ops: BatchOp[];
   db: Db;
-  authMode: AuthMode;
+  authMode: AccountMode;
   req: FastifyRequest;
   reply: FastifyReply;
   authorize: BatchRouteDependencies["authorize"];

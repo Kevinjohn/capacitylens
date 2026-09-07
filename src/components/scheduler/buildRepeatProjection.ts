@@ -94,7 +94,7 @@ export function buildRepeatProjection({
         endDate: effectiveEndDate,
         hoursPerDay: effectiveHoursPerDay,
         status,
-        note: note || undefined,
+        ...(note ? { note } : {}),
         ignoreWeekends: isExternal ? true : ignoreWeekends,
         ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
       },

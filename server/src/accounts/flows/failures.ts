@@ -14,7 +14,7 @@ export function createAuthorityDenial(
           ? "This member belongs to another account where you lack password-reset authority."
           : "You lack session-revocation authority for this identity.",
     retryable: false,
-    commandId,
+    ...(commandId === undefined ? {} : { commandId }),
   });
 }
 

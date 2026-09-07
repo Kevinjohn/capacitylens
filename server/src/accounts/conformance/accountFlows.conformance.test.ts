@@ -276,7 +276,9 @@ describe("AccountFlows conformance", () => {
           db!.prepare(`DELETE FROM accounts WHERE id = ?`).run(workspaceId);
         },
         audit,
-        writeOnceReplayCapacity: options.writeOnceReplayCapacity,
+        ...(options.writeOnceReplayCapacity === undefined
+          ? {}
+          : { writeOnceReplayCapacity: options.writeOnceReplayCapacity }),
       }),
     };
   }

@@ -185,6 +185,7 @@ describe("audit attribution for account mutations", () => {
     // An accepted mutation of a2 (no assertion) is attributed to a2:
     await app.inject({ method: "PATCH", url: "/api/accounts/a2", payload: { name: "Renamed" } });
     const last = captured[captured.length - 1];
+    if (!last) throw new Error("Expected the accepted account mutation to be audited.");
     expect(last.accountId).toBe("a2");
     expect(last.action).toBe("patch");
 

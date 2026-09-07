@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { resetServer, serverState } from "./db-helpers";
+import { resetServer, serverState, stateRows } from "./db-helpers";
 import { failRequestsUntilReleased } from "./fault-helpers";
 import { dismissIntroIfPresent, freezeBrowserDate, openApp } from "./helpers";
 
@@ -46,13 +46,18 @@ test.describe("database-backed resilience", () => {
 
     await expect.poll(batchFailure.attempts).toBeGreaterThan(0);
     await expect(page.getByRole("alert").filter({ hasText: PERSISTENCE_WARNING })).toBeVisible();
-    expect((await serverState(request)).clients.filter(({ name }) => name === "Retry Recovery Co")).toHaveLength(0);
+    expect(
+      stateRows(await serverState(request), "clients").filter(({ name }) => name === "Retry Recovery Co"),
+    ).toHaveLength(0);
 
     batchFailure.release();
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
 
     await expect
-      .poll(async () => (await serverState(request)).clients.filter(({ name }) => name === "Retry Recovery Co").length)
+      .poll(
+        async () =>
+          stateRows(await serverState(request), "clients").filter(({ name }) => name === "Retry Recovery Co").length,
+      )
       .toBe(1);
     await expect(page.getByRole("alert").filter({ hasText: PERSISTENCE_WARNING })).toHaveCount(0);
 
@@ -83,7 +88,7 @@ test.describe("database-backed resilience", () => {
 
     await page.getByRole("button", { name: "Save" }).click();
     await expect
-      .poll(async () => (await serverState(request)).clients.find(({ id }) => id === "c-acme")?.name)
+      .poll(async () => stateRows(await serverState(request), "clients").find(({ id }) => id === "c-acme")?.name)
       .toBe("First Editor Co");
 
     await secondPage.getByRole("button", { name: "Save" }).click();
@@ -92,7 +97,9 @@ test.describe("database-backed resilience", () => {
     await expect(secondPage.getByTestId("client-row").filter({ hasText: "Stale Second Editor Co" })).toHaveCount(0);
     await expect(secondPage.getByRole("alert").filter({ hasText: PERSISTENCE_WARNING })).toHaveCount(0);
 
-    expect((await serverState(request)).clients.find(({ id }) => id === "c-acme")?.name).toBe("First Editor Co");
+    expect(stateRows(await serverState(request), "clients").find(({ id }) => id === "c-acme")?.name).toBe(
+      "First Editor Co",
+    );
     await secondContext.close();
   });
 });

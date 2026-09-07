@@ -36,6 +36,7 @@ describe("SWATCHES", () => {
 describe("colorName", () => {
   it("names a known swatch instead of echoing its hex", () => {
     const hex = SWATCHES[0];
+    if (!hex) throw new Error("Expected at least one swatch");
     const name = resolveColorName(hex);
     expect(name).not.toBe(hex);
     expect(name).toBe(resolveSwatchLabel(0));

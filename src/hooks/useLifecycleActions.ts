@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef } from "react";
 import { newId } from "@capacitylens/shared/lib/id";
 import { API_BASE, isServerConfigured } from "../data/apiConfig";
 import { persistenceAdapter } from "../data/storageAdapter";
-import { refreshActiveAccountSlice, type RefreshOutcome } from "../data/persist";
+import { refreshActiveAccountSlice } from "../data/persist";
 import { useStore, type LifecycleEntity } from "../store/useStore";
 import { resolveErrorMessage } from "../lib/errorMessage";
 import { readApiError } from "../lib/readApiError";
@@ -77,7 +77,8 @@ export interface LifecycleActions {
  * unattached. With no orchestrator there is no debounce/retry state to clobber. The demo build
  * never calls this (its store actions already mutate `data`).
  */
-type LifecycleReloadOutcome = Exclude<RefreshOutcome, "unattached"> | "stale-account";
+type LifecycleReloadOutcome =
+  { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "stale-account" };
 
 async function reloadFromServer(accountId: string): Promise<LifecycleReloadOutcome> {
   // STALE-TENANT GUARD: the lifecycle POST may resolve AFTER the user switched company, so re-read
@@ -87,7 +88,7 @@ async function reloadFromServer(accountId: string): Promise<LifecycleReloadOutco
   // stale reload must not fight it — the bare fallback below would install the OLD tenant's slice
   // under the NEW active id (cross-tenant display → cross-tenant writes). persist.ts's
   // refreshActive carries the same guard at its own altitude; this one also covers the fallback.
-  if (useStore.getState().activeAccountId !== accountId) return "stale-account";
+  if (useStore.getState().activeAccountId !== accountId) return { kind: "stale-account" };
   // Anything but 'unattached' means the orchestrator OWNED the call — including 'skipped' (a
   // failed save's edits win; the committed change appears on the next successful refresh) and
   // 'failed' (surfaced via the persist banner). Only the no-orchestrator case may fall back.
@@ -95,14 +96,14 @@ async function reloadFromServer(accountId: string): Promise<LifecycleReloadOutco
   // `skipped` also covers an orchestrator superseded by a tenant switch. Re-check ownership so the
   // caller can keep that deliberate stale-tenant outcome silent while treating a same-tenant skip
   // (normally a failed save that must not be overwritten) as committed-but-stale.
-  if (useStore.getState().activeAccountId !== accountId) return "stale-account";
-  if (outcome !== "unattached") return outcome;
+  if (useStore.getState().activeAccountId !== accountId) return { kind: "stale-account" };
+  if (outcome.kind !== "unattached") return outcome;
   const slice = await persistenceAdapter.loadAll(accountId);
   // The bare load is asynchronous too. A switch can happen after the pre-load guard but before the
   // old slice arrives, so check ownership again at the exact store-install boundary.
-  if (useStore.getState().activeAccountId !== accountId) return "stale-account";
+  if (useStore.getState().activeAccountId !== accountId) return { kind: "stale-account" };
   useStore.getState().replaceAll(slice);
-  return "reloaded";
+  return { kind: "reloaded" };
 }
 
 function buildCommittedButStaleMessage(outcome: "skipped" | "failed", cause?: unknown): string {
@@ -183,9 +184,9 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
         // The dedicated routes write the DB out-of-band from the snapshot-diff sync, so a reload is
         // REQUIRED to refresh the active views + re-seed the adapter snapshot (see reloadFromServer).
         const outcome = await reloadFromServer(activeAccountId);
-        if (outcome === "stale-account") return;
-        if (outcome !== "reloaded") {
-          const message = buildCommittedButStaleMessage(outcome);
+        if (outcome.kind === "stale-account") return;
+        if (outcome.kind !== "reloaded") {
+          const message = buildCommittedButStaleMessage(outcome.kind);
           reloadRequiredByAccount.set(activeAccountId, message);
           setNotice(message, "error");
           return;
@@ -204,9 +205,9 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
         }
         try {
           const outcome = await reloadFromServer(activeAccountId);
-          if (outcome === "stale-account") return;
-          if (outcome !== "reloaded") {
-            throw new Error(`Authoritative reload did not complete (${outcome}).`, { cause: e });
+          if (outcome.kind === "stale-account") return;
+          if (outcome.kind !== "reloaded") {
+            throw new Error(`Authoritative reload did not complete (${outcome.kind}).`, { cause: e });
           }
           notifyReloaded = true;
           setNotice(

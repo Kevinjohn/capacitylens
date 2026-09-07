@@ -102,7 +102,11 @@ describe("resolveWeekStartSnapTarget — degenerate inputs stay finite", () => {
   });
 
   it("degrades invalid dates and an out-of-window first week start to zero", () => {
-    expect(resolveWeekStartSnapTarget({ geom: geom, days: ["not-a-date"], scrollLeft: 48, weekStartsOn: 1 })).toBe(0);
+    const invalidDays = ["not-a-date"];
+    const invalidGeom = buildColumnGeometry(invalidDays, DAY_W, OFF);
+    expect(resolveWeekStartSnapTarget({ geom: invalidGeom, days: invalidDays, scrollLeft: 48, weekStartsOn: 1 })).toBe(
+      0,
+    );
     const partial = eachDayISO("2026-06-03", "2026-06-09");
     const partialGeom = buildColumnGeometry(partial, DAY_W, OFF);
     expect(resolveWeekStartSnapTarget({ geom: partialGeom, days: partial, scrollLeft: DAY_W, weekStartsOn: 1 })).toBe(

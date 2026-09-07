@@ -38,9 +38,9 @@ export interface WeekStartSnapTargetInput {
  * @returns the target `scrollLeft` px to floor-snap to, or `null` when already within `epsilon`
  *   of the week start (a no-op — the caller must NOT write, or the snap re-arms itself).
  *
- * PURE. Never throws and never returns NaN: an out-of-range left-edge index falls back to
- * `days[0]`, and `xForDateInGeom` returns 0 (not NaN) for an unparseable date, so a bad window
- * degrades to a harmless `0` target rather than corrupting the scroll position.
+ * PURE. For an aligned geometry/day window, never throws and never returns NaN:
+ * `xForDateInGeom` returns 0 (not NaN) for an unparseable date, so a bad date degrades to a
+ * harmless `0` target rather than corrupting the scroll position.
  *
  * SUB-PIXEL ROUNDING (the canonical note — `ColumnGeometry.indexAtScroll` points here): the
  * left-edge day is resolved from `Math.round(scrollLeft)`, not the raw value. Column offsets are

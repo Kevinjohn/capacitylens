@@ -35,6 +35,12 @@ const htmlPages = (dir: string): string[] =>
 
 const countOf = (haystack: string, needle: string) => haystack.split(needle).length - 1;
 
+const capture = (match: RegExpMatchArray, index: number): string => {
+  const value = match[index];
+  if (value === undefined) throw new Error(`Expected capture group ${index}`);
+  return value;
+};
+
 // The prose body only. VitePress renders navigation chrome around it that has no
 // screenshots in it, and counting images there would make the coverage check noise.
 const articleOf = (html: string) => {
@@ -101,8 +107,10 @@ describe("docs image lightbox", () => {
     // A duplicated id makes `for=` resolve to the first match, which would open a
     // different screenshot than the one clicked.
     const broken = withScreenshots.flatMap((page) => {
-      const ids = [...page.article.matchAll(/class="cl-toggle" id="([^"]+)"/g)].map((m) => m[1]);
-      const labelled = [...page.article.matchAll(/class="cl-(?:zoom|lightbox)" for="([^"]+)"/g)].map((m) => m[1]);
+      const ids = [...page.article.matchAll(/class="cl-toggle" id="([^"]+)"/g)].map((match) => capture(match, 1));
+      const labelled = [...page.article.matchAll(/class="cl-(?:zoom|lightbox)" for="([^"]+)"/g)].map((match) =>
+        capture(match, 1),
+      );
       const duplicated = ids.filter((id, i) => ids.indexOf(id) !== i);
       const dangling = labelled.filter((target) => !ids.includes(target));
       return duplicated.length > 0 || dangling.length > 0 ? [{ name: page.name, duplicated, dangling }] : [];
@@ -118,7 +126,7 @@ describe("docs image lightbox", () => {
     // src would be a request the file:// build cannot make, and a second inline script
     // means the exception has quietly become a general-purpose escape hatch.
     const offenders = pages.flatMap((page) => {
-      const scripts = [...page.html.matchAll(/<script\b([^>]*)>/g)].map((m) => m[1]);
+      const scripts = [...page.html.matchAll(/<script\b([^>]*)>/g)].map((match) => capture(match, 1));
       const unexpected = scripts.filter((attrs) => !attrs.includes("data-cl-keep") || attrs.includes("src="));
       return scripts.length > 1 || unexpected.length > 0 ? [{ name: page.name, scripts }] : [];
     });
@@ -142,9 +150,11 @@ describe("docs image lightbox", () => {
 
 // Characterize the retained script independently of the build-time markup plugin.
 const runtime = readFileSync(join(ROOT, "scripts/docs-lightbox.js"), "utf8");
-const publishedRuntime = readFileSync(join(SITE, "index.html"), "utf8").match(
+const publishedRuntimeMatch = readFileSync(join(SITE, "index.html"), "utf8").match(
   /<script\b[^>]*data-cl-keep[^>]*>([\s\S]*?)<\/script>/,
-)![1];
+);
+if (publishedRuntimeMatch === null) throw new Error("Published docs must contain the retained lightbox runtime");
+const publishedRuntime = capture(publishedRuntimeMatch, 1);
 
 function keyboardFixture(source: string, open: boolean[]) {
   const toggles = open.map((checked) => ({ checked }));
@@ -164,7 +174,9 @@ function keyboardFixture(source: string, open: boolean[]) {
     },
   });
   expect(keydown).toBeTypeOf("function");
-  return { toggles, querySelectorAll, press: (key: string) => keydown!({ key }) };
+  if (keydown === undefined) throw new Error("Lightbox runtime must register a keydown handler");
+  const registeredKeydown = keydown;
+  return { toggles, querySelectorAll, press: (key: string) => registeredKeydown({ key }) };
 }
 
 describe.each([
@@ -175,7 +187,9 @@ describe.each([
     const fixture = keyboardFixture(source, [true, false, true]);
     fixture.press("Escape");
     expect(fixture.toggles.map(({ checked }) => checked)).toEqual([false, false, false]);
-    fixture.toggles[1].checked = true;
+    const closedToggle = fixture.toggles[1];
+    if (closedToggle === undefined) throw new Error("Fixture must contain a closed toggle");
+    closedToggle.checked = true;
     fixture.press("Escape");
     expect(fixture.toggles.map(({ checked }) => checked)).toEqual([false, false, false]);
     expect(fixture.querySelectorAll).toHaveBeenCalledTimes(2);

@@ -5,6 +5,17 @@ import { incrementPersistenceDiagnostic, setPersistenceSuspended } from "../pers
 import { BatchReconciliationError } from "../ServerSyncAdapter";
 import { ReloadDiscardedEditError, type RefreshOutcome } from "./facades";
 
+interface OwnerBeginSuspensionInput {
+  external: boolean;
+  writes: { save: (data: AppData) => void; scheduleRetry: () => void };
+}
+
+interface BeginAuthoritativeReloadForInput {
+  error: unknown;
+  serverMode: boolean;
+  startAuthoritativeReload: (id: string) => void;
+}
+
 /** One live owner per attachment. Consumers must read current at the point of use,
  * including after awaits; primitive snapshots are only for explicit sequence comparisons. */
 export function createAttachmentState(
@@ -82,24 +93,25 @@ export function createAttachmentState(
     dispose() {
       if (values.disposed) return;
       values.disposed = true;
-      for (const waiter of values.switchWaiters.splice(0)) waiter.resolve("unattached");
+      for (const waiter of values.switchWaiters.splice(0)) waiter.resolve({ kind: "unattached" });
       setPersistenceSuspended(false);
     },
     cancelDebounce: () => cancelDebounce(),
     cancelRetry: () => cancelRetry(),
     discardEdit: (warning: string, message: string) => discardEdit(warning, message),
     supersededBy: (token: number) => supersededBy(token),
-    beginAuthoritativeReloadFor: (
-      error: unknown,
-      serverMode: boolean,
-      startAuthoritativeReload: (id: string) => void,
-    ) => beginAuthoritativeReloadFor(error, serverMode, startAuthoritativeReload),
+    beginAuthoritativeReloadFor: ({ error, serverMode, startAuthoritativeReload }: BeginAuthoritativeReloadForInput) =>
+      beginAuthoritativeReloadFor({
+        error: error,
+        serverMode: serverMode,
+        startAuthoritativeReload: startAuthoritativeReload,
+      }),
     acknowledge: (data: AppData) => acknowledge(data),
     installSlice: (data: AppData) => installSlice(data),
-    beginSuspension(
-      external: boolean,
-      writes: { save: (data: AppData) => void; scheduleRetry: () => void },
-    ): (options?: { dropParkedEdits?: boolean }) => void {
+    beginSuspension({
+      external,
+      writes,
+    }: OwnerBeginSuspensionInput): (options?: { dropParkedEdits?: boolean }) => void {
       const { save, scheduleRetry } = writes;
       // Begin a write suspension. Cancels the armed debounce (parking its edit — `pending` already
       // holds the data) and bumps the depth so the subscribe handler parks instead of scheduling.
@@ -194,11 +206,11 @@ export function createAttachmentState(
   // The shared arm of BOTH save-rejection handlers (the ordinary save and the teardown keepalive):
   // a deterministic 400/409 rejection or a malformed 2xx commit receipt requires an authoritative
   // reload. Returns true when it has taken ownership of the failure.
-  const beginAuthoritativeReloadFor = (
-    error: unknown,
-    serverMode: boolean,
-    startAuthoritativeReload: (id: string) => void,
-  ): boolean => {
+  const beginAuthoritativeReloadFor = ({
+    error,
+    serverMode,
+    startAuthoritativeReload,
+  }: BeginAuthoritativeReloadForInput): boolean => {
     if (!serverMode || !(error instanceof BatchReconciliationError)) return false;
     // Never re-arm backoff with a stale or commit-uncertain diff.
     cancelRetry();

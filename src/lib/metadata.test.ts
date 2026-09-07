@@ -113,7 +113,6 @@ describe("resourceDisplayName / placeholderDisplayName", () => {
   it("falls back to role when a non-placeholder resource is unnamed", () => {
     const r = makeResource({
       kind: "external",
-      name: undefined,
       role: "Consultant",
     });
     expect(resolveResourceDisplayName(r)).toBe("Consultant");

@@ -1,3 +1,4 @@
+import type { AuthorizationResult } from "./appAuthorization";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { Action } from "@capacitylens/shared/domain/access";
 import { isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
@@ -90,9 +91,7 @@ export const ALL_FIELDS_VISIBLE: SanitizeWriteOptions = Object.freeze({
   canSeePrivateNames: true,
 });
 
-export type AuthorizeRoute = (
-  input: AuthorizeRouteInput,
-) => { role: "owner" | "admin" | "editor" | "viewer" | null } | false;
+export type AuthorizeRoute = (input: AuthorizeRouteInput) => AuthorizationResult;
 
 interface WriteActivityRowInput {
   db: Db;

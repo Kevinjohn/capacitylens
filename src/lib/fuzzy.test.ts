@@ -105,7 +105,7 @@ describe("fuzzyFilter", () => {
     // "bru" is a tier-0 prefix of "Bruce Wayne"; none of the other seeded names contain a
     // "u" at all, so it's the only match.
     const result = fuzzyFilter(resources, "bru", getText);
-    expect(result[0].id).toBe("r-tyler");
+    expect(result[0]?.id).toBe("r-tyler");
   });
 
   it("ranks a contiguous match before a scattered subsequence match", () => {
@@ -125,19 +125,19 @@ describe("fuzzyFilter", () => {
     // two seeded names (no 'b').
     const result = fuzzyFilter(resources, "barry", getText);
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("r-alex");
+    expect(result[0]?.id).toBe("r-alex");
   });
 
   it("stable tie-break: within same tier, shorter name first then alpha", () => {
     // "b" is a tier-0 prefix for both "Barry Allen" and "Bruce Wayne" — same length (11
     // chars including the space), so the tie breaks alphabetically: "Barry" < "Bruce".
     const result = fuzzyFilter(resources, "b", getText);
-    expect(result[0].id).toBe("r-alex");
+    expect(result[0]?.id).toBe("r-alex");
   });
 
   it("is case-insensitive in matching", () => {
     expect(fuzzyFilter(resources, "BRUCE", getText)).toHaveLength(1);
-    expect(fuzzyFilter(resources, "BRUCE", getText)[0].id).toBe("r-tyler");
+    expect(fuzzyFilter(resources, "BRUCE", getText)[0]?.id).toBe("r-tyler");
   });
 
   it("finds accented names from an unaccented query", () => {

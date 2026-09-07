@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { API_BASE } from "../../data/apiConfig";
-import { flushPendingWrites, refreshActiveAccountSlice, suspendServerWrites } from "../../data/persist";
+import {
+  flushPendingWrites,
+  refreshActiveAccountSlice,
+  suspendServerWrites,
+  type RefreshOutcome,
+} from "../../data/persist";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "../../data/requestTimeout";
 import { resolveErrorMessage } from "../../lib/errorMessage";
 import { readApiError } from "../../lib/readApiError";
@@ -30,7 +35,7 @@ export function useServerImport() {
     let keepBlockedUntilReload = false;
     try {
       // The replacement starts only from a fully acknowledged pre-import slice.
-      if (!(await flushPendingWrites())) {
+      if ((await flushPendingWrites()).kind === "blocked") {
         setNotice(m.data_import_blocked_unsynced(), "error");
         return;
       }
@@ -45,8 +50,8 @@ export function useServerImport() {
       };
       const reconcileUnknownOutcome = async () => {
         committed = true;
-        const outcome = await refreshActiveAccountSlice(accountId).catch(() => "failed" as const);
-        if (outcome === "failed" || outcome === "skipped" || outcome === "unattached") {
+        const outcome = await refreshActiveAccountSlice(accountId).catch((): RefreshOutcome => ({ kind: "failed" }));
+        if (outcome.kind === "failed" || outcome.kind === "skipped" || outcome.kind === "unattached") {
           requireAuthoritativeReload(m.data_import_unknown_reload_required());
         } else {
           setNotice(m.data_import_unknown_reloaded(), "warning");
@@ -80,7 +85,7 @@ export function useServerImport() {
         const imported = count(record.imported);
         const skipped = count(record.skipped) ?? 0;
         const viewIsStale = (outcome: Awaited<ReturnType<typeof refreshActiveAccountSlice>>) =>
-          outcome === "failed" || outcome === "skipped" || outcome === "unattached";
+          outcome.kind === "failed" || outcome.kind === "skipped" || outcome.kind === "unattached";
         const refreshRespectingNotices = async () => {
           const noticeBefore = useStore.getState().notice;
           const outcome = await refreshActiveAccountSlice(accountId);

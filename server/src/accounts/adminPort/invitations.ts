@@ -191,7 +191,7 @@ export function createInvitations(
           }
           pruneInvites(db, nowMs, workspaceId);
           const reservation = invitationSecretReplay.reserve(command.commandId, nowMs);
-          if (!reservation.accepted) {
+          if (reservation.kind === "rejected") {
             throw createReplayCapacityFailure(command.commandId, reservation.retryAfterMs);
           }
           const token = randomBytes(32).toString("base64url");

@@ -3,7 +3,7 @@ import { useStore } from "./useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { FALLBACK_PRESET_COLOR } from "@capacitylens/shared/lib/color";
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../test/fixtures";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, requireValue } from "../test/fixtures";
 
 const s = () => useStore.getState();
 
@@ -173,11 +173,13 @@ describe("importData hardening", () => {
     // the account's Internal) — never two. Its name stays the reserved "Internal".
     const builtins = s().data.clients.filter((c) => c.builtin && c.accountId === DEFAULT_ACCOUNT_ID);
     expect(builtins).toHaveLength(1);
-    expect(builtins[0].name).toBe("Internal");
+    expect(builtins[0]?.name).toBe("Internal");
     // The imported Internal-owned project survived and points at that single Internal client.
     const proj = s().data.projects.find((p) => p.name === "Internal Project");
     expect(proj).toBeTruthy();
-    expect(proj!.clientId).toBe(builtins[0].id);
+    expect(requireValue(proj, "imported internal project").clientId).toBe(
+      requireValue(builtins[0], "imported internal client").id,
+    );
   });
 
   it("refuses a zero-record import rather than wiping the active account", () => {

@@ -17,13 +17,14 @@ export function parseAccountSliceWithRepairBase(value: unknown, accountId: strin
     const rows = value[key] as unknown[];
     if (!rows.every(isRecord)) return null;
     const ids = new Set<string>();
-    for (const row of rows as Array<Record<string, unknown>>) {
+    for (const row of rows) {
       if (typeof row.id !== "string" || row.id.length === 0 || ids.has(row.id)) return null;
       ids.add(row.id);
     }
   }
   const accounts = value.accounts as Array<Record<string, unknown>>;
-  if (accounts.length !== 1 || accounts[0].id !== accountId) return null;
+  const [account] = accounts;
+  if (accounts.length !== 1 || account?.id !== accountId) return null;
   for (const key of SCOPED_KEYS) {
     if (!(value[key] as Array<Record<string, unknown>>).every((row) => row.accountId === accountId)) return null;
   }

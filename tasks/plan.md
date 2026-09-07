@@ -196,7 +196,7 @@ constants in `server/src/tables/columns.ts`, one PascalCase `let` in a test, fou
 Known deviations recorded on the page: `ensureInternalClients` twice with different contracts,
 `validateAuthUser` (a parse with a flag parameter), the four `validate*` return shapes,
 `ensureBarColors`, `getRow` returning `undefined`, `isUnavailable` with four positional
-parameters, `Status` and `OfflineCacheWriteResult` naming. Surveys at 3bb01646 also found one
+parameters and `Status` naming. Surveys at 3bb01646 also found one
 exported `find*` (`findUserIdsByEmail`, `server/src/auth.ts:192`), four `handle*` names in
 `src/`, and `resolveTheme(pref)` outside the abbreviation list. `tasks/plan-consensus.md` and
 `tasks/plan-review.md` are leftovers of maintainability batch 2, whose plan is in git history.
@@ -338,6 +338,8 @@ a batch declines to fix is recorded.
 exports while migrating internal consumers; fixes near-zero findings without baseline entries;
 resolves unnecessary assertions and boolean comparisons; and classifies the five larger smell
 families with meaningful absence/default/error tests. Confirmed defects are fixed before enrollment.
+The frozen declaration-level inventory and classifications are governed by
+[`tasks/conventions-enforcement-baseline.md`](conventions-enforcement-baseline.md).
 
 #647 maps both `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` through
 `tsconfig.app.json`, `tsconfig.node.json`, inherited `tsconfig.e2e.json`, `shared/tsconfig.json`,
@@ -346,13 +348,312 @@ Prepare both flags together within each owned file, preserve public contracts an
 empty collections, missing records, zero, empty strings, null/undefined, authority and transactions.
 No blanket non-null assertions, speculative defaults or type widening to silence diagnostics.
 Update `docs-src/reference/conventions.md` with the adopted rules and initial-baseline policy,
-then rebuild and commit generated docs. Measure function length, complexity and nesting; review exact settings and one initial residual
-baseline against standing tooling decisions. Verify dynamic/string consumers before dead-export
-removal, and record justified duplication/removal dispositions.
+then rebuild and commit generated docs. Measure function length, complexity and nesting across
+production and tests in `src`, `shared/src`, `server/src` and `server/scripts`, plus E2E scenarios
+in `e2e`; review exact settings and the one initial residual baseline in
+[`tasks/strictness-structure-baseline.md`](strictness-structure-baseline.md) against standing tooling
+decisions. Verify dynamic/string consumers before dead-export removal, and record justified
+duplication/removal dispositions.
 
 #646 closes only after every candidate category has a verified disposition. A generic error or
 unknown record is not itself a defect: quote the violated rule, respect the conventions page's
 deferral to `DEFENSIVE-CODING.md`, and retain nonviolating observations with reasons.
+
+### #646 stable implementation blocks
+
+These blocks turn BO207–BO210 and BO212–BO227 into bounded future work. They are not authority to
+change stable wire, route, database, or package contracts. BO203 and BO211 remain assigned to #647;
+BO204 and BO205 are fixed; BO206 is the site ledger; BO228 is accepted/nonviolating.
+
+#### C6-RU — Review every unknown-record boundary
+
+**Facts.** `tasks/conventions-disposition-sites.md` pins RU001–RU220: 220
+`Record<string, unknown>` occurrences on 196 source lines across 68 production files. The type is
+valid for genuinely dynamic or untrusted keyed data only when each value is narrowed before domain
+use. Its syntax proves neither that narrowing occurs nor that the bag leaks beyond its boundary.
+
+**Fixed decisions.** Review every RU row in its containing declaration and trace its producers and
+consumers. Accept a row only with recorded evidence that keys are genuinely dynamic or input is
+untrusted, reads are checked before typed use, and the bag does not replace a stable known shape.
+Replace a row with a named interface, mapped type, schema-derived type, or local narrow type when
+keys are fixed. Repair any unchecked read at the boundary; never use an assertion, placeholder
+default, or wider `unknown`/`any` type to silence it. Preserve wire fields and sanitisation,
+authorization, absence, atomicity, and error-surfacing contracts.
+
+**Files.** Exactly the 68 files named by RU001–RU220 in
+`tasks/conventions-disposition-sites.md`; tests may be added or changed only beside a row whose
+classification requires behavior repair. The manifest and this plan are the central records.
+
+**Tests.** For each changed row, run its nearest parser/sanitiser/API/storage tests with meaningful
+untrusted values, missing keys, wrong primitive/container types, empty strings, zero, and `null` or
+`undefined` as applicable. Run the affected package typecheck, lint every touched directory with
+zero warnings, Prettier, and the manifest reconciliation. Add server authorization/transaction or
+browser tests when that row crosses those boundaries.
+
+**Done.** All RU001–RU220 rows record either (a) accepted boundary evidence naming the validating
+read and bounded consumer, or (b) a landed repair with focused evidence. No row disappears, remains
+generically deferred, or is accepted because the syntax is common; occurrence and line totals are
+regenerated at the accepted evidence SHA.
+
+#### C6-AS — Review every production type assertion
+
+**Facts.** The manifest pins AS001–AS771: 771 `AsExpression` occurrences on 691 operator lines
+across 223 production files. #645's `no-unnecessary-type-assertion` rule detects a mechanical subset;
+a clean lint result does not establish runtime soundness, especially for assertions over network,
+storage, database, environment, parsed JSON, or other untrusted values.
+
+**Fixed decisions.** Review each AS row from asserted expression through its source validation and
+downstream use. Remove assertions when control-flow narrowing, a generic constraint, or a precise
+return type can express the fact. Retain one only when a named prior validator/sanitiser proves it or
+an external-library interoperability contract cannot be represented more precisely; record that
+evidence per row. An `as unknown as`, non-null substitute, or widened type is never an acceptable
+repair. Any untrusted-boundary assertion without prior validation is fixed at that boundary and
+must follow `DEFENSIVE-CODING.md` error surfacing.
+
+**Files.** Exactly the 223 files named by AS001–AS771 in
+`tasks/conventions-disposition-sites.md`; tests change only where removal or boundary repair affects
+a runtime guarantee. The manifest and this plan are the central records.
+
+**Tests.** Run the enrolled assertion rule and affected package typechecks after each bounded group.
+For behavior changes, run nearest tests covering malformed input, absence, empty values, zero, and
+error paths; add server authorization/transaction or browser coverage when applicable. Run lint for
+every touched directory with zero warnings, Prettier, and manifest reconciliation.
+
+**Done.** Every AS001–AS771 row records its validator/interoperability evidence or is removed by a
+verified change. The typed assertion probe is clean, no replacement assertion or broadening hides a
+diagnostic, and regenerated occurrence/line totals match the accepted evidence tree.
+
+#### BO207 — Preserve in-memory lookup absence
+
+**Facts.** `AppShell` converts the combined two-source `Array.find` miss to `null`. The value is
+consumed by the `AppEntryGate` check `activeAccount !== null` and by the nullable `AppSidebar`
+`activeAccount` prop, which guards account-name rendering.
+
+**Fixed decisions.** Remove the terminal `?? null`, change the tenant-gate check to
+`activeAccount !== undefined`, and change `AppSidebarProps.activeAccount` to
+`{ name: string } | undefined`. Preserve the account-summaries pick-gap fallback, sidebar conditional
+rendering, access copy, and route behavior. **Files.** `src/components/AppShell.tsx`,
+`src/components/AppShell.test.tsx`, `src/components/AppSidebar.tsx`. **Tests.** `pnpm exec vitest run
+src/components/AppShell.test.tsx`; app typecheck, lint for the three files, formatter. **Done.** Both
+exact null consumers use `undefined`, missing active account still blocks the app, summary fallback
+still opens it, and sidebar/account copy is unchanged.
+
+#### BO208 — Name the storage reset error input
+
+**Facts.** `StorageResetError(offlineDataCleared, options)` carries a positional boolean and wraps an
+aggregate cause. **Fixed decisions.** Introduce `StorageResetErrorInput` with
+`offlineDataCleared` and `cause`; preserve the error name/message, readonly property, and native
+cause chain. **Files.** `src/components/StorageRecovery.tsx`,
+`src/components/StorageRecovery.test.tsx`. **Tests.** `pnpm exec vitest run
+src/components/StorageRecovery.test.tsx`; app typecheck, file lint, formatter. **Done.** Every
+constructor call uses named fields and partial/full reset failures expose the same information.
+
+#### BO209 — Expand time-zone option names
+
+**Facts.** `useCreateAccountForm` now uses `timeZoneOptions` internally but still returns
+`tzSelectOptions`; `AccountPicker` consumes that alias. **Fixed decisions.** Rename the returned and
+destructured property to `timeZoneSelectOptions`; do not change account wire field `timezone` or
+stored values. **Files.** `src/components/accounts/useCreateAccountForm.ts`,
+`src/components/accounts/AccountPicker.tsx`, `src/components/accounts/AccountPicker.test.tsx`.
+**Tests.** `pnpm exec vitest run src/components/accounts/AccountPicker.test.tsx`; app typecheck,
+file lint, formatter. **Done.** No `tzOptions`/`tzSelectOptions` identifier remains and picker labels,
+values, and submission payloads are unchanged.
+
+#### BO210 — Use optional activity selection absence
+
+**Facts.** `ActivityList` declares an optional prop as `string | null` and defaults it to `null`;
+`router.tsx` supplies the route-derived selection. **Fixed decisions.** Use
+`selectedActivityId?: string`, omit absence at the route boundary, and preserve every route path,
+focus rule, and `aria-current` result. **Files.** `src/components/activities/ActivityList.tsx`,
+`src/components/activities/ActivityList.test.tsx`, `src/router.tsx`. **Tests.** `pnpm exec vitest run
+src/components/activities/ActivityList.test.tsx`; app typecheck, file lint, formatter. **Done.** An
+absent route selection is `undefined`, while matching selection still focuses and identifies its row.
+
+#### BO212 — Inject the allocation seed date
+
+**Facts.** `buildAllocationModalSeed` is otherwise pure but calls `todayISO(calendarTimeZone)`;
+`useAllocationModalState` owns its invocation. **Fixed decisions.** Add `today: ISODate` to the seed
+input and compute it at the hook boundary; preserve edit/create precedence and timezone semantics.
+**Files.** `src/components/scheduler/buildAllocationModalSeed.ts`,
+`src/components/scheduler/useAllocationModalState.ts`,
+`src/components/scheduler/AllocationModal.test.tsx`. **Tests.** `pnpm exec vitest run
+src/components/scheduler/AllocationModal.test.tsx`; app typecheck, scheduler lint, formatter.
+**Done.** The seed builder reads no clock and deterministic tests cover create-without-date and edit
+precedence.
+
+#### BO213 — Remove the negated effective-days name
+
+**Facts.** `buildAllocationModalSeed` still declares `initialHasNoEffectiveDays` and uses it in one
+branch. **Fixed decisions.** Rename it to `initialHasEffectiveDays`, invert the predicate and branch,
+and preserve the neutral one-day seed for impossible working spans. **Files.**
+`src/components/scheduler/buildAllocationModalSeed.ts`,
+`src/components/scheduler/AllocationModal.test.tsx`. **Tests.** The BO212 focused test command plus
+app typecheck, scheduler lint, formatter. **Done.** No negated identifier remains and zero-effective-
+day inputs retain their current neutral seed.
+
+#### BO214 — Align effective-week absence
+
+**Facts.** `AllocationModalSnapshot.selectedEffectiveWeek` is an in-memory lookup/derivation but uses
+`null`; six scheduler modules consume it. **Fixed decisions.** Change only this internal field to
+`EffectiveWorkingWeek | undefined`; preserve the distinction between no selected resource and an
+unusable effective week, and add no speculative default. **Files.**
+`src/components/scheduler/allocationModalSnapshot.ts`, `allocationSubmit.ts`,
+`buildAllocationAdvisory.ts`, `buildRepeatProjection.ts`, `useAllocationModalState.ts`,
+`useAllocationScheduleState.ts`, and `AllocationModal.test.tsx` in the same directory. **Tests.**
+`pnpm exec vitest run src/components/scheduler/AllocationModal.test.tsx`; app typecheck, scheduler
+lint, formatter. **Done.** All producers/consumers compile with `undefined` absence and missing versus
+invalid selections retain existing validation/error behavior.
+
+#### BO215 — Separate scheduler validation from reporting
+
+**Facts.** `hasRenderableDateRange` returns a boolean but mutates a `WeakSet` and logs; callers live in
+three scheduler model modules. **Fixed decisions.** Keep a pure boolean predicate and move the
+once-per-row `console.error` reporting to an explicitly named caller-owned helper; retain WeakSet
+deduplication and omission of corrupt rows. **Files.**
+`src/components/scheduler/schedulerModelIndexing.ts`, `schedulerModel.ts`,
+`schedulerRowModel.ts`, `schedulerModel.test.ts`. **Tests.** `pnpm exec vitest run
+src/components/scheduler/schedulerModel.test.ts`; app typecheck, scheduler lint, formatter.
+**Done.** Predicate evaluation has no side effect, each stable invalid row is reported once, and no
+invalid range reaches indexing.
+
+#### BO216 — Give `CapacitySource` methods operation verbs
+
+**Facts.** Six methods on the internal `CapacitySource` interface omit operation verbs and are
+implemented/consumed across four scheduler model files. **Fixed decisions.** Rename them together to
+`listTimeOffOn`, `getCapacityOnDay`, `getAllocationCountOn`, `getTimeOffCountOn`,
+`resolveUtilizationOver`, and `isOverOn`; preserve tracked-resource starvation and calculations.
+**Files.** `src/components/scheduler/schedulerModelTypes.ts`, `schedulerModel.ts`,
+`schedulerRowCapacity.ts`, `schedulerRowModel.ts`, `schedulerModel.test.ts`. **Tests.** The BO215
+focused test command; app typecheck, scheduler lint, formatter. **Done.** Old method keys have no
+consumers and model outputs remain equal for tracked and external resources.
+
+#### BO217 — Make the gesture predicate positive
+
+**Facts.** `lacksEffectiveDaysFor` is local to `useAllocationGesture` and reads store state.
+**Fixed decisions.** Rename it to `hasEffectiveDaysFor`, invert every local caller, and retain the
+store dependency and weekend/calendar rules. **Files.**
+`src/components/scheduler/useAllocationGesture.ts`, `AllocationBar.interaction.test.tsx`,
+`SchedulerGrid.drawGate.test.tsx`. **Tests.** `pnpm exec vitest run
+src/components/scheduler/AllocationBar.interaction.test.tsx
+src/components/scheduler/SchedulerGrid.drawGate.test.tsx`; app typecheck, scheduler lint, formatter.
+**Done.** Gesture acceptance/rejection is unchanged for working-day, weekend, and no-effective-day
+cases.
+
+#### BO218 — Name the local pointer action
+
+**Facts.** `useAllocationGesture` has a local `onPointerDown` handler and returns an
+`onPointerDown` contract key. **Fixed decisions.** Rename only the local function to
+`beginPointerGesture`; retain the returned key and component prop contract. **Files.**
+`src/components/scheduler/useAllocationGesture.ts`, `AllocationBar.tsx`,
+`ResourceLane.tsx`, `AllocationBar.interaction.test.tsx`. **Tests.** `pnpm exec vitest run
+src/components/scheduler/AllocationBar.interaction.test.tsx`; app typecheck, scheduler lint,
+formatter. **Done.** The local action name follows the verb rule and pointer capture/drag behavior is
+unchanged.
+
+#### BO219 — Name allocation schedule actions
+
+**Facts.** Local callbacks `onRepeatChange` and `onRepeatUntilChange` are returned into
+`AllocationScheduleFields` props. **Fixed decisions.** Rename locals to `changeRepeat` and
+`changeRepeatUntil`, retaining the component's `on*` prop keys and repeat validation behavior.
+**Files.** `src/components/scheduler/useAllocationScheduleState.ts`,
+`AllocationScheduleFields.tsx`, `AllocationModal.test.tsx`. **Tests.** `pnpm exec vitest run
+src/components/scheduler/AllocationModal.test.tsx`; app typecheck, scheduler lint, formatter.
+**Done.** Local callbacks use action verbs and repeat/until updates remain behaviorally identical.
+
+#### BO220 — Name allocation target actions
+
+**Facts.** Local `onAssigneeChange` and `onAddActivity` still feed `AllocationTargetFields`;
+`changeProject` is already expanded and is returned under the `onProjectChange` prop key.
+**Fixed decisions.** Rename the remaining locals to `changeAssignee` and `addInlineActivity`;
+preserve caller-facing `on*` prop keys, placeholder constraints, and selection reset order.
+**Files.** `src/components/scheduler/useAllocationTargetState.ts`,
+`AllocationTargetFields.tsx`, `AllocationModal.test.tsx`. **Tests.** The BO219 focused test command;
+app typecheck, scheduler lint, formatter. **Done.** Local names follow action verbs and all target
+selection effects remain unchanged.
+
+#### BO221 — Name visible-span counts
+
+**Facts.** `buildRealizedVisibleSpan` returns numeric `days` and optional `weeks`; its only result-
+shape consumer is `buildVisibleSpanLabels` in the same file, and the focused test asserts both
+shapes. **Fixed decisions.** Rename only those returned keys to `dayCount` and `weekCount`; preserve
+label text and inclusive-date arithmetic. **Files.** `src/components/scheduler/visibleSpan.ts`,
+`src/components/scheduler/visibleSpan.test.ts`. **Tests.** `pnpm exec vitest run
+src/components/scheduler/visibleSpan.test.ts`; app typecheck, lint the two files, formatter.
+**Done.** The old result keys have no occurrence in `visibleSpan.ts`, the focused shape expectations
+use count names, and every label/date-span assertion remains unchanged in meaning.
+
+#### BO222 — Use `kind` for member confirmation state
+
+**Facts.** Internal `MemberConfirmation` is a multi-variant UI union discriminated by `action` and
+rendered/dispatched through four settings modules. **Fixed decisions.** Rename only the discriminant
+to `kind`; retain variant payloads, copy, confirmation ordering, and server action selection.
+**Files.** `src/components/settings/memberConfirmationCopy.ts`, `MemberConfirmations.tsx`,
+`MemberRow.tsx`, `MembersSection.tsx`, `useMembersOrchestration.ts`, `MembersSection.test.tsx`.
+**Tests.** `pnpm exec vitest run src/components/settings/MembersSection.test.tsx`; app typecheck,
+settings lint, formatter. **Done.** Every branch switches on `kind` and all confirmation outcomes and
+copy remain unchanged.
+
+#### BO223 — Expand invitation state name
+
+**Facts.** Local state `invitePreauth` crosses `useMemberInvites`, `MembersSection`, and
+`InviteMemberPanel`; server wire field `preauthEmail` is stable. **Fixed decisions.** Rename the local
+state/property to `invitationPreauthorizedEmail`; never rename the request/response wire field.
+**Files.** `src/components/settings/useMemberInvites.ts`, `MembersSection.tsx`,
+`InviteMemberPanel.tsx`, `MembersSection.test.tsx`. **Tests.** The BO222 focused test command; app
+typecheck, settings lint, formatter. **Done.** No local abbreviated identifier remains and emitted
+payloads still use `preauthEmail`.
+
+#### BO224 — Model team-directory state explicitly
+
+**Facts.** `useTeamDirectory` combines a gate and nullable members; reconciliation/readiness
+consumers rely on retaining authorized members during transient errors. **Fixed decisions.** Replace
+the coupled fields with a `kind` union whose variants encode hidden/loading/ready/error; the error
+variant retains the last authorized member snapshot. **Files.**
+`src/components/settings/useTeamDirectory.ts`, `createMemberAccessReconciliation.ts`,
+`useMembersOrchestration.ts`, `useWorkspaceReadiness.ts`, `MembersSection.test.tsx`.
+**Tests.** `pnpm exec vitest run src/components/settings/MembersSection.test.tsx`; app typecheck,
+settings lint, formatter. **Done.** Impossible combinations are unrepresentable and permission loss
+still clears data while transient failure preserves authorized stale data.
+
+#### BO225 — Model workspace readiness explicitly
+
+**Facts.** `useWorkspaceReadiness` stores readiness and error separately; its effect cleanup uses a
+`cancelled` guard to stop stale async completions. **Fixed decisions.** Replace the pair with a
+`kind` union while preserving the loaded snapshot contract, cancellation ordering, and retry
+behavior. **Files.** `src/components/settings/useWorkspaceReadiness.ts`,
+`useMembersOrchestration.ts`, `MembersSection.test.tsx`. **Tests.** The BO224 focused test command;
+app typecheck, settings lint, formatter. **Done.** No impossible readiness/error state exists and
+stale completions remain unable to overwrite the current effect.
+
+#### BO226 — Expand the CRUD hook name only
+
+**Facts.** `useCrudListState` is imported by seven list modules; its three independent state values
+do not constitute a multi-outcome result. **Fixed decisions.** Rename the hook/file to
+`useEntityListState` and update imports only. Reject combining create/edit/confirmation state:
+no quoted result-shape rule requires it and combination could remove currently representable UI
+behavior. **Files.** `src/hooks/useCrudListState.ts` → `src/hooks/useEntityListState.ts`;
+`src/components/activities/ActivityList.tsx`, `clients/ClientList.tsx`,
+`disciplines/DisciplineList.tsx`, `projects/ProjectList.tsx`, `resources/ResourceList.tsx`,
+`timeoff/CompanyClosureSection.tsx`, `timeoff/TimeOffList.tsx`, plus
+`src/components/activities/ActivityList.test.tsx`. **Tests.** `pnpm exec vitest run
+src/components/activities/ActivityList.test.tsx`; app typecheck, hooks/list lint, formatter.
+**Done.** No `Crud` identifier/path remains and the returned state shape and list behavior are
+unchanged.
+
+#### BO227 — Inject deadline-clock capabilities
+
+**Facts.** `useDeadlineClock` directly reads `Date.now` and uses window timers; its tests already
+exercise rollover and timeout clamping, and two settings consumers supply deadline selection.
+**Fixed decisions.** Add a named input containing `pickNextDeadline` and `readNow`, with `Date.now`
+as the production clock; retain browser timer ownership, `+1` boundary behavior,
+`MAX_TIMEOUT_DELAY` rearming, and cleanup. **Files.**
+`src/hooks/useDeadlineClock.ts`, `src/hooks/useDeadlineClock.test.tsx`,
+`src/components/settings/ArchivedSection.tsx`, `useMembersOrchestration.ts`,
+`ArchivedSection.test.tsx`, `MembersSection.test.tsx`. **Tests.** `pnpm exec vitest run
+src/hooks/useDeadlineClock.test.tsx src/components/settings/ArchivedSection.test.tsx
+src/components/settings/MembersSection.test.tsx`; app typecheck, hooks/settings lint, formatter.
+**Done.** Tests use the injected clock and prove exact-boundary, early-fire, long-delay rearm, and
+cleanup behavior without changing production scheduling.
 
 ## Completion record
 
@@ -362,14 +663,38 @@ deferral to `DEFENSIVE-CODING.md`, and retain nonviolating observations with rea
 - [x] Exact audit coverage reconciled: 602 typed files, four operator context files and all 267 original suppression declarations. Independent consumer/classification reviews incorporated.
 - [x] Audit delivery checks: independent assembly review accepted; ten randomly chosen source citations resolve at the base; Prettier and documentation build pass with generated docs unchanged.
 - [x] #638 audit merged in PR #648 (`66eb8a9b`); issue closed and branch cleanup verified: 2,016 rows (R 1,102; E 361; P 276; S 34; X 101; D 142), with 72 triaged groups requiring bounded implementation briefs.
-- [ ] #639 original actionable rows retired or justified D/X; closure evidence reviewed.
+- [x] #639 original actionable rows retired or justified D/X; closure evidence reviewed. At
+      integrated head `7f5e96a3eddd98333bb88d2314505f397c9da084`, the reviewed C4 heads account for
+      1,772 implemented actionable rows plus B734 reclassified to X. Final classes are R 1,102 / E
+      360 / P 276 / S 34 / X 102 / D 142 (2,016 total); the X-only suppression baseline is 16
+      declarations. C4-01–C4-72 reviewed implementation heads and their merge ancestry were checked
+      against the integrated tree, with no remaining actionable group or unresolved exclusion.
 - [ ] First separate patch release merged and verified.
 - [ ] #643 upkeep decision merged and closed.
 - [ ] Second separate patch release merged and verified.
-- [ ] #645 exact enforcement, fixes and initial residual baselines verified.
-- [ ] #647 all intended flags, structural rules and cleanup dispositions verified.
-- [ ] #646 all categories reconciled without duplicate findings.
+- [x] #645 exact enforcement, fixes and initial residual baselines verified. Internal `AuthMode`
+      consumers use `AccountMode` while compatibility exports remain; unnecessary assertions and
+      every zero-baseline family are clean. The reviewed declaration ledger accounts for all 1,734
+      residual suppressions in the seven authorised smell families.
+- [x] #647 all intended flags, structural rules and cleanup dispositions verified. Both compiler
+      flags are enabled and pass with zero diagnostics in app, Node, E2E, shared production/test and
+      server projects.
+      Structural enrollment is verified at `6a9cf77480a34cb4f3c3429bae48561af90b7948`: the frozen
+      baseline contains 158 complexity, 59 depth and 694 length declarations, including 42 E2E length
+      declarations, and exactly matches `eslint-suppressions.json`. The three byte-identical cached
+      statement helpers remain local to account-state, audit-outbox and control-table owners because
+      centralising the small closure would couple those layers for negligible reuse. The sole confirmed
+      dead declaration, `buildOperationReceipt`, and its stale JSDoc consumer were removed in the
+      reviewed integrated tree; the other exact-body groups have explicit retain/defer dispositions.
+- [x] #646 all categories reconciled without duplicate findings. The exhaustive AST-backed site
+      manifest and terminal ledger are pinned to `05fef1cf`; RU001–RU220 and AS001–AS771 are
+      explicitly deferred to complete C6 owner blocks rather than asserted sound, BO204/BO205 are
+      fixed, BO203/BO211 have explicit #647 owners, BO207–BO210 and BO212–BO227 have complete
+      stable-ID blocks, and BO228 is accepted with a quoted-rule analysis.
 - [ ] Complete final review and required local gates pass on the accepted tree.
+      The single final E2E run passed 257/257 at clean tested commit `7e9685a3`; no tracked code
+      changed after that run. The app and server gates remain pending only at their shared
+      network-backed `pnpm audit --prod` step.
 - [ ] Separate minor release passes necessary GitHub CI and is verified after merge.
 - [ ] Actual finish, residual debt and any unmet criteria recorded.
 

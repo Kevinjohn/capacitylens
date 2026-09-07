@@ -18,7 +18,7 @@ describe("reprojectAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     refreshAccountSummaries.mockResolvedValue([]);
-    refreshActiveAccountSlice.mockResolvedValue("reloaded");
+    refreshActiveAccountSlice.mockResolvedValue({ kind: "reloaded" });
   });
 
   it("invalidates actor-dependent membership data before reloading the active account", async () => {
@@ -39,7 +39,7 @@ describe("reprojectAccess", () => {
   });
 
   it("reports an account-slice reload failure", async () => {
-    refreshActiveAccountSlice.mockResolvedValue("unattached");
+    refreshActiveAccountSlice.mockResolvedValue({ kind: "unattached" });
 
     await expect(reprojectAccess("a-studio")).resolves.toBe(false);
   });

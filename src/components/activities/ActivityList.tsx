@@ -11,6 +11,13 @@ import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/
 import { buildActivityListModel } from "./activityListModel";
 import { useConfirmDelete } from "../../hooks/useConfirmDelete";
 
+interface BoxInput {
+  rows: Activity[];
+  empty: string;
+  testid: string;
+  enrich?: { description: string; action: { label: string; onClick: () => void } } | undefined;
+}
+
 export function ActivityList({ selectedActivityId = null }: { selectedActivityId?: string | null }) {
   const data = useActiveScopedData();
   const activities = data.activities;
@@ -67,17 +74,12 @@ export function ActivityList({ selectedActivityId = null }: { selectedActivityId
   // (and the duplicate accessible-name that creates) when the account is wholly empty, the
   // icon/description/CTA are attached to ONE section only (Internal, the first) via `enrich`;
   // the other two keep just their bare message. `empty` stays the load-bearing children.
-  const box = (
-    rows: Activity[],
-    empty: string,
-    testid: string,
-    enrich?: { description: string; action: { label: string; onClick: () => void } },
-  ) =>
+  const box = ({ rows, empty, testid, enrich }: BoxInput) =>
     rows.length === 0 ? (
       <EmptyState
-        icon={enrich ? ClipboardCheck : undefined}
-        description={enrich?.description}
-        action={enrich?.action ? { ...enrich.action, icon: Plus, requiresEdit: true } : undefined}
+        {...(enrich ? { icon: ClipboardCheck } : {})}
+        {...(enrich?.description !== undefined ? { description: enrich.description } : {})}
+        {...(enrich?.action ? { action: { ...enrich.action, icon: Plus, requiresEdit: true } } : {})}
       >
         {empty}
       </EmptyState>
@@ -101,17 +103,18 @@ export function ActivityList({ selectedActivityId = null }: { selectedActivityId
           <div className={headingClassName}>
             <h2 className="text-lg font-semibold">{m.list_activities_internal_heading()}</h2>
           </div>
-          {box(
-            activityList.internal,
-            m.list_activities_internal_empty(),
-            "internal-activities",
-            activities.length === 0
-              ? {
-                  description: m.list_activities_empty_desc(),
-                  action: { label: m.list_activities_empty_action(), onClick: () => setCreating(true) },
-                }
-              : undefined,
-          )}
+          {box({
+            rows: activityList.internal,
+            empty: m.list_activities_internal_empty(),
+            testid: "internal-activities",
+            enrich:
+              activities.length === 0
+                ? {
+                    description: m.list_activities_empty_desc(),
+                    action: { label: m.list_activities_empty_action(), onClick: () => setCreating(true) },
+                  }
+                : undefined,
+          })}
         </Fragment>
       );
     }
@@ -122,7 +125,11 @@ export function ActivityList({ selectedActivityId = null }: { selectedActivityId
           <div className={headingClassName}>
             <h2 className="text-lg font-semibold">{m.list_activities_repeatable_heading()}</h2>
           </div>
-          {box(activityList.crossProject, m.list_activities_repeatable_empty(), "cross-project-activities")}
+          {box({
+            rows: activityList.crossProject,
+            empty: m.list_activities_repeatable_empty(),
+            testid: "cross-project-activities",
+          })}
         </Fragment>
       );
     }

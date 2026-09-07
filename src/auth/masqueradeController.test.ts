@@ -16,10 +16,10 @@ const state: MasqueradeState = {
 function harness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
   const resume = vi.fn();
   const dependencies: MasqueradeControllerDependencies = {
-    flush: vi.fn(async () => true),
+    flush: vi.fn(async () => ({ kind: "clean" as const })),
     suspend: vi.fn(() => resume),
     reproject: vi.fn(async () => true),
-    switchAccount: vi.fn(async (): Promise<"reloaded"> => "reloaded"),
+    switchAccount: vi.fn(async () => ({ kind: "reloaded" as const })),
     api: {
       status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: false })),
       start: vi.fn(async () => state),
@@ -32,31 +32,43 @@ function harness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
 
 beforeEach(() => {
   resetStoreWithAccount();
-  useStore.getState().setMasquerade({ phase: "inactive" });
+  useStore.getState().setMasquerade({ kind: "inactive" });
   useStore.getState().setNotice(null);
 });
 
 describe("MasqueradeController", () => {
+  it("succeeds while inactive without navigating or touching masquerade dependencies", async () => {
+    const { controller, dependencies, resume } = harness();
+    const navigate = vi.fn();
+
+    await expect(controller.end("explicit", navigate)).resolves.toBe(true);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(dependencies.suspend).not.toHaveBeenCalled();
+    expect(dependencies.api.end).not.toHaveBeenCalled();
+    expect(dependencies.api.status).not.toHaveBeenCalled();
+    expect(resume).not.toHaveBeenCalled();
+  });
+
   it("acquires one suspension across start and end, then releases it once after the real reload", async () => {
     const { controller, dependencies, resume } = harness();
     const navigate = vi.fn(() => {
-      expect(useStore.getState().masquerade).toEqual({ phase: "inactive" });
+      expect(useStore.getState().masquerade).toEqual({ kind: "inactive" });
     });
 
     await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(true);
-    expect(useStore.getState().masquerade.phase).toBe("active");
+    expect(useStore.getState().masquerade.kind).toBe("active");
     expect(dependencies.suspend).toHaveBeenCalledTimes(1);
 
     await expect(controller.end("explicit", navigate)).resolves.toBe(true);
     expect(dependencies.suspend).toHaveBeenCalledTimes(1);
     expect(resume).toHaveBeenCalledOnce();
     expect(resume).toHaveBeenCalledWith({ dropParkedEdits: true });
-    expect(useStore.getState().masquerade).toEqual({ phase: "inactive" });
+    expect(useStore.getState().masquerade).toEqual({ kind: "inactive" });
     expect(navigate).toHaveBeenCalledWith("/");
   });
 
   it("aborts before suspension when pending writes cannot be flushed", async () => {
-    const { controller, dependencies } = harness({ flush: vi.fn(async () => false) });
+    const { controller, dependencies } = harness({ flush: vi.fn(async () => ({ kind: "blocked" as const })) });
     await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(false);
     expect(dependencies.suspend).not.toHaveBeenCalled();
     expect(dependencies.api.start).not.toHaveBeenCalled();
@@ -74,13 +86,13 @@ describe("MasqueradeController", () => {
     });
     await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(false);
     expect(resume).toHaveBeenCalledWith({ dropParkedEdits: false });
-    expect(useStore.getState().masquerade).toEqual({ phase: "inactive" });
+    expect(useStore.getState().masquerade).toEqual({ kind: "inactive" });
   });
 
   it("stays suspended and starting when projection fails after a successful start", async () => {
     const { controller, resume } = harness({ reproject: vi.fn(async () => false) });
     await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(false);
-    expect(useStore.getState().masquerade).toMatchObject({ phase: "starting", state });
+    expect(useStore.getState().masquerade).toMatchObject({ kind: "starting", state });
     expect(resume).not.toHaveBeenCalled();
   });
 
@@ -98,7 +110,7 @@ describe("MasqueradeController", () => {
     });
 
     const starting = controller.start(state.accountId, state.targetUserId);
-    await vi.waitFor(() => expect(useStore.getState().masquerade.phase).toBe("starting"));
+    await vi.waitFor(() => expect(useStore.getState().masquerade.kind).toBe("starting"));
 
     await expect(controller.transitionAccount("a-loft")).resolves.toBe(false);
     expect(useStore.getState().notice).toMatchObject({
@@ -119,7 +131,7 @@ describe("MasqueradeController", () => {
     await controller.start(state.accountId, state.targetUserId);
 
     await expect(controller.retryProjection()).resolves.toBe(false);
-    expect(useStore.getState().masquerade.phase).toBe("starting");
+    expect(useStore.getState().masquerade.kind).toBe("starting");
     expect(resume).not.toHaveBeenCalled();
   });
 
@@ -135,9 +147,30 @@ describe("MasqueradeController", () => {
     const navigate = vi.fn();
     controller.adoptStatus({ active: true, ...state });
     await expect(controller.end("explicit", navigate)).resolves.toBe(true);
-    expect(useStore.getState().masquerade).toMatchObject({ phase: "active", state: newer });
+    expect(useStore.getState().masquerade).toMatchObject({ kind: "active", state: newer });
     expect(navigate).not.toHaveBeenCalled();
     expect(resume).not.toHaveBeenCalled();
+  });
+
+  it("refuses an account switch when DELETE is superseded by a newer masquerade", async () => {
+    const newer = { ...state, targetUserId: "u-editor", targetName: "Dick Grayson", token: "token-2" };
+    const { controller, dependencies, resume } = harness({
+      api: {
+        status: vi.fn(async () => ({ active: true, ...newer })),
+        start: vi.fn(async () => state),
+        end: vi.fn(async () => {}),
+      },
+    });
+    controller.adoptStatus({ active: true, ...state });
+
+    await expect(controller.transitionAccount("a-loft")).resolves.toBe(false);
+    expect(useStore.getState().notice).toMatchObject({
+      message: "A newer masquerade is active. End it before switching companies.",
+      tone: "error",
+    });
+    expect(dependencies.switchAccount).not.toHaveBeenCalled();
+    expect(resume).not.toHaveBeenCalled();
+    expect(useStore.getState().masquerade).toMatchObject({ kind: "active", state: newer });
   });
 
   it("refuses an account switch when DELETE fails and keeps writes suspended", async () => {
@@ -153,7 +186,7 @@ describe("MasqueradeController", () => {
     controller.adoptStatus({ active: true, ...state });
     await expect(controller.transitionAccount("a-loft")).resolves.toBe(false);
     expect(dependencies.switchAccount).not.toHaveBeenCalled();
-    expect(useStore.getState().masquerade.phase).toBe("ending");
+    expect(useStore.getState().masquerade.kind).toBe("ending");
     expect(resume).not.toHaveBeenCalled();
   });
 
@@ -162,7 +195,7 @@ describe("MasqueradeController", () => {
     controller.adoptStatus({ active: true, ...state });
 
     controller.adoptStatus({ active: false });
-    await vi.waitFor(() => expect(useStore.getState().masquerade.phase).toBe("inactive"));
+    await vi.waitFor(() => expect(useStore.getState().masquerade.kind).toBe("inactive"));
 
     expect(dependencies.reproject).toHaveBeenCalledWith(state.accountId);
     expect(resume).toHaveBeenCalledWith({ dropParkedEdits: true });

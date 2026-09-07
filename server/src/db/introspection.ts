@@ -18,7 +18,9 @@ export function assertKnownTable(table: string): void {
  *  assertKnownTable directly instead of discarding this return value. */
 export function resolveTable(table: string): TableSpec {
   assertKnownTable(table);
-  return TABLES[table];
+  const spec = TABLES[table];
+  if (!spec) throw new Error(`Missing table specification for "${table}".`);
+  return spec;
 }
 
 export const pragmaNumber = (db: Db, pragma: "user_version" | "application_id"): number =>

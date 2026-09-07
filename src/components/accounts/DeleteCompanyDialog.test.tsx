@@ -112,7 +112,9 @@ describe("DeleteCompanyDialog", () => {
 
       await waitFor(() => expect(downloadTextFile).toHaveBeenCalledOnce());
       expect(fetchSpy).not.toHaveBeenCalled();
-      const [, content] = vi.mocked(downloadTextFile).mock.calls[0];
+      const call = vi.mocked(downloadTextFile).mock.calls[0];
+      if (!call) throw new Error("Expected export download");
+      const [, content] = call;
       expect(content).toContain("Acme Corp");
     });
 
@@ -152,8 +154,10 @@ describe("DeleteCompanyDialog", () => {
       fireEvent.click(screen.getByRole("button", { name: "Export first" }));
 
       await waitFor(() => expect(downloadTextFile).toHaveBeenCalledOnce());
-      expect(String(fetchSpy.mock.calls[0][0])).toContain("includeInactive=1");
-      const [, content] = vi.mocked(downloadTextFile).mock.calls[0];
+      expect(String(fetchSpy.mock.calls[0]?.[0])).toContain("includeInactive=1");
+      const call = vi.mocked(downloadTextFile).mock.calls[0];
+      if (!call) throw new Error("Expected export download");
+      const [, content] = call;
       expect(content).toContain("Archived Ghost");
     });
 

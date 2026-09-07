@@ -21,7 +21,7 @@ describe("built-in Internal client", () => {
     for (const account of data.accounts) {
       const internal = data.clients.filter((c) => c.builtin === true && c.accountId === account.id);
       expect(internal).toHaveLength(1);
-      expect(internal[0].name).toBe(INTERNAL_CLIENT_NAME);
+      expect(internal[0]?.name).toBe(INTERNAL_CLIENT_NAME);
     }
   });
 
@@ -106,8 +106,8 @@ describe("built-in Internal client", () => {
     const repaired = ensureInternalClients(data, TS);
 
     expect(repaired.clients.filter((client) => client.builtin)).toEqual([generated]);
-    expect(repaired.projects[0].clientId).toBe(generated.id);
-    expect(repaired.projects[0].updatedAt).toBe("2026-01-01T00:00:00.001Z");
+    expect(repaired.projects[0]?.clientId).toBe(generated.id);
+    expect(repaired.projects[0]?.updatedAt).toBe("2026-01-01T00:00:00.001Z");
     expect(ensureInternalClients(repaired, TS)).toBe(repaired);
   });
 

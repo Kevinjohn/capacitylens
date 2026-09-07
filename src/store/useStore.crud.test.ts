@@ -9,6 +9,7 @@ import {
   makeAppData,
   makeResource,
   makeResourceDraft,
+  requireValue,
   resetStoreWithAccount,
   WORKDAYS,
 } from "../test/fixtures";
@@ -28,28 +29,29 @@ const personDraft = makeResourceDraft({ name: "Person", role: "Dev", color: "#1"
 
 /** The shared draft seeds isFavourite: false; the two favourite specs pin the ABSENT flag, so they
  *  add a resource carrying no flag at all. */
-const unflaggedDraft = { ...personDraft, isFavourite: undefined };
+const unflaggedDraft = { ...personDraft };
+delete unflaggedDraft.isFavourite;
 
 describe("store CRUD covers every entity", () => {
   it("accounts: update", () => {
-    const account = s().data.accounts[0];
+    const account = requireValue(s().data.accounts[0], "account");
     s().updateAccount(account.id, { name: "Renamed company" });
-    expect(s().data.accounts[0].name).toBe("Renamed company");
-    expectRevisionAdvanced(account, s().data.accounts[0]);
+    expect(s().data.accounts[0]?.name).toBe("Renamed company");
+    expectRevisionAdvanced(account, requireValue(s().data.accounts[0], "updated account"));
   });
 
   it("accounts: defaults, stores and validates company working days", () => {
-    const account = s().data.accounts[0];
+    const account = requireValue(s().data.accounts[0], "account");
     s().updateAccount(account.id, { workingDays: [1, 3, 5] });
-    expect(s().data.accounts[0].workingDays).toEqual([1, 3, 5]);
+    expect(s().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
 
     expect(() => s().updateAccount(account.id, { workingDays: [] })).toThrow(/at least one working day/i);
-    expect(s().data.accounts[0].workingDays).toEqual([1, 3, 5]);
+    expect(s().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
 
     expect(() => s().updateAccount(account.id, { workingDays: [1, 9] as Resource["workingDays"] })).toThrow(
       /working day/i,
     );
-    expect(s().data.accounts[0].workingDays).toEqual([1, 3, 5]);
+    expect(s().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
 
     expect(() => s().addAccount({ name: "Empty-week company", color: "#2d75da", workingDays: [] })).toThrow(
       /at least one working day/i,
@@ -67,16 +69,16 @@ describe("store CRUD covers every entity", () => {
 
     s().updateAccount(account.id, { workingDays: [2, 4] });
     s().undo();
-    expect(s().data.accounts[0].workingDays).toEqual([1, 3, 5]);
+    expect(s().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
     s().redo();
-    expect(s().data.accounts[0].workingDays).toEqual([2, 4]);
+    expect(s().data.accounts[0]?.workingDays).toEqual([2, 4]);
   });
 
   it("disciplines: add / update / delete", () => {
     const d = s().addDiscipline({ name: "Design", color: "#1", sortOrder: 0 });
     s().updateDiscipline(d.id, { name: "Design 2" });
-    expect(s().data.disciplines[0].name).toBe("Design 2");
-    expectRevisionAdvanced(d, s().data.disciplines[0]);
+    expect(s().data.disciplines[0]?.name).toBe("Design 2");
+    expectRevisionAdvanced(d, requireValue(s().data.disciplines[0], "updated discipline"));
     s().deleteDiscipline(d.id);
     expect(s().data.disciplines).toHaveLength(0);
   });
@@ -87,16 +89,16 @@ describe("store CRUD covers every entity", () => {
   it("clients: add / update", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     s().updateClient(c.id, { name: "Acme 2" });
-    expect(s().data.clients[0].name).toBe("Acme 2");
-    expectRevisionAdvanced(c, s().data.clients[0]);
+    expect(s().data.clients[0]?.name).toBe("Acme 2");
+    expectRevisionAdvanced(c, requireValue(s().data.clients[0], "updated client"));
   });
 
   it("projects: add / update", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
     s().updateProject(p.id, { name: "P2" });
-    expect(s().data.projects[0].name).toBe("P2");
-    expectRevisionAdvanced(p, s().data.projects[0]);
+    expect(s().data.projects[0]?.name).toBe("P2");
+    expectRevisionAdvanced(p, requireValue(s().data.projects[0], "updated project"));
   });
 
   it("rejects private clients and projects without a usable code name", () => {
@@ -130,8 +132,8 @@ describe("store CRUD covers every entity", () => {
       phaseId: ph.id,
     });
     s().updatePhase(ph.id, { name: "Disco" });
-    expect(s().data.phases[0].name).toBe("Disco");
-    expectRevisionAdvanced(ph, s().data.phases[0]);
+    expect(s().data.phases[0]?.name).toBe("Disco");
+    expectRevisionAdvanced(ph, requireValue(s().data.phases[0], "updated phase"));
     s().deletePhase(ph.id);
     expect(s().data.phases).toHaveLength(0);
     expect(s().data.activities.find((x) => x.id === t.id)!.phaseId).toBeUndefined();
@@ -142,8 +144,8 @@ describe("store CRUD covers every entity", () => {
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
     const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
     s().updateActivity(t.id, { name: "T2" });
-    expect(s().data.activities[0].name).toBe("T2");
-    expectRevisionAdvanced(t, s().data.activities[0]);
+    expect(s().data.activities[0]?.name).toBe("T2");
+    expectRevisionAdvanced(t, requireValue(s().data.activities[0], "updated activity"));
     s().deleteActivity(t.id);
     expect(s().data.activities).toHaveLength(0);
   });
@@ -151,8 +153,8 @@ describe("store CRUD covers every entity", () => {
   it("activities: a general (no-project) activity can be added without a projectId", () => {
     const t = s().addActivity({ name: "Admin", kind: "repeatable" });
     expect(t.projectId).toBeUndefined();
-    expect(s().data.activities[0].projectId).toBeUndefined();
-    expect(s().data.activities[0].name).toBe("Admin");
+    expect(requireValue(s().data.activities[0], "activity")).not.toHaveProperty("projectId");
+    expect(s().data.activities[0]?.name).toBe("Admin");
   });
 
   it("activities: a project-specific activity converts to all-projects by clearing its project + kind together", () => {
@@ -160,8 +162,8 @@ describe("store CRUD covers every entity", () => {
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
     const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
     s().updateActivity(t.id, { kind: "repeatable", projectId: undefined });
-    expect(s().data.activities[0].kind).toBe("repeatable");
-    expect(s().data.activities[0].projectId).toBeUndefined();
+    expect(s().data.activities[0]?.kind).toBe("repeatable");
+    expect(requireValue(s().data.activities[0], "activity")).not.toHaveProperty("projectId");
   });
 
   it("activities: kind ⇆ projectId coherence is enforced — clearing a project activity’s project alone throws", () => {
@@ -220,18 +222,20 @@ describe("store CRUD covers every entity", () => {
     // (merged row: projectId=p2 but phaseId=ph1-of-p1) instead of silently persisting an
     // incoherent activity the server would later 400 on sync.
     expect(() => s().updateActivity(t.id, { projectId: p2.id })).toThrow(/phase/i);
-    expect(s().data.activities[0].projectId).toBe(p1.id); // unchanged — the bad patch didn't land
+    expect(s().data.activities[0]?.projectId).toBe(p1.id); // unchanged — the bad patch didn't land
   });
 
   it("resources: add / update", () => {
     const r = s().addResource({ ...personDraft });
     s().updateResource(r.id, { role: "Lead" });
-    expect(s().data.resources[0].role).toBe("Lead");
-    expectRevisionAdvanced(r, s().data.resources[0]);
+    expect(s().data.resources[0]?.role).toBe("Lead");
+    expectRevisionAdvanced(r, requireValue(s().data.resources[0], "updated resource"));
   });
 
   it("resources: defaults legacy people and forces placeholders to Studio engagement", () => {
-    const person = s().addResource({ ...personDraft, engagement: undefined });
+    const legacyPersonDraft = { ...personDraft };
+    delete legacyPersonDraft.engagement;
+    const person = s().addResource(legacyPersonDraft);
     expect(person.engagement).toBe("studio");
 
     const client = s().addClient({ name: "Acme", color: "#1" });
@@ -256,10 +260,10 @@ describe("store CRUD covers every entity", () => {
     const resource = s().addResource({ ...unflaggedDraft });
 
     s().updateResource(resource.id, { isFavourite: true });
-    expect(s().data.resources[0].isFavourite).toBe(true);
+    expect(s().data.resources[0]?.isFavourite).toBe(true);
 
     s().undo();
-    expect(s().data.resources[0].isFavourite).toBeUndefined();
+    expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("isFavourite");
   });
 
   it("resources: a viewer cannot change an account favourite", () => {
@@ -268,7 +272,7 @@ describe("store CRUD covers every entity", () => {
     s().setActiveRole("viewer");
     s().updateResource(resource.id, { isFavourite: true });
 
-    expect(s().data.resources[0].isFavourite).toBeUndefined();
+    expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("isFavourite");
     expect(s().notice).toMatchObject({ tone: "error" });
   });
 
@@ -290,7 +294,7 @@ describe("store CRUD covers every entity", () => {
       hoursPerDay: 4,
       status: "tentative",
     });
-    expectRevisionAdvanced(a, s().data.allocations[0]);
+    expectRevisionAdvanced(a, requireValue(s().data.allocations[0], "updated allocation"));
     s().deleteAllocation(a.id);
     expect(s().data.allocations).toHaveLength(0);
   });
@@ -304,8 +308,8 @@ describe("store CRUD covers every entity", () => {
       type: "holiday",
     });
     s().updateTimeOff(to.id, { type: "sick" });
-    expect(s().data.timeOff[0].type).toBe("sick");
-    expectRevisionAdvanced(to, s().data.timeOff[0]);
+    expect(s().data.timeOff[0]?.type).toBe("sick");
+    expectRevisionAdvanced(to, requireValue(s().data.timeOff[0], "updated time off"));
     s().deleteTimeOff(to.id);
     expect(s().data.timeOff).toHaveLength(0);
   });
@@ -490,7 +494,7 @@ describe("date-range + reference guards at the store boundary", () => {
     });
     expect(a.hoursPerDay).toBe(24); // inflated value clamped on add
     s().updateAllocation(a.id, { hoursPerDay: 99 });
-    expect(s().data.allocations[0].hoursPerDay).toBe(24); // and on update (e.g. a drag-resize rescale)
+    expect(s().data.allocations[0]?.hoursPerDay).toBe(24); // and on update (e.g. a drag-resize rescale)
   });
 
   it("updateAllocation allows a note/status-only patch (validates the effective range, not the patch)", () => {
@@ -504,12 +508,12 @@ describe("date-range + reference guards at the store boundary", () => {
       status: "confirmed",
     });
     expect(() => s().updateAllocation(a.id, { status: "tentative" })).not.toThrow();
-    expect(s().data.allocations[0].status).toBe("tentative");
+    expect(s().data.allocations[0]?.status).toBe("tentative");
     // …but a patch that would reverse the range is rejected.
     expect(() => s().updateAllocation(a.id, { endDate: "2026-05-01" })).toThrow(
       /end date cannot be before the start date/i,
     );
-    expect(s().data.allocations[0].endDate).toBe("2026-06-03");
+    expect(s().data.allocations[0]?.endDate).toBe("2026-06-03");
   });
 
   it("addTimeOff rejects a dangling resource and a reversed range", () => {
@@ -683,8 +687,8 @@ describe("update* re-validates the merged row so the store + server agree", () =
     // the merged-row check now runs unconditionally — assertAllocationRefs is pure & idempotent.
     expect(() => s().updateAllocation(a.id, { note: "ping" })).not.toThrow();
     expect(() => s().updateAllocation(a.id, { startDate: "2026-06-02" })).not.toThrow();
-    expect(s().data.allocations[0].note).toBe("ping");
-    expect(s().data.allocations[0].startDate).toBe("2026-06-02");
+    expect(s().data.allocations[0]?.note).toBe("ping");
+    expect(s().data.allocations[0]?.startDate).toBe("2026-06-02");
 
     const to = s().addTimeOff({
       resourceId: r.id,
@@ -694,7 +698,7 @@ describe("update* re-validates the merged row so the store + server agree", () =
     });
     expect(() => s().updateTimeOff(to.id, { type: "sick" })).not.toThrow();
     expect(() => s().updateTimeOff(to.id, { startDate: "2026-06-09" })).not.toThrow();
-    expect(s().data.timeOff[0].type).toBe("sick");
+    expect(s().data.timeOff[0]?.type).toBe("sick");
   });
 
   it("a note-only updateAllocation on an external resource carrying a non-zero load now THROWS (matches the server)", () => {
@@ -734,7 +738,7 @@ describe("update* re-validates the merged row so the store + server agree", () =
     // references an external resource with a non-zero load — the server 400s, so the store must too.
     expect(() => s().updateAllocation(alloc.id, { note: "just a note" })).toThrow(/external.*can.t carry hours/i);
     // Atomic failure: the bad patch did NOT land (the producer threw before `set`).
-    expect(s().data.allocations[0].note).toBeUndefined();
+    expect(requireValue(s().data.allocations[0], "allocation")).not.toHaveProperty("note");
   });
 
   it("a date-only updateTimeOff on an external resource now THROWS (matches the server)", () => {
@@ -756,7 +760,7 @@ describe("update* re-validates the merged row so the store + server agree", () =
     // A date-only patch doesn't touch resourceId, yet time-off on an external resource is meaningless
     // (no capacity) — the server rejects it on every write, so the store now matches.
     expect(() => s().updateTimeOff(timeOff.id, { startDate: "2026-06-11" })).toThrow(/external.*3rd-party/i);
-    expect(s().data.timeOff[0].startDate).toBe("2026-06-10"); // unchanged — atomic failure
+    expect(s().data.timeOff[0]?.startDate).toBe("2026-06-10"); // unchanged — atomic failure
   });
 
   // The merged-row rule is a property of the SHARED update path (updateOwned), not of the three
@@ -798,7 +802,7 @@ describe("update* re-validates the merged row so the store + server agree", () =
     expect(() => s().updateResource(ext.id, { name: "Outsource Co Ltd" })).toThrow(
       /work and time off before making it external/i,
     );
-    expect(s().data.resources[0].name).toBe("Outsource Co"); // unchanged — atomic failure
+    expect(s().data.resources[0]?.name).toBe("Outsource Co"); // unchanged — atomic failure
   });
 });
 
@@ -952,7 +956,7 @@ describe("updateResource rejects a kind-flip-to-external that would orphan depen
     expect(() => s().updateResource(r.id, { kind: "external" })).toThrow(
       /work and time off before making it external/i,
     );
-    expect(s().data.resources[0].kind).toBe("person"); // atomic failure — the flip did NOT land
+    expect(s().data.resources[0]?.kind).toBe("person"); // atomic failure — the flip did NOT land
   });
 
   it("flipping a person with time off to external THROWS", () => {
@@ -967,7 +971,7 @@ describe("updateResource rejects a kind-flip-to-external that would orphan depen
     expect(() => s().updateResource(r.id, { kind: "external" })).toThrow(
       /work and time off before making it external/i,
     );
-    expect(s().data.resources[0].kind).toBe("person");
+    expect(s().data.resources[0]?.kind).toBe("person");
   });
 
   it("flipping a person with NO dependents (or only a zero-load allocation) to external SUCCEEDS", () => {

@@ -18,15 +18,27 @@ import type { createAllocationFilters } from "./schedulerModelFilters";
 import type { createCapacitySource } from "./schedulerRowCapacity";
 import type { BarLayout, DayState, RowModel, SchedulerModelOptions, TimeOffBlock } from "./schedulerModelTypes";
 
-export function createRowBuilder(
-  { data, geom: geometry, days }: Pick<SchedulerModelOptions, "data" | "geom" | "days">,
-  accountWorkingDays: NonNullable<SchedulerModelOptions["preferences"]["accountWorkingDays"]>,
-  blocksMode: boolean,
-  laneLayout: NonNullable<SchedulerModelOptions["laneLayout"]>,
-  allocationsByResource: Map<ID, Allocation[]>,
-  timeOffByResource: Map<ID, TimeOff[]>,
-  seriesEndByKey: Map<string, ISODate>,
-  {
+interface CreateRowBuilderInput {
+  model: Pick<SchedulerModelOptions, "data" | "geom" | "days">;
+  accountWorkingDays: NonNullable<SchedulerModelOptions["preferences"]["accountWorkingDays"]>;
+  blocksMode: boolean;
+  laneLayout: NonNullable<SchedulerModelOptions["laneLayout"]>;
+  allocationsByResource: Map<ID, Allocation[]>;
+  timeOffByResource: Map<ID, TimeOff[]>;
+  seriesEndByKey: Map<string, ISODate>;
+  allocationFilters: ReturnType<typeof createAllocationFilters>;
+  capacitySource: ReturnType<typeof createCapacitySource>;
+}
+
+export function createRowBuilder({
+  model: { data, geom: geometry, days },
+  accountWorkingDays,
+  blocksMode,
+  laneLayout,
+  allocationsByResource,
+  timeOffByResource,
+  seriesEndByKey,
+  allocationFilters: {
     allocVisible,
     notTentativeHidden: passesTentativeFilter,
     barVisibleByInternalPref: barVisibleByInternalPreference,
@@ -34,9 +46,9 @@ export function createRowBuilder(
     projectClientFor,
     activityById: activitiesById,
     colorMaps,
-  }: ReturnType<typeof createAllocationFilters>,
-  { capacitySourceFor, visDays: visibleDays, overDays }: ReturnType<typeof createCapacitySource>,
-) {
+  },
+  capacitySource: { capacitySourceFor, visDays: visibleDays, overDays },
+}: CreateRowBuilderInput) {
   const timelineStart = days[0];
   const timelineEnd = days[days.length - 1];
   const hasTimelineIntersection = (row: { startDate: ISODate; endDate: ISODate }) =>
@@ -49,7 +61,7 @@ export function createRowBuilder(
     x: geometry.xForDateInGeom(timeOffEntry.startDate),
     width: geometry.widthForDates(timeOffEntry.startDate, timeOffEntry.endDate),
     label: resolveTimeOffTypeLabel(timeOffEntry.type),
-    note: timeOffEntry.note,
+    ...(timeOffEntry.note ? { note: timeOffEntry.note } : {}),
   });
   const NO_TIME_OFF_BLOCKS: TimeOffBlock[] = [];
 
@@ -85,6 +97,9 @@ export function createRowBuilder(
     const laneIndicesByAllocationId = new Map(lanes.map((lane) => [lane.id, lane.lane]));
     const bars: BarLayout[] = visibleAllocations.map((allocation) => {
       const { project, client } = projectClientFor(allocation);
+      const seriesEnd = allocation.seriesId
+        ? seriesEndByKey.get(`${allocation.accountId}\u0000${allocation.seriesId}`)
+        : undefined;
       return {
         allocation: allocation,
         x: geometry.xForDateInGeom(allocation.startDate),
@@ -92,15 +107,13 @@ export function createRowBuilder(
         top: resolveLaneTop(laneIndicesByAllocationId.get(allocation.id) ?? 0, laneLayout),
         color: resolveBarColor(allocation, colorMaps),
         label: activitiesById.get(allocation.activityId)?.name ?? "Activity",
-        project: project?.name,
-        client: client?.name,
-        seriesEnd: allocation.seriesId
-          ? seriesEndByKey.get(`${allocation.accountId}\u0000${allocation.seriesId}`)
-          : undefined,
+        ...(project ? { project: project.name } : {}),
+        ...(client ? { client: client.name } : {}),
+        ...(seriesEnd ? { seriesEnd } : {}),
         external: isExternal,
       };
     });
-    const capacity = capacitySourceFor(resource, allAllocations, resourceTimeOff, effectiveWeek);
+    const capacity = capacitySourceFor({ resource, allocations: allAllocations, resourceTimeOff, effectiveWeek });
     const dayStates: DayState[] = [];
     let conflictDayCount = 0;
     let partialCapacityDayCount = 0;
@@ -109,13 +122,13 @@ export function createRowBuilder(
       // Company-closed dates still receive the shared unavailable tint on EVERY row, starved
       // or not, because allocation creation is blocked there for everyone. The per-date
       // bucket keeps this O(coverage) instead of rescanning the full row list each day.
-      const creationBlocked = isCreationStartBlockedForEffectiveWeek(
+      const creationBlocked = isCreationStartBlockedForEffectiveWeek({
         resource,
         date,
-        capacity.timeOffOn(date),
+        timeOff: capacity.timeOffOn(date),
         effectiveWeek,
-        data.closures,
-      );
+        closures: data.closures,
+      });
       const unavailable = (capacity.tracked && dayCapacity.available === 0) || creationBlocked;
       const partialCapacity = capacity.tracked && !unavailable && isHalfDay(resource, weekdayOf(date));
       const hasTimeOff = capacity.timeOffCountOn(date) > 0;

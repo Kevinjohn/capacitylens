@@ -3,7 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type { SsoReadinessReason } from "@capacitylens/shared/account/ssoCutover";
-import type { Auth, AuthMode } from "../auth";
+import type { Auth, AccountMode } from "../auth";
 import type { SsoCutoverIdentityPort } from "./betterAuthIdentityPort";
 import type { SsoCutoverAccountAdminPort } from "./sqliteAccountAdminPort";
 import { ssoCutoverReadiness } from "./ssoCutover";
@@ -25,7 +25,7 @@ function requireStrictProvider(auth: Auth, reply: FastifyReply): Auth["strictPro
 
 interface SsoCutoverRouteDependencies {
   auth: Auth;
-  authMode: Exclude<AuthMode, "off">;
+  authMode: Exclude<AccountMode, "off">;
   identity: SsoCutoverIdentityPort;
   administration: SsoCutoverAccountAdminPort;
   applicationId: string;
@@ -49,7 +49,7 @@ export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: Sso
       return {
         provider,
         connected: links.length > 0,
-        verified: links.length === 1 && links[0]!.verified,
+        verified: links.length === 1 && links[0]?.verified === true,
       };
     } catch (error) {
       return fail(reply, error);

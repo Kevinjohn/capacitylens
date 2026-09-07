@@ -21,6 +21,12 @@ import { Badge } from "../ui/badge";
 import { SettingsSection } from "./SettingsSection";
 import { readSessions, type SessionView } from "../../account/sessionClient";
 
+interface ReconcileUnknownRevocationInput {
+  mustReenter: boolean;
+}
+
+type SessionReloadResult = { kind: "loaded" } | { kind: "unauthorized" } | { kind: "failed" } | { kind: "superseded" };
+
 export function SecuritySection() {
   const { providers } = useAuth();
   const strictProvider = resolveStrictOidcProvider(providers);
@@ -104,24 +110,24 @@ export function SecuritySection() {
     }
   };
 
-  const loadSessions = useCallback(async (): Promise<"loaded" | "unauthorized" | "failed" | "superseded"> => {
+  const loadSessions = useCallback(async (): Promise<SessionReloadResult> => {
     const generation = ++sessionLoadGeneration.current;
     const result = await readSessions();
-    if (generation !== sessionLoadGeneration.current) return "superseded";
+    if (generation !== sessionLoadGeneration.current) return { kind: "superseded" };
     switch (result.kind) {
       case "invalid":
         fail(null, m.settings_security_err_sessions_invalid());
-        return "failed";
+        return { kind: "failed" };
       case "failed":
         fail(null, m.settings_security_err_sessions_load());
-        return "failed";
+        return { kind: "failed" };
       case "unauthorized":
         fail(null, m.settings_security_err_sessions_load());
-        return "unauthorized";
+        return { kind: "unauthorized" };
       case "loaded":
         setSessions(result.sessions);
         clear();
-        return "loaded";
+        return { kind: "loaded" };
     }
   }, [fail, clear]);
 
@@ -186,18 +192,18 @@ export function SecuritySection() {
    * an authoritative list refresh reconciles it, and only an unauthorized refresh (which proves the
    * cookie is gone after all) falls back to the same reload.
    */
-  const reconcileUnknownRevocation = async (mustReenter: boolean) => {
+  const reconcileUnknownRevocation = async ({ mustReenter }: ReconcileUnknownRevocationInput) => {
     if (mustReenter) {
       reloadPage();
       return;
     }
     const refreshOutcome = await loadSessions();
-    if (refreshOutcome === "unauthorized") {
+    if (refreshOutcome.kind === "unauthorized") {
       reloadPage();
       return;
     }
     setMessage(
-      refreshOutcome === "loaded"
+      refreshOutcome.kind === "loaded"
         ? m.settings_security_revoke_unknown_refreshed()
         : m.settings_security_revoke_unknown_unavailable(),
     );
@@ -214,7 +220,7 @@ export function SecuritySection() {
         if (await readUnknownAccountCommandOutcome(response)) {
           // A 401 is the second way this browser's own session can be the one that went: treat it
           // exactly like revoking the current session.
-          await reconcileUnknownRevocation(revokingCurrentSession || response.status === 401);
+          await reconcileUnknownRevocation({ mustReenter: revokingCurrentSession || response.status === 401 });
         } else {
           fail(null, m.settings_security_err_revoke());
         }
@@ -228,7 +234,7 @@ export function SecuritySection() {
       }
     } catch (cause) {
       console.error("SecuritySection: session revoke failed", cause);
-      await reconcileUnknownRevocation(revokingCurrentSession);
+      await reconcileUnknownRevocation({ mustReenter: revokingCurrentSession });
     } finally {
       setBusy(false);
     }
