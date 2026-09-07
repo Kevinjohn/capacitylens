@@ -219,7 +219,7 @@ describe("SchedulerGrid", () => {
     expect(within(rows[0]).getByTestId("timeoff-block")).toBeInTheDocument();
     expect(within(rows[1]).queryByTestId("timeoff-block")).not.toBeInTheDocument();
     expect(band.style.height).toBe(
-      `${buildSchedulerDensity(false).groupHeaderHeight + Number.parseInt(rows[0].style.height, 10)}px`,
+      `${buildSchedulerDensity({ compact: false }).groupHeaderHeight + Number.parseInt(rows[0].style.height, 10)}px`,
     );
   });
 
@@ -250,7 +250,7 @@ describe("SchedulerGrid", () => {
     act(() => useStore.getState().jumpToResource("r1"));
     // The first row sits directly under one discipline header, whose height follows the active
     // density — the store default is Compact OFF (roomy), so assert the roomy geometry.
-    expect(grid.scrollTop).toBe(buildSchedulerDensity(false).groupHeaderHeight);
+    expect(grid.scrollTop).toBe(buildSchedulerDensity({ compact: false }).groupHeaderHeight);
     expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
 
     act(() => {
@@ -276,7 +276,7 @@ describe("SchedulerGrid", () => {
 
     act(() => useStore.getState().jumpToResource("r1"));
     expect(useStore.getState().ui.collapsedGroups).not.toContain("d1");
-    expect(grid.scrollTop).toBe(buildSchedulerDensity(false).groupHeaderHeight);
+    expect(grid.scrollTop).toBe(buildSchedulerDensity({ compact: false }).groupHeaderHeight);
     expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
   });
 

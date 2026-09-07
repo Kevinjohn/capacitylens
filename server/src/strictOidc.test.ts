@@ -246,19 +246,22 @@ describe("strictOidcUserInfo", () => {
     ).rejects.toThrow("missing or invalid name");
   });
 
-  it.each(["http://images.example.test/owner.png", `https://images.example.test/${"x".repeat(2049)}`])(
-    "drops a profile image outside the HTTPS and length policy: %s",
-    async (picture) => {
-      userInfo.picture = picture;
-      const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
-      await expect(
-        resolve({
-          idToken: await idToken(currentKeys[0]),
-          accessToken: "access-token",
-        }),
-      ).resolves.toMatchObject({ image: undefined });
-    },
-  );
+  it.each([
+    undefined,
+    "not a URL",
+    "http://images.example.test/owner.png",
+    `https://images.example.test/${"x".repeat(2049)}`,
+  ])("preserves an undefined image property for an unusable picture: %s", async (picture) => {
+    if (picture === undefined) delete userInfo.picture;
+    else userInfo.picture = picture;
+    const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
+    const profile = await resolve({
+      idToken: await idToken(currentKeys[0]),
+      accessToken: "access-token",
+    });
+    expect(Object.hasOwn(profile, "image")).toBe(true);
+    expect(profile.image).toBeUndefined();
+  });
 
   it("rejects a user-info response for a different subject", async () => {
     userInfo.sub = "subject-2";

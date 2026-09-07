@@ -203,7 +203,7 @@ export function registerAuthProxyRoutes(app: FastifyInstance, dependencies: Auth
       try {
         const session = resolution.session;
         const user = sessionUserFromApplicationSession(session);
-        const masquerading = masquerades.lookup(session.id) !== null;
+        const masquerading = masquerades.lookup(session.id) !== undefined;
         return {
           authMode,
           user,

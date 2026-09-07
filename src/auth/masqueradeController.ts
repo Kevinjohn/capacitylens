@@ -9,6 +9,17 @@ import { useStore } from "../store/useStore";
 import { masqueradeApi } from "./masqueradeApi";
 import { reprojectAccess } from "./reprojectAccess";
 
+interface ReleaseSuspensionInput {
+  dropParkedEdits: boolean;
+}
+
+interface EndProjectionInput {
+  reason: ClientMasqueradeEndReason;
+  finish: (state: MasqueradeState) => Promise<boolean>;
+  failureMessage: string;
+  options: { onNoState: NoStatePolicy };
+}
+
 type ResumeWrites = (options?: { dropParkedEdits?: boolean }) => void;
 type EndProjectionResult = "inactive" | "superseded" | "noop" | "failed";
 type NoStatePolicy = "succeed" | "wait";
@@ -39,7 +50,7 @@ export class MasqueradeController {
     this.resumeWrites ??= this.dependencies.suspend();
   }
 
-  private releaseSuspension(dropParkedEdits: boolean): void {
+  private releaseSuspension({ dropParkedEdits }: ReleaseSuspensionInput): void {
     const resume = this.resumeWrites;
     this.resumeWrites = null;
     resume?.({ dropParkedEdits });
@@ -65,7 +76,7 @@ export class MasqueradeController {
     try {
       state = await this.dependencies.api.start(accountId, targetUserId);
     } catch (error) {
-      this.releaseSuspension(false);
+      this.releaseSuspension({ dropParkedEdits: false });
       useStore.getState().setMasquerade({ phase: "inactive" });
       return this.fail(error instanceof Error ? error.message : "Masquerade could not be started.");
     }
@@ -103,17 +114,17 @@ export class MasqueradeController {
   }
 
   async end(reason: ClientMasqueradeEndReason = "explicit", navigate?: (to: string) => void): Promise<boolean> {
-    const ended = await this.endProjection(
-      reason,
-      async (state) => {
+    const ended = await this.endProjection({
+      reason: reason,
+      finish: async (state) => {
         if (!(await this.dependencies.reproject(state.accountId))) {
           return this.fail("The real account view could not be restored. Retry ending the masquerade.");
         }
         return true;
       },
-      "Masquerade could not be ended.",
-      { onNoState: "succeed" },
-    );
+      failureMessage: "Masquerade could not be ended.",
+      options: { onNoState: "succeed" },
+    });
     if (ended === "inactive") navigate?.("/");
     return ended !== "failed";
   }
@@ -124,27 +135,27 @@ export class MasqueradeController {
       const outcome = await this.dependencies.switchAccount(accountId);
       return isSwitchSuccessful(outcome, accountId);
     }
-    const ended = await this.endProjection(
-      "account_switch",
-      async () => {
+    const ended = await this.endProjection({
+      reason: "account_switch",
+      finish: async () => {
         const outcome = await this.dependencies.switchAccount(accountId);
         return isSwitchSuccessful(outcome, accountId) || this.fail("The selected company could not be loaded.");
       },
-      "The company switch could not be completed.",
-      { onNoState: "wait" },
-    );
+      failureMessage: "The company switch could not be completed.",
+      options: { onNoState: "wait" },
+    });
     if (ended === "superseded") {
       return this.fail("A newer masquerade is active. End it before switching companies.");
     }
     return ended === "inactive";
   }
 
-  private async endProjection(
-    reason: ClientMasqueradeEndReason,
-    finish: (state: MasqueradeState) => Promise<boolean>,
-    failureMessage: string,
-    options: { onNoState: NoStatePolicy },
-  ): Promise<EndProjectionResult> {
+  private async endProjection({
+    reason,
+    finish,
+    failureMessage,
+    options,
+  }: EndProjectionInput): Promise<EndProjectionResult> {
     const runtime = useStore.getState().masquerade;
     const state = runtime.phase === "inactive" ? null : runtime.state;
     if (!state) {
@@ -163,7 +174,7 @@ export class MasqueradeController {
         return "superseded";
       }
       if (!(await finish(state))) return "failed";
-      this.releaseSuspension(true);
+      this.releaseSuspension({ dropParkedEdits: true });
       useStore.getState().clearUndoHistory();
       useStore.getState().setMasquerade({ phase: "inactive" });
       return "inactive";
@@ -209,7 +220,7 @@ export class MasqueradeController {
       this.fail("The masquerade ended, but the real account view could not be restored. Retry.");
       return;
     }
-    this.releaseSuspension(true);
+    this.releaseSuspension({ dropParkedEdits: true });
     useStore.getState().clearUndoHistory();
     useStore.getState().setMasquerade({ phase: "inactive" });
   }

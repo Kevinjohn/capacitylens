@@ -2427,7 +2427,7 @@ describe("schema migration of an existing on-disk DB", () => {
         )?.notnull,
       ).toBe(1);
       expect(upgraded.prepare(`SELECT * FROM timeOff ORDER BY id`).all()).toEqual(beforeRows);
-      expect(getRow(upgraded, "timeOff", "to-v33-company-wide")).toBeUndefined();
+      expect(getRow(upgraded, "timeOff", "to-v33-company-wide")).toBeNull();
       expect(upgraded.prepare(`SELECT * FROM closures`).all()).toEqual([]);
       expect(timeOffSecondaryObjects(upgraded)).toEqual(beforeObjects);
       expect(
@@ -2468,7 +2468,7 @@ describe("schema migration of an existing on-disk DB", () => {
       upgraded.close();
 
       const reopened = openDb(copied.path);
-      expect(getRow(reopened, "timeOff", "to-company")).toBeUndefined();
+      expect(getRow(reopened, "timeOff", "to-company")).toBeNull();
       expect(planDatabaseMigrations(reopened).migrations).toEqual([]);
       reopened.close();
     } finally {

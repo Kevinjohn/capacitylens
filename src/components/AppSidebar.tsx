@@ -72,7 +72,7 @@ export function AppSidebar({
   // picks the rhythm up without each one having to read the store. Only GAPS and PADDING move — item
   // height is untouched, so the collapsed icon rail (which pins each button square) is unaffected.
   // See src/index.css.
-  const density = buildSchedulerDensity(compactView);
+  const density = buildSchedulerDensity({ compact: compactView });
 
   return (
     <Sidebar

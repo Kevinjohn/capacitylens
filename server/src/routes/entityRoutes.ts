@@ -144,7 +144,7 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
     // accountId immutable.
     if (scoped && !authorize({ req, reply, accountId: body.accountId as string, action: "write" })) return;
     try {
-      const existing = getRow(db, entity, id);
+      const existing = getRow(db, entity, id) ?? undefined;
       const builtinCheck = resolveBuiltinWriteRejection({ verb: "replace", entity, existing, incoming: body });
       if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error });
       // Ordinary Editors may manage clients, but changing the server-owned Internal singleton's
@@ -358,7 +358,7 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
       // non-member therefore receives the same 403 for absent and foreign ids; an authorized
       // member receives the same 404 for either. OFF mode retains its historical idempotent 204.
       if (!authorize({ req, reply, accountId, action: "write" })) return;
-      const existing = getRow(db, entity, id);
+      const existing = getRow(db, entity, id) ?? undefined;
       if (!ownsRow(existing, accountId) || (!existing && authMode !== "off")) {
         return reply.code(404).send({ error: "Not found" });
       }

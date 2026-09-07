@@ -12,7 +12,7 @@ describe("validateAuthUser", () => {
       futureField: "retained",
     };
 
-    expect(parseAuthUser(value, true)).toBe(value);
+    expect(parseAuthUser({ value: value, requireEmail: true })).toBe(value);
   });
 
   it.each([
@@ -25,12 +25,12 @@ describe("validateAuthUser", () => {
     { id: "user-1", twoFactorEnabled: "yes" },
     { id: "user-1", image: 1 },
   ])("rejects a malformed auth response: %j", (value) => {
-    expect(parseAuthUser(value)).toBeNull();
+    expect(parseAuthUser({ value: value })).toBeNull();
   });
 
   it("requires a non-blank email only at boundaries that request it", () => {
-    expect(parseAuthUser({ id: "user-1" })).toEqual({ id: "user-1" });
-    expect(parseAuthUser({ id: "user-1" }, true)).toBeNull();
-    expect(parseAuthUser({ id: "user-1", email: "   " }, true)).toBeNull();
+    expect(parseAuthUser({ value: { id: "user-1" } })).toEqual({ id: "user-1" });
+    expect(parseAuthUser({ value: { id: "user-1" }, requireEmail: true })).toBeNull();
+    expect(parseAuthUser({ value: { id: "user-1", email: "   " }, requireEmail: true })).toBeNull();
   });
 });

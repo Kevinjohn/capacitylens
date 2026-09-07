@@ -45,7 +45,14 @@ describe("persistence save/reload/switch overlap", () => {
     const loadAll = vi.fn(async () => loading.promise);
     const saveAll = vi.fn<PersistenceAdapter["saveAll"]>().mockResolvedValue(undefined);
     saveAll.mockImplementationOnce(() => saving.promise);
-    detach = attachPersistence(useStore, { loadAll, saveAll }, 0, undefined, undefined, true);
+    detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll, saveAll },
+      debounceMs: 0,
+      onError: undefined,
+      onSuccess: undefined,
+      serverMode: true,
+    });
     useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
 
     const refreshing = refreshActiveAccountSlice(DEFAULT_ACCOUNT_ID);
@@ -81,7 +88,14 @@ describe("persistence save/reload/switch overlap", () => {
       .mockImplementationOnce(() => newLoad.promise);
     const saveAll = vi.fn<PersistenceAdapter["saveAll"]>().mockResolvedValue(undefined);
     saveAll.mockRejectedValueOnce(conflict);
-    detach = attachPersistence(useStore, { loadAll, saveAll }, 0, onError, undefined, true);
+    detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll, saveAll },
+      debounceMs: 0,
+      onError: onError,
+      onSuccess: undefined,
+      serverMode: true,
+    });
     useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
     await vi.waitFor(() => expect(loadAll).toHaveBeenCalledExactlyOnceWith(DEFAULT_ACCOUNT_ID));
 

@@ -3,12 +3,14 @@ import type { Weekday } from "@capacitylens/shared/types/entities";
 import type { BarLayout } from "./schedulerModel";
 import type { ColumnGeometry } from "./columnGeometry";
 
-export function buildGesturePreviewDates(
-  bar: BarLayout,
-  mode: DragMode,
-  deltaDays: number,
-  previewDays: Weekday[] | undefined,
-) {
+interface BuildGesturePreviewDatesInput {
+  bar: BarLayout;
+  mode: DragMode;
+  deltaDays: number;
+  previewDays: Weekday[] | undefined;
+}
+
+export function buildGesturePreviewDates({ bar, mode, deltaDays, previewDays }: BuildGesturePreviewDatesInput) {
   // Snap ONCE per frame, against the lane the pointer is actually over — the drop-target gate
   // below and the bar's own preview pixels then read the same range instead of each deriving it.
   // A zero-column resize moves nothing, so it keeps the view-model's placement (dates: null).

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore, type StoreState } from "../../store/useStore";
 
-export function useToolbarSearch(
-  filters: StoreState["ui"]["filters"],
-  activeAccountId: StoreState["activeAccountId"],
-  setFilters: StoreState["setFilters"],
-  clearFilters: StoreState["clearFilters"],
-) {
+interface UseToolbarSearchInput {
+  filters: StoreState["ui"]["filters"];
+  activeAccountId: StoreState["activeAccountId"];
+  setFilters: StoreState["setFilters"];
+  clearFilters: StoreState["clearFilters"];
+}
+
+export function useToolbarSearch({ filters, activeAccountId, setFilters, clearFilters }: UseToolbarSearchInput) {
   // Debounce the search into the store: each keystroke otherwise rebuilds the whole
   // scheduler model (new filters object → model useMemo) and re-renders every lane.
   // Keep the input snappy locally; push to filters after a short pause.

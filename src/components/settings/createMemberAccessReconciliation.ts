@@ -8,6 +8,10 @@ import type { MemberActionDependencies } from "./memberActionDependencies";
 import type { useTeamDirectory } from "./useTeamDirectory";
 import type { useMemberInvites } from "./useMemberInvites";
 
+interface RefreshCallerAccessInput {
+  knownRemoved?: boolean | undefined;
+}
+
 interface MemberAccessDependencies extends Pick<
   MemberActionDependencies,
   "requestAccountId" | "isActiveAccount" | "fail" | "setNotice"
@@ -37,7 +41,9 @@ export function createMemberAccessReconciliation({
   /** Re-resolve every caller-owned projection after a possible self-role mutation. The role badge
    * and affordances fail closed immediately via membershipRevision; the tenant slice is then fetched
    * again under the new server role so confidential fields from the old projection cannot linger. */
-  const refreshCallerAccess = async (knownRemoved = false): Promise<"active" | "left" | "failed"> => {
+  const refreshCallerAccess = async ({ knownRemoved = false }: RefreshCallerAccessInput = {}): Promise<
+    "active" | "left" | "failed"
+  > => {
     const accountId = activeAccountId;
     if (!accountId) return "failed";
     invalidateMemberships();

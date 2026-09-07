@@ -5,13 +5,15 @@ import type { WriteQueue } from "./writeQueue";
 import type { RefreshController } from "./refreshController";
 import type { RefreshOutcome } from "./facades";
 
-export function attachAccountSwitch(
-  store: StoreApi<StoreState>,
-  owner: AttachmentState,
-  writes: WriteQueue,
-  refresh: RefreshController,
-  serverMode: boolean,
-) {
+interface AttachAccountSwitchInput {
+  store: StoreApi<StoreState>;
+  owner: AttachmentState;
+  writes: WriteQueue;
+  refresh: RefreshController;
+  serverMode: boolean;
+}
+
+export function attachAccountSwitch({ store, owner, writes, refresh, serverMode }: AttachAccountSwitchInput) {
   const { save } = writes;
   const { refreshActive } = refresh;
   const { cancelDebounce } = owner;

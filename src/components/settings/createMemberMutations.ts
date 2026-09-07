@@ -8,6 +8,10 @@ import type { MemberActionDependencies } from "./memberActionDependencies";
 import type { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
 import { createMemberCredentialMutations } from "./createMemberCredentialMutations";
 
+interface ChangeSignInTrackingInput {
+  next: boolean;
+}
+
 export interface MemberMutationDependencies extends Pick<
   MemberActionDependencies,
   "withMemberAction" | "isActiveAccount" | "fail" | "setNotice"
@@ -33,7 +37,7 @@ export function createMemberMutations(dependencies: MemberMutationDependencies) 
     reload,
     clearResetLinkFor,
   } = dependencies;
-  const changeSignInTracking = (next: boolean) =>
+  const changeSignInTracking = ({ next }: ChangeSignInTrackingInput) =>
     withMemberAction("member-sign-in-tracking", async (accountId) => {
       try {
         const result = await teamAccessClient.setMemberSignInTracking(accountId, next);
@@ -107,7 +111,7 @@ export function createMemberMutations(dependencies: MemberMutationDependencies) 
         setNotice(m.settings_members_removed());
         clearResetLinkFor(member.userId);
         if (member.isSelf) {
-          await refreshCallerAccess(true);
+          await refreshCallerAccess({ knownRemoved: true });
         }
         refreshDirectory();
       } catch (e) {

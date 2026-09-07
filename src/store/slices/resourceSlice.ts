@@ -71,33 +71,38 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
           assertHalfDays(entity.halfDays, entity.workingDays);
           // Colour snap runs LAST, right before persisting — never before the asserts above, so a
           // rejected (throwing) add never substitutes a colour onto an entity that was never saved.
-          const safe = applySnappedColor(entity, entity.kind === "external");
+          const safe = applySnappedColor({ patch: entity, allowNeutral: entity.kind === "external" });
           mutate((data) => ({ ...data, resources: [...data.resources, safe] }));
           return safe;
         },
       ),
       updateResource: createGuardedAction((id: ID, patch: Patch<Resource>) => {
-        updateOwned("resources", id, patch, (merged, existing) => {
-          patch = isPlaceholderResource(merged) ? { ...patch, ...placeholderCapacityDefaults() } : patch;
-          merged = { ...existing, ...patch };
-          // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
-          // placeholder projectId whose project is ARCHIVED (absent from the server-mode active-only
-          // slice) must not block an unrelated edit; a CHANGED projectId is still validated strictly.
-          assertScopedRefs(get().data, existing.accountId, "resources", patch, existing);
-          // Flipping a resource to external while it still owns loaded work / time-off would orphan
-          // those dependents (the scheduler hides external capacity + time-off). A no-op when the
-          // resource isn't becoming external. Mirrors the server's validateWrite resources branch.
-          assertResourceProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
-          assertResourceKindAllowsDependents(get().data, existing.accountId, id, merged.kind);
-          if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays);
-          if (patch.workingDays !== undefined || patch.halfDays !== undefined) {
-            assertHalfDays(merged.halfDays, merged.workingDays);
-          }
-          const engagementPatch = merged.kind !== "person" ? { ...patch, engagement: "studio" as const } : patch;
-          const colorPatch = applySnappedColor(engagementPatch, merged.kind === "external");
-          return patch.workingHoursPerDay !== undefined
-            ? { ...colorPatch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) }
-            : colorPatch;
+        updateOwned({
+          key: "resources",
+          id: id,
+          patch: patch,
+          prepare: (merged, existing) => {
+            patch = isPlaceholderResource(merged) ? { ...patch, ...placeholderCapacityDefaults() } : patch;
+            merged = { ...existing, ...patch };
+            // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
+            // placeholder projectId whose project is ARCHIVED (absent from the server-mode active-only
+            // slice) must not block an unrelated edit; a CHANGED projectId is still validated strictly.
+            assertScopedRefs(get().data, existing.accountId, "resources", patch, existing);
+            // Flipping a resource to external while it still owns loaded work / time-off would orphan
+            // those dependents (the scheduler hides external capacity + time-off). A no-op when the
+            // resource isn't becoming external. Mirrors the server's validateWrite resources branch.
+            assertResourceProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
+            assertResourceKindAllowsDependents(get().data, existing.accountId, id, merged.kind);
+            if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays);
+            if (patch.workingDays !== undefined || patch.halfDays !== undefined) {
+              assertHalfDays(merged.halfDays, merged.workingDays);
+            }
+            const engagementPatch = merged.kind !== "person" ? { ...patch, engagement: "studio" as const } : patch;
+            const colorPatch = applySnappedColor({ patch: engagementPatch, allowNeutral: merged.kind === "external" });
+            return patch.workingHoursPerDay !== undefined
+              ? { ...colorPatch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) }
+              : colorPatch;
+          },
         });
       }),
 
@@ -111,13 +116,18 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
         },
       ),
       updateTimeOff: createGuardedAction((id: ID, patch: Patch<TimeOff>) => {
-        updateOwned("timeOff", id, patch, (merged, existing) => {
-          // Same merged-row rule as updateAllocation: the server re-runs assertResourceExists on the
-          // full merged row, so a type/date/note-only edit of time-off on a now-EXTERNAL resource
-          // would 400 there while succeeding here. See updateOwned.
-          assertResourceExists(get().data, existing.accountId, merged.resourceId, existing);
-          assertDateRange(merged.startDate, merged.endDate);
-          return patch;
+        updateOwned({
+          key: "timeOff",
+          id: id,
+          patch: patch,
+          prepare: (merged, existing) => {
+            // Same merged-row rule as updateAllocation: the server re-runs assertResourceExists on the
+            // full merged row, so a type/date/note-only edit of time-off on a now-EXTERNAL resource
+            // would 400 there while succeeding here. See updateOwned.
+            assertResourceExists(get().data, existing.accountId, merged.resourceId, existing);
+            assertDateRange(merged.startDate, merged.endDate);
+            return patch;
+          },
         });
       }),
       deleteTimeOff: createGuardedAction((id: ID) => {
@@ -135,10 +145,15 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
         },
       ),
       updateClosure: createGuardedAction((id: ID, patch: Patch<Closure>) => {
-        updateOwned("closures", id, patch, (merged) => {
-          if (merged.name.trim().length === 0) domainError("closure_name_required", "Closure name is required.");
-          assertDateRange(merged.startDate, merged.endDate);
-          return patch;
+        updateOwned({
+          key: "closures",
+          id: id,
+          patch: patch,
+          prepare: (merged) => {
+            if (merged.name.trim().length === 0) domainError("closure_name_required", "Closure name is required.");
+            assertDateRange(merged.startDate, merged.endDate);
+            return patch;
+          },
         });
       }),
       deleteClosure: createGuardedAction((id: ID) => {

@@ -65,8 +65,6 @@ Counterexamples that are now tracked debt:
   `null` (`validateAllocationDraft`), a boolean (`validateHex`) and the typed value or `null`.
   The last group are parses; the audit decides the rest.
 - `ensureBarColors(hex)` returns a colour pair. It derives a value, so it is a `resolve`.
-- `getRow` in `server/src/db/rows.ts` returns `undefined` for a missing database row where
-  the other storage lookups return `null`.
 
 ## Variables
 

@@ -17,13 +17,28 @@ import {
 import { bucketByCoveredDate, NO_ALLOCATIONS, NO_TIME_OFF, NO_CLOSURES } from "./schedulerModelIndexing";
 import type { CapacitySource, SchedulerModelOptions } from "./schedulerModelTypes";
 
-export function createCapacitySource(
-  days: ISODate[],
-  { start: visibleStart, end: visibleEnd }: SchedulerModelOptions["visibleWindow"],
-  { start: overStart, end: overEnd }: SchedulerModelOptions["overSoonWindow"],
-  closures: Closure[],
-  blocksMode: boolean,
-) {
+interface CreateCapacitySourceInput {
+  days: ISODate[];
+  visibleWindow: SchedulerModelOptions["visibleWindow"];
+  overSoonWindow: SchedulerModelOptions["overSoonWindow"];
+  closures: Closure[];
+  blocksMode: boolean;
+}
+
+interface ResourceCapacitySourceInput {
+  resource: Resource;
+  allocations: Allocation[];
+  resourceTimeOff: TimeOff[];
+  effectiveWeek: EffectiveWorkingWeek;
+}
+
+export function createCapacitySource({
+  days,
+  visibleWindow: { start: visibleStart, end: visibleEnd },
+  overSoonWindow: { start: overStart, end: overEnd },
+  closures,
+  blocksMode,
+}: CreateCapacitySourceInput) {
   // The [visibleStart, visibleEnd] and [overStart, overEnd] windows are RESOURCE-INVARIANT — every row in
   // this model reads the exact same two windows. Building their day arrays here ONCE avoids resources
   // × (visibleDays + 14) redundant eachDayISO calls per model rebuild (this fires on every scroll-day
@@ -45,12 +60,12 @@ export function createCapacitySource(
   const closuresByDate = bucketByCoveredDate(closures, capacityDates);
 
   const buildEmptyDayCapacity = (date: ISODate): DayCapacity => ({ date, allocated: 0, available: 0, over: false });
-  const createResourceCapacitySource = (
-    resource: Resource,
-    allocations: Allocation[],
-    resourceTimeOff: TimeOff[],
-    effectiveWeek: EffectiveWorkingWeek,
-  ): CapacitySource => {
+  const createResourceCapacitySource = ({
+    resource,
+    allocations,
+    resourceTimeOff,
+    effectiveWeek,
+  }: ResourceCapacitySourceInput): CapacitySource => {
     if (isExternalResource(resource)) {
       return {
         tracked: false,

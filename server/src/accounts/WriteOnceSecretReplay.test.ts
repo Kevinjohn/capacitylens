@@ -9,13 +9,13 @@ describe("WriteOnceSecretReplay", () => {
     vi.setSystemTime("2026-01-01T00:00:00.000Z");
     const replay = new WriteOnceSecretReplay<{ token: string }>(2);
 
-    expect(replay.reserve("claimed")).toEqual({ accepted: true });
+    expect(replay.reserve("claimed")).toEqual({ kind: "accepted" });
     replay.storeReserved("claimed", { token: "claimed-secret" });
     expect(vi.getTimerCount()).toBe(1);
     replay.deleteWhere((value) => value.token === "claimed-secret");
     expect(vi.getTimerCount()).toBe(0);
 
-    expect(replay.reserve("idle")).toEqual({ accepted: true });
+    expect(replay.reserve("idle")).toEqual({ kind: "accepted" });
     replay.storeReserved("idle", { token: "idle-secret" });
     expect(vi.getTimerCount()).toBe(1);
     vi.advanceTimersByTime(WRITE_ONCE_SECRET_REPLAY_WINDOW_MS);
@@ -28,13 +28,13 @@ describe("WriteOnceSecretReplay", () => {
     vi.setSystemTime("2026-01-01T00:00:00.000Z");
     const replay = new WriteOnceSecretReplay<string>(2);
 
-    expect(replay.reserve("first")).toEqual({ accepted: true });
+    expect(replay.reserve("first")).toEqual({ kind: "accepted" });
     replay.storeReserved("first", "secret-1");
-    expect(replay.reserve("second")).toEqual({ accepted: true });
+    expect(replay.reserve("second")).toEqual({ kind: "accepted" });
     replay.storeReserved("second", "secret-2");
 
     expect(replay.reserve("third")).toEqual({
-      accepted: false,
+      kind: "rejected",
       retryAfterMs: WRITE_ONCE_SECRET_REPLAY_WINDOW_MS,
     });
     expect(replay.get("first")).toBe("secret-1");
@@ -45,10 +45,10 @@ describe("WriteOnceSecretReplay", () => {
   it("releases an unused reservation and never lets it delete a stored response", () => {
     const replay = new WriteOnceSecretReplay<string>(1);
 
-    expect(replay.reserve("failed")).toEqual({ accepted: true });
-    expect(replay.reserve("blocked")).toEqual({ accepted: false, retryAfterMs: 1_000 });
+    expect(replay.reserve("failed")).toEqual({ kind: "accepted" });
+    expect(replay.reserve("blocked")).toEqual({ kind: "rejected", retryAfterMs: 1_000 });
     replay.releaseReservation("failed");
-    expect(replay.reserve("completed")).toEqual({ accepted: true });
+    expect(replay.reserve("completed")).toEqual({ kind: "accepted" });
     replay.storeReserved("completed", "secret");
 
     replay.releaseReservation("completed");
@@ -65,11 +65,11 @@ describe("WriteOnceSecretReplay", () => {
     replay.storeReserved("later", "secret-2", 100_000);
 
     expect(replay.reserve("later", 200_000)).toEqual({
-      accepted: false,
+      kind: "rejected",
       retryAfterMs: WRITE_ONCE_SECRET_REPLAY_WINDOW_MS - 100_000,
     });
-    expect(replay.reserve("active", 200_000)).toEqual({ accepted: true });
-    expect(replay.reserve("active", 200_000)).toEqual({ accepted: false, retryAfterMs: 1_000 });
+    expect(replay.reserve("active", 200_000)).toEqual({ kind: "accepted" });
+    expect(replay.reserve("active", 200_000)).toEqual({ kind: "rejected", retryAfterMs: 1_000 });
   });
 
   it("rejects storing a response that did not reserve capacity", () => {

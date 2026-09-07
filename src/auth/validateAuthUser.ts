@@ -1,6 +1,11 @@
 import type { AuthUser } from "./authContext";
 
-export function parseAuthUser(value: unknown, requireEmail = false): AuthUser | null {
+interface ParseAuthUserInput {
+  value: unknown;
+  requireEmail?: boolean | undefined;
+}
+
+export function parseAuthUser({ value, requireEmail = false }: ParseAuthUserInput): AuthUser | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const user = value as Record<string, unknown>;
   if (typeof user.id !== "string" || user.id.trim().length === 0) return null;

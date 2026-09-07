@@ -21,6 +21,10 @@ import { Badge } from "../ui/badge";
 import { SettingsSection } from "./SettingsSection";
 import { readSessions, type SessionView } from "../../account/sessionClient";
 
+interface ReconcileUnknownRevocationInput {
+  mustReenter: boolean;
+}
+
 export function SecuritySection() {
   const { providers } = useAuth();
   const strictProvider = resolveStrictOidcProvider(providers);
@@ -186,7 +190,7 @@ export function SecuritySection() {
    * an authoritative list refresh reconciles it, and only an unauthorized refresh (which proves the
    * cookie is gone after all) falls back to the same reload.
    */
-  const reconcileUnknownRevocation = async (mustReenter: boolean) => {
+  const reconcileUnknownRevocation = async ({ mustReenter }: ReconcileUnknownRevocationInput) => {
     if (mustReenter) {
       reloadPage();
       return;
@@ -214,7 +218,7 @@ export function SecuritySection() {
         if (await readUnknownAccountCommandOutcome(response)) {
           // A 401 is the second way this browser's own session can be the one that went: treat it
           // exactly like revoking the current session.
-          await reconcileUnknownRevocation(revokingCurrentSession || response.status === 401);
+          await reconcileUnknownRevocation({ mustReenter: revokingCurrentSession || response.status === 401 });
         } else {
           fail(null, m.settings_security_err_revoke());
         }
@@ -228,7 +232,7 @@ export function SecuritySection() {
       }
     } catch (cause) {
       console.error("SecuritySection: session revoke failed", cause);
-      await reconcileUnknownRevocation(revokingCurrentSession);
+      await reconcileUnknownRevocation({ mustReenter: revokingCurrentSession });
     } finally {
       setBusy(false);
     }

@@ -345,11 +345,11 @@ it("does not reactivate a sole company after its loaded slice proves missing", a
 });
 
 it("guards navigation while a persistence write is still unacknowledged", () => {
-  const detachPersistence = attachPersistence(
-    useStore,
-    { loadAll: async () => emptyAppData(), saveAll: async () => {} },
-    300,
-  );
+  const detachPersistence = attachPersistence({
+    store: useStore,
+    adapter: { loadAll: async () => emptyAppData(), saveAll: async () => {} },
+    debounceMs: 300,
+  });
   const { unmount } = renderAppShell();
   act(() => {
     useStore.getState().addClient({ name: "Unsaved client", color: "#111111" });

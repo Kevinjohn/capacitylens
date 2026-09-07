@@ -726,6 +726,64 @@ describe("local IdentityPort conformance", () => {
     expect(port.inspectSsoCutover("sso").outstandingResetPrincipalIds).toEqual(["principal-2"]);
   });
 
+  it("counts malformed verification expiry as active in inspection and a subsequent cutover", async () => {
+    insertIdentityUser({ db, id: "principal-1", name: "Bruce Wayne", email: "bruce@example.com" });
+    markSsoCutoverActivated(db);
+    insertVerification(db, "malformed-reset", "principal-1");
+    insertVerification(db, "orphan-reset", "missing-principal");
+    db.prepare(`UPDATE verification SET expiresAt = ?`).run("not-a-date");
+    const port = identityPort({ auth: auth(async () => null), authMode: "sso" });
+
+    expect(port.inspectSsoCutover("sso").outstandingResetPrincipalIds).toEqual(["principal-1"]);
+    await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 0, ceremonies: 2 });
+    expect(db.prepare(`SELECT id FROM verification`).all()).toEqual([]);
+    expect(port.inspectSsoCutover("sso").outstandingResetPrincipalIds).toEqual([]);
+  });
+
+  it("removes malformed session timestamps while retaining a genuinely absent expiry", async () => {
+    insertIdentityUser({ db, id: "principal-1", name: "Bruce Wayne", email: "bruce@example.com" });
+    // Legacy providers may omit expiry; production migrations keep their NOT NULL schema unchanged.
+    db.exec(`DROP TABLE session;
+      CREATE TABLE session (
+        id TEXT PRIMARY KEY, token TEXT NOT NULL, userId TEXT NOT NULL,
+        createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, expiresAt TEXT
+      )`);
+    const now = new Date().toISOString();
+    const cases = [
+      { id: "absent-expiry", createdAt: now, updatedAt: now, expiresAt: null },
+      { id: "invalid-expiry", createdAt: now, updatedAt: now, expiresAt: "not-a-date" },
+      { id: "invalid-created", createdAt: "not-a-date", updatedAt: now, expiresAt: LATER },
+      { id: "invalid-updated", createdAt: now, updatedAt: "not-a-date", expiresAt: LATER },
+    ];
+    for (const row of cases) {
+      db.prepare(
+        `INSERT INTO session (id, token, userId, createdAt, updatedAt, expiresAt) VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(row.id, row.id, "principal-1", row.createdAt, row.updatedAt, row.expiresAt);
+      recordSessionAssurance({
+        db,
+        sessionId: buildApplicationSessionHandle("conformance-app", row.id),
+        principalId: "principal-1",
+        assurance: "password",
+      });
+    }
+    const handle = buildApplicationSessionHandle("conformance-app", "absent-expiry");
+    const port = identityPort({ auth: auth(async () => null) });
+
+    await expect(
+      port.listSessions({
+        actor: {
+          principalId: "principal-1",
+          sessionId: handle,
+          assurance: "password",
+          fresh: true,
+          mfaSatisfied: false,
+        },
+      }),
+    ).resolves.toEqual([{ id: handle, createdAt: now, expiresAt: null, current: true }]);
+    expect(db.prepare(`SELECT id FROM session`).all()).toEqual([{ id: "absent-expiry" }]);
+    expect(db.prepare(`SELECT sessionId FROM account_session_assurance`).all()).toEqual([{ sessionId: handle }]);
+  });
+
   it("records a first cutover even when no sessions or ceremonies remain", async () => {
     const port = identityPort({
       auth: auth(async () => null),

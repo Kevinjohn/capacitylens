@@ -25,14 +25,14 @@ export function parseRequiredUrl(value: unknown, field: string): URL {
   return url;
 }
 
-export function parseOptionalPictureUrl(value: unknown): string | undefined {
-  if (typeof value !== "string" || value.length > 2048) return undefined;
+export function parseOptionalPictureUrl(value: unknown): string | null {
+  if (typeof value !== "string" || value.length > 2048) return null;
   try {
     const url = new URL(value);
-    if (url.protocol !== "https:" || url.username || url.password) return undefined;
+    if (url.protocol !== "https:" || url.username || url.password) return null;
     return url.toString();
   } catch {
-    return undefined;
+    return null;
   }
 }
 

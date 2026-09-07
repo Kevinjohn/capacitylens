@@ -15,7 +15,7 @@ const record = (overrides: Partial<MasqueradeRecord> = {}): MasqueradeRecord => 
 describe("MasqueradeRegistry", () => {
   it("enqueues the start event before publishing the record", () => {
     const registry = new MasqueradeRegistry({ now: () => Date.parse("2026-09-01T11:00:00.000Z") });
-    const beforeStart = vi.fn(() => expect(registry.peek("session-1")).toBeNull());
+    const beforeStart = vi.fn(() => expect(registry.peek("session-1")).toBeUndefined());
 
     registry.start(record(), beforeStart);
 
@@ -30,7 +30,7 @@ describe("MasqueradeRegistry", () => {
         throw new Error("audit unavailable");
       }),
     ).toThrow("audit unavailable");
-    expect(registry.peek("session-1")).toBeNull();
+    expect(registry.peek("session-1")).toBeUndefined();
   });
 
   it("keeps a failed end in the guarded ending phase and retries it", () => {
@@ -46,7 +46,7 @@ describe("MasqueradeRegistry", () => {
     const retryAudit = vi.fn();
     expect(registry.end("session-1", "token-1", retryAudit)).toBe(true);
     expect(retryAudit).toHaveBeenCalledOnce();
-    expect(registry.peek("session-1")).toBeNull();
+    expect(registry.peek("session-1")).toBeUndefined();
   });
 
   it("treats a stale token as an idempotent no-op", () => {
@@ -66,7 +66,7 @@ describe("MasqueradeRegistry", () => {
 
     registry.end("session-1", "token-1", () => undefined);
 
-    expect(registry.peek("session-1")).toBeNull();
+    expect(registry.peek("session-1")).toBeUndefined();
     expect(registry.peek("session-2")?.token).toBe("token-2");
   });
 
@@ -90,7 +90,7 @@ describe("MasqueradeRegistry", () => {
     expect(registry.peek("session-1")?.phase).toBe("ending");
 
     registry.commitEnd(["session-1"]);
-    expect(registry.peek("session-1")).toBeNull();
+    expect(registry.peek("session-1")).toBeUndefined();
   });
 
   it("audits and removes expired records before returning a lookup", () => {
@@ -101,7 +101,7 @@ describe("MasqueradeRegistry", () => {
     });
     registry.start(record({ expiresAt: "2026-09-01T22:00:00.000Z" }), () => undefined);
 
-    expect(registry.lookup("session-1")).toBeNull();
+    expect(registry.lookup("session-1")).toBeUndefined();
     expect(expired).toHaveBeenCalledWith(expect.objectContaining({ sessionHandle: "session-1" }));
   });
 
@@ -116,8 +116,8 @@ describe("MasqueradeRegistry", () => {
     );
     now = Date.parse("2026-09-02T00:00:00.000Z");
 
-    expect(registry.lookup("session-1")).not.toBeNull();
-    expect(registry.peek("session-2")).toBeNull();
+    expect(registry.lookup("session-1")).not.toBeUndefined();
+    expect(registry.peek("session-2")).toBeUndefined();
     expect(expired).toHaveBeenCalledOnce();
     expect(expired).toHaveBeenCalledWith(expect.objectContaining({ sessionHandle: "session-2" }));
   });
@@ -138,9 +138,9 @@ describe("MasqueradeRegistry", () => {
       () => undefined,
     );
 
-    expect(registry.peek("session-1")).toBeNull();
-    expect(registry.peek("session-2")).toBeNull();
-    expect(registry.peek("session-3")).not.toBeNull();
+    expect(registry.peek("session-1")).toBeUndefined();
+    expect(registry.peek("session-2")).toBeUndefined();
+    expect(registry.peek("session-3")).not.toBeUndefined();
     expect(expired).toHaveBeenCalledTimes(2);
   });
 });
