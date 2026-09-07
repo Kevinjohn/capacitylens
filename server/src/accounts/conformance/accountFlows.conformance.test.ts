@@ -374,6 +374,79 @@ describe("AccountFlows conformance", () => {
     };
   }
 
+  function inFlightSignupFixture(failCompensation: boolean) {
+    const { promise: entered, resolve: identityEntered } = deferred();
+    const { promise: release, resolve: releaseIdentity } = deferred();
+    const claimFailure = contractError("NOT_FOUND");
+    const compensationFailure = contractError("DEPENDENCY_UNAVAILABLE");
+    const compensate = vi.fn(async () => {
+      if (failCompensation) throw compensationFailure;
+    });
+    const create = vi.fn<LocalIdentityPort["createCorrelatedProvisionalCredentialPrincipal"]>(
+      async ({ correlatePrincipalInTransaction }) => {
+        identityEntered();
+        await release;
+        correlatePrincipalInTransaction("principal-1");
+        return {
+          principalId: "principal-1",
+          compensationHandle: "opaque-handle",
+        };
+      },
+    );
+    const { flows } = harness({
+      identity: identityPort({
+        createCorrelatedProvisionalCredentialPrincipal: create,
+        compensateProvisionalPrincipal: compensate,
+      }),
+      administration: administrationPort({
+        workspacePrincipalIds: vi.fn(() => []),
+        claimInvitationForPrincipal: vi.fn(async () => {
+          throw claimFailure;
+        }),
+      }),
+    });
+    return { entered, releaseIdentity, claimFailure, compensate, flows };
+  }
+
+  async function expectInFlightSignupOutcome(
+    fixture: ReturnType<typeof inFlightSignupFixture>,
+    signupFailure: unknown,
+    failCompensation: boolean,
+  ): Promise<void> {
+    expect(fixture.compensate).toHaveBeenCalledOnce();
+    if (failCompensation) {
+      expect(signupFailure).toMatchObject({
+        failure: { code: "COMPENSATION_FAILED" },
+      });
+      expect(signupFailure).toBeInstanceOf(AccountContractError);
+      if (!(signupFailure instanceof AccountContractError)) {
+        throw new Error("Expected failed compensation to surface an account contract error");
+      }
+      expect(signupFailure.cause).toBeInstanceOf(AggregateError);
+      await expect(
+        fixture.flows.reconcileCommand({
+          command,
+          operation: "invite-password-signup",
+        }),
+      ).resolves.toMatchObject({
+        status: "reconciliation-required",
+        repair: {
+          kind: "provisional-principal-compensation-failed",
+          targetPrincipalId: "principal-1",
+          provisionalPrincipalId: "principal-1",
+        },
+      });
+      return;
+    }
+    expect(signupFailure).toBe(fixture.claimFailure);
+    await expect(
+      fixture.flows.reconcileCommand({
+        command,
+        operation: "invite-password-signup",
+      }),
+    ).resolves.toMatchObject({ status: "compensated" });
+  }
+
   it("validates admission before identity creation or durable command reservation", async () => {
     const create = vi.fn<IdentityPort["createProvisionalCredentialPrincipal"]>();
     const identity = identityPort({
@@ -600,37 +673,8 @@ describe("AccountFlows conformance", () => {
     ["compensates after the claim fails", false],
     ["retains exact repair state when compensation also fails", true],
   ] as const)("keeps an in-flight signup command durable across erasure and %s", async (_case, failCompensation) => {
-    const { promise: entered, resolve: identityEntered } = deferred();
-    const { promise: release, resolve: releaseIdentity } = deferred();
-    const claimFailure = contractError("NOT_FOUND");
-    const compensationFailure = contractError("DEPENDENCY_UNAVAILABLE");
-    const compensate = vi.fn(async () => {
-      if (failCompensation) throw compensationFailure;
-    });
-    const create = vi.fn<LocalIdentityPort["createCorrelatedProvisionalCredentialPrincipal"]>(
-      async ({ correlatePrincipalInTransaction }) => {
-        identityEntered();
-        await release;
-        correlatePrincipalInTransaction("principal-1");
-        return {
-          principalId: "principal-1",
-          compensationHandle: "opaque-handle",
-        };
-      },
-    );
-    const { flows } = harness({
-      identity: identityPort({
-        createCorrelatedProvisionalCredentialPrincipal: create,
-        compensateProvisionalPrincipal: compensate,
-      }),
-      administration: administrationPort({
-        workspacePrincipalIds: vi.fn(() => []),
-        claimInvitationForPrincipal: vi.fn(async () => {
-          throw claimFailure;
-        }),
-      }),
-    });
-    const signup = flows.acceptInviteWithPasswordSignup({
+    const fixture = inFlightSignupFixture(failCompensation);
+    const signup = fixture.flows.acceptInviteWithPasswordSignup({
       token: "invite-erased-during-signup",
       email: "person@example.com",
       displayName: "Person",
@@ -638,7 +682,7 @@ describe("AccountFlows conformance", () => {
       command,
     });
 
-    await entered;
+    await fixture.entered;
     expect(
       currentDb()
         .prepare(
@@ -652,7 +696,7 @@ describe("AccountFlows conformance", () => {
     ).toEqual({ status: "pending", workspaceId: "workspace-1" });
 
     await expect(
-      flows.eraseWorkspace({
+      fixture.flows.eraseWorkspace({
         actor,
         workspaceId: "workspace-1",
         command: {
@@ -671,7 +715,7 @@ describe("AccountFlows conformance", () => {
       )
       .get(command.commandId);
 
-    releaseIdentity();
+    fixture.releaseIdentity();
     const signupFailure = await signup.then(
       () => null,
       (error: unknown) => error,
@@ -681,38 +725,7 @@ describe("AccountFlows conformance", () => {
       status: "pending",
       workspaceId: "workspace-1",
     });
-    expect(compensate).toHaveBeenCalledOnce();
-    if (failCompensation) {
-      expect(signupFailure).toMatchObject({
-        failure: { code: "COMPENSATION_FAILED" },
-      });
-      expect(signupFailure).toBeInstanceOf(AccountContractError);
-      if (!(signupFailure instanceof AccountContractError)) {
-        throw new Error("Expected failed compensation to surface an account contract error");
-      }
-      expect(signupFailure.cause).toBeInstanceOf(AggregateError);
-      await expect(
-        flows.reconcileCommand({
-          command,
-          operation: "invite-password-signup",
-        }),
-      ).resolves.toMatchObject({
-        status: "reconciliation-required",
-        repair: {
-          kind: "provisional-principal-compensation-failed",
-          targetPrincipalId: "principal-1",
-          provisionalPrincipalId: "principal-1",
-        },
-      });
-    } else {
-      expect(signupFailure).toBe(claimFailure);
-      await expect(
-        flows.reconcileCommand({
-          command,
-          operation: "invite-password-signup",
-        }),
-      ).resolves.toMatchObject({ status: "compensated" });
-    }
+    await expectInFlightSignupOutcome(fixture, signupFailure, failCompensation);
   });
 
   it("deprovisions an erased workspace principal set through one bulk identity call", async () => {
