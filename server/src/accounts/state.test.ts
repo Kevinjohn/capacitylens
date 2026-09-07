@@ -44,13 +44,22 @@ describe("account boundary durable state", () => {
     });
 
     expect(
-      terminatePendingCommand(db, scope, command, "reconciliation_required", "DEPENDENCY_UNAVAILABLE", { z: 1, a: 2 }),
+      terminatePendingCommand({
+        db,
+        scope,
+        command,
+        status: "reconciliation_required",
+        failureCode: "DEPENDENCY_UNAVAILABLE",
+        result: { z: 1, a: 2 },
+      }),
     ).toBe(true);
-    expect(getAccountCommand(db, "app", "operation", "key")).toMatchObject({
+    expect(
+      getAccountCommand({ db, applicationId: "app", operation: "operation", idempotencyKey: "key" }),
+    ).toMatchObject({
       status: "reconciliation_required",
       resultJson: '{"a":2,"z":1}',
     });
-    expect(terminatePendingCommand(db, scope, command, "compensated", "CONFLICT")).toBe(false);
+    expect(terminatePendingCommand({ db, scope, command, status: "compensated", failureCode: "CONFLICT" })).toBe(false);
   });
 
   it("turns stale pending commands into explicit reconciliation work", () => {
@@ -109,7 +118,7 @@ describe("account boundary durable state", () => {
       actorPrincipalId: "actor",
       payloadHash: hash,
     });
-    recordSessionAssurance(db, "first-session", "actor", "password");
+    recordSessionAssurance({ db, sessionId: "first-session", principalId: "actor", assurance: "password" });
 
     const jumpedNow = Date.now() + 45 * 24 * 60 * 60 * 1000;
     const wallClock = vi.spyOn(Date, "now").mockReturnValue(jumpedNow);
@@ -122,10 +131,19 @@ describe("account boundary durable state", () => {
         actorPrincipalId: "actor",
         payloadHash: hash,
       });
-      recordSessionAssurance(db, "second-session", "actor", "password");
+      recordSessionAssurance({ db, sessionId: "second-session", principalId: "actor", assurance: "password" });
 
-      expect(getAccountCommand(db, "app", "completed-operation", "completed-key")).not.toBeNull();
-      expect(getAccountCommandByIdForReconciliation(db, "app", "pending-command")).toMatchObject({
+      expect(
+        getAccountCommand({
+          db,
+          applicationId: "app",
+          operation: "completed-operation",
+          idempotencyKey: "completed-key",
+        }),
+      ).not.toBeNull();
+      expect(
+        getAccountCommandByIdForReconciliation({ db, applicationId: "app", commandId: "pending-command" }),
+      ).toMatchObject({
         status: "pending",
       });
       expect(getSessionAuthentication(db, "first-session")).toEqual({ assurance: "password", providerId: null });
@@ -147,7 +165,12 @@ describe("account boundary durable state", () => {
     });
 
     expect(
-      getAccountCommandByIdForReconciliation(db, "app", "command", Date.parse("2026-01-01T00:16:00.000Z")),
+      getAccountCommandByIdForReconciliation({
+        db,
+        applicationId: "app",
+        commandId: "command",
+        now: Date.parse("2026-01-01T00:16:00.000Z"),
+      }),
     ).toMatchObject({
       status: "reconciliation_required",
       failureCode: "DEPENDENCY_UNAVAILABLE",
@@ -163,10 +186,10 @@ describe("account boundary durable state", () => {
       actorPrincipalId: "actor",
     };
     const command = { commandId: "command", idempotencyKey: "key" };
-    expect(beginCommand(db, scope, command, { value: 1 })).toMatchObject({
+    expect(beginCommand({ db, scope, command, canonicalPayload: { value: 1 } })).toMatchObject({
       kind: "execute",
     });
-    expect(() => beginCommand(db!, scope, command, { value: 1 })).toThrow(
+    expect(() => beginCommand({ db: db!, scope, command, canonicalPayload: { value: 1 } })).toThrow(
       expect.objectContaining({
         failure: expect.objectContaining({
           code: "COMMAND_IN_PROGRESS",
@@ -190,16 +213,16 @@ describe("account boundary durable state", () => {
     });
 
     expect(() =>
-      beginCommand(
-        db!,
-        {
+      beginCommand({
+        db: db!,
+        scope: {
           applicationId: "app",
           operation: "operation",
           actorPrincipalId: "second-actor",
         },
         command,
-        payload,
-      ),
+        canonicalPayload: payload,
+      }),
     ).toThrow(
       expect.objectContaining({
         failure: expect.objectContaining({
@@ -208,7 +231,9 @@ describe("account boundary durable state", () => {
         }),
       }),
     );
-    expect(getAccountCommand(db, "app", "operation", "key")).toMatchObject({
+    expect(
+      getAccountCommand({ db, applicationId: "app", operation: "operation", idempotencyKey: "key" }),
+    ).toMatchObject({
       actorPrincipalId: "first-actor",
       status: "pending",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -221,16 +246,16 @@ describe("account boundary durable state", () => {
       resultJson: JSON.stringify({ commandId: "command" }),
     });
     expect(() =>
-      resumeExistingCommand(
-        db!,
-        {
+      resumeExistingCommand({
+        db: db!,
+        scope: {
           applicationId: "app",
           operation: "operation",
           actorPrincipalId: "second-actor",
         },
         command,
-        payload,
-      ),
+        canonicalPayload: payload,
+      }),
     ).toThrow(
       expect.objectContaining({
         failure: expect.objectContaining({
@@ -309,9 +334,20 @@ describe("account boundary durable state", () => {
       now: "2026-02-02T00:00:00.000Z",
     });
 
-    expect(getAccountCommand(db, "app", "old-terminal", "old-terminal")).toBeNull();
-    expect(getAccountCommand(db, "app", "old-pending", "old-pending")).not.toBeNull();
-    expect(getAccountCommand(db, "app", "old-reconciliation", "old-reconciliation")).toMatchObject({
+    expect(
+      getAccountCommand({ db, applicationId: "app", operation: "old-terminal", idempotencyKey: "old-terminal" }),
+    ).toBeNull();
+    expect(
+      getAccountCommand({ db, applicationId: "app", operation: "old-pending", idempotencyKey: "old-pending" }),
+    ).not.toBeNull();
+    expect(
+      getAccountCommand({
+        db,
+        applicationId: "app",
+        operation: "old-reconciliation",
+        idempotencyKey: "old-reconciliation",
+      }),
+    ).toMatchObject({
       status: "reconciliation_required",
     });
   });
@@ -338,16 +374,16 @@ describe("account boundary durable state", () => {
       }),
     ).toMatchObject({ kind: "conflict", record: { operation: "first" } });
     expect(() =>
-      beginCommand(
-        db!,
-        {
+      beginCommand({
+        db: db!,
+        scope: {
           applicationId: "app",
           operation: "second",
           actorPrincipalId: "actor",
         },
-        { commandId: "same-command", idempotencyKey: "second-key" },
-        {},
-      ),
+        command: { commandId: "same-command", idempotencyKey: "second-key" },
+        canonicalPayload: {},
+      }),
     ).toThrow(
       expect.objectContaining({
         failure: expect.objectContaining({ code: "IDEMPOTENCY_CONFLICT" }),
@@ -404,7 +440,7 @@ describe("account boundary durable state", () => {
       workspaceId: "workspace-1",
       targetPrincipalId: "principal-1",
     });
-    expect(getAccountCommand(db, "app", "signup", "key")).toMatchObject({
+    expect(getAccountCommand({ db, applicationId: "app", operation: "signup", idempotencyKey: "key" })).toMatchObject({
       workspaceId: "workspace-1",
       targetPrincipalId: "principal-1",
     });
@@ -451,10 +487,33 @@ describe("account boundary durable state", () => {
       failureCode: "DEPENDENCY_UNAVAILABLE",
     });
 
-    expect(() => closeAccountCommandReconciliation(db!, "app", "command", "operator-note")).toThrow(/sha-256/i);
-    expect(closeAccountCommandReconciliation(db, "app", "command", "b".repeat(64))).toBe(true);
-    expect(closeAccountCommandReconciliation(db, "app", "command", "b".repeat(64))).toBe(false);
-    expect(getAccountCommand(db, "app", "operation", "key")).toMatchObject({
+    expect(() =>
+      closeAccountCommandReconciliation({
+        db: db!,
+        applicationId: "app",
+        commandId: "command",
+        referenceHash: "operator-note",
+      }),
+    ).toThrow(/sha-256/i);
+    expect(
+      closeAccountCommandReconciliation({
+        db,
+        applicationId: "app",
+        commandId: "command",
+        referenceHash: "b".repeat(64),
+      }),
+    ).toBe(true);
+    expect(
+      closeAccountCommandReconciliation({
+        db,
+        applicationId: "app",
+        commandId: "command",
+        referenceHash: "b".repeat(64),
+      }),
+    ).toBe(false);
+    expect(
+      getAccountCommand({ db, applicationId: "app", operation: "operation", idempotencyKey: "key" }),
+    ).toMatchObject({
       status: "compensated",
       resultJson: expect.stringContaining("referenceHash"),
     });
@@ -495,17 +554,27 @@ describe("account boundary durable state", () => {
     });
 
     eraseWorkspaceCommandHistoryInTx(db, "workspace-1", "erase-command");
-    expect(getAccountCommand(db, "app", "closed", "closed-command")).toBeNull();
-    expect(getAccountCommand(db, "app", "pending", "pending-command")).toMatchObject({
+    expect(
+      getAccountCommand({ db, applicationId: "app", operation: "closed", idempotencyKey: "closed-command" }),
+    ).toBeNull();
+    expect(
+      getAccountCommand({ db, applicationId: "app", operation: "pending", idempotencyKey: "pending-command" }),
+    ).toMatchObject({
       status: "pending",
       workspaceId: "workspace-1",
     });
-    expect(getAccountCommand(db, "app", "repair", "repair-command")).toMatchObject({
+    expect(
+      getAccountCommand({ db, applicationId: "app", operation: "repair", idempotencyKey: "repair-command" }),
+    ).toMatchObject({
       status: "reconciliation_required",
       workspaceId: "workspace-1",
     });
-    expect(getAccountCommand(db, "app", "erase", "erase-command")).toMatchObject({ workspaceId: null });
-    expect(getAccountCommand(db, "app", "other", "other-command")).not.toBeNull();
+    expect(
+      getAccountCommand({ db, applicationId: "app", operation: "erase", idempotencyKey: "erase-command" }),
+    ).toMatchObject({ workspaceId: null });
+    expect(
+      getAccountCommand({ db, applicationId: "app", operation: "other", idempotencyKey: "other-command" }),
+    ).not.toBeNull();
   });
 
   it("preserves active workspace commands during an enclosing legacy transaction", () => {
@@ -534,12 +603,28 @@ describe("account boundary durable state", () => {
     });
 
     eraseWorkspaceCommandHistoryInTx(db, "workspace-1");
-    expect(getAccountCommand(db, "app", "closed-workspace-command", "closed-workspace-command")).toBeNull();
-    expect(getAccountCommand(db, "app", "pending-workspace-command", "pending-workspace-command")).toMatchObject({
+    expect(
+      getAccountCommand({
+        db,
+        applicationId: "app",
+        operation: "closed-workspace-command",
+        idempotencyKey: "closed-workspace-command",
+      }),
+    ).toBeNull();
+    expect(
+      getAccountCommand({
+        db,
+        applicationId: "app",
+        operation: "pending-workspace-command",
+        idempotencyKey: "pending-workspace-command",
+      }),
+    ).toMatchObject({
       status: "pending",
       workspaceId: "workspace-1",
     });
-    expect(getAccountCommand(db, "app", "other-command", "other-command")).not.toBeNull();
+    expect(
+      getAccountCommand({ db, applicationId: "app", operation: "other-command", idempotencyKey: "other-command" }),
+    ).not.toBeNull();
   });
 
   it("erases principal correlation while retaining an anonymized erasure command for replay", () => {
@@ -561,18 +646,38 @@ describe("account boundary durable state", () => {
     }
 
     erasePrincipalCommandHistoryInTx(db, "principal-1", "erase-command");
-    expect(getAccountCommand(db, "app", "reset", "reset-command")).toBeNull();
-    expect(getAccountCommand(db, "app", "erase", "erase-command")).toMatchObject({
+    expect(
+      getAccountCommand({ db, applicationId: "app", operation: "reset", idempotencyKey: "reset-command" }),
+    ).toBeNull();
+    expect(
+      getAccountCommand({ db, applicationId: "app", operation: "erase", idempotencyKey: "erase-command" }),
+    ).toMatchObject({
       actorPrincipalId: null,
       targetPrincipalId: null,
     });
-    expect(getAccountCommand(db, "app", "unrelated", "unrelated-command")).not.toBeNull();
+    expect(
+      getAccountCommand({ db, applicationId: "app", operation: "unrelated", idempotencyKey: "unrelated-command" }),
+    ).not.toBeNull();
   });
 
   it("bounds assurance metadata to the absolute session lifetime", () => {
     db = openDb(":memory:");
-    recordSessionAssurance(db, "expired", "principal-1", "password", null, "2026-01-01T00:00:00.000Z");
-    recordSessionAssurance(db, "current", "principal-1", "federated", "sso", "2026-01-01T13:00:00.000Z");
+    recordSessionAssurance({
+      db,
+      sessionId: "expired",
+      principalId: "principal-1",
+      assurance: "password",
+      providerId: null,
+      now: "2026-01-01T00:00:00.000Z",
+    });
+    recordSessionAssurance({
+      db,
+      sessionId: "current",
+      principalId: "principal-1",
+      assurance: "federated",
+      providerId: "sso",
+      now: "2026-01-01T13:00:00.000Z",
+    });
 
     expect(getSessionAuthentication(db, "expired")).toBeNull();
     expect(getSessionAuthentication(db, "current")).toEqual({
@@ -583,19 +688,34 @@ describe("account boundary durable state", () => {
 
   it("rejects impossible assurance/provider combinations", () => {
     db = openDb(":memory:");
-    expect(() => recordSessionAssurance(db!, "federated-without-provider", "principal-1", "federated")).toThrow(
-      /provider id/i,
-    );
-    expect(() => recordSessionAssurance(db!, "password-with-provider", "principal-1", "password", "sso")).toThrow(
-      /provider id/i,
-    );
+    expect(() =>
+      recordSessionAssurance({
+        db: db!,
+        sessionId: "federated-without-provider",
+        principalId: "principal-1",
+        assurance: "federated",
+      }),
+    ).toThrow(/provider id/i);
+    expect(() =>
+      recordSessionAssurance({
+        db: db!,
+        sessionId: "password-with-provider",
+        principalId: "principal-1",
+        assurance: "password",
+        providerId: "sso",
+      }),
+    ).toThrow(/provider id/i);
   });
 
   it("makes issuer/provider bindings immutable in both directions", () => {
     db = openDb(":memory:");
-    bindFederatedProvider(db, "app", "https://issuer.example", "sso");
-    expect(() => bindFederatedProvider(db!, "app", "https://issuer.example", "renamed")).toThrow(/immutable/i);
-    expect(() => bindFederatedProvider(db!, "app", "https://different.example", "sso")).toThrow(/already bound/i);
+    bindFederatedProvider({ db, applicationId: "app", issuer: "https://issuer.example", providerId: "sso" });
+    expect(() =>
+      bindFederatedProvider({ db: db!, applicationId: "app", issuer: "https://issuer.example", providerId: "renamed" }),
+    ).toThrow(/immutable/i);
+    expect(() =>
+      bindFederatedProvider({ db: db!, applicationId: "app", issuer: "https://different.example", providerId: "sso" }),
+    ).toThrow(/already bound/i);
   });
 
   it("refuses extra columns and misleadingly named indexes in boundary schema", () => {

@@ -215,7 +215,7 @@ export function createSessions(
           });
           input.masqueradeSessions?.commit([handle]);
         }
-        return createOperationReceipt(command.commandId, row !== undefined);
+        return createOperationReceipt({ commandId: command.commandId, changed: row !== undefined });
       } catch (error) {
         throw createProviderFailure("Session revocation is temporarily unavailable.", error);
       }
@@ -224,11 +224,17 @@ export function createSessions(
       try {
         const masqueradeHandles = tx(
           db,
-          () => revokePrincipalSessionsInTx(db, applicationId, targetPrincipalId, input.masqueradeSessions),
+          () =>
+            revokePrincipalSessionsInTx({
+              db,
+              applicationId,
+              principalId: targetPrincipalId,
+              lifecycle: input.masqueradeSessions,
+            }),
           "immediate",
         );
         input.masqueradeSessions?.commit(masqueradeHandles);
-        return createOperationReceipt(command.commandId);
+        return createOperationReceipt({ commandId: command.commandId });
       } catch (error) {
         throw createProviderFailure("Session revocation is temporarily unavailable.", error);
       }

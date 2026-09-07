@@ -152,8 +152,8 @@ export function registerApiRoutes(
       flows: accountFlows,
       memberSignInTracking: {
         snapshot: (workspaceId) => readMemberSignInTrackingSnapshot(db, workspaceId),
-        set: (workspaceId, actorPrincipalId, enabled) =>
-          setMemberSignInTracking(db, workspaceId, actorPrincipalId, enabled),
+        set: ({ workspaceId, actorPrincipalId, enabled }) =>
+          setMemberSignInTracking({ db, accountId: workspaceId, actorPrincipalId, enabled }),
       },
       authorize: authorizeAllowed,
       command: createAccountCommand,

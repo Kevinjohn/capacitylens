@@ -39,7 +39,7 @@ export function createInviteSignupFlows(
           normalizedEmail: normalizeAccountEmail(email),
           displayName,
         };
-        const replay = resumeExistingCommand<InviteSignupResult>(db, scope, command, canonicalPayload);
+        const replay = resumeExistingCommand<InviteSignupResult>({ db, scope, command, canonicalPayload });
         if (replay) return markAccountCommandReplay(replay.result);
 
         // The invitation is the only authority on this unauthenticated route. Validate it before
@@ -50,7 +50,7 @@ export function createInviteSignupFlows(
           token,
           normalizedEmail: email,
         });
-        const begun = beginCommand<InviteSignupResult>(db, scope, command, canonicalPayload);
+        const begun = beginCommand<InviteSignupResult>({ db, scope, command, canonicalPayload });
         if (begun.kind === "replay") return markAccountCommandReplay(begun.result);
 
         let provisional: Awaited<ReturnType<IdentityPort["createProvisionalCredentialPrincipal"]>> | null = null;
@@ -108,7 +108,7 @@ export function createInviteSignupFlows(
             // Keep the principal/workspace keys through parent completion. Otherwise workspace
             // erasure could delete both command rows after the child claim commits but before this
             // durable parent outcome is recorded, leaving the browser with nothing to reconcile.
-            completeCommand(db, scope, command, result);
+            completeCommand({ db, scope, command, result });
             return result;
           });
         } catch (claimError) {
@@ -116,12 +116,19 @@ export function createInviteSignupFlows(
             recordTerminalOutcome(claimError, () =>
               persistTerminalOutcome(
                 () =>
-                  terminatePendingCommand(db, scope, command, "reconciliation_required", "DEPENDENCY_UNAVAILABLE", {
-                    kind: "invitation-claim-committed",
-                    workspaceId: claimState.membership?.workspaceId ?? null,
-                    targetPrincipalId: provisional?.principalId ?? null,
-                    provisionalPrincipalId: provisional?.principalId ?? null,
-                    ceremonyId: null,
+                  terminatePendingCommand({
+                    db,
+                    scope,
+                    command,
+                    status: "reconciliation_required",
+                    failureCode: "DEPENDENCY_UNAVAILABLE",
+                    result: {
+                      kind: "invitation-claim-committed",
+                      workspaceId: claimState.membership?.workspaceId ?? null,
+                      targetPrincipalId: provisional?.principalId ?? null,
+                      provisionalPrincipalId: provisional?.principalId ?? null,
+                      ceremonyId: null,
+                    },
                   }),
                 {
                   action: "flow.reconciliation_required",
@@ -147,13 +154,13 @@ export function createInviteSignupFlows(
             recordTerminalOutcome(claimError, () =>
               persistTerminalOutcome(
                 () =>
-                  terminateCommand(
+                  terminateCommand({
                     db,
                     scope,
                     command,
-                    "compensated",
-                    claimError instanceof AccountContractError ? claimError.failure.code : "CONFLICT",
-                  ),
+                    status: "compensated",
+                    failureCode: claimError instanceof AccountContractError ? claimError.failure.code : "CONFLICT",
+                  }),
                 { action: "flow.compensated", outcome: "compensated", command },
               ),
             );
@@ -174,13 +181,13 @@ export function createInviteSignupFlows(
             recordTerminalOutcome(claimError, () =>
               persistTerminalOutcome(
                 () =>
-                  terminateCommand(
+                  terminateCommand({
                     db,
                     scope,
                     command,
-                    "compensated",
-                    claimError instanceof AccountContractError ? claimError.failure.code : "CONFLICT",
-                  ),
+                    status: "compensated",
+                    failureCode: claimError instanceof AccountContractError ? claimError.failure.code : "CONFLICT",
+                  }),
                 {
                   action: "flow.compensated",
                   outcome: "compensated",
@@ -196,12 +203,19 @@ export function createInviteSignupFlows(
           recordTerminalOutcome(combinedFailure, () =>
             persistTerminalOutcome(
               () =>
-                terminateCommand(db, scope, command, "reconciliation_required", "COMPENSATION_FAILED", {
-                  kind: "provisional-principal-compensation-failed",
-                  workspaceId: null,
-                  targetPrincipalId: provisionalPrincipalId,
-                  provisionalPrincipalId,
-                  ceremonyId: null,
+                terminateCommand({
+                  db,
+                  scope,
+                  command,
+                  status: "reconciliation_required",
+                  failureCode: "COMPENSATION_FAILED",
+                  result: {
+                    kind: "provisional-principal-compensation-failed",
+                    workspaceId: null,
+                    targetPrincipalId: provisionalPrincipalId,
+                    provisionalPrincipalId,
+                    ceremonyId: null,
+                  },
                 }),
               {
                 action: "flow.reconciliation_required",

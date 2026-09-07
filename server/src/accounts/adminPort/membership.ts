@@ -63,8 +63,8 @@ export function createMembership(
       return row ? readMembership(db, row) : null;
     },
     async listMemberships({ actor, workspaceId, includeInactive = false }) {
-      assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
-      assertAccountAuthority(db, actor, workspaceId, "list-members", trustedLocal);
+      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+      assertAccountAuthority({ db, actor, workspaceId, action: "list-members", trustedLocal });
       // Default active-only. `includeInactive` is a LISTING widening for the administrative
       // directory, never an authorization one — this read is already gated on 'list-members', and
       // the returned rows carry their real status so a caller cannot mistake a disabled membership
@@ -96,8 +96,8 @@ export function createMembership(
         lockKeys: [actor.principalId, targetPrincipalId, `workspace:${workspaceId}`],
         audit: { action: "member.role_changed", changedFields: ["role"] },
         execute: () => {
-          assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId);
-          const acting = assertAccountAuthority(db, actor, workspaceId, "manage-members", trustedLocal);
+          assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
+          const acting = assertAccountAuthority({ db, actor, workspaceId, action: "manage-members", trustedLocal });
           const target = getActiveMemberRole(db, workspaceId, targetPrincipalId);
           if (!target) throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
           if (!canManageMemberRole(acting, target, nextRole))
@@ -127,8 +127,8 @@ export function createMembership(
         lockKeys: [actor.principalId, targetPrincipalId, `workspace:${workspaceId}`],
         audit: { action: "member.status_changed", changedFields: ["status"] },
         execute: () => {
-          assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId);
-          const acting = assertAccountAuthority(db, actor, workspaceId, "manage-members", trustedLocal);
+          assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
+          const acting = assertAccountAuthority({ db, actor, workspaceId, action: "manage-members", trustedLocal });
           // Status-AGNOSTIC lookup, unlike changeMemberRole's getActiveMemberRole: restoring a
           // disabled or archived membership is the whole point, and an active-only read would make
           // every such target look like a non-member.
@@ -160,8 +160,8 @@ export function createMembership(
         lockKeys: [actor.principalId, targetPrincipalId, `workspace:${workspaceId}`],
         audit: { action: "member.removed", changedFields: ["membership"] },
         execute: () => {
-          assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId);
-          const acting = assertAccountAuthority(db, actor, workspaceId, "manage-members", trustedLocal);
+          assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
+          const acting = assertAccountAuthority({ db, actor, workspaceId, action: "manage-members", trustedLocal });
           // Status-AGNOSTIC, like changeMemberStatus and for the same reason: the members table
           // lists non-active rows so an administrator can act on them. An active-only read made
           // Remove 404 on exactly those rows, leaving no way to delete a disabled membership
@@ -171,7 +171,7 @@ export function createMembership(
           if (!canRemoveMember(acting, target.role))
             throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
           removeMemberRow(db, workspaceId, targetPrincipalId);
-          return createOperationReceipt(command.commandId);
+          return createOperationReceipt({ commandId: command.commandId });
         },
       });
     },
@@ -189,8 +189,8 @@ export function createMembership(
           changedFields: ["role", "owner"],
         },
         execute: () => {
-          assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId);
-          assertAccountAuthority(db, actor, workspaceId, "transfer-ownership", trustedLocal);
+          assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
+          assertAccountAuthority({ db, actor, workspaceId, action: "transfer-ownership", trustedLocal });
           if (actor.principalId === targetPrincipalId) {
             throw createAccountFailure(
               "VALIDATION_FAILED",

@@ -516,7 +516,7 @@ describe("step-up freshness gate — missing sessionCreatedAt fails closed", () 
       status: "active",
       createdAt: TS,
     });
-    recordSessionAssurance(db, "undated-session", "undated-owner", "password");
+    recordSessionAssurance({ db, sessionId: "undated-session", principalId: "undated-owner", assurance: "password" });
     const app = createApp(db, {
       authMode: "password",
       auth: timestamplessAuth("undated-owner"),
@@ -539,7 +539,7 @@ describe("step-up freshness gate — missing sessionCreatedAt fails closed", () 
       status: "active",
       createdAt: TS,
     });
-    recordSessionAssurance(db, "undated-session", "undated-owner", "password");
+    recordSessionAssurance({ db, sessionId: "undated-session", principalId: "undated-owner", assurance: "password" });
     const app = createApp(db, {
       authMode: "password",
       auth: timestamplessAuth("undated-owner"),

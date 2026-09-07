@@ -66,19 +66,27 @@ export function buildActorContextFromSession(
   };
 }
 
+interface WithMembershipSnapshotRetryInput<T> {
+  lock: KeyedOperationLock;
+  currentPrincipalIds: () => readonly string[];
+  lockKeysFor: (principalIds: readonly string[]) => readonly string[];
+  run: () => Promise<T>;
+  onAttemptsExhausted: () => never;
+}
+
 /** Shared scaffold for the membership-snapshot lock-retry algorithm duplicated by eraseWorkspace's
  * `eraseWithMembershipSnapshot` and withWorkspaceErasureLocks' `runWithSnapshot`: snapshot principal
  * ids, acquire locks over them, re-snapshot under lock in case a mutation slipped in while waiting,
  * and retry with the enlarged set — bounded by WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS. Callers keep
  * their own exhausted-retries error (one throws with commandId, one without — see call sites), so
  * that error is supplied as a factory rather than unified here. */
-export async function withMembershipSnapshotRetry<T>(
-  lock: KeyedOperationLock,
-  currentPrincipalIds: () => readonly string[],
-  lockKeysFor: (principalIds: readonly string[]) => readonly string[],
-  run: () => Promise<T>,
-  onAttemptsExhausted: () => never,
-): Promise<T> {
+export async function withMembershipSnapshotRetry<T>({
+  lock,
+  currentPrincipalIds,
+  lockKeysFor,
+  run,
+  onAttemptsExhausted,
+}: WithMembershipSnapshotRetryInput<T>): Promise<T> {
   const attempt = async (principalIds: readonly string[], attemptNumber: number): Promise<T> => {
     const locked = new Set(principalIds);
     const result = await lock.withKeys(
