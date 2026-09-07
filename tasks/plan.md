@@ -682,7 +682,7 @@ cleanup behavior without changing production scheduling.
       dead declaration, `buildOperationReceipt`, remains pending removal with its stale JSDoc consumer
       in a separate reviewed branch; #647 is not complete until that branch lands.
 - [x] #646 all categories reconciled without duplicate findings. The exhaustive AST-backed site
-      manifest and terminal ledger are pinned to `f83d9643`; RU001–RU220 and AS001–AS771 are
+      manifest and terminal ledger are pinned to `05fef1cf`; RU001–RU220 and AS001–AS771 are
       explicitly deferred to complete C6 owner blocks rather than asserted sound, BO204/BO205 are
       fixed, BO203/BO211 have explicit #647 owners, BO207–BO210 and BO212–BO227 have complete
       stable-ID blocks, and BO228 is accepted with a quoted-rule analysis.

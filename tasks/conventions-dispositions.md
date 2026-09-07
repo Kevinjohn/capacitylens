@@ -1,6 +1,6 @@
 # Issue #646 disposition ledger
 
-Evidence tree: `f83d9643ef1d2770c03cb8ecaed0b7afd929177c` (7 September 2026).
+Evidence tree: `05fef1cfb8d560a234c9aeab3ede09600517daa3` (7 September 2026).
 Issue #646 reported grep candidates, not confirmed defects. The exhaustive occurrence ledger is
 [`tasks/conventions-disposition-sites.md`](conventions-disposition-sites.md); its stable
 `file:line:column/symbol` keys, classifications, and reasons are the source of these totals.
