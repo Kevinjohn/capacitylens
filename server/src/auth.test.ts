@@ -731,7 +731,7 @@ describe("external identity creation gate", () => {
 
   it("disables implicit email-based account linking", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), PASSWORD_ENV);
-    expect(auth!.options.account?.accountLinking?.disableImplicitLinking).toBe(true);
+    expect(assertPresent(auth, "password auth").options.account?.accountLinking?.disableImplicitLinking).toBe(true);
   });
 
   it("binds every configured external provider to a stable issuer namespace", () => {
@@ -741,7 +741,7 @@ describe("external identity creation gate", () => {
       CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
       CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
     });
-    expect(auth!.federatedIssuers.get("google")).toBe("https://accounts.google.com");
+    expect(assertPresent(auth, "password auth").federatedIssuers.get("google")).toBe("https://accounts.google.com");
     expect(
       db.prepare(`SELECT issuer FROM account_federated_provider_bindings WHERE providerId = 'google'`).get(),
     ).toEqual({ issuer: "https://accounts.google.com" });
@@ -761,11 +761,14 @@ describe("external identity creation gate", () => {
         externalIdentityAdmission: async () => false,
       },
     );
-    const before = auth!.options.databaseHooks?.user?.create?.before;
+    const before = assertPresent(
+      assertPresent(auth, "password auth").options.databaseHooks?.user?.create?.before,
+      "external-identity admission hook",
+    );
     expect(before).toBeTypeOf("function");
 
     await expect(
-      before!({ email: "stranger@example.com", emailVerified: true } as never, { path: "/callback/google" } as never),
+      before({ email: "stranger@example.com", emailVerified: true } as never, { path: "/callback/google" } as never),
     ).rejects.toThrow(/not invited/);
   });
 
@@ -785,11 +788,14 @@ describe("external identity creation gate", () => {
       },
       { externalIdentityAdmission: async () => true },
     );
-    const before = auth!.options.databaseHooks?.user?.create?.before;
+    const before = assertPresent(
+      assertPresent(auth, "SSO auth").options.databaseHooks?.user?.create?.before,
+      "external-identity admission hook",
+    );
     expect(before).toBeTypeOf("function");
 
     await expect(
-      before!({ email: "new-social@example.com", emailVerified: true } as never, { path: "/callback/google" } as never),
+      before({ email: "new-social@example.com", emailVerified: true } as never, { path: "/callback/google" } as never),
     ).rejects.toMatchObject({ body: expect.objectContaining({ code: "STRICT_PROVIDER_REQUIRED" }) });
   });
 
@@ -803,7 +809,8 @@ describe("external identity creation gate", () => {
       CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
     });
-    await runAuthMigrations(auth!);
+    const ssoAuth = assertPresent(auth, "SSO auth");
+    await runAuthMigrations(ssoAuth);
     expect(
       (db.prepare("PRAGMA table_info(user)").all() as Array<{ name: string }>).some(
         ({ name }) => name === "twoFactorEnabled",
@@ -820,10 +827,10 @@ describe("external identity creation gate", () => {
       "2026-08-10T00:00:00.000Z",
     );
 
-    const after = auth!.options.databaseHooks?.session?.create?.after;
+    const after = assertPresent(ssoAuth.options.databaseHooks?.session?.create?.after, "session assurance hook");
     expect(after).toBeTypeOf("function");
     await expect(
-      after!(
+      after(
         { token: "strict-session-token", userId: "strict-principal" } as never,
         { path: "/oauth2/callback/:providerId", params: { providerId: "sso" } } as never,
       ),
@@ -885,8 +892,9 @@ describe("external identity creation gate", () => {
   it("allows a verified email with a live unused pre-authorised invite after bootstrap", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(auth!);
-    await auth!.createCredentialUser({
+    const passwordAuth = assertPresent(auth, "password auth");
+    await runAuthMigrations(passwordAuth);
+    await passwordAuth.createCredentialUser({
       email: "existing-owner@example.com",
       name: "Existing Owner",
       password: "Unrelated-phrase-4827!",
@@ -962,8 +970,9 @@ describe("external identity creation gate", () => {
   it("rejects expired and consumed invitations after bootstrap", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(auth!);
-    await auth!.createCredentialUser({
+    const passwordAuth = assertPresent(auth, "password auth");
+    await runAuthMigrations(passwordAuth);
+    await passwordAuth.createCredentialUser({
       email: "existing-owner@example.com",
       name: "Existing Owner",
       password: "Unrelated-phrase-4827!",
