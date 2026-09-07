@@ -1,7 +1,7 @@
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { Action } from "@capacitylens/shared/domain/access";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { LocalAccountFlows } from "../accounts/localAccountFlows";
+import type { LocalAccountFlows } from "../accounts/createLocalAccountFlows";
 import type { AuthMode } from "../auth";
 import { type Db } from "../db";
 import { hasGatedFields, type SanitizeWriteOptions } from "../fieldPolicy";

@@ -11,7 +11,7 @@ import type {
 } from "@capacitylens/shared/account/types";
 import { openDb, type Db } from "../../db";
 import type { LocalIdentityPort } from "../betterAuthIdentityPort";
-import { localAccountFlows } from "../localAccountFlows";
+import { createLocalAccountFlows } from "../createLocalAccountFlows";
 import { KeyedOperationLock } from "../KeyedOperationLock";
 import type { LocalAccountAdminPort } from "../sqliteAccountAdminPort";
 import { finishAccountCommand, reserveAccountCommand } from "../state";
@@ -266,7 +266,7 @@ describe("AccountFlows conformance", () => {
       lock,
       audit,
       events,
-      flows: localAccountFlows({
+      flows: createLocalAccountFlows({
         applicationId: "conformance-application",
         db,
         identity,
@@ -716,6 +716,73 @@ describe("AccountFlows conformance", () => {
     expect(
       db!.prepare(`SELECT status FROM account_commands WHERE commandId = ?`).get(erasureCommand.commandId),
     ).toBeUndefined();
+  });
+
+  it.each([
+    {
+      method: "issuePasswordReset",
+      operation: "password-reset",
+      reason: "target-not-member",
+      action: "identity.password_reset_issued",
+      code: "NOT_FOUND",
+      message: "The target is not a member of this installation.",
+    },
+    {
+      method: "issuePasswordReset",
+      operation: "password-reset",
+      reason: "insufficient-authority",
+      action: "identity.password_reset_issued",
+      code: "FORBIDDEN",
+      message: "This member belongs to another account where you lack password-reset authority.",
+    },
+    {
+      method: "revokeMemberSessions",
+      operation: "session-revocation",
+      reason: "target-not-member",
+      action: "identity.sessions_revoked",
+      code: "NOT_FOUND",
+      message: "The target is not a member of this installation.",
+    },
+    {
+      method: "revokeMemberSessions",
+      operation: "session-revocation",
+      reason: "insufficient-authority",
+      action: "identity.sessions_revoked",
+      code: "FORBIDDEN",
+      message: "You lack session-revocation authority for this identity.",
+    },
+  ] as const)("records $method denial for $reason without identity changes", async (testCase) => {
+    const { flows, identity, events } = harness({
+      administration: administrationPort({
+        evaluateIdentityAdminAuthority: vi.fn<LocalAccountAdminPort["evaluateIdentityAdminAuthority"]>(async () => ({
+          allowed: false,
+          reason: testCase.reason,
+        })),
+      }),
+    });
+
+    await expect(flows[testCase.method]({ actor, targetPrincipalId: "principal-1", command })).rejects.toMatchObject({
+      failure: { code: testCase.code, message: testCase.message, retryable: false, commandId: command.commandId },
+    });
+    expect(events).toEqual([
+      expect.objectContaining({
+        action: testCase.action,
+        outcome: "denied",
+        applicationId: "conformance-application",
+        actorPrincipalId: actor.principalId,
+        targetPrincipalId: "principal-1",
+        commandId: command.commandId,
+      }),
+    ]);
+    expect(
+      db!.prepare(`SELECT status, failureCode FROM account_commands WHERE commandId = ?`).get(command.commandId),
+    ).toEqual({ status: "compensated", failureCode: testCase.code });
+    expect(identity.issuePasswordReset).not.toHaveBeenCalled();
+    expect(identity.revokePrincipalSessions).not.toHaveBeenCalled();
+    await expect(flows.reconcileCommand({ command, operation: testCase.operation })).resolves.toMatchObject({
+      status: "compensated",
+      receipt: { commandId: command.commandId },
+    });
   });
 
   it("burns a reset ceremony when authority changes after minting", async () => {

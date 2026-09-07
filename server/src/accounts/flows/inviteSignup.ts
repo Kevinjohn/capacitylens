@@ -12,13 +12,14 @@ import {
   terminateCommand,
   terminatePendingCommand,
 } from "../commands";
-import type { LocalAccountFlows } from "../localAccountFlows";
+import type { LocalAccountFlows } from "../createLocalAccountFlows";
 import type { LocalAccountFlowContext } from "./context";
 
 export function createInviteSignupFlows(
   context: LocalAccountFlowContext,
 ): Pick<LocalAccountFlows, "acceptInviteWithPasswordSignup"> {
-  const { applicationId, db, identity, administration, lock, persistTerminalOutcome, commandExecutionKey } = context;
+  const { applicationId, db, identity, administration, lock, persistTerminalOutcome, buildCommandExecutionKey } =
+    context;
   return {
     async acceptInviteWithPasswordSignup({
       token,
@@ -27,7 +28,7 @@ export function createInviteSignupFlows(
       password,
       command,
     }): Promise<InviteSignupResult> {
-      return lock.withKeys([commandExecutionKey(command)], async () => {
+      return lock.withKeys([buildCommandExecutionKey(command)], async () => {
         const operation = "invite-password-signup";
         const scope = { applicationId, operation, actorPrincipalId: null };
         const canonicalPayload = {

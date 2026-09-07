@@ -1,5 +1,5 @@
 import type { MemberDirectoryEntry } from "@capacitylens/shared/account/ports";
-import type { LocalAccountFlows } from "../localAccountFlows";
+import type { LocalAccountFlows } from "../createLocalAccountFlows";
 import { resolveDirectorySortName } from "./actorContext";
 import type { LocalAccountFlowContext } from "./context";
 

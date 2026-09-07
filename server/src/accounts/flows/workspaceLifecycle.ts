@@ -12,7 +12,7 @@ import {
   resumeExistingCommand,
   terminateCommand,
 } from "../commands";
-import type { LocalAccountFlows } from "../localAccountFlows";
+import type { LocalAccountFlows } from "../createLocalAccountFlows";
 import { assertWorkspaceProvisioningAllowedInTx, withMembershipSnapshotRetry } from "./actorContext";
 import type { LocalAccountFlowContext } from "./context";
 import { isAuthorityDenial } from "./failures";
@@ -37,7 +37,7 @@ export function createWorkspaceLifecycleFlows(
     eraseProductWorkspaceInTx,
     audit,
     persistTerminalOutcome,
-    commandExecutionKey,
+    buildCommandExecutionKey,
   } = context;
   return {
     async replayWorkspaceProvisioning<T>({
@@ -51,7 +51,7 @@ export function createWorkspaceLifecycleFlows(
       command: CommandIdentity;
       canonicalProductPayload: unknown;
     }) {
-      return lock.withKeys([commandExecutionKey(command), actor.principalId], () => {
+      return lock.withKeys([buildCommandExecutionKey(command), actor.principalId], () => {
         const operation = `workspace-provisioning:actor:${actor.principalId}`;
         if (!readCommand(db, applicationId, operation, command)) return null;
         const begun = beginCommand<{
@@ -86,7 +86,7 @@ export function createWorkspaceLifecycleFlows(
     },
 
     async replayWorkspaceErasure({ actor, workspaceId, command }) {
-      return lock.withKeys([commandExecutionKey(command), actor.principalId], () => {
+      return lock.withKeys([buildCommandExecutionKey(command), actor.principalId], () => {
         const operation = "workspace-erasure";
         const existing = readCommand(db, applicationId, operation, command);
         // Only a committed success may bypass live workspace authorization. New, pending and
@@ -125,7 +125,7 @@ export function createWorkspaceLifecycleFlows(
     }) {
       return lock.withKeys(
         [
-          commandExecutionKey(command),
+          buildCommandExecutionKey(command),
           actor.principalId,
           `application:${applicationId}:workspace-provisioning`,
           `workspace:${workspaceId}`,
@@ -219,7 +219,7 @@ export function createWorkspaceLifecycleFlows(
         lock,
         () => administration.workspacePrincipalIds(workspaceId),
         (principalIds) => [
-          commandExecutionKey(command),
+          buildCommandExecutionKey(command),
           actor.principalId,
           `workspace:${workspaceId}`,
           ...principalIds,
