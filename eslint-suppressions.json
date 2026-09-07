@@ -771,10 +771,10 @@
       "count": 17
     },
     "@typescript-eslint/no-unsafe-assignment": {
-      "count": 98
+      "count": 96
     },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 196
+      "count": 185
     },
     "max-lines-per-function": {
       "count": 15
