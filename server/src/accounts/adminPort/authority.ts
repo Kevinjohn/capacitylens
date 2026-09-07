@@ -26,13 +26,21 @@ export function assertActorRole(db: Db, actor: ActorContext, workspaceId: string
   return role;
 }
 
-export function assertAccountAuthority(
-  db: Db,
-  actor: ActorContext,
-  workspaceId: string,
-  action: Parameters<typeof canAdministerAccount>[1],
+interface AssertAccountAuthorityInput {
+  db: Db;
+  actor: ActorContext;
+  workspaceId: string;
+  action: Parameters<typeof canAdministerAccount>[1];
+  trustedLocal?: boolean | undefined;
+}
+
+export function assertAccountAuthority({
+  db,
+  actor,
+  workspaceId,
+  action,
   trustedLocal = false,
-): Role {
+}: AssertAccountAuthorityInput): Role {
   assertWorkspaceExists(db, workspaceId);
   if (trustedLocal) return "owner";
   const role = assertActorRole(db, actor, workspaceId);
@@ -40,12 +48,19 @@ export function assertAccountAuthority(
   return role;
 }
 
-export function assertAdministrativeAssurance(
-  actor: ActorContext,
-  requireMfa: boolean,
-  trustedLocal: boolean,
-  commandId?: string,
-): void {
+interface AssertAdministrativeAssuranceInput {
+  actor: ActorContext;
+  requireMfa: boolean;
+  trustedLocal: boolean;
+  commandId?: string | undefined;
+}
+
+export function assertAdministrativeAssurance({
+  actor,
+  requireMfa,
+  trustedLocal,
+  commandId,
+}: AssertAdministrativeAssuranceInput): void {
   if (trustedLocal) return;
   if (!actor.fresh) {
     throw createAccountFailure(
@@ -63,19 +78,28 @@ export function assertAdministrativeAssurance(
   }
 }
 
+interface AssertInvitationAuthorityInput {
+  db: Db;
+  actor: ActorContext;
+  requireMfa: boolean;
+  trustedLocal: boolean;
+  workspaceId: string;
+  commandId: string;
+}
+
 /** createInvitation's replay guard and its execute path both open with this same authority check.
  *  assertAccountAuthority already asserts the workspace exists as its own first statement, so
  *  neither closure needs a trailing assertWorkspaceExists of its own. */
-export function assertInvitationAuthority(
-  db: Db,
-  actor: ActorContext,
-  requireMfa: boolean,
-  trustedLocal: boolean,
-  workspaceId: string,
-  commandId: string,
-): void {
-  assertAdministrativeAssurance(actor, requireMfa, trustedLocal, commandId);
-  assertAccountAuthority(db, actor, workspaceId, "manage-invitations", trustedLocal);
+export function assertInvitationAuthority({
+  db,
+  actor,
+  requireMfa,
+  trustedLocal,
+  workspaceId,
+  commandId,
+}: AssertInvitationAuthorityInput): void {
+  assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId });
+  assertAccountAuthority({ db, actor, workspaceId, action: "manage-invitations", trustedLocal });
 }
 
 export function readExistingWorkspaceIds(db: Db): ReadonlySet<string> {
@@ -124,15 +148,25 @@ export function readTargetRolesByWorkspaceId(
   );
 }
 
-export function buildAuthorityDecisionsByAction(
-  db: Db,
-  actorPrincipalId: string,
-  targetPrincipalId: string,
-  actions: readonly IdentityAdminAction[],
-  actorRoles: ReadonlyMap<string, Role>,
-  targetRoles: ReadonlyMap<string, Role>,
-  actorRevision: number,
-): ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision> {
+interface BuildAuthorityDecisionsByActionInput {
+  db: Db;
+  actorPrincipalId: string;
+  targetPrincipalId: string;
+  actions: readonly IdentityAdminAction[];
+  actorRoles: ReadonlyMap<string, Role>;
+  targetRoles: ReadonlyMap<string, Role>;
+  actorRevision: number;
+}
+
+export function buildAuthorityDecisionsByAction({
+  db,
+  actorPrincipalId,
+  targetPrincipalId,
+  actions,
+  actorRoles,
+  targetRoles,
+  actorRevision,
+}: BuildAuthorityDecisionsByActionInput): ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision> {
   const decisions = new Map<IdentityAdminAction, IdentityAdminAuthorityDecision>();
   if (targetRoles.size === 0) {
     for (const action of actions) decisions.set(action, { allowed: false, reason: "target-not-member" });
@@ -160,12 +194,22 @@ export function buildAuthorityDecisionsByAction(
   return decisions;
 }
 
-export function evaluateAuthoritiesForTargets(
-  db: Db,
-  actorPrincipalId: string,
-  targetPrincipalIds: readonly string[],
-  actions: readonly IdentityAdminAction[],
-): ReadonlyMap<string, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>> {
+interface EvaluateAuthoritiesForTargetsInput {
+  db: Db;
+  actorPrincipalId: string;
+  targetPrincipalIds: readonly string[];
+  actions: readonly IdentityAdminAction[];
+}
+
+export function evaluateAuthoritiesForTargets({
+  db,
+  actorPrincipalId,
+  targetPrincipalIds,
+  actions,
+}: EvaluateAuthoritiesForTargetsInput): ReadonlyMap<
+  string,
+  ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>
+> {
   if (targetPrincipalIds.length === 0) return new Map();
   const workspaceIds = readExistingWorkspaceIds(db);
   const actorRoles = readActorRolesByWorkspaceId(db, actorPrincipalId, workspaceIds);
@@ -175,7 +219,7 @@ export function evaluateAuthoritiesForTargets(
     const targetRoles = readTargetRolesByWorkspaceId(db, targetPrincipalId, workspaceIds);
     results.set(
       targetPrincipalId,
-      buildAuthorityDecisionsByAction(
+      buildAuthorityDecisionsByAction({
         db,
         actorPrincipalId,
         targetPrincipalId,
@@ -183,28 +227,47 @@ export function evaluateAuthoritiesForTargets(
         actorRoles,
         targetRoles,
         actorRevision,
-      ),
+      }),
     );
   }
   return results;
 }
 
-export function evaluateAuthorities(
-  db: Db,
-  actor: ActorContext,
-  targetPrincipalId: string,
-  actions: readonly IdentityAdminAction[],
-): ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision> {
-  return evaluateAuthoritiesForTargets(db, actor.principalId, [targetPrincipalId], actions).get(targetPrincipalId)!;
+interface EvaluateAuthoritiesInput {
+  db: Db;
+  actor: ActorContext;
+  targetPrincipalId: string;
+  actions: readonly IdentityAdminAction[];
 }
 
-export function evaluateAuthority(
-  db: Db,
-  actor: ActorContext,
-  targetPrincipalId: string,
-  action: IdentityAdminAction,
-): IdentityAdminAuthorityDecision {
-  return evaluateAuthorities(db, actor, targetPrincipalId, [action]).get(action)!;
+export function evaluateAuthorities({
+  db,
+  actor,
+  targetPrincipalId,
+  actions,
+}: EvaluateAuthoritiesInput): ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision> {
+  return evaluateAuthoritiesForTargets({
+    db,
+    actorPrincipalId: actor.principalId,
+    targetPrincipalIds: [targetPrincipalId],
+    actions,
+  }).get(targetPrincipalId)!;
+}
+
+interface EvaluateAuthorityInput {
+  db: Db;
+  actor: ActorContext;
+  targetPrincipalId: string;
+  action: IdentityAdminAction;
+}
+
+export function evaluateAuthority({
+  db,
+  actor,
+  targetPrincipalId,
+  action,
+}: EvaluateAuthorityInput): IdentityAdminAuthorityDecision {
+  return evaluateAuthorities({ db, actor, targetPrincipalId, actions: [action] }).get(action)!;
 }
 export function createAuthority(
   context: Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa">,
@@ -225,36 +288,36 @@ export function createAuthority(
       targetPrincipalId,
       action,
     }): Promise<IdentityAdminAuthorityDecision> {
-      assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
-      return evaluateAuthority(db, actor, targetPrincipalId, action);
+      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+      return evaluateAuthority({ db, actor, targetPrincipalId, action });
     },
     async evaluateIdentityAdminAuthorities({
       actor,
       targetPrincipalId,
       actions,
     }): Promise<ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>> {
-      assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
-      return evaluateAuthorities(db, actor, targetPrincipalId, actions);
+      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+      return evaluateAuthorities({ db, actor, targetPrincipalId, actions });
     },
     async evaluateIdentityAdminAuthoritiesForTargets({
       actor,
       targetPrincipalIds,
       actions,
     }): Promise<ReadonlyMap<string, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>>> {
-      assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
-      return evaluateAuthoritiesForTargets(db, actor.principalId, targetPrincipalIds, actions);
+      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+      return evaluateAuthoritiesForTargets({ db, actorPrincipalId: actor.principalId, targetPrincipalIds, actions });
     },
     projectIdentityAdminAuthoritiesForTargets({ principalId, targetPrincipalIds, actions }) {
-      return evaluateAuthoritiesForTargets(db, principalId, targetPrincipalIds, actions);
+      return evaluateAuthoritiesForTargets({ db, actorPrincipalId: principalId, targetPrincipalIds, actions });
     },
     async confirmIdentityAdminAuthority({ actor, targetPrincipalId, action, expectedRevision }) {
-      assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
-      const current = evaluateAuthority(db, actor, targetPrincipalId, action);
+      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+      const current = evaluateAuthority({ db, actor, targetPrincipalId, action });
       return current.allowed && current.revision === expectedRevision;
     },
     assertIdentityRepairAuthorityInTx({ actor, workspaceId, targetPrincipalId, action, expectedRevision }) {
-      assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
-      assertAccountAuthority(db, actor, workspaceId, "manage-members", trustedLocal);
+      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+      assertAccountAuthority({ db, actor, workspaceId, action: "manage-members", trustedLocal });
       // Status-agnostic: this asks "is there a membership here to repair?", not "may this login act?".
       // An active-only probe would 404 the compromised-account case that identity repair exists for —
       // an admin disables the account FIRST and then kills its sessions / rotates its password, and
@@ -263,7 +326,7 @@ export function createAuthority(
       if (!getMembershipRow(db, workspaceId, targetPrincipalId)) {
         throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.");
       }
-      const current = evaluateAuthority(db, actor, targetPrincipalId, action);
+      const current = evaluateAuthority({ db, actor, targetPrincipalId, action });
       if (!current.allowed) {
         throw createAccountFailure(
           current.reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN",

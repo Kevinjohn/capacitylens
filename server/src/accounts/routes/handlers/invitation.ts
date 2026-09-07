@@ -52,7 +52,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
     );
   }
   // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
-  if (!authorize(req, reply, body.accountId, "manageInvites")) return;
+  if (!authorize({ req, reply, accountId: body.accountId, action: "manageInvites" })) return;
   const requestedExpiry = body.expiresAt;
   let expiresAt: string | null;
   if (requestedExpiry === undefined) {
@@ -250,7 +250,7 @@ export async function listInvitations(req: FastifyRequest, reply: FastifyReply, 
   const { authMode, administration: accountAdminPort, authorize, fail: accountFail } = context;
 
   const { accountId } = req.params as { accountId: string };
-  if (!authorize(req, reply, accountId, "manageInvites")) return;
+  if (!authorize({ req, reply, accountId, action: "manageInvites" })) return;
   if (authMode === "off") return { invites: [] };
   try {
     const invites = await accountAdminPort.listInvitations({
@@ -283,7 +283,7 @@ export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply,
   } = context;
 
   const { accountId, id } = req.params as { accountId: string; id: string };
-  if (!authorize(req, reply, accountId, "manageInvites")) return;
+  if (!authorize({ req, reply, accountId, action: "manageInvites" })) return;
   try {
     const revoked = await accountAdminPort.revokeInvitation({
       actor: req.accountActor!,

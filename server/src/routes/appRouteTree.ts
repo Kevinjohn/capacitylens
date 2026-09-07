@@ -1,3 +1,4 @@
+import type { LifecycleRedactionInput } from "./lifecycleRoutes";
 import type { FastifyInstance } from "fastify";
 import { type SsoCutoverIdentityPort } from "../accounts/betterAuthIdentityPort";
 import { registerSsoCutoverRoutes } from "../accounts/ssoCutoverRoutes";
@@ -29,16 +30,27 @@ import type { installSessionResolution } from "./appSessionResolution";
 import type { createAuthorization } from "./appAuthorization";
 import type { AppOptions } from "../app";
 
-export function registerApiRoutes(
-  app: FastifyInstance,
-  db: Db,
-  runtime: ReturnType<typeof createAppRuntime>,
-  config: ReturnType<typeof resolveAppConfig>,
-  options: AppOptions,
-  rootHelpers: ReturnType<typeof installRootHooks>,
-  sessionResolution: ReturnType<typeof installSessionResolution>,
-  authorization: ReturnType<typeof createAuthorization>,
-): void {
+interface RegisterApiRoutesInput {
+  app: FastifyInstance;
+  db: Db;
+  runtime: ReturnType<typeof createAppRuntime>;
+  config: ReturnType<typeof resolveAppConfig>;
+  options: AppOptions;
+  rootHelpers: ReturnType<typeof installRootHooks>;
+  sessionResolution: ReturnType<typeof installSessionResolution>;
+  authorization: ReturnType<typeof createAuthorization>;
+}
+
+export function registerApiRoutes({
+  app,
+  db,
+  runtime,
+  config,
+  options,
+  rootHelpers,
+  sessionResolution,
+  authorization,
+}: RegisterApiRoutesInput): void {
   const {
     accountAdminPort,
     accountAudit,
@@ -152,8 +164,8 @@ export function registerApiRoutes(
       flows: accountFlows,
       memberSignInTracking: {
         snapshot: (workspaceId) => readMemberSignInTrackingSnapshot(db, workspaceId),
-        set: (workspaceId, actorPrincipalId, enabled) =>
-          setMemberSignInTracking(db, workspaceId, actorPrincipalId, enabled),
+        set: ({ workspaceId, actorPrincipalId, enabled }) =>
+          setMemberSignInTracking({ db, accountId: workspaceId, actorPrincipalId, enabled }),
       },
       authorize: authorizeAllowed,
       command: createAccountCommand,
@@ -181,7 +193,8 @@ export function registerApiRoutes(
         commitProductAudit(reply, record, mutation);
       },
       fail: sendFail,
-      redact: (req, entity, row, accountId) => redactWriteEcho(entity, row, fieldVisibilityFor(req, entity, accountId)),
+      redact: ({ req, entity, row, accountId }: LifecycleRedactionInput) =>
+        redactWriteEcho(entity, row, fieldVisibilityFor(req, entity, accountId)),
     });
 
     // The `accounts` row write surface. These are STATIC paths, which find-my-way matches ahead of

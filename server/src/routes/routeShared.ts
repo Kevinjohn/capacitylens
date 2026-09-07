@@ -8,6 +8,22 @@ import { clearAllocationAttributionForActivities, type Db, type RewrittenAllocat
 import type { BatchStateProjection } from "../BatchStateProjection";
 import { TABLES } from "../tables";
 
+export interface StaleWriteInput {
+  existing: Record<string, unknown> | undefined;
+  row: Record<string, unknown>;
+  requirePrecondition?: boolean | undefined;
+}
+
+export type AuthorizeBasicInput = Omit<AuthorizeRouteInput, "options">;
+
+export interface AuthorizeRouteInput {
+  req: FastifyRequest;
+  reply: FastifyReply;
+  accountId: string;
+  action: Action;
+  options?: { concealNonMembership?: boolean } | undefined;
+}
+
 export const isKnownTable = (entity: string): entity is keyof typeof TABLES =>
   Object.prototype.hasOwnProperty.call(TABLES, entity);
 
@@ -52,13 +68,10 @@ export const ownsRow = (existing: { accountId?: unknown } | undefined, accountId
  * server revision; a caller-authored future value is not evidence of freshness. Partial PATCH may
  * omit the precondition for compatibility, but a supplied malformed or mismatched value conflicts.
  */
-export function isStaleWrite(
-  existing: Record<string, unknown> | undefined,
-  row: Record<string, unknown>,
-  requirePrecondition = true,
-): existing is Record<string, unknown> {
-  // (A type GUARD, not a plain boolean: both call sites feed `existing` to redactWriteEcho inside
-  // the 409 branch, which needs the `existing`-is-present narrowing the old inline check gave.)
+export function isStaleWrite(input: StaleWriteInput): input is StaleWriteInput & { existing: Record<string, unknown> } {
+  const { existing, row, requirePrecondition = true } = input;
+
+  // Conflict callers use the narrowed input.existing for successor checks and redacted echoes.
   if (existing === undefined) return false;
   // A corrupt STORED revision must remain repairable rather than write-bricked. Incoming full-row
   // writes, however, require a valid exact precondition; PATCH retains its documented omission-only
@@ -78,19 +91,22 @@ export const ALL_FIELDS_VISIBLE: SanitizeWriteOptions = Object.freeze({
 });
 
 export type AuthorizeRoute = (
-  req: FastifyRequest,
-  reply: FastifyReply,
-  accountId: string,
-  action: Action,
-  options?: { concealNonMembership?: boolean },
+  input: AuthorizeRouteInput,
 ) => { role: "owner" | "admin" | "editor" | "viewer" | null } | false;
 
-export function writeActivityRow(
-  db: Db,
-  projection: BatchStateProjection | undefined,
-  row: Record<string, unknown>,
-  existing: Record<string, unknown> | undefined,
-): RewrittenAllocationRevision[] {
+interface WriteActivityRowInput {
+  db: Db;
+  projection: BatchStateProjection | undefined;
+  row: Record<string, unknown>;
+  existing: Record<string, unknown> | undefined;
+}
+
+export function writeActivityRow({
+  db,
+  projection,
+  row,
+  existing,
+}: WriteActivityRowInput): RewrittenAllocationRevision[] {
   upsertRow(db, "activities", row);
   projection?.upsert("activities", row);
   const id = row.id as string;

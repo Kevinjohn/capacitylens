@@ -29,8 +29,13 @@ export function createSessionRevocationFlows(
           actorPrincipalId: actor.principalId,
           targetPrincipalId,
         };
-        const begun = beginCommand<Awaited<ReturnType<IdentityPort["revokePrincipalSessions"]>>>(db, scope, command, {
-          targetPrincipalId,
+        const begun = beginCommand<Awaited<ReturnType<IdentityPort["revokePrincipalSessions"]>>>({
+          db,
+          scope,
+          command,
+          canonicalPayload: {
+            targetPrincipalId,
+          },
         });
         if (begun.kind === "replay") return markAccountCommandReplay(begun.result);
         let revocationStarted = false;
@@ -61,7 +66,7 @@ export function createSessionRevocationFlows(
           persistTerminalOutcome(
             () => {
               clearTrackedMemberSignIn(db, targetPrincipalId);
-              return completeCommand(db, scope, command, result);
+              return completeCommand({ db, scope, command, result });
             },
             {
               action: "identity.sessions_revoked",
@@ -79,13 +84,13 @@ export function createSessionRevocationFlows(
             recordTerminalOutcome(error, () =>
               persistTerminalOutcome(
                 () =>
-                  terminatePendingCommand(
+                  terminatePendingCommand({
                     db,
                     scope,
                     command,
-                    revocationStarted ? "reconciliation_required" : "compensated",
-                    revocationStarted ? "DEPENDENCY_UNAVAILABLE" : code,
-                    revocationStarted
+                    status: revocationStarted ? "reconciliation_required" : "compensated",
+                    failureCode: revocationStarted ? "DEPENDENCY_UNAVAILABLE" : code,
+                    result: revocationStarted
                       ? {
                           kind: "session-revocation-outcome-unknown",
                           workspaceId: null,
@@ -94,7 +99,7 @@ export function createSessionRevocationFlows(
                           ceremonyId: null,
                         }
                       : undefined,
-                  ),
+                  }),
                 {
                   action: revocationStarted ? "flow.reconciliation_required" : "identity.sessions_revoked",
                   outcome: "failed",

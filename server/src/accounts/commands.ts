@@ -133,19 +133,31 @@ function replayOrRejectExistingCommand<T>(record: AccountCommandRecord): Replaye
   });
 }
 
+interface ResumeExistingCommandInput {
+  db: Db;
+  scope: CommandScope;
+  command: CommandIdentity;
+  canonicalPayload: unknown;
+}
+
 /**
  * Read an existing command outcome without pruning, reserving, or changing ledger state.
  *
  * Bearer-authorized flows use this before validating a now-single-use bearer so a completed retry
  * can still replay, while an attacker presenting a new invalid bearer cannot cause a database write.
  */
-export function resumeExistingCommand<T>(
-  db: Db,
-  scope: CommandScope,
-  command: CommandIdentity,
-  canonicalPayload: unknown,
-): ReplayedCommand<T> | null {
-  const existing = getAccountCommand(db, scope.applicationId, scope.operation, command.idempotencyKey);
+export function resumeExistingCommand<T>({
+  db,
+  scope,
+  command,
+  canonicalPayload,
+}: ResumeExistingCommandInput): ReplayedCommand<T> | null {
+  const existing = getAccountCommand({
+    db,
+    applicationId: scope.applicationId,
+    operation: scope.operation,
+    idempotencyKey: command.idempotencyKey,
+  });
   if (!existing) return null;
   if (
     existing.commandId !== command.commandId ||
@@ -157,12 +169,14 @@ export function resumeExistingCommand<T>(
   return replayOrRejectExistingCommand<T>(existing);
 }
 
-export function beginCommand<T>(
-  db: Db,
-  scope: CommandScope,
-  command: CommandIdentity,
-  canonicalPayload: unknown,
-): BeginCommandResult<T> {
+interface BeginCommandInput {
+  db: Db;
+  scope: CommandScope;
+  command: CommandIdentity;
+  canonicalPayload: unknown;
+}
+
+export function beginCommand<T>({ db, scope, command, canonicalPayload }: BeginCommandInput): BeginCommandResult<T> {
   const reserved = reserveAccountCommand(db, {
     applicationId: scope.applicationId,
     operation: scope.operation,
@@ -180,12 +194,14 @@ export function beginCommand<T>(
   return replayOrRejectExistingCommand<T>(reserved.record);
 }
 
-export function completeCommand(
-  db: Db,
-  scope: Pick<CommandScope, "applicationId" | "operation">,
-  command: CommandIdentity,
-  result: unknown,
-): void {
+interface CompleteCommandInput {
+  db: Db;
+  scope: Pick<CommandScope, "applicationId" | "operation">;
+  command: CommandIdentity;
+  result: unknown;
+}
+
+export function completeCommand({ db, scope, command, result }: CompleteCommandInput): void {
   finishAccountCommand(db, {
     applicationId: scope.applicationId,
     operation: scope.operation,
@@ -195,15 +211,17 @@ export function completeCommand(
   });
 }
 
+interface BuildFinishInputInput {
+  scope: Pick<CommandScope, "applicationId" | "operation">;
+  command: CommandIdentity;
+  status: "compensated" | "reconciliation_required";
+  failureCode: AccountErrorCode;
+  result: unknown;
+}
+
 /** Shared 6-key finish-input shape for {@link terminateCommand} and {@link terminatePendingCommand},
  * which differ only in which state.ts primitive they call and their return type. */
-function buildFinishInput(
-  scope: Pick<CommandScope, "applicationId" | "operation">,
-  command: CommandIdentity,
-  status: "compensated" | "reconciliation_required",
-  failureCode: AccountErrorCode,
-  result: unknown,
-) {
+function buildFinishInput({ scope, command, status, failureCode, result }: BuildFinishInputInput) {
   return {
     applicationId: scope.applicationId,
     operation: scope.operation,
@@ -214,37 +232,50 @@ function buildFinishInput(
   };
 }
 
-export function terminateCommand(
-  db: Db,
-  scope: Pick<CommandScope, "applicationId" | "operation">,
-  command: CommandIdentity,
-  status: "compensated" | "reconciliation_required",
-  failureCode: AccountErrorCode,
-  result?: unknown,
-): void {
-  finishAccountCommand(db, buildFinishInput(scope, command, status, failureCode, result));
+interface TerminateCommandInput {
+  db: Db;
+  scope: Pick<CommandScope, "applicationId" | "operation">;
+  command: CommandIdentity;
+  status: "compensated" | "reconciliation_required";
+  failureCode: AccountErrorCode;
+  result?: unknown | undefined;
 }
 
-export function terminatePendingCommand(
-  db: Db,
-  scope: Pick<CommandScope, "applicationId" | "operation">,
-  command: CommandIdentity,
-  status: "compensated" | "reconciliation_required",
-  failureCode: AccountErrorCode,
-  result?: unknown,
-): boolean {
-  return finishAccountCommandIfPending(db, buildFinishInput(scope, command, status, failureCode, result));
+export function terminateCommand({ db, scope, command, status, failureCode, result }: TerminateCommandInput): void {
+  finishAccountCommand(db, buildFinishInput({ scope, command, status, failureCode, result }));
+}
+
+interface TerminatePendingCommandInput {
+  db: Db;
+  scope: Pick<CommandScope, "applicationId" | "operation">;
+  command: CommandIdentity;
+  status: "compensated" | "reconciliation_required";
+  failureCode: AccountErrorCode;
+  result?: unknown | undefined;
+}
+
+export function terminatePendingCommand({
+  db,
+  scope,
+  command,
+  status,
+  failureCode,
+  result,
+}: TerminatePendingCommandInput): boolean {
+  return finishAccountCommandIfPending(db, buildFinishInput({ scope, command, status, failureCode, result }));
 }
 
 export function buildOperationReceipt(record: AccountCommandRecord): OperationReceipt {
   return { commandId: record.commandId, completedAt: record.updatedAt };
 }
 
-export function readCommand(
-  db: Db,
-  applicationId: string,
-  operation: string,
-  command: CommandIdentity,
-): AccountCommandRecord | null {
-  return getAccountCommand(db, applicationId, operation, command.idempotencyKey);
+interface ReadCommandInput {
+  db: Db;
+  applicationId: string;
+  operation: string;
+  command: CommandIdentity;
+}
+
+export function readCommand({ db, applicationId, operation, command }: ReadCommandInput): AccountCommandRecord | null {
+  return getAccountCommand({ db, applicationId, operation, idempotencyKey: command.idempotencyKey });
 }

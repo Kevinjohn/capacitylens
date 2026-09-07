@@ -16,31 +16,39 @@ export const MAX_QUEUED_HIBP = 32;
 export const MAX_CONCURRENT_SCRYPT = 2;
 export const MAX_QUEUED_SCRYPT = 16;
 const MAX_PASSWORD_QUEUE_WAIT_MS = 5_000;
-const hibpQueue = new BoundedWorkQueue(
-  MAX_CONCURRENT_HIBP,
-  MAX_QUEUED_HIBP,
-  "Breached-password checking is temporarily at capacity.",
-  {
+const hibpQueue = new BoundedWorkQueue({
+  maxActive: MAX_CONCURRENT_HIBP,
+  maxQueued: MAX_QUEUED_HIBP,
+  fullMessage: "Breached-password checking is temporarily at capacity.",
+  options: {
     maxWaitMs: MAX_PASSWORD_QUEUE_WAIT_MS,
     onSaturated: (reason) => reportCurrentRequestQueueSaturation("hibp", reason),
   },
-);
-const scryptQueue = new BoundedWorkQueue(
-  MAX_CONCURRENT_SCRYPT,
-  MAX_QUEUED_SCRYPT,
-  "Password processing is temporarily at capacity.",
-  {
+});
+const scryptQueue = new BoundedWorkQueue({
+  maxActive: MAX_CONCURRENT_SCRYPT,
+  maxQueued: MAX_QUEUED_SCRYPT,
+  fullMessage: "Password processing is temporarily at capacity.",
+  options: {
     maxWaitMs: MAX_PASSWORD_QUEUE_WAIT_MS,
     onSaturated: (reason) => reportCurrentRequestQueueSaturation("scrypt", reason),
   },
-);
+});
 
 export interface PasswordHasher {
   hash(password: string): Promise<string>;
   verify(input: { hash: string; password: string }): Promise<boolean>;
 }
 
-function derive(password: string, salt: Buffer, n: number, r: number, p: number): Promise<Buffer> {
+interface DeriveInput {
+  password: string;
+  salt: Buffer;
+  n: number;
+  r: number;
+  p: number;
+}
+
+function derive({ password, salt, n, r, p }: DeriveInput): Promise<Buffer> {
   const signal = readCurrentRequestAbortSignal();
   return scryptQueue.run(
     () =>
@@ -62,7 +70,7 @@ export function createScryptPasswordHasher(n = SCRYPT_N): PasswordHasher {
   return {
     async hash(password: string): Promise<string> {
       const salt = randomBytes(SALT_BYTES);
-      const key = await derive(password, salt, n, SCRYPT_R, SCRYPT_P);
+      const key = await derive({ password, salt, n, r: SCRYPT_R, p: SCRYPT_P });
       return `scrypt-v1$${n}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString("base64url")}$${key.toString("base64url")}`;
     },
     async verify({ hash, password }): Promise<boolean> {
@@ -91,7 +99,7 @@ export function createScryptPasswordHasher(n = SCRYPT_N): PasswordHasher {
           expected.length !== KEY_BYTES
         )
           return false;
-        const actual = await derive(password, salt, parsedN, r, p);
+        const actual = await derive({ password, salt, n: parsedN, r, p });
         return timingSafeEqual(actual, expected);
       }
 
@@ -102,7 +110,13 @@ export function createScryptPasswordHasher(n = SCRYPT_N): PasswordHasher {
       if (legacy.length !== 2 || !/^[0-9a-f]{32}$/i.test(legacy[0]) || !/^[0-9a-f]{128}$/i.test(legacy[1]))
         return false;
       const expected = Buffer.from(legacy[1], "hex");
-      const actual = await derive(password.normalize("NFKC"), Buffer.from(legacy[0], "utf8"), 2 ** 14, 16, 1);
+      const actual = await derive({
+        password: password.normalize("NFKC"),
+        salt: Buffer.from(legacy[0], "utf8"),
+        n: 2 ** 14,
+        r: 16,
+        p: 1,
+      });
       return timingSafeEqual(actual, expected);
     },
   };

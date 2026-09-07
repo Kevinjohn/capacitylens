@@ -1,24 +1,37 @@
+import type { WorkQueueOptions } from "./workQueue";
 import { describe, expect, it, vi } from "vitest";
 import { BoundedWorkQueue, WorkQueueFullError } from "./workQueue";
 
 describe("BoundedWorkQueue", () => {
+  interface WorkQueueBoundsInput {
+    active: number;
+    queued: number;
+    options: WorkQueueOptions;
+    message: RegExp;
+  }
+
   it.each([
-    [0, 0, {}, /maxActive/],
-    [1, -1, {}, /maxQueued/],
-    [1, 0, { maxWaitMs: 0 }, /maxWaitMs/],
-  ] as const)("rejects invalid constructor bounds", (active, queued, options, message) => {
-    expect(() => new BoundedWorkQueue(active, queued, "busy", options)).toThrow(message);
-  });
+    { active: 0, queued: 0, options: {}, message: /maxActive/ },
+    { active: 1, queued: -1, options: {}, message: /maxQueued/ },
+    { active: 1, queued: 0, options: { maxWaitMs: 0 }, message: /maxWaitMs/ },
+  ] satisfies WorkQueueBoundsInput[])(
+    "rejects invalid constructor bounds",
+    ({ active, queued, options, message }: WorkQueueBoundsInput) => {
+      expect(
+        () => new BoundedWorkQueue({ maxActive: active, maxQueued: queued, fullMessage: "busy", options }),
+      ).toThrow(message);
+    },
+  );
 
   it("supports a zero-depth queue and preserves FIFO order after queued failure", async () => {
-    const zeroDepth = new BoundedWorkQueue(1, 0, "busy");
+    const zeroDepth = new BoundedWorkQueue({ maxActive: 1, maxQueued: 0, fullMessage: "busy" });
     let release!: () => void;
     const active = zeroDepth.run(() => new Promise<void>((resolve) => (release = resolve)));
     await expect(zeroDepth.run(async () => undefined)).rejects.toMatchObject({ reason: "full" });
     release();
     await active;
 
-    const queue = new BoundedWorkQueue(1, 2, "busy");
+    const queue = new BoundedWorkQueue({ maxActive: 1, maxQueued: 2, fullMessage: "busy" });
     const order: string[] = [];
     let firstRelease!: () => void;
     const first = queue.run(() => new Promise<void>((resolve) => (firstRelease = resolve)));
@@ -34,7 +47,7 @@ describe("BoundedWorkQueue", () => {
     expect(order).toEqual(["failed", "last"]);
   });
   it("bounds active work, preserves the queue and refuses overflow", async () => {
-    const queue = new BoundedWorkQueue(2, 1, "busy");
+    const queue = new BoundedWorkQueue({ maxActive: 2, maxQueued: 1, fullMessage: "busy" });
     const releases: (() => void)[] = [];
     let active = 0;
     let peak = 0;
@@ -65,7 +78,7 @@ describe("BoundedWorkQueue", () => {
   });
 
   it("releases a slot after failed work", async () => {
-    const queue = new BoundedWorkQueue(1, 1, "busy");
+    const queue = new BoundedWorkQueue({ maxActive: 1, maxQueued: 1, fullMessage: "busy" });
     await expect(
       queue.run(async () => {
         throw new Error("failed");
@@ -75,7 +88,7 @@ describe("BoundedWorkQueue", () => {
   });
 
   it("withdraws aborted waiting work without running it or blocking a later caller", async () => {
-    const queue = new BoundedWorkQueue(1, 2, "busy");
+    const queue = new BoundedWorkQueue({ maxActive: 1, maxQueued: 2, fullMessage: "busy" });
     let release!: () => void;
     const active = queue.run(
       () =>
@@ -102,9 +115,14 @@ describe("BoundedWorkQueue", () => {
     vi.useFakeTimers();
     try {
       const onSaturated = vi.fn();
-      const queue = new BoundedWorkQueue(1, 1, "busy", {
-        maxWaitMs: 100,
-        onSaturated,
+      const queue = new BoundedWorkQueue({
+        maxActive: 1,
+        maxQueued: 1,
+        fullMessage: "busy",
+        options: {
+          maxWaitMs: 100,
+          onSaturated,
+        },
       });
       let release!: () => void;
       const active = queue.run(
@@ -139,7 +157,7 @@ describe("BoundedWorkQueue", () => {
     // finally) already shifted this item out of `waiting` and removed its abort listener before we
     // call abort() below, so the abort handler must not fire at all — no reject, no double-settle,
     // and the now-running work must complete normally.
-    const queue = new BoundedWorkQueue(1, 1, "busy");
+    const queue = new BoundedWorkQueue({ maxActive: 1, maxQueued: 1, fullMessage: "busy" });
     let releaseActive!: () => void;
     const active = queue.run(() => new Promise<string>((resolve) => (releaseActive = () => resolve("active"))));
     const controller = new AbortController();
@@ -163,7 +181,12 @@ describe("BoundedWorkQueue", () => {
     vi.useFakeTimers();
     try {
       const onSaturated = vi.fn();
-      const queue = new BoundedWorkQueue(1, 1, "busy", { maxWaitMs: 100, onSaturated });
+      const queue = new BoundedWorkQueue({
+        maxActive: 1,
+        maxQueued: 1,
+        fullMessage: "busy",
+        options: { maxWaitMs: 100, onSaturated },
+      });
       let releaseActive!: () => void;
       const active = queue.run(() => new Promise<string>((resolve) => (releaseActive = () => resolve("active"))));
       let releaseQueued!: () => void;
@@ -186,7 +209,7 @@ describe("BoundedWorkQueue", () => {
 
   it("reports immediate overflow without double-reporting cancellation", async () => {
     const onSaturated = vi.fn();
-    const queue = new BoundedWorkQueue(1, 1, "busy", { onSaturated });
+    const queue = new BoundedWorkQueue({ maxActive: 1, maxQueued: 1, fullMessage: "busy", options: { onSaturated } });
     let release!: () => void;
     const active = queue.run(
       () =>

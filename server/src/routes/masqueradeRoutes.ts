@@ -1,5 +1,6 @@
+import type { AuthorizeBasicInput } from "./routeShared";
 import { randomBytes, randomUUID } from "node:crypto";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { AccountMode, Role } from "@capacitylens/shared/account/types";
 import type { AccountAuditPort, IdentityPort } from "@capacitylens/shared/account/ports";
 import {
@@ -8,7 +9,6 @@ import {
   type MasqueradeEndReason,
   type MasqueradeState,
 } from "@capacitylens/shared/domain/masquerade";
-import type { Action } from "@capacitylens/shared/domain/access";
 import { cleanText } from "@capacitylens/shared/lib/strings";
 import {
   MasqueradeAlreadyActiveError,
@@ -24,18 +24,25 @@ export interface MasqueradeRouteDependencies {
   accountAudit: AccountAuditPort;
   registry: MasqueradeRegistry;
   identity: IdentityPort;
-  authorize(request: FastifyRequest, reply: FastifyReply, accountId: string, action: Action): boolean;
+  authorize(input: AuthorizeBasicInput): boolean;
   roleForPrincipal(principalId: string, accountId: string): Role | null;
   effectiveRole(request: FastifyRequest, accountId: string): { role: Role | null; ended: boolean };
 }
 
+interface EnqueueMasqueradeEndAuditInput {
+  accountAudit: AccountAuditPort;
+  applicationId: string;
+  record: Readonly<StoredMasqueradeRecord>;
+  reason: MasqueradeEndReason;
+}
+
 /** Construct the durable lifecycle event written before any registry state change. */
-export function enqueueMasqueradeEndAudit(
-  accountAudit: AccountAuditPort,
-  applicationId: string,
-  record: Readonly<StoredMasqueradeRecord>,
-  reason: MasqueradeEndReason,
-): void {
+export function enqueueMasqueradeEndAudit({
+  accountAudit,
+  applicationId,
+  record,
+  reason,
+}: EnqueueMasqueradeEndAuditInput): void {
   const occurredAt = new Date().toISOString();
   accountAudit.append({
     id: randomUUID(),
@@ -76,7 +83,7 @@ export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: Mas
   const { authMode, applicationId, accountAudit, registry, identity, authorize, roleForPrincipal, effectiveRole } =
     dependencies;
   const auditEnd = (record: Readonly<StoredMasqueradeRecord>, reason: MasqueradeEndReason): void =>
-    enqueueMasqueradeEndAudit(accountAudit, applicationId, record, reason);
+    enqueueMasqueradeEndAudit({ accountAudit, applicationId, record, reason });
 
   app.post("/api/accounts/:accountId/masquerade", async (request, reply) => {
     const session = request.session;
@@ -87,7 +94,7 @@ export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: Mas
     }
     if (authMode === "off" || !session) return reply.code(403).send({ error: "Forbidden." });
     const { accountId } = request.params as { accountId: string };
-    if (!authorize(request, reply, accountId, "masquerade")) return;
+    if (!authorize({ req: request, reply, accountId, action: "masquerade" })) return;
     const body = (request.body ?? {}) as { targetUserId?: unknown };
     if (typeof body.targetUserId !== "string" || body.targetUserId.length === 0) {
       return reply.code(400).send({ error: "targetUserId must be a non-empty string." });

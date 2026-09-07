@@ -37,8 +37,13 @@ export function createPasswordResetFlows(
           actorPrincipalId: actor.principalId,
           targetPrincipalId,
         };
-        const begun = beginCommand<Omit<PasswordResetCeremony, "token">>(db, scope, command, {
-          targetPrincipalId,
+        const begun = beginCommand<Omit<PasswordResetCeremony, "token">>({
+          db,
+          scope,
+          command,
+          canonicalPayload: {
+            targetPrincipalId,
+          },
         });
         if (begun.kind === "replay") {
           // Replaying this command re-discloses a write-once bearer token, so idempotency must not
@@ -91,13 +96,16 @@ export function createPasswordResetFlows(
           const reservation = resetReplay.reserve(command.commandId);
           if (!reservation.accepted) {
             const capacityError = createReplayCapacityError(command.commandId, reservation.retryAfterMs);
-            persistTerminalOutcome(() => terminateCommand(db, scope, command, "compensated", "RATE_LIMITED"), {
-              action: "identity.password_reset_issued",
-              outcome: "failed",
-              actorPrincipalId: actor.principalId,
-              targetPrincipalId,
-              command,
-            });
+            persistTerminalOutcome(
+              () => terminateCommand({ db, scope, command, status: "compensated", failureCode: "RATE_LIMITED" }),
+              {
+                action: "identity.password_reset_issued",
+                outcome: "failed",
+                actorPrincipalId: actor.principalId,
+                targetPrincipalId,
+                command,
+              },
+            );
             terminalOutcomeRecorded = true;
             throw capacityError;
           }
@@ -125,12 +133,19 @@ export function createPasswordResetFlows(
               recordTerminalOutcome(revokeError, () =>
                 persistTerminalOutcome(
                   () =>
-                    terminateCommand(db, scope, command, "reconciliation_required", "COMPENSATION_FAILED", {
-                      kind: "password-reset-revocation-failed",
-                      workspaceId: null,
-                      targetPrincipalId,
-                      provisionalPrincipalId: null,
-                      ceremonyId,
+                    terminateCommand({
+                      db,
+                      scope,
+                      command,
+                      status: "reconciliation_required",
+                      failureCode: "COMPENSATION_FAILED",
+                      result: {
+                        kind: "password-reset-revocation-failed",
+                        workspaceId: null,
+                        targetPrincipalId,
+                        provisionalPrincipalId: null,
+                        ceremonyId,
+                      },
                     }),
                   {
                     action: "flow.reconciliation_required",
@@ -154,14 +169,17 @@ export function createPasswordResetFlows(
               );
             }
             recordTerminalOutcome(changed, () =>
-              persistTerminalOutcome(() => terminateCommand(db, scope, command, "compensated", "AUTHORITY_CHANGED"), {
-                action: "flow.compensated",
-                outcome: "compensated",
-                actorPrincipalId: actor.principalId,
-                targetPrincipalId,
-                command,
-                changedFields: ["passwordResetCeremony"],
-              }),
+              persistTerminalOutcome(
+                () => terminateCommand({ db, scope, command, status: "compensated", failureCode: "AUTHORITY_CHANGED" }),
+                {
+                  action: "flow.compensated",
+                  outcome: "compensated",
+                  actorPrincipalId: actor.principalId,
+                  targetPrincipalId,
+                  command,
+                  changedFields: ["passwordResetCeremony"],
+                },
+              ),
             );
             terminalOutcomeRecorded = true;
             throw changed;
@@ -169,9 +187,14 @@ export function createPasswordResetFlows(
           persistTerminalOutcome(
             () => {
               clearTrackedMemberSignIn(db, targetPrincipalId);
-              return completeCommand(db, scope, command, {
-                ceremonyId: ceremony!.ceremonyId,
-                expiresAt: ceremony!.expiresAt,
+              return completeCommand({
+                db,
+                scope,
+                command,
+                result: {
+                  ceremonyId: ceremony!.ceremonyId,
+                  expiresAt: ceremony!.expiresAt,
+                },
               });
             },
             {
@@ -203,13 +226,13 @@ export function createPasswordResetFlows(
             recordTerminalOutcome(error, () =>
               persistTerminalOutcome(
                 () =>
-                  terminatePendingCommand(
+                  terminatePendingCommand({
                     db,
                     scope,
                     command,
-                    requiresReconciliation ? "reconciliation_required" : "compensated",
-                    requiresReconciliation ? "DEPENDENCY_UNAVAILABLE" : code,
-                    requiresReconciliation
+                    status: requiresReconciliation ? "reconciliation_required" : "compensated",
+                    failureCode: requiresReconciliation ? "DEPENDENCY_UNAVAILABLE" : code,
+                    result: requiresReconciliation
                       ? {
                           kind: ceremony ? "password-reset-issued" : "password-reset-outcome-unknown",
                           workspaceId: null,
@@ -218,7 +241,7 @@ export function createPasswordResetFlows(
                           ceremonyId: ceremony?.ceremonyId ?? null,
                         }
                       : undefined,
-                  ),
+                  }),
                 {
                   action: requiresReconciliation ? "flow.reconciliation_required" : "flow.compensated",
                   outcome: requiresReconciliation ? "failed" : "compensated",

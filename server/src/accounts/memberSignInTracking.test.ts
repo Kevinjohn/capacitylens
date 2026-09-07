@@ -49,7 +49,9 @@ describe("privacy-preserving member sign-in confirmation", () => {
 
   it("starts a fresh boolean-only window, confirming the authenticated owner", () => {
     const current = setup();
-    expect(setMemberSignInTracking(current, "account-a", "owner", true)).toEqual({
+    expect(
+      setMemberSignInTracking({ db: current, accountId: "account-a", actorPrincipalId: "owner", enabled: true }),
+    ).toEqual({
       enabled: true,
       changed: true,
     });
@@ -71,9 +73,11 @@ describe("privacy-preserving member sign-in confirmation", () => {
 
   it("does not reset confirmations when an enabled setting is repeated", () => {
     const current = setup();
-    setMemberSignInTracking(current, "account-a", "owner", true);
+    setMemberSignInTracking({ db: current, accountId: "account-a", actorPrincipalId: "owner", enabled: true });
     confirmTrackedMemberSignIn(current, "editor");
-    expect(setMemberSignInTracking(current, "account-a", "owner", true)).toEqual({
+    expect(
+      setMemberSignInTracking({ db: current, accountId: "account-a", actorPrincipalId: "owner", enabled: true }),
+    ).toEqual({
       enabled: true,
       changed: false,
     });
@@ -82,7 +86,7 @@ describe("privacy-preserving member sign-in confirmation", () => {
 
   it("clears a confirmation after a deliberate access reset", () => {
     const current = setup();
-    setMemberSignInTracking(current, "account-a", "owner", true);
+    setMemberSignInTracking({ db: current, accountId: "account-a", actorPrincipalId: "owner", enabled: true });
     confirmTrackedMemberSignIn(current, "editor");
     clearTrackedMemberSignIn(current, "editor");
     expect(readMemberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(false);
@@ -90,7 +94,7 @@ describe("privacy-preserving member sign-in confirmation", () => {
 
   it("starts a new window when membership access is disabled or restored", () => {
     const current = setup();
-    setMemberSignInTracking(current, "account-a", "owner", true);
+    setMemberSignInTracking({ db: current, accountId: "account-a", actorPrincipalId: "owner", enabled: true });
     confirmTrackedMemberSignIn(current, "editor");
     expect(setMemberStatus({ db: current, accountId: "account-a", userId: "editor", status: "disabled" })).toBe(
       "changed",
@@ -104,9 +108,11 @@ describe("privacy-preserving member sign-in confirmation", () => {
 
   it("erases every observation when the owner turns tracking off", () => {
     const current = setup();
-    setMemberSignInTracking(current, "account-a", "owner", true);
+    setMemberSignInTracking({ db: current, accountId: "account-a", actorPrincipalId: "owner", enabled: true });
     confirmTrackedMemberSignIn(current, "editor");
-    expect(setMemberSignInTracking(current, "account-a", "owner", false)).toEqual({
+    expect(
+      setMemberSignInTracking({ db: current, accountId: "account-a", actorPrincipalId: "owner", enabled: false }),
+    ).toEqual({
       enabled: false,
       changed: true,
     });

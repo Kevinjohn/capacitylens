@@ -1,3 +1,4 @@
+import type { AuthorizeBasicInput } from "../routes/routeShared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
@@ -6,6 +7,8 @@ import type { Auth, AuthMode } from "../auth";
 import type { SsoCutoverIdentityPort } from "./betterAuthIdentityPort";
 import type { SsoCutoverAccountAdminPort } from "./sqliteAccountAdminPort";
 import { ssoCutoverReadiness } from "./ssoCutover";
+
+type AuthorizeMemberManagementInput = Omit<AuthorizeBasicInput, "action"> & { action: "manageMembers" };
 
 /** The 400 "no strict provider" guard shared byte-for-byte by the two write endpoints below (email
  *  correction, federated-link removal). Distinct from the 404 variant on GET /api/identity/provider
@@ -27,7 +30,7 @@ interface SsoCutoverRouteDependencies {
   administration: SsoCutoverAccountAdminPort;
   applicationId: string;
   openSignup: boolean;
-  authorize(req: FastifyRequest, reply: FastifyReply, accountId: string, action: "manageMembers"): boolean;
+  authorize(input: AuthorizeMemberManagementInput): boolean;
   fail(reply: FastifyReply, error: unknown): unknown;
   toWebHeaders(headers: FastifyRequest["headers"]): Headers;
 }
@@ -99,7 +102,7 @@ export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: Sso
 
   app.get("/api/accounts/:accountId/sso-readiness", async (req, reply) => {
     const { accountId } = req.params as { accountId: string };
-    if (!authorize(req, reply, accountId, "manageMembers")) return;
+    if (!authorize({ req, reply, accountId, action: "manageMembers" })) return;
     const provider = auth.strictProvider;
     if (!provider) return reply.code(400).send({ error: "No strict OIDC provider is configured." });
     try {
@@ -160,7 +163,7 @@ export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: Sso
 
   app.patch("/api/accounts/:accountId/members/:userId/email", async (req, reply) => {
     const { accountId, userId } = req.params as { accountId: string; userId: string };
-    if (!authorize(req, reply, accountId, "manageMembers")) return;
+    if (!authorize({ req, reply, accountId, action: "manageMembers" })) return;
     if (authMode !== "password") {
       return reply.code(409).send({
         error: "Sign-in email correction is available only during mixed-mode SSO staging.",
@@ -217,7 +220,7 @@ export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: Sso
 
   app.delete("/api/accounts/:accountId/members/:userId/federated-link", async (req, reply) => {
     const { accountId, userId } = req.params as { accountId: string; userId: string };
-    if (!authorize(req, reply, accountId, "manageMembers")) return;
+    if (!authorize({ req, reply, accountId, action: "manageMembers" })) return;
     if (authMode !== "password") {
       return reply.code(409).send({
         error: "The required provider cannot be removed while SSO-only mode is active.",

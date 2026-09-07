@@ -107,13 +107,13 @@ export function buildDatabaseHooks({
             if (assurance === "federated" && (!providerId || !configuredFederatedIssuers.has(providerId))) {
               throw new Error("External session creation did not resolve a configured provider id.");
             }
-            recordSessionAssurance(
+            recordSessionAssurance({
               db,
-              buildApplicationSessionHandle(application.applicationId, String(session.token)),
-              String(session.userId),
+              sessionId: buildApplicationSessionHandle(application.applicationId, String(session.token)),
+              principalId: String(session.userId),
               assurance,
               providerId,
-            );
+            });
             // Strict-SSO schemas deliberately omit Better Auth's password/MFA columns. Only the
             // password deployment needs to inspect enrolment before deciding whether this newly
             // created session still owes an MFA challenge.
