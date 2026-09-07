@@ -2973,10 +2973,9 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
   // a single resource's math — cross-check the model's per-resource utilization/overSoon against the
   // SAME capacity.ts functions called directly (the pre-hoist call shape), for MULTIPLE resources with
   // DIFFERENT allocations, so a bug that leaked one resource's window into another's would show up.
-  it("utilization/overSoon are IDENTICAL to calling the capacity functions directly, for every resource in a multi-resource model", () => {
-    const d = dataset();
-    // A distinct 3rd resource + allocation shape so three resources each have different load.
-    d.resources.push(
+  function withThirdResource(): AppData {
+    const data = dataset();
+    data.resources.push(
       makeResource({
         id: "r3",
         accountId: "acct-test",
@@ -2987,18 +2986,23 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         color: "#6",
       }),
     );
-    d.allocations.push({
-      id: "a5",
-      accountId: "acct-test",
-      createdAt: "t",
-      updatedAt: "t",
-      resourceId: "r3",
-      activityId: "t2",
-      startDate: "2026-06-01",
-      endDate: "2026-06-05",
-      hoursPerDay: 3,
-      status: "confirmed",
-    });
+    data.allocations.push(
+      makeAllocation({
+        id: "a5",
+        accountId: "acct-test",
+        resourceId: "r3",
+        activityId: "t2",
+        startDate: "2026-06-01",
+        endDate: "2026-06-05",
+        hoursPerDay: 3,
+      }),
+    );
+    return data;
+  }
+
+  it("utilization/overSoon are IDENTICAL to calling the capacity functions directly, for every resource in a multi-resource model", () => {
+    // A distinct 3rd resource + allocation shape so three resources each have different load.
+    const d = withThirdResource();
     const visStart = "2026-06-02";
     const visEnd = "2026-06-05";
     const overStart = "2026-06-01";
