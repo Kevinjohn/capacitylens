@@ -134,8 +134,19 @@ function identityPort(overrides: Partial<LocalIdentityPort> = {}): LocalIdentity
   };
 }
 
-function administrationPort(overrides: Partial<LocalAccountAdminPort> = {}): LocalAccountAdminPort {
-  const base: LocalAccountAdminPort = {
+type WorkspaceAdministrationMethods = Pick<
+  LocalAccountAdminPort,
+  | "roleForPrincipalInWorkspace"
+  | "workspacePrincipalIds"
+  | "projectIdentityAdminAuthoritiesForTargets"
+  | "evaluateWorkspaceProvisioningAuthorityInTx"
+  | "provisionOwnerMembershipInTx"
+  | "assertWorkspaceErasureAuthorityInTx"
+  | "eraseWorkspaceAdministrationInTx"
+>;
+
+function workspaceAdministrationMethods(): WorkspaceAdministrationMethods {
+  return {
     roleForPrincipalInWorkspace: vi.fn(() => null),
     workspacePrincipalIds: vi.fn(() => []),
     projectIdentityAdminAuthoritiesForTargets: vi.fn(() => new Map()),
@@ -153,6 +164,29 @@ function administrationPort(overrides: Partial<LocalAccountAdminPort> = {}): Loc
     ),
     assertWorkspaceErasureAuthorityInTx: vi.fn(),
     eraseWorkspaceAdministrationInTx: vi.fn(() => []),
+  };
+}
+
+type MembershipAdministrationMethods = Pick<
+  LocalAccountAdminPort,
+  | "listWorkspacesForPrincipal"
+  | "getMembership"
+  | "listMemberships"
+  | "listInvitations"
+  | "previewInvitation"
+  | "preparePasswordInvitationClaim"
+  | "createInvitation"
+  | "acceptInvitation"
+  | "claimInvitationForPrincipal"
+  | "revokeInvitation"
+  | "changeMemberRole"
+  | "changeMemberStatus"
+  | "removeMember"
+  | "transferOwnership"
+>;
+
+function membershipAdministrationMethods(): MembershipAdministrationMethods {
+  return {
     listWorkspacesForPrincipal: vi.fn(async () => []),
     getMembership: vi.fn(async () => member),
     listMemberships: vi.fn(async () => [member]),
@@ -195,6 +229,19 @@ function administrationPort(overrides: Partial<LocalAccountAdminPort> = {}): Loc
       previousOwner: member,
       nextOwner: member,
     })),
+  };
+}
+
+type IdentityAuthorityMethods = Pick<
+  LocalAccountAdminPort,
+  | "evaluateIdentityAdminAuthority"
+  | "evaluateIdentityAdminAuthorities"
+  | "evaluateIdentityAdminAuthoritiesForTargets"
+  | "confirmIdentityAdminAuthority"
+>;
+
+function identityAuthorityMethods(): IdentityAuthorityMethods {
+  return {
     evaluateIdentityAdminAuthority: vi.fn(async () => ({
       allowed: true as const,
       revision: "revision-1",
@@ -234,6 +281,14 @@ function administrationPort(overrides: Partial<LocalAccountAdminPort> = {}): Loc
         ),
     ),
     confirmIdentityAdminAuthority: vi.fn(async () => true),
+  };
+}
+
+function administrationPort(overrides: Partial<LocalAccountAdminPort> = {}): LocalAccountAdminPort {
+  const base: LocalAccountAdminPort = {
+    ...workspaceAdministrationMethods(),
+    ...membershipAdministrationMethods(),
+    ...identityAuthorityMethods(),
   };
   return { ...base, ...overrides };
 }
