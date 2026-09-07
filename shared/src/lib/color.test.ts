@@ -63,7 +63,7 @@ const activity = (id: string, projectId?: string): Activity => ({
   updatedAt: TS,
   name: id,
   kind: "project",
-  projectId,
+  ...(projectId === undefined ? {} : { projectId }),
 });
 const resource = (id: string, kind: Resource["kind"]): Resource => ({
   id,
