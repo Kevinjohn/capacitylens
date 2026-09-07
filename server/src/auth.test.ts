@@ -630,12 +630,15 @@ describe("first-owner database-hook races", () => {
     });
     const before = assertPresent(passwordAuth.options.databaseHooks?.user?.create?.before, "first-owner creation hook");
 
-    await expect(
-      before(
-        { email: "loser@example.com", name: "Loser" } as never,
-        { path: "/sign-up/email", bootstrapClaimToken: "losing-claim" } as never,
+    const error = parseApiErrorFields(
+      await readRejectedValue(
+        before(
+          { email: "loser@example.com", name: "Loser" } as never,
+          { path: "/sign-up/email", bootstrapClaimToken: "losing-claim" } as never,
+        ),
       ),
-    ).rejects.toMatchObject({ body: expect.objectContaining({ code: "BOOTSTRAP_ALREADY_CLAIMED" }) });
+    );
+    expect(error.code).toBe("BOOTSTRAP_ALREADY_CLAIMED");
   });
 
   it("rejects a first-owner insertion that reaches the hook without its claim token", async () => {
@@ -645,9 +648,12 @@ describe("first-owner database-hook races", () => {
     await runAuthMigrations(passwordAuth);
     const before = assertPresent(passwordAuth.options.databaseHooks?.user?.create?.before, "first-owner creation hook");
 
-    await expect(
-      before({ email: "owner@example.com", name: "Owner" } as never, { path: "/sign-up/email" } as never),
-    ).rejects.toMatchObject({ body: expect.objectContaining({ code: "BOOTSTRAP_ALREADY_IN_PROGRESS" }) });
+    const error = parseApiErrorFields(
+      await readRejectedValue(
+        before({ email: "owner@example.com", name: "Owner" } as never, { path: "/sign-up/email" } as never),
+      ),
+    );
+    expect(error.code).toBe("BOOTSTRAP_ALREADY_IN_PROGRESS");
   });
 });
 
