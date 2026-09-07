@@ -82,7 +82,7 @@ export function resolveSliceRewrite(key: string, data: AppData, now: number): Of
   }
   const prior = recent?.get(key);
   if (prior?.signature === signature && now - prior.writtenAt < SLICE_REWRITE_INTERVAL_MS) {
-    return { status: "skipped", reason: "unchanged" };
+    return { kind: "skipped", reason: "unchanged" };
   }
   return () => recent?.set(key, { signature, writtenAt: now });
 }

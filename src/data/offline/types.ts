@@ -42,4 +42,4 @@ export interface WriteBoundary {
 }
 
 export type OfflineCacheWriteResult =
-  { status: "written" } | { status: "skipped"; reason: "disabled" | "unscoped" | "unchanged" };
+  { kind: "written" } | { kind: "skipped"; reason: "disabled" | "unscoped" | "unchanged" };

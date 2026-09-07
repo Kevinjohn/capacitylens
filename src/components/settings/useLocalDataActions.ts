@@ -84,9 +84,9 @@ export function useLocalDataActions({
             const summariesWrite = await cacheAccountSummaries(accountSummaries);
             const sliceWrite = activeAccountId ? await cacheAccountSlice(activeAccountId, data) : null;
             if (
-              authWrite.status !== "written" ||
-              summariesWrite.status !== "written" ||
-              (sliceWrite !== null && sliceWrite.status !== "written")
+              authWrite.kind !== "written" ||
+              summariesWrite.kind !== "written" ||
+              (sliceWrite !== null && sliceWrite.kind !== "written")
             ) {
               throw new Error(m.settings_offline_write_failed());
             }
