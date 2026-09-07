@@ -73,7 +73,7 @@ export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Aut
       // Every authenticated server session has a non-empty email. Password reauthentication uses
       // it directly, and SSO invitation/identity policy also treats it as part of SessionUser.
       // Auth-off retains the deliberately smaller demo-user compatibility shape.
-      const user = parseAuthUser(rawUser, rawMode !== "off");
+      const user = parseAuthUser({ value: rawUser, requireEmail: rawMode !== "off" });
       if (rawMode !== "off" && !user) {
         console.warn("AuthProvider: /api/auth/me returned auth-on without a valid user", body);
         return { kind: "error", message: m.auth_service_invalid_response() };

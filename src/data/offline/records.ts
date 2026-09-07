@@ -97,7 +97,7 @@ async function getValidated<T>(key: string, validate: (value: unknown) => T | nu
 
 export function parseAuthSnapshot(value: unknown): OfflineAuthSnapshot | null {
   if (!isRecord(value) || !["off", "password", "sso"].includes(String(value.authMode))) return null;
-  if (!parseAuthUser(value.user, value.authMode !== "off")) return null;
+  if (!parseAuthUser({ value: value.user, requireEmail: value.authMode !== "off" })) return null;
   if (typeof value.canCreateAccount !== "boolean" || typeof value.multiAccount !== "boolean") return null;
   return value as unknown as OfflineAuthSnapshot;
 }

@@ -319,11 +319,6 @@
       "count": 1
     }
   },
-  "src/auth/masqueradeController.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "src/components/activities/ActivityList.tsx": {
     "max-params": {
       "count": 1
