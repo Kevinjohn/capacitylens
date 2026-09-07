@@ -990,6 +990,37 @@ const a2Slice = (): AppData => ({
   ],
 });
 
+const accountSwitchSlices = () => ({
+  aSlice: {
+    ...emptyAppData(),
+    accounts: [{ id: "a1", name: "Alpha", color: "#1", createdAt: "t", updatedAt: "t" }],
+    clients: [
+      {
+        id: "ca",
+        accountId: "a1",
+        name: "Alpha Client",
+        color: "#1",
+        createdAt: "t",
+        updatedAt: "t",
+      },
+    ],
+  } satisfies AppData,
+  bSlice: {
+    ...emptyAppData(),
+    accounts: [{ id: "b1", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
+    clients: [
+      {
+        id: "cb",
+        accountId: "b1",
+        name: "Beta Client",
+        color: "#1",
+        createdAt: "t",
+        updatedAt: "t",
+      },
+    ],
+  } satisfies AppData,
+});
+
 interface AttachActiveA2Input {
   adapter: PersistenceAdapter;
   debounceMs?: number;
@@ -1314,42 +1345,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
   });
 
   it("a failed-save focus refresh does not orphan an in-flight company switch", async () => {
-    const aSlice: AppData = {
-      ...emptyAppData(),
-      accounts: [
-        {
-          id: "a1",
-          name: "Alpha",
-          color: "#1",
-          createdAt: "t",
-          updatedAt: "t",
-        },
-      ],
-      clients: [
-        {
-          id: "ca",
-          accountId: "a1",
-          name: "Alpha Client",
-          color: "#1",
-          createdAt: "t",
-          updatedAt: "t",
-        },
-      ],
-    };
-    const bSlice: AppData = {
-      ...emptyAppData(),
-      accounts: [{ id: "b1", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
-      clients: [
-        {
-          id: "cb",
-          accountId: "b1",
-          name: "Beta Client",
-          color: "#1",
-          createdAt: "t",
-          updatedAt: "t",
-        },
-      ],
-    };
+    const { aSlice, bSlice } = accountSwitchSlices();
     let releaseB: (() => void) | null = null;
     const loadAll = vi.fn((accountId?: string): Promise<AppData> => {
       if (accountId === "b1") {
