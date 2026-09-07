@@ -518,7 +518,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     });
 
     expect(response.statusCode).toBe(409);
-    expect(response.json().code).toBe("PROVIDER_ALREADY_LINKED");
+    expect(parseErrorCode(response)).toBe("PROVIDER_ALREADY_LINKED");
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
 
@@ -565,7 +565,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     });
 
     expect(response.statusCode).toBe(409);
-    expect(response.json().code).toBe("MULTIPLE_PROVIDER_LINKS");
+    expect(parseErrorCode(response)).toBe("MULTIPLE_PROVIDER_LINKS");
     expect(raw.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
 
@@ -618,7 +618,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expect(response.json().code).toBe("INVALID_CALLBACK_URL");
+    expect(parseErrorCode(response)).toBe("INVALID_CALLBACK_URL");
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
 
@@ -646,7 +646,7 @@ describe("CAPACITYLENS_AUTH password", () => {
       });
 
       expect(response.statusCode).toBe(400);
-      expect(response.json().code).toBe("INVALID_CALLBACK_URL");
+      expect(parseErrorCode(response)).toBe("INVALID_CALLBACK_URL");
       expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
     },
   );
