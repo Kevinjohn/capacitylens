@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { DEMO_USER } from "../auth";
 import { type ApplicationSession } from "@capacitylens/shared/account/types";
-import { buildActorContextFromSession } from "../accounts/localAccountFlows";
+import { buildActorContextFromSession } from "../accounts/createLocalAccountFlows";
 import { enqueueMasqueradeEndAudit } from "./masqueradeRoutes";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 import { toWebHeaders, buildSessionUser, hasRequiredSessionMfa } from "./appRequestAdapters";

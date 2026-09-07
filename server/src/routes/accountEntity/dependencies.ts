@@ -1,7 +1,7 @@
 import type { CommandIdentity } from "@capacitylens/shared/account/types";
 import type { Action } from "@capacitylens/shared/domain/access";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { LocalAccountFlows } from "../../accounts/localAccountFlows";
+import type { LocalAccountFlows } from "../../accounts/createLocalAccountFlows";
 import type { AuditRecord } from "../../audit";
 import type { AuthMode } from "../../auth";
 import { type Db } from "../../db";

@@ -3,7 +3,7 @@ import { DEMO_USER } from "../auth";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import { createBetterAuthIdentityPort } from "../accounts/betterAuthIdentityPort";
 import { createSqliteAccountAdminPort } from "../accounts/sqliteAccountAdminPort";
-import { localAccountFlows } from "../accounts/localAccountFlows";
+import { createLocalAccountFlows } from "../accounts/createLocalAccountFlows";
 import { KeyedOperationLock } from "../accounts/KeyedOperationLock";
 import { createTrustedLocalIdentityPort } from "../accounts/createTrustedLocalIdentityPort";
 import { buildApplicationSessionHandle } from "../accounts/buildApplicationSessionHandle";
@@ -97,7 +97,7 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
     requireMfa: authMode === "password" && options.requireMfa === true,
     audit: accountAudit,
   });
-  const accountFlows = localAccountFlows({
+  const accountFlows = createLocalAccountFlows({
     applicationId: application.applicationId,
     db,
     identity: identityPort,

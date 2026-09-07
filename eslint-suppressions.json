@@ -39,11 +39,6 @@
       "count": 1
     }
   },
-  "server/src/accounts/localAccountFlows.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "server/src/accounts/memberSignInTracking.ts": {
     "max-params": {
       "count": 1
