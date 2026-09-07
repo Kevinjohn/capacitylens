@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildColumnGeometry } from "./columnGeometry";
+import { buildColumnGeometry, resolveLeftEdgeDate } from "./columnGeometry";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { resolveColumnFit } from "../../lib/schedulerConfig";
 
@@ -7,6 +7,23 @@ import { resolveColumnFit } from "../../lib/schedulerConfig";
 const WEEK = eachDayISO("2026-06-01", "2026-06-07");
 const OFF = { minimiseWeekends: false, weekendWidth: 20 };
 const ON = { minimiseWeekends: true, weekendWidth: 20 };
+
+describe("resolveLeftEdgeDate", () => {
+  const geom = buildColumnGeometry(WEEK, 48, OFF);
+
+  it("returns undefined for an empty day window", () => {
+    expect(resolveLeftEdgeDate(buildColumnGeometry([], 48, OFF), [], 0)).toBeUndefined();
+  });
+
+  it("falls back to the first day when a custom index is beyond the array", () => {
+    const customGeom = { ...geom, indexAtScroll: () => WEEK.length };
+    expect(resolveLeftEdgeDate(customGeom, WEEK, 0)).toBe(WEEK[0]);
+  });
+
+  it("uses the rounded column for a fractional position below a valid boundary", () => {
+    expect(resolveLeftEdgeDate(geom, WEEK, 47.6)).toBe(WEEK[1]);
+  });
+});
 
 describe("buildColumnGeometry — minimise OFF reproduces the uniform index*dayWidth grid", () => {
   const geom = buildColumnGeometry(WEEK, 48, OFF);
