@@ -72,7 +72,10 @@ export function applyVisibleUtilization(
         changed = true;
         return { ...row, utilization: 0 };
       }
-      const resourceAllocations = applyCapacityMode(allocations.get(row.resource.id) ?? [], blocksMode);
+      const resourceAllocations = applyCapacityMode({
+        allocations: allocations.get(row.resource.id) ?? [],
+        blocksMode: blocksMode,
+      });
       const resourceTimeOff = personalTimeOff.get(row.resource.id) ?? [];
       const effectiveWeek = effectiveWorkingWeek(row.resource, accountWorkingDays);
       // Bucket this resource's load and time off by the days they cover ONCE, exactly as the full
