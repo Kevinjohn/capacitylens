@@ -14,7 +14,7 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
   } = context;
 
   const { accountId } = req.params as { accountId: string };
-  if (!authorize(req, reply, accountId, "manageMembers")) return;
+  if (!authorize({ req, reply, accountId, action: "manageMembers" })) return;
   // OFF mode: no real member model (req.user is DEMO_USER, membership is unread) — return empty so
   // the shape is honest and nothing crashes. The UI is hidden in OFF, so this is belt-and-braces.
   if (authMode === "off") return { members: [], signInTrackingEnabled: false };
@@ -55,7 +55,7 @@ export async function setMemberSignInTracking(req: FastifyRequest, reply: Fastif
   const { memberSignInTracking, authorize, audit, fail: accountFail } = context;
 
   const { accountId } = req.params as { accountId: string };
-  if (!authorize(req, reply, accountId, "manageMemberSignInTracking")) return;
+  if (!authorize({ req, reply, accountId, action: "manageMemberSignInTracking" })) return;
   const body = req.body as { enabled?: unknown } | null;
   if (!body || typeof body.enabled !== "boolean") {
     return reply.code(400).send({ error: "enabled must be a boolean." });

@@ -1,3 +1,4 @@
+import type { AuthorizeBasicInput } from "./routeShared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Client, Resource } from "@capacitylens/shared/types/entities";
 import type { Action } from "@capacitylens/shared/domain/access";
@@ -16,6 +17,13 @@ import type { AuditRecord } from "../audit";
 import type { LifecycleRow, TenantStore } from "../tenantStore";
 import { createServerRevision } from "../revision";
 
+export interface LifecycleRedactionInput {
+  req: FastifyRequest;
+  entity: string;
+  row: Record<string, unknown>;
+  accountId: string;
+}
+
 class LifecycleResponseError extends Error {
   constructor(
     readonly statusCode: 404 | 409,
@@ -29,15 +37,10 @@ class LifecycleResponseError extends Error {
 
 interface LifecycleRouteDependencies {
   store: TenantStore;
-  authorize: (req: FastifyRequest, reply: FastifyReply, accountId: string, action: Action) => boolean;
+  authorize: (input: AuthorizeBasicInput) => boolean;
   commit: (reply: FastifyReply, record: AuditRecord, mutation: () => void) => void;
   fail: (reply: FastifyReply, error: unknown) => FastifyReply;
-  redact: (
-    req: FastifyRequest,
-    entity: string,
-    row: Record<string, unknown>,
-    accountId: string,
-  ) => Record<string, unknown>;
+  redact: (input: LifecycleRedactionInput) => Record<string, unknown>;
 }
 
 function sendLifecycleFailure(
@@ -64,12 +67,19 @@ interface TransitionResult {
   cascadeCounts?: AuditRecord["cascadeCounts"];
 }
 
+interface LifecycleTransitionInput {
+  row: LifecycleRow;
+  entity: LifecycleEntityKey;
+  accountId: string;
+  id: string;
+}
+
 interface TransitionSpec {
   path: "archive" | "unarchive" | "delete" | "purge";
   permission: Action;
   protectedVerb: string;
   auditAction: AuditRecord["action"];
-  apply: (row: LifecycleRow, entity: LifecycleEntityKey, accountId: string, id: string) => TransitionResult | null;
+  apply: (input: LifecycleTransitionInput) => TransitionResult | null;
   successStatus?: 200 | 204;
 }
 
@@ -92,7 +102,7 @@ function registerTransition(
       return reply.code(400).send({ error: "accountId is required." });
     }
     const accountId = body.accountId;
-    if (!dependencies.authorize(req, reply, accountId, spec.permission)) return;
+    if (!dependencies.authorize({ req, reply, accountId, action: spec.permission })) return;
 
     try {
       const auditRecord: AuditRecord = {
@@ -117,7 +127,7 @@ function registerTransition(
         }
 
         // Scoped to this closure: nothing after dependencies.commit returns reads it.
-        const result = spec.apply(row, rawEntity, accountId, id);
+        const result = spec.apply({ row, entity: rawEntity, accountId, id });
         if (result === null) return;
         if (result.next) dependencies.store.writeLifecycleRow(accountId, rawEntity, result.next);
         const scrubbed = result.scrubResourceNotes ? dependencies.store.scrubResourceNotes(accountId, id) : null;
@@ -130,7 +140,12 @@ function registerTransition(
         // Redaction may consult the membership store. Keep that fallible read inside the outer
         // product/audit transaction so a failure cannot turn a committed transition into a 5xx.
         if (result.next) {
-          response = dependencies.redact(req, rawEntity, result.next as unknown as Record<string, unknown>, accountId);
+          response = dependencies.redact({
+            req,
+            entity: rawEntity,
+            row: result.next as unknown as Record<string, unknown>,
+            accountId,
+          });
         }
       });
       if (spec.successStatus === 204) return reply.code(204).send();
@@ -148,7 +163,7 @@ export function registerLifecycleRoutes(app: FastifyInstance, dependencies: Life
     permission: "write",
     protectedVerb: "archived",
     auditAction: "archive",
-    apply: (row) => {
+    apply: ({ row }) => {
       const now = createServerRevision(row.updatedAt);
       const next = { ...archive(row, now), updatedAt: now };
       return { next, changedFields: ["archivedAt"] };
@@ -160,7 +175,7 @@ export function registerLifecycleRoutes(app: FastifyInstance, dependencies: Life
     permission: "write",
     protectedVerb: "unarchived",
     auditAction: "unarchive",
-    apply: (row) => {
+    apply: ({ row }) => {
       const next = { ...unarchive(row), updatedAt: createServerRevision(row.updatedAt) };
       return { next, changedFields: ["archivedAt"] };
     },
@@ -171,7 +186,7 @@ export function registerLifecycleRoutes(app: FastifyInstance, dependencies: Life
     permission: "purge",
     protectedVerb: "deleted",
     auditAction: "softDelete",
-    apply: (row, entity) => {
+    apply: ({ row, entity }) => {
       const now = createServerRevision(row.updatedAt);
       const tombstone = softDelete(row, now);
       const deleted = { ...tombstone, updatedAt: tombstone.deletedAt ?? now };
@@ -190,7 +205,7 @@ export function registerLifecycleRoutes(app: FastifyInstance, dependencies: Life
     protectedVerb: "purged",
     auditAction: "purge",
     successStatus: 204,
-    apply: (row, entity, accountId, id) => {
+    apply: ({ row, entity, accountId, id }: LifecycleTransitionInput) => {
       if (!canPurge(row, new Date().toISOString())) {
         throw new LifecycleResponseError(409, "Cannot purge: must be a soft-deleted tombstone at least 30 days old.");
       }

@@ -1,23 +1,26 @@
+import type { AuthorizeRouteInput } from "./routeShared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { type IdentityAdminAction, type IdentityAdminAuthorityDecision } from "@capacitylens/shared/account/types";
 import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
 import { ALL_FIELDS_VISIBLE } from "./routeShared";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 import { redactGatedEcho, hasGatedFields, resolveVisibilityForRole, type SanitizeWriteOptions } from "../fieldPolicy";
-import { can, type Action } from "@capacitylens/shared/domain/access";
+import { can } from "@capacitylens/shared/domain/access";
 import { resolveCorsOrigin, isSameRequestOrigin } from "./appOriginPolicy";
 import type { resolveAppConfig } from "./appConfig";
 import type { createAppRuntime } from "./appRuntime";
 import type { installRootHooks } from "./appRootHooks";
 import type { AppOptions } from "../app";
 
-export function createAuthorization(
-  app: FastifyInstance,
-  runtime: ReturnType<typeof createAppRuntime>,
-  config: ReturnType<typeof resolveAppConfig>,
-  options: AppOptions,
-  rootHelpers: ReturnType<typeof installRootHooks>,
-) {
+interface CreateAuthorizationInput {
+  app: FastifyInstance;
+  runtime: ReturnType<typeof createAppRuntime>;
+  config: ReturnType<typeof resolveAppConfig>;
+  options: AppOptions;
+  rootHelpers: ReturnType<typeof installRootHooks>;
+}
+
+export function createAuthorization({ app, runtime, config, options, rootHelpers }: CreateAuthorizationInput) {
   const { accountAdminPort, endMasquerade, masquerades } = runtime;
   const { authMode } = config;
   const { corsOrigins, securityEvent } = rootHelpers;
@@ -79,17 +82,17 @@ export function createAuthorization(
    * @param req        The (already-authenticated in auth-on) request; `req.user` is the principal.
    * @param reply      The reply, used to send the 403 on denial.
    * @param accountId  The account the action targets (each route derives this as it does today).
-   * @param action     The coarse capability being attempted (see {@link Action}).
+   * @param action     The coarse capability being attempted (see {@link AuthorizeRouteInput.action}).
    * @param options    Row-addressed routes may conceal non-membership as the same 404 as an absent id.
    * @returns The resolved role if allowed; `false` after sending the route's denial response.
    */
-  function authorize(
-    req: FastifyRequest,
-    reply: FastifyReply,
-    accountId: string,
-    action: Action,
-    options: { concealNonMembership?: boolean } = {},
-  ): { role: ReturnType<typeof accountAdminPort.roleForPrincipalInWorkspace> } | false {
+  function authorize({
+    req,
+    reply,
+    accountId,
+    action,
+    options = {},
+  }: AuthorizeRouteInput): { role: ReturnType<typeof accountAdminPort.roleForPrincipalInWorkspace> } | false {
     if (authMode === "off") return { role: null }; // OFF = allow-all; the account port / can NEVER run.
     const resolved = resolveEffectiveRole(req, accountId);
     if (resolved.ended) {
@@ -156,13 +159,8 @@ export function createAuthorization(
     return { role };
   }
 
-  const authorizeAllowed = (
-    req: FastifyRequest,
-    reply: FastifyReply,
-    accountId: string,
-    action: Action,
-    options: { concealNonMembership?: boolean } = {},
-  ): boolean => authorize(req, reply, accountId, action, options) !== false;
+  const authorizeAllowed = ({ req, reply, accountId, action, options = {} }: AuthorizeRouteInput): boolean =>
+    authorize({ req, reply, accountId, action, options }) !== false;
 
   /** Writer visibility for the two field-level confidentiality policies. Only time off and
    * client/project writes pay the membership lookup; a non-string account id fails closed. */
@@ -206,7 +204,11 @@ export function createAuthorization(
     const sameOrigin =
       fetchSite === "same-origin" ||
       (req.headers.origin !== undefined &&
-        isSameRequestOrigin(req, req.headers.origin, options.trustProxyHeaders === true));
+        isSameRequestOrigin({
+          req,
+          reqOrigin: req.headers.origin,
+          trustForwarded: options.trustProxyHeaders === true,
+        }));
     const origin = listedOrigin ?? (sameOrigin ? req.headers.origin! : null);
     const unsafe = !["GET", "HEAD", "OPTIONS"].includes(req.method);
     // An Origin exactly on the credentialed CORS allow-list (listedOrigin, folded into `origin`
