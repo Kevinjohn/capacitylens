@@ -35,6 +35,7 @@ import { emptyAppData, EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/
 
 const TS = "2026-01-01T00:00:00.000Z";
 const MAX_BATCH_HANDLER_BUDGET_MS = 4_000;
+const CROSS_ACCOUNT_ACTIVITY_ERROR = "Allocation must reference an activity under an active project in this company.";
 const meta = () => ({ createdAt: TS, updatedAt: TS });
 const withoutRevision = <T extends object>(row: T) => {
   const copy = { ...row } as Record<string, unknown>;
@@ -196,6 +197,26 @@ const closure = (id: string, accountId: string, name = "Christmas shutdown") => 
 // pins the single Promise-returning shape so call sites stay terse.
 const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
   app.inject(opts) as unknown as Promise<LightMyRequestResponse>;
+
+interface ErrorResponse {
+  error: string;
+  code?: string;
+}
+
+function readErrorResponse(response: LightMyRequestResponse): ErrorResponse {
+  const value: unknown = response.json();
+  if (typeof value !== "object" || value === null || !("error" in value) || typeof value.error !== "string") {
+    throw new Error("Expected an error response with a string error.");
+  }
+  if ("code" in value) {
+    if (typeof value.code !== "string") {
+      throw new Error("Expected an error response code to be a string.");
+    }
+    return { error: value.error, code: value.code };
+  }
+  return { error: value.error };
+}
+
 const body = (payload: unknown) => payload as NonNullable<InjectOptions["payload"]>;
 
 const post = (app: FastifyInstance, entity: string, payload: unknown) =>
@@ -1221,7 +1242,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       ...meta(),
     });
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/missing required field.*kind/i);
+    expect(readErrorResponse(res).error).toMatch(/missing required field.*kind/i);
     expect((await state(app)).resources).toEqual([]);
   });
 
@@ -1238,8 +1259,8 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       ...meta(),
     });
     expect(missingClient.statusCode).toBe(400);
-    expect(missingClient.json().error).toBe("Project must reference a client in this company.");
-    expect(missingClient.json().code).toBe("reference_wrong_account");
+    expect(readErrorResponse(missingClient).error).toBe("Project must reference a client in this company.");
+    expect(readErrorResponse(missingClient).code).toBe("reference_wrong_account");
 
     await post(app, "projects", project("p2", "a1", "c1"));
     const missingClientOnReplace = await put({
@@ -1255,7 +1276,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       },
     });
     expect(missingClientOnReplace.statusCode).toBe(400);
-    expect(missingClientOnReplace.json().error).toBe("Project must reference a client in this company.");
+    expect(readErrorResponse(missingClientOnReplace).error).toBe("Project must reference a client in this company.");
     expect((await patch({ app, entity: "projects", id: "p2", payload: { name: "Partial rename" } })).statusCode).toBe(
       200,
     );
@@ -1267,7 +1288,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       ...meta(),
     });
     expect(missingProject.statusCode).toBe(400);
-    expect(missingProject.json().error).toBe("Phase must reference a project in this company.");
+    expect(readErrorResponse(missingProject).error).toBe("Phase must reference a project in this company.");
   });
 
   it("rejects a project referencing a client outside the account", async () => {
@@ -1275,7 +1296,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     await post(app, "accounts", account("a1"));
     const res = await post(app, "projects", project("p1", "a1", "no-such-client"));
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/client/i);
+    expect(readErrorResponse(res).error).toMatch(/client/i);
   });
 
   it("rejects a reversed allocation date range", async () => {
@@ -1296,7 +1317,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       }),
     );
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/end date/i);
+    expect(readErrorResponse(res).error).toMatch(/end date/i);
   });
 
   it("accepts the maximum scheduling span and rejects longer allocation and time-off writes", async () => {
@@ -1340,7 +1361,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       }),
     );
     expect(allocationResponse.statusCode).toBe(400);
-    expect(allocationResponse.json().error).toBe("Date span cannot exceed 36,500 calendar days.");
+    expect(readErrorResponse(allocationResponse).error).toBe("Date span cannot exceed 36,500 calendar days.");
 
     const timeOffResponse = await post(app, "timeOff", {
       id: "to-over-limit",
@@ -1352,7 +1373,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       ...meta(),
     });
     expect(timeOffResponse.statusCode).toBe(400);
-    expect(timeOffResponse.json().error).toBe("Date span cannot exceed 36,500 calendar days.");
+    expect(readErrorResponse(timeOffResponse).error).toBe("Date span cannot exceed 36,500 calendar days.");
   });
 
   it("rejects a placeholder assigned outside its bound project", async () => {
@@ -1367,7 +1388,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       allocation({ id: "al", accountId: "a1", resourceId: "ph", activityId: "t2" }),
     ); // t2 is in p2
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/placeholder/i);
+    expect(readErrorResponse(res).error).toMatch(/placeholder/i);
   });
 
   it("rejects parent edits that would invalidate an existing placeholder allocation", async () => {
@@ -1379,11 +1400,11 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
 
     const rebind = await patch({ app, entity: "resources", id: "ph", payload: { projectId: "p2" } });
     expect(rebind.statusCode).toBe(400);
-    expect(rebind.json().error).toMatch(/placeholder’s work/i);
+    expect(readErrorResponse(rebind).error).toMatch(/placeholder’s work/i);
 
     const reproject = await patch({ app, entity: "activities", id: "t1", payload: { projectId: "p2" } });
     expect(reproject.statusCode).toBe(400);
-    expect(reproject.json().error).toMatch(/placeholder work/i);
+    expect(readErrorResponse(reproject).error).toMatch(/placeholder work/i);
 
     const snapshot = await state(app);
     expect(snapshot.resources.find((resource: { id: string }) => resource.id === "ph").projectId).toBe("p1");
@@ -1421,7 +1442,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       allocation({ id: "al", accountId: "a1", resourceId: "r1", activityId: "cross-project" }),
     );
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toBe("Allocation must reference an activity under an active project in this company.");
+    expect(readErrorResponse(res).error).toBe(CROSS_ACCOUNT_ACTIVITY_ERROR);
   });
 
   it("rejects a non-zero allocation load on an external / 3rd-party resource (no capacity)", async () => {
@@ -1434,7 +1455,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       allocation({ id: "al", accountId: "a1", resourceId: "ext", activityId: "t1", o: { hoursPerDay: 8 } }),
     );
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/external/i);
+    expect(readErrorResponse(res).error).toMatch(/external/i);
   });
 
   it("accepts a zero-load allocation on an external resource (the form forces 0)", async () => {
@@ -1463,7 +1484,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       ...meta(),
     });
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/external/i);
+    expect(readErrorResponse(res).error).toMatch(/external/i);
   });
 
   // Flipping a resource to external while it still owns loaded work / time-off would orphan those
@@ -1479,7 +1500,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     );
     const res = await patch({ app, entity: "resources", id: "r1", payload: { kind: "external" } });
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/work and time off/i);
+    expect(readErrorResponse(res).error).toMatch(/work and time off/i);
   });
 
   it("rejects PUT setting kind:external on a resource that has time off", async () => {
@@ -1504,7 +1525,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       },
     });
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/work and time off/i);
+    expect(readErrorResponse(res).error).toMatch(/work and time off/i);
   });
 
   it("accepts flipping a resource to external when it has NO disallowed dependents (zero-load allocation is fine)", async () => {
