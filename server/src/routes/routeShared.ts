@@ -5,7 +5,7 @@ import { isScopedEntityKey } from "@capacitylens/shared/types/entities";
 import type { SanitizeWriteOptions } from "../fieldPolicy";
 import { allocationAttributionAllowed } from "@capacitylens/shared/lib/integrity";
 import { clearAllocationAttributionForActivities, type Db, type RewrittenAllocationRevision, upsertRow } from "../db";
-import type { BatchStateProjection } from "../batchProjection";
+import type { BatchStateProjection } from "../BatchStateProjection";
 import { TABLES } from "../tables";
 
 export const isKnownTable = (entity: string): entity is keyof typeof TABLES =>
@@ -95,7 +95,10 @@ export function writeActivityRow(
   projection?.upsert("activities", row);
   const id = row.id as string;
   if (projection) {
-    projection.reconcileAllocationAttributionForActivity(id, allocationAttributionAllowed(row.kind));
+    projection.reconcileAllocationAttributionForActivity({
+      activityId: id,
+      attributionAllowed: allocationAttributionAllowed(row.kind),
+    });
     return [];
   }
   // A newly created activity cannot have an allocation referencing it yet, so POST/PUT-create

@@ -55,7 +55,7 @@ export interface ColumnGeometry {
    *  The EXACT inverse at boundaries — a click at offsets[i] → i, at offsets[i]-ε → i-1. */
   indexAt(px: number): number;
   /** {@link indexAt} for a container's `scrollLeft`: it ROUNDS first. Every scroll-position read
-   *  must go through this rather than `indexAt` directly — see weekSnap.ts's "SUB-PIXEL ROUNDING"
+   *  must go through this rather than `indexAt` directly — see resolveWeekStartSnapTarget.ts's "SUB-PIXEL ROUNDING"
    *  note for the full rationale (a HiDPI browser can store scrollLeft a fraction BELOW an integer
    *  column boundary, and indexAt's strict floor would resolve that to the previous — under
    *  minimised weekends, much narrower — column). */

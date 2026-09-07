@@ -4,7 +4,7 @@ import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, passwordLengthFailure } from 
 import { cleanText } from "@capacitylens/shared/lib/strings";
 import type { Db } from "../db";
 import { tx } from "../txn";
-import type { Auth, AuthMode } from "./authTypes";
+import type { Auth, AuthMode, CreateCredentialUserInput } from "./authTypes";
 import type * as AuthFacade from "../auth";
 import { ensureFederatedIdentitySchema, assertFederatedIdentitySchemaCurrent } from "./federatedIdentitySchema";
 
@@ -15,21 +15,26 @@ interface CredentialUserContext {
   password: { hash: (password: string) => Promise<string> };
 }
 
+interface CreateCredentialUserWithInput extends CreateCredentialUserInput {
+  context: CredentialUserContext;
+  db: Db;
+}
+
 /**
  * Hash outside the write transaction, then commit the Better Auth user, credential link and an
  * optional same-database correlation callback as one synchronous SQLite unit. Better Auth's
  * node:sqlite adapter ultimately writes these same pinned tables; using the shared handle here is
  * what lets invitation onboarding cross its provider/coordinator boundary without a crash gap.
  */
-export async function createCredentialUserWith(
-  context: CredentialUserContext,
-  db: Db,
-  email: string,
-  name: string,
-  password: string,
+export async function createCredentialUserWith({
+  context,
+  db,
+  email,
+  name,
+  password,
   emailVerified = false,
-  correlateInTransaction?: (principalId: string) => void,
-): Promise<{ id: string }> {
+  correlateInTransaction,
+}: CreateCredentialUserWithInput): Promise<{ id: string }> {
   const hash = await context.password.hash(password);
   const cleanedName = cleanText(name);
   return tx(
@@ -198,7 +203,11 @@ export function createBootstrapAdminFactory({
         log("capacitylens-server: --create-owner-admin-admin skipped: users already exist");
         return "skipped";
       }
-      await auth.createCredentialUser(BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_NAME, bootstrapPassword);
+      await auth.createCredentialUser({
+        email: BOOTSTRAP_ADMIN_EMAIL,
+        name: BOOTSTRAP_ADMIN_NAME,
+        password: bootstrapPassword,
+      });
     } finally {
       db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE id = 1 AND claimToken = ?`).run(claimToken);
     }

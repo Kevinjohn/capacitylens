@@ -11,13 +11,14 @@ import type { AuthConfigError } from "../auth";
 
 type Env = Record<string, string | undefined>;
 type AuthConfigErrorConstructor = typeof AuthConfigError;
-function parseOptionalCredentialPair(
-  environment: Env,
-  idKey: string,
-  secretKey: string,
-  label: string,
-  E: AuthConfigErrorConstructor,
-) {
+interface ParseOptionalCredentialPairInput {
+  environment: Env;
+  idKey: string;
+  secretKey: string;
+  label: string;
+  E: AuthConfigErrorConstructor;
+}
+function parseOptionalCredentialPair({ environment, idKey, secretKey, label, E }: ParseOptionalCredentialPairInput) {
   const id = environment[idKey];
   const secret = environment[secretKey];
   if (!id && !secret) return null;
@@ -66,7 +67,7 @@ function parseSocialProvidersFromEnvironment(
 ): SocialProviders {
   const providers: SocialProviders = {};
   const parseConfiguredPair = (idKey: string, secretKey: string, label: string) =>
-    parseOptionalCredentialPair(environment, idKey, secretKey, label, AuthConfigError);
+    parseOptionalCredentialPair({ environment, idKey, secretKey, label, E: AuthConfigError });
   const google = parseConfiguredPair(
     "CAPACITYLENS_GOOGLE_CLIENT_ID",
     "CAPACITYLENS_GOOGLE_CLIENT_SECRET",
@@ -158,13 +159,13 @@ export function prepareProviders({
   // changing provider configuration.
   const genericSsoConfigured = Boolean(env.CAPACITYLENS_SSO_CLIENT_ID || env.CAPACITYLENS_SSO_CLIENT_SECRET);
   if (genericSsoConfigured) {
-    parseOptionalCredentialPair(
-      env,
-      "CAPACITYLENS_SSO_CLIENT_ID",
-      "CAPACITYLENS_SSO_CLIENT_SECRET",
-      "generic SSO",
-      AuthConfigError,
-    );
+    parseOptionalCredentialPair({
+      environment: env,
+      idKey: "CAPACITYLENS_SSO_CLIENT_ID",
+      secretKey: "CAPACITYLENS_SSO_CLIENT_SECRET",
+      label: "generic SSO",
+      E: AuthConfigError,
+    });
   }
   if (mode === "sso" && !genericSsoConfigured) {
     throw new AuthConfigError(
