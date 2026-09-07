@@ -45,7 +45,7 @@ export function createAccountWriteHandlers(dependencies: AccountEntityRouteDepen
     const body = req.body as Record<string, unknown>;
     try {
       const workspaceCommand = command(req);
-      const existing = getRow(db, "accounts", id);
+      const existing = getRow(db, "accounts", id) ?? undefined;
       // Account CREATE via upsert (no row at this id yet) is CLOSED when auth is on. Checked FIRST
       // so the auth-on caller always gets the actionable "use /api/orgs" direction.
       if (!existing && authMode !== "off") {

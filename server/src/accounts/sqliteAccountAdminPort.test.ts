@@ -1079,10 +1079,13 @@ describe("sqliteAccountAdminPort authority integrity", () => {
     }
   });
 
-  it("does not report a principal as unaffiliated while any surviving membership row remains", () => {
+  it.each([
+    { caseName: "existing workspace", survivingWorkspaceExists: true, expectedUnaffiliated: [] },
+    { caseName: "orphan membership", survivingWorkspaceExists: false, expectedUnaffiliated: ["principal-1"] },
+  ])("checks surviving workspace existence for $caseName", ({ survivingWorkspaceExists, expectedUnaffiliated }) => {
     const db = openDb(":memory:");
     try {
-      for (const id of ["erased-workspace", "surviving-workspace"]) {
+      for (const id of ["erased-workspace", ...(survivingWorkspaceExists ? ["surviving-workspace"] : [])]) {
         insertRow(db, "accounts", {
           id,
           name: id,
@@ -1112,7 +1115,7 @@ describe("sqliteAccountAdminPort authority integrity", () => {
         trustedLocal: true,
       });
 
-      expect(port.eraseWorkspaceAdministrationInTx("erased-workspace")).toEqual([]);
+      expect(port.eraseWorkspaceAdministrationInTx("erased-workspace")).toEqual(expectedUnaffiliated);
       expect(db.prepare("SELECT status FROM account_members WHERE userId = ?").get("principal-1")).toEqual({
         status: "suspended",
       });

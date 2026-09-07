@@ -102,7 +102,7 @@ export function deleteRow(db: Db, table: string, id: string): void {
   statement.run(id);
 }
 
-export function getRow(db: Db, table: string, id: string): Row | undefined {
+export function getRow(db: Db, table: string, id: string): Row | null {
   const spec = resolveTable(table);
   const statement = createCachedTableStatement({
     cache: createStatementCache(db).getRow,
@@ -111,5 +111,5 @@ export function getRow(db: Db, table: string, id: string): Row | undefined {
     sql: `SELECT * FROM ${table} WHERE id = ?`,
   });
   const row = statement.get(id);
-  return row ? fromRow(spec, row) : undefined;
+  return row ? fromRow(spec, row) : null;
 }

@@ -177,7 +177,7 @@ export async function runBatch(parameters: RunBatchParameters) {
                 id: op.id,
                 accountId:
                   op.table === "accounts" ? op.id : op.method === "PUT" ? (op.row!.accountId as string) : op.accountId!,
-                row: getRow(db, op.table, op.id),
+                row: getRow(db, op.table, op.id) ?? undefined,
               })),
             );
           }

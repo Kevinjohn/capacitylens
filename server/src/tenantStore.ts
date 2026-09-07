@@ -38,7 +38,7 @@ interface GetOwnedLifecycleRowInput {
 }
 
 function getOwnedLifecycleRow({ db, accountId, entity, id }: GetOwnedLifecycleRowInput): LifecycleRow | undefined {
-  const row = getRow(db, entity, id) as LifecycleRow | undefined;
+  const row = (getRow(db, entity, id) ?? undefined) as LifecycleRow | undefined;
   return row?.accountId === accountId ? row : undefined;
 }
 
@@ -228,7 +228,7 @@ export function createSqliteTenantStore(db: Db): TenantStore {
     );
   const validationLookup: ValidationDataLookup = {
     row: (table: AppDataKey, id: string) =>
-      getRow(db, table, id) as (Record<string, unknown> & { id: string }) | undefined,
+      (getRow(db, table, id) ?? undefined) as (Record<string, unknown> & { id: string }) | undefined,
     allocationsForResource: (accountId, resourceId) => listRelatedAllocations("resourceId", accountId, resourceId),
     allocationsForActivity: (accountId, activityId) => listRelatedAllocations("activityId", accountId, activityId),
     resourceHasLoadedAllocation: (accountId, resourceId) =>
