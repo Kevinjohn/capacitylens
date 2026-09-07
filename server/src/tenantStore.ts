@@ -37,9 +37,9 @@ interface GetOwnedLifecycleRowInput {
   id: string;
 }
 
-function getOwnedLifecycleRow({ db, accountId, entity, id }: GetOwnedLifecycleRowInput): LifecycleRow | undefined {
-  const row = (getRow(db, entity, id) ?? undefined) as LifecycleRow | undefined;
-  return row?.accountId === accountId ? row : undefined;
+function getOwnedLifecycleRow({ db, accountId, entity, id }: GetOwnedLifecycleRowInput): LifecycleRow | null {
+  const row = getRow(db, entity, id) as LifecycleRow | null;
+  return row?.accountId === accountId ? row : null;
 }
 
 interface RestampRowsInput {
@@ -197,7 +197,7 @@ export interface TenantStore {
   /** Indexed point/reverse lookups for validating one generic write without materialising a slice. */
   validationLookup?(): ValidationDataLookup;
   /** Read one lifecycle row, concealed as absent unless it belongs to `accountId`. */
-  readLifecycleRow(accountId: string, entity: LifecycleEntityKey, id: string): LifecycleRow | undefined;
+  readLifecycleRow(accountId: string, entity: LifecycleEntityKey, id: string): LifecycleRow | null;
   /** Replace one owned lifecycle row without rewriting its tenant siblings. */
   writeLifecycleRow(accountId: string, entity: LifecycleEntityKey, row: LifecycleRow): void;
   /** Remove sensitive notes attached to one soft-deleted resource. */
