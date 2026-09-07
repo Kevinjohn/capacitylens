@@ -41,13 +41,13 @@ export function parseData(json: string): AppData {
   // letting migrate() silently coerce it to [] and under-report the loss. This must run before
   // the recognisable-shape guard: a file whose only known table is damaged has no array with which
   // to satisfy looksLikeCapacityLens(), but it is still recognisably damaged CapacityLens data.
+  const candidate = importCandidate(raw);
   if (hasNonArrayKnownTable(raw)) {
     throw new Error("This file is damaged: a data table is not a list. Nothing was imported.");
   }
-  if (!looksLikeCapacityLens(raw)) {
+  if (candidate === null || !looksLikeCapacityLens(raw)) {
     throw new Error("This file is not CapacityLens data.");
   }
-  const candidate = importCandidate(raw)!;
   const rawTotal = RECOGNISED_KEYS.reduce(
     (recordCount, key) => recordCount + (Array.isArray(candidate[key]) ? candidate[key].length : 0),
     0,
