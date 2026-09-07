@@ -8,10 +8,20 @@ import { isServerConfigured } from "./apiConfig";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { isAccountEmail } from "@capacitylens/shared/account/validation";
 
+function readOptionalEnvironmentString(value: unknown, variableName: string): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "string") {
+    throw new Error(`${variableName} must be a string.`);
+  }
+  return value;
+}
+
 /** The muted Settings footer line, e.g. `build a1b2c3d · server`, or null when the build
  *  carries no sha (render nothing — today's Settings exactly). */
 export function readBuildStamp(): string | null {
-  const revision = (import.meta.env.VITE_CAPACITYLENS_BUILD_SHA ?? "").trim();
+  const revision = (
+    readOptionalEnvironmentString(import.meta.env.VITE_CAPACITYLENS_BUILD_SHA, "VITE_CAPACITYLENS_BUILD_SHA") ?? ""
+  ).trim();
   if (!revision) return null;
   return `build ${revision} · ${isServerConfigured() ? "server" : "demo"}`;
 }
@@ -20,7 +30,12 @@ export function readBuildStamp(): string | null {
  *  null when the build carries no address (render nothing). The subject carries the build
  *  stamp when there is one, so tester reports arrive pinned to a build. */
 export function readFeedbackMailto(): string | null {
-  const addr = (import.meta.env.VITE_CAPACITYLENS_FEEDBACK_MAILTO ?? "").trim();
+  const addr = (
+    readOptionalEnvironmentString(
+      import.meta.env.VITE_CAPACITYLENS_FEEDBACK_MAILTO,
+      "VITE_CAPACITYLENS_FEEDBACK_MAILTO",
+    ) ?? ""
+  ).trim();
   if (!isAccountEmail(addr)) return null;
   const atSignIndex = addr.indexOf("@");
   const recipient = `${encodeURIComponent(addr.slice(0, atSignIndex))}@${encodeURIComponent(addr.slice(atSignIndex + 1))}`;

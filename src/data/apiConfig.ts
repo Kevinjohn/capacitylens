@@ -6,6 +6,14 @@
 // offline-cache namespace uses the same canonical value. Kept in its own module so the env read and
 // validation aren't scattered across the adapter wiring.
 
+function readOptionalEnvironmentString(value: unknown, variableName: string): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "string") {
+    throw new Error(`${variableName} must be a string.`);
+  }
+  return value;
+}
+
 function parseApiBase(value: string | undefined): string {
   const raw = (value ?? "").trim();
   if (raw === "") return "";
@@ -29,7 +37,9 @@ function parseApiBase(value: string | undefined): string {
   return parsed.origin;
 }
 
-export const API_BASE = isDemoMode() ? "" : parseApiBase(import.meta.env.VITE_CAPACITYLENS_API);
+export const API_BASE = isDemoMode()
+  ? ""
+  : parseApiBase(readOptionalEnvironmentString(import.meta.env.VITE_CAPACITYLENS_API, "VITE_CAPACITYLENS_API"));
 
 /** Demo mode: an editable, in-memory seed that resets on refresh.
  *  NOTE: this is the persistence demo — distinct from the cosmetic auth persona
