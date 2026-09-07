@@ -23,7 +23,7 @@ import { Button } from "./ui/button";
 const masqueradeButtonClassName = "border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white";
 
 function buildMasqueradeBannerContent(masquerade: ReturnType<typeof useStore.getState>["masquerade"]) {
-  switch (masquerade.phase) {
+  switch (masquerade.kind) {
     case "inactive":
       return null;
     case "starting":

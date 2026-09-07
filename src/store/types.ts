@@ -24,14 +24,14 @@ import type {
 } from "@capacitylens/shared/types/entities";
 
 export type MasqueradeRuntimeState =
-  | { phase: "inactive" }
+  | { kind: "inactive" }
   | {
-      phase: "starting";
+      kind: "starting";
       pending: { accountId: string; targetUserId: string };
       state?: MasqueradeState;
       generation: number;
     }
-  | { phase: "active" | "ending"; state: MasqueradeState; generation: number };
+  | { kind: "active" | "ending"; state: MasqueradeState; generation: number };
 
 /**
  * A toast message + severity. Three tones, mapped to two dismissal behaviours by the AppShell
