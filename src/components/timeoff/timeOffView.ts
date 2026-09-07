@@ -4,6 +4,13 @@ import { compareDisplayNames } from "../../lib/displayOrder";
 import { resolveResourceDisplayName } from "../../lib/metadata";
 import { m } from "@/i18n";
 
+interface BuildTimeOffGroupsInput {
+  timeOff: readonly TimeOff[];
+  resources: readonly Resource[];
+  weekStart: ISODate;
+  placeholdersEnabled: boolean;
+}
+
 /** One heading and its ordered, currently relevant time-off entries. */
 export type TimeOffGroup =
   | { kind: "resource"; resourceId: ID; name: string; entries: TimeOff[] }
@@ -36,12 +43,12 @@ export function buildClosureList(closures: readonly Closure[], weekStart: ISODat
  * Entries remain visible when they overlap the current week boundary; missing resource references
  * collect in one final fallback group so corrupt legacy data cannot crash or silently disappear.
  */
-export function buildTimeOffGroups(
-  timeOff: readonly TimeOff[],
-  resources: readonly Resource[],
-  weekStart: ISODate,
-  placeholdersEnabled: boolean,
-): TimeOffGroup[] {
+export function buildTimeOffGroups({
+  timeOff,
+  resources,
+  weekStart,
+  placeholdersEnabled,
+}: BuildTimeOffGroupsInput): TimeOffGroup[] {
   const resourcesById = new Map(resources.map((resource) => [resource.id, resource]));
   const byResource = new Map<ID, Extract<TimeOffGroup, { kind: "resource" }>>();
   let unknown: Extract<TimeOffGroup, { kind: "unknown" }> | null = null;
