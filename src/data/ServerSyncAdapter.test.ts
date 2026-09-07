@@ -2070,25 +2070,78 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
   });
 });
 
-describe("atomic large diffs and unload behaviour", () => {
-  const manyClients = (n: number) => Array.from({ length: n }, (_, i) => client(`c${i}`));
+const manyClients = (count: number) => Array.from({ length: count }, (_, index) => client(`c${index}`));
 
-  it("sends 4500 ordinary UI ops as one ordered transaction", async () => {
-    const batches: string[][] = [];
-    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url.endsWith("/api/batch")) {
-        batches.push(opsFromInit(init).map((op) => op.id));
-      }
-      return commitReceipt(init);
-    }) as unknown as typeof fetch;
-    const a = new ServerSyncAdapter("http://x", fetchImpl);
+async function expectAtomicLargeDiff(): Promise<void> {
+  const batches: string[][] = [];
+  const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/api/batch")) batches.push(opsFromInit(init).map((op) => op.id));
+    return commitReceipt(init);
+  }) as unknown as typeof fetch;
+  const adapter = new ServerSyncAdapter("http://x", fetchImpl);
 
-    const clients = manyClients(4500);
-    await a.saveAll(withData({ clients }));
+  const clients = manyClients(4500);
+  await adapter.saveAll(withData({ clients }));
 
-    expect(batches).toHaveLength(1);
-    expect(batches[0]).toEqual(clients.map((c) => c.id));
+  expect(batches).toHaveLength(1);
+  expect(batches[0]).toEqual(clients.map((row) => row.id));
+}
+
+async function expectLifecycleArchiveBudgetedWithSiblingBatch(): Promise<void> {
+  const fetchImpl = okFetch() as unknown as typeof fetch;
+  const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+  const teardownDiscipline = (updatedAt = TS1): Discipline => ({
+    id: "d1",
+    accountId: "a1",
+    name: "Design",
+    sortOrder: 0,
+    color: "#3b82f6",
+    createdAt: TS1,
+    updatedAt,
   });
+  await adapter.saveAll(
+    scopedData("a1", {
+      clients: [client("to-archive")],
+      disciplines: [teardownDiscipline()],
+    }),
+  );
+  (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
+
+  const nearQuotaName = "x".repeat(59 * 1024);
+  await expect(
+    adapter.saveAll(
+      scopedData("a1", {
+        disciplines: [{ ...teardownDiscipline(TS2), name: nearQuotaName }],
+      }),
+      { unload: true },
+    ),
+  ).rejects.toBeInstanceOf(KeepaliveNotDispatchedError);
+
+  expect(fetchImpl).not.toHaveBeenCalled();
+}
+
+async function expectSmallUnloadBatch(): Promise<void> {
+  const discipline = (id: string): Discipline => ({
+    id,
+    accountId: "a1",
+    name: id,
+    sortOrder: 0,
+    createdAt: TS1,
+    updatedAt: TS1,
+  });
+  const fetchImpl = okFetch() as unknown as typeof fetch;
+  const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+  await adapter.saveAll(withData({ disciplines: [discipline("d1"), discipline("d2")] }));
+  (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
+  await adapter.saveAll(emptyAppData(), { unload: true });
+  const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
+  expect(calls).toHaveLength(1);
+  expect((calls[0]?.[1] as RequestInit).keepalive).toBe(true);
+  expect(batchOps(calls[0]).map((op) => op.method)).toEqual(["DELETE", "DELETE"]);
+}
+
+describe("atomic large diffs and unload behaviour", () => {
+  it("sends 4500 ordinary UI ops as one ordered transaction", expectAtomicLargeDiff);
 
   it("refuses an over-limit diff before sending anything", async () => {
     const fetchImpl = okFetch() as unknown as typeof fetch;
@@ -2112,38 +2165,10 @@ describe("atomic large diffs and unload behaviour", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("budgets a lifecycle archive with its sibling keepalive batch before dispatching either", async () => {
-    const fetchImpl = okFetch() as unknown as typeof fetch;
-    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
-    const teardownDiscipline = (updatedAt = TS1): Discipline => ({
-      id: "d1",
-      accountId: "a1",
-      name: "Design",
-      sortOrder: 0,
-      color: "#3b82f6",
-      createdAt: TS1,
-      updatedAt,
-    });
-    await adapter.saveAll(
-      scopedData("a1", {
-        clients: [client("to-archive")],
-        disciplines: [teardownDiscipline()],
-      }),
-    );
-    (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
-
-    const nearQuotaName = "x".repeat(59 * 1024);
-    await expect(
-      adapter.saveAll(
-        scopedData("a1", {
-          disciplines: [{ ...teardownDiscipline(TS2), name: nearQuotaName }],
-        }),
-        { unload: true },
-      ),
-    ).rejects.toBeInstanceOf(KeepaliveNotDispatchedError);
-
-    expect(fetchImpl).not.toHaveBeenCalled();
-  });
+  it(
+    "budgets a lifecycle archive with its sibling keepalive batch before dispatching either",
+    expectLifecycleArchiveBudgetedWithSiblingBatch,
+  );
 
   it.each([
     {
@@ -2170,28 +2195,12 @@ describe("atomic large diffs and unload behaviour", () => {
     },
   );
 
-  it("a small unload flush is one keepalive transaction and includes every (batch-eligible) DELETE", async () => {
-    // Lifecycle deletes (clients/projects/resources) deliberately do NOT flush on unload (two-round-trip
-    // archive→delete can't complete on a dying page — see the DEFECT A suite). This pins the keepalive
-    // path for ORDINARY, batch-eligible deletes, using a scoped non-lifecycle table (disciplines).
-    const disc = (id: string): Discipline => ({
-      id,
-      accountId: "a1",
-      name: id,
-      sortOrder: 0,
-      createdAt: TS1,
-      updatedAt: TS1,
-    });
-    const fetchImpl = okFetch() as unknown as typeof fetch;
-    const a = new ServerSyncAdapter("http://x", fetchImpl);
-    await a.saveAll(withData({ disciplines: [disc("d1"), disc("d2")] }));
-    (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
-    await a.saveAll(emptyAppData(), { unload: true });
-    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
-    expect(calls).toHaveLength(1);
-    expect((calls[0]?.[1] as RequestInit).keepalive).toBe(true);
-    expect(batchOps(calls[0]).map((o) => o.method)).toEqual(["DELETE", "DELETE"]);
-  });
+  // Lifecycle deletes deliberately do not flush on unload because archive then delete cannot complete
+  // on a dying page. This scenario covers ordinary batch-eligible discipline deletes.
+  it(
+    "a small unload flush is one keepalive transaction and includes every (batch-eligible) DELETE",
+    expectSmallUnloadBatch,
+  );
 });
 
 describe("snapshot generation guard (superseded loads / in-flight batches)", () => {
