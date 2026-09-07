@@ -297,10 +297,19 @@ interface ProjectBinding {
   projectId?: string;
 }
 
+interface ClientSnapshot {
+  id: string;
+  name: string;
+}
+
+interface ClientResponse extends ClientSnapshot {
+  updatedAt: string;
+}
+
 interface ValidatedStateResponse {
   activities: ProjectBinding[];
   allocations: unknown[];
-  clients: { name: string }[];
+  clients: ClientSnapshot[];
   resources: ProjectBinding[];
   timeOff: unknown[];
 }
@@ -331,7 +340,7 @@ function readProjectBindings(rows: unknown[], table: string): ProjectBinding[] {
   });
 }
 
-function readClientNames(rows: unknown[]): { name: string }[] {
+function readClientSnapshots(rows: unknown[]): ClientSnapshot[] {
   return rows
     .map((row) => {
       if (
@@ -347,13 +356,46 @@ function readClientNames(rows: unknown[]): { name: string }[] {
       return { id: row.id, name: row.name };
     })
     .filter((clientRow) => !clientRow.id.startsWith("internal:"))
-    .map(({ name }) => ({ name }));
+    .map(({ id, name }) => ({ id, name }));
 }
 
-function readFirstClientName(clients: { name: string }[]): string {
+function readFirstClientName(clients: ClientSnapshot[]): string {
   const clientRow = clients[0];
   if (!clientRow) throw new Error("Expected the state response to contain a client.");
   return clientRow.name;
+}
+
+function readClientIds(clients: ClientSnapshot[]): string[] {
+  return clients.map(({ id }) => id);
+}
+
+function readClientResponseValue(value: unknown): ClientResponse {
+  if (
+    !isUnknownRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.name !== "string" ||
+    typeof value.updatedAt !== "string"
+  ) {
+    throw new Error("Expected a client response with string id, name and updatedAt fields.");
+  }
+  return { id: value.id, name: value.name, updatedAt: value.updatedAt };
+}
+
+function readClientResponse(response: LightMyRequestResponse): ClientResponse {
+  return readClientResponseValue(response.json());
+}
+
+interface ConflictResponse {
+  error: string;
+  current: ClientResponse;
+}
+
+function readConflictResponse(response: LightMyRequestResponse): ConflictResponse {
+  const value: unknown = response.json();
+  if (!isUnknownRecord(value) || typeof value.error !== "string" || !("current" in value)) {
+    throw new Error("Expected a conflict response with an error and current row.");
+  }
+  return { error: value.error, current: readClientResponseValue(value.current) };
 }
 
 function readProjectId(rows: ProjectBinding[], id: string): string | undefined {
@@ -370,7 +412,7 @@ async function readValidatedState(app: FastifyInstance): Promise<ValidatedStateR
   return {
     activities: readProjectBindings(readStateArray(value, "activities"), "activity"),
     allocations: readStateArray(value, "allocations"),
-    clients: readClientNames(readStateArray(value, "clients")),
+    clients: readClientSnapshots(readStateArray(value, "clients")),
     resources: readProjectBindings(readStateArray(value, "resources"), "resource"),
     timeOff: readStateArray(value, "timeOff"),
   };
@@ -3238,7 +3280,7 @@ describe("optimistic concurrency (default-on)", () => {
       },
     });
     expect(stale.statusCode).toBe(409);
-    expect((await state(app)).clients[0].name).toBe("Acme"); // not overwritten
+    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Acme"); // not overwritten
     // A PUT at a newer time succeeds.
     const fresh = await put({
       app,
@@ -3247,11 +3289,11 @@ describe("optimistic concurrency (default-on)", () => {
       payload: {
         ...client("c1", "a1"),
         name: "Fresh",
-        updatedAt: created.json().updatedAt,
+        updatedAt: readClientResponse(created).updatedAt,
       },
     });
     expect(fresh.statusCode).toBe(200);
-    expect((await state(app)).clients[0].name).toBe("Fresh");
+    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Fresh");
   });
 
   it("rejects a stale PATCH and accepts one carrying the current server revision", async () => {
@@ -3274,12 +3316,12 @@ describe("optimistic concurrency (default-on)", () => {
       id: "c1",
       payload: {
         name: "Fresh",
-        updatedAt: created.json().updatedAt,
+        updatedAt: readClientResponse(created).updatedAt,
       },
     });
     expect(fresh.statusCode).toBe(200);
-    expect(fresh.json().name).toBe("Fresh");
-    expect(Date.parse(fresh.json().updatedAt)).not.toBeNaN();
+    expect(readClientResponse(fresh).name).toBe("Fresh");
+    expect(Date.parse(readClientResponse(fresh).updatedAt)).not.toBeNaN();
   });
 
   it("can be explicitly disabled for a trusted single-writer deployment", async () => {
@@ -3305,7 +3347,7 @@ describe("optimistic concurrency (default-on)", () => {
       },
     });
     expect(stale.statusCode).toBe(200);
-    expect((await state(app)).clients[0].name).toBe("Stale");
+    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Stale");
   });
 
   // The batch PUT branch applies the SAME stale-write refusal as the direct PUT (it previously
@@ -3346,15 +3388,15 @@ describe("optimistic concurrency (default-on)", () => {
     ]);
     expect(res.statusCode).toBe(409);
     // The direct PUT route's exact conflict shape: a message + the stored row for client re-sync.
-    expect(res.json().error).toBe("The record was modified more recently on the server.");
-    expect(res.json().current).toMatchObject({
+    expect(readConflictResponse(res).error).toBe("The record was modified more recently on the server.");
+    expect(readConflictResponse(res).current).toMatchObject({
       id: "c1",
       name: "Acme",
-      updatedAt: created.json().updatedAt,
+      updatedAt: readClientResponse(created).updatedAt,
     });
-    const s = await state(app);
-    expect(s.clients.map((c: { id: string }) => c.id)).toEqual(["c1"]); // c2 rolled back with the batch
-    expect(s.clients[0].name).toBe("Acme"); // c1 not overwritten
+    const s = await readValidatedState(app);
+    expect(readClientIds(s.clients)).toEqual(["c1"]); // c2 rolled back with the batch
+    expect(readFirstClientName(s.clients)).toBe("Acme"); // c1 not overwritten
   });
 
   it("batch: a fresh (same/newer updatedAt) PUT op passes with the flag on", async () => {
