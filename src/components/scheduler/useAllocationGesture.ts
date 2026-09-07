@@ -152,7 +152,8 @@ export function useAllocationGesture({ bar, geom: geometry, indexAtClientX, onEd
       const target = mode === "move" ? resolveLaneAt(lanesRef.current, pointer.clientX, pointer.clientY) : null;
       const destination = target && target.id !== resourceId ? target : null;
       const previewDays = resolvePreviewWorkingDays(destination?.id ?? resourceId);
-      const { previewImpossible, dates } = buildGesturePreviewDates({ bar, mode, deltaDays, previewDays });
+      const result = buildGesturePreviewDates({ bar, mode, deltaDays, previewDays });
+      const dates = result.kind === "ready" ? result.dates : null;
       setPreview({
         mode,
         deltaDays,
@@ -167,7 +168,7 @@ export function useAllocationGesture({ bar, geom: geometry, indexAtClientX, onEd
           : undefined;
         const blocked =
           !!targetResource &&
-          (previewImpossible ||
+          (result.kind === "blocked" ||
             (!!dates &&
               isAllocationMoveStartBlocked({
                 resource: targetResource,
