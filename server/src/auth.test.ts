@@ -639,14 +639,14 @@ describe("resolved auth options", () => {
 describe("cookie/session hardening (P1.16)", () => {
   it("pins sameSite:lax + httpOnly on the session cookie", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), PASSWORD_ENV);
-    expect(auth!.options.advanced?.defaultCookieAttributes).toEqual({ sameSite: "lax", httpOnly: true });
-    expect(auth!.options.advanced?.cookiePrefix).toBe("capacitylens");
+    const passwordAuth = assertPresent(auth, "password auth");
+    expect(passwordAuth.options.advanced?.defaultCookieAttributes).toEqual({ sameSite: "lax", httpOnly: true });
+    expect(passwordAuth.options.advanced?.cookiePrefix).toBe("capacitylens");
   });
 
   it("derives an insecure development cookie from an HTTP public URL", () => {
-    expect(createAuthFromEnvironment(openDb(":memory:"), PASSWORD_ENV).auth!.options.advanced?.useSecureCookies).toBe(
-      false,
-    );
+    const { auth } = createAuthFromEnvironment(openDb(":memory:"), PASSWORD_ENV);
+    expect(assertPresent(auth, "password auth").options.advanced?.useSecureCookies).toBe(false);
   });
 
   it("sets a valid __Host prefix and Secure from the HTTPS public URL even behind an HTTP proxy hop", () => {
@@ -654,11 +654,12 @@ describe("cookie/session hardening (P1.16)", () => {
       ...PASSWORD_ENV,
       BETTER_AUTH_URL: "https://capacity.example",
     });
+    const passwordAuth = assertPresent(auth, "password auth");
     // Better Auth's built-in switch is deliberately false because it prepends `__Secure-`.
     // CapacityLens supplies Secure directly so the stricter `__Host-` prefix remains first.
-    expect(auth!.options.advanced?.useSecureCookies).toBe(false);
-    expect(auth!.options.advanced?.cookiePrefix).toBe("__Host-capacitylens");
-    expect(auth!.options.advanced?.defaultCookieAttributes).toEqual({
+    expect(passwordAuth.options.advanced?.useSecureCookies).toBe(false);
+    expect(passwordAuth.options.advanced?.cookiePrefix).toBe("__Host-capacitylens");
+    expect(passwordAuth.options.advanced?.defaultCookieAttributes).toEqual({
       sameSite: "lax",
       httpOnly: true,
       secure: true,
@@ -703,9 +704,10 @@ describe("cookie/session hardening (P1.16)", () => {
 
   it("pins a 12-hour absolute lifetime with no sliding refresh and a 15-minute fresh window", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), PASSWORD_ENV);
-    expect(auth!.options.session?.expiresIn).toBe(43_200);
-    expect(auth!.options.session?.disableSessionRefresh).toBe(true);
-    expect(auth!.options.session?.freshAge).toBe(900);
+    const passwordAuth = assertPresent(auth, "password auth");
+    expect(passwordAuth.options.session?.expiresIn).toBe(43_200);
+    expect(passwordAuth.options.session?.disableSessionRefresh).toBe(true);
+    expect(passwordAuth.options.session?.freshAge).toBe(900);
   });
 
   it("OFF mode constructs no betterAuth instance — nothing to harden (auth === null)", () => {
