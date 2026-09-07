@@ -295,20 +295,8 @@
     }
   },
   "server/src/accounts/conformance/accountFlows.conformance.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 27
-    },
-    "@typescript-eslint/no-unsafe-argument": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 13
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 9
-    },
     "max-lines-per-function": {
-      "count": 4
+      "count": 3
     }
   },
   "server/src/accounts/conformance/architecture.test.ts": {
@@ -615,17 +603,11 @@
     }
   },
   "server/src/app.authz.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
     "@typescript-eslint/no-unsafe-member-access": {
       "count": 5
     },
     "max-lines-per-function": {
       "count": 6
-    },
-    "no-nested-ternary": {
-      "count": 1
     }
   },
   "server/src/app.cspReport.test.ts": {
@@ -682,7 +664,7 @@
       "count": 2
     },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 14
+      "count": 12
     },
     "max-lines-per-function": {
       "count": 7
@@ -771,10 +753,10 @@
       "count": 17
     },
     "@typescript-eslint/no-unsafe-assignment": {
-      "count": 96
+      "count": 92
     },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 185
+      "count": 176
     },
     "max-lines-per-function": {
       "count": 15
@@ -857,7 +839,7 @@
   },
   "server/src/auth.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
-      "count": 9
+      "count": 4
     },
     "@typescript-eslint/no-unsafe-assignment": {
       "count": 7
@@ -2923,7 +2905,7 @@
   },
   "src/components/settings/MembersSection.test.tsx": {
     "max-lines-per-function": {
-      "count": 8
+      "count": 7
     }
   },
   "src/components/settings/MembersSection.tsx": {
@@ -3140,17 +3122,8 @@
     }
   },
   "src/data/ServerSyncAdapter.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 22
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 6
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 3
-    },
     "max-lines-per-function": {
-      "count": 10
+      "count": 9
     }
   },
   "src/data/ServerSyncAdapter.ts": {
@@ -3208,10 +3181,10 @@
   },
   "src/data/persist.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
-      "count": 19
+      "count": 13
     },
     "max-lines-per-function": {
-      "count": 16
+      "count": 14
     }
   },
   "src/data/persistence/attachPersistence.ts": {
