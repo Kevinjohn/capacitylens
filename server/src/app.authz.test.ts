@@ -248,7 +248,8 @@ async function appWithAuth(
 ): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  await runAuthMigrations(auth!);
+  if (auth === null) throw new TypeError("Expected password mode to create an auth instance.");
+  await runAuthMigrations(auth);
   return {
     app: createApp(db, {
       authMode: mode,
