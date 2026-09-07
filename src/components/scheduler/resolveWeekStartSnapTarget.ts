@@ -16,16 +16,25 @@ import type { ISODate } from "@capacitylens/shared/types/entities";
 // epsilon guard returns null, and the caller no-ops — no feedback loop where the snap re-triggers
 // itself.
 
+export interface WeekStartSnapTargetInput {
+  geom: ColumnGeometry;
+  days: ISODate[];
+  scrollLeft: number;
+  weekStartsOn: 0 | 1;
+  epsilon?: number;
+}
+
 /**
  * Floor `scrollLeft` to the px offset of the week start of the day currently at the left edge.
  *
- * @param geom         the column geometry for `days` (from {@link buildColumnGeometry}); supplies
+ * @param input        snap inputs; `input.geom` binds locally as `geometry`.
+ * @param input.geom   the column geometry for `days` (from {@link buildColumnGeometry}); supplies
  *                     the exact px↔day inverse (`indexAt`) and date→px (`xForDateInGeom`).
- * @param days         the visible day window (one validated `ISODate` per column).
- * @param scrollLeft   the container's current horizontal scroll position, in px.
- * @param weekStartsOn 0 = Sunday, 1 = Monday (ISO-style) — the account's calendar week start.
- * @param epsilon      convergence band in px (default 0.5): the browser stores `scrollLeft` as a
- *                     whole number, so a target within half a pixel is already aligned.
+ * @param input.days   the visible day window (one validated `ISODate` per column).
+ * @param input.scrollLeft the container's current horizontal scroll position, in px.
+ * @param input.weekStartsOn 0 = Sunday, 1 = Monday (ISO-style) — the account's calendar week start.
+ * @param input.epsilon convergence tolerance in px (default 0.5): treat a raw scroll position
+ *                     within half a pixel of the target as aligned, including fractional positions.
  * @returns the target `scrollLeft` px to floor-snap to, or `null` when already within `epsilon`
  *   of the week start (a no-op — the caller must NOT write, or the snap re-arms itself).
  *
@@ -46,20 +55,20 @@ import type { ISODate } from "@capacitylens/shared/types/entities";
  * convergence check still compares the RAW `scrollLeft` to `target` — it measures the real distance
  * the caller must move, which is what the no-op decision turns on.
  */
-export function weekStartSnapTarget(
-  geom: ColumnGeometry,
-  days: ISODate[],
-  scrollLeft: number,
-  weekStartsOn: 0 | 1,
+export function resolveWeekStartSnapTarget({
+  geom: geometry,
+  days,
+  scrollLeft,
+  weekStartsOn,
   epsilon = 0.5,
-): number | null {
+}: WeekStartSnapTargetInput): number | null {
   // An empty window has no meaningful week boundary. Treat it as already converged so this public
   // pure helper keeps its total-function contract even outside the guarded SchedulerGrid caller.
   if (days.length === 0) return null;
 
-  const leftDay = resolveLeftEdgeDate(geom, days, scrollLeft);
+  const leftDay = resolveLeftEdgeDate(geometry, days, scrollLeft);
   if (!isValidISODate(leftDay)) return 0;
-  const target = Math.max(0, geom.xForDateInGeom(startOfWeekISO(leftDay, weekStartsOn)));
+  const target = Math.max(0, geometry.xForDateInGeom(startOfWeekISO(leftDay, weekStartsOn)));
   // Already aligned (within the sub-pixel band) → null so the caller no-ops. Math.abs, not a signed
   // compare, so a (never-expected) forward target also converges rather than oscillates.
   return Math.abs(target - scrollLeft) <= epsilon ? null : target;
