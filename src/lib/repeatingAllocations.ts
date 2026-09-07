@@ -24,6 +24,15 @@ import {
   type CapacityAllocationInput,
 } from "./capacity";
 
+interface BuildRepeatingAllocationAdvisoryInput {
+  resource: Resource;
+  existingLoad: readonly CapacityAllocationInput[];
+  timeOff: TimeOff[];
+  proposedDrafts: readonly Draft<Allocation>[];
+  effectiveWeek: EffectiveWorkingWeek;
+  closures: Closure[];
+}
+
 /** Transient choice shown only while creating an allocation. */
 export type RepeatSelection =
   "none" | "weekly" | "every-two-weeks" | "every-three-weeks" | "every-four-weeks" | "monthly";
@@ -117,14 +126,14 @@ export function buildRepeatedAllocationDrafts(
  * Earlier drafts are added to the comparison set before later drafts are checked, so internal batch
  * overlaps are visible without inventing entity ids or persisting anything.
  */
-export function buildRepeatingAllocationAdvisory(
-  resource: Resource,
-  existingLoad: readonly CapacityAllocationInput[],
-  timeOff: TimeOff[],
-  proposedDrafts: readonly Draft<Allocation>[],
-  effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[],
-): RepeatingAllocationAdvisory {
+export function buildRepeatingAllocationAdvisory({
+  resource,
+  existingLoad,
+  timeOff,
+  proposedDrafts,
+  effectiveWeek,
+  closures,
+}: BuildRepeatingAllocationAdvisoryInput): RepeatingAllocationAdvisory {
   if (!isCapacityTracked(resource)) {
     return { overCapacityAllocations: 0, timeOffAllocations: 0, nonEffectiveStartAllocations: 0 };
   }
@@ -137,7 +146,13 @@ export function buildRepeatingAllocationAdvisory(
   const shared = batchWindow
     ? {
         window: batchWindow,
-        load: bucketCapacityLoad(resource, existingLoad, batchWindow.start, batchWindow.end, effectiveWeek),
+        load: bucketCapacityLoad({
+          resource: resource,
+          allocations: existingLoad,
+          start: batchWindow.start,
+          end: batchWindow.end,
+          effectiveWeek: effectiveWeek,
+        }),
       }
     : null;
   // Only reachable from an absurd (~100-year) span, where the batch is wider than one
@@ -149,14 +164,36 @@ export function buildRepeatingAllocationAdvisory(
   let nonEffectiveStartAllocations = 0;
   for (const draft of proposedDrafts) {
     const result = shared
-      ? buildCapacityAdvisoryFromLoad(resource, draft, shared.load, timeOff, effectiveWeek, closures)
-      : buildCapacityAdvisory(resource, draft, rebuiltLoad, timeOff, effectiveWeek, closures);
+      ? buildCapacityAdvisoryFromLoad({
+          resource: resource,
+          proposal: draft,
+          loadByDay: shared.load,
+          timeOff: timeOff,
+          effectiveWeek: effectiveWeek,
+          closures: closures,
+        })
+      : buildCapacityAdvisory({
+          resource: resource,
+          proposal: draft,
+          otherAllocations: rebuiltLoad,
+          timeOff: timeOff,
+          effectiveWeek: effectiveWeek,
+          closures: closures,
+        });
     if (result.overDays > 0) overCapacityAllocations += 1;
     if (result.timeOffDays > 0) timeOffAllocations += 1;
     if (startsOnNonEffectiveWeekday(effectiveWeek, draft.ignoreWeekends, weekdayOf(draft.startDate))) {
       nonEffectiveStartAllocations += 1;
     }
-    if (shared) addCapacityLoad(shared.load, resource, draft, shared.window.start, shared.window.end, effectiveWeek);
+    if (shared)
+      addCapacityLoad({
+        byDay: shared.load,
+        resource: resource,
+        allocation: draft,
+        start: shared.window.start,
+        end: shared.window.end,
+        effectiveWeek: effectiveWeek,
+      });
     else rebuiltLoad.push(draft);
   }
   return { overCapacityAllocations, timeOffAllocations, nonEffectiveStartAllocations };

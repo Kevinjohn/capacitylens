@@ -35,7 +35,7 @@ describe("display ordering", () => {
     ];
 
     expect([...entries].sort(byName).map((entry) => entry.id)).toEqual(["upper", "same-a", "same-z", "accent"]);
-    expect(compareDisplayNames("Same", "b", "Same", "a")).toBeGreaterThan(0);
+    expect(compareDisplayNames({ leftName: "Same", leftId: "b", rightName: "Same", rightId: "a" })).toBeGreaterThan(0);
   });
 
   it("sorts favourites first and applies the same deterministic display-name order within each partition", () => {

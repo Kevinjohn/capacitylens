@@ -72,7 +72,10 @@ export function applyVisibleUtilization(
         changed = true;
         return { ...row, utilization: 0 };
       }
-      const resourceAllocations = applyCapacityMode(allocations.get(row.resource.id) ?? [], blocksMode);
+      const resourceAllocations = applyCapacityMode({
+        allocations: allocations.get(row.resource.id) ?? [],
+        blocksMode: blocksMode,
+      });
       const resourceTimeOff = personalTimeOff.get(row.resource.id) ?? [];
       const effectiveWeek = effectiveWorkingWeek(row.resource, accountWorkingDays);
       // Bucket this resource's load and time off by the days they cover ONCE, exactly as the full
@@ -83,14 +86,14 @@ export function applyVisibleUtilization(
       const personalTimeOffByDate = bucketByCoveredDate(resourceTimeOff, days);
       const next = resolveUtilizationFromCapacity(
         days.map((date) =>
-          buildDayCapacity(
-            row.resource,
-            date,
-            allocationsByDate.get(date) ?? NO_ALLOCATIONS,
-            personalTimeOffByDate.get(date) ?? NO_TIME_OFF,
-            effectiveWeek,
-            closuresByDate.get(date) ?? NO_CLOSURES,
-          ),
+          buildDayCapacity({
+            resource: row.resource,
+            date: date,
+            allocations: allocationsByDate.get(date) ?? NO_ALLOCATIONS,
+            timeOff: personalTimeOffByDate.get(date) ?? NO_TIME_OFF,
+            effectiveWeek: effectiveWeek,
+            closures: closuresByDate.get(date) ?? NO_CLOSURES,
+          }),
         ),
       );
       if (next === row.utilization) return row;

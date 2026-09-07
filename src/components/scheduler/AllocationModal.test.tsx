@@ -19,15 +19,21 @@ import { PermissionContext } from "../../auth/permissionContext";
 import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { chooseOption, GEOM, indexAtClientX, renderWithTooltip } from "./__tests__/schedulerTestKit";
 
-const capacityAdvisoryMock = vi.hoisted(() => vi.fn(() => ({ overDays: 0, timeOffDays: 0 })));
-// The mock is declared without a parameter list, so reach its recorded arguments through a cast:
-// tests assert on the `otherAllocations` the modal passes (its scheduling-mode projection of the
-// existing load), not merely on how often the advisory ran. It is the THIRD argument — the second
-// is the proposed allocation itself.
-const lastAdvisoryOthers = () => (capacityAdvisoryMock.mock.calls.at(-1) as unknown as unknown[] | undefined)?.[2];
-const lastAdvisoryProposal = () =>
-  (capacityAdvisoryMock.mock.calls.at(-1) as unknown as unknown[] | undefined)?.[1] as
-    { projectId?: string } | undefined;
+type CapacityAdvisoryMockInput =
+  | Parameters<typeof import("../../lib/capacity").buildCapacityAdvisory>[0]
+  | Parameters<typeof import("../../lib/capacity").buildCapacityAdvisoryFromLoad>[0];
+const capacityAdvisoryMock = vi.hoisted(() =>
+  vi.fn<(input: CapacityAdvisoryMockInput) => { overDays: number; timeOffDays: number }>(() => ({
+    overDays: 0,
+    timeOffDays: 0,
+  })),
+);
+// Both inputs carry a proposal; only the single-allocation path carries otherAllocations.
+const lastAdvisoryOthers = () => {
+  const input = capacityAdvisoryMock.mock.calls.at(-1)?.[0];
+  return input && "otherAllocations" in input ? input.otherAllocations : undefined;
+};
+const lastAdvisoryProposal = () => capacityAdvisoryMock.mock.calls.at(-1)?.[0].proposal;
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
 // (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
 // care only about the advisory VERDICTS the modal renders.

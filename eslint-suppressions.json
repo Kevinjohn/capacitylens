@@ -469,16 +469,6 @@
       "count": 6
     }
   },
-  "src/components/timeoff/timeOffView.test.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/components/timeoff/timeOffView.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "src/data/persist.test.ts": {
     "max-params": {
       "count": 1
@@ -525,46 +515,6 @@
     }
   },
   "src/hooks/useDragResize.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/lib/capacity.test.ts": {
-    "max-params": {
-      "count": 8
-    }
-  },
-  "src/lib/capacity.ts": {
-    "max-params": {
-      "count": 3
-    }
-  },
-  "src/lib/capacity/advisory.ts": {
-    "max-params": {
-      "count": 5
-    }
-  },
-  "src/lib/capacity/availability.ts": {
-    "max-params": {
-      "count": 5
-    }
-  },
-  "src/lib/displayOrder.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
-  "src/lib/gestureMath.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "src/lib/repeatingAllocations.test.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "src/lib/repeatingAllocations.ts": {
     "max-params": {
       "count": 1
     }
