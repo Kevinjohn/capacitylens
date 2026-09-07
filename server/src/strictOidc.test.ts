@@ -646,11 +646,12 @@ describe("strictOidcUserInfo", () => {
   });
 
   it("enforces the streamed JSON size cap when content-length is absent", async () => {
+    const cancel = vi.fn();
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(new Uint8Array(1024 * 1024 + 1));
-        controller.close();
       },
+      cancel,
     });
     vi.stubGlobal(
       "fetch",
@@ -663,6 +664,7 @@ describe("strictOidcUserInfo", () => {
     );
     const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
     await expect(client.metadata()).rejects.toThrow("size limit");
+    expect(cancel).toHaveBeenCalledOnce();
   });
 
   it("cancels declared-oversized provider JSON before rejecting it", async () => {
