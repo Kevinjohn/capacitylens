@@ -44,11 +44,6 @@
       "count": 1
     }
   },
-  "server/src/accounts/routes/replyHelpers.ts": {
-    "max-params": {
-      "count": 3
-    }
-  },
   "server/src/accounts/state/commandLedgerReads.ts": {
     "max-params": {
       "count": 1
