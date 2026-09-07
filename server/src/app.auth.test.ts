@@ -66,6 +66,14 @@ function hasNeedsSetup(res: LightMyRequestResponse): boolean {
   return "needsSetup" in parseJsonObject(res);
 }
 
+function parseErrorCode(res: LightMyRequestResponse): string {
+  const value = parseJsonObject(res);
+  if (!("code" in value) || typeof value.code !== "string") {
+    throw new Error("Expected response body to include a string error code.");
+  }
+  return value.code;
+}
+
 function totpCode(secret: string, at = Date.now()): string {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   let bits = "";
@@ -1946,7 +1954,7 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
       },
     });
     expect(res.statusCode).toBe(400);
-    expect(res.json().code).toBe("PASSWORD_TOO_SHORT");
+    expect(parseErrorCode(res)).toBe("PASSWORD_TOO_SHORT");
   });
 
   it("enforces sign-up bounds in Unicode code points rather than UTF-16 code units", async () => {
@@ -1965,12 +1973,12 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
 
     const tooShort = await signUpWith("astral-short@capacitylens.dev", "🔐".repeat(14));
     expect(tooShort.statusCode).toBe(400);
-    expect(tooShort.json().code).toBe("PASSWORD_TOO_SHORT");
+    expect(parseErrorCode(tooShort)).toBe("PASSWORD_TOO_SHORT");
     expect((await signUpWith("astral-min@capacitylens.dev", "🔐".repeat(15))).statusCode).toBe(200);
     expect((await signUpWith("astral-max@capacitylens.dev", "🔐".repeat(128))).statusCode).toBe(200);
     const tooLong = await signUpWith("astral-long@capacitylens.dev", "🔐".repeat(129));
     expect(tooLong.statusCode).toBe(400);
-    expect(tooLong.json().code).toBe("PASSWORD_TOO_LONG");
+    expect(parseErrorCode(tooLong)).toBe("PASSWORD_TOO_LONG");
   });
 
   it("enforces the code-point policy on direct identity creation that bypasses HTTP routes", async () => {
