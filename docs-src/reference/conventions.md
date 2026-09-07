@@ -61,9 +61,10 @@ Counterexamples that are now tracked debt:
 - `validateAuthUser(value: unknown, requireEmail = false)` returns `AuthUser | null`. It takes
   untrusted input and returns the typed value, so it is a `parse`, and its flag parameter is
   parameter debt too.
-- `validate*` functions return four shapes across the tree: `ValidationResult`, a problem or
-  `null` (`validateAllocationDraft`), a boolean (`validateHex`) and the typed value or `null`.
-  The last group are parses; the audit decides the rest.
+- `validate*` functions return three shapes across the tree: `ValidationResult`, a boolean
+  (`validateHex`) and the typed value or `null`. The last group are parses; the audit decides
+  the rest. `validateAllocationDraft` reports its first problem through a `fail` callback and
+  returns a boolean, matching the validation convention.
 - `ensureBarColors(hex)` returns a colour pair. It derives a value, so it is a `resolve`.
 
 ## Variables
@@ -108,7 +109,8 @@ Counterexamples that are now tracked debt:
   `src/components/scheduler/schedulerGridModal.ts` use the same `kind` discriminant without
   the suffix. `Status` in `src/auth/authStatus.ts`
   discriminates on `kind` but carries a lifecycle name, and `OfflineCacheWriteResult` in
-  `src/data/offline/types.ts` discriminates on `status`; both are tracked debt.
+  `src/data/offline/types.ts` now discriminates on `kind`; `Status` remains tracked debt because
+  its `kind` carries a lifecycle name rather than an outcome name.
 - **`status` is the lifecycle state of a thing**, such as a membership or a command, never
   the outcome of a call. The `status` union on operation receipts in
   `shared/src/account/ports.ts` is an existing portable contract and stays as it is.

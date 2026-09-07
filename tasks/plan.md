@@ -196,7 +196,7 @@ constants in `server/src/tables/columns.ts`, one PascalCase `let` in a test, fou
 Known deviations recorded on the page: `ensureInternalClients` twice with different contracts,
 `validateAuthUser` (a parse with a flag parameter), the four `validate*` return shapes,
 `ensureBarColors`, `getRow` returning `undefined`, `isUnavailable` with four positional
-parameters, `Status` and `OfflineCacheWriteResult` naming. Surveys at 3bb01646 also found one
+parameters and `Status` naming. Surveys at 3bb01646 also found one
 exported `find*` (`findUserIdsByEmail`, `server/src/auth.ts:192`), four `handle*` names in
 `src/`, and `resolveTheme(pref)` outside the abbreviation list. `tasks/plan-consensus.md` and
 `tasks/plan-review.md` are leftovers of maintainability batch 2, whose plan is in git history.
@@ -362,7 +362,12 @@ deferral to `DEFENSIVE-CODING.md`, and retain nonviolating observations with rea
 - [x] Exact audit coverage reconciled: 602 typed files, four operator context files and all 267 original suppression declarations. Independent consumer/classification reviews incorporated.
 - [x] Audit delivery checks: independent assembly review accepted; ten randomly chosen source citations resolve at the base; Prettier and documentation build pass with generated docs unchanged.
 - [x] #638 audit merged in PR #648 (`66eb8a9b`); issue closed and branch cleanup verified: 2,016 rows (R 1,102; E 361; P 276; S 34; X 101; D 142), with 72 triaged groups requiring bounded implementation briefs.
-- [ ] #639 original actionable rows retired or justified D/X; closure evidence reviewed.
+- [x] #639 original actionable rows retired or justified D/X; closure evidence reviewed. At
+      integrated head `7f5e96a3eddd98333bb88d2314505f397c9da084`, the reviewed C4 heads account for
+      1,772 implemented actionable rows plus B734 reclassified to X. Final classes are R 1,102 / E
+      360 / P 276 / S 34 / X 102 / D 142 (2,016 total); the X-only suppression baseline is 16
+      declarations. C4-01–C4-72 reviewed implementation heads and their merge ancestry were checked
+      against the integrated tree, with no remaining actionable group or unresolved exclusion.
 - [ ] First separate patch release merged and verified.
 - [ ] #643 upkeep decision merged and closed.
 - [ ] Second separate patch release merged and verified.
