@@ -238,7 +238,7 @@ export function createStrictOidcClient(input: {
       email,
       emailVerified: profile.email_verified === true,
       name: profile.name.trim(),
-      image: parseOptionalPictureUrl(profile.picture),
+      image: parseOptionalPictureUrl(profile.picture) ?? undefined,
     };
   };
 
