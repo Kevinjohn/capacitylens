@@ -162,9 +162,15 @@ export function createApp(db: Db, options: AppOptions = {}): FastifyInstance {
     // serializer so method/hostname/remote address remain available without emitting headers.
     logger: config.logOn ? createRequestLoggerOptions(options.logStream) : false,
   });
-  const rootHelpers = installRootHooks(app, db, runtime, config, options);
-  const sessionResolution = installSessionResolution(app, runtime, config, options, rootHelpers.securityEvent);
-  const authorization = createAuthorization(app, runtime, config, options, rootHelpers);
-  registerApiRoutes(app, db, runtime, config, options, rootHelpers, sessionResolution, authorization);
+  const rootHelpers = installRootHooks({ app, db, runtime, config, options });
+  const sessionResolution = installSessionResolution({
+    app,
+    runtime,
+    config,
+    options,
+    securityEvent: rootHelpers.securityEvent,
+  });
+  const authorization = createAuthorization({ app, runtime, config, options, rootHelpers });
+  registerApiRoutes({ app, db, runtime, config, options, rootHelpers, sessionResolution, authorization });
   return app;
 }

@@ -60,7 +60,7 @@ export function enforceAccountWriteGuards(input: {
   if (
     checkStale &&
     checkStale.optimisticConcurrency &&
-    isStaleWrite(existing, checkStale.candidateRow, checkStale.requirePrecondition)
+    isStaleWrite({ existing, row: checkStale.candidateRow, requirePrecondition: checkStale.requirePrecondition })
   ) {
     reply.code(409).send({
       error: "The record was modified more recently on the server.",

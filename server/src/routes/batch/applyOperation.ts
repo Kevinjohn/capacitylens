@@ -112,17 +112,23 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
     // (not replied) because we are inside tx(): the throw aborts the transaction, so
     // the WHOLE batch rolls back, and the catch below maps it to the direct route's
     // 409 + { current } shape.
-    if (
-      (optimisticConcurrency || syncOrder !== null) &&
-      isStaleWrite(persistedExisting, row as Record<string, unknown>) &&
-      !(syncOrder && isSameSessionSuccessor({ db, order: syncOrder, table, id, current: persistedExisting }))
-    ) {
-      // The 409's `current` payload is a READ of the stored row: redact the time-off
-      // note for a note-blind writer, exactly like the write echo (P1.6) — the conflict
-      // path must not hand an editor the very field readSlice redacts.
-      throw new StaleWriteError(
-        redactWriteEcho(table, persistedExisting, fieldVisFor(table, (row as { accountId?: unknown }).accountId)),
-      );
+    if (optimisticConcurrency || syncOrder !== null) {
+      const staleWriteInput = { existing: persistedExisting, row: row as Record<string, unknown> };
+      if (
+        isStaleWrite(staleWriteInput) &&
+        !(syncOrder && isSameSessionSuccessor({ db, order: syncOrder, table, id, current: staleWriteInput.existing }))
+      ) {
+        // The 409's `current` payload is a READ of the stored row: redact the time-off
+        // note for a note-blind writer, exactly like the write echo (P1.6) — the conflict
+        // path must not hand an editor the very field readSlice redacts.
+        throw new StaleWriteError(
+          redactWriteEcho(
+            table,
+            staleWriteInput.existing,
+            fieldVisFor(table, (row as { accountId?: unknown }).accountId),
+          ),
+        );
+      }
     }
     // P1.6: pin the time-off `note` for a note-blind writer — the batch is the client's
     // REAL save path, so an editor's redacted round-trip lands here (see sanitizeWrite).
@@ -150,7 +156,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
     } else {
       assertValidWrite({ state, table, row: clean, existing, lookup: projection });
       if (table === "activities") {
-        writeActivityRow(db, projection, clean, existing);
+        writeActivityRow({ db, projection, row: clean, existing });
       } else {
         upsertRow(db, table, clean);
         projection.upsert(table as AppDataKey, clean);
@@ -189,7 +195,7 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
     }
     if (
       syncOrder &&
-      isStaleWrite(existing, { updatedAt: op.updatedAt }) &&
+      isStaleWrite({ existing, row: { updatedAt: op.updatedAt } }) &&
       !isSameSessionSuccessor({ db, order: syncOrder, table, id, current: existing })
     ) {
       throw new StaleWriteError(redactWriteEcho(table, existing, fieldVisFor(table, op.accountId ?? id)));
@@ -227,12 +233,16 @@ export function applyBatchOperation(parameters: ApplyBatchOperationParameters): 
         });
       }
     }
-    if (
-      syncOrder &&
-      isStaleWrite(existing, { updatedAt: op.updatedAt }) &&
-      !isSameSessionSuccessor({ db, order: syncOrder, table, id, current: existing })
-    ) {
-      throw new StaleWriteError(redactWriteEcho(table, existing, fieldVisFor(table, op.accountId ?? id)));
+    if (syncOrder) {
+      const staleWriteInput = { existing, row: { updatedAt: op.updatedAt } };
+      if (
+        isStaleWrite(staleWriteInput) &&
+        !isSameSessionSuccessor({ db, order: syncOrder, table, id, current: staleWriteInput.existing })
+      ) {
+        throw new StaleWriteError(
+          redactWriteEcho(table, staleWriteInput.existing, fieldVisFor(table, op.accountId ?? id)),
+        );
+      }
     }
     deleteRow(db, table, id);
     projection.delete(table as AppDataKey, id);
