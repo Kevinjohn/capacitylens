@@ -134,6 +134,31 @@ function readErrorMessage(response: LightMyRequestResponse): string {
   return body.error;
 }
 
+function readTimeOffRows(response: LightMyRequestResponse): unknown[] {
+  const body = readJsonObject(response);
+  if (!("timeOff" in body) || !isUnknownArray(body.timeOff)) {
+    throw new TypeError("Expected the state response to contain a timeOff array.");
+  }
+  return body.timeOff;
+}
+
+function readFirstTimeOff(response: LightMyRequestResponse): object {
+  const [row] = readTimeOffRows(response);
+  if (typeof row !== "object" || row === null || Array.isArray(row)) {
+    throw new TypeError("Expected the state response to contain a time-off object.");
+  }
+  return row;
+}
+
+function readTimeOffNote(response: LightMyRequestResponse): string | undefined {
+  const row = readFirstTimeOff(response);
+  if (!("note" in row)) return undefined;
+  if (typeof row.note !== "string") {
+    throw new TypeError("Expected the time-off note to be a string when present.");
+  }
+  return row.note;
+}
+
 /** Add owner-only names to the a1 client/project without changing the broad authz fixture shape. */
 function seedPrivateNames(db: Db): void {
   seedTwo(db);
@@ -794,8 +819,6 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
   // we assert BOTH the parsed `note` is absent AND the sentinel appears NOWHERE in the raw body — the
   // latter is what proves the redaction is server-side (the string was never serialized), not a
   // client-side hide.
-  const noteOf = (res: LightMyRequestResponse): string | undefined => (res.json().timeOff[0] as { note?: string }).note;
-
   it.each([
     ["owner", true],
     ["editor", false],
@@ -807,11 +830,11 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
 
     const res = await getState(app, "a1", cookie);
     expect(res.statusCode).toBe(200);
-    expect(res.json().timeOff[0]).toMatchObject({ id: "to1", resourceId: "r1" });
+    expect(readFirstTimeOff(res)).toMatchObject({ id: "to1", resourceId: "r1" });
     if (canSeeNote) {
-      expect(noteOf(res)).toBe(SENTINEL_TIMEOFF_NOTE);
+      expect(readTimeOffNote(res)).toBe(SENTINEL_TIMEOFF_NOTE);
     } else {
-      expect(res.json().timeOff[0]).not.toHaveProperty("note");
+      expect(readFirstTimeOff(res)).not.toHaveProperty("note");
       expect(res.body).not.toContain(SENTINEL_TIMEOFF_NOTE);
     }
   });
@@ -824,7 +847,7 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
 
     const res = await getState(app, "a1", cookie);
     expect(res.statusCode).toBe(200);
-    expect(noteOf(res)).toBe(SENTINEL_TIMEOFF_NOTE);
+    expect(readTimeOffNote(res)).toBe(SENTINEL_TIMEOFF_NOTE);
     expect(res.body).toContain(SENTINEL_TIMEOFF_NOTE);
   });
 
@@ -836,9 +859,9 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
 
     const res = await getState(app, "a1", cookie);
     expect(res.statusCode).toBe(200);
-    expect(res.json().timeOff.length).toBe(1); // the row is returned…
-    expect("note" in (res.json().timeOff[0] as object)).toBe(false); // …minus its note key
-    expect(noteOf(res)).toBeUndefined();
+    expect(readTimeOffRows(res).length).toBe(1); // the row is returned…
+    expect("note" in readFirstTimeOff(res)).toBe(false); // …minus its note key
+    expect(readTimeOffNote(res)).toBeUndefined();
     // The clincher: the sentinel was never serialized onto the wire (server-side redaction).
     expect(res.body).not.toContain(SENTINEL_TIMEOFF_NOTE);
   });
@@ -849,7 +872,7 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
     seedTwo(db);
     const res = await getState(app, "a1"); // no cookie needed in OFF
     expect(res.statusCode).toBe(200);
-    expect(noteOf(res)).toBe(SENTINEL_TIMEOFF_NOTE);
+    expect(readTimeOffNote(res)).toBe(SENTINEL_TIMEOFF_NOTE);
     expect(res.body).toContain(SENTINEL_TIMEOFF_NOTE);
   });
 });
