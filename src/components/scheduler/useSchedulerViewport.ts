@@ -11,7 +11,7 @@ import { buildVisibleRange } from "../../store/selectors";
 import { useStore, type SchedulerUI } from "../../store/useStore";
 import { buildColumnGeometry, resolveLeftEdgeDate } from "./columnGeometry";
 import { LAYOUT } from "./layout";
-import { weekStartSnapTarget } from "./weekSnap";
+import { resolveWeekStartSnapTarget } from "./resolveWeekStartSnapTarget";
 
 interface SchedulerViewportOptions {
   ui: SchedulerUI;
@@ -218,7 +218,7 @@ export function useSchedulerViewport({
       // geometry underneath a pointer gesture would change its meaning mid-flight.
       if (useStore.getState().draggingAllocationId !== null || !horizontalChanged) return;
       // indexAtScroll, not indexAt: it owns the HiDPI sub-pixel rounding every scroll-position
-      // read needs (see its doc comment / weekSnap.ts's "SUB-PIXEL ROUNDING" note).
+      // read needs (see its doc comment / resolveWeekStartSnapTarget.ts's "SUB-PIXEL ROUNDING" note).
       setLeftEdgeIndex(geometry.indexAtScroll(el.scrollLeft));
 
       if (!snapToWeekStart) return;
@@ -226,7 +226,12 @@ export function useSchedulerViewport({
       snapTimer.current = window.setTimeout(() => {
         const node = scrollRef.current;
         if (!node || useStore.getState().draggingAllocationId !== null) return;
-        const target = weekStartSnapTarget(geometry, days, node.scrollLeft, calendarWeekStartsOn);
+        const target = resolveWeekStartSnapTarget({
+          geom: geometry,
+          days,
+          scrollLeft: node.scrollLeft,
+          weekStartsOn: calendarWeekStartsOn,
+        });
         if (target !== null) setScrollLeft(node, target);
       }, WEEK_SNAP_IDLE_MS);
     });

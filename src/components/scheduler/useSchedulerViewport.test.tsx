@@ -3,7 +3,7 @@ import { act, render, screen } from "@testing-library/react";
 import { useSchedulerViewport } from "./useSchedulerViewport";
 import { useStore } from "../../store/useStore";
 
-// weekSnap.ts's own floor-snap (weekStartSnapTarget, see weekSnap.test.ts) already rounds
+// resolveWeekStartSnapTarget.ts's floor-snap (tested in resolveWeekStartSnapTarget.test.ts) already rounds
 // scrollLeft before geom.indexAt for exactly this HiDPI reason (see its "SUB-PIXEL ROUNDING"
 // doc comment). This file pins the SAME rounding at the hook's other two indexAt call sites
 // (onScroll's leftEdgeIdx, and visibleStartDate) plus the dragging-end effect, so all three
