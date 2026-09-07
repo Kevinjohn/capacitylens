@@ -51,8 +51,8 @@ export function useAllocationModalState(props: AllocationModalProps) {
   const isDays = mode === "days";
   const isBlocks = !carriesHourlyLoad(mode);
 
-  const editId = "allocationId" in props ? props.allocationId : undefined;
-  const create = "create" in props ? props.create : undefined;
+  const editId = props.kind === "edit" ? props.allocationId : undefined;
+  const create = props.kind === "create" ? props.create : undefined;
   const editing = editId ? data.allocations.find((allocation) => allocation.id === editId) : undefined;
 
   const resourcesById = useMemo(
