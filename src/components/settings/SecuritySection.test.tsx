@@ -379,15 +379,60 @@ describe("SecuritySection", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("reconciles the session list after a transport-level revoke failure", async () => {
+  it.each([
+    {
+      name: "a refreshed session list",
+      result: {
+        kind: "loaded",
+        sessions: [{ ...SESSION, id: "refreshed-session", current: true }],
+      } satisfies SessionListResult,
+      expected: "refreshed",
+    },
+    {
+      name: "an unauthorized session list",
+      result: { kind: "unauthorized" } satisfies SessionListResult,
+      expected: "reload",
+    },
+    {
+      name: "a failed session list",
+      result: { kind: "failed" } satisfies SessionListResult,
+      expected: "unavailable",
+    },
+  ])("reconciles a transport-level revoke failure with $name", async ({ result, expected }) => {
+    const realLocation = window.location;
+    const reload = vi.fn();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...realLocation, reload },
+    });
     revokeOwnSession.mockRejectedValueOnce(new TypeError("network failed"));
-    render(<SecuritySection />);
-    await screen.findByText(m.settings_security_signed_in_session());
+    listSessions.mockResolvedValueOnce({ kind: "loaded", sessions: [SESSION] }).mockResolvedValueOnce(result);
+    try {
+      render(<SecuritySection />);
+      await screen.findByText(m.settings_security_signed_in_session());
 
-    fireEvent.click(screen.getByRole("button", { name: m.settings_security_revoke() }));
+      fireEvent.click(screen.getByRole("button", { name: m.settings_security_revoke() }));
 
-    await waitFor(() => expect(listSessions).toHaveBeenCalledTimes(2));
-    expect(await screen.findByRole("status")).toHaveTextContent(m.settings_security_revoke_unknown_refreshed());
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      await waitFor(() => expect(listSessions).toHaveBeenCalledTimes(2));
+      if (expected === "reload") {
+        await waitFor(() => expect(reload).toHaveBeenCalledOnce());
+        expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      } else {
+        expect(await screen.findByRole("status")).toHaveTextContent(
+          expected === "refreshed"
+            ? m.settings_security_revoke_unknown_refreshed()
+            : m.settings_security_revoke_unknown_unavailable(),
+        );
+        if (expected === "refreshed") {
+          expect(screen.getByText(m.settings_security_current_session())).toBeInTheDocument();
+        }
+        expect(reload).not.toHaveBeenCalled();
+      }
+    } finally {
+      Object.defineProperty(window, "location", {
+        configurable: true,
+        value: realLocation,
+      });
+    }
   });
 });
