@@ -705,6 +705,32 @@ describe("offline tenant cache", () => {
     await expect(getRaw(`auth:${currentCacheNamespace()}`)).resolves.toBeUndefined();
   });
 
+  it.each([null, undefined, false, 0, ""])(
+    "completes cleanup when storage throws a falsy value (%p)",
+    async (cause) => {
+      await cacheAuthSnapshot(authSnapshot("user-a"));
+      vi.spyOn(Storage.prototype, "setItem").mockImplementation((key) => {
+        if (key.endsWith("offlineWriteBoundary")) throw cause;
+      });
+
+      await expect(clearOfflineDataForCurrentUser()).resolves.toBeUndefined();
+      await expect(getRaw(`auth:${currentCacheNamespace()}`)).resolves.toBeUndefined();
+    },
+  );
+
+  it.each([null, undefined, false, 0, ""])(
+    "follows the missing-storage policy when storage throws a falsy value (%p)",
+    async (cause) => {
+      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+        throw cause;
+      });
+      vi.stubGlobal("indexedDB", undefined);
+
+      await expect(clearOfflineDataForCurrentUser()).rejects.toThrow("IndexedDB is unavailable");
+      await expect(clearAllOfflineData()).resolves.toBeUndefined();
+    },
+  );
+
   it("drops writes whose generation changes during encryption", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     const originalEncrypt = crypto.subtle.encrypt.bind(crypto.subtle);
