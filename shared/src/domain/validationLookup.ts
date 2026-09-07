@@ -116,6 +116,5 @@ export const isEffectivelyActive = ({ data, table, row, lookup }: IsEffectivelyA
     // LifecycleAncestryRow the walk reads by field name. Every field the walk touches
     // (id / accountId / tombstones / FK ids) is present on these rows.
     row as unknown as LifecycleAncestryRow,
-    (parentTable, id) =>
-      resolveValidationRow({ data, table: parentTable, id, lookup }) as LifecycleAncestryRow | undefined,
+    (parentTable, id) => resolveValidationRow({ data, table: parentTable, id, lookup }),
   ).visible;
