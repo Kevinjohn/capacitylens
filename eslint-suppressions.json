@@ -269,11 +269,6 @@
       "count": 1
     }
   },
-  "src/components/settings/MembersSection.test.tsx": {
-    "max-params": {
-      "count": 6
-    }
-  },
   "src/components/timeoff/timeOffView.test.ts": {
     "max-params": {
       "count": 1

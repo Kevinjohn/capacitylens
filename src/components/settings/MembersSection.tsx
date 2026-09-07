@@ -157,7 +157,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
                 data-testid="member-sign-in-tracking"
                 checked={orchestration.signInTrackingEnabled}
                 disabled={orchestration.busyAction !== null}
-                onCheckedChange={(next) => void orchestration.changeSignInTracking(next)}
+                onCheckedChange={(next) => void orchestration.changeSignInTracking({ next: next })}
               />
             </Field>
           )}
