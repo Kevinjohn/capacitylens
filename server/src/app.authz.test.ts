@@ -408,6 +408,12 @@ const importInto = ({ app, accountId, id, cookie }: ImportIntoInput) => {
   });
 };
 
+function expectedClosureWriteStatus(role: Role, batched: boolean): number {
+  if (role === "viewer") return 403;
+  if (batched) return 200;
+  return 201;
+}
+
 describe("P1.5 authorize — auth-on 403 matrix", () => {
   it.each([false, true])("keeps closures at the editor+ write tier (batched=%s)", async (batched) => {
     const { app, db } = await appWithAuth();
@@ -419,7 +425,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
       const id = `${role}-company-${batched}`;
       const response = await writeClosure({ app, accountId: "a1", id, cookie, batched });
 
-      expect(response.statusCode, role).toBe(role === "viewer" ? 403 : batched ? 200 : 201);
+      expect(response.statusCode, role).toBe(expectedClosureWriteStatus(role, batched));
       if (role === "viewer") expect(getRow(db, "closures", id), role).toBeNull();
       else {
         expect(getRow(db, "closures", id), role).toMatchObject({
