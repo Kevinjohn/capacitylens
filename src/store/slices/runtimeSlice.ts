@@ -127,7 +127,7 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     activeRole: null,
     activeRoleStatus: "not-applicable",
     membershipRevision: 0,
-    masquerade: { phase: "inactive" },
+    masquerade: { kind: "inactive" },
 
     setHydrated: (value) => set({ hydrated: value }),
     setPersistError: (value) => set({ persistError: value }),

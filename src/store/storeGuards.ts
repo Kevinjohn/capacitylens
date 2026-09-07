@@ -47,7 +47,7 @@ export function createGuards(get: StoreApi<StoreState>["getState"], set: StoreAp
   // throw would read as corruption and could crash a drag handler), we just refuse + inform.
   const blockedByViewer = (): boolean => {
     const state = get();
-    if (state.masquerade.phase !== "inactive") {
+    if (state.masquerade.kind !== "inactive") {
       state.setNotice(m.notice_masquerade_read_only(), "error");
       return true;
     }

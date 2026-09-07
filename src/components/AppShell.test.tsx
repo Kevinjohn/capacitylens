@@ -40,7 +40,7 @@ beforeEach(() => {
   // Clear any leftover transient notice so a prior test's Sonner toast can't bleed in (the
   // toast layer is module-global; the store notice is the source of truth the bridge reads).
   useStore.getState().setNotice(null);
-  useStore.getState().setMasquerade({ phase: "inactive" });
+  useStore.getState().setMasquerade({ kind: "inactive" });
   // Most shell tests exercise the post-hydration UI; the dedicated handoff test overrides this.
   useStore.getState().setHydrated(true);
   setOfflineReadState("cleanup", false);
@@ -75,7 +75,7 @@ function LocationProbe() {
 
 it("shows the session-scoped masquerade banner above ordinary app alerts", () => {
   useStore.getState().setMasquerade({
-    phase: "active",
+    kind: "active",
     generation: 1,
     state: {
       accountId: DEFAULT_ACCOUNT_ID,
@@ -100,7 +100,7 @@ it("shows the session-scoped masquerade banner above ordinary app alerts", () =>
 
 it("shows a fail-closed banner while a member view is starting", () => {
   useStore.getState().setMasquerade({
-    phase: "starting",
+    kind: "starting",
     generation: 1,
     pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
   });
@@ -114,7 +114,7 @@ it("shows a fail-closed banner while a member view is starting", () => {
 
 it("offers projection recovery after the server has prepared a starting member view", () => {
   useStore.getState().setMasquerade({
-    phase: "starting",
+    kind: "starting",
     generation: 1,
     pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
     state: {
