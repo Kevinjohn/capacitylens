@@ -51,13 +51,13 @@ export function createCatalogSlice(internals: StoreInternals): StateCreator<Stor
           ...stamp(),
         }),
         (entity) => {
-          const safe = applySnappedColor(entity);
+          const safe = applySnappedColor({ patch: entity });
           mutate((data) => ({ ...data, disciplines: [...data.disciplines, safe] }));
           return safe;
         },
       ),
       updateDiscipline: createGuardedAction((id: ID, patch: Patch<Discipline>) => {
-        updateOwned("disciplines", id, patch, () => applySnappedColor(patch));
+        updateOwned({ key: "disciplines", id: id, patch: patch, prepare: () => applySnappedColor({ patch: patch }) });
       }),
       deleteDiscipline: createGuardedAction((id: ID) => {
         if (!resolveOwnedRow(get().data, "disciplines", id)) return;
@@ -85,7 +85,7 @@ export function createCatalogSlice(internals: StoreInternals): StateCreator<Stor
           if (!hasUsablePrivateCodeName(entity as unknown as Record<string, unknown>)) {
             throw new Error("A private client requires a code name.");
           }
-          const safe = applySnappedColor(entity);
+          const safe = applySnappedColor({ patch: entity });
           mutate((data) => ({ ...data, clients: [...data.clients, safe] }));
           return safe;
         },
@@ -97,13 +97,18 @@ export function createCatalogSlice(internals: StoreInternals): StateCreator<Stor
         const stripped: Record<string, unknown> = { ...patch };
         delete stripped.builtin;
         const safe = stripped as Patch<Client>;
-        updateOwned("clients", id, safe, (merged) => {
-          // The built-in Internal client can't be renamed (or recoloured) — a fixed bucket.
-          assertNotBuiltinClient("clients", id, "renamed");
-          if (!hasUsablePrivateCodeName(merged as unknown as Record<string, unknown>)) {
-            throw new Error("A private client requires a code name.");
-          }
-          return applySnappedColor(safe);
+        updateOwned({
+          key: "clients",
+          id: id,
+          patch: safe,
+          prepare: (merged) => {
+            // The built-in Internal client can't be renamed (or recoloured) — a fixed bucket.
+            assertNotBuiltinClient("clients", id, "renamed");
+            if (!hasUsablePrivateCodeName(merged as unknown as Record<string, unknown>)) {
+              throw new Error("A private client requires a code name.");
+            }
+            return applySnappedColor({ patch: safe });
+          },
         });
       }),
 
@@ -114,21 +119,26 @@ export function createCatalogSlice(internals: StoreInternals): StateCreator<Stor
             throw new Error("A private project requires a code name.");
           }
           assertScopedRefs(get().data, entity.accountId, "projects", input);
-          const safe = applySnappedColor(entity);
+          const safe = applySnappedColor({ patch: entity });
           mutate((data) => ({ ...data, projects: [...data.projects, safe] }));
           return safe;
         },
       ),
       updateProject: createGuardedAction((id: ID, patch: Patch<Project>) => {
-        updateOwned("projects", id, patch, (merged, existing) => {
-          if (!hasUsablePrivateCodeName(merged as unknown as Record<string, unknown>)) {
-            throw new Error("A private project requires a code name.");
-          }
-          // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): in server mode
-          // the hydrated slice is active-only, so an unchanged clientId pointing at an ARCHIVED client
-          // must not block an unrelated edit; a CHANGED clientId is still validated strictly.
-          assertScopedRefs(get().data, existing.accountId, "projects", patch, existing);
-          return applySnappedColor(patch);
+        updateOwned({
+          key: "projects",
+          id: id,
+          patch: patch,
+          prepare: (merged, existing) => {
+            if (!hasUsablePrivateCodeName(merged as unknown as Record<string, unknown>)) {
+              throw new Error("A private project requires a code name.");
+            }
+            // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): in server mode
+            // the hydrated slice is active-only, so an unchanged clientId pointing at an ARCHIVED client
+            // must not block an unrelated edit; a CHANGED clientId is still validated strictly.
+            assertScopedRefs(get().data, existing.accountId, "projects", patch, existing);
+            return applySnappedColor({ patch: patch });
+          },
         });
       }),
 
@@ -141,11 +151,16 @@ export function createCatalogSlice(internals: StoreInternals): StateCreator<Stor
         },
       ),
       updatePhase: createGuardedAction((id: ID, patch: Patch<Phase>) => {
-        updateOwned("phases", id, patch, (_merged, existing) => {
-          // `existing` enables the unchanged-parent relaxation (see assertScopedRefs) — same
-          // archived-parent rationale as updateProject above.
-          assertScopedRefs(get().data, existing.accountId, "phases", patch, existing);
-          return patch;
+        updateOwned({
+          key: "phases",
+          id: id,
+          patch: patch,
+          prepare: (_merged, existing) => {
+            // `existing` enables the unchanged-parent relaxation (see assertScopedRefs) — same
+            // archived-parent rationale as updateProject above.
+            assertScopedRefs(get().data, existing.accountId, "phases", patch, existing);
+            return patch;
+          },
         });
       }),
       deletePhase: createGuardedAction((id: ID) => {
@@ -162,18 +177,18 @@ export function createCatalogSlice(internals: StoreInternals): StateCreator<Stor
         },
       ),
       updateActivity: createGuardedAction((id: ID, patch: Patch<Activity>) => {
-        updateOwned(
-          "activities",
-          id,
-          patch,
-          (merged, existing) => {
+        updateOwned({
+          key: "activities",
+          id: id,
+          patch: patch,
+          prepare: (merged, existing) => {
             // A partial patch touching only projectId OR only phaseId must still be checked for
             // activity↔phase coherence against the row's OTHER field.
             assertScopedRefs(get().data, existing.accountId, "activities", { ...merged }, existing);
             assertActivityProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
             return patch;
           },
-          (data, merged, existing) => ({
+          cascade: (data, merged, existing) => ({
             ...data,
             allocations:
               allocationAttributionAllowed(existing.kind) && !allocationAttributionAllowed(merged.kind)
@@ -184,7 +199,7 @@ export function createCatalogSlice(internals: StoreInternals): StateCreator<Stor
                   )
                 : data.allocations,
           }),
-        );
+        });
       }),
       deleteActivity: createGuardedAction((id: ID) => {
         if (!resolveOwnedRow(get().data, "activities", id)) return;
