@@ -319,16 +319,6 @@
       "count": 1
     }
   },
-  "src/account/accountClient.ts": {
-    "max-params": {
-      "count": 2
-    }
-  },
-  "src/account/commandRequest.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "src/auth/masqueradeController.ts": {
     "max-params": {
       "count": 1

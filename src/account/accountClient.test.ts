@@ -104,7 +104,12 @@ describe("browser account client", () => {
   it("adds command headers, JSON encoding, safe path encoding, reauth, and bulk timeout policy", async () => {
     await accountClient.createWorkspace({ name: "Studio" }, command);
     await accountClient.eraseWorkspace("workspace / one", command);
-    await accountClient.changeMemberRole("workspace / one", "person / one", "editor", command);
+    await accountClient.changeMemberRole({
+      workspaceId: "workspace / one",
+      principalId: "person / one",
+      role: "editor",
+      command: command,
+    });
     await accountClient.removeMember("workspace / one", "person / one", command);
     await accountClient.transferOwnership("workspace / one", "person / one", command);
     await accountClient.issuePasswordReset("workspace / one", "person / one", command);

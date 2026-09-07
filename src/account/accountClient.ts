@@ -5,6 +5,20 @@ import type { BrowserAccountCommand } from "./accountCommands";
 import { buildPayloadOperationKey } from "./commandOutcome";
 import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from "./commandRequest";
 
+interface ChangeMemberRoleInput {
+  workspaceId: string;
+  principalId: string;
+  role: string;
+  command?: BrowserAccountCommand | undefined;
+}
+
+interface ChangeMemberStatusInput {
+  workspaceId: string;
+  principalId: string;
+  status: string;
+  command?: BrowserAccountCommand | undefined;
+}
+
 export {
   type BrowserAccountCommand,
   createBrowserAccountCommand,
@@ -79,32 +93,37 @@ export const accountClient = {
   },
 
   revokeOwnSession(sessionId: string, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand(`own-session:${sessionId}`, command, (resolved) =>
-      apiFetch(
-        `${API_BASE}/api/account/sessions/${encodeURIComponent(sessionId)}`,
-        buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
-      ),
-    );
+    return runCommand({
+      operationKey: `own-session:${sessionId}`,
+      explicit: command,
+      request: (resolved) =>
+        apiFetch(
+          `${API_BASE}/api/account/sessions/${encodeURIComponent(sessionId)}`,
+          buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
+        ),
+    });
   },
 
   async createWorkspace(body: unknown, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand(await buildPayloadOperationKey("workspace-create", body), command, (resolved) =>
-      apiFetch(`${API_BASE}/api/orgs`, buildJsonCommandRequestInit("POST", body, resolved)),
-    );
+    return runCommand({
+      operationKey: await buildPayloadOperationKey("workspace-create", body),
+      explicit: command,
+      request: (resolved) => apiFetch(`${API_BASE}/api/orgs`, buildJsonCommandRequestInit("POST", body, resolved)),
+    });
   },
 
   eraseWorkspace(workspaceId: string, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand(
-      `workspace-erase:${workspaceId}`,
-      command,
-      (resolved) =>
+    return runCommand({
+      operationKey: `workspace-erase:${workspaceId}`,
+      explicit: command,
+      request: (resolved) =>
         apiFetchReauth(
           `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}`,
           buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
           API_BULK_TIMEOUT_MS,
         ),
-      403,
-    );
+      ambiguousStatus: 403,
+    });
   },
 
   listMembers(workspaceId: string): Promise<Response> {
@@ -150,41 +169,40 @@ export const accountClient = {
     });
   },
 
-  changeMemberRole(
-    workspaceId: string,
-    principalId: string,
-    role: string,
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
-    return runCommand(`member-role:${workspaceId}:${principalId}:${role}`, command, (resolved) =>
-      apiFetchReauth(
-        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}`,
-        buildJsonCommandRequestInit("PATCH", { role }, resolved),
-      ),
-    );
+  changeMemberRole({ workspaceId, principalId, role, command }: ChangeMemberRoleInput): Promise<Response> {
+    return runCommand({
+      operationKey: `member-role:${workspaceId}:${principalId}:${role}`,
+      explicit: command,
+      request: (resolved) =>
+        apiFetchReauth(
+          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}`,
+          buildJsonCommandRequestInit("PATCH", { role }, resolved),
+        ),
+    });
   },
 
-  changeMemberStatus(
-    workspaceId: string,
-    principalId: string,
-    status: string,
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
-    return runCommand(`member-status:${workspaceId}:${principalId}:${status}`, command, (resolved) =>
-      apiFetchReauth(
-        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/status`,
-        buildJsonCommandRequestInit("PATCH", { status }, resolved),
-      ),
-    );
+  changeMemberStatus({ workspaceId, principalId, status, command }: ChangeMemberStatusInput): Promise<Response> {
+    return runCommand({
+      operationKey: `member-status:${workspaceId}:${principalId}:${status}`,
+      explicit: command,
+      request: (resolved) =>
+        apiFetchReauth(
+          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/status`,
+          buildJsonCommandRequestInit("PATCH", { status }, resolved),
+        ),
+    });
   },
 
   removeMember(workspaceId: string, principalId: string, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand(`member-remove:${workspaceId}:${principalId}`, command, (resolved) =>
-      apiFetchReauth(
-        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}`,
-        buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
-      ),
-    );
+    return runCommand({
+      operationKey: `member-remove:${workspaceId}:${principalId}`,
+      explicit: command,
+      request: (resolved) =>
+        apiFetchReauth(
+          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}`,
+          buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
+        ),
+    });
   },
 
   transferOwnership(
@@ -192,30 +210,39 @@ export const accountClient = {
     targetPrincipalId: string,
     command?: BrowserAccountCommand,
   ): Promise<Response> {
-    return runCommand(`ownership-transfer:${workspaceId}:${targetPrincipalId}`, command, (resolved) =>
-      apiFetchReauth(
-        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/transfer-ownership`,
-        buildJsonCommandRequestInit("POST", { toUserId: targetPrincipalId }, resolved),
-      ),
-    );
+    return runCommand({
+      operationKey: `ownership-transfer:${workspaceId}:${targetPrincipalId}`,
+      explicit: command,
+      request: (resolved) =>
+        apiFetchReauth(
+          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/transfer-ownership`,
+          buildJsonCommandRequestInit("POST", { toUserId: targetPrincipalId }, resolved),
+        ),
+    });
   },
 
   issuePasswordReset(workspaceId: string, principalId: string, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand(`password-reset:${workspaceId}:${principalId}`, command, (resolved) =>
-      apiFetchReauth(
-        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/reset-password`,
-        buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
-      ),
-    );
+    return runCommand({
+      operationKey: `password-reset:${workspaceId}:${principalId}`,
+      explicit: command,
+      request: (resolved) =>
+        apiFetchReauth(
+          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/reset-password`,
+          buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
+        ),
+    });
   },
 
   revokeMemberSessions(workspaceId: string, principalId: string, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand(`member-sessions:${workspaceId}:${principalId}`, command, (resolved) =>
-      apiFetchReauth(
-        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/revoke-sessions`,
-        buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
-      ),
-    );
+    return runCommand({
+      operationKey: `member-sessions:${workspaceId}:${principalId}`,
+      explicit: command,
+      request: (resolved) =>
+        apiFetchReauth(
+          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/revoke-sessions`,
+          buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
+        ),
+    });
   },
 
   async createInvitation(body: unknown, command?: BrowserAccountCommand): Promise<Response> {
@@ -223,18 +250,24 @@ export const accountClient = {
       typeof body === "object" && body !== null && "accountId" in body
         ? String((body as { accountId: unknown }).accountId)
         : "unknown";
-    return runCommand(await buildPayloadOperationKey(`invitation-create:${accountId}`, body), command, (resolved) =>
-      apiFetchReauth(`${API_BASE}/api/invites`, buildJsonCommandRequestInit("POST", body, resolved)),
-    );
+    return runCommand({
+      operationKey: await buildPayloadOperationKey(`invitation-create:${accountId}`, body),
+      explicit: command,
+      request: (resolved) =>
+        apiFetchReauth(`${API_BASE}/api/invites`, buildJsonCommandRequestInit("POST", body, resolved)),
+    });
   },
 
   revokeInvitation(workspaceId: string, invitationId: string, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand(`invitation-revoke:${workspaceId}:${invitationId}`, command, (resolved) =>
-      apiFetchReauth(
-        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/invites/${encodeURIComponent(invitationId)}`,
-        buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
-      ),
-    );
+    return runCommand({
+      operationKey: `invitation-revoke:${workspaceId}:${invitationId}`,
+      explicit: command,
+      request: (resolved) =>
+        apiFetchReauth(
+          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/invites/${encodeURIComponent(invitationId)}`,
+          buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
+        ),
+    });
   },
 
   previewInvitation(token: string): Promise<Response> {
@@ -244,21 +277,27 @@ export const accountClient = {
   },
 
   acceptInvitation(token: string, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand(null, command, (resolved) =>
-      apiFetch(
-        `${API_BASE}/api/invites/${encodeURIComponent(token)}/accept`,
-        buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
-      ),
-    );
+    return runCommand({
+      operationKey: null,
+      explicit: command,
+      request: (resolved) =>
+        apiFetch(
+          `${API_BASE}/api/invites/${encodeURIComponent(token)}/accept`,
+          buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
+        ),
+    });
   },
 
   signupWithInvitation(token: string, body: unknown, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand(null, command, (resolved) =>
-      apiFetch(
-        `${API_BASE}/api/invites/${encodeURIComponent(token)}/signup`,
-        buildJsonCommandRequestInit("POST", body, resolved),
-      ),
-    );
+    return runCommand({
+      operationKey: null,
+      explicit: command,
+      request: (resolved) =>
+        apiFetch(
+          `${API_BASE}/api/invites/${encodeURIComponent(token)}/signup`,
+          buildJsonCommandRequestInit("POST", body, resolved),
+        ),
+    });
   },
 
   reconcileCommand(command: BrowserAccountCommand, operation: string): Promise<Response> {
