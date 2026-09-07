@@ -240,7 +240,10 @@ export const teamAccessClient = {
   },
 
   async changeMemberRole(workspaceId: string, principalId: string, role: Role): Promise<TeamAccessResult<true>> {
-    return readCommandResult(await accountClient.changeMemberRole(workspaceId, principalId, role), noContent);
+    return readCommandResult(
+      await accountClient.changeMemberRole({ workspaceId: workspaceId, principalId: principalId, role: role }),
+      noContent,
+    );
   },
 
   async changeMemberStatus(
@@ -248,7 +251,10 @@ export const teamAccessClient = {
     principalId: string,
     status: MembershipStatus,
   ): Promise<TeamAccessResult<true>> {
-    return readCommandResult(await accountClient.changeMemberStatus(workspaceId, principalId, status), noContent);
+    return readCommandResult(
+      await accountClient.changeMemberStatus({ workspaceId: workspaceId, principalId: principalId, status: status }),
+      noContent,
+    );
   },
 
   async removeMember(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
