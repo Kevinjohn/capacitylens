@@ -1,3 +1,10 @@
+interface CompareDisplayNamesInput {
+  leftName: string;
+  leftId: string;
+  rightName: string;
+  rightId: string;
+}
+
 type Identified = { id: string };
 type Named = Identified & { name: string };
 
@@ -13,7 +20,7 @@ function compareCodeUnits(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-export function compareDisplayNames(leftName: string, leftId: string, rightName: string, rightId: string): number {
+export function compareDisplayNames({ leftName, leftId, rightName, rightId }: CompareDisplayNamesInput): number {
   return (
     displayNameCollator.compare(leftName, rightName) ||
     compareCodeUnits(leftName, rightName) ||
@@ -22,7 +29,13 @@ export function compareDisplayNames(leftName: string, leftId: string, rightName:
 }
 
 export function createDisplayNameComparator<T extends Identified>(displayName: (item: T) => string) {
-  return (left: T, right: T): number => compareDisplayNames(displayName(left), left.id, displayName(right), right.id);
+  return (left: T, right: T): number =>
+    compareDisplayNames({
+      leftName: displayName(left),
+      leftId: left.id,
+      rightName: displayName(right),
+      rightId: right.id,
+    });
 }
 
 export function createFavouriteDisplayNameComparator<T extends Identified & { isFavourite?: boolean }>(

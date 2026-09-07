@@ -71,7 +71,10 @@ export function resolveGesture(
 ): { dates: DateRange; hours: number; clamped: boolean } {
   // A zero-column move can still be a cross-row reassign. Run move math so the unchanged start is
   // reinterpreted against the target resource's working week; resize no-ops keep their reference.
-  const dates = deltaDays !== 0 || mode === "move" ? applyGesture(mode, current, deltaDays, options) : current;
+  const dates =
+    deltaDays !== 0 || mode === "move"
+      ? applyGesture({ mode: mode, range: current, deltaDays: deltaDays, options: options })
+      : current;
   if (isDays && mode !== "move" && deltaDays !== 0) {
     const { hours, clamped } = resolveVolumePreservingHours(current, dates, options, hoursPerDay);
     return { dates, hours, clamped };
@@ -92,7 +95,7 @@ export function buildSnappedBarGeometry(
   options: GestureOptions,
   geometry: ColumnGeometry,
 ): { left: number; width: number } {
-  const snapped = applyGesture(mode, current, deltaDays, options);
+  const snapped = applyGesture({ mode: mode, range: current, deltaDays: deltaDays, options: options });
   return {
     left: geometry.xForDateInGeom(snapped.startDate),
     width: geometry.widthForDates(snapped.startDate, snapped.endDate),

@@ -308,7 +308,7 @@ export function useAllocationGesture({ bar, geom: geometry, indexAtClientX, onEd
       startDate: bar.allocation.startDate,
       endDate: bar.allocation.endDate,
     };
-    const next = applyGesture(mode, current, delta, options);
+    const next = applyGesture({ mode: mode, range: current, deltaDays: delta, options: options });
     if (next.endDate < next.startDate) return;
     const state = useStore.getState();
     const resource = state.data.resources.find((candidate) => candidate.id === resourceId);
