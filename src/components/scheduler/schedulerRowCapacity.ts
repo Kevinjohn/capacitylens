@@ -78,15 +78,22 @@ export function createCapacitySource(
       // bucketed" are indistinguishable), so fall back to the full lists. Nothing queries
       // such a date today; this keeps a future caller correct rather than silently empty.
       const computed = capacityDateSet.has(date)
-        ? buildDayCapacity(
-            resource,
-            date,
-            allocationsByDate.get(date) ?? NO_ALLOCATIONS,
-            personalTimeOffByDate.get(date) ?? NO_TIME_OFF,
-            effectiveWeek,
-            closuresByDate.get(date) ?? NO_CLOSURES,
-          )
-        : buildDayCapacity(resource, date, capacityAllocations, rowTimeOff, effectiveWeek, closures);
+        ? buildDayCapacity({
+            resource: resource,
+            date: date,
+            allocations: allocationsByDate.get(date) ?? NO_ALLOCATIONS,
+            timeOff: personalTimeOffByDate.get(date) ?? NO_TIME_OFF,
+            effectiveWeek: effectiveWeek,
+            closures: closuresByDate.get(date) ?? NO_CLOSURES,
+          })
+        : buildDayCapacity({
+            resource: resource,
+            date: date,
+            allocations: capacityAllocations,
+            timeOff: rowTimeOff,
+            effectiveWeek: effectiveWeek,
+            closures: closures,
+          });
       capacityByDate.set(date, computed);
       return computed;
     };
