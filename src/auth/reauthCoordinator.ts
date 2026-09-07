@@ -3,7 +3,7 @@
 // event handlers (NOT a hook), so it cannot itself render the "Confirm it's you" dialog. Instead it
 // calls `requestReauth()` here — a module-level singleton that flips a pending flag and hands back a
 // promise — and the React `ReauthMount` (in AuthProvider) subscribes to that flag, renders the
-// dialog, and calls `resolveReauth(true|false)` when the user finishes or cancels.
+// dialog, and calls `completeReauth(true|false)` when the user finishes or cancels.
 //
 // WHY a singleton (not React state / a store): the request originates OUTSIDE React and MUST be
 // awaited by non-React code. A single global pending request is also exactly the semantics we want —

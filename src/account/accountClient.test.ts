@@ -14,7 +14,7 @@ vi.mock("../data/apiConfig", () => ({ API_BASE: "https://app.example" }));
 vi.mock("../data/requestTimeout", () => ({
   apiFetch: mocks.apiFetch,
   API_BULK_TIMEOUT_MS: 120_000,
-  requestSignal: mocks.requestSignal,
+  createRequestSignal: mocks.requestSignal,
 }));
 vi.mock("../auth/apiFetchReauth", () => ({
   apiFetchReauth: mocks.apiFetchReauth,

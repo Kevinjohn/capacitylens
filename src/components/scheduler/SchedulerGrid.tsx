@@ -88,7 +88,7 @@ export function SchedulerGrid() {
   const editAllocation = useCallback((allocationId: ID) => setModal({ kind: "edit", allocationId }), []);
   const createFromDraw = useCallback((resourceId: ID, startDate: ISODate, endDate: ISODate) => {
     // Read the draw mode LIVE (getState) when the gesture FIRES, not via a closure over
-    // ui.drawMode. That's load-bearing: closing over ui.drawMode would give handleDraw a fresh
+    // ui.drawMode. That's load-bearing: closing over ui.drawMode would give createFromDraw a fresh
     // reference on every toggle, which `onDraw` hands to every ResourceLane — failing their
     // React.memo and re-rendering every lane (and its bars) on a mode toggle. The mode that
     // matters is the one live at pointerup, which is exactly what getState() returns here, so

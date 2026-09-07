@@ -21,8 +21,8 @@ import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
 // Shared storage shapes
 //
 // Two encodings serve every pref in this file: a single boolean stored as the literal string
-// 'on'/'off' under its own key (readBoolPref/writeBoolPref), and a small record of booleans
-// stored as JSON (readBoolRecordPref/writeBoolRecordPref). The sidebar pref below is deliberately
+// 'on'/'off' under its own key (readBooleanPreference/writeBooleanPreference), and a small record of booleans
+// stored as JSON (readBooleanRecordPreference/writeBooleanRecordPreference). The sidebar pref below is deliberately
 // NEITHER — it is tri-state ('open'/'closed'/never-chosen). All four helpers share the swallow
 // rule from the file header: a blocked/corrupt store loses the toggle but can never touch tenant
 // data.
@@ -81,7 +81,7 @@ function writeBooleanRecordPreference<T extends Record<keyof T, boolean>>(key: s
   }
 }
 
-/** Declare one on/off flag: returns its `[read, write]` pair over readBoolPref/writeBoolPref,
+/** Declare one on/off flag: returns its `[read, write]` pair over readBooleanPreference/writeBooleanPreference,
  *  bound to `${STORAGE_KEY_PREFIX}${key}` and the given default. Keeps each flag below a single
  *  line so the pref's RATIONALE (the comment above it) is the only thing that varies. */
 function createBooleanPreference(key: string, fallback: boolean): [read: () => boolean, write: (on: boolean) => void] {
@@ -213,7 +213,7 @@ export const [readStoredSnapToWeekStart, writeStoredSnapToWeekStart] = createBoo
 // account data, NOT in AppData/export) and DEFAULTS OFF, which is the roomier layout — off is the
 // density the product ships with, and turning it ON restores the tighter original spacing for people
 // who would rather fit more people on screen. A plain on/off string — it's a single bool. The
-// geometry it selects lives in components/scheduler/layout.ts (`schedulerDensity`).
+// geometry it selects lives in components/scheduler/layout.ts (`buildSchedulerDensity`).
 export const [readStoredCompactView, writeStoredCompactView] = createBooleanPreference("compactView", false);
 
 // "Fake sign-in": a COSMETIC demo gate shown before the account picker so a viewer sees a

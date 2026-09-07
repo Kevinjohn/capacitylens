@@ -64,7 +64,7 @@ function resolveCalendarCreationBlockReason(
     : null;
 }
 
-/** The resolved-week variant of `creationBlockedAt`, for callers (the scheduler rows, the modal's
+/** The resolved-week variant of `resolveCreationBlockReason`, for callers (the scheduler rows, the modal's
  * typed-date gate) that already hold the effective week. Same rules, same reasons: the creation
  * gate never honors the allocation-level override — there is no ignored-creation escape hatch. */
 export function resolveEffectiveWeekCreationBlockReason(

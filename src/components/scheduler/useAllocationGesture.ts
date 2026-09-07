@@ -71,7 +71,7 @@ export function useAllocationGesture({ bar, geom: geometry, indexAtClientX, onEd
   };
 
   /** A non-ignored gesture on a resource with NO effective working days is refused outright:
-   *  working-span math is undefined there, and passing the collapsed empty week into GestureOpts
+   *  working-span math is undefined there, and passing the collapsed empty week into GestureOptions
    *  would hit isWeekendAware's calendar-day fallback — silently rewriting stored hours the
    *  capacity model says load nothing. The move gates below catch start changes; this also covers
    *  a pure end-edge resize. Mirrors the modal's frozen Days-over for the same week. */

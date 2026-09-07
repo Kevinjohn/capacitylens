@@ -17,7 +17,7 @@ import {
 // UNCALLED message references, called at lookup: Paraglide resolves the active locale at CALL time,
 // so a resolved string captured at module load would freeze to the import-time language. Reasons
 // absent from the table have no wording of their own — the member's link state reads better than a
-// machine reason there, so `reasonLabel` falls back to connected/not-connected.
+// machine reason there, so `resolveReadinessReasonLabel` falls back to connected/not-connected.
 const REASON_LABELS: Partial<Record<SsoReadinessReason, () => string>> = {
   principal_missing: m.settings_sso_reason_principal_missing,
   multiple_required_provider_links: m.settings_sso_reason_multiple_links,

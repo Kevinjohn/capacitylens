@@ -5,7 +5,7 @@ import { type LabelMessages } from "../../lib/metadata";
 import type { ThemePreference } from "../../lib/theme";
 
 // Module-scope option tables hold UNCALLED message references (`m.key`, never `m.key()`) and are
-// resolved at RENDER through metadata.ts's `labelsFrom`/`toOptions` — the same lazy rule the enum
+// resolved at RENDER through metadata.ts's `buildLabels`/`buildLabelOptions` — the same lazy rule the enum
 // tables there follow (the AppShell LINKS pattern, P1.5.2). Resolving `m.key()` at import would
 // freeze each label to the load-time locale; deferring it to render lets an account/locale switch
 // re-resolve the text. Keying each table by its own union also makes it exhaustive by type: add a

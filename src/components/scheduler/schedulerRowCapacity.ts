@@ -24,14 +24,14 @@ export function createCapacitySource(
   closures: Closure[],
   blocksMode: boolean,
 ) {
-  // The [visStart, visEnd] and [overStart, overEnd] windows are RESOURCE-INVARIANT — every row in
+  // The [visibleStart, visibleEnd] and [overStart, overEnd] windows are RESOURCE-INVARIANT — every row in
   // this model reads the exact same two windows. Building their day arrays here ONCE avoids resources
   // × (visibleDays + 14) redundant eachDayISO calls per model rebuild (this fires on every scroll-day
   // change, zoom, filter keystroke and edit). Each row separately caches its computed resource-day
   // results below, so dates shared by the timeline, visible window and fixed overSoon window scan
   // that resource's allocations/time off only once. Not sliced from `days`: `days` covers the
   // SCROLLABLE timeline, while overStart/overEnd
-  // is a FIXED window anchored on today that can fall outside it (and visStart/visEnd, though always
+  // is a FIXED window anchored on today that can fall outside it (and visibleStart/visibleEnd, though always
   // within `days` in practice, isn't worth a fragile index-based slice to save one extra pair of calls).
   const visibleDays = eachDayISO(visibleStart, visibleEnd);
   const overDays = eachDayISO(overStart, overEnd);

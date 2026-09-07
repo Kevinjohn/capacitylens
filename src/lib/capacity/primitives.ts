@@ -50,7 +50,7 @@ export function warnOnNonFiniteCapacity(hours: number): void {
 }
 
 // Every public helper below takes an `ISODate` and derives its weekday; each `…ForWeekday` twin
-// takes one already derived. `weekdayOf` is a parseISO, and `dayCapacity` — the scheduler's hottest
+// takes one already derived. `weekdayOf` is a parseISO, and `buildDayCapacity` — the scheduler's hottest
 // path, ~27k resource-days per model rebuild — needs the SAME weekday four times over. It derives
 // it ONCE and threads it through the twins; the public signatures stay date-only.
 /** Whether an allocation loads this date. Keep `none` explicit: an empty weekday array has

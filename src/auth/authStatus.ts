@@ -31,7 +31,7 @@ export type AuthStatusResult =
       hadUnsavedChanges: boolean;
     };
 
-// A 'pass' Status that fails OPEN on the single-company-per-instance fields (see authContext.ts):
+// A 'pass' AuthStatusResult that fails OPEN on the single-company-per-instance fields (see authContext.ts):
 // used for every branch below that can't read a trustworthy canCreateAccount/multiAccount off the
 // wire (an off-spec body, a non-401 non-ok response, or a network failure) — the server 403 remains
 // the real enforcer, so "unknown" must never hide a legitimate "New company" affordance.

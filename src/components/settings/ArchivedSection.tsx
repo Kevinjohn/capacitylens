@@ -39,7 +39,7 @@ interface Row {
 
 // A row's display name: prefer the stored `name` (a resource tombstone's is the obfuscated token),
 // fall back to a resource's `role` for a nameless placeholder/external. Clients/projects always carry
-// a name. Kept local (not resourceDisplayName) so a placeholder tombstone shows its scrubbed name/role
+// a name. Kept local (not resolveResourceDisplayName) so a placeholder tombstone shows its scrubbed name/role
 // rather than the generic "Placeholder" label the scheduler uses.
 function resolveRowName(entity: LifecycleEntity, inactiveRow: Resource | Client | Project): string {
   if (entity === "resources") {

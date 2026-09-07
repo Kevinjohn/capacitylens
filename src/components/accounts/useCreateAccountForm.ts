@@ -40,8 +40,8 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
   // locale (project.inlang/settings.json: locales: ["en"]), and this create-company form only
   // renders before an active account exists — the one place `syncLocaleFromAccount` can change the
   // locale (useAppShellController, keyed off the ACTIVE account's language) fires after an account is
-  // picked, by which point this form has unmounted. tzOptions is the module-cached frozen array from
-  // supportedTimeZones() (stable reference across renders), so this only recomputes when it changes.
+  // picked, by which point this form has unmounted. timeZoneOptions is the module-cached frozen array from
+  // listSupportedTimeZones() (stable reference across renders), so this only recomputes when it changes.
   const timeZoneSelectOptions = useMemo(
     () => timeZoneOptions.map((timeZone) => ({ value: timeZone, label: resolveTimeZoneOptionLabel(timeZone) })),
     [timeZoneOptions],

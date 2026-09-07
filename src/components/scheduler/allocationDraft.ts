@@ -169,7 +169,7 @@ export interface EndDateInput {
   daysOver: number;
   /** The span the form seeded from the stored allocation when it opened. */
   initialDaysOver: number;
-  /** The end the current form state derives (`effectiveAllocationValues`). */
+  /** The end the current form state derives (`buildEffectiveAllocationValues`). */
   effectiveEndDate: ISODate;
 }
 

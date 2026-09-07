@@ -38,7 +38,7 @@ export function useAllocationModalState(props: AllocationModalProps) {
   const activeAccount = useStore((state) =>
     state.data.accounts.find((account) => account.id === state.activeAccountId),
   );
-  // Not accountWorkingDaysFor: the modal's scoped data blanks `accounts`, so it subscribes to the
+  // Not listAccountWorkingDays: the modal's scoped data blanks `accounts`, so it subscribes to the
   // account row itself and runs the selector's one repair seam directly.
   const accountWorkingDays = useMemo(
     () => normalizeAccountWorkingDays(activeAccount?.workingDays, activeAccount?.weekStartsOn ?? 1),

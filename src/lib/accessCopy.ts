@@ -39,7 +39,7 @@ interface AccessCopyInput {
 
 /** The fixed-copy states the label and the summary share. The seventh outcome — "nothing else
  *  took precedence, render the viewer's role" — is carried as `{ role }` instead, because its copy
- *  comes from roleLabel/roleSummary rather than a state table. */
+ *  comes from resolveRoleLabel/resolveRoleSummary rather than a state table. */
 type AccessState = "offline" | "demo" | "open" | "checking" | "not-applicable" | "unavailable";
 
 /** THE precedence ladder — resolved once so the label and its explanatory counterpart can never

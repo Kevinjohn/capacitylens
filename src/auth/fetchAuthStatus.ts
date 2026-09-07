@@ -81,7 +81,7 @@ export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Aut
       // Company-creation capability: the server computes both fields (canCreateAccount mirrors the
       // POST /api/orgs gate — the instance cap AND the caller's owner/admin standing), fail-open to
       // `true` when absent (an older server, or a response shape we don't recognise) — see
-      // boolFieldOr and AuthContextValue.canCreateAccount.
+      // resolveBooleanField and AuthContextValue.canCreateAccount.
       const canCreateAccount = resolveBooleanField(
         (body as { canCreateAccount?: unknown } | null)?.canCreateAccount,
         true,
@@ -98,7 +98,7 @@ export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Aut
         mfaRequired,
         // The authenticated /me also advertises the configured SSO providers (server app.ts). We
         // carry them so the SESSION_NOT_FRESH step-up dialog can offer the SAME provider re-auth
-        // route the login screen uses (DEFECT B). Off-spec entries are dropped (providersFrom).
+        // route the login screen uses (DEFECT B). Off-spec entries are dropped (parseAuthProviders).
         providers: parseAuthProviders((body as { providers?: unknown } | null)?.providers),
         reauthMethod:
           (body as { reauthMethod?: unknown } | null)?.reauthMethod === "provider" || rawMode === "sso"

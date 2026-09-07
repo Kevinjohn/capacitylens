@@ -13,7 +13,7 @@ import { m } from "@/i18n";
 // select and label render.
 
 /** A `<select>`/segmented-control option. `V` carries the enum union through the derivation, so a
- *  caller binding `options={allocationStatusOptions()}` gets `value: AllocationStatus` rather than a
+ *  caller binding `options={buildAllocationStatusOptions()}` gets `value: AllocationStatus` rather than a
  *  widened `string` it would have to re-assert. */
 export interface LabelOption<V extends string = string> {
   value: V;
@@ -92,7 +92,7 @@ export function resolvePlaceholderDisplayName(): string {
 }
 
 /** The display name for ANY resource: the literal word "Placeholder" for a placeholder ("slot")
- *  resource (per `placeholderDisplayName` above), otherwise the resource's own name (falling back
+ *  resource (per `resolvePlaceholderDisplayName` above), otherwise the resource's own name (falling back
  *  to its role when unnamed). One source so every render site — the schedule lane + its add button,
  *  the assignee picker, the command palette, and the Resources list (row AND its delete confirm) —
  *  agrees on what a resource is called, and a placeholder can't read as its role in one place while

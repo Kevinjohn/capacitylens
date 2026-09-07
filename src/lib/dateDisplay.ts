@@ -56,8 +56,8 @@ export function formatDayCount(start: ISODate, end: ISODate): string {
 // `.slice(0, 10)` of the raw UTC string, which misreads by up to a day either side of midnight for
 // anyone outside UTC.
 //
-// WHY `Intl` (toLocale*) here rather than date-fns + `activeDateLocale()` like the day formatters:
-// `activeDateLocale()` returns a date-fns `Locale` OBJECT, which is not a BCP-47 tag and cannot be
+// WHY `Intl` (toLocale*) here rather than date-fns + `readActiveDateLocale()` like the day formatters:
+// `readActiveDateLocale()` returns a date-fns `Locale` OBJECT, which is not a BCP-47 tag and cannot be
 // handed to `Intl`. Resolving one would mean introducing a second locale mapping, and the mapping
 // available today ('en' → enGB) does NOT agree with the browser default these call sites already
 // ship (en-GB day/month vs. an en-US reader's month/day). Behaviour preservation wins this round:

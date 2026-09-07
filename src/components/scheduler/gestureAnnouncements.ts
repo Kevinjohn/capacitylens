@@ -80,7 +80,7 @@ export function readCapacityGestureAdvisory(
         endDate: dates.endDate,
         // Blocks carry placement but no hourly load — read that load from the ONE knob
         // (`blockHoursPerDay`) rather than hardcoding its current 0, exactly as the grid's
-        // own `capacityAllocationsForMode` projection does.
+        // own `applyCapacityMode` projection does.
         hoursPerDay: isBlocks ? blockHoursPerDay(FULL_DAY_HOURS) : reconciledHours,
         ignoreWeekends: bar.allocation.ignoreWeekends,
       },

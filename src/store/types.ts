@@ -186,7 +186,7 @@ export interface StoreState {
   /** Schedule vertical density. Device-global like `theme` (own localStorage key, NOT in
    *  AppData/export) and defaults OFF, which is the ROOMIER layout — off is what the product
    *  ships, and ON restores the tighter original spacing for people who want more rows on
-   *  screen. Selects the geometry in `components/scheduler/layout.ts` (`schedulerDensity`). */
+   *  screen. Selects the geometry in `components/scheduler/layout.ts` (`buildSchedulerDensity`). */
   compactView: boolean;
   /** COSMETIC demo "fake sign-in" state — gates a Google-style demo sign-in screen BEFORE
    *  the account picker so a viewer sees "log in first, then pick a company". Device-global

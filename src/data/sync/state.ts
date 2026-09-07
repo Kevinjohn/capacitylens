@@ -66,7 +66,7 @@ export class SyncState {
     requestOptions: RequestInit = {},
     timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
   ): Promise<Response> {
-    // Share the one request-timeout/abort seam (requestSignal) with the rest of the API surface —
+    // Share the one request-timeout/abort seam (createRequestSignal) with the rest of the API surface —
     // same AbortSignal.any fallback for engines that lack it — instead of a second hand-rolled copy
     // that could drift. `timeoutMs` picks the tier: interactive 15s by default, the longer bulk
     // bound for whole-slice load/batch, or `null` (no deadline) for the keepalive unload flush.

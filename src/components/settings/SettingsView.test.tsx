@@ -22,7 +22,7 @@ const offlineMocks = vi.hoisted(() => ({
 
 vi.mock("../../data/offlineCache", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../data/offlineCache")>()),
-  offlineReadEnabled: () => offlineMocks.enabled,
+  isOfflineReadEnabled: () => offlineMocks.enabled,
   subscribeOfflinePreference: (listener: () => void) => {
     offlineMocks.preferenceListeners.add(listener);
     return () => offlineMocks.preferenceListeners.delete(listener);

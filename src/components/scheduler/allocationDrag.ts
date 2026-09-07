@@ -8,7 +8,7 @@ import type { ColumnGeometry } from "./columnGeometry";
 
 // Pure drag/resize policy for AllocationBar, split out so the gesture math is unit-testable
 // without rendering the bar or driving pointer events. No React, no DOM, no store — the DOM
-// hit-testing (snapshotLanes / laneAt / setDropTarget) and the store write + capacity
+// hit-testing (readLaneSnapshots / laneAt / setDropTarget) and the store write + capacity
 // advisory stay in the component; this module is only the date/hours/geometry computation.
 
 /** Hours/day an allocation should carry after being REASSIGNED (dragged) to `target`. An external
