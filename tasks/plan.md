@@ -338,6 +338,8 @@ a batch declines to fix is recorded.
 exports while migrating internal consumers; fixes near-zero findings without baseline entries;
 resolves unnecessary assertions and boolean comparisons; and classifies the five larger smell
 families with meaningful absence/default/error tests. Confirmed defects are fixed before enrollment.
+The frozen declaration-level inventory and classifications are governed by
+`tasks/conventions-enforcement-baseline.md`.
 
 #647 maps both `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` through
 `tsconfig.app.json`, `tsconfig.node.json`, inherited `tsconfig.e2e.json`, `shared/tsconfig.json`,
