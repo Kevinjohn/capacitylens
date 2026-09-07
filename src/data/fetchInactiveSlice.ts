@@ -66,7 +66,7 @@ export class InactiveSliceShapeError extends Error {
 export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): Promise<AppData> {
   const res = await apiFetch(
     `${API_BASE}/api/state?accountId=${encodeURIComponent(accountId)}&includeInactive=1`,
-    { credentials: "include", signal },
+    { credentials: "include", ...(signal ? { signal } : {}) },
     // The complete (archived + soft-deleted) slice is the heaviest read the app makes — the BULK
     // tier, not the interactive 15s, so a large tenant's export/backup isn't aborted mid-flight.
     API_BULK_TIMEOUT_MS,

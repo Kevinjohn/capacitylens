@@ -399,7 +399,7 @@ describe("AppShell navigation links", () => {
 
   it("preserves the last locale while a selected company's slice is still loading", async () => {
     const currentAccount = makeAccount({ language: "en" });
-    const destinationAccount = makeAccount({ id: "acct-other", name: "Other Co", language: undefined });
+    const destinationAccount = makeAccount({ id: "acct-other", name: "Other Co" });
     useStore.getState().replaceAll(makeAppData({ accounts: [currentAccount] }));
     renderAppShell();
     await waitFor(() => expect(i18nMocks.syncLocaleFromAccount).toHaveBeenCalledWith("en"));

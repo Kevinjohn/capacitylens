@@ -208,13 +208,14 @@ export function useAllocationGesture({ bar, geom: geometry, indexAtClientX, onEd
       if (deltaDays === 0 && !reassignTo) return;
 
       const computeFor = (targetResourceId: ID) => {
+        const workingDays = readWorkingDays(targetResourceId);
         return resolveGesture({
           mode,
           current,
           deltaDays,
           options: {
-            workingDays: readWorkingDays(targetResourceId),
-            ignoreWeekends: bar.allocation.ignoreWeekends,
+            ...(workingDays !== undefined ? { workingDays } : {}),
+            ...(bar.allocation.ignoreWeekends !== undefined ? { ignoreWeekends: bar.allocation.ignoreWeekends } : {}),
           },
           hoursPerDay: bar.allocation.hoursPerDay,
           isDays,
@@ -304,9 +305,10 @@ export function useAllocationGesture({ bar, geom: geometry, indexAtClientX, onEd
       setNotice(m.scheduler_toast_no_effective_days_gesture(), "error");
       return;
     }
+    const workingDays = readWorkingDays(resourceId);
     const options = {
-      workingDays: readWorkingDays(resourceId),
-      ignoreWeekends: bar.allocation.ignoreWeekends,
+      ...(workingDays !== undefined ? { workingDays } : {}),
+      ...(bar.allocation.ignoreWeekends !== undefined ? { ignoreWeekends: bar.allocation.ignoreWeekends } : {}),
     };
     const current = {
       startDate: bar.allocation.startDate,

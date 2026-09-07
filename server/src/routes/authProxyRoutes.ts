@@ -90,6 +90,7 @@ function withResponseCookies(requestHeaders: Headers, setCookies: readonly strin
   }
   for (const setCookie of setCookies) {
     const pair = setCookie.split(";", 1)[0];
+    if (!pair) continue;
     const separator = pair.indexOf("=");
     if (separator < 1) continue;
     const name = pair.slice(0, separator).trim();
@@ -276,7 +277,7 @@ export function registerAuthProxyRoutes(app: FastifyInstance, dependencies: Auth
           new Request(url, {
             method: req.method,
             headers: requestHeaders,
-            body: req.body === undefined || req.body === null ? undefined : JSON.stringify(req.body),
+            ...(req.body === undefined || req.body === null ? {} : { body: JSON.stringify(req.body) }),
           }),
         );
         reply.status(response.status);

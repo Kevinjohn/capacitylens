@@ -1,8 +1,8 @@
 export const EXTERNAL_NAVIGATION_TIMEOUT_MS = 10_000;
 
 interface ExternalSignInResult {
-  data?: { url?: string | null } | null;
-  error?: { message?: string | null } | null;
+  data?: { url?: string | null | undefined } | null;
+  error?: { message?: string | null | undefined } | null;
 }
 
 function parseExternalRedirectUrl(value: string | null | undefined): string | null {

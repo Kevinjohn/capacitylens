@@ -174,7 +174,7 @@ export function AllocationScheduleFields({
               invalid={errorField === "repeatUntil"}
               describedById={errorId}
               min={repeatUntilMinimum}
-              max={repeatUntilMaximum}
+              {...(repeatUntilMaximum ? { max: repeatUntilMaximum } : {})}
               layout="label-control"
             />
           )}

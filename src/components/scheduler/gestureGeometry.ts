@@ -32,8 +32,8 @@ export function buildGesturePreviewDates({
       range: { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate },
       deltaDays: deltaDays,
       options: {
-        workingDays: previewDays,
-        ignoreWeekends: bar.allocation.ignoreWeekends,
+        ...(previewDays !== undefined ? { workingDays: previewDays } : {}),
+        ...(bar.allocation.ignoreWeekends !== undefined ? { ignoreWeekends: bar.allocation.ignoreWeekends } : {}),
       },
     }),
   };

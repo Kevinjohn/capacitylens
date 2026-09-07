@@ -80,10 +80,10 @@ function integrationHarness(arrivalOrder: ArrivalOrder, initial?: Discipline) {
   const inject = async (url: string, init?: RequestInit): Promise<Response> => {
     const parsed = new URL(url);
     const result = await app.inject({
-      method: (init?.method ?? "GET") as InjectOptions["method"],
+      method: (init?.method ?? "GET") as NonNullable<InjectOptions["method"]>,
       url: `${parsed.pathname}${parsed.search}`,
       headers: Object.fromEntries(new Headers(init?.headers).entries()),
-      payload: init?.body as InjectOptions["payload"],
+      ...(init?.body === undefined ? {} : { payload: init.body as NonNullable<InjectOptions["payload"]> }),
     });
     return responseFromInject(result);
   };

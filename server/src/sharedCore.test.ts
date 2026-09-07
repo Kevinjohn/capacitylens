@@ -25,8 +25,10 @@ describe("shared domain-core runs under Node", () => {
     };
     const out = remapAndValidateImport(base, "a1", incoming, "2026-01-01T00:00:00.000Z");
     expect(out.imported).toBe(1);
-    expect(out.data.clients[0].id).not.toBe("c");
-    expect(out.data.clients[0].accountId).toBe("a1");
-    expect(out.data.clients[0].createdAt).toBe("2026-01-01T00:00:00.000Z"); // store/server owns the clock
+    const importedClient = out.data.clients[0];
+    if (!importedClient) throw new Error("Expected one imported client.");
+    expect(importedClient.id).not.toBe("c");
+    expect(importedClient.accountId).toBe("a1");
+    expect(importedClient.createdAt).toBe("2026-01-01T00:00:00.000Z"); // store/server owns the clock
   });
 });

@@ -23,7 +23,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { seed } from "@capacitylens/shared/data/seed";
 import { deleteProjectCascade } from "@capacitylens/shared/lib/integrity";
-import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount, requireValue } from "../test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 
 const internalClient = (accountId: string) => ({
@@ -94,7 +94,7 @@ describe("attachPersistence", () => {
     const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
 
     useStore.getState().updateAllocation(allocation.id, { note: "Trigger save" });
-    await vi.waitFor(() => expect(useStore.getState().data.allocations[0].updatedAt).toBe(rewrittenAt));
+    await vi.waitFor(() => expect(useStore.getState().data.allocations[0]?.updatedAt).toBe(rewrittenAt));
 
     expect(useStore.getState().data.allocations[0]).not.toHaveProperty("projectId");
     detach();
@@ -156,7 +156,11 @@ describe("attachPersistence", () => {
 
     useStore.getState().updateAllocation(allocation.id, { note: "Flushed edit" });
     await vi.waitFor(() => expect(saved).toHaveLength(1));
-    const flushedStamp = saved[0].allocations.find((row) => row.id === allocation.id)!.updatedAt;
+    const flushedSnapshot = requireValue(saved[0], "flushed snapshot");
+    const flushedStamp = requireValue(
+      flushedSnapshot.allocations.find((row) => row.id === allocation.id),
+      "flushed allocation",
+    ).updatedAt;
     useStore.getState().updateAllocation(allocation.id, { projectId: secondProject.id });
     const concurrentStamp = useStore.getState().data.allocations.find((row) => row.id === allocation.id)!.updatedAt;
     expect(concurrentStamp).not.toBe(flushedStamp);
@@ -167,7 +171,7 @@ describe("attachPersistence", () => {
     const visible = useStore.getState().data.allocations.find((row) => row.id === allocation.id)!;
     expect(visible.projectId).toBe(secondProject.id);
     expect(visible.updatedAt).toBe(concurrentStamp);
-    expect(saved[1].allocations.find((row) => row.id === allocation.id)).toMatchObject({
+    expect(saved[1]?.allocations.find((row) => row.id === allocation.id)).toMatchObject({
       projectId: secondProject.id,
       updatedAt: concurrentStamp,
     });
@@ -280,8 +284,6 @@ describe("attachPersistence", () => {
         store: useStore,
         adapter: { loadAll: async () => emptyAppData(), saveAll: newSave },
         debounceMs: 0,
-        onError: undefined,
-        onSuccess: undefined,
         serverMode: true,
       });
       rejectOld(new Error("late network failure"));
@@ -317,7 +319,6 @@ describe("attachPersistence", () => {
       adapter: { loadAll, saveAll },
       debounceMs: 0,
       onError: onError,
-      onSuccess: undefined,
       serverMode: true,
     });
     useStore.getState().addClient({ name: "Conflicted old edit", color: "#111111" });
@@ -345,7 +346,6 @@ describe("attachPersistence", () => {
       store: useStore,
       adapter: { loadAll: async () => emptyAppData(), saveAll },
       debounceMs: 0,
-      onError: undefined,
       onSuccess: onSuccess,
     });
     useStore.getState().addClient({ name: "Late success", color: "#111111" });
@@ -383,7 +383,7 @@ describe("attachPersistence", () => {
     await Promise.resolve();
 
     expect(saveAll).toHaveBeenCalledOnce();
-    expect(saveAll.mock.calls[0][1]).toBeUndefined();
+    expect(requireValue(saveAll.mock.calls[0], "initial saveAll call")[1]).toBeUndefined();
     visibility.mockRestore();
     detach();
   });
@@ -424,7 +424,7 @@ describe("attachPersistence", () => {
       await vi.advanceTimersByTimeAsync(1000);
 
       expect(normalSnapshots).toHaveLength(2);
-      expect(normalSnapshots[1].clients.some((client) => client.name === "Latest")).toBe(true);
+      expect(normalSnapshots[1]?.clients.some((client) => client.name === "Latest")).toBe(true);
       expect(hasUnsavedPersistenceWrites()).toBe(false);
       detach();
     } finally {
@@ -457,7 +457,7 @@ describe("attachPersistence", () => {
         );
       }
       if (url.endsWith("/clients/c2/archive")) {
-        archiveRequests.push({ keepalive: init?.keepalive });
+        archiveRequests.push(init?.keepalive === undefined ? {} : { keepalive: init.keepalive });
         if (failKeepalive) throw new Error("lifecycle keepalive dropped");
         return new Response("{}", { status: 200 });
       }
@@ -543,7 +543,6 @@ describe("attachPersistence", () => {
         store: useStore,
         adapter: adapter,
         debounceMs: 0,
-        onError: undefined,
         onSuccess: onSuccess,
       });
 
@@ -581,7 +580,6 @@ describe("attachPersistence", () => {
         store: useStore,
         adapter: adapter,
         debounceMs: 0,
-        onError: undefined,
         onSuccess: onSuccess,
       });
 
@@ -638,8 +636,6 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       store: useStore,
       adapter: adapter,
       debounceMs: 0,
-      onError: undefined,
-      onSuccess: undefined,
       serverMode: true,
     });
 
@@ -669,8 +665,6 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       store: useStore,
       adapter: { loadAll: vi.fn(async () => load), saveAll: vi.fn(async () => {}) },
       debounceMs: 0,
-      onError: undefined,
-      onSuccess: undefined,
       serverMode: true,
     });
 
@@ -707,8 +701,6 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       store: useStore,
       adapter: adapter,
       debounceMs: 0,
-      onError: undefined,
-      onSuccess: undefined,
       serverMode: true,
     });
 
@@ -739,8 +731,6 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       store: useStore,
       adapter: adapter,
       debounceMs: 0,
-      onError: undefined,
-      onSuccess: undefined,
       serverMode: true,
     });
 
@@ -799,7 +789,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       }
       // /api/batch — capture the ops carried on the wire.
       const body = JSON.parse(String(init?.body)) as { ops: Wire["ops"] };
-      wire.push({ url: u, ops: body.ops });
+      wire.push(body.ops === undefined ? { url: u } : { url: u, ops: body.ops });
       return new Response(
         JSON.stringify({
           ok: true,
@@ -828,8 +818,6 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       store: useStore,
       adapter: adapter,
       debounceMs: 300,
-      onError: undefined,
-      onSuccess: undefined,
       serverMode: true,
     }); // genuinely debounced
 
@@ -924,7 +912,6 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       adapter: adapter,
       debounceMs: 300,
       onError: onError,
-      onSuccess: undefined,
       serverMode: true,
     }); // debounced
 
@@ -945,7 +932,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     expect(onError).not.toHaveBeenCalled();
     await new Promise((r) => setTimeout(r, 400));
     expect(saveAll).toHaveBeenCalledTimes(1);
-    const saved = saveAll.mock.calls[0][0] as AppData;
+    const saved = saveAll.mock.calls[0]?.[0] as AppData;
     expect(saved.clients.map((c) => c.id)).toEqual(["cb", edit.id]);
     expect(saved.clients.every((c) => c.accountId === "b1")).toBe(true);
     detach();
@@ -962,8 +949,6 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       store: useStore,
       adapter: adapter,
       debounceMs: 0,
-      onError: undefined,
-      onSuccess: undefined,
       serverMode: false,
     }); // demo build
 
@@ -1029,8 +1014,8 @@ async function attachActiveA2({ adapter, debounceMs = 0, onError, onSuccess }: A
     store: useStore,
     adapter: adapter,
     debounceMs: debounceMs,
-    onError: onError,
-    onSuccess: onSuccess,
+    ...(onError ? { onError } : {}),
+    ...(onSuccess ? { onSuccess } : {}),
     serverMode: true,
   });
   useStore.getState().setActiveAccount("a2"); // hydrates a2, seeds snapshot := a2
@@ -1215,8 +1200,6 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
       store: useStore,
       adapter: adapter,
       debounceMs: 0,
-      onError: undefined,
-      onSuccess: undefined,
       serverMode: true,
     });
     // No account picked → still on the picker.
@@ -1265,8 +1248,6 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
       store: useStore,
       adapter: adapter,
       debounceMs: 0,
-      onError: undefined,
-      onSuccess: undefined,
       serverMode: false,
     }); // demo build
     loadAll.mockClear();
@@ -1401,8 +1382,6 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
       store: useStore,
       adapter: { loadAll, saveAll },
       debounceMs: 0,
-      onError: undefined,
-      onSuccess: undefined,
       serverMode: true,
     });
     useStore.getState().setActiveAccount("a1");
@@ -1539,8 +1518,6 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
       store: useStore,
       adapter: adapter,
       debounceMs: 0,
-      onError: undefined,
-      onSuccess: undefined,
       serverMode: true,
     });
 
@@ -1623,7 +1600,7 @@ describe("flushPendingWrites (the import seam)", () => {
     expect(await flush).toEqual({ kind: "clean" });
     // The flush swept the mid-flush edit too before reporting clean — nothing left on the wire.
     expect(saveAll).toHaveBeenCalledTimes(2);
-    expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === "Mid-flush")).toBe(true);
+    expect((saveAll.mock.calls[1]?.[0] as AppData).clients.some((c) => c.name === "Mid-flush")).toBe(true);
     detach();
   });
 
@@ -1667,7 +1644,6 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
         adapter: { loadAll: async () => emptyAppData(), saveAll },
         debounceMs: 0,
         onError: vi.fn(),
-        onSuccess: undefined,
         serverMode: true,
       });
 
@@ -1699,8 +1675,6 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
         store: useStore,
         adapter: { loadAll: async () => emptyAppData(), saveAll },
         debounceMs: 300,
-        onError: undefined,
-        onSuccess: undefined,
         serverMode: true,
       });
       const resume = suspendServerWrites();
@@ -1751,7 +1725,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     resume();
     await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).toHaveBeenCalledTimes(1);
-    expect((saveAll.mock.calls[0][0] as AppData).clients.some((c) => c.name === "Mid-import")).toBe(true);
+    expect((saveAll.mock.calls[0]?.[0] as AppData).clients.some((c) => c.name === "Mid-import")).toBe(true);
     detach();
   });
 
@@ -1770,7 +1744,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     await new Promise((r) => setTimeout(r, 5));
 
     expect(saveAll).toHaveBeenCalledTimes(1);
-    expect((saveAll.mock.calls[0][0] as AppData).clients.map((c) => c.name)).toEqual([
+    expect((saveAll.mock.calls[0]?.[0] as AppData).clients.map((c) => c.name)).toEqual([
       "Beta Client",
       "Internal",
       "Mid-import",
@@ -1829,7 +1803,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     expect(await refresh).toEqual({ kind: "reloaded" });
     await new Promise((r) => setTimeout(r, 350));
     expect(saveAll).toHaveBeenCalledTimes(2);
-    expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === "During flush")).toBe(true);
+    expect((saveAll.mock.calls[1]?.[0] as AppData).clients.some((c) => c.name === "During flush")).toBe(true);
     expect(onError).not.toHaveBeenCalled();
     detach();
   });
@@ -1862,7 +1836,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     await new Promise((r) => setTimeout(r, 5));
 
     expect(saveAll).toHaveBeenCalledTimes(1); // re-scheduled on resume
-    expect((saveAll.mock.calls[0][0] as AppData).clients.some((c) => c.name === "Mid-failed-reload")).toBe(true);
+    expect((saveAll.mock.calls[0]?.[0] as AppData).clients.some((c) => c.name === "Mid-failed-reload")).toBe(true);
     detach();
   });
 
@@ -1892,14 +1866,14 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     useStore.getState().addClient({ name: "Mid-reload", color: "#222222" }); // parked
     window.dispatchEvent(new Event("pagehide"));
     expect(saveAll).toHaveBeenCalledTimes(1); // keepalive-flushed, not dropped
-    expect(saveAll.mock.calls[0][1]).toEqual({ unload: true });
-    expect((saveAll.mock.calls[0][0] as AppData).clients.some((c) => c.name === "Mid-reload")).toBe(true);
+    expect(saveAll.mock.calls[0]?.[1]).toEqual({ unload: true });
+    expect((saveAll.mock.calls[0]?.[0] as AppData).clients.some((c) => c.name === "Mid-reload")).toBe(true);
 
     release!();
     expect(await refresh).toEqual({ kind: "reloaded" });
     // The page survived: the reload rebases the parked edit and performs a normal confirmed save.
     expect(saveAll).toHaveBeenCalledTimes(2);
-    expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === "Mid-reload")).toBe(true);
+    expect((saveAll.mock.calls[1]?.[0] as AppData).clients.some((c) => c.name === "Mid-reload")).toBe(true);
     expect(onError).not.toHaveBeenCalled();
     detach();
   });
@@ -1936,8 +1910,8 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     releaseLoad!();
     expect(await refresh).toEqual({ kind: "reloaded" });
     expect(saveAll).toHaveBeenCalledTimes(2);
-    expect(saveAll.mock.calls[1][1]).toBeUndefined();
-    expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === "Hidden-tab edit")).toBe(true);
+    expect(requireValue(saveAll.mock.calls[1], "second saveAll call")[1]).toBeUndefined();
+    expect((saveAll.mock.calls[1]?.[0] as AppData).clients.some((c) => c.name === "Hidden-tab edit")).toBe(true);
     expect(onError).toHaveBeenCalledOnce();
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "keepalive dropped" }));
     detach();
@@ -1989,7 +1963,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     expect(await refresh).toEqual({ kind: "skipped" });
     await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).toHaveBeenCalledTimes(1);
-    expect((saveAll.mock.calls[0][0] as AppData).clients.map((c) => c.id)).toEqual(["c2", "internal:a2", "stale-c"]);
+    expect((saveAll.mock.calls[0]?.[0] as AppData).clients.map((c) => c.id)).toEqual(["c2", "internal:a2", "stale-c"]);
     expect(useStore.getState().activeAccountId).toBeNull();
     expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["c2", "internal:a2", "stale-c"]);
     expect(onError).not.toHaveBeenCalled();
@@ -2081,7 +2055,7 @@ describe("mid-reload edits are rebased onto the fresh server slice", () => {
     expect(await refresh).toEqual({ kind: "reloaded" });
     await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).toHaveBeenCalledTimes(1);
-    expect((saveAll.mock.calls[0][0] as AppData).clients.map((c) => c.name)).toEqual([
+    expect((saveAll.mock.calls[0]?.[0] as AppData).clients.map((c) => c.name)).toEqual([
       "Beta Client",
       "Internal",
       "Mid-reload",
@@ -2195,7 +2169,6 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
         adapter: { loadAll, saveAll },
         debounceMs: 0,
         onError: onError,
-        onSuccess: undefined,
         serverMode: true,
       });
       useStore.getState().setActiveAccount("a2");
@@ -2482,7 +2455,7 @@ describe("batch reconciliation (authoritative reload)", () => {
     try {
       const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
       const onSuccess = vi.fn();
-      const detachP = attachActiveA2({ adapter: adapter, debounceMs: 0, onError: undefined, onSuccess: onSuccess });
+      const detachP = attachActiveA2({ adapter: adapter, debounceMs: 0, onSuccess: onSuccess });
       await vi.advanceTimersByTimeAsync(5);
       const detach = await detachP;
       const loadsAfterPick = loadAll.mock.calls.length;
@@ -2528,7 +2501,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       useStore.getState().addClient({ name: "Too Big", color: "#222222" });
       await vi.advanceTimersByTimeAsync(0); // the save attempt → throws BatchTooLargeError
       expect(onError).toHaveBeenCalledTimes(1); // the banner surfaced "changes aren't saving"
-      expect(onError.mock.calls[0][0]).toBeInstanceOf(BatchTooLargeError);
+      expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(BatchTooLargeError);
       const savesAfterEdit = saveAll.mock.calls.length; // exactly the one over-limit attempt
       expect(savesAfterEdit).toBe(1);
 
@@ -2607,7 +2580,9 @@ describe("bootstrap", () => {
     expect(errors).toHaveLength(1); // the failure surfaced (would flip the banner)
     // Bootstrap deliberately leaves company selection at the picker. Choose the seeded tenant, then
     // prove persistence is STILL attached: a later edit persists via the now-working adapter.
-    useStore.getState().setActiveAccount(useStore.getState().data.accounts[0].id);
+    const seededAccount = useStore.getState().data.accounts[0];
+    if (!seededAccount) throw new Error("expected bootstrap to retain the seeded account");
+    useStore.getState().setActiveAccount(seededAccount.id);
     useStore.getState().addClient({ name: "Later", color: "#1" });
     expect((await adapter.loadAll()).clients.some((c) => c.name === "Later")).toBe(true);
     detach();
@@ -2634,7 +2609,7 @@ describe("bootstrap", () => {
       seedIfEmpty: seed(),
     });
     expect(useStore.getState().data.clients).toHaveLength(1);
-    expect(useStore.getState().data.clients[0].name).toBe("Saved");
+    expect(useStore.getState().data.clients[0]?.name).toBe("Saved");
     expect(useStore.getState().data.resources).toHaveLength(0);
     detach();
   });
@@ -2668,7 +2643,7 @@ describe("bootstrap", () => {
 
     expect(useStore.getState().hydrated).toBe(true);
     expect(useStore.getState().data.clients).toHaveLength(1); // loaded data kept, not discarded
-    expect(useStore.getState().data.clients[0].name).toBe("Loaded");
+    expect(useStore.getState().data.clients[0]?.name).toBe("Loaded");
     expect(useStore.getState().data.resources).toHaveLength(0); // NOT re-seeded (data exists)
 
     // Persistence IS attached: a later edit still saves.
@@ -2748,7 +2723,6 @@ describe("persistence coordinator fault-injection branches", () => {
       adapter: { loadAll, saveAll },
       debounceMs: 0,
       onError: onError,
-      onSuccess: undefined,
       serverMode: true,
     });
     useStore.getState().addClient({ name: "Pending", color: "#111111" });
@@ -2787,8 +2761,6 @@ describe("persistence coordinator fault-injection branches", () => {
       store: useStore,
       adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
       debounceMs: 0,
-      onError: undefined,
-      onSuccess: undefined,
       serverMode: true,
     });
     useStore.getState().setActiveAccount("a2");
@@ -2857,8 +2829,6 @@ describe("persistence coordinator fault-injection branches", () => {
         store: useStore,
         adapter: { loadAll: async () => emptyAppData(), saveAll },
         debounceMs: 0,
-        onError: undefined,
-        onSuccess: undefined,
         serverMode: true,
       });
       useStore.getState().addClient({ name: "Retry", color: "#111111" });
@@ -2910,8 +2880,6 @@ describe("persistence coordinator fault-injection branches", () => {
       store: useStore,
       adapter: { loadAll: async () => emptyAppData(), saveAll },
       debounceMs: 0,
-      onError: undefined,
-      onSuccess: undefined,
       serverMode: true,
     });
     const resumeOuter = suspendServerWrites();
@@ -2991,7 +2959,6 @@ describe("persistence coordinator fault-injection branches", () => {
       adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
       debounceMs: 0,
       onError: vi.fn(),
-      onSuccess: undefined,
       serverMode: true,
     });
     useStore.getState().setActiveAccount("a2");
@@ -3016,8 +2983,6 @@ describe("persistence coordinator fault-injection branches", () => {
       store: useStore,
       adapter: { loadAll: async () => emptyAppData(), saveAll },
       debounceMs: 0,
-      onError: undefined,
-      onSuccess: undefined,
       serverMode: true,
     });
     useStore.getState().addClient({ name: "In flight", color: "#111111" });

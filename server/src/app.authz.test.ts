@@ -124,7 +124,7 @@ async function appWithAuth(
     app: createApp(db, {
       authMode: mode,
       auth,
-      multiAccount: opts.multiAccount,
+      ...(opts.multiAccount === undefined ? {} : { multiAccount: opts.multiAccount }),
       optimisticConcurrency: opts.optimisticConcurrency ?? false,
     }),
     db,

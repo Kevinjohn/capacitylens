@@ -109,14 +109,15 @@ export function useAppShellController() {
       (demoAuthActive && !fakeSignedIn) ||
       !accountSummariesComplete ||
       accountSummaries.length !== 1 ||
-      accountSummaries[0].roleStatus === "unavailable"
+      accountSummaries[0]?.roleStatus === "unavailable"
     ) {
       return;
     }
 
     // activeAccountId remains session-only. A browser reload with one unambiguous membership may
     // safely reopen it without remembering a tenant choice or changing the requested route.
-    void transitionAccount(accountSummaries[0].id);
+    const account = accountSummaries[0];
+    if (account) void transitionAccount(account.id);
   }, [
     accountSummaries,
     accountSummariesComplete,

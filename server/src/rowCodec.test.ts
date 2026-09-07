@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { TABLES } from "./tables";
+import { resolveTable } from "./db/introspection";
 import { fromRow, toRow } from "./rowCodec";
 
 describe("rowCodec", () => {
-  const spec = TABLES.accounts;
+  const spec = resolveTable("accounts");
 
   it("encodes JSON columns and collapses absent optionals to SQL null", () => {
     const cells = toRow(spec, {
@@ -52,7 +52,7 @@ describe("rowCodec", () => {
   });
 
   it("round-trips a closure without inventing resource or note fields", () => {
-    const closures = TABLES.closures;
+    const closures = resolveTable("closures");
     const databaseRow = {
       id: "closure1",
       accountId: "a1",

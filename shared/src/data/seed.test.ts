@@ -35,8 +35,13 @@ describe("runtime demo seed", () => {
       endDate: "2031-09-18",
     });
     expect(current.allocations.map((row) => row.id)).toEqual(fixed.allocations.map((row) => row.id));
-    expect(current.allocations.map((row) => dayIndex(row.startDate, current.allocations[0].startDate))).toEqual(
-      fixed.allocations.map((row) => dayIndex(row.startDate, fixed.allocations[0].startDate)),
+    const currentStart = current.allocations[0]?.startDate;
+    const fixedStart = fixed.allocations[0]?.startDate;
+    expect(currentStart).toBeDefined();
+    expect(fixedStart).toBeDefined();
+    if (currentStart === undefined || fixedStart === undefined) throw new Error("Seed must include an allocation.");
+    expect(current.allocations.map((row) => dayIndex(row.startDate, currentStart))).toEqual(
+      fixed.allocations.map((row) => dayIndex(row.startDate, fixedStart)),
     );
     expect(current.allocations.map((row) => dayIndex(row.endDate, row.startDate))).toEqual(
       fixed.allocations.map((row) => dayIndex(row.endDate, row.startDate)),

@@ -71,7 +71,7 @@ async function idToken(
 }
 
 describe("strictOidcUserInfo", () => {
-  let currentKeys: SigningKey[];
+  let currentKeys: [SigningKey, ...SigningKey[]];
   let userInfo: Record<string, unknown>;
 
   beforeEach(async () => {
@@ -261,6 +261,11 @@ describe("strictOidcUserInfo", () => {
     });
     expect(Object.hasOwn(profile, "image")).toBe(true);
     expect(profile.image).toBeUndefined();
+    expect(Object.getOwnPropertyDescriptor(profile, "image")).toMatchObject({
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
   });
 
   it("rejects a user-info response for a different subject", async () => {

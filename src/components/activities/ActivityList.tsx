@@ -77,9 +77,9 @@ export function ActivityList({ selectedActivityId = null }: { selectedActivityId
   const box = ({ rows, empty, testid, enrich }: BoxInput) =>
     rows.length === 0 ? (
       <EmptyState
-        icon={enrich ? ClipboardCheck : undefined}
-        description={enrich?.description}
-        action={enrich?.action ? { ...enrich.action, icon: Plus, requiresEdit: true } : undefined}
+        {...(enrich ? { icon: ClipboardCheck } : {})}
+        {...(enrich?.description !== undefined ? { description: enrich.description } : {})}
+        {...(enrich?.action ? { action: { ...enrich.action, icon: Plus, requiresEdit: true } } : {})}
       >
         {empty}
       </EmptyState>

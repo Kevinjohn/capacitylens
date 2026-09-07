@@ -237,3 +237,9 @@ export function jsonResponse(body: unknown, status = 200): Response {
     headers: { "Content-Type": "application/json" },
   });
 }
+
+/** Establish an indexed-fixture precondition without weakening the assertion that consumes it. */
+export function requireValue<T>(value: T | undefined, context = "fixture value"): T {
+  if (value === undefined) throw new Error(`Expected ${context}`);
+  return value;
+}

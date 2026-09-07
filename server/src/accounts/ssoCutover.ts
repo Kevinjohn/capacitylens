@@ -77,7 +77,7 @@ function memberReadiness(
           ? "multiple_required_provider_links"
           : duplicateSubject
             ? "duplicate_provider_subject"
-            : !links[0].verified
+            : links[0]?.verified !== true
               ? "unverified_provider_link"
               : "ready";
   return {

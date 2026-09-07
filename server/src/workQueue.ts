@@ -94,7 +94,7 @@ export class BoundedWorkQueue {
         work,
         resolve: (value) => resolve(value as T),
         reject,
-        signal,
+        ...(signal === undefined ? {} : { signal }),
       };
       if (signal) {
         waiting.abort = () => {

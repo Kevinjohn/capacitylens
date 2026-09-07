@@ -10,7 +10,7 @@ export function createAccountFailure(
     code,
     message,
     retryable: false,
-    commandId,
+    ...(commandId === undefined ? {} : { commandId }),
   });
 }
 

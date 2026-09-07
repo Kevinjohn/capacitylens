@@ -66,7 +66,6 @@ function addOptionalResources() {
   useStore.getState().addResource(
     makeResourceDraft({
       kind: "placeholder",
-      name: undefined,
       role: "Senior Designer",
       projectId: project.id,
     }),
@@ -320,6 +319,7 @@ describe("CommandPalette", () => {
     renderPalette();
 
     const options = screen.getAllByTestId("command-palette-option");
+    if (!options[0] || !options[1]) throw new Error("Expected command palette options");
     // Hover the second option. cmdk activates on its native onPointerMove (not mouseEnter), so the
     // interaction fires pointerMove — the assertion (hovering a row makes it the active option) is
     // unchanged.
@@ -370,6 +370,7 @@ describe("CommandPalette", () => {
     // Add a project first
     const clients = useStore.getState().data.clients;
     const client = clients[0];
+    if (!client) throw new Error("Expected client");
     act(() => {
       useStore.getState().addProject({
         name: "Project Watchtower",
@@ -420,6 +421,7 @@ describe("CommandPalette", () => {
   it("project selection REPLACES stale filters with only projectId set", () => {
     const clients = useStore.getState().data.clients;
     const client = clients[0];
+    if (!client) throw new Error("Expected client");
     let projectId: string;
     act(() => {
       const p = useStore.getState().addProject({

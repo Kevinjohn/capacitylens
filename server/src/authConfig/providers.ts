@@ -263,10 +263,18 @@ export function prepareProviders({
           // accepting any identity claims.
           requireIssuerValidation: false,
           pkce: true,
-          getToken: oidcClient.exchangeCode,
+          getToken: ({ code, redirectURI, codeVerifier }) =>
+            oidcClient.exchangeCode({
+              code,
+              redirectURI,
+              ...(codeVerifier === undefined ? {} : { codeVerifier }),
+            }),
           getUserInfo: async (tokens) => {
             try {
-              const profile = await oidcClient.getUserInfo(tokens);
+              const profile = await oidcClient.getUserInfo({
+                ...(tokens.accessToken === undefined ? {} : { accessToken: tokens.accessToken }),
+                ...(tokens.idToken === undefined ? {} : { idToken: tokens.idToken }),
+              });
               assertStrictOidcEmailAdmission(db, genericProviderId, profile);
               return profile;
             } catch (error) {

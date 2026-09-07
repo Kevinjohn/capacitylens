@@ -332,7 +332,9 @@ if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION) {
   throw new Error("DB_SCHEMA_VERSION must equal the newest explicit database migration.");
 }
 for (let index = 1; index < DATABASE_MIGRATIONS.length; index += 1) {
-  if (DATABASE_MIGRATIONS[index].version !== DATABASE_MIGRATIONS[index - 1].version + 1) {
+  const migration = DATABASE_MIGRATIONS[index];
+  const previous = DATABASE_MIGRATIONS[index - 1];
+  if (!migration || !previous || migration.version !== previous.version + 1) {
     throw new Error("Explicit database migration versions must be contiguous and ordered.");
   }
 }

@@ -80,7 +80,6 @@ describe("ImportExport with the real persistence coordinator", () => {
       adapter: adapter,
       debounceMs: 0,
       onError: onPersistenceError,
-      onSuccess: undefined,
       serverMode: true,
     });
   });

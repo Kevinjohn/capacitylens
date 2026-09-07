@@ -32,7 +32,8 @@ describe("standing documentation contracts", () => {
     expect(links.length).toBeGreaterThan(0);
 
     for (const [, path, fragment] of links) {
-      const slugs = [...read(path).matchAll(/^#{1,6} (.+)$/gm)].map((match) => headingSlug(match[1]));
+      if (!path || !fragment) throw new Error("Expected a Markdown path and fragment.");
+      const slugs = [...read(path).matchAll(/^#{1,6} (.+)$/gm)].map((match) => headingSlug(match[1] ?? ""));
       expect(slugs, `${path} has no #${fragment} heading`).toContain(fragment);
     }
   });
@@ -43,7 +44,10 @@ describe("standing documentation contracts", () => {
   ] as const)("keeps repository paths in %s resolvable", (document, pattern) => {
     const paths = [...read(document).matchAll(pattern)].map((match) => match[1]);
     expect(paths.length).toBeGreaterThan(0);
-    for (const path of paths) expect(existsSync(resolve(ROOT, path)), path).toBe(true);
+    for (const path of paths) {
+      if (!path) throw new Error(`Expected a repository path in ${document}.`);
+      expect(existsSync(resolve(ROOT, path)), path).toBe(true);
+    }
   });
 
   it("keeps the literal product name out of the localization catalogue", () => {

@@ -166,7 +166,21 @@ export function ResourceForm({
           return;
         }
         update(resource.id, patch);
-      } else add(patch);
+      } else {
+        add({
+          role: patch.role,
+          employmentType: patch.employmentType,
+          engagement: patch.engagement,
+          workingHoursPerDay: patch.workingHoursPerDay,
+          workingDays: patch.workingDays,
+          halfDays: patch.halfDays,
+          kind: patch.kind,
+          color: patch.color,
+          ...(patch.name ? { name: patch.name } : {}),
+          ...(patch.disciplineId ? { disciplineId: patch.disciplineId } : {}),
+          ...(patch.projectId ? { projectId: patch.projectId } : {}),
+        });
+      }
       onClose();
     } catch (e) {
       fail(null, resolveErrorMessage(e));

@@ -39,8 +39,10 @@ export function readCapacityAnnouncement(resourceId: ID): string {
   });
   if (allocations.length === 0) return m.scheduler_sr_announce_clear({ name });
 
-  let start = allocations[0].startDate;
-  let end = allocations[0].endDate;
+  const firstAllocation = allocations[0];
+  if (!firstAllocation) return m.scheduler_sr_announce_clear({ name });
+  let start = firstAllocation.startDate;
+  let end = firstAllocation.endDate;
   for (const allocation of allocations) {
     if (allocation.startDate < start) start = allocation.startDate;
     if (allocation.endDate > end) end = allocation.endDate;
@@ -96,7 +98,7 @@ export function readCapacityGestureAdvisory({
         // (`blockHoursPerDay`) rather than hardcoding its current 0, exactly as the grid's
         // own `applyCapacityMode` projection does.
         hoursPerDay: isBlocks ? blockHoursPerDay(FULL_DAY_HOURS) : reconciledHours,
-        ignoreWeekends: bar.allocation.ignoreWeekends,
+        ...(bar.allocation.ignoreWeekends !== undefined ? { ignoreWeekends: bar.allocation.ignoreWeekends } : {}),
       },
       otherAllocations: others,
       timeOff: timeOff,

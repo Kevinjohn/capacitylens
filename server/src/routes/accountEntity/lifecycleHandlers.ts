@@ -144,7 +144,7 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
         actor: req.accountActor!,
         workspaceId: id,
         command: command(req),
-        auditProductMutationInTx: targetExisted ? () => enqueueAudit(auditRecord) : undefined,
+        ...(targetExisted ? { auditProductMutationInTx: () => enqueueAudit(auditRecord) } : {}),
       });
       if (targetExisted) drainProductAudit(reply);
       return reply.code(204).send();

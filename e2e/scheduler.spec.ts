@@ -96,7 +96,10 @@ async function expectCompactMonthLabelsDoNotOverlap(page: Page) {
 
   expect(labels.length).toBeGreaterThan(0);
   for (let index = 1; index < labels.length; index += 1) {
-    expect(labels[index - 1].right).toBeLessThanOrEqual(labels[index].left + 0.5);
+    const previous = labels[index - 1];
+    const current = labels[index];
+    if (previous === undefined || current === undefined) throw new Error("Visible month labels must be contiguous");
+    expect(previous.right).toBeLessThanOrEqual(current.left + 0.5);
   }
 }
 
@@ -123,8 +126,13 @@ test.describe("Scheduler", () => {
       ctx.fillRect(0, 0, 1, 1);
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, 1, 1);
-      const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
-      return { r, g, b, a };
+      const data = ctx.getImageData(0, 0, 1, 1).data;
+      const channel = (index: number) => {
+        const value = data[index];
+        if (value === undefined) throw new Error(`Rendered pixel must include channel ${index}`);
+        return value;
+      };
+      return { r: channel(0), g: channel(1), b: channel(2), a: channel(3) };
     });
     // Opaque fill (the old /12 alpha would composite away above; the cell itself is solid).
     expect(rgba.a).toBe(255);

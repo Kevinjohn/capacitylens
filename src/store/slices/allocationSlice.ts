@@ -22,7 +22,11 @@ export function createAllocationSlice(
     const { createGuardedAction, createAllocations, updateOwned, assertAllocation, resolveOwnedRow, mutate } =
       internals;
     return {
-      addAllocation: (input) => createAllocations([input])[0],
+      addAllocation: (input) => {
+        const allocation = createAllocations([input])[0];
+        if (!allocation) throw new Error("Allocation creation produced no row.");
+        return allocation;
+      },
       addAllocations: createAllocations,
       updateAllocation: createGuardedAction(
         (id: ID, patch: Patch<Allocation>) =>

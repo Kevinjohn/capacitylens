@@ -122,7 +122,7 @@ export function buildPaletteItems({
       // don't read as one of our own people in the list — mirrors the assignee dropdown's " (external)".
       // A placeholder reads as the literal "Placeholder" with its role as secondary text.
       label: `${resolveResourceDisplayName(resource)}${isExternalResource(resource) ? m.palette_resource_external_suffix() : ""}`,
-      sublabel: resource.kind === "placeholder" ? resource.role : resource.name ? resource.role : undefined,
+      ...(resource.kind === "placeholder" || resource.name ? { sublabel: resource.role } : {}),
       section: m.palette_section_people(),
       onSelect: () => {
         void navigate("/");
@@ -144,7 +144,7 @@ export function buildPaletteItems({
       return {
         id: `proj-${project.id}`,
         label: project.name,
-        sublabel: client?.name,
+        ...(client ? { sublabel: client.name } : {}),
         section: m.palette_section_projects(),
         onSelect: () => {
           void navigate("/");
@@ -179,17 +179,18 @@ export function buildPaletteItems({
   const projectsById = new Map(data.projects.map((project) => [project.id, project]));
   const activityItems: PaletteItem[] = data.activities.map((activity) => {
     const project = activity.projectId ? projectsById.get(activity.projectId) : undefined;
+    const sublabel =
+      activity.kind === "project"
+        ? project?.name
+        : activity.kind === "internal"
+          ? m.palette_activity_internal()
+          : m.palette_activity_repeatable();
     return {
       id: `activity-${activity.id}`,
       label: activity.name,
       // Project-specific activities show their project; project-less activities show their kind so the two
       // aren't indistinguishable blank-sublabel rows.
-      sublabel:
-        activity.kind === "project"
-          ? project?.name
-          : activity.kind === "internal"
-            ? m.palette_activity_internal()
-            : m.palette_activity_repeatable(),
+      ...(sublabel ? { sublabel } : {}),
       section: m.palette_section_activities(),
       onSelect: () => {
         void navigate(`/activities#activity=${encodeURIComponent(activity.id)}`);

@@ -59,7 +59,7 @@ async function appWith(
     app: buildApp(db, {
       authMode: mode,
       auth,
-      multiAccount: opts.multiAccount,
+      ...(opts.multiAccount === undefined ? {} : { multiAccount: opts.multiAccount }),
     }),
     db,
   };

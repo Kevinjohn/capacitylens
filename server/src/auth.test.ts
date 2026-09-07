@@ -608,7 +608,10 @@ describe("resolved auth options", () => {
     },
   ])("pins security-sensitive option fields in $name mode", ({ env, trustedOrigins, pluginIds }) => {
     const db = new DatabaseSync(":memory:", { enableForeignKeyConstraints: false });
-    const { auth } = createAuthFromEnvironment(db, env, { deferDatabaseSetup: true, trustedOrigins });
+    const { auth } = createAuthFromEnvironment(db, env, {
+      deferDatabaseSetup: true,
+      ...(trustedOrigins === undefined ? {} : { trustedOrigins }),
+    });
 
     expect(auth!.options.telemetry?.enabled).toBe(false);
     expect(auth!.options.verification?.storeIdentifier).toBe("hashed");

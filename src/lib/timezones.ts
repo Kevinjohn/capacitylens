@@ -69,6 +69,7 @@ export function resolveTimeZoneOffsetLabel(timeZone: string, date = new Date()):
     const match = value.match(/^(?:GMT|UTC)([+-])(\d{1,2})(?::?(\d{2}))?$/);
     if (!match) return value.replace(/^GMT/, "UTC");
     const [, sign, hours, minutes = "00"] = match;
+    if (!sign || !hours) return value.replace(/^GMT/, "UTC");
     return `UTC${sign}${hours.padStart(2, "0")}:${minutes}`;
   } catch {
     // The zone list itself is validated by listSupportedTimeZones(); this is only a defensive

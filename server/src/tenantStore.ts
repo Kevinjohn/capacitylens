@@ -21,7 +21,7 @@ import {
 } from "./db";
 import { createServerRevision } from "./revision";
 import { fromRow, type Row } from "./rowCodec";
-import { TABLES } from "./tables";
+import { resolveTable } from "./db/introspection";
 
 export type LifecycleRow = Resource | Client | Project;
 
@@ -224,7 +224,7 @@ export function createSqliteTenantStore(db: Db): TenantStore {
   // form carries an ORDER BY of its own.
   const listRelatedAllocations = (field: "resourceId" | "activityId", accountId: string, id: string): Allocation[] =>
     (db.prepare(`SELECT * FROM allocations WHERE accountId = ? AND ${field} = ?`).all(accountId, id) as Row[]).map(
-      (row) => fromRow(TABLES.allocations, row) as unknown as Allocation,
+      (row) => fromRow(resolveTable("allocations"), row) as unknown as Allocation,
     );
   const validationLookup: ValidationDataLookup = {
     row: (table: AppDataKey, id: string) =>

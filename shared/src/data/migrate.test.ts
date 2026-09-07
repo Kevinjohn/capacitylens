@@ -112,7 +112,7 @@ describe("migrate", () => {
     };
     const out = migrate(legacy);
     expect(out.resources[0]).toMatchObject({ employmentType: "freelancer" });
-    expect("isFreelancer" in out.resources[0]).toBe(false);
+    expect("isFreelancer" in (out.resources[0] ?? {})).toBe(false);
   });
 
   it("treats a missing version as legacy and still migrates", () => {
@@ -193,7 +193,7 @@ describe("migrate", () => {
       ],
     };
     const out = migrate({ schemaVersion: 7, data });
-    expect(out.accounts[0].internalColourMode).toBeUndefined();
+    expect(out.accounts[0]?.internalColourMode).toBeUndefined();
   });
 
   it("keeps schema-v6 clients and projects without privacy fields public", () => {
@@ -251,9 +251,9 @@ describe("migrate", () => {
       ],
     };
     const out = migrate({ schemaVersion: 8, data });
-    expect(out.accounts[0].showInternalProjects).toBeUndefined();
-    expect(out.accounts[0].showInternalActivities).toBeUndefined();
-    expect(out.accounts[0].inlineActivityCreateEnabled).toBeUndefined();
+    expect(out.accounts[0]?.showInternalProjects).toBeUndefined();
+    expect(out.accounts[0]?.showInternalActivities).toBeUndefined();
+    expect(out.accounts[0]?.inlineActivityCreateEnabled).toBeUndefined();
   });
 
   it("preserves explicit false schedule view prefs across migration (v8 → v9)", () => {
@@ -273,9 +273,9 @@ describe("migrate", () => {
       ],
     };
     const out = migrate({ schemaVersion: 8, data });
-    expect(out.accounts[0].showInternalProjects).toBe(false);
-    expect(out.accounts[0].showInternalActivities).toBe(false);
-    expect(out.accounts[0].inlineActivityCreateEnabled).toBe(false);
+    expect(out.accounts[0]?.showInternalProjects).toBe(false);
+    expect(out.accounts[0]?.showInternalActivities).toBe(false);
+    expect(out.accounts[0]?.inlineActivityCreateEnabled).toBe(false);
   });
 
   it("leaves legacy resources not favourite unless the optional flag is present (v9 → v10)", () => {
@@ -299,8 +299,8 @@ describe("migrate", () => {
     };
 
     const out = migrate({ schemaVersion: 9, data });
-    expect(out.resources[0].isFavourite).toBeUndefined();
-    expect(out.resources[0].engagement).toBe("studio");
+    expect(out.resources[0]?.isFavourite).toBeUndefined();
+    expect(out.resources[0]?.engagement).toBe("studio");
   });
 
   it("migrates v10 resources to an empty half-day subset without changing custom full-day capacity", () => {
@@ -374,7 +374,7 @@ describe("migrate", () => {
 
     const out = migrate({ schemaVersion: 12, data: { ...emptyAppData(), accounts: [account] } });
     expect(out.accounts[0]).toEqual({ ...account, workingDays: [1, 2, 3, 4, 5] });
-    expect(out.accounts[0].groupResourcesByEngagement).toBeUndefined();
+    expect(out.accounts[0]?.groupResourcesByEngagement).toBeUndefined();
   });
 
   it("backfills activity kind on a pre-v4 payload (v3 → v4): project-bound → project, project-less → repeatable", () => {
@@ -569,7 +569,7 @@ describe("migrate", () => {
     expect("tasks" in out).toBe(false);
     // The allocation's FK is renamed; no `taskId` survives.
     expect(out.allocations[0]).toMatchObject({ activityId: "t1" });
-    expect("taskId" in out.allocations[0]).toBe(false);
+    expect("taskId" in (out.allocations[0] ?? {})).toBe(false);
   });
 
   it("merges a mixed v4 rename state without losing legacy-only work or modern conflicts", () => {

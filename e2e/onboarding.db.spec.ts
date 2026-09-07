@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { API, resetServer, serverState } from "./db-helpers";
+import { API, resetServer, serverState, stateRows } from "./db-helpers";
 
 // Server-backed half of the P1.14 onboarding-lock: a DIRECT API PATCH of a frozen account field
 // (language / weekStartsOn / timezone) is rejected with 409. This is the SECURITY backstop — the
@@ -14,13 +14,8 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
     request,
   }) => {
     const before = await serverState(request);
-    const account = before.accounts[0] as {
-      id: string;
-      language?: string;
-      weekStartsOn?: 0 | 1;
-      timezone?: string;
-    };
-    expect(account).toBeTruthy();
+    const account = stateRows(before, "accounts")[0];
+    if (account === undefined) throw new Error("Seeded server state must include an account");
 
     const changes = [
       ["weekStartsOn", 1, 0],
@@ -49,8 +44,10 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
 
     // All stored values must remain untouched after every refused request.
     const after = await serverState(request);
-    expect(after.accounts[0].language).toBeUndefined();
-    expect(after.accounts[0]).toMatchObject({
+    const updatedAccount = stateRows(after, "accounts")[0];
+    if (updatedAccount === undefined) throw new Error("Server state must retain the seeded account");
+    expect(updatedAccount.language).toBeUndefined();
+    expect(updatedAccount).toMatchObject({
       weekStartsOn: 1,
       timezone: "UTC",
     });
@@ -106,6 +103,6 @@ test.describe("single-company-per-instance policy (client-side affordance + serv
 
     // The rejected create must not have landed — still exactly the two seeded companies.
     const after = await serverState(request);
-    expect(after.accounts).toHaveLength(2);
+    expect(stateRows(after, "accounts")).toHaveLength(2);
   });
 });

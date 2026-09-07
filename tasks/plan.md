@@ -339,7 +339,7 @@ exports while migrating internal consumers; fixes near-zero findings without bas
 resolves unnecessary assertions and boolean comparisons; and classifies the five larger smell
 families with meaningful absence/default/error tests. Confirmed defects are fixed before enrollment.
 The frozen declaration-level inventory and classifications are governed by
-`tasks/conventions-enforcement-baseline.md`.
+[`tasks/conventions-enforcement-baseline.md`](conventions-enforcement-baseline.md).
 
 #647 maps both `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` through
 `tsconfig.app.json`, `tsconfig.node.json`, inherited `tsconfig.e2e.json`, `shared/tsconfig.json`,
@@ -348,9 +348,12 @@ Prepare both flags together within each owned file, preserve public contracts an
 empty collections, missing records, zero, empty strings, null/undefined, authority and transactions.
 No blanket non-null assertions, speculative defaults or type widening to silence diagnostics.
 Update `docs-src/reference/conventions.md` with the adopted rules and initial-baseline policy,
-then rebuild and commit generated docs. Measure function length, complexity and nesting; review exact settings and one initial residual
-baseline against standing tooling decisions. Verify dynamic/string consumers before dead-export
-removal, and record justified duplication/removal dispositions.
+then rebuild and commit generated docs. Measure function length, complexity and nesting across
+production and tests in `src`, `shared/src`, `server/src` and `server/scripts`, plus E2E scenarios
+in `e2e`; review exact settings and the one initial residual baseline in
+[`tasks/strictness-structure-baseline.md`](strictness-structure-baseline.md) against standing tooling
+decisions. Verify dynamic/string consumers before dead-export removal, and record justified
+duplication/removal dispositions.
 
 #646 closes only after every candidate category has a verified disposition. A generic error or
 unknown record is not itself a defect: quote the violated rule, respect the conventions page's
@@ -375,6 +378,13 @@ deferral to `DEFENSIVE-CODING.md`, and retain nonviolating observations with rea
 - [ ] Second separate patch release merged and verified.
 - [ ] #645 exact enforcement, fixes and initial residual baselines verified.
 - [ ] #647 all intended flags, structural rules and cleanup dispositions verified.
+      Structural enrollment is verified at `6a9cf77480a34cb4f3c3429bae48561af90b7948`: the frozen
+      baseline contains 158 complexity, 59 depth and 694 length declarations, including 42 E2E length
+      declarations, and exactly matches `eslint-suppressions.json`. The three byte-identical cached
+      statement helpers remain local to account-state, audit-outbox and control-table owners because
+      centralising the small closure would couple those layers for negligible reuse. The sole confirmed
+      dead declaration, `buildOperationReceipt`, remains pending removal with its stale JSDoc consumer
+      in a separate reviewed branch; #647 is not complete until that branch lands.
 - [ ] #646 all categories reconciled without duplicate findings.
 - [ ] Complete final review and required local gates pass on the accepted tree.
 - [ ] Separate minor release passes necessary GitHub CI and is verified after merge.

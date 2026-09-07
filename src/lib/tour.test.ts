@@ -44,14 +44,14 @@ describe("startTour", () => {
     await startTour();
 
     expect(driverMock).toHaveBeenCalledOnce();
-    const config = driverMock.mock.calls[0][0];
+    const config = driverMock.mock.calls[0]?.[0];
     expect(config.steps).toEqual(expectedSteps);
   });
 
   it("configures progress display and nav copy through the Paraglide messages", async () => {
     await startTour();
 
-    const config = driverMock.mock.calls[0][0];
+    const config = driverMock.mock.calls[0]?.[0];
     expect(config.showProgress).toBe(true);
     expect(config.progressText).toBe(m.tour_progress({ step: "{{current}}", total: "{{total}}" }));
     expect(config.nextBtnText).toBe(m.tour_next());
@@ -62,7 +62,7 @@ describe("startTour", () => {
   it("keeps spotlighted elements inert so a stray click can't navigate away mid-tour", async () => {
     await startTour();
 
-    const config = driverMock.mock.calls[0][0];
+    const config = driverMock.mock.calls[0]?.[0];
     expect(config.disableActiveInteraction).toBe(true);
   });
 
@@ -70,7 +70,7 @@ describe("startTour", () => {
     const promise = startTour();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const config = driverMock.mock.calls[0][0];
+    const config = driverMock.mock.calls[0]?.[0];
     const activeTour = { destroy: vi.fn() };
     config.onDestroyStarted(undefined, undefined, { driver: activeTour });
 

@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import { openApp, selectShadOption } from "./helpers";
-import { resetServer, serverState } from "./db-helpers";
+import { resetServer, serverState, stateRows } from "./db-helpers";
 
 // DB-backed E2E: this project's app is built with VITE_CAPACITYLENS_API, so persistence
 // runs through the entity-level ServerSyncAdapter against the real SQLite server.
@@ -30,7 +30,7 @@ test.describe("database-backed persistence", () => {
 
     // The write is debounced; confirm it actually reached the server tables.
     await expect
-      .poll(async () => (await serverState(request)).clients.some((c) => c.name === "Persisted DB Co"), {
+      .poll(async () => stateRows(await serverState(request), "clients").some((c) => c.name === "Persisted DB Co"), {
         timeout: 10_000,
       })
       .toBe(true);
@@ -42,7 +42,7 @@ test.describe("database-backed persistence", () => {
   });
 
   test("repeat creation persists all allocation PUTs through one atomic client batch", async ({ page, request }) => {
-    const before = (await serverState(request)).allocations;
+    const before = stateRows(await serverState(request), "allocations");
     const batchBodies: Array<{ ops?: Array<{ method?: string; table?: string; id?: string }> }> = [];
     page.on("request", (outgoing) => {
       if (outgoing.method() === "POST" && outgoing.url().endsWith("/api/batch")) {
@@ -61,18 +61,22 @@ test.describe("database-backed persistence", () => {
     await dialog.getByRole("button", { name: "Save" }).click();
 
     await expect
-      .poll(async () => (await serverState(request)).allocations.length, { timeout: 10_000 })
+      .poll(async () => stateRows(await serverState(request), "allocations").length, { timeout: 10_000 })
       .toBe(before.length + 14);
     expect(batchBodies).toHaveLength(1);
-    expect(batchBodies[0].ops).toHaveLength(14);
-    expect(batchBodies[0].ops?.every((op) => op.method === "PUT" && op.table === "allocations")).toBe(true);
+    const batch = batchBodies[0];
+    if (batch === undefined) throw new Error("Repeat creation must send one batch");
+    expect(batch.ops).toHaveLength(14);
+    expect(batch.ops?.every((op) => op.method === "PUT" && op.table === "allocations")).toBe(true);
 
     await openApp(page);
-    const afterReload = (await serverState(request)).allocations;
+    const afterReload = stateRows(await serverState(request), "allocations");
     expect(afterReload).toHaveLength(before.length + 14);
     expect(before.every((row) => afterReload.some((persisted) => persisted.id === row.id))).toBe(true);
     const repeated = afterReload.filter((row) => !before.some(({ id }) => id === row.id));
-    expect(repeated[0].seriesId).toEqual(expect.any(String));
+    const firstRepeated = repeated[0];
+    if (firstRepeated === undefined) throw new Error("Repeat creation must persist new allocations");
+    expect(firstRepeated.seriesId).toEqual(expect.any(String));
     expect(new Set(repeated.map(({ seriesId }) => seriesId)).size).toBe(1);
   });
 
@@ -93,7 +97,7 @@ test.describe("database-backed persistence", () => {
     await expect(page.getByTestId("client-row").filter({ hasText: "Renamed Co" })).toBeVisible();
 
     await expect
-      .poll(async () => (await serverState(request)).clients.some((c) => c.name === "Renamed Co"), {
+      .poll(async () => stateRows(await serverState(request), "clients").some((c) => c.name === "Renamed Co"), {
         timeout: 10_000,
       })
       .toBe(true);
@@ -116,7 +120,7 @@ test.describe("database-backed persistence", () => {
 
     await expect
       .poll(async () => {
-        const persisted = (await serverState(request)).resources.find(({ id }) => id === "r-tyler");
+        const persisted = stateRows(await serverState(request), "resources").find(({ id }) => id === "r-tyler");
         return { engagement: persisted?.engagement, halfDays: persisted?.halfDays };
       })
       .toEqual({ engagement: "supplementary", halfDays: [2] });
@@ -154,7 +158,7 @@ test.describe("database-backed persistence", () => {
     const row = page.getByTestId("client-row").filter({ hasText: "Doomed Co" });
     await expect(row).toBeVisible();
     await expect
-      .poll(async () => (await serverState(request)).clients.some((c) => c.name === "Doomed Co"), {
+      .poll(async () => stateRows(await serverState(request), "clients").some((c) => c.name === "Doomed Co"), {
         timeout: 10_000,
       })
       .toBe(true);
@@ -169,9 +173,13 @@ test.describe("database-backed persistence", () => {
 
     // It is RETAINED in the DB but now carries archivedAt (the archive route, not a hard delete).
     await expect
-      .poll(async () => (await serverState(request)).clients.find((c) => c.name === "Doomed Co")?.archivedAt ?? null, {
-        timeout: 10_000,
-      })
+      .poll(
+        async () =>
+          stateRows(await serverState(request), "clients").find((c) => c.name === "Doomed Co")?.archivedAt ?? null,
+        {
+          timeout: 10_000,
+        },
+      )
       .toBeTruthy();
 
     // A reload re-hydrates from the DB's ACTIVE slice, so the archived client stays out of the list.

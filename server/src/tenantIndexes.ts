@@ -71,15 +71,17 @@ function assertSingleColumnIndex(db: Db, table: string, index: string, column: s
       key: number;
     }>
   ).filter((candidate) => candidate.key === 1);
+  const key = keys[0];
   if (
     !listed ||
     listed.unique !== 0 ||
     listed.origin !== "c" ||
     listed.partial !== 0 ||
     keys.length !== 1 ||
-    keys[0]?.name !== column ||
-    keys[0]?.desc !== 0 ||
-    keys[0]?.coll !== "BINARY"
+    !key ||
+    key.name !== column ||
+    key.desc !== 0 ||
+    key.coll !== "BINARY"
   ) {
     throw new Error(message);
   }

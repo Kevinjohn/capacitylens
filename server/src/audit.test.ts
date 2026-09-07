@@ -70,9 +70,15 @@ const timeOff = ({ id, accountId, resourceId, o = {} }: TimeOffInput) => ({
 
 const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
   app.inject(opts) as unknown as Promise<LightMyRequestResponse>;
-const body = (payload: unknown) => payload as InjectOptions["payload"];
+const body = (payload: unknown) => payload as NonNullable<InjectOptions["payload"]>;
 const post = (app: FastifyInstance, entity: string, payload: unknown) =>
   call(app, { method: "POST", url: `/api/${entity}`, payload: body(payload) });
+
+function requiredAt<T>(values: readonly T[], index: number): T {
+  const value = values[index];
+  if (value === undefined) throw new Error(`Expected value at index ${index}.`);
+  return value;
+}
 
 /** A real file-backed app: a temp JSONL the assertions read line-by-line. */
 function fileApp(): { app: FastifyInstance; file: string; lines: () => AuditRecord[]; log: ReturnType<typeof vi.fn> } {
@@ -236,9 +242,10 @@ describe("NO PII (2) — the #1 invariant", () => {
     expect(raw).not.toContain("Designer");
     // And changedFields on the timeOff CREATE line really is just names.
     const recs = lines();
-    expect(recs[createIdx].entity).toBe("timeOff");
-    expect(recs[createIdx].changedFields).toContain("note");
-    expect(recs[createIdx].changedFields).not.toContain(SECRET);
+    const created = requiredAt(recs, createIdx);
+    expect(created.entity).toBe("timeOff");
+    expect(created.changedFields).toContain("note");
+    expect(created.changedFields).not.toContain(SECRET);
   });
 });
 
@@ -265,7 +272,7 @@ describe("NO resource PII in the audit log (2b) — P2.3 acceptance", () => {
 
     // ...yet the create line DID capture the field — 'name' is recorded as a changedFields KEY (the
     // name of the field, never its value): the audit saw the create and stored only the key.
-    const rec = lines()[createIdx];
+    const rec = requiredAt(lines(), createIdx);
     expect(rec.entity).toBe("resources");
     expect(rec.id).toBe("r1");
     expect(rec.changedFields).toContain("name");
@@ -284,7 +291,7 @@ describe("generic-write changedFields = requested fields the funnel applied (3)"
       payload: body({ role: "Lead Designer" }),
     });
     expect(res.statusCode).toBe(200);
-    const rec = lines()[before];
+    const rec = requiredAt(lines(), before);
     expect(rec.action).toBe("patch");
     expect(rec.changedFields).toEqual(["role"]);
   });
@@ -303,7 +310,7 @@ describe("generic-write changedFields = requested fields the funnel applied (3)"
     expect(res.statusCode).toBe(200);
     expect(res.json()).not.toHaveProperty("archivedAt");
     expect(res.json()).not.toHaveProperty("deletedAt");
-    expect(lines()[before].changedFields).toEqual([]);
+    expect(requiredAt(lines(), before).changedFields).toEqual([]);
   });
 
   it("uses the sanitized applied set for PUT rather than rejected request keys", async () => {
@@ -319,8 +326,8 @@ describe("generic-write changedFields = requested fields the funnel applied (3)"
 
     expect(res.statusCode).toBe(200);
     expect(res.json()).not.toHaveProperty("archivedAt");
-    expect(lines()[before].changedFields).toContain("role");
-    expect(lines()[before].changedFields).not.toContain("archivedAt");
+    expect(requiredAt(lines(), before).changedFields).toContain("role");
+    expect(requiredAt(lines(), before).changedFields).not.toContain("archivedAt");
   });
 
   it("rejects an all-unknown patch without writing an empty audit record", async () => {
@@ -420,7 +427,7 @@ describe("failure contract (5)", () => {
     ).toBe(false);
     expect(sink.degraded).toBe(true);
     expect(log).toHaveBeenCalledTimes(1); // loggedOnce guard — no spam
-    const msg = log.mock.calls[0][0] as string;
+    const msg = requiredAt(requiredAt(log.mock.calls, 0), 0) as string;
     expect(msg).toContain("audit write FAILED");
     expect(msg).not.toContain("note"); // message-only — never the record
     expect(msg).not.toContain("a1");
@@ -480,9 +487,15 @@ describe("batch → one line per op (6)", () => {
     expect(res.statusCode).toBe(200);
     const fresh = lines().slice(before);
     expect(fresh).toHaveLength(2);
-    expect(fresh[0]).toMatchObject({ action: "create", entity: "disciplines", id: "d2" });
-    expect(fresh[0].changedFields).toContain("name");
-    expect(fresh[1]).toMatchObject({ action: "delete", entity: "disciplines", id: "d2", changedFields: [] });
+    const created = requiredAt(fresh, 0);
+    expect(created).toMatchObject({ action: "create", entity: "disciplines", id: "d2" });
+    expect(created.changedFields).toContain("name");
+    expect(requiredAt(fresh, 1)).toMatchObject({
+      action: "delete",
+      entity: "disciplines",
+      id: "d2",
+      changedFields: [],
+    });
   });
 
   it("records only requested fields that a batch PUT actually applies", async () => {
@@ -506,7 +519,7 @@ describe("batch → one line per op (6)", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    const record = lines()[before];
+    const record = requiredAt(lines(), before);
     expect(record).toMatchObject({ action: "update", entity: "resources", id: "r1" });
     expect(record.changedFields).toContain("role");
     expect(record.changedFields).not.toContain("archivedAt");
@@ -712,8 +725,8 @@ describe("central audit forwarding", () => {
     const sink = createStreamAuditSink((line) => lines.push(line));
     expect(sink.append(record)).toBe(true);
     expect(lines).toHaveLength(1);
-    expect(JSON.parse(lines[0])).toEqual({ type: "capacitylens.audit", ...record });
-    expect(lines[0]).not.toContain("\n");
+    expect(JSON.parse(requiredAt(lines, 0))).toEqual({ type: "capacitylens.audit", ...record });
+    expect(requiredAt(lines, 0)).not.toContain("\n");
     expect(sink.degraded).toBe(false);
   });
 
@@ -839,8 +852,8 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
     expect(existsSync(`${file}.1`)).toBe(false);
     expect(sink.degraded).toBe(true);
     expect(log).toHaveBeenCalledTimes(1);
-    expect(log.mock.calls[0][0]).toContain("exceeding maxBytes");
-    expect(log.mock.calls[0][0]).not.toContain("r1");
+    expect(requiredAt(requiredAt(log.mock.calls, 0), 0)).toContain("exceeding maxBytes");
+    expect(requiredAt(requiredAt(log.mock.calls, 0), 0)).not.toContain("r1");
   });
 
   it("preserves and degrades on a pre-existing over-cap generation instead of rotating it", () => {
@@ -856,8 +869,8 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
     expect(readFileSync(file, "utf8")).toBe(original);
     expect(existsSync(`${file}.1`)).toBe(false);
     expect(sink.degraded).toBe(true);
-    expect(log.mock.calls[0][0]).toContain("Existing audit generation");
-    expect(log.mock.calls[0][0]).not.toContain("r3");
+    expect(requiredAt(requiredAt(log.mock.calls, 0), 0)).toContain("Existing audit generation");
+    expect(requiredAt(requiredAt(log.mock.calls, 0), 0)).not.toContain("r3");
   });
 
   it("replaces a pre-existing .1 that predates this sink (not merged, not appended to)", () => {
@@ -900,7 +913,7 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
     expect(sink.append(rec("r2"))).toBe(false);
     expect(sink.degraded).toBe(true);
     expect(log).toHaveBeenCalledTimes(1); // loggedOnce guard — no spam across repeated failures
-    const msg = log.mock.calls[0][0] as string;
+    const msg = requiredAt(requiredAt(log.mock.calls, 0), 0) as string;
     expect(msg).toContain("audit write FAILED");
   });
 });

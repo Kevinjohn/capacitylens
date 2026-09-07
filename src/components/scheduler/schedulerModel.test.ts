@@ -12,7 +12,7 @@ import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData, ISODate, Resource, Weekday } from "@capacitylens/shared/types/entities";
 import { isCreationStartBlocked } from "./creationAvailability";
-import { makeResource } from "../../test/fixtures";
+import { makeResource, requireValue } from "../../test/fixtures";
 
 interface CapacityForWindowOfTestInput {
   resource: Resource;
@@ -367,7 +367,6 @@ it("keeps discipline groups while ordering engagement partitions and externals d
       kind: "external",
       name: "Acme",
       role: "Print",
-      disciplineId: undefined,
     },
     {
       ...designTemplate,
@@ -375,7 +374,6 @@ it("keeps discipline groups while ordering engagement partitions and externals d
       kind: "external",
       name: "Zeta",
       role: "Studio",
-      disciplineId: undefined,
       isFavourite: true,
     },
   ];
@@ -485,7 +483,9 @@ describe("buildSchedulerModel", () => {
     });
 
     expect(allBars(model).find((bar) => bar.allocation.id === "a1")?.seriesEnd).toBe("2026-08-12");
-    expect(allBars(model).find((bar) => bar.allocation.id === "legacy-repeat")?.seriesEnd).toBeUndefined();
+    const legacyRepeat = allBars(model).find((bar) => bar.allocation.id === "legacy-repeat");
+    expect(legacyRepeat).toBeDefined();
+    expect(legacyRepeat).not.toHaveProperty("seriesEnd");
   });
 
   it("orders people before placeholders within a discipline (regardless of data order)", () => {
@@ -964,14 +964,19 @@ describe("buildSchedulerModel", () => {
 
   it("reports and omits corrupt schedule ranges instead of rendering focusable slivers", () => {
     const d = dataset();
-    const corrupt = { ...d.allocations[0], startDate: "2026-6-1" };
+    const firstAllocation = d.allocations[0];
+    const firstResource = d.resources[0];
+    expect(firstAllocation).toBeDefined();
+    expect(firstResource).toBeDefined();
+    if (!firstAllocation || !firstResource) throw new Error("Expected the base scheduler fixture rows.");
+    const corrupt = { ...firstAllocation, startDate: "2026-6-1" };
     d.allocations[0] = corrupt;
     const corruptTimeOff = {
       id: "corrupt-time-off",
       accountId: "acct-test",
       createdAt: "t",
       updatedAt: "t",
-      resourceId: d.resources[0].id,
+      resourceId: firstResource.id,
       startDate: "2026-06-03",
       endDate: "not-a-date",
       type: "holiday" as const,
@@ -1005,7 +1010,10 @@ describe("buildSchedulerModel", () => {
 
   it("folds resource-name diacritics but does not match a phrase across field boundaries", () => {
     const d = dataset();
-    d.resources[0] = { ...d.resources[0], name: "Jose\u0301 Alvarez", role: "Research Lead" };
+    const firstResource = d.resources[0];
+    expect(firstResource).toBeDefined();
+    if (!firstResource) throw new Error("Expected the base scheduler resource.");
+    d.resources[0] = { ...firstResource, name: "Jose\u0301 Alvarez", role: "Research Lead" };
     const search = (query: string) =>
       buildSchedulerModel({
         data: d,
@@ -1027,16 +1035,17 @@ describe("buildSchedulerModel", () => {
     const model = build({ filters: buildEmptyFilters(), disciplinesEnabled: false });
     expect(model).toHaveLength(1);
     expect(model[0]).toMatchObject({ key: "engagement-studio", title: "Studio" });
-    expect(model[0].rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
-    expect(model[0].color).toBeUndefined(); // no discipline colour → avatar falls back to resource colour
+    expect(model[0]?.rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
+    expect(model).toHaveLength(1);
+    expect(model[0]).not.toHaveProperty("color"); // no discipline colour → avatar falls back to resource colour
     expect(barIds(model)).toEqual(["a1", "a2", "a3"]);
   });
 
   it("disciplines off → the discipline filter is ignored (everyone still shown)", () => {
     const model = build({ filters: { ...buildEmptyFilters(), disciplineId: "d-dev" }, disciplinesEnabled: false });
     expect(model).toHaveLength(1);
-    expect(model[0].title).toBe("Studio");
-    expect(model[0].rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
+    expect(model[0]?.title).toBe("Studio");
+    expect(model[0]?.rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
   });
 });
 
@@ -1220,7 +1229,7 @@ describe("displayed utilisation % over the visible window (1/2/4/8 weeks)", () =
         externalEnabled: true,
       },
     });
-    expect(inModel.flatMap((g) => g.rows)[0].utilization).toBeCloseTo(0.2);
+    expect(inModel.flatMap((g) => g.rows)[0]?.utilization).toBeCloseTo(0.2);
     // 06-08 (Monday) is the day AFTER the inclusive end → outside the window → 0%.
     const after = {
       ...base(),
@@ -1252,7 +1261,7 @@ describe("displayed utilisation % over the visible window (1/2/4/8 weeks)", () =
         externalEnabled: true,
       },
     });
-    expect(afterModel.flatMap((g) => g.rows)[0].utilization).toBe(0);
+    expect(afterModel.flatMap((g) => g.rows)[0]?.utilization).toBe(0);
   });
 });
 
@@ -1277,13 +1286,17 @@ describe("external / 3rd-party band", () => {
     // Discipline bands first, then the external band — never interleaved.
     expect(model.map((g) => g.key)).toEqual(["d-design", "d-dev", "external"]);
     const last = model[model.length - 1];
+    expect(last).toBeDefined();
+    if (!last) throw new Error("Expected the external resource group.");
     expect(last.title).toBe("External / 3rd party");
     expect(last.color).toBe("#9ca3af"); // NEUTRAL_COLOR
     expect(last.rows.map((r) => r.resource.id)).toEqual(["ext1"]);
   });
 
   it("external rows carry no capacity while company-closed dates remain visibly blocked", () => {
-    const ext = buildExt().at(-1)!.rows[0];
+    const ext = buildExt().at(-1)?.rows[0];
+    expect(ext).toBeDefined();
+    if (!ext) throw new Error("Expected the external resource row.");
     expect(ext.utilization).toBe(0);
     expect(ext.overSoon).toBe(false);
     expect(ext.dayStates.every((d) => !d.over)).toBe(true);
@@ -1293,17 +1306,19 @@ describe("external / 3rd-party band", () => {
   });
 
   it("external parties are still assignable — their activity bars still render", () => {
-    const ext = buildExt().at(-1)!.rows[0];
+    const ext = buildExt().at(-1)?.rows[0];
+    expect(ext).toBeDefined();
+    if (!ext) throw new Error("Expected the external resource row.");
     expect(ext.bars.map((b) => b.allocation.id)).toEqual(["aext"]);
   });
 
   it("disciplines off → external STILL forms its own trailing band after engagement", () => {
     const model = buildExt(buildEmptyFilters(), false);
     expect(model).toHaveLength(2); // Studio + external
-    expect(model[0].title).toBe("Studio");
-    expect(model[0].rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
-    expect(model[1].key).toBe("external");
-    expect(model[1].rows.map((r) => r.resource.id)).toEqual(["ext1"]);
+    expect(model[0]?.title).toBe("Studio");
+    expect(model[0]?.rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
+    expect(model[1]?.key).toBe("external");
+    expect(model[1]?.rows.map((r) => r.resource.id)).toEqual(["ext1"]);
   });
 
   it("externalEnabled OFF hides external rows + their bars across the model", () => {
@@ -1333,7 +1348,9 @@ describe("external / 3rd-party band", () => {
   it("externalEnabled ON shows the external row with its bar", () => {
     const on = buildExt(buildEmptyFilters(), true, true);
     expect(on.map((g) => g.key)).toContain("external");
-    const ext = on.at(-1)!.rows[0];
+    const ext = on.at(-1)?.rows[0];
+    expect(ext).toBeDefined();
+    if (!ext) throw new Error("Expected the external resource row.");
     expect(ext.resource.id).toBe("ext1");
     expect(ext.bars.map((b) => b.allocation.id)).toEqual(["aext"]);
   });
@@ -1468,8 +1485,10 @@ describe("repeatable allocation effective project", () => {
       client: "Acme",
       color: "#2",
     });
-    expect(bars.find((bar) => bar.allocation.id === "aRepUnattributed")).toMatchObject({
-      project: undefined,
+    const unattributed = bars.find((bar) => bar.allocation.id === "aRepUnattributed");
+    expect(unattributed).toBeDefined();
+    expect(unattributed).not.toHaveProperty("project");
+    expect(unattributed).toMatchObject({
       client: "Internal",
       color: "#5",
     });
@@ -1780,7 +1799,10 @@ describe("pan invariant: a +7-day Back/Forward pan moves the visible-window star
         const idxNew = geomNew.indexAt(px);
         expect(idxNew).toBe(idxOld); // same position index before and after the pan
         // The resolved visible-start DATE advanced by exactly one week — no off-by-one, no drift.
-        expect(daysNew[idxNew]).toBe(addDaysISO(daysOld[idxOld], 7));
+        const oldDay = daysOld[idxOld];
+        expect(oldDay).toBeDefined();
+        if (!oldDay) throw new Error("Expected the old visible date.");
+        expect(daysNew[idxNew]).toBe(addDaysISO(oldDay, 7));
       }
     });
   }
@@ -2002,7 +2024,12 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
 
   it("search falls back to an EMPTY string (not a literal placeholder) when resource.name is undefined", () => {
     const d = dataset();
-    d.resources[0] = { ...d.resources[0], name: undefined };
+    const firstResource = d.resources[0];
+    expect(firstResource).toBeDefined();
+    if (!firstResource) throw new Error("Expected the base scheduler resource.");
+    const resourceWithoutName = { ...firstResource };
+    delete resourceWithoutName.name;
+    d.resources[0] = resourceWithoutName;
     // Searching for a term that would only ever match via a bogus non-empty fallback string.
     const model = buildSchedulerModel({
       data: d,
@@ -2180,8 +2207,8 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
     expect(t1.label.length).toBeGreaterThan(0);
     // Day-state unavailable is exactly cap.available === 0: true on the time-off day, false on a
     // plain working day with no time off (2026-06-03, a Wednesday r1 works).
-    expect(r1.dayStates[0].unavailable).toBe(true); // 2026-06-01, on time off
-    expect(r1.dayStates[2].unavailable).toBe(false); // 2026-06-03, ordinary working day
+    expect(r1.dayStates[0]?.unavailable).toBe(true); // 2026-06-01, on time off
+    expect(r1.dayStates[2]?.unavailable).toBe(false); // 2026-06-03, ordinary working day
   });
 
   it("signals saved half days only when the date retains partial capacity", () => {
@@ -2510,7 +2537,9 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         externalEnabled: true,
       },
     });
-    const ext = model.at(-1)!.rows[0];
+    const ext = model.at(-1)?.rows[0];
+    expect(ext).toBeDefined();
+    if (!ext) throw new Error("Expected the external resource row.");
     expect(ext.dayStates[0]).toEqual({
       over: false,
       timeOffConflict: false,
@@ -2636,13 +2665,14 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
   it("keeps assigned discipline bands before unassigned Studio, Supplementary and External bands", () => {
     const d = withExternal();
     const template = d.resources[0]!;
+    const unassignedTemplate = { ...template };
+    delete unassignedTemplate.disciplineId;
     d.resources.push(
-      { ...template, id: "unassigned-studio", name: "Studio Floater", disciplineId: undefined },
+      { ...unassignedTemplate, id: "unassigned-studio", name: "Studio Floater" },
       {
-        ...template,
+        ...unassignedTemplate,
         id: "unassigned-supplementary",
         name: "Supplementary Floater",
-        disciplineId: undefined,
         engagement: "supplementary",
       },
       { ...template, id: "dangling-studio", name: "Deleted Discipline", disciplineId: "deleted-discipline" },
@@ -2706,11 +2736,14 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
 
   it("uses engagement fallback bands when disciplines exist but nobody is assigned", () => {
     const d = dataset();
-    d.resources = d.resources.map((resource, index) => ({
-      ...resource,
-      disciplineId: undefined,
-      engagement: index === 0 ? "studio" : "supplementary",
-    }));
+    d.resources = d.resources.map((resource, index) => {
+      const unassignedResource = { ...resource };
+      delete unassignedResource.disciplineId;
+      return {
+        ...unassignedResource,
+        engagement: index === 0 ? "studio" : "supplementary",
+      };
+    });
 
     const model = buildSchedulerModel({
       data: d,
@@ -2764,7 +2797,12 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
 
   it("uses one Unassigned fallback when engagement grouping is disabled", () => {
     const d = withExternal();
-    d.resources[0] = { ...d.resources[0]!, disciplineId: undefined };
+    const firstResource = d.resources[0];
+    expect(firstResource).toBeDefined();
+    if (!firstResource) throw new Error("Expected the base scheduler resource.");
+    const unassignedResource = { ...firstResource };
+    delete unassignedResource.disciplineId;
+    d.resources[0] = unassignedResource;
     const withDisciplines = buildSchedulerModel({
       data: d,
       geom,
@@ -2936,7 +2974,8 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         externalEnabled: true,
       },
     });
-    expect(model.at(-1)!.rows[0].overSoon).toBe(false);
+    const externalGroup = requireValue(model.at(-1), "external group");
+    expect(requireValue(externalGroup.rows[0], "external group row").overSoon).toBe(false);
   });
 
   it("overSoon follows strict allocated > available on an opted-in weekend", () => {

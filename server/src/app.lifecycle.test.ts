@@ -196,7 +196,10 @@ async function appWithAuth(
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
   await runAuthMigrations(auth!);
-  return { app: createApp(db, { authMode: mode, auth, securityLog }), db };
+  return {
+    app: createApp(db, { authMode: mode, auth, ...(securityLog === undefined ? {} : { securityLog }) }),
+    db,
+  };
 }
 
 interface LifecycleActionInput {
@@ -1078,6 +1081,7 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
       : [];
     expect(lines).toHaveLength(1);
     const rec = lines[0];
+    if (!rec) throw new Error("Expected one lifecycle audit record.");
     expect(rec.action).toBe("archive");
     expect(rec.entity).toBe("resources");
     expect(rec.id).toBe("rA");
@@ -1137,6 +1141,7 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
       : [];
     expect(lines).toHaveLength(1);
     const rec = lines[0];
+    if (!rec) throw new Error("Expected one lifecycle audit record.");
     expect(rec.action).toBe("softDelete");
     expect(rec.entity).toBe("resources");
     expect(rec.id).toBe("rDelAudit");

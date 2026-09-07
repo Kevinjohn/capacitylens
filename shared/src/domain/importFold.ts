@@ -95,7 +95,9 @@ export function remapAndValidateImport(
   };
   const FK_FIELDS = Object.keys(FK_TARGET);
   const remap = (field: string, reference: unknown): unknown => {
-    const idsBySourceId = idMaps[FK_TARGET[field]];
+    const target = FK_TARGET[field];
+    if (target === undefined) return reference;
+    const idsBySourceId = idMaps[target];
     return typeof reference === "string" && idsBySourceId.has(reference) ? idsBySourceId.get(reference) : reference;
   };
 
@@ -108,7 +110,17 @@ export function remapAndValidateImport(
   // (`now`) — these records are newly created in this account, and a file missing
   // createdAt/updatedAt must not reach a server whose columns are NOT NULL.
   const usedIds = new Set<ID>();
-  const brought: Record<string, Array<Record<string, unknown>>> = {};
+  const brought: Record<ScopedEntityKey, Array<Record<string, unknown>>> = {
+    disciplines: [],
+    resources: [],
+    clients: [],
+    projects: [],
+    phases: [],
+    activities: [],
+    allocations: [],
+    timeOff: [],
+    closures: [],
+  };
   for (const key of SCOPED_KEYS) {
     const ownIds = idMaps[key];
     brought[key] = incomingRows[key].map((entity) => {
@@ -191,9 +203,8 @@ export function remapAndValidateImport(
 
   // resources: disciplineId / placeholder projectId are OPTIONAL → unbind if dangling.
   for (const resource of brought.resources) {
-    if (resource.disciplineId !== undefined && !has(disciplineIds, resource.disciplineId))
-      resource.disciplineId = undefined;
-    if (resource.projectId !== undefined && !has(projectIds, resource.projectId)) resource.projectId = undefined;
+    if (resource.disciplineId !== undefined && !has(disciplineIds, resource.disciplineId)) delete resource.disciplineId;
+    if (resource.projectId !== undefined && !has(projectIds, resource.projectId)) delete resource.projectId;
   }
 
   // activities: keep kind ⇆ projectId/phaseId coherent (assertScopedRefs throws on a mismatch, and
@@ -204,19 +215,19 @@ export function remapAndValidateImport(
   const phaseProject = new Map(brought.phases.map((phase) => [phase.id as string, phase.projectId]));
   for (const activity of brought.activities) {
     if (activity.kind === "internal" || activity.kind === "repeatable") {
-      activity.projectId = undefined;
-      activity.phaseId = undefined;
+      delete activity.projectId;
+      delete activity.phaseId;
       continue;
     }
-    if (activity.projectId !== undefined && !has(projectIds, activity.projectId)) activity.projectId = undefined;
+    if (activity.projectId !== undefined && !has(projectIds, activity.projectId)) delete activity.projectId;
     if (activity.projectId === undefined) {
-      activity.phaseId = undefined;
+      delete activity.phaseId;
       activity.kind = "repeatable";
     } else if (
       activity.phaseId !== undefined &&
       (!has(phaseIds, activity.phaseId) || phaseProject.get(activity.phaseId as string) !== activity.projectId)
     ) {
-      activity.phaseId = undefined;
+      delete activity.phaseId;
     }
   }
 
@@ -262,7 +273,9 @@ export function remapAndValidateImport(
     // lifecycle route clears dependent free text; apply the same repair to legacy, restored or
     // hand-edited imports so a tombstone cannot reintroduce private project context.
     if (resource.deletedAt !== undefined && repaired.note !== undefined) {
-      repaired = { ...repaired, note: undefined };
+      const withoutNote = { ...repaired };
+      delete withoutNote.note;
+      repaired = withoutNote;
     }
     kept.push(repaired);
     return kept;
@@ -276,9 +289,13 @@ export function remapAndValidateImport(
     if (resource === undefined || isExternalResource(resource)) return kept;
     // Medical/absence detail is the most sensitive dependent free text. Match the lifecycle delete
     // path by retaining the valid scheduling record while removing its note for a deleted person.
-    kept.push(
-      resource.deletedAt !== undefined && timeOff.note !== undefined ? { ...timeOff, note: undefined } : timeOff,
-    );
+    if (resource.deletedAt !== undefined && timeOff.note !== undefined) {
+      const withoutNote = { ...timeOff };
+      delete withoutNote.note;
+      kept.push(withoutNote);
+    } else {
+      kept.push(timeOff);
+    }
     return kept;
   }, []) as unknown as Array<Record<string, unknown>>;
   brought.closures = (brought.closures as unknown as AppData["closures"]).filter(

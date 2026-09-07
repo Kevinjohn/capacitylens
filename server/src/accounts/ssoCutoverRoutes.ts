@@ -49,7 +49,7 @@ export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: Sso
       return {
         provider,
         connected: links.length > 0,
-        verified: links.length === 1 && links[0].verified,
+        verified: links.length === 1 && links[0]?.verified === true,
       };
     } catch (error) {
       return fail(reply, error);

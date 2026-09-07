@@ -79,7 +79,9 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
     if (!privacy) return;
     const check = validateProjectClient(clientId);
     if (!check.ok) {
-      fail("client", resolveDomainErrorMessage(check.codes[0]));
+      const code = check.codes[0];
+      if (!code) throw new Error("Project validation failed without an error code.");
+      fail("client", resolveDomainErrorMessage(code));
       return;
     }
     if (!validateHex(color, fail)) return;
@@ -93,7 +95,14 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
         }
         update(project.id, { name: trimmed, clientId, color, ...privacy });
       } else {
-        add({ name: trimmed, clientId, color, ...privacy });
+        add({
+          name: trimmed,
+          clientId,
+          color,
+          ...(privacy.isPrivate && privacy.codeName
+            ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName }
+            : {}),
+        });
       }
       onClose();
     } catch (e) {

@@ -1170,7 +1170,7 @@ describe("MembersSection — member lifecycle", () => {
 
     const mutations = fetchMock.mock.calls.filter(([, init]) => init?.method && init.method !== "GET");
     expect(mutations).toHaveLength(1);
-    expect(String(mutations[0][0])).toContain("/status");
+    expect(String(mutations[0]?.[0])).toContain("/status");
     release!();
     await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(3));
   });

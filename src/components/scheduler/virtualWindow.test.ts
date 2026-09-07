@@ -15,6 +15,25 @@ const computeWindow = ({ heights, scrollTop, viewportHeight, overscanPx = 300 }:
   resolveVirtualWindow({ layout: buildLayout(heights), heights, scrollTop, viewportHeight, overscanPx });
 
 describe("computeWindow", () => {
+  it("rejects sparse heights instead of treating a missing row as zero-height", () => {
+    const heights = [20, 20, 20];
+    delete heights[1];
+
+    expect(() => buildLayout(heights)).toThrow("row heights must be dense");
+  });
+
+  it("rejects a layout that is not aligned with its row heights", () => {
+    expect(() =>
+      resolveVirtualWindow({
+        layout: { tops: [0], total: 60 },
+        heights: [20, 20, 20],
+        scrollTop: 30,
+        viewportHeight: 10,
+        overscanPx: 0,
+      }),
+    ).toThrow("layout tops must align with row heights");
+  });
+
   it("renders everything when the content fits the viewport", () => {
     const heights = Array.from({ length: 8 }, () => 56); // 448px total
     const w = computeWindow({ heights, scrollTop: 0, viewportHeight: 720 });
@@ -40,7 +59,14 @@ describe("computeWindow", () => {
     // from this same layout.
     const renderedHeight = heights.slice(w.first, w.last + 1).reduce((a, b) => a + b, 0);
     const above = layout.tops[w.first];
-    const below = layout.total - (layout.tops[w.last] + heights[w.last]);
+    expect(above).toBeDefined();
+    const lastTop = layout.tops[w.last];
+    const lastHeight = heights[w.last];
+    expect(lastTop).toBeDefined();
+    expect(lastHeight).toBeDefined();
+    if (above === undefined || lastTop === undefined || lastHeight === undefined)
+      throw new Error("Expected the resolved virtual window bounds.");
+    const below = layout.total - (lastTop + lastHeight);
     expect(above + renderedHeight + below).toBe(10000);
     // Only a small slice is rendered, not all 200.
     expect(w.last - w.first + 1).toBeLessThan(40);
@@ -80,8 +106,16 @@ describe("computeWindow", () => {
     expect(w.first).toBe(0);
     expect(w.last).toBe(3);
     const rendered = heights.slice(0, 4).reduce((a, b) => a + b, 0);
-    const below = layout.total - (layout.tops[w.last] + heights[w.last]);
-    expect(layout.tops[w.first] + rendered + below).toBe(620);
+    const firstTop = layout.tops[w.first];
+    const lastTop = layout.tops[w.last];
+    const lastHeight = heights[w.last];
+    expect(firstTop).toBeDefined();
+    expect(lastTop).toBeDefined();
+    expect(lastHeight).toBeDefined();
+    if (firstTop === undefined || lastTop === undefined || lastHeight === undefined)
+      throw new Error("Expected the resolved virtual window bounds.");
+    const below = layout.total - (lastTop + lastHeight);
+    expect(firstTop + rendered + below).toBe(620);
   });
 
   it("is empty for no items", () => {

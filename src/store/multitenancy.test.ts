@@ -33,8 +33,10 @@ describe("scopeData", () => {
 
   it("deliberately excludes company settings from the portable scoped slice", () => {
     const source = twoAccountData();
+    const account = source.accounts[0];
+    if (!account) throw new Error("Expected the first account fixture");
     source.accounts[0] = {
-      ...source.accounts[0],
+      ...account,
       schedulingMode: "days",
       placeholdersEnabled: true,
       internalColourMode: "palette",
@@ -85,7 +87,7 @@ describe("account CRUD", () => {
     const a = s().addAccount({ name: "Old", color: "#1" })!;
     s().setActiveAccount(a.id);
     s().updateAccount(a.id, { name: "New" });
-    expect(s().data.accounts[0].name).toBe("New");
+    expect(s().data.accounts[0]?.name).toBe("New");
   });
 
   it("scoped add* throws without an active account", () => {
@@ -183,7 +185,7 @@ describe("importData (account-scoped)", () => {
     const a1Clients = s().data.clients.filter((c) => c.accountId === "a1");
     expect(a1Clients.filter((c) => !c.builtin).map((c) => c.name)).toEqual(["Imported"]);
     expect(a1Clients.filter((c) => c.builtin)).toHaveLength(1);
-    expect(a1Clients[0].accountId).toBe("a1");
+    expect(a1Clients[0]?.accountId).toBe("a1");
     // a2 untouched; accounts list untouched.
     expect(s().data.clients.some((c) => c.id === "c2")).toBe(true);
     expect(s().data.accounts).toHaveLength(2);
@@ -367,7 +369,7 @@ describe("importData (account-scoped)", () => {
     // and still pointing at real imported entities.
     expect(a1Allocs).toHaveLength(1);
     expect(a1TimeOff).toHaveLength(1);
-    expect(s().data.activities.some((t) => t.id === a1Allocs[0].activityId)).toBe(true);
-    expect(s().data.resources.some((r) => r.id === a1Allocs[0].resourceId)).toBe(true);
+    expect(s().data.activities.some((t) => t.id === a1Allocs[0]?.activityId)).toBe(true);
+    expect(s().data.resources.some((r) => r.id === a1Allocs[0]?.resourceId)).toBe(true);
   });
 });

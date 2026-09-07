@@ -52,15 +52,15 @@ export function attachPersistence({
     owner: owner,
     serverMode: serverMode,
     startAuthoritativeReload: (id) => refresh.startAuthoritativeReload(id),
-    onError: onError,
+    ...(onError ? { onError } : {}),
   });
   const refresh = createRefreshController({
     store: store,
     adapter: adapter,
     owner: owner,
     writes: writes,
-    onError: onError,
-    onSuccess: onSuccess,
+    ...(onError ? { onError } : {}),
+    ...(onSuccess ? { onSuccess } : {}),
   });
   const { save } = writes;
   const { cancelDebounce, cancelRetry } = owner;

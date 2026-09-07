@@ -902,8 +902,6 @@ describe("AuthProvider — server mode", () => {
         saveAll: vi.fn().mockResolvedValue(undefined),
       },
       debounceMs: 60_000,
-      onError: undefined,
-      onSuccess: undefined,
       serverMode: true,
     });
     useStore.getState().addClient({ name: "Not yet saved", color: "#222222" });

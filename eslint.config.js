@@ -125,6 +125,9 @@ export default defineConfig([
       "@typescript-eslint/switch-exhaustiveness-check": "error",
       "no-nested-ternary": "error",
       "no-param-reassign": "error",
+      complexity: ["error", { max: 12 }],
+      "max-depth": ["error", 3],
+      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
     },
   },
 
@@ -153,6 +156,9 @@ export default defineConfig([
       "@typescript-eslint/switch-exhaustiveness-check": "error",
       "no-nested-ternary": "error",
       "no-param-reassign": "error",
+      complexity: ["error", { max: 12 }],
+      "max-depth": ["error", 3],
+      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
     },
   },
 
@@ -162,6 +168,17 @@ export default defineConfig([
     rules: {
       "no-restricted-globals": ["error", { globals: forbiddenSharedGlobals, checkGlobalObject: true }],
       "no-restricted-imports": ["error", { paths: builtinModules, patterns: ["node:*"] }],
+    },
+  },
+
+  // End-to-end scenarios share the structural limits even though their Playwright project is
+  // separate from the typed app/server lint projects. Tests are not exempt from the baseline.
+  {
+    files: ["e2e/**/*.{ts,tsx,mts,cts}"],
+    rules: {
+      complexity: ["error", { max: 12 }],
+      "max-depth": ["error", 3],
+      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
     },
   },
 

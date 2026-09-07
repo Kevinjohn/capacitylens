@@ -160,7 +160,7 @@ try {
         dbPath,
         fromVersion: migrationPlan.fromVersion,
         toVersion: migrationPlan.toVersion,
-        dir: backupConfig?.dir,
+        ...(backupConfig == null ? {} : { dir: backupConfig.dir }),
       },
     });
     stopStartupIfRequested({ startupSignals, openDb: db });
@@ -297,15 +297,17 @@ const { app, backups } = (() => {
     let backupController: ReturnType<typeof startBackups> | null = null;
     const app = createApp(db, {
       application: ACCOUNT_APPLICATION,
-      internalTls: internalTls
+      ...(internalTls
         ? {
-            key: internalTls.key,
-            cert: internalTls.cert,
-            minVersion: internalTls.minVersion,
+            internalTls: {
+              ...(internalTls.key === undefined ? {} : { key: internalTls.key }),
+              ...(internalTls.cert === undefined ? {} : { cert: internalTls.cert }),
+              ...(internalTls.minVersion === undefined ? {} : { minVersion: internalTls.minVersion }),
+            },
+            internalTlsExpiresAt: internalTls.expiresAt,
+            internalTlsFingerprintSha256: internalTls.fingerprintSha256,
           }
-        : undefined,
-      internalTlsExpiresAt: internalTls?.expiresAt,
-      internalTlsFingerprintSha256: internalTls?.fingerprintSha256,
+        : {}),
       allowReset,
       corsOrigin,
       optimisticConcurrency,
@@ -313,16 +315,18 @@ const { app, backups } = (() => {
       https,
       log,
       healthDeep,
-      backupHealth: backupConfig
-        ? () =>
-            backupController?.health ?? {
-              degraded: false,
-              lastSuccessAt: null,
-            }
-        : undefined,
+      ...(backupConfig
+        ? {
+            backupHealth: () =>
+              backupController?.health ?? {
+                degraded: false,
+                lastSuccessAt: null,
+              },
+          }
+        : {}),
       rateLimit,
       trustProxyHeaders,
-      bootstrapToken,
+      ...(bootstrapToken === undefined ? {} : { bootstrapToken }),
       authMode,
       auth,
       requireMfa,

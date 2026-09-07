@@ -1,5 +1,5 @@
 import { APP_DATA_KEYS, type AppData } from "@capacitylens/shared/types/entities";
-import { TABLES } from "../../tables";
+import { resolveTable } from "../../db/introspection";
 
 /** Append one complete account slice to a request-local validation projection. */
 export function appendAppDataSlice(target: AppData, slice: AppData): void {
@@ -22,5 +22,5 @@ export function isMatchingMintedInternalClient(
     createdAt: existing.createdAt,
     updatedAt: existing.updatedAt,
   };
-  return TABLES.clients.columns.every(({ name }) => normalized[name] === existing[name]);
+  return resolveTable("clients").columns.every(({ name }) => normalized[name] === existing[name]);
 }

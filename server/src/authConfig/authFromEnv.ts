@@ -235,7 +235,9 @@ export function createAuthFromEnvironmentFactory({
       configuredFederatedIssuers,
       allowOpenSignup,
       requirePasswordMfa,
-      externalIdentityAdmission: options.externalIdentityAdmission,
+      ...(options.externalIdentityAdmission === undefined
+        ? {}
+        : { externalIdentityAdmission: options.externalIdentityAdmission }),
       providerIdFromExternalContext,
       countUsers,
       twoFactorEnabledLookupStatement: createTwoFactorEnabledLookupStatement,

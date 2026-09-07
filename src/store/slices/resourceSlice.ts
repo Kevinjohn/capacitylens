@@ -85,7 +85,9 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
             const preparedPatch = isPlaceholderResource(merged)
               ? { ...patch, ...placeholderCapacityDefaults() }
               : patch;
-            const preparedResource = { ...existing, ...preparedPatch };
+            const preparedResource = isPlaceholderResource(merged)
+              ? { ...merged, ...placeholderCapacityDefaults() }
+              : merged;
             // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
             // placeholder projectId whose project is ARCHIVED (absent from the server-mode active-only
             // slice) must not block an unrelated edit; a CHANGED projectId is still validated strictly.

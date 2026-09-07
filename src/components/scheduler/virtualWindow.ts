@@ -30,12 +30,19 @@ export interface RowLayout {
   total: number;
 }
 
+function requireRowValue(values: number[], index: number, invariant: string): number {
+  const value = values[index];
+  if (value === undefined) throw new Error(invariant);
+  return value;
+}
+
 export function buildLayout(heights: number[]): RowLayout {
   const tops: number[] = new Array(heights.length);
   let totalHeight = 0;
-  for (let i = 0; i < heights.length; i++) {
-    tops[i] = totalHeight;
-    totalHeight += heights[i];
+  for (let index = 0; index < heights.length; index++) {
+    const height = requireRowValue(heights, index, "Virtual row heights must be dense.");
+    tops[index] = totalHeight;
+    totalHeight += height;
   }
   return { tops, total: totalHeight };
 }
@@ -52,6 +59,7 @@ export function resolveVirtualWindow({
   const itemCount = heights.length;
   if (itemCount === 0) return { first: 0, last: -1 };
   const { tops, total } = layout;
+  if (tops.length !== itemCount) throw new Error("Virtual layout tops must align with row heights.");
 
   // No measured viewport (jsdom/SSR) or everything fits in view + overscan → render
   // everything (no windowing), mirroring the FALLBACK_TIMELINE_WIDTH approach.
@@ -68,7 +76,9 @@ export function resolveVirtualWindow({
   let high = itemCount;
   while (low < high) {
     const middle = low + Math.floor((high - low) / 2);
-    if (tops[middle] + heights[middle] <= top) low = middle + 1;
+    const rowTop = requireRowValue(tops, middle, "Virtual layout tops must be dense.");
+    const rowHeight = requireRowValue(heights, middle, "Virtual row heights must be dense.");
+    if (rowTop + rowHeight <= top) low = middle + 1;
     else high = middle;
   }
   const first = Math.min(low, itemCount - 1);
@@ -79,7 +89,7 @@ export function resolveVirtualWindow({
   high = itemCount;
   while (low < high) {
     const middle = low + Math.floor((high - low) / 2);
-    if (tops[middle] < bottom) low = middle + 1;
+    if (requireRowValue(tops, middle, "Virtual layout tops must be dense.") < bottom) low = middle + 1;
     else high = middle;
   }
   const last = low - 1;

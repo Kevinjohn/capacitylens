@@ -77,7 +77,7 @@ export function TextField({
       data-disabled={disabled || undefined}
       {...buildProductFieldLayoutProps(layout)}
     >
-      <RequiredFieldLabel htmlFor={id} label={label} required={required} />
+      <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
       {description ? (
         <FieldContent>
           {input}
@@ -123,7 +123,7 @@ export function NumberField({
       data-disabled={disabled || undefined}
       {...buildProductFieldLayoutProps(layout)}
     >
-      <RequiredFieldLabel htmlFor={id} label={label} required={required} />
+      <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
       <Input
         id={id}
         type="number"
@@ -183,7 +183,7 @@ export function DateField({
   const id = useId();
   return (
     <Field data-invalid={invalid || undefined} {...buildProductFieldLayoutProps(layout)}>
-      <RequiredFieldLabel htmlFor={id} label={label} required={required} />
+      <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
       <Input
         id={id}
         type="date"

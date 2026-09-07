@@ -106,8 +106,8 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
     const patch = {
       name: trimmed,
       kind,
-      projectId: kind === "project" ? projectId || undefined : undefined,
-      phaseId: kind === "project" ? phaseId || undefined : undefined,
+      ...(kind === "project" && projectId ? { projectId } : {}),
+      ...(kind === "project" && phaseId ? { phaseId } : {}),
     };
     // Surface a store-side rejection as a form error rather than an uncaught React error — see the
     // store CRUD contract.

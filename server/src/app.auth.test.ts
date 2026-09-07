@@ -61,7 +61,9 @@ function totpCode(secret: string, at = Date.now()): string {
   const counter = Buffer.alloc(8);
   counter.writeBigUInt64BE(BigInt(Math.floor(at / 30_000)));
   const digest = createHmac("sha1", Buffer.from(bytes)).update(counter).digest();
-  const offset = digest[digest.length - 1] & 0x0f;
+  const finalByte = digest[digest.length - 1];
+  if (finalByte === undefined) throw new Error("Expected a SHA-1 digest byte.");
+  const offset = finalByte & 0x0f;
   const number = (digest.readUInt32BE(offset) & 0x7fff_ffff) % 1_000_000;
   return number.toString().padStart(6, "0");
 }
@@ -348,7 +350,7 @@ describe("normalizeSessionUser (P1.7a)", () => {
     expect(buildSessionUser({ ...RAW, emailVerified: false }).emailVerified).toBe(false);
   });
 
-  it("defaults emailVerified to false when the provider omits it (undefined or null)", () => {
+  it("defaults emailVerified to false when the provider omits it, sends undefined, or sends null", () => {
     expect(buildSessionUser(RAW).emailVerified).toBe(false);
     expect(buildSessionUser({ ...RAW, emailVerified: undefined }).emailVerified).toBe(false);
     expect(buildSessionUser({ ...RAW, emailVerified: null }).emailVerified).toBe(false);

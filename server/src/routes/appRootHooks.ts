@@ -181,7 +181,7 @@ export function installRootHooks({ app, db, runtime, config, options }: InstallR
   // health, and every custom route share one invariant. `no-store` is the normative control;
   // the legacy Pragma header protects older HTTP/1.0 intermediaries.
   app.addHook("onSend", async (req: FastifyRequest, reply: FastifyReply, payload) => {
-    if (req.url.split("?", 1)[0].startsWith("/api/")) {
+    if ((req.url.split("?", 1)[0] ?? req.url).startsWith("/api/")) {
       reply.header("Cache-Control", "no-store");
       reply.header("Pragma", "no-cache");
       reply.header("Reporting-Endpoints", 'csp-endpoint="/api/security/csp-report"');
@@ -195,7 +195,7 @@ export function installRootHooks({ app, db, runtime, config, options }: InstallR
   });
 
   app.addHook("onResponse", async (req: FastifyRequest, reply: FastifyReply) => {
-    const path = req.url.split("?", 1)[0];
+    const path = req.url.split("?", 1)[0] ?? req.url;
     const authOperation =
       req.method !== "OPTIONS" &&
       /^\/api\/auth\/(sign-in|sign-out|callback|oauth2\/callback|two-factor|change-password|reset-password)/.test(path);

@@ -206,7 +206,7 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
           ...group,
           key: group.discipline.id,
           title: group.discipline.name,
-          color: group.discipline.color,
+          ...(group.discipline.color ? { color: group.discipline.color } : {}),
         });
       }
     }
@@ -228,7 +228,7 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
     .map((group) => ({
       key: group.key,
       title: group.title,
-      color: group.color,
+      ...(group.color ? { color: group.color } : {}),
       external: !!group.external,
       // Keep discipline/external grouping intact. People are Studio then Supplementary when the
       // default-on account preference is enabled, with favourites first alphabetically inside each

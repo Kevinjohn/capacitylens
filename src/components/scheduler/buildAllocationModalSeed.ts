@@ -58,7 +58,7 @@ export function buildAllocationModalSeed({
         ? Math.max(
             1,
             spanDays(initialStart, seedEnd, {
-              workingDays: initialEffectiveWeek?.kind === "days" ? initialEffectiveWeek.days : undefined,
+              ...(initialEffectiveWeek?.kind === "days" ? { workingDays: initialEffectiveWeek.days } : {}),
               ignoreWeekends: initialIgnoreWeekends,
             }),
           )

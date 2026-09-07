@@ -11,9 +11,9 @@ import { openDb } from "./db";
 // amplification surface). The env parse is fail-closed: only a positive integer turns it on.
 
 const health = (app: FastifyInstance, headers?: Record<string, string>) =>
-  app.inject({ method: "GET", url: "/api/health", headers });
+  app.inject({ method: "GET", url: "/api/health", ...(headers === undefined ? {} : { headers }) });
 const stateReq = (app: FastifyInstance, headers?: Record<string, string>) =>
-  app.inject({ method: "GET", url: "/api/state", headers });
+  app.inject({ method: "GET", url: "/api/state", ...(headers === undefined ? {} : { headers }) });
 
 describe("parseRateLimit (fail-closed)", () => {
   it("accepts only a positive integer", () => {
