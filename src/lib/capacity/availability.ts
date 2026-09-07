@@ -61,34 +61,72 @@ export function isOnClosure(resource: Resource, date: ISODate, closures: Closure
   );
 }
 
+interface IsUnavailableInput {
+  resource: Resource;
+  date: ISODate;
+  timeOff: TimeOff[];
+  closures: Closure[];
+}
+
 /** The single availability funnel for personal time off and company closures. */
-export function isUnavailable(resource: Resource, date: ISODate, timeOff: TimeOff[], closures: Closure[]): boolean {
+export function isUnavailable({ resource, date, timeOff, closures }: IsUnavailableInput): boolean {
   return isOnTimeOff(resource.id, date, timeOff) || isOnClosure(resource, date, closures);
 }
 
-export function resolveAvailableHoursForWeekday(
-  resource: Resource,
-  date: ISODate,
-  timeOff: TimeOff[],
-  closures: Closure[],
-  weekday: Weekday,
-  effectiveWeek: EffectiveWorkingWeek,
-): number {
+interface ResolveAvailableHoursForWeekdayInput {
+  resource: Resource;
+  date: ISODate;
+  timeOff: TimeOff[];
+  closures: Closure[];
+  weekday: Weekday;
+  effectiveWeek: EffectiveWorkingWeek;
+}
+
+export function resolveAvailableHoursForWeekday({
+  resource,
+  date,
+  timeOff,
+  closures,
+  weekday,
+  effectiveWeek,
+}: ResolveAvailableHoursForWeekdayInput): number {
   if (!effectiveWeekIncludes(effectiveWeek, weekday)) return 0;
-  if (isUnavailable(resource, date, timeOff, closures)) return 0;
+  if (isUnavailable({ resource: resource, date: date, timeOff: timeOff, closures: closures })) return 0;
   return resolveScheduledHoursForWeekday(resource, weekday, effectiveWeek);
+}
+
+interface ResolveAvailableHoursOnDayInput {
+  resource: Resource;
+  date: ISODate;
+  timeOff: TimeOff[];
+  effectiveWeek: EffectiveWorkingWeek;
+  closures: Closure[];
 }
 
 /** Available working hours for `resource` on `date`: 0 on a non-working weekday or time off,
  *  fixed 4h on a half day, otherwise fixed 8h. */
-export function resolveAvailableHoursOnDay(
-  resource: Resource,
-  date: ISODate,
-  timeOff: TimeOff[],
-  effectiveWeek: EffectiveWorkingWeek,
-  closures: Closure[],
-): number {
-  return resolveAvailableHoursForWeekday(resource, date, timeOff, closures, weekdayOf(date), effectiveWeek);
+export function resolveAvailableHoursOnDay({
+  resource,
+  date,
+  timeOff,
+  effectiveWeek,
+  closures,
+}: ResolveAvailableHoursOnDayInput): number {
+  return resolveAvailableHoursForWeekday({
+    resource: resource,
+    date: date,
+    timeOff: timeOff,
+    closures: closures,
+    weekday: weekdayOf(date),
+    effectiveWeek: effectiveWeek,
+  });
+}
+
+interface ResolveAllocatedHoursOnDayInput {
+  resource: Resource;
+  date: ISODate;
+  allocations: Allocation[];
+  effectiveWeek: EffectiveWorkingWeek;
 }
 
 /** Sum of allocated hours for `resource` on `date` across every overlapping allocation.
@@ -100,22 +138,36 @@ export function resolveAvailableHoursOnDay(
  *  that remain effective weekdays still load, preserving the real over-capacity conflict.
  *  @remarks Assumes each `hoursPerDay` is finite (see the top-of-file precondition) — a NaN would
  *    poison the sum and make every over/utilisation comparison read as "never over". */
-export function resolveAllocatedHoursOnDay(
-  resource: Resource,
-  date: ISODate,
-  allocations: Allocation[],
-  effectiveWeek: EffectiveWorkingWeek,
-): number {
-  return resolveAllocatedHoursForWeekday(resource, date, allocations, weekdayOf(date), effectiveWeek);
+export function resolveAllocatedHoursOnDay({
+  resource,
+  date,
+  allocations,
+  effectiveWeek,
+}: ResolveAllocatedHoursOnDayInput): number {
+  return resolveAllocatedHoursForWeekday({
+    resource: resource,
+    date: date,
+    allocations: allocations,
+    weekday: weekdayOf(date),
+    effectiveWeek: effectiveWeek,
+  });
 }
 
-export function resolveAllocatedHoursForWeekday(
-  resource: Resource,
-  date: ISODate,
-  allocations: Allocation[],
-  weekday: Weekday,
-  effectiveWeek: EffectiveWorkingWeek,
-): number {
+interface ResolveAllocatedHoursForWeekdayInput {
+  resource: Resource;
+  date: ISODate;
+  allocations: Allocation[];
+  weekday: Weekday;
+  effectiveWeek: EffectiveWorkingWeek;
+}
+
+export function resolveAllocatedHoursForWeekday({
+  resource,
+  date,
+  allocations,
+  weekday,
+  effectiveWeek,
+}: ResolveAllocatedHoursForWeekdayInput): number {
   // Derive the working-weekday flag ONCE per day: it's invariant across the loop, only the
   // allocation's `ignoreWeekends` varies (and isWeekendAware is parse-free), so this keeps the
   // render-time over-marker hot path off a per-allocation parseISO.
@@ -126,7 +178,14 @@ export function resolveAllocatedHoursForWeekday(
     // `none` must stay explicit: passing [] to allocationWorksOnDay would mean calendar-day load.
     // Ignore working days bypasses both calendars; a normal allocation with no effective days
     // loads nothing anywhere.
-    if (!hasAllocationLoadOnDay(effectiveWeek, allocation.ignoreWeekends, dayIsWorking)) continue;
+    if (
+      !hasAllocationLoadOnDay({
+        effectiveWeek: effectiveWeek,
+        ignoreWorkingDays: allocation.ignoreWeekends,
+        dayIsWorking: dayIsWorking,
+      })
+    )
+      continue;
     sum += allocation.hoursPerDay;
   }
   warnOnNonFiniteCapacity(sum);
