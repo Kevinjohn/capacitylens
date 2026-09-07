@@ -6,6 +6,7 @@ import { ESLint } from "eslint";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const eslint = new ESLint({ cwd: root });
 const promiseRules = ["@typescript-eslint/no-floating-promises", "@typescript-eslint/no-misused-promises"];
+const invalidRules = [...promiseRules, "@typescript-eslint/no-unnecessary-condition"];
 
 test("the actual script project rejects floating and misused promises and accepts handled promises", async () => {
   const filePath = "server/scripts/reset-owner-password.ts";
@@ -14,7 +15,7 @@ test("the actual script project rejects floating and misused promises and accept
     { filePath },
   );
   assert.equal(invalid.fatalErrorCount, 0);
-  assert.deepEqual(invalid.messages.map(({ ruleId }) => ruleId).sort(), [...promiseRules].sort());
+  assert.deepEqual(invalid.messages.map(({ ruleId }) => ruleId).sort(), [...invalidRules].sort());
   const [valid] = await eslint.lintText("await Promise.resolve();\nvoid Promise.resolve();\nexport {};\n", {
     filePath,
   });
