@@ -560,17 +560,18 @@ describe("first-owner database-hook races", () => {
   it("rejects a delayed first-owner insertion after another principal wins", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(auth!);
-    await auth!.createCredentialUser({
+    const passwordAuth = assertPresent(auth, "password auth");
+    await runAuthMigrations(passwordAuth);
+    await passwordAuth.createCredentialUser({
       email: "winner@example.com",
       name: "Winner",
       password: "winner-password-123456",
       emailVerified: true,
     });
-    const before = auth!.options.databaseHooks?.user?.create?.before;
+    const before = assertPresent(passwordAuth.options.databaseHooks?.user?.create?.before, "first-owner creation hook");
 
     await expect(
-      before!(
+      before(
         { email: "loser@example.com", name: "Loser" } as never,
         { path: "/sign-up/email", bootstrapClaimToken: "losing-claim" } as never,
       ),
@@ -580,11 +581,12 @@ describe("first-owner database-hook races", () => {
   it("rejects a first-owner insertion that reaches the hook without its claim token", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(auth!);
-    const before = auth!.options.databaseHooks?.user?.create?.before;
+    const passwordAuth = assertPresent(auth, "password auth");
+    await runAuthMigrations(passwordAuth);
+    const before = assertPresent(passwordAuth.options.databaseHooks?.user?.create?.before, "first-owner creation hook");
 
     await expect(
-      before!({ email: "owner@example.com", name: "Owner" } as never, { path: "/sign-up/email" } as never),
+      before({ email: "owner@example.com", name: "Owner" } as never, { path: "/sign-up/email" } as never),
     ).rejects.toMatchObject({ body: expect.objectContaining({ code: "BOOTSTRAP_ALREADY_IN_PROGRESS" }) });
   });
 });
