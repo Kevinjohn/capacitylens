@@ -2,7 +2,7 @@ import { createRemoteJWKSet, customFetch, jwtVerify, type JWTPayload } from "jos
 import { authorizationCodeRequest, getOAuth2Tokens } from "better-auth/oauth2";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { MAX_NAME_LENGTH, unicodeCharacterCount } from "@capacitylens/shared/lib/strings";
-import { assertFetchableEndpoint, issuerIsInternal } from "./authConfig/strictOidcAddressPolicy";
+import { assertFetchableEndpoint, isInternalIssuer } from "./authConfig/strictOidcAddressPolicy";
 import {
   ACCEPTED_SIGNING_ALGORITHMS,
   StrictOidcConfigError,
@@ -13,7 +13,7 @@ import {
   type StrictOidcProfile,
   type StrictOidcClient,
 } from "./authConfig/strictOidcErrors";
-import { object, requiredUrl, optionalPictureUrl, json } from "./authConfig/strictOidcFetch";
+import { parseObject, parseRequiredUrl, parseOptionalPictureUrl, readJson } from "./authConfig/strictOidcFetch";
 
 // Keep the Better Auth dependency here while the extracted client contract refers to its exact type.
 export type { getOAuth2Tokens };
@@ -46,11 +46,11 @@ export function createStrictOidcClient(input: {
   let metadataCache: { value: StrictOidcMetadata; expiresAt: number } | null = null;
   let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
-  const metadata = async (): Promise<StrictOidcMetadata> => {
+  const readMetadata = async (): Promise<StrictOidcMetadata> => {
     if (metadataCache && Date.now() < metadataCache.expiresAt) return metadataCache.value;
     if (!metadataPromise)
       metadataPromise = (async () => {
-        const body = object(await json(input.discoveryUrl));
+        const body = parseObject(await readJson(input.discoveryUrl));
         if (!body) throw new StrictOidcConfigError("OIDC discovery returned a non-object document.");
         if (body.issuer !== input.issuer) {
           throw new StrictOidcConfigError("OIDC discovery issuer does not match the configured issuer.");
@@ -95,10 +95,10 @@ export function createStrictOidcClient(input: {
         }
         const issuerUrl = new URL(input.issuer);
         const issuerOrigin = issuerUrl.origin;
-        const authorizationEndpoint = requiredUrl(body.authorization_endpoint, "authorization_endpoint");
-        const tokenEndpoint = requiredUrl(body.token_endpoint, "token_endpoint");
-        const jwksUri = requiredUrl(body.jwks_uri, "jwks_uri");
-        const userinfoEndpoint = requiredUrl(body.userinfo_endpoint, "userinfo_endpoint");
+        const authorizationEndpoint = parseRequiredUrl(body.authorization_endpoint, "authorization_endpoint");
+        const tokenEndpoint = parseRequiredUrl(body.token_endpoint, "token_endpoint");
+        const jwksUri = parseRequiredUrl(body.jwks_uri, "jwks_uri");
+        const userinfoEndpoint = parseRequiredUrl(body.userinfo_endpoint, "userinfo_endpoint");
         // Only the three endpoints this server fetches need SSRF containment; the browser dereferences
         // the authorization endpoint. An intentionally internal issuer opts the whole deployment out
         // (split-origin on-prem IdPs). Resolution can hit the network, so it runs once per metadata load.
@@ -107,7 +107,7 @@ export function createStrictOidcClient(input: {
           { url: jwksUri, field: "jwks_uri" },
           { url: userinfoEndpoint, field: "userinfo_endpoint" },
         ].filter((endpoint) => endpoint.url.origin !== issuerOrigin);
-        if (offOriginEndpoints.length > 0 && !(await issuerIsInternal(issuerUrl))) {
+        if (offOriginEndpoints.length > 0 && !(await isInternalIssuer(issuerUrl))) {
           await Promise.all(
             offOriginEndpoints.map((endpoint) => assertFetchableEndpoint(endpoint.url, endpoint.field, issuerOrigin)),
           );
@@ -138,7 +138,7 @@ export function createStrictOidcClient(input: {
     if (!input.clientSecret) {
       throw new StrictOidcConfigError("Strict OIDC code exchange requires a client secret.");
     }
-    const discovered = await metadata();
+    const discovered = await readMetadata();
     const request = await authorizationCodeRequest({
       code: codeInput.code,
       redirectURI: codeInput.redirectURI,
@@ -146,8 +146,8 @@ export function createStrictOidcClient(input: {
       options: { clientId: input.clientId, clientSecret: input.clientSecret },
       authentication: discovered.token_endpoint_authentication,
     });
-    const response = object(
-      await json(discovered.token_endpoint, {
+    const response = parseObject(
+      await readJson(discovered.token_endpoint, {
         method: "POST",
         body: request.body,
         headers: request.headers as Record<string, string>,
@@ -161,7 +161,7 @@ export function createStrictOidcClient(input: {
     if (!tokens.idToken || !tokens.accessToken) {
       throw new StrictOidcVerificationError("Strict OIDC requires both an ID token and an access token.");
     }
-    const discovered = await metadata();
+    const discovered = await readMetadata();
     jwks ??= createRemoteJWKSet(new URL(discovered.jwks_uri), {
       timeoutDuration: 10_000,
       // An unknown `kid` triggers one metadata-backed JWKS refresh immediately. Successful keys
@@ -171,7 +171,7 @@ export function createStrictOidcClient(input: {
       // A JWKS redirect is a new trust decision. Keep key retrieval on the exact endpoint that the
       // already issuer-pinned discovery document named, matching the no-redirect posture used for
       // discovery, user-info and Better Auth's authorization-code exchange.
-      [customFetch]: async (url, init) => Response.json(await json(url.toString(), init)),
+      [customFetch]: async (url, init) => Response.json(await readJson(url.toString(), init)),
     });
     let verified: Awaited<ReturnType<typeof jwtVerify>>;
     try {
@@ -203,14 +203,14 @@ export function createStrictOidcClient(input: {
     }
     let userInfo: unknown;
     try {
-      userInfo = await json(discovered.userinfo_endpoint, {
+      userInfo = await readJson(discovered.userinfo_endpoint, {
         headers: { Authorization: `Bearer ${tokens.accessToken}` },
       });
     } catch (cause) {
       if (cause instanceof StrictOidcProviderUnavailableError) throw cause;
       throw new StrictOidcVerificationError("OIDC user-info response could not be verified.", { cause });
     }
-    const profile = object(userInfo);
+    const profile = parseObject(userInfo);
     if (!profile || typeof profile.sub !== "string" || profile.sub.length === 0) {
       throw new StrictOidcVerificationError("OIDC user-info response is missing subject.");
     }
@@ -238,16 +238,16 @@ export function createStrictOidcClient(input: {
       email,
       emailVerified: profile.email_verified === true,
       name: profile.name.trim(),
-      image: optionalPictureUrl(profile.picture),
+      image: parseOptionalPictureUrl(profile.picture),
     };
   };
 
-  return { metadata, exchangeCode, getUserInfo };
+  return { metadata: readMetadata, exchangeCode, getUserInfo };
 }
 
 /** Backwards-compatible narrow resolver used by unit tests and embedded callers that only need
  * claim verification. The production adapter uses one shared client for all three OIDC stages. */
-export function strictOidcUserInfo(input: {
+export function createStrictOidcUserInfoResolver(input: {
   issuer: string;
   clientId: string;
   discoveryUrl: string;

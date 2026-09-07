@@ -7,7 +7,7 @@ import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
 import { parseStrictIsoInstant } from "../isoInstant";
 import type { AccountRouteContext } from "../replyHelpers";
 
-export async function createInvitation(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
+export async function createInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     authMode,
     administration: accountAdminPort,
@@ -17,7 +17,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
     isKnownRole,
     validationFailed,
     auditUnlessReplayed,
-  } = ctx;
+  } = context;
 
   const body = (req.body ?? {}) as {
     accountId?: unknown;
@@ -93,13 +93,13 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
       expiresAt: invite.expiresAt,
       preauthEmail: invite.preauthorizedEmail,
     });
-  } catch (err) {
-    return accountFail(reply, err);
+  } catch (error) {
+    return accountFail(reply, error);
   }
 }
 
-export async function previewInvitation(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
-  const { administration: accountAdminPort, fail: accountFail } = ctx;
+export async function previewInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+  const { administration: accountAdminPort, fail: accountFail } = context;
 
   const { token } = req.params as { token: string };
   try {
@@ -109,12 +109,12 @@ export async function previewInvitation(req: FastifyRequest, reply: FastifyReply
       role: invite.role,
       expiresAt: invite.expiresAt,
     };
-  } catch (err) {
-    return accountFail(reply, err);
+  } catch (error) {
+    return accountFail(reply, error);
   }
 }
 
-export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
+export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     authMode,
     requiredSsoProviderId,
@@ -122,7 +122,7 @@ export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply,
     command: accountCommand,
     fail: accountFail,
     auditUnlessReplayed,
-  } = ctx;
+  } = context;
 
   const { token } = req.params as { token: string };
   try {
@@ -167,12 +167,12 @@ export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply,
       changedFields: ["role"],
     });
     return reply.code(200).send({ accountId: accepted.workspaceId, role: accepted.role });
-  } catch (err) {
-    return accountFail(reply, err);
+  } catch (error) {
+    return accountFail(reply, error);
   }
 }
 
-export async function signupInvitation(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
+export async function signupInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     authMode,
     authenticationConfigured,
@@ -180,7 +180,7 @@ export async function signupInvitation(req: FastifyRequest, reply: FastifyReply,
     command: accountCommand,
     fail: accountFail,
     auditUnlessReplayed,
-  } = ctx;
+  } = context;
 
   if (authMode !== "password" || !authenticationConfigured) {
     return reply.code(404).send({ error: "Not found." });
@@ -226,13 +226,13 @@ export async function signupInvitation(req: FastifyRequest, reply: FastifyReply,
       accountId: result.membership.workspaceId,
       role: result.membership.role,
     });
-  } catch (err) {
-    return accountFail(reply, err);
+  } catch (error) {
+    return accountFail(reply, error);
   }
 }
 
-export async function listInvitations(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
-  const { authMode, administration: accountAdminPort, authorize, fail: accountFail } = ctx;
+export async function listInvitations(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+  const { authMode, administration: accountAdminPort, authorize, fail: accountFail } = context;
 
   const { accountId } = req.params as { accountId: string };
   if (!authorize(req, reply, accountId, "manageInvites")) return;
@@ -253,19 +253,19 @@ export async function listInvitations(req: FastifyRequest, reply: FastifyReply, 
         createdAt: invite.createdAt,
       })),
     };
-  } catch (err) {
-    return accountFail(reply, err);
+  } catch (error) {
+    return accountFail(reply, error);
   }
 }
 
-export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
+export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     administration: accountAdminPort,
     authorize,
     command: accountCommand,
     fail: accountFail,
     auditUnlessReplayed,
-  } = ctx;
+  } = context;
 
   const { accountId, id } = req.params as { accountId: string; id: string };
   if (!authorize(req, reply, accountId, "manageInvites")) return;
@@ -291,7 +291,7 @@ export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply,
       revoked.changed,
     );
     return reply.code(204).send();
-  } catch (err) {
-    return accountFail(reply, err);
+  } catch (error) {
+    return accountFail(reply, error);
   }
 }

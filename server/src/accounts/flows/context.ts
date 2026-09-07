@@ -1,11 +1,11 @@
 import type { CommandIdentity, PasswordResetCeremony } from "@capacitylens/shared/account/types";
-import type { AccountAuditInput, accountAuditWriter } from "../accountFlowRuntime";
+import type { AccountAuditInput, createAccountAuditWriter } from "../accountFlowRuntime";
 import type { terminateCommand } from "../commands";
 import type { localAccountFlows } from "../localAccountFlows";
-import type { WriteOnceSecretReplay } from "../writeOnceSecretReplay";
+import type { WriteOnceSecretReplay } from "../WriteOnceSecretReplay";
 
 export type LocalAccountFlowContext = Omit<Parameters<typeof localAccountFlows>[0], "audit"> & {
-  audit: ReturnType<typeof accountAuditWriter>;
+  audit: ReturnType<typeof createAccountAuditWriter>;
   persistTerminalOutcome(write: () => boolean | void, event: AccountAuditInput): boolean | void;
   denyIdentityAdminCommand(
     scope: Pick<Parameters<typeof terminateCommand>[1], "applicationId" | "operation">,

@@ -55,7 +55,7 @@ export class CorruptAccountCommandStateError extends Error {
   }
 }
 
-export function storedReconciliationRepair(
+export function parseStoredReconciliationRepair(
   row: NonNullable<ReturnType<typeof getAccountCommandByIdForReconciliation>>,
   operation: Parameters<AccountFlows["reconcileCommand"]>[0]["operation"],
 ): Record<string, unknown> & { kind: ReconciliationRepairKind } {
@@ -78,7 +78,7 @@ export function storedReconciliationRepair(
   if (!isReconciliationRepairKind(stored.kind)) {
     throw new CorruptAccountCommandStateError(row.commandId);
   }
-  const nonEmptyString = (value: unknown): value is string => typeof value === "string" && value.trim() !== "";
+  const isNonEmptyString = (value: unknown): value is string => typeof value === "string" && value.trim() !== "";
   const coordinates: readonly RepairCoordinate[] = [
     "workspaceId",
     "targetPrincipalId",
@@ -87,7 +87,7 @@ export function storedReconciliationRepair(
   ];
   for (const coordinate of coordinates) {
     const value = stored[coordinate];
-    if (value !== undefined && value !== null && !nonEmptyString(value)) {
+    if (value !== undefined && value !== null && !isNonEmptyString(value)) {
       throw new CorruptAccountCommandStateError(row.commandId);
     }
   }
@@ -95,7 +95,7 @@ export function storedReconciliationRepair(
   if (
     requirement &&
     ((requirement.operation !== undefined && requirement.operation !== operation) ||
-      requirement.coordinates.some((coordinate) => !nonEmptyString(stored[coordinate])))
+      requirement.coordinates.some((coordinate) => !isNonEmptyString(stored[coordinate])))
   ) {
     throw new CorruptAccountCommandStateError(row.commandId);
   }

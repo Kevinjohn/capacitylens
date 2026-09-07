@@ -3,10 +3,10 @@ import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import type { ActorContext } from "@capacitylens/shared/account/types";
 import { createInvite, getInvite, upsertMember } from "../controlTables";
 import { openDb, insertRow, type Db } from "../db";
-import { KeyedOperationLock } from "./operationLock";
-import { memberSignInTrackingSnapshot, setMemberSignInTracking } from "./memberSignInTracking";
-import { hasLivePreauthorizedInvitation, sqliteAccountAdminPort } from "./sqliteAccountAdminPort";
-import { WRITE_ONCE_SECRET_REPLAY_WINDOW_MS } from "./writeOnceSecretReplay";
+import { KeyedOperationLock } from "./KeyedOperationLock";
+import { readMemberSignInTrackingSnapshot, setMemberSignInTracking } from "./memberSignInTracking";
+import { hasLivePreauthorizedInvitation, createSqliteAccountAdminPort } from "./sqliteAccountAdminPort";
+import { WRITE_ONCE_SECRET_REPLAY_WINDOW_MS } from "./WriteOnceSecretReplay";
 
 const actor: ActorContext = {
   principalId: "owner-1",
@@ -107,7 +107,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       usedAt: null,
       createdAt: "2026-01-03T00:00:00.000Z",
     });
-    const port = sqliteAccountAdminPort({
+    const port = createSqliteAccountAdminPort({
       applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
@@ -138,7 +138,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       usedAt: null,
       createdAt: "2026-01-01T00:00:00.000Z",
     });
-    const port = sqliteAccountAdminPort({
+    const port = createSqliteAccountAdminPort({
       applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
@@ -160,7 +160,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
     });
-    const port = sqliteAccountAdminPort({
+    const port = createSqliteAccountAdminPort({
       applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
@@ -219,7 +219,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
         createdAt: "2025-01-01T00:00:00.000Z",
       });
     oldInvite("old-before-create", "old-before-create");
-    const port = sqliteAccountAdminPort({
+    const port = createSqliteAccountAdminPort({
       applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
@@ -261,7 +261,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       createdAt: startedAt.toISOString(),
       updatedAt: startedAt.toISOString(),
     });
-    const port = sqliteAccountAdminPort({
+    const port = createSqliteAccountAdminPort({
       applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
@@ -293,7 +293,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
     });
-    const port = sqliteAccountAdminPort({
+    const port = createSqliteAccountAdminPort({
       applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
@@ -344,7 +344,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       trustedLocal: true,
     };
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    const created = await sqliteAccountAdminPort(input).createInvitation({
+    const created = await createSqliteAccountAdminPort(input).createInvitation({
       actor,
       workspaceId: "workspace-1",
       role: "editor",
@@ -353,7 +353,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       command,
     });
 
-    const restarted = sqliteAccountAdminPort(input);
+    const restarted = createSqliteAccountAdminPort(input);
     await expect(
       restarted.createInvitation({
         actor,
@@ -388,7 +388,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
     });
-    const port = sqliteAccountAdminPort({
+    const port = createSqliteAccountAdminPort({
       applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
@@ -412,7 +412,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       passwordMode: true,
       command: { commandId: "claim-command", idempotencyKey: "claim-idempotency" },
     });
-    expect(memberSignInTrackingSnapshot(db, "workspace-1").confirmations.get("invitee-1")).toBe(true);
+    expect(readMemberSignInTrackingSnapshot(db, "workspace-1").confirmations.get("invitee-1")).toBe(true);
 
     await expect(port.createInvitation(createInput)).rejects.toMatchObject({ failure: { code: "CONFLICT" } });
   });
@@ -433,7 +433,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       status: "active",
       createdAt: "2026-01-01T00:00:00.000Z",
     });
-    const port = sqliteAccountAdminPort({
+    const port = createSqliteAccountAdminPort({
       applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
@@ -468,7 +468,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
     });
-    const port = sqliteAccountAdminPort({
+    const port = createSqliteAccountAdminPort({
       applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
@@ -510,7 +510,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
         return true;
       }),
     };
-    const port = sqliteAccountAdminPort({
+    const port = createSqliteAccountAdminPort({
       applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
@@ -599,7 +599,7 @@ describe("sqliteAccountAdminPort authority integrity", () => {
         status: "active",
         createdAt: "2026-01-01T00:00:00.000Z",
       });
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
@@ -633,7 +633,7 @@ describe("sqliteAccountAdminPort authority integrity", () => {
         status: "active",
         createdAt: "2026-01-01T00:00:00.000Z",
       });
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
@@ -682,7 +682,7 @@ describe("sqliteAccountAdminPort authority integrity", () => {
         status: "active",
         createdAt: "2026-01-01T00:00:00.000Z",
       });
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
@@ -723,7 +723,7 @@ describe("sqliteAccountAdminPort authority integrity", () => {
         status: "active",
         createdAt: "2026-01-01T00:00:00.000Z",
       });
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
@@ -765,7 +765,7 @@ describe("sqliteAccountAdminPort authority integrity", () => {
         status: "invited" as never,
         createdAt: "2026-01-01T00:00:00.000Z",
       });
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
@@ -809,7 +809,7 @@ describe("sqliteAccountAdminPort authority integrity", () => {
         status: "invited" as never,
         createdAt: "2026-01-01T00:00:00.000Z",
       });
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
@@ -860,7 +860,7 @@ describe("sqliteAccountAdminPort authority integrity", () => {
         status: "active",
         createdAt: "2026-01-01T00:00:00.000Z",
       });
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
@@ -916,7 +916,7 @@ describe("sqliteAccountAdminPort authority integrity", () => {
         status: "active",
         createdAt: "2026-01-01T00:00:00.000Z",
       });
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
@@ -973,7 +973,7 @@ describe("sqliteAccountAdminPort authority integrity", () => {
         status: "active",
         createdAt: "2026-01-01T00:00:00.000Z",
       });
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
@@ -1024,7 +1024,7 @@ describe("sqliteAccountAdminPort authority integrity", () => {
         status: "active",
         createdAt: "2026-01-01T00:00:00.000Z",
       });
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
@@ -1105,7 +1105,7 @@ describe("sqliteAccountAdminPort authority integrity", () => {
         status: "suspended" as never,
         createdAt: "2026-01-01T00:00:00.000Z",
       });
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
@@ -1169,7 +1169,7 @@ describe("sqliteAccountAdminPort listMemberships bulk revisions", () => {
         status: "active",
         createdAt: "2026-01-01T00:00:00.000Z",
       });
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
@@ -1211,7 +1211,7 @@ describe("sqliteAccountAdminPort listMemberships bulk revisions", () => {
         createdAt: "2026-01-03T00:00:00.000Z",
       });
       setSecurityRevision(db, "high-revision", 7);
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
@@ -1255,7 +1255,7 @@ describe("sqliteAccountAdminPort listMemberships bulk revisions", () => {
         status: "active",
         createdAt: "2026-01-02T00:00:00.000Z",
       });
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
@@ -1280,7 +1280,7 @@ describe("sqliteAccountAdminPort listMemberships bulk revisions", () => {
     const db = openDb(":memory:");
     try {
       seedWorkspace(db);
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
@@ -1315,7 +1315,7 @@ describe("sqliteAccountAdminPort listMemberships bulk revisions", () => {
         });
         setSecurityRevision(db, userId, i);
       }
-      const port = sqliteAccountAdminPort({
+      const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),

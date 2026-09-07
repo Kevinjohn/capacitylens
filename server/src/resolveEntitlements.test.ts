@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { entitlementsFor } from "./entitlements";
+import { resolveEntitlements } from "./resolveEntitlements";
 
 // P1.16: the INERT default-unlimited entitlements seam (the control-plane swap point). Today every
 // account is unlimited — there is NO billing, NO plan field, NO enforcement, and nothing on a route
@@ -8,7 +8,7 @@ import { entitlementsFor } from "./entitlements";
 
 describe("entitlementsFor (default-unlimited seam, P1.16)", () => {
   it("returns { unlimited: true } for any account id", () => {
-    expect(entitlementsFor("acct-1")).toEqual({ unlimited: true });
-    expect(entitlementsFor("anything")).toEqual({ unlimited: true });
+    expect(resolveEntitlements("acct-1")).toEqual({ unlimited: true });
+    expect(resolveEntitlements("anything")).toEqual({ unlimited: true });
   });
 });

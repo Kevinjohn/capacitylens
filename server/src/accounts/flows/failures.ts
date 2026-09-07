@@ -1,6 +1,6 @@
 import { AccountContractError, retryAfterSeconds } from "@capacitylens/shared/account/errors";
 
-export function denied(
+export function createAuthorityDenial(
   reason: string,
   action: "issue-password-reset" | "revoke-sessions",
   commandId?: string,
@@ -18,7 +18,7 @@ export function denied(
   });
 }
 
-export function authorityChanged(commandId: string): AccountContractError {
+export function createAuthorityChangedError(commandId: string): AccountContractError {
   return new AccountContractError({
     code: "AUTHORITY_CHANGED",
     message: "Identity-administration authority changed while the operation was in progress.",
@@ -34,7 +34,7 @@ export function isAuthorityDenial(error: unknown): boolean {
   );
 }
 
-export function replayCapacityExceeded(commandId: string, retryAfterMs: number): AccountContractError {
+export function createReplayCapacityError(commandId: string, retryAfterMs: number): AccountContractError {
   return new AccountContractError({
     code: "RATE_LIMITED",
     message: "One-time link issuance is temporarily busy. Retry after the indicated interval.",

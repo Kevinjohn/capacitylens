@@ -62,11 +62,11 @@ export function registerServerFixtureCleanup(): {
 }
 
 /** `app.inject` typed as the light response the suites assert against. */
-export const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
-  app.inject(opts) as unknown as Promise<LightMyRequestResponse>;
+export const call = (app: FastifyInstance, options: InjectOptions): Promise<LightMyRequestResponse> =>
+  app.inject(options) as unknown as Promise<LightMyRequestResponse>;
 
 /** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
-export function cookiesOf(res: LightMyRequestResponse): string {
+export function readCookies(res: LightMyRequestResponse): string {
   const raw = res.headers["set-cookie"];
   const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const cookies = new Map<string, string>();
@@ -98,7 +98,7 @@ export async function signUp(app: FastifyInstance, email: string): Promise<{ coo
     payload: { email, password: "password-123456", name: "Tester" },
   });
   expect(res.statusCode).toBe(200);
-  const cookie = cookiesOf(res);
+  const cookie = readCookies(res);
   const me = await call(app, {
     method: "GET",
     url: "/api/auth/me",

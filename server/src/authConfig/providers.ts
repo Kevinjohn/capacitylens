@@ -4,38 +4,52 @@ import type { BetterAuthPlugin } from "better-auth";
 import type { SocialProviders } from "better-auth/social-providers";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import type { Db } from "../db";
-import { accountConfigKey } from "../accountConfig";
+import { resolveAccountConfigKey } from "../accountConfig";
 import { createStrictOidcClient, isLoopbackHostname, StrictOidcVerificationError } from "../strictOidc";
 import type { AuthProviderInfo } from "../auth";
 import type { AuthConfigError } from "../auth";
 
 type Env = Record<string, string | undefined>;
 type AuthConfigErrorConstructor = typeof AuthConfigError;
-function optionalPair(env: Env, idKey: string, secretKey: string, label: string, E: AuthConfigErrorConstructor) {
-  const id = env[idKey];
-  const secret = env[secretKey];
+function parseOptionalCredentialPair(
+  environment: Env,
+  idKey: string,
+  secretKey: string,
+  label: string,
+  E: AuthConfigErrorConstructor,
+) {
+  const id = environment[idKey];
+  const secret = environment[secretKey];
   if (!id && !secret) return null;
   if (!id || !secret) {
-    throw new E(`${accountConfigKey(idKey)} and ${accountConfigKey(secretKey)} must both be set to enable ${label}.`);
+    throw new E(
+      `${resolveAccountConfigKey(idKey)} and ${resolveAccountConfigKey(secretKey)} must both be set to enable ${label}.`,
+    );
   }
   return [id, secret];
 }
 
-function secureProviderUrl(env: Env, key: string, ErrorType: AuthConfigErrorConstructor): string | undefined {
-  const raw = env[key]?.trim();
+function parseSecureProviderUrl(
+  environment: Env,
+  key: string,
+  ErrorType: AuthConfigErrorConstructor,
+): string | undefined {
+  const raw = environment[key]?.trim();
   if (!raw) return undefined;
   let url: URL;
   try {
     url = new URL(raw);
   } catch (cause) {
-    throw new ErrorType(`${accountConfigKey(key)} must be an absolute URL.`, { cause });
+    throw new ErrorType(`${resolveAccountConfigKey(key)} must be an absolute URL.`, { cause });
   }
   const loopback = isLoopbackHostname(url.hostname);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) {
-    throw new ErrorType(`${accountConfigKey(key)} must use https:// (loopback http:// is allowed for development).`);
+    throw new ErrorType(
+      `${resolveAccountConfigKey(key)} must use https:// (loopback http:// is allowed for development).`,
+    );
   }
   if (url.username || url.password) {
-    throw new ErrorType(`${accountConfigKey(key)} must not contain URL credentials.`);
+    throw new ErrorType(`${resolveAccountConfigKey(key)} must not contain URL credentials.`);
   }
   // Issuer identifiers are exact strings in OIDC. URL#toString() adds a trailing slash to a bare
   // origin, which would turn a correct configured `https://idp.example` issuer into a different
@@ -46,13 +60,20 @@ function secureProviderUrl(env: Env, key: string, ErrorType: AuthConfigErrorCons
 
 /** Native social providers assembled from env. Unset pairs are absent; a partial pair refuses
  * startup. New external identities are separately verified and invite-gated in the database hook. */
-function socialProvidersFromEnv(env: Env, AuthConfigError: AuthConfigErrorConstructor): SocialProviders {
+function parseSocialProvidersFromEnvironment(
+  environment: Env,
+  AuthConfigError: AuthConfigErrorConstructor,
+): SocialProviders {
   const providers: SocialProviders = {};
-  const configuredPair = (idKey: string, secretKey: string, label: string) =>
-    optionalPair(env, idKey, secretKey, label, AuthConfigError);
-  const google = configuredPair("CAPACITYLENS_GOOGLE_CLIENT_ID", "CAPACITYLENS_GOOGLE_CLIENT_SECRET", "Google sign-in");
+  const parseConfiguredPair = (idKey: string, secretKey: string, label: string) =>
+    parseOptionalCredentialPair(environment, idKey, secretKey, label, AuthConfigError);
+  const google = parseConfiguredPair(
+    "CAPACITYLENS_GOOGLE_CLIENT_ID",
+    "CAPACITYLENS_GOOGLE_CLIENT_SECRET",
+    "Google sign-in",
+  );
   if (google) providers.google = { clientId: google[0], clientSecret: google[1] };
-  const microsoft = configuredPair(
+  const microsoft = parseConfiguredPair(
     "CAPACITYLENS_MICROSOFT_CLIENT_ID",
     "CAPACITYLENS_MICROSOFT_CLIENT_SECRET",
     "Microsoft sign-in",
@@ -62,10 +83,14 @@ function socialProvidersFromEnv(env: Env, AuthConfigError: AuthConfigErrorConstr
     providers.microsoft = {
       clientId: microsoft[0],
       clientSecret: microsoft[1],
-      tenantId: env.CAPACITYLENS_MICROSOFT_TENANT_ID || "common",
+      tenantId: environment.CAPACITYLENS_MICROSOFT_TENANT_ID || "common",
     };
   }
-  const github = configuredPair("CAPACITYLENS_GITHUB_CLIENT_ID", "CAPACITYLENS_GITHUB_CLIENT_SECRET", "GitHub sign-in");
+  const github = parseConfiguredPair(
+    "CAPACITYLENS_GITHUB_CLIENT_ID",
+    "CAPACITYLENS_GITHUB_CLIENT_SECRET",
+    "GitHub sign-in",
+  );
   if (github) providers.github = { clientId: github[0], clientSecret: github[1] };
   return providers;
 }
@@ -76,8 +101,8 @@ function socialProvidersFromEnv(env: Env, AuthConfigError: AuthConfigErrorConstr
 // routing. Keep this list aligned with socialProvidersFromEnv() and the plugins assembled below.
 const RESERVED_IDS = new Set(["credential", "generic-oauth", "two-factor", "google", "microsoft", "github"]);
 
-function externalProviderInfo(
-  env: Env,
+function buildExternalProviderInfo(
+  environment: Env,
   genericProviderId: string | null,
   defaultProviderLabel: string,
 ): AuthProviderInfo[] {
@@ -85,19 +110,19 @@ function externalProviderInfo(
   const addSocialProvider = (id: string, label: string): void => {
     providers.push({ id, label, kind: "social", experimental: true });
   };
-  if (env.CAPACITYLENS_GOOGLE_CLIENT_ID && env.CAPACITYLENS_GOOGLE_CLIENT_SECRET) {
+  if (environment.CAPACITYLENS_GOOGLE_CLIENT_ID && environment.CAPACITYLENS_GOOGLE_CLIENT_SECRET) {
     addSocialProvider("google", "Google");
   }
-  if (env.CAPACITYLENS_MICROSOFT_CLIENT_ID && env.CAPACITYLENS_MICROSOFT_CLIENT_SECRET) {
+  if (environment.CAPACITYLENS_MICROSOFT_CLIENT_ID && environment.CAPACITYLENS_MICROSOFT_CLIENT_SECRET) {
     addSocialProvider("microsoft", "Microsoft");
   }
-  if (env.CAPACITYLENS_GITHUB_CLIENT_ID && env.CAPACITYLENS_GITHUB_CLIENT_SECRET) {
+  if (environment.CAPACITYLENS_GITHUB_CLIENT_ID && environment.CAPACITYLENS_GITHUB_CLIENT_SECRET) {
     addSocialProvider("github", "GitHub");
   }
   if (genericProviderId) {
     providers.push({
       id: genericProviderId,
-      label: env.CAPACITYLENS_SSO_LABEL?.trim() || defaultProviderLabel,
+      label: environment.CAPACITYLENS_SSO_LABEL?.trim() || defaultProviderLabel,
       kind: "oidc",
       experimental: false,
     });
@@ -121,7 +146,7 @@ export function prepareProviders({
   publicUrl: URL;
   authHandlerErrorCapture: AsyncLocalStorage<{ error: unknown }>;
   AuthConfigError: AuthConfigErrorConstructor;
-  required: (env: Env, key: string, context: string) => string;
+  required: (environment: Env, key: string, context: string) => string;
   assertStrictOidcEmailAdmission: (
     db: Db,
     providerId: string,
@@ -133,7 +158,13 @@ export function prepareProviders({
   // changing provider configuration.
   const genericSsoConfigured = Boolean(env.CAPACITYLENS_SSO_CLIENT_ID || env.CAPACITYLENS_SSO_CLIENT_SECRET);
   if (genericSsoConfigured) {
-    optionalPair(env, "CAPACITYLENS_SSO_CLIENT_ID", "CAPACITYLENS_SSO_CLIENT_SECRET", "generic SSO", AuthConfigError);
+    parseOptionalCredentialPair(
+      env,
+      "CAPACITYLENS_SSO_CLIENT_ID",
+      "CAPACITYLENS_SSO_CLIENT_SECRET",
+      "generic SSO",
+      AuthConfigError,
+    );
   }
   if (mode === "sso" && !genericSsoConfigured) {
     throw new AuthConfigError(
@@ -149,16 +180,16 @@ export function prepareProviders({
       `SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID must not use reserved provider id "${genericProviderId}".`,
     );
   }
-  const discoveryUrl = secureProviderUrl(env, "CAPACITYLENS_SSO_DISCOVERY_URL", AuthConfigError);
-  const genericIssuer = secureProviderUrl(env, "CAPACITYLENS_SSO_ISSUER", AuthConfigError);
+  const discoveryUrl = parseSecureProviderUrl(env, "CAPACITYLENS_SSO_DISCOVERY_URL", AuthConfigError);
+  const genericIssuer = parseSecureProviderUrl(env, "CAPACITYLENS_SSO_ISSUER", AuthConfigError);
   if (genericIssuer) {
     const issuerUrl = new URL(genericIssuer);
     if (issuerUrl.search || issuerUrl.hash) {
       throw new AuthConfigError("SMALLSASS_ACCOUNT_OIDC_ISSUER must not contain a query string or fragment.");
     }
   }
-  const authorizationUrl = secureProviderUrl(env, "CAPACITYLENS_SSO_AUTHORIZATION_URL", AuthConfigError);
-  const tokenUrl = secureProviderUrl(env, "CAPACITYLENS_SSO_TOKEN_URL", AuthConfigError);
+  const authorizationUrl = parseSecureProviderUrl(env, "CAPACITYLENS_SSO_AUTHORIZATION_URL", AuthConfigError);
+  const tokenUrl = parseSecureProviderUrl(env, "CAPACITYLENS_SSO_TOKEN_URL", AuthConfigError);
   let strictOidcClient: ReturnType<typeof createStrictOidcClient> | null = null;
   let strictOidcAuthorizationProxyPath: string | null = null;
   let genericOidcPlugin: BetterAuthPlugin | null = null;
@@ -272,8 +303,8 @@ export function buildProviders({
   // Resolve every remaining provider configuration before the first explicit database DDL below.
   // An invalid provider/URL must not leave a bootstrap-control table behind on an otherwise
   // untouched database merely because validation happened in an unfortunate order.
-  const configuredSocialProviders = socialProvidersFromEnv(env, AuthConfigError);
-  const configuredProviderInfo = externalProviderInfo(env, prepared.genericProviderId, defaultProviderLabel);
+  const configuredSocialProviders = parseSocialProvidersFromEnvironment(env, AuthConfigError);
+  const configuredProviderInfo = buildExternalProviderInfo(env, prepared.genericProviderId, defaultProviderLabel);
   // Experimental social providers still receive a stable issuer namespace so identity
   // correlation is always (issuer, subject), never email or a mutable display label. Generic
   // OIDC uses its actual issuer URL and remains the first-class path.

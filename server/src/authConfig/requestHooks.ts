@@ -63,18 +63,18 @@ export function buildRequestHooks({
     // configured setup secret. countUsers(db) is consulted per request so the bootstrap route
     // closes immediately after the first identity is created.
     hooks: {
-      before: createAuthMiddleware(async (ctx) => {
+      before: createAuthMiddleware(async (context) => {
         // Resolve a presented session once at the Better Auth pipeline boundary. Endpoint session
         // middleware reuses ctx.context.session, and /get-session can return it directly, so idle
         // enforcement no longer causes a wrapper lookup followed by the endpoint's second lookup.
-        const cookie = ctx.headers?.get("cookie") ?? "";
+        const cookie = context.headers?.get("cookie") ?? "";
         // Do not couple inactivity enforcement to Better Auth's internal session-cookie suffix.
         // Any presented cookie may be a session under a newer provider version; resolving it is the
         // fail-closed compatibility posture, while a truly cookieless public request still skips work.
-        const sessionPresented = cookie.length > 0 || ctx.headers?.has("authorization") === true;
+        const sessionPresented = cookie.length > 0 || context.headers?.has("authorization") === true;
         let activeHookSession: Awaited<ReturnType<typeof getSessionFromCtx>> | undefined;
         if (sessionPresented) {
-          const resolved = await getSessionFromCtx(ctx, {
+          const resolved = await getSessionFromCtx(context, {
             disableCookieCache: true,
             disableRefresh: true,
           });
@@ -91,13 +91,13 @@ export function buildRequestHooks({
                   : undefined,
               )
             : null;
-          ctx.context.session = activeHookSession;
-          if (ctx.path === "/get-session" && activeHookSession) return activeHookSession;
+          context.context.session = activeHookSession;
+          if (context.path === "/get-session" && activeHookSession) return activeHookSession;
         }
         const continuingContext = () =>
           activeHookSession === undefined ? undefined : { context: { session: activeHookSession } };
 
-        if (externalIdentityPath(ctx.path)) {
+        if (externalIdentityPath(context.path)) {
           if (countUsers(db) === 0) {
             return {
               context: {
@@ -109,11 +109,11 @@ export function buildRequestHooks({
           return continuingContext();
         }
         if (allowOpenSignup) {
-          assertAuthRequestPasswordLength(ctx.path, ctx.body);
+          assertAuthRequestPasswordLength(context.path, context.body);
           return continuingContext();
         }
-        if (ctx.path !== "/sign-up/email") {
-          assertAuthRequestPasswordLength(ctx.path, ctx.body);
+        if (context.path !== "/sign-up/email") {
+          assertAuthRequestPasswordLength(context.path, context.body);
           return continuingContext();
         }
         // A fresh password instance is never claimable merely because it is reachable. The
@@ -121,11 +121,11 @@ export function buildRequestHooks({
         // this header. index.ts also refuses a fresh password boot when the secret is absent.
         if (
           countUsers(db) === 0 &&
-          secretTokenMatches(setupToken, ctx.headers?.get("x-capacitylens-setup-token") ?? null)
+          secretTokenMatches(setupToken, context.headers?.get("x-capacitylens-setup-token") ?? null)
         ) {
           // Validate before acquiring the one-at-a-time bootstrap claim: a malformed password must
           // not strand setup waiting for an after-hook that this before-hook failure never reaches.
-          assertAuthRequestPasswordLength(ctx.path, ctx.body);
+          assertAuthRequestPasswordLength(context.path, context.body);
           return {
             context: {
               ...continuingContext()?.context,
@@ -140,11 +140,11 @@ export function buildRequestHooks({
           code: "EMAIL_PASSWORD_SIGN_UP_DISABLED",
         });
       }),
-      after: createAuthMiddleware(async (ctx) => {
+      after: createAuthMiddleware(async (context) => {
         // Email open signup does not acquire a claim. External first-owner and closed email setup
         // release any claim on both success and failure so a failed attempt cannot strand setup.
-        if (externalIdentityPath(ctx.path) || (!allowOpenSignup && ctx.path === "/sign-up/email")) {
-          const claimToken = (ctx as { bootstrapClaimToken?: unknown }).bootstrapClaimToken;
+        if (externalIdentityPath(context.path) || (!allowOpenSignup && context.path === "/sign-up/email")) {
+          const claimToken = (context as { bootstrapClaimToken?: unknown }).bootstrapClaimToken;
           if (typeof claimToken === "string") {
             db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE id = 1 AND claimToken = ?`).run(claimToken);
           }

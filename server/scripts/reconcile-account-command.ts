@@ -5,7 +5,7 @@ import {
   closeAccountCommandReconciliation,
   getAccountCommandByIdForReconciliation,
 } from "../src/accounts/state";
-import { secretDigest } from "../src/accounts/commands";
+import { buildSecretDigest } from "../src/accounts/commands";
 
 const [databasePath, applicationId, commandId, operatorReference] = process.argv.slice(2);
 if (!databasePath || !applicationId || !commandId || !operatorReference) {
@@ -52,7 +52,7 @@ if (!databasePath || !applicationId || !commandId || !operatorReference) {
         repairKind,
       }),
     );
-    const referenceHash = secretDigest("reconciliation-reference", operatorReference);
+    const referenceHash = buildSecretDigest("reconciliation-reference", operatorReference);
     if (!closeAccountCommandReconciliation(db, applicationId, commandId, referenceHash)) {
       throw new Error("The command changed while reconciliation was being closed; inspect it again.");
     }

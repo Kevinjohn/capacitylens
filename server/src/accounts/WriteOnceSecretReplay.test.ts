@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { WRITE_ONCE_SECRET_REPLAY_WINDOW_MS, WriteOnceSecretReplay } from "./writeOnceSecretReplay";
+import { WRITE_ONCE_SECRET_REPLAY_WINDOW_MS, WriteOnceSecretReplay } from "./WriteOnceSecretReplay";
 
 describe("WriteOnceSecretReplay", () => {
   afterEach(() => vi.useRealTimers());

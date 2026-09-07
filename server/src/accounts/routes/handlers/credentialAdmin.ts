@@ -1,7 +1,7 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AccountRouteContext } from "../replyHelpers";
 
-export async function resetPassword(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
+export async function resetPassword(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     authMode,
     flows: accountFlows,
@@ -10,7 +10,7 @@ export async function resetPassword(req: FastifyRequest, reply: FastifyReply, ct
     fail: accountFail,
     auditUnlessReplayed,
     requireMembership,
-  } = ctx;
+  } = context;
 
   const { accountId, userId } = req.params as {
     accountId: string;
@@ -43,12 +43,12 @@ export async function resetPassword(req: FastifyRequest, reply: FastifyReply, ct
       changedFields: ["credential"],
     });
     return reply.code(201).send({ token: ceremony.token, expiresAt: ceremony.expiresAt });
-  } catch (err) {
-    return accountFail(reply, err);
+  } catch (error) {
+    return accountFail(reply, error);
   }
 }
 
-export async function revokeMemberSessions(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
+export async function revokeMemberSessions(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     authMode,
     authenticationConfigured,
@@ -58,7 +58,7 @@ export async function revokeMemberSessions(req: FastifyRequest, reply: FastifyRe
     fail: accountFail,
     auditUnlessReplayed,
     requireMembership,
-  } = ctx;
+  } = context;
 
   const { accountId, userId } = req.params as {
     accountId: string;
@@ -87,7 +87,7 @@ export async function revokeMemberSessions(req: FastifyRequest, reply: FastifyRe
       changedFields: ["sessions"],
     });
     return reply.code(204).send();
-  } catch (err) {
-    return accountFail(reply, err);
+  } catch (error) {
+    return accountFail(reply, error);
   }
 }

@@ -2,12 +2,12 @@ import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AuditRecord } from "../../audit";
 import { getRow, insertRow } from "../../db";
-import { appliedRequestedFieldNames, validateWrite } from "../../validate";
+import { listAppliedRequestedFieldNames, assertValidWrite } from "../../validate";
 import { checkEntityWriteBody, prepareScopedWrite } from "../../writePipeline";
 
 import type { AccountEntityRouteDependencies } from "./dependencies";
-import { accountRouteFailure } from "./guards";
-import { ACCOUNT_CREATE_CLOSED_MESSAGE, canonicalAccountProductPayload } from "./policy";
+import { sendAccountRouteFailure } from "./guards";
+import { ACCOUNT_CREATE_CLOSED_MESSAGE, buildCanonicalAccountProductPayload } from "./policy";
 
 export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteDependencies) {
   const {
@@ -38,13 +38,13 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
     }
     const requestRow = req.body as Record<string, unknown>;
     try {
-      const vis = fieldVisibility(req, "accounts", requestRow.accountId);
+      const visibility = fieldVisibility(req, "accounts", requestRow.accountId);
       const { row, scopedState } = prepareScopedWrite({
         store,
         entity: "accounts",
         body: requestRow,
         existing: undefined,
-        vis,
+        vis: visibility,
         verb: "create",
       });
       const auditRecord: AuditRecord = {
@@ -54,7 +54,7 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
         action: "create",
         entity: "accounts",
         id: row.id as string,
-        changedFields: appliedRequestedFieldNames("accounts", requestRow, undefined, row),
+        changedFields: listAppliedRequestedFieldNames("accounts", requestRow, undefined, row),
       };
       // A company is not usable without its singleton Internal client. Commit both rows as one unit
       // so a constraint/storage failure cannot leave a degraded company behind.
@@ -65,14 +65,14 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
         command: command(req),
         multiWorkspace: multiAccount,
         bootstrapAuthorized: false,
-        canonicalProductPayload: canonicalAccountProductPayload(row),
+        canonicalProductPayload: buildCanonicalAccountProductPayload(row),
         provisionProductData: () => {
           // Run validation only on first execution, inside the same transaction as the insert. A
           // committed command replay must not be rejected merely because the account now exists or
           // the single-company cap became full after its original success. Reuses the funnel's
           // scoped slice (Finding 9 — accounts validation is name-only, so a second full-DB
           // loadState here would be pure waste).
-          validateWrite(scopedState, "accounts", row);
+          assertValidWrite(scopedState, "accounts", row);
           insertRow(db, "accounts", row);
           insertRow(
             db,
@@ -85,8 +85,8 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
       });
       if (!provisioned.replayed) drainProductAudit(reply);
       return reply.code(201).send(provisioned.product as Record<string, unknown>);
-    } catch (err) {
-      return accountRouteFailure(reply, err, dependencies);
+    } catch (error) {
+      return sendAccountRouteFailure(reply, error, dependencies);
     }
   };
 
@@ -137,8 +137,8 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
       });
       if (targetExisted) drainProductAudit(reply);
       return reply.code(204).send();
-    } catch (err) {
-      return accountRouteFailure(reply, err, dependencies);
+    } catch (error) {
+      return sendAccountRouteFailure(reply, error, dependencies);
     }
   };
   return { post, delete: deleteAccount };

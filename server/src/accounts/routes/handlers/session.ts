@@ -2,8 +2,8 @@ import { isAccountSessionId } from "@capacitylens/shared/account/validation";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AccountRouteContext } from "../replyHelpers";
 
-export async function signOut(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
-  const { identity: identityPort, fail: accountFail } = ctx;
+export async function signOut(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+  const { identity: identityPort, fail: accountFail } = context;
 
   try {
     const result = await identityPort.signOut({
@@ -24,8 +24,8 @@ export async function signOut(req: FastifyRequest, reply: FastifyReply, ctx: Acc
   }
 }
 
-export async function listSessions(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
-  const { identity: identityPort, fail: accountFail } = ctx;
+export async function listSessions(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+  const { identity: identityPort, fail: accountFail } = context;
 
   try {
     return reply.code(200).send({ sessions: await identityPort.listSessions({ actor: req.accountActor! }) });
@@ -34,8 +34,8 @@ export async function listSessions(req: FastifyRequest, reply: FastifyReply, ctx
   }
 }
 
-export async function revokeSession(req: FastifyRequest, reply: FastifyReply, ctx: AccountRouteContext) {
-  const { identity: identityPort, command: accountCommand, fail: accountFail } = ctx;
+export async function revokeSession(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+  const { identity: identityPort, command: accountCommand, fail: accountFail } = context;
 
   const { sessionId } = req.params as { sessionId: string };
   if (!isAccountSessionId(sessionId)) {

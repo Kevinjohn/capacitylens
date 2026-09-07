@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-export function buildErrorRedirect({
+export function createErrorRedirect({
   browserAuthErrorUrl,
   trustedLinkOrigins,
   readVerificationValues,
@@ -11,7 +11,7 @@ export function buildErrorRedirect({
    *  identifier, or null while the verification table does not exist yet. */
   readVerificationValues: (storedIdentifier: string) => readonly string[] | null;
 }): (request: Request) => URL {
-  const callbackErrorUrl = (request: Request): URL => {
+  const resolveCallbackErrorUrl = (request: Request): URL => {
     const fallback = new URL(browserAuthErrorUrl);
     const state = new URL(request.url).searchParams.get("state");
     if (!state) return fallback;
@@ -34,5 +34,5 @@ export function buildErrorRedirect({
     return fallback;
   };
 
-  return callbackErrorUrl;
+  return resolveCallbackErrorUrl;
 }

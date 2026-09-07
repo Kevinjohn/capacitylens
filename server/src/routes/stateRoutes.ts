@@ -5,16 +5,16 @@ import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { CommandIdentity, Role } from "@capacitylens/shared/account/types";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { secretTokenMatches, type Auth, type AuthMode } from "../auth";
+import { isMatchingSecretToken, type Auth, type AuthMode } from "../auth";
 import type { Db } from "../db";
-import { insertRow, listAccountSummaries, loadState } from "../db";
+import { insertRow, listAccountSummaries, readState } from "../db";
 import type { LocalAccountFlows } from "../accounts/localAccountFlows";
-import type { MasqueradeRegistry } from "../masqueradeRegistry";
+import type { MasqueradeRegistry } from "../MasqueradeRegistry";
 import type { TenantStore } from "../tenantStore";
-import { acceptedFieldNames, sanitizeWrite, validateWrite } from "../validate";
-import { readSliceVisibility, visibilityForRole } from "../fieldPolicy";
+import { listAcceptedFieldNames, sanitizeWrite, assertValidWrite } from "../validate";
+import { buildReadSliceVisibility, resolveVisibilityForRole } from "../fieldPolicy";
 import { enqueueAudit } from "../auditOutbox";
-import { canonicalAccountProductPayload } from "./accountEntityRoutes";
+import { buildCanonicalAccountProductPayload } from "./accountEntityRoutes";
 import { ALL_FIELDS_VISIBLE, type AuthorizeRoute } from "./routeShared";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 
@@ -24,7 +24,7 @@ type StateAccountAdministration = AccountAdminPort & {
 
 /** Stable server-owned id for an omitted workspace id. A retry carrying the same command must
  * address the same workspace rather than minting a new id and conflicting with its own ledger. */
-function generatedWorkspaceId(commandId: string): string {
+function buildWorkspaceId(commandId: string): string {
   return `w_${createHash("sha256")
     .update("capacitylens-workspace-command\0")
     .update(commandId)
@@ -136,7 +136,7 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
         // Derive the export/read include flags from the SAME GATED_FIELD_POLICIES predicates that
         // drive the write-pin and read-echo, so the three can never disagree. OFF is trusted-local ⇒
         // include everything; otherwise each gated field is included iff the role may see it.
-        const vis = authMode === "off" ? ALL_FIELDS_VISIBLE : visibilityForRole(authorization.role);
+        const visibility = authMode === "off" ? ALL_FIELDS_VISIBLE : resolveVisibilityForRole(authorization.role);
         // P2.5a admin "Archived & deleted" read. `?includeInactive=1` asks for the FULL slice
         // (archived + soft-deleted rows retained), which is privileged: it is gated at the SAME tier as
         // purge (admin+ with a fresh session) — the lifecycle-management tier — so an editor/viewer or
@@ -161,7 +161,7 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
         // includeInactive:false so readSlice drops them server-side (the same rule the client views
         // apply via useActiveScopedData). The P2.5a admin read passes true to retain them.
         return store.readSlice(accountId, {
-          ...readSliceVisibility(vis),
+          ...buildReadSliceVisibility(visibility),
           includeInactive: wantsInactive,
         });
       }
@@ -177,7 +177,7 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
       }
       // OFF: trusted-local whole read RETAINED. (P1.6 note: this whole read does NOT redact the
       // time-off `note` — fine, OFF is trusted-local and includes it everywhere.)
-      return loadState(db);
+      return readState(db);
     });
     return;
   }
@@ -232,12 +232,12 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
         );
       }
       const command = accountCommand(req);
-      const bootstrapAuthorized = secretTokenMatches(bootstrapToken, req.headers["x-capacitylens-bootstrap-token"]);
+      const bootstrapAuthorized = isMatchingSecretToken(bootstrapToken, req.headers["x-capacitylens-bootstrap-token"]);
       const now = new Date().toISOString();
       const id =
         typeof (req.body as { id?: unknown })?.id === "string" && (req.body as { id: string }).id.trim() !== ""
           ? (req.body as { id: string }).id
-          : generatedWorkspaceId(command.commandId);
+          : buildWorkspaceId(command.commandId);
       const accountRow = sanitizeWrite("accounts", {
         ...(req.body as Record<string, unknown>),
         id,
@@ -246,7 +246,7 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
       });
       // Server timestamps are result data, not caller intent. Excluding them from the command
       // digest lets an identical retry replay the first committed row after wall time advances.
-      const canonicalAccountRow = canonicalAccountProductPayload(accountRow);
+      const canonicalAccountRow = buildCanonicalAccountProductPayload(accountRow);
       const provisioned = await accountFlows.provisionWorkspace({
         actor: req.accountActor!,
         workspaceId: id,
@@ -258,7 +258,7 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
         provisionProductData: () => {
           // Finding 9: accounts validation is name-only (validate.ts), so it needs no cross-table
           // data — a full-DB loadState here was pure waste. Scope to this account's (empty) slice.
-          validateWrite(emptyAppData(), "accounts", accountRow);
+          assertValidWrite(emptyAppData(), "accounts", accountRow);
           insertRow(db, "accounts", accountRow);
           insertRow(db, "clients", buildInternalClient(id, now) as unknown as Record<string, unknown>);
           enqueueAudit(db, {
@@ -268,7 +268,7 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
             action: "create",
             entity: "accounts",
             id,
-            changedFields: acceptedFieldNames("accounts", accountRow),
+            changedFields: listAcceptedFieldNames("accounts", accountRow),
           });
           return accountRow;
         },
@@ -277,8 +277,8 @@ export function registerStateRoutes(app: FastifyInstance, dependencies: StateRou
         drainProductAudit(reply);
       }
       return reply.code(201).send(provisioned.product);
-    } catch (err) {
-      return err instanceof AccountContractError ? accountFail(reply, err) : sendFail(reply, err);
+    } catch (error) {
+      return error instanceof AccountContractError ? accountFail(reply, error) : sendFail(reply, error);
     }
   });
 }

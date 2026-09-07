@@ -29,7 +29,7 @@ interface StatementCache {
 
 export const statementCaches = new WeakMap<Db, StatementCache>();
 
-export function statementCache(db: Db): StatementCache {
+export function createStatementCache(db: Db): StatementCache {
   let cache = statementCaches.get(db);
   if (!cache) {
     cache = {
@@ -46,18 +46,18 @@ export function statementCache(db: Db): StatementCache {
 }
 
 /** Lazily prepare and cache one per-table Statement, keyed by table name within `cache`. */
-export function cachedTableStatement(
+export function createCachedTableStatement(
   cache: Map<string, PreparedStatement>,
   table: string,
   db: Db,
   sql: string,
 ): PreparedStatement {
-  let stmt = cache.get(table);
-  if (!stmt) {
-    stmt = db.prepare(sql);
-    cache.set(table, stmt);
+  let statement = cache.get(table);
+  if (!statement) {
+    statement = db.prepare(sql);
+    cache.set(table, statement);
   }
-  return stmt;
+  return statement;
 }
 
-export const placeholders = (n: number) => Array.from({ length: n }, () => "?").join(", ");
+export const buildPlaceholders = (n: number) => Array.from({ length: n }, () => "?").join(", ");

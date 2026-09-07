@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { MasqueradeRegistry, type MasqueradeRecord } from "./masqueradeRegistry";
+import { MasqueradeRegistry, type MasqueradeRecord } from "./MasqueradeRegistry";
 
 const record = (overrides: Partial<MasqueradeRecord> = {}): MasqueradeRecord => ({
   sessionHandle: "session-1",
@@ -75,11 +75,11 @@ describe("MasqueradeRegistry", () => {
     registry.start(record(), () => undefined);
     registry.start(record({ sessionHandle: "session-2", token: "token-2" }), () => undefined);
 
-    const handles = registry.sessionHandlesForUser("user-1");
+    const handles = registry.listSessionHandlesForUser("user-1");
     registry.end("session-1", null, () => undefined);
 
     expect(handles).toEqual(["session-1", "session-2"]);
-    expect(registry.sessionHandlesForUser("user-1")).toEqual(["session-2"]);
+    expect(registry.listSessionHandlesForUser("user-1")).toEqual(["session-2"]);
   });
 
   it("retains a prepared end until the surrounding session transaction commits", () => {

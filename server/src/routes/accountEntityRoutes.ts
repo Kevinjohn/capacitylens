@@ -6,9 +6,9 @@ export type { AccountEntityRouteDependencies } from "./accountEntity/dependencie
 export {
   ACCOUNT_CREATE_CLOSED_MESSAGE,
   ACCOUNT_FROZEN_FIELDS_MESSAGE,
-  accountCreateCapped,
-  accountFieldsFrozen,
-  canonicalAccountProductPayload,
+  isAccountCreateCapped,
+  hasFrozenAccountFieldChanges,
+  buildCanonicalAccountProductPayload,
   countAccounts,
   SINGLE_COMPANY_CAP_MESSAGE,
 } from "./accountEntity/policy";

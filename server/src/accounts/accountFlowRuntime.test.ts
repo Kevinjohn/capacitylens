@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { accountAuditWriter, recordTerminalOutcome } from "./accountFlowRuntime";
+import { createAccountAuditWriter, recordTerminalOutcome } from "./accountFlowRuntime";
 
 describe("account flow runtime helpers", () => {
   it("constructs the shared audit envelope consistently", () => {
     const append = vi.fn(() => true);
-    const audit = accountAuditWriter("application-1", { append });
+    const audit = createAccountAuditWriter("application-1", { append });
 
     audit({
       action: "flow.reconciliation_required",

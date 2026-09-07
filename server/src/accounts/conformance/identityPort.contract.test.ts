@@ -12,13 +12,13 @@ import type {
   SessionSummary,
 } from "@capacitylens/shared/account/types";
 import { isIsoInstant } from "@capacitylens/shared/account/types";
-import { authFromEnv, runAuthMigrations, type Auth } from "../../auth";
+import { createAuthFromEnvironment, runAuthMigrations, type Auth } from "../../auth";
 import { openDb } from "../../db";
 import { PASSWORD_ENV } from "../../testHelpers";
-import { betterAuthIdentityPort } from "../betterAuthIdentityPort";
-import { applicationSessionHandle } from "../sessionHandle";
+import { createBetterAuthIdentityPort } from "../betterAuthIdentityPort";
+import { buildApplicationSessionHandle } from "../buildApplicationSessionHandle";
 import { recordSessionAssurance } from "../state";
-import { trustedLocalIdentityPort } from "../trustedLocalIdentityPort";
+import { createTrustedLocalIdentityPort } from "../createTrustedLocalIdentityPort";
 
 const APPLICATION_ID = "identity-conformance";
 const NOW = "2026-07-18T10:00:00.000Z";
@@ -267,7 +267,7 @@ function identityPortContract(name: string, createHarness: HarnessFactory): void
 
 async function betterAuthHarness(): Promise<Harness> {
   const db = openDb(":memory:");
-  const configured = authFromEnv(db, PASSWORD_ENV);
+  const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
   const realAuth = configured.auth!;
   await runAuthMigrations(realAuth);
   const created = await realAuth.createCredentialUser(
@@ -277,7 +277,7 @@ async function betterAuthHarness(): Promise<Harness> {
     true,
   );
   const token = "conformance-session-bearer";
-  const sessionId = applicationSessionHandle(APPLICATION_ID, token);
+  const sessionId = buildApplicationSessionHandle(APPLICATION_ID, token);
   db.prepare(
     `
       INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, ipAddress, userAgent, userId)
@@ -312,7 +312,7 @@ async function betterAuthHarness(): Promise<Harness> {
   };
   const actor = { ...ACTOR, principalId: created.id, sessionId };
   return {
-    port: betterAuthIdentityPort({
+    port: createBetterAuthIdentityPort({
       applicationId: APPLICATION_ID,
       auth,
       authMode: "password",
@@ -341,7 +341,7 @@ function trustedLocalHarness(): Harness {
     assurance: "trusted-local",
   };
   return {
-    port: trustedLocalIdentityPort(PRINCIPAL),
+    port: createTrustedLocalIdentityPort(PRINCIPAL),
     session,
     actor: { ...ACTOR, sessionId: session.id, assurance: "trusted-local" },
     knownPrincipal: summaryOf(PRINCIPAL.id),
@@ -466,7 +466,7 @@ describe("IdentityPort conformance calibration", () => {
 describe("revocation window race", () => {
   it("removes assurance for sessions created inside the revocation window, not only the snapshot", async () => {
     const db = openDb(":memory:");
-    const configured = authFromEnv(db, PASSWORD_ENV);
+    const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
     const realAuth = configured.auth!;
     await runAuthMigrations(realAuth);
     const created = await realAuth.createCredentialUser(
@@ -477,7 +477,7 @@ describe("revocation window race", () => {
     );
     const seedSession = (suffix: string) => {
       const bearer = `race-session-${suffix}`;
-      const handle = applicationSessionHandle(APPLICATION_ID, bearer);
+      const handle = buildApplicationSessionHandle(APPLICATION_ID, bearer);
       db.prepare(
         `
         INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, ipAddress, userAgent, userId)
@@ -490,7 +490,12 @@ describe("revocation window race", () => {
     seedSession("before"); // visible before revocation
     seedSession("window"); // simulates a sign-in landing inside the provider-revocation window
 
-    const port = betterAuthIdentityPort({ applicationId: APPLICATION_ID, auth: realAuth, authMode: "password", db });
+    const port = createBetterAuthIdentityPort({
+      applicationId: APPLICATION_ID,
+      auth: realAuth,
+      authMode: "password",
+      db,
+    });
     const operation = command("principal-sessions-race");
     await expect(
       port.revokePrincipalSessions({ targetPrincipalId: created.id, command: operation }),

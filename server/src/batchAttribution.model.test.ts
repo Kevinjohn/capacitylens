@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { FastifyInstance, InjectOptions } from "fastify";
-import { buildApp } from "./app";
+import { createApp } from "./app";
 import { getRow, openDb, upsertRow, type Db } from "./db";
 import { call } from "./testHelpers";
 
@@ -199,7 +199,7 @@ describe("POST /api/batch allocation attribution model", () => {
       color: "#5c34d4",
       ...META,
     });
-    app = buildApp(db, { optimisticConcurrency: false });
+    app = createApp(db, { optimisticConcurrency: false });
   });
 
   afterAll(async () => {

@@ -8,21 +8,21 @@ import type {
 import { getActiveMemberRole, getMembershipRow, listMembershipsForUser } from "../../controlTables";
 import type { Db } from "../../db";
 import { getRow } from "../../db";
-import { getSecurityRevision } from "../state";
+import { readSecurityRevision } from "../state";
 import type { AdminPortContext } from "./contracts";
 import { ACCOUNT_POLICY_VERSION, SsoCutoverAccountAdminPort } from "./contracts";
-import { failure } from "./failures";
-import { authorityRevision } from "./mappers";
+import { createAccountFailure } from "./failures";
+import { buildAuthorityRevision } from "./mappers";
 
 export function assertWorkspaceExists(db: Db, workspaceId: string): { id: string; name: string } {
   const row = getRow(db, "accounts", workspaceId);
-  if (!row) throw failure("NOT_FOUND", "The workspace does not exist.");
+  if (!row) throw createAccountFailure("NOT_FOUND", "The workspace does not exist.");
   return { id: String(row.id), name: String(row.name) };
 }
 
-export function actorRole(db: Db, actor: ActorContext, workspaceId: string): Role {
+export function assertActorRole(db: Db, actor: ActorContext, workspaceId: string): Role {
   const role = getActiveMemberRole(db, workspaceId, actor.principalId);
-  if (!role) throw failure("NOT_MEMBER", "The actor is not a member of this workspace.");
+  if (!role) throw createAccountFailure("NOT_MEMBER", "The actor is not a member of this workspace.");
   return role;
 }
 
@@ -35,8 +35,8 @@ export function assertAccountAuthority(
 ): Role {
   assertWorkspaceExists(db, workspaceId);
   if (trustedLocal) return "owner";
-  const role = actorRole(db, actor, workspaceId);
-  if (!canAdministerAccount(role, action)) throw failure("FORBIDDEN", "Forbidden.");
+  const role = assertActorRole(db, actor, workspaceId);
+  if (!canAdministerAccount(role, action)) throw createAccountFailure("FORBIDDEN", "Forbidden.");
   return role;
 }
 
@@ -48,10 +48,18 @@ export function assertAdministrativeAssurance(
 ): void {
   if (trustedLocal) return;
   if (!actor.fresh) {
-    throw failure("SESSION_NOT_FRESH", "A fresh sign-in is required for this account operation.", commandId);
+    throw createAccountFailure(
+      "SESSION_NOT_FRESH",
+      "A fresh sign-in is required for this account operation.",
+      commandId,
+    );
   }
   if (requireMfa && !actor.mfaSatisfied) {
-    throw failure("MFA_REQUIRED", "Multi-factor authentication is required for this account operation.", commandId);
+    throw createAccountFailure(
+      "MFA_REQUIRED",
+      "Multi-factor authentication is required for this account operation.",
+      commandId,
+    );
   }
 }
 
@@ -70,14 +78,14 @@ export function assertInvitationAuthority(
   assertAccountAuthority(db, actor, workspaceId, "manage-invitations", trustedLocal);
 }
 
-export function existingWorkspaceIds(db: Db): ReadonlySet<string> {
+export function readExistingWorkspaceIds(db: Db): ReadonlySet<string> {
   return new Set((db.prepare(`SELECT id FROM accounts`).all() as Array<{ id: string }>).map(({ id }) => id));
 }
 
-export function roleMap(
+export function readActorRolesByWorkspaceId(
   db: Db,
   principalId: string,
-  workspaceIds: ReadonlySet<string> = existingWorkspaceIds(db),
+  workspaceIds: ReadonlySet<string> = readExistingWorkspaceIds(db),
 ): Map<string, Role> {
   return new Map(
     listMembershipsForUser(db, principalId)
@@ -104,7 +112,11 @@ export function roleMap(
  * the actor out-rank the target in EVERY workspace the target appears in, so adding workspaces to
  * the target's map can only hold the actor to a stricter test, never a laxer one.
  */
-export function targetRoleMap(db: Db, principalId: string, workspaceIds: ReadonlySet<string>): Map<string, Role> {
+export function readTargetRolesByWorkspaceId(
+  db: Db,
+  principalId: string,
+  workspaceIds: ReadonlySet<string>,
+): Map<string, Role> {
   return new Map(
     listMembershipsForUser(db, principalId)
       .filter((row) => workspaceIds.has(row.accountId))
@@ -112,7 +124,7 @@ export function targetRoleMap(db: Db, principalId: string, workspaceIds: Readonl
   );
 }
 
-export function authorityDecisions(
+export function buildAuthorityDecisionsByAction(
   db: Db,
   actorPrincipalId: string,
   targetPrincipalId: string,
@@ -130,7 +142,7 @@ export function authorityDecisions(
     for (const action of actions) decisions.set(action, { allowed: false, reason: "no-standing" });
     return decisions;
   }
-  const revision = authorityRevision(actorRevision, getSecurityRevision(db, targetPrincipalId));
+  const revision = buildAuthorityRevision(actorRevision, readSecurityRevision(db, targetPrincipalId));
   for (const action of actions) {
     const allowed = canPerformIdentityAdminAction(
       action,
@@ -155,15 +167,23 @@ export function evaluateAuthoritiesForTargets(
   actions: readonly IdentityAdminAction[],
 ): ReadonlyMap<string, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>> {
   if (targetPrincipalIds.length === 0) return new Map();
-  const workspaceIds = existingWorkspaceIds(db);
-  const actorRoles = roleMap(db, actorPrincipalId, workspaceIds);
-  const actorRevision = getSecurityRevision(db, actorPrincipalId);
+  const workspaceIds = readExistingWorkspaceIds(db);
+  const actorRoles = readActorRolesByWorkspaceId(db, actorPrincipalId, workspaceIds);
+  const actorRevision = readSecurityRevision(db, actorPrincipalId);
   const results = new Map<string, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>>();
   for (const targetPrincipalId of new Set(targetPrincipalIds)) {
-    const targetRoles = targetRoleMap(db, targetPrincipalId, workspaceIds);
+    const targetRoles = readTargetRolesByWorkspaceId(db, targetPrincipalId, workspaceIds);
     results.set(
       targetPrincipalId,
-      authorityDecisions(db, actorPrincipalId, targetPrincipalId, actions, actorRoles, targetRoles, actorRevision),
+      buildAuthorityDecisionsByAction(
+        db,
+        actorPrincipalId,
+        targetPrincipalId,
+        actions,
+        actorRoles,
+        targetRoles,
+        actorRevision,
+      ),
     );
   }
   return results;
@@ -241,17 +261,17 @@ export function createAuthority(
       // an active-only read here reports the person they just disabled as a non-member. The
       // authority question is answered below by evaluateAuthority, which still ranks roles.
       if (!getMembershipRow(db, workspaceId, targetPrincipalId)) {
-        throw failure("NOT_FOUND", "Not a member of this workspace.");
+        throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.");
       }
       const current = evaluateAuthority(db, actor, targetPrincipalId, action);
       if (!current.allowed) {
-        throw failure(
+        throw createAccountFailure(
           current.reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN",
           "Identity repair authority is no longer available.",
         );
       }
       if (current.revision !== expectedRevision) {
-        throw failure("CONFLICT", "Identity repair authority changed. Refresh and try again.");
+        throw createAccountFailure("CONFLICT", "Identity repair authority changed. Refresh and try again.");
       }
     },
   };

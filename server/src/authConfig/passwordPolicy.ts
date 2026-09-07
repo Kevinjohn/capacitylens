@@ -12,7 +12,7 @@ import {
   PasswordPolicyError,
   assertNoContextSpecificPassword,
   assertPasswordNotBreached,
-  scryptPasswordHasher,
+  createScryptPasswordHasher,
   type PasswordHasher,
 } from "../passwordSecurity";
 
@@ -60,7 +60,7 @@ export function buildPasswordPolicy({
     );
   }
   const breachCheckEnabled = env.CAPACITYLENS_PASSWORD_BREACH_CHECK !== "off" && !testRuntime;
-  const baseHasher = scryptPasswordHasher(testRuntime ? 2 ** 10 : undefined);
+  const baseHasher = createScryptPasswordHasher(testRuntime ? 2 ** 10 : undefined);
   const assertCredentialPasswordLength = (password: unknown): void => {
     if (typeof password !== "string") return;
     const failure = passwordLengthFailure(password);

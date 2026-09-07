@@ -2,13 +2,18 @@ import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { ApplicationSession, OperationReceipt, SessionSummary } from "@capacitylens/shared/account/types";
 import { SESSION_ABSOLUTE_TTL_SECONDS, SESSION_FRESH_AGE_SECONDS, SESSION_INACTIVITY_TTL_SECONDS } from "../../auth";
 import { tx } from "../../txn";
-import { receipt } from "../accountFlowRuntime";
-import { applicationSessionHandle } from "../sessionHandle";
+import { createOperationReceipt } from "../accountFlowRuntime";
+import { buildApplicationSessionHandle } from "../buildApplicationSessionHandle";
 import { getSessionAuthentication, removeSessionAssurance } from "../state";
 import type { IdentityPortContext } from "./contracts";
 import type { SsoCutoverIdentityPort } from "./contracts";
-import { iso, providerInstant, stableFallbackSessionId, timestampMs } from "./instants";
-import { invalidProviderSession, providerFailure } from "./vendorErrors";
+import {
+  buildIsoInstant,
+  parseProviderInstant,
+  buildStableFallbackSessionId,
+  parseTimestampMilliseconds,
+} from "./instants";
+import { createInvalidProviderSessionError, createProviderFailure } from "./vendorErrors";
 
 export function createSessions(
   context: Pick<IdentityPortContext, "input" | "accountTableExists" | "revokePrincipalSessionsInTx">,
@@ -26,12 +31,12 @@ export function createSessions(
         if (!resolved) return null;
         // A nonstandard adapter may omit the timestamp. Preserve authentication for ordinary reads,
         // but make the session provably stale so privileged freshness gates fail closed.
-        const createdAt = providerInstant(
+        const createdAt = parseProviderInstant(
           resolved.session?.createdAt ?? resolved.user.sessionCreatedAt ?? "1970-01-01T00:00:00.000Z",
           "createdAt",
         );
         const expiresAt = resolved.session?.expiresAt
-          ? providerInstant(resolved.session.expiresAt, "expiresAt")
+          ? parseProviderInstant(resolved.session.expiresAt, "expiresAt")
           : new Date(Date.parse(createdAt) + SESSION_ABSOLUTE_TTL_SECONDS * 1000).toISOString();
         const authentication = getSessionAuthentication(db, resolved.session?.id ?? "");
         if (!authentication) {
@@ -45,7 +50,7 @@ export function createSessions(
           // provenance must sign in again; treating it as password-authenticated would erase the
           // issuer/subject binding and could weaken an MFA or SSO policy.
           if (providerRows.length === 0 || providerRows.some((row) => row.providerId !== "credential")) {
-            throw invalidProviderSession("The session has no trustworthy authentication-method provenance.");
+            throw createInvalidProviderSessionError("The session has no trustworthy authentication-method provenance.");
           }
         }
         const linkedRows =
@@ -63,17 +68,21 @@ export function createSessions(
                 .all(resolved.user.id, authentication.providerId) as Array<{ providerId: string; accountId: string }>)
             : [];
         if (linkedRows.length > 1) {
-          throw invalidProviderSession(
+          throw createInvalidProviderSessionError(
             "The federated session maps to more than one immutable local issuer/subject binding.",
           );
         }
         const linked = linkedRows[0];
         const linkedIssuer = linked ? auth.federatedIssuers.get(linked.providerId) : undefined;
         if (authentication?.assurance === "federated" && (!linked || !linkedIssuer)) {
-          throw invalidProviderSession("The federated session has no active immutable local issuer/subject binding.");
+          throw createInvalidProviderSessionError(
+            "The federated session has no active immutable local issuer/subject binding.",
+          );
         }
         if (authMode === "sso" && authentication?.assurance !== "federated") {
-          throw invalidProviderSession("The SSO-only profile received a session without federated assurance metadata.");
+          throw createInvalidProviderSessionError(
+            "The SSO-only profile received a session without federated assurance metadata.",
+          );
         }
         const assurance =
           authentication?.assurance === "federated" && linked
@@ -82,7 +91,7 @@ export function createSessions(
               ? "mfa"
               : "password";
         const base = {
-          id: resolved.session?.id ?? stableFallbackSessionId(applicationId, resolved.user.id, createdAt),
+          id: resolved.session?.id ?? buildStableFallbackSessionId(applicationId, resolved.user.id, createdAt),
           principal: {
             id: resolved.user.id,
             displayName: resolved.user.name,
@@ -105,7 +114,7 @@ export function createSessions(
           : { ...base, assurance, providerId: null };
       } catch (error) {
         if (error instanceof AccountContractError) throw error;
-        throw providerFailure("Session verification is temporarily unavailable.", error);
+        throw createProviderFailure("Session verification is temporarily unavailable.", error);
       }
     },
     async signOut({ headers }) {
@@ -130,7 +139,7 @@ export function createSessions(
               : [],
         };
       } catch (error) {
-        throw providerFailure("Sign-out is temporarily unavailable.", error);
+        throw createProviderFailure("Sign-out is temporarily unavailable.", error);
       }
     },
     async listSessions({ actor }): Promise<readonly SessionSummary[]> {
@@ -156,9 +165,9 @@ export function createSessions(
         const expiredHandles: string[] = [];
         tx(db, () => {
           for (const row of rows) {
-            const createdAt = timestampMs(row.createdAt);
-            const updatedAt = timestampMs(row.updatedAt);
-            const providerExpiry = row.expiresAt === null ? null : timestampMs(row.expiresAt);
+            const createdAt = parseTimestampMilliseconds(row.createdAt);
+            const updatedAt = parseTimestampMilliseconds(row.updatedAt);
+            const providerExpiry = row.expiresAt === null ? null : parseTimestampMilliseconds(row.expiresAt);
             const stale =
               !Number.isFinite(createdAt) ||
               !Number.isFinite(updatedAt) ||
@@ -166,7 +175,7 @@ export function createSessions(
               now >= createdAt + SESSION_ABSOLUTE_TTL_SECONDS * 1000 ||
               now >= updatedAt + SESSION_INACTIVITY_TTL_SECONDS * 1000 ||
               (providerExpiry !== null && now >= providerExpiry);
-            const handle = applicationSessionHandle(applicationId, row.token);
+            const handle = buildApplicationSessionHandle(applicationId, row.token);
             if (stale) {
               input.masqueradeSessions?.prepare([handle], "session_expired");
               db.prepare(`DELETE FROM session WHERE id = ? AND userId = ?`).run(row.id, actor.principalId);
@@ -176,8 +185,8 @@ export function createSessions(
             }
             active.push({
               id: handle,
-              createdAt: iso(row.createdAt),
-              expiresAt: row.expiresAt === null ? null : iso(row.expiresAt),
+              createdAt: buildIsoInstant(row.createdAt),
+              expiresAt: row.expiresAt === null ? null : buildIsoInstant(row.expiresAt),
               current: handle === actor.sessionId,
             });
           }
@@ -185,7 +194,7 @@ export function createSessions(
         input.masqueradeSessions?.commit(expiredHandles);
         return active;
       } catch (error) {
-        throw providerFailure("Session listing is temporarily unavailable.", error);
+        throw createProviderFailure("Session listing is temporarily unavailable.", error);
       }
     },
     async revokeOwnSession({ actor, sessionId, command }): Promise<OperationReceipt> {
@@ -194,9 +203,11 @@ export function createSessions(
           id: string;
           token: string;
         }>;
-        const row = rows.find((candidate) => applicationSessionHandle(applicationId, candidate.token) === sessionId);
+        const row = rows.find(
+          (candidate) => buildApplicationSessionHandle(applicationId, candidate.token) === sessionId,
+        );
         if (row) {
-          const handle = applicationSessionHandle(applicationId, row.token);
+          const handle = buildApplicationSessionHandle(applicationId, row.token);
           tx(db, () => {
             input.masqueradeSessions?.prepare([handle], "session_revoked");
             db.prepare(`DELETE FROM session WHERE id = ? AND userId = ?`).run(row.id, actor.principalId);
@@ -204,9 +215,9 @@ export function createSessions(
           });
           input.masqueradeSessions?.commit([handle]);
         }
-        return receipt(command.commandId, row !== undefined);
+        return createOperationReceipt(command.commandId, row !== undefined);
       } catch (error) {
-        throw providerFailure("Session revocation is temporarily unavailable.", error);
+        throw createProviderFailure("Session revocation is temporarily unavailable.", error);
       }
     },
     async revokePrincipalSessions({ targetPrincipalId, command }): Promise<OperationReceipt> {
@@ -217,9 +228,9 @@ export function createSessions(
           "immediate",
         );
         input.masqueradeSessions?.commit(masqueradeHandles);
-        return receipt(command.commandId);
+        return createOperationReceipt(command.commandId);
       } catch (error) {
-        throw providerFailure("Session revocation is temporarily unavailable.", error);
+        throw createProviderFailure("Session revocation is temporarily unavailable.", error);
       }
     },
   };

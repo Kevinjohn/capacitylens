@@ -6,7 +6,7 @@ import { isKnownTable, isLifecycleEntity, isScopedTable } from "../routeShared";
 
 import { MAX_BATCH_OPS, type BatchOp, type ParsedBatchRequest } from "./types";
 
-export function validateBatchRequest(req: FastifyRequest, reply: FastifyReply): ParsedBatchRequest | null {
+export function parseBatchRequest(req: FastifyRequest, reply: FastifyReply): ParsedBatchRequest | null {
   const body = req.body as { ops?: unknown };
   if (!body || !Array.isArray(body.ops)) {
     reply.code(400).send({ error: "ops array is required" });

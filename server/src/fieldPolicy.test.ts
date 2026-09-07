@@ -4,8 +4,8 @@ import {
   GATED_FIELD_POLICIES,
   pinGatedFields,
   redactGatedEcho,
-  tableHasGatedFields,
-  visibilityForRole,
+  hasGatedFields,
+  resolveVisibilityForRole,
 } from "./fieldPolicy";
 
 const roles: Array<Role | null> = ["owner", "admin", "editor", "viewer", null];
@@ -13,7 +13,7 @@ const roles: Array<Role | null> = ["owner", "admin", "editor", "viewer", null];
 describe("field policy catalogue", () => {
   it("derives every policy visibility flag from the same role predicate", () => {
     for (const role of roles) {
-      const visibility = visibilityForRole(role);
+      const visibility = resolveVisibilityForRole(role);
       for (const policy of GATED_FIELD_POLICIES) {
         expect(visibility[policy.visKey]).toBe(role !== null && policy.visibleTo(role));
       }
@@ -22,8 +22,8 @@ describe("field policy catalogue", () => {
 
   it("identifies every governed table and no ordinary table", () => {
     const governed = new Set(GATED_FIELD_POLICIES.flatMap((policy) => policy.tables));
-    for (const table of governed) expect(tableHasGatedFields(table)).toBe(true);
-    expect(tableHasGatedFields("resources")).toBe(false);
+    for (const table of governed) expect(hasGatedFields(table)).toBe(true);
+    expect(hasGatedFields("resources")).toBe(false);
   });
 
   it("redacts note and private-name fields only for blind callers", () => {

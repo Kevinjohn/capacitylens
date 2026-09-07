@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { buildApp } from "./app";
+import { createApp } from "./app";
 import { openDb, insertAll, type Db } from "./db";
 import { upsertMember } from "./controlTables";
-import { authFromEnv, runAuthMigrations } from "./auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { PASSWORD_ENV, call, signUp } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import type { AuditSink } from "./audit";
@@ -40,7 +40,7 @@ describe("OFF mode — GET /api/accounts + GET /api/state?accountId=", () => {
   it("GET /api/accounts returns ALL seeded accounts as {id,name,role:owner} (no membership gate)", async () => {
     const db = openDb(":memory:");
     seedTwo(db);
-    const app = buildApp(db);
+    const app = createApp(db);
     const res = await call(app, { method: "GET", url: "/api/accounts" });
     expect(res.statusCode).toBe(200);
     // OFF mode tags every account with the trusted-local full-access sentinel role 'owner' (P1.12),
@@ -54,7 +54,7 @@ describe("OFF mode — GET /api/accounts + GET /api/state?accountId=", () => {
   it("GET /api/state?accountId=a1 returns ONLY a1; ?accountId=a2 returns ONLY a2", async () => {
     const db = openDb(":memory:");
     seedTwo(db);
-    const app = buildApp(db);
+    const app = createApp(db);
 
     const s1 = (await call(app, { method: "GET", url: "/api/state?accountId=a1" })).json();
     expect(s1.accounts.map((a: { id: string }) => a.id)).toEqual(["a1"]);
@@ -69,7 +69,7 @@ describe("OFF mode — GET /api/accounts + GET /api/state?accountId=", () => {
   it("no-arg GET /api/state STILL returns the WHOLE tree (backward-compat)", async () => {
     const db = openDb(":memory:");
     seedTwo(db);
-    const app = buildApp(db);
+    const app = createApp(db);
     const whole = (await call(app, { method: "GET", url: "/api/state" })).json();
     expect(whole.accounts.map((a: { id: string }) => a.id).sort()).toEqual(["a1", "a2"]);
     expect(whole.clients).toHaveLength(2);
@@ -79,7 +79,7 @@ describe("OFF mode — GET /api/accounts + GET /api/state?accountId=", () => {
   it("rejects an empty ?accountId= with 400", async () => {
     const db = openDb(":memory:");
     seedTwo(db);
-    const app = buildApp(db);
+    const app = createApp(db);
     const res = await call(app, { method: "GET", url: "/api/state?accountId=" });
     expect(res.statusCode).toBe(400);
   });
@@ -88,9 +88,9 @@ describe("OFF mode — GET /api/accounts + GET /api/state?accountId=", () => {
 /** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
 async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
-  const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
   await runAuthMigrations(auth!);
-  return { app: buildApp(db, { authMode: mode, auth }), db };
+  return { app: createApp(db, { authMode: mode, auth }), db };
 }
 
 describe("auth-on (password) — membership-existence guard", () => {
@@ -129,7 +129,7 @@ describe("PATCH /api/accounts/:id foreign-accountId parity with PUT", () => {
   it("rejects an asserted foreign accountId like PUT does, instead of silently dropping it", async () => {
     const db = openDb(":memory:");
     seedTwo(db);
-    const app = buildApp(db, { multiAccount: true });
+    const app = createApp(db, { multiAccount: true });
 
     const put = await app.inject({
       method: "PUT",
@@ -172,7 +172,7 @@ describe("audit attribution for account mutations", () => {
       },
       degraded: false,
     };
-    const app = buildApp(db, { multiAccount: true, audit: capturingSink });
+    const app = createApp(db, { multiAccount: true, audit: capturingSink });
 
     // A rejected foreign assertion must produce NO audit record attributed to the asserted tenant:
     await app.inject({

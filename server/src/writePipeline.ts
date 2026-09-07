@@ -1,9 +1,9 @@
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { type Db, deleteRow, getRow, upsertRow } from "./db";
-import { acceptedWriteFields, sanitizeWrite, validateWrite } from "./validate";
+import { buildAcceptedWriteFields, sanitizeWrite, assertValidWrite } from "./validate";
 import type { SanitizeWriteOptions } from "./fieldPolicy";
 import type { TenantStore } from "./tenantStore";
-import { nextServerRevision } from "./revision";
+import { createServerRevision } from "./revision";
 
 // THE SINGLE GENERIC-WRITE FUNNEL (Finding 7).
 //
@@ -74,7 +74,7 @@ export function checkEntityWriteBody(
       return { status: 400, error: "A string accountId is required." };
     }
   }
-  if (Object.keys(acceptedWriteFields(entity, row)).length === 0) {
+  if (Object.keys(buildAcceptedWriteFields(entity, row)).length === 0) {
     return { status: 400, error: "The request body contains no recognized fields." };
   }
   return null;
@@ -93,7 +93,7 @@ export function checkEntityWriteBody(
  * minted-Internal exception against the canonical generated row (an account's freshly-minted
  * Internal can be echoed in the same batch), then defers to this single message for other writes.
  */
-export function builtinInternalWriteGuard(
+export function resolveBuiltinWriteRejection(
   verb: WriteVerb,
   entity: string,
   existing: Record<string, unknown> | undefined,
@@ -133,7 +133,7 @@ export interface PreparedWrite {
  * pre-funnel), and a generated-builtin replacement (validated inside replaceGeneratedBuiltin against
  * its re-pointed projection). Everything else validates here.
  */
-export function prepareScopedWrite(params: {
+export function prepareScopedWrite(input: {
   store: TenantStore;
   entity: string;
   body: Record<string, unknown>;
@@ -141,7 +141,7 @@ export function prepareScopedWrite(params: {
   vis: SanitizeWriteOptions;
   verb: WriteVerb;
 }): PreparedWrite {
-  const { store, entity, body, existing, vis, verb } = params;
+  const { store, entity, body, existing, vis, verb } = input;
   const row = stampServerRevision(sanitizeWrite(entity, body, existing, vis), existing);
   // Finding 9: scope the referential read to the write's OWN account (accounts key on id; scoped
   // tables on accountId) instead of loadState(db)'s SELECT * over every tenant.
@@ -154,13 +154,13 @@ export function prepareScopedWrite(params: {
   const scopedState = needsSlice ? store.readFullSlice(scopeId) : emptyAppData();
   // Builtin-client replacement is a PUT affordance only. POST cannot hand-craft builtin rows, and
   // PATCH never rewrites the generated Internal client.
-  const generatedReplacement = verb === "replace" ? generatedBuiltinReplacement(scopedState, entity, row) : null;
+  const generatedReplacement = verb === "replace" ? resolveGeneratedBuiltinReplacement(scopedState, entity, row) : null;
   // Defer ONLY an accounts CREATE (provisioning validates it inside its replay-safe closure) and a
   // generated-builtin replacement (replaceGeneratedBuiltin validates its own projection). An accounts
   // UPDATE, and every scoped write, validates here.
   const deferAccountsCreate = entity === "accounts" && existing === undefined;
   if (!deferAccountsCreate && !generatedReplacement) {
-    validateWrite(scopedState, entity, row, existing, lookup);
+    assertValidWrite(scopedState, entity, row, existing, lookup);
   }
   return { row, generatedReplacement, scopedState };
 }
@@ -173,7 +173,7 @@ export function stampServerRevision(
   row: Record<string, unknown>,
   existing?: Record<string, unknown>,
 ): Record<string, unknown> {
-  const now = nextServerRevision(existing?.updatedAt);
+  const now = createServerRevision(existing?.updatedAt);
   return {
     ...row,
     createdAt: typeof existing?.createdAt === "string" ? existing.createdAt : now,
@@ -184,7 +184,7 @@ export function stampServerRevision(
 // STATE parameter, not `db`: a pure existence check against the caller's already-loaded AppData
 // projection (the funnel's scoped read / the batch's incrementally-maintained projection), so it
 // never triggers a fresh read itself.
-export function generatedBuiltinReplacement(
+export function resolveGeneratedBuiltinReplacement(
   state: AppData,
   table: string,
   row: Record<string, unknown>,
@@ -219,7 +219,7 @@ export function replaceGeneratedBuiltin(
     ),
   };
   const existing = typeof row.id === "string" ? state.clients.find((client) => client.id === row.id) : undefined;
-  validateWrite(projected, "clients", row, existing as unknown as Record<string, unknown> | undefined);
+  assertValidWrite(projected, "clients", row, existing as unknown as Record<string, unknown> | undefined);
 
   // Temporarily unflag the old row before inserting the replacement so the partial unique index is
   // never violated. The old FK target remains present until every dependent project has moved.
@@ -234,7 +234,7 @@ export function replaceGeneratedBuiltin(
     upsertRow(db, "projects", {
       ...project,
       createdAt: existing.createdAt,
-      updatedAt: nextServerRevision(existing.updatedAt),
+      updatedAt: createServerRevision(existing.updatedAt),
     } as unknown as Record<string, unknown>);
   }
   deleteRow(db, "clients", generatedId);

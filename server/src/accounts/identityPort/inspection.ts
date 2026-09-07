@@ -1,8 +1,8 @@
 import type { PrincipalSummary } from "@capacitylens/shared/account/types";
 import type { IdentityPortContext } from "./contracts";
 import type { SsoCutoverIdentityFacts, SsoCutoverIdentityPort } from "./contracts";
-import { timestampMs } from "./instants";
-import { providerFailure } from "./vendorErrors";
+import { parseTimestampMilliseconds } from "./instants";
+import { createProviderFailure } from "./vendorErrors";
 
 export function createInspection(
   context: Pick<
@@ -91,7 +91,7 @@ export function createInspection(
                 }>
               )
                 .filter(({ expiresAt }) => {
-                  const expiry = timestampMs(expiresAt);
+                  const expiry = parseTimestampMilliseconds(expiresAt);
                   return !Number.isFinite(expiry) || expiry > Date.now();
                 })
                 .map(({ value }) => value)
@@ -160,7 +160,7 @@ export function createInspection(
         }
         return summaries;
       } catch (error) {
-        throw providerFailure("Identity summaries are temporarily unavailable.", error);
+        throw createProviderFailure("Identity summaries are temporarily unavailable.", error);
       }
     },
   };

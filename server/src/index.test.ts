@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { authFromEnv, runAuthMigrations } from "./auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { openDb } from "./db";
 import { upsertMember } from "./controlTables";
 
@@ -59,7 +59,7 @@ describe("server entrypoint startup refusals", { timeout: 30_000 }, () => {
     const directory = mkdtempSync(join(tmpdir(), "capacitylens-sso-cutover-test-"));
     const database = join(directory, "capacitylens.db");
     const db = openDb(database);
-    const password = authFromEnv(db, {
+    const password = createAuthFromEnvironment(db, {
       SMALLSASS_ACCOUNT_MODE: "password",
       SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
       SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",

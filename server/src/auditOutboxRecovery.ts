@@ -24,7 +24,7 @@ interface AuditOutboxHeadRow {
   createdAt: string;
 }
 
-function payloadStatus(payload: string): AuditOutboxPayloadStatus {
+function parsePayloadStatus(payload: string): AuditOutboxPayloadStatus {
   let parsed: unknown;
   try {
     parsed = JSON.parse(payload);
@@ -46,7 +46,7 @@ export function inspectAuditOutboxHead(db: Db): AuditOutboxHeadInspection | null
   if (!row) return null;
   return {
     ...row,
-    status: payloadStatus(row.payload),
+    status: parsePayloadStatus(row.payload),
     payloadBytes: Buffer.byteLength(row.payload, "utf8"),
     payloadSha256: createHash("sha256").update(row.payload).digest("hex"),
   };

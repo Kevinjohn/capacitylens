@@ -13,7 +13,7 @@ export function appendAppDataSlice(target: AppData, slice: AppData): void {
  * same batch. Accept that protected duplicate only when every stored client field is already the
  * exact server-generated value. Persistence timestamps are server-owned, so compare them after
  * pinning the no-op candidate to the generated revision returned in the receipt. */
-export function matchesMintedInternalClient(
+export function isMatchingMintedInternalClient(
   existing: Record<string, unknown>,
   incoming: Record<string, unknown>,
 ): boolean {

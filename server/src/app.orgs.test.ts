@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { buildApp } from "./app";
-import { openDb, insertAll, loadState, type Db } from "./db";
+import { createApp } from "./app";
+import { openDb, insertAll, readState, type Db } from "./db";
 import { getMemberRole, upsertMember } from "./controlTables";
-import { authFromEnv, runAuthMigrations, DEMO_USER } from "./auth";
+import { createAuthFromEnvironment, runAuthMigrations, DEMO_USER } from "./auth";
 import { PASSWORD_ENV, call, signUp } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import type { AuditSink } from "./audit";
@@ -35,10 +35,10 @@ async function appWithAuth(
   opts: { bootstrapToken?: string; multiAccount?: boolean; audit?: AuditSink } = {},
 ): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
-  const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
   await runAuthMigrations(auth!);
   return {
-    app: buildApp(db, {
+    app: createApp(db, {
       authMode: mode,
       auth,
       bootstrapToken: opts.bootstrapToken,
@@ -54,7 +54,7 @@ const createOrg = (app: FastifyInstance, payload: Record<string, unknown>, heade
 
 /** Assert the org `accountId` was created with a built-in Internal client and `userId` as Owner. */
 function assertUsableOrg(db: Db, accountId: string, userId: string): void {
-  const state = loadState(db);
+  const state = readState(db);
   const acc = state.accounts.find((a) => a.id === accountId);
   expect(acc, "account row exists").toBeDefined();
   const internal = state.clients.filter((c) => c.accountId === accountId && c.builtin === true);
@@ -109,7 +109,7 @@ describe("POST /api/orgs (P1.8) — auth-on", () => {
     expect(first.statusCode, first.body).toBe(201);
     expect(replay.statusCode).toBe(201);
     expect(replay.json()).toEqual(first.json());
-    expect(loadState(db).accounts).toHaveLength(1);
+    expect(readState(db).accounts).toHaveLength(1);
     assertUsableOrg(db, first.json().id as string, userId);
   });
 
@@ -138,7 +138,7 @@ describe("POST /api/orgs (P1.8) — auth-on", () => {
     ]);
 
     expect(responses.map((response) => response.statusCode).sort()).toEqual([201, 403]);
-    expect(loadState(db).accounts).toHaveLength(1);
+    expect(readState(db).accounts).toHaveLength(1);
   });
 
   it("zero-account bootstrap: a signed-up user creates the first org; a now-Owner can create a second", async () => {
@@ -146,7 +146,7 @@ describe("POST /api/orgs (P1.8) — auth-on", () => {
     // default once any account exists (see the "default cap" describe block); this test is about the
     // `allowed` authz matrix (owner-of-existing may provision more), so it opts out of the cap.
     const { app, db } = await appWithAuth({ multiAccount: true });
-    expect(loadState(db).accounts).toHaveLength(0); // first-run: no accounts
+    expect(readState(db).accounts).toHaveLength(0); // first-run: no accounts
     const { cookie, userId } = await signUp(app, "founder@capacitylens.dev");
 
     const first = await createOrg(app, { name: "First Studio" }, { cookie });
@@ -168,7 +168,7 @@ describe("POST /api/orgs (P1.8) — auth-on", () => {
 
     const res = await createOrg(app, { name: "Sneaky Studio" }, { cookie });
     expect(res.statusCode).toBe(403);
-    expect(loadState(db).accounts.map((a) => a.id)).toEqual(["a1"]); // nothing created
+    expect(readState(db).accounts.map((a) => a.id)).toEqual(["a1"]); // nothing created
   });
 
   it("owner of an existing account is ALLOWED to create another (and becomes its Owner)", async () => {
@@ -216,7 +216,7 @@ describe("POST /api/orgs (P1.8) — auth-on", () => {
     const result = await createOrg(app, { name: "Stale Session Company" }, { cookie });
     expect(result.statusCode).toBe(403);
     expect(result.json()).toMatchObject({ code: "SESSION_NOT_FRESH" });
-    expect(loadState(db).accounts.map((existing) => existing.id)).toEqual(["a1"]);
+    expect(readState(db).accounts.map((existing) => existing.id)).toEqual(["a1"]);
     expect(getMemberRole(db, "a1", userId)).toBe("owner");
   });
 
@@ -229,7 +229,7 @@ describe("POST /api/orgs (P1.8) — auth-on", () => {
 
       const res = await createOrg(app, { name: `Org ${role}` }, { cookie });
       expect(res.statusCode, `${role} denied: ${res.body}`).toBe(403);
-      expect(loadState(db).accounts.map((a) => a.id)).toEqual(["a1"]);
+      expect(readState(db).accounts.map((a) => a.id)).toEqual(["a1"]);
     }
   });
 
@@ -259,7 +259,7 @@ describe("POST /api/orgs (P1.8) — auth-on", () => {
     const id = res.json().id as string;
     expect(typeof id).toBe("string");
     expect(id.length).toBeGreaterThan(0); // server-minted when the body omits one
-    const acc = loadState(db).accounts.find((a) => a.id === id)!;
+    const acc = readState(db).accounts.find((a) => a.id === id)!;
     expect(acc.color).toMatch(/^#[0-9a-fA-F]{6}$/); // junk colour repaired to a valid hex
     assertUsableOrg(db, id, userId);
   });
@@ -289,7 +289,7 @@ describe("POST /api/orgs (P1.8) — bootstrap token", () => {
     expect(wrong.statusCode).toBe(403);
     const absent = await createOrg(app, { name: "Y" }, { cookie });
     expect(absent.statusCode).toBe(403);
-    expect(loadState(db).accounts.map((a) => a.id)).toEqual(["a1"]);
+    expect(readState(db).accounts.map((a) => a.id)).toEqual(["a1"]);
   });
 
   it("the token path is DISABLED when the env is unset: even the matching-looking header is 403", async () => {
@@ -310,7 +310,7 @@ describe("POST /api/orgs (P1.8) — OFF mode (trusted-local)", () => {
     // deployment-shape policy, not an authz rule; see the "default cap" describe block for the
     // OFF-mode-does-NOT-bypass case). This test is about OFF's trusted-local authz no-op, so it
     // opts out of the cap to keep exercising the pre-existing "an account already exists" scenario.
-    const app = buildApp(db, { multiAccount: true }); // authMode defaults to 'off'
+    const app = createApp(db, { multiAccount: true }); // authMode defaults to 'off'
     seedOne(db); // even with an account already present, OFF mode allows (trusted-local)
 
     const res = await createOrg(app, { name: "Local Co" });
@@ -331,13 +331,13 @@ describe("POST /api/orgs (P1.8) — atomicity", () => {
     const ok = await createOrg(app, { name: "Real Org" }, { cookie });
     expect(ok.statusCode, ok.body).toBe(201);
     const id = ok.json().id as string;
-    const before = loadState(db);
+    const before = readState(db);
 
     // Re-POST with the SAME explicit id: inserting the account row hits a PRIMARY KEY conflict, so the
     // tx throws and rolls back — no second Internal client, no membership churn, account list unchanged.
     const dup = await createOrg(app, { id, name: "Dup Org" }, { cookie });
     expect(dup.statusCode).toBe(400); // constraint failure -> caller-fault 400
-    const after = loadState(db);
+    const after = readState(db);
     expect(after.accounts.map((a) => a.id).sort()).toEqual(before.accounts.map((a) => a.id).sort());
     expect(after.clients.filter((c) => c.accountId === id)).toHaveLength(1); // still exactly one Internal
     expect(getMemberRole(db, id, userId)).toBe("owner"); // membership unchanged
@@ -369,7 +369,7 @@ describe("POST /api/orgs (P1.8) — single-company cap (default multiAccount: fa
     expect(res.statusCode).toBe(403);
     expect(res.json()).toMatchObject({ error: CAP_MESSAGE, code: "FORBIDDEN" });
     expect(res.json().commandId).toEqual(expect.any(String));
-    expect(loadState(db).accounts.map((a) => a.id)).toEqual(["a1"]); // nothing created
+    expect(readState(db).accounts.map((a) => a.id)).toEqual(["a1"]); // nothing created
   });
 
   it("2nd org via a MATCHING bootstrap token -> 403 policy message (the token authorises WHO, not WHETHER)", async () => {
@@ -382,19 +382,19 @@ describe("POST /api/orgs (P1.8) — single-company cap (default multiAccount: fa
     expect(res.statusCode).toBe(403);
     expect(res.json()).toMatchObject({ error: CAP_MESSAGE, code: "FORBIDDEN" });
     expect(res.json().commandId).toEqual(expect.any(String));
-    expect(loadState(db).accounts.map((a) => a.id)).toEqual(["a1"]);
+    expect(readState(db).accounts.map((a) => a.id)).toEqual(["a1"]);
   });
 
   it("2nd org in OFF mode -> 403 policy message (OFF is trusted-local for authz, but the cap is NOT an authz rule)", async () => {
     const db = openDb(":memory:");
-    const app = buildApp(db); // authMode defaults to 'off'; multiAccount defaults to false
+    const app = createApp(db); // authMode defaults to 'off'; multiAccount defaults to false
     seedOne(db);
 
     const res = await createOrg(app, { name: "Local Co 2" });
     expect(res.statusCode).toBe(403);
     expect(res.json()).toMatchObject({ error: CAP_MESSAGE, code: "FORBIDDEN" });
     expect(res.json().commandId).toEqual(expect.any(String));
-    expect(loadState(db).accounts.map((a) => a.id)).toEqual(["a1"]);
+    expect(readState(db).accounts.map((a) => a.id)).toEqual(["a1"]);
   });
 });
 
@@ -466,7 +466,7 @@ describe("GET /api/auth/me — canCreateAccount mirrors the /api/orgs gate", () 
   it("OFF mode + multiAccount -> canCreateAccount:true (trusted-local, no membership tier)", async () => {
     const db = openDb(":memory:");
     seedOne(db);
-    const app = buildApp(db, { multiAccount: true }); // authMode defaults to 'off'
+    const app = createApp(db, { multiAccount: true }); // authMode defaults to 'off'
     const res = await me(app);
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ multiAccount: true, canCreateAccount: true });

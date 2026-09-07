@@ -1,10 +1,10 @@
 import rateLimitPlugin from "@fastify/rate-limit";
 import helmetPlugin from "@fastify/helmet";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { requestClientIp } from "./appErrors";
+import { resolveRequestClientIp } from "./appErrors";
 import type { AppOptions } from "../app";
 
-export function installSecurityPlugins(app: FastifyInstance, opts: AppOptions, rateLimitMax: number) {
+export function installSecurityPlugins(app: FastifyInstance, options: AppOptions, rateLimitMax: number) {
   // Baseline security headers (P0.5.3, @fastify/helmet): ON by default — these are pure
   // hardening with no precondition, for an API server that returns JSON only (the SPA is
   // served by Nginx, not here). Registered EARLY, before route plugins, so its onRequest
@@ -42,7 +42,7 @@ export function installSecurityPlugins(app: FastifyInstance, opts: AppOptions, r
     frameguard: { action: "deny" },
     // OFF over HTTP (the default deploy: HTTP behind a TLS-terminating proxy); only emitted
     // when the operator asserts real HTTPS fronts the origin (opts.https / CAPACITYLENS_HTTPS=1).
-    hsts: opts.https === true ? { maxAge: 63072000, includeSubDomains: true } : false,
+    hsts: options.https === true ? { maxAge: 63072000, includeSubDomains: true } : false,
   });
 
   // Rate limiting (P1.5, flag CAPACITYLENS_RATE_LIMIT): registered ONLY when a positive limit
@@ -63,7 +63,7 @@ export function installSecurityPlugins(app: FastifyInstance, opts: AppOptions, r
           statusCode: context.statusCode,
         }),
       keyGenerator: (req: FastifyRequest) => {
-        return requestClientIp(req, opts.trustProxyHeaders === true);
+        return resolveRequestClientIp(req, options.trustProxyHeaders === true);
       },
     });
   }

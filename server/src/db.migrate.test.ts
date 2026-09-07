@@ -14,7 +14,7 @@ import {
   insertRow,
   isEmpty,
   isInitialized,
-  loadState,
+  readState,
   openDb,
   openDbConnection,
   planDatabaseMigrations,
@@ -32,7 +32,7 @@ import {
   FEDERATED_PRINCIPAL_PROVIDER_UNIQUE_INDEX,
   FEDERATED_SUBJECT_UNIQUE_INDEX,
   assertFederatedIdentitySchemaCurrent,
-  authFromEnv,
+  createAuthFromEnvironment,
   runAuthMigrations,
 } from "./auth";
 import { TABLES } from "./tables";
@@ -394,7 +394,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
       const repaired = openDb(copied.path);
       assertMigrationValuesPreserved(originalValues, captureMigrationValues(repaired), 7);
-      const state = loadState(repaired);
+      const state = readState(repaired);
       expect(state.clients.filter((client) => client.accountId === "a1" && client.builtin)).toHaveLength(1);
       expect(state.clients.find((client) => client.accountId === "a1" && client.builtin)?.id).toBe("internal:a1");
       expect(state.projects.find((project) => project.id === "p1")?.clientId).toBe("internal:a1");
@@ -430,7 +430,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
       const repaired = openDb(copied.path);
       assertMigrationValuesPreserved(originalValues, captureMigrationValues(repaired), 7);
-      const clients = loadState(repaired).clients.filter(({ accountId }) => accountId === "a1");
+      const clients = readState(repaired).clients.filter(({ accountId }) => accountId === "a1");
       expect(clients).toHaveLength(2);
       expect(new Set(clients.map(({ id }) => id)).size).toBe(2);
       expect(clients.find(({ builtin }) => builtin === true)?.id).toBe("internal:a1:1");
@@ -494,7 +494,7 @@ describe("schema migration of an existing on-disk DB", () => {
       db.close();
 
       const upgraded = openDb(path);
-      const state = loadState(upgraded);
+      const state = readState(upgraded);
       expect(state.accounts.find((a) => a.id === "a-legacy")?.color).toBe("#7adae3");
       expect(state.accounts.find((a) => a.id === "a-preset")?.color).toBe("#e02727");
       const history = upgraded
@@ -510,7 +510,7 @@ describe("schema migration of an existing on-disk DB", () => {
       // now-repaired colours untouched (the write-time guard is a no-op for already-migrated data).
       const reopened = openDb(path);
       expect(planDatabaseMigrations(reopened).migrations).toEqual([]);
-      const restate = loadState(reopened);
+      const restate = readState(reopened);
       expect(restate.accounts.find((a) => a.id === "a-legacy")?.color).toBe("#7adae3");
       expect(restate.accounts.find((a) => a.id === "a-preset")?.color).toBe("#e02727");
       reopened.close();
@@ -731,18 +731,18 @@ describe("schema migration of an existing on-disk DB", () => {
     expect(isInitialized(db)).toBe(false);
     expect(seedIfUninitialized(db, seed())).toBe(true);
     expect(isInitialized(db)).toBe(true);
-    expect(loadState(db).accounts.length).toBeGreaterThan(0);
+    expect(readState(db).accounts.length).toBeGreaterThan(0);
     // Second boot of the same DB: already initialised → no re-seed.
     expect(seedIfUninitialized(db, seed())).toBe(false);
 
     // The user deletes ALL their data (cascade empties every scoped table; _meta survives).
-    for (const a of loadState(db).accounts) deleteRow(db, "accounts", a.id);
-    expect(isEmpty(loadState(db))).toBe(true);
+    for (const a of readState(db).accounts) deleteRow(db, "accounts", a.id);
+    expect(isEmpty(readState(db))).toBe(true);
     expect(isInitialized(db)).toBe(true); // ...but still initialised
     // The regression guard: a boot against the empty-but-initialised DB must NOT re-seed
     // (gating on isEmpty() — the old bug — would have resurrected the demo dataset here).
     expect(seedIfUninitialized(db, seed())).toBe(false);
-    expect(isEmpty(loadState(db))).toBe(true);
+    expect(isEmpty(readState(db))).toBe(true);
     db.close();
   });
 
@@ -777,7 +777,7 @@ describe("schema migration of an existing on-disk DB", () => {
     expect(exitCode, stderr).toBe(0);
     const childResult = stdout.trim().split("\n").at(-1);
     expect([String(parentResult), childResult].sort()).toEqual(["false", "true"]);
-    expect(loadState(parentDb).accounts.length).toBeGreaterThan(0);
+    expect(readState(parentDb).accounts.length).toBeGreaterThan(0);
     parentDb.close();
     for (const suffix of ["", "-wal", "-shm"]) {
       try {
@@ -2828,7 +2828,7 @@ describe("schema migration of an existing on-disk DB", () => {
         released.close();
 
         const db = openDb(copied.path);
-        const configured = authFromEnv(db, FIXTURE_PASSWORD_ENV);
+        const configured = createAuthFromEnvironment(db, FIXTURE_PASSWORD_ENV);
         await runAuthMigrations(configured.auth!);
         assertMigrationValuesPreserved(originalValues, captureMigrationValues(db), version);
         expect(db.prepare(`SELECT id, email FROM user ORDER BY id`).all()).toEqual(originalUsers);
@@ -2843,14 +2843,14 @@ describe("schema migration of an existing on-disk DB", () => {
         }
 
         const fresh = openDb(":memory:");
-        const freshConfigured = authFromEnv(fresh, FIXTURE_PASSWORD_ENV);
+        const freshConfigured = createAuthFromEnvironment(fresh, FIXTURE_PASSWORD_ENV);
         await runAuthMigrations(freshConfigured.auth!);
         expect(schemaFingerprint(db)).toEqual(schemaFingerprint(fresh));
         fresh.close();
         db.close();
 
         const reopened = openDb(copied.path);
-        const reopenedConfigured = authFromEnv(reopened, FIXTURE_PASSWORD_ENV);
+        const reopenedConfigured = createAuthFromEnvironment(reopened, FIXTURE_PASSWORD_ENV);
         await runAuthMigrations(reopenedConfigured.auth!);
         expect(planDatabaseMigrations(reopened).migrations).toEqual([]);
         expect(reopened.prepare(`PRAGMA foreign_key_check`).all()).toEqual([]);
@@ -2918,7 +2918,7 @@ describe("migration ledger checksum supersession (v11 alpha-line amendment)", ()
       const rebooted = openDb(path);
       expect(planDatabaseMigrations(rebooted).migrations).toEqual([]);
       // Subsequent behaviour is normal: the data is intact and the DB stays writable.
-      expect(loadState(rebooted).accounts.find((a) => a.id === "a1")?.name).toBe("Studio");
+      expect(readState(rebooted).accounts.find((a) => a.id === "a1")?.name).toBe("Studio");
       insertRow(rebooted, "accounts", {
         id: "a2",
         name: "Second",

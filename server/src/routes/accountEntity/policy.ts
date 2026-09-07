@@ -40,12 +40,12 @@ export function countAccounts(db: Db): number {
  * only for the CREATE case (no existing row) — an UPDATE/DELETE of an already-existing account is
  * never capped; enforcement is create-time only, per AppOptions.multiAccount.
  */
-export function accountCreateCapped(db: Db, multiAccount: boolean): boolean {
+export function isAccountCreateCapped(db: Db, multiAccount: boolean): boolean {
   return !multiAccount && countAccounts(db) > 0;
 }
 
 /** Server-owned revision fields are result metadata, not semantic account-command input. */
-export function canonicalAccountProductPayload(row: Record<string, unknown>): Record<string, unknown> {
+export function buildCanonicalAccountProductPayload(row: Record<string, unknown>): Record<string, unknown> {
   const canonical = { ...row };
   delete canonical.createdAt;
   delete canonical.updatedAt;
@@ -69,7 +69,7 @@ export function canonicalAccountProductPayload(row: Record<string, unknown>): Re
  * @param existing the stored row (undefined on a create — always passes)
  * @param incoming the sanitised candidate row, before it is persisted
  */
-export function accountFieldsFrozen(
+export function hasFrozenAccountFieldChanges(
   existing: Record<string, unknown> | undefined,
   incoming: Record<string, unknown>,
 ): boolean {

@@ -1,5 +1,5 @@
 import type { AuditSink } from "./audit";
-import { drainAuditOutbox, pendingAuditCount } from "./auditOutbox";
+import { drainAuditOutbox, readPendingAuditCount } from "./auditOutbox";
 import type { Db } from "./db";
 
 export interface AuditOutboxDrainer {
@@ -34,13 +34,13 @@ export function createAuditOutboxDrainer(
   const drainOnce = (): boolean => {
     if (stopped || !db.isOpen) return true;
     const delivered = drainAuditOutbox(db, sink);
-    if (delivered && pendingAuditCount(db) > 0) scheduleNext();
+    if (delivered && readPendingAuditCount(db) > 0) scheduleNext();
     return delivered;
   };
 
   return {
     drainOnce,
-    pendingCount: () => (db.isOpen ? pendingAuditCount(db) : 0),
+    pendingCount: () => (db.isOpen ? readPendingAuditCount(db) : 0),
     stop() {
       stopped = true;
       if (scheduled !== null) clearImmediate(scheduled);

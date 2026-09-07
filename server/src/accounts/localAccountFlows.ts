@@ -8,20 +8,20 @@ import type {
 import type { ActorContext, CommandIdentity, PasswordResetCeremony } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 import { tx } from "../txn";
-import { accountAuditWriter, type AccountAuditInput } from "./accountFlowRuntime";
+import { createAccountAuditWriter, type AccountAuditInput } from "./accountFlowRuntime";
 import type { LocalIdentityPort } from "./betterAuthIdentityPort";
 import { getAccountCommandById, getAccountCommandByIdForReconciliation, terminateCommand } from "./commands";
-import { denied } from "./flows/failures";
-import { inviteSignup } from "./flows/inviteSignup";
-import { passwordReset } from "./flows/passwordReset";
-import { reads } from "./flows/reads";
-import { storedReconciliationRepair } from "./flows/reconciliationRepair";
-import { sessionRevocation } from "./flows/sessionRevocation";
-import { workspaceLifecycle } from "./flows/workspaceLifecycle";
-import { KeyedOperationLock } from "./operationLock";
+import { createAuthorityDenial } from "./flows/failures";
+import { createInviteSignupFlows } from "./flows/inviteSignup";
+import { createPasswordResetFlows } from "./flows/passwordReset";
+import { createAccountReadFlows } from "./flows/reads";
+import { parseStoredReconciliationRepair } from "./flows/reconciliationRepair";
+import { createSessionRevocationFlows } from "./flows/sessionRevocation";
+import { createWorkspaceLifecycleFlows } from "./flows/workspaceLifecycle";
+import { KeyedOperationLock } from "./KeyedOperationLock";
 import type { LocalAccountAdminPort } from "./sqliteAccountAdminPort";
-import { WriteOnceSecretReplay } from "./writeOnceSecretReplay";
-export { actorContextFromSession } from "./flows/actorContext";
+import { WriteOnceSecretReplay } from "./WriteOnceSecretReplay";
+export { buildActorContextFromSession } from "./flows/actorContext";
 export { CorruptAccountCommandStateError } from "./flows/reconciliationRepair";
 
 export interface LocalAccountFlows extends AccountFlows {
@@ -88,7 +88,7 @@ export function localAccountFlows(input: {
   writeOnceReplayCapacity?: number;
 }): LocalAccountFlows {
   const { applicationId, db, identity, administration, lock, eraseProductWorkspaceInTx } = input;
-  const audit = accountAuditWriter(applicationId, input.audit);
+  const audit = createAccountAuditWriter(applicationId, input.audit);
   const persistTerminalOutcome = (write: () => boolean | void, event: AccountAuditInput): boolean | void =>
     tx(
       db,
@@ -124,7 +124,7 @@ export function localAccountFlows(input: {
         command,
       },
     );
-    throw denied(reason, deniedAction, command.commandId);
+    throw createAuthorityDenial(reason, deniedAction, command.commandId);
   };
   const resetReplay = new WriteOnceSecretReplay<PasswordResetCeremony>(input.writeOnceReplayCapacity ?? 128);
   // Every live coordinator execution and its reconciliation read share this key. The NUL prefix
@@ -147,11 +147,11 @@ export function localAccountFlows(input: {
     commandExecutionKey,
   };
   return {
-    ...workspaceLifecycle(context),
-    ...reads(context),
-    ...inviteSignup(context),
-    ...passwordReset(context),
-    ...sessionRevocation(context),
+    ...createWorkspaceLifecycleFlows(context),
+    ...createAccountReadFlows(context),
+    ...createInviteSignupFlows(context),
+    ...createPasswordResetFlows(context),
+    ...createSessionRevocationFlows(context),
 
     async reconcileCommand({ command, operation }): Promise<CommandOutcome | null> {
       const matchesRequest = (row: ReturnType<typeof getAccountCommandById>): boolean =>
@@ -179,7 +179,7 @@ export function localAccountFlows(input: {
           };
         }
         if (row.status === "reconciliation_required") {
-          const stored = storedReconciliationRepair(row, operation);
+          const stored = parseStoredReconciliationRepair(row, operation);
           return {
             status: "reconciliation-required",
             receipt: { commandId: row.commandId, observedAt: row.updatedAt },

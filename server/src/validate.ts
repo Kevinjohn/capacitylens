@@ -23,7 +23,7 @@ import {
 import type { Activity, AppData, AppDataKey, Resource, ScopedEntityKey } from "@capacitylens/shared/types/entities";
 import { ValidationError } from "./validate/errors";
 export { assertIdPresent, ValidationError } from "./validate/errors";
-export { acceptedFieldNames, acceptedWriteFields, appliedRequestedFieldNames } from "./validate/fields";
+export { listAcceptedFieldNames, buildAcceptedWriteFields, listAppliedRequestedFieldNames } from "./validate/fields";
 export { IMMUTABLE_ACCOUNT_FIELDS, sanitizeWrite } from "./validate/sanitize";
 // SanitizeWriteOptions is owned by fieldPolicy.ts (the single source of role-gated field policy);
 // re-exported here so existing importers (app.ts) keep their `from './validate'` import unchanged.
@@ -43,7 +43,7 @@ const SCOPED_REF_TABLES: ScopedEntityKey[] = ["projects", "phases", "activities"
  * entity (it carries id/accountId/timestamps). Throws ValidationError on any
  * violation so the route can map it to 400 rather than leaking it as a 500.
  */
-export function validateWrite(
+export function assertValidWrite(
   state: AppData,
   table: string,
   row: Record<string, unknown>,

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import type { AuditEntry, AuditSink } from "./audit";
-import { authFromEnv, runAuthMigrations, SESSION_INACTIVITY_TTL_SECONDS } from "./auth";
-import { buildApp } from "./app";
+import { createAuthFromEnvironment, runAuthMigrations, SESSION_INACTIVITY_TTL_SECONDS } from "./auth";
+import { createApp } from "./app";
 import { upsertMember } from "./controlTables";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { insertAll, openDb, type Db } from "./db";
@@ -37,7 +37,7 @@ async function fixture(options: { multiAccount?: boolean } = {}): Promise<{
   auditEvents: AuditEntry[];
 }> {
   const db = trackDb(openDb(":memory:"));
-  const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
   await runAuthMigrations(auth!);
   const auditEvents: AuditEntry[] = [];
   const audit: AuditSink = {
@@ -47,7 +47,7 @@ async function fixture(options: { multiAccount?: boolean } = {}): Promise<{
       return true;
     },
   };
-  return { app: trackApp(buildApp(db, { authMode: mode, auth, audit, ...options })), db, auditEvents };
+  return { app: trackApp(createApp(db, { authMode: mode, auth, audit, ...options })), db, auditEvents };
 }
 
 async function memberFixture(
@@ -197,7 +197,7 @@ describe("identity masquerade", () => {
   it("keeps the feature unavailable in trusted-local mode", async () => {
     const db = trackDb(openDb(":memory:"));
     seedAccount(db);
-    const app = trackApp(buildApp(db));
+    const app = trackApp(createApp(db));
     expect(
       (
         await call(app, {

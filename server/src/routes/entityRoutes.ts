@@ -6,9 +6,9 @@ import type { AuthMode } from "../auth";
 import { deleteRow, getRow, insertRow, type Db, type RewrittenAllocationRevision, upsertRow } from "../db";
 import type { SanitizeWriteOptions } from "../fieldPolicy";
 import type { TenantStore } from "../tenantStore";
-import { appliedRequestedFieldNames, sanitizeWrite, validateWrite } from "../validate";
+import { listAppliedRequestedFieldNames, sanitizeWrite, assertValidWrite } from "../validate";
 import {
-  builtinInternalWriteGuard,
+  resolveBuiltinWriteRejection,
   checkEntityWriteBody,
   prepareScopedWrite,
   replaceGeneratedBuiltin,
@@ -37,13 +37,13 @@ export interface EntityRouteDependencies {
     options?: { concealNonMembership?: boolean },
   ) => boolean;
   fieldVisibility: (req: FastifyRequest, table: string, accountId: unknown) => SanitizeWriteOptions;
-  redact: (table: string, row: Record<string, unknown>, vis: SanitizeWriteOptions) => Record<string, unknown>;
+  redact: (table: string, row: Record<string, unknown>, visibility: SanitizeWriteOptions) => Record<string, unknown>;
   commitProductAudit: (reply: FastifyReply, record: AuditRecord, mutation: () => void) => boolean;
   fail: (reply: FastifyReply, error: unknown) => FastifyReply;
 }
 
 /** Stamp `ts` and assemble the 7-field AuditRecord shared by the generic handlers. */
-function buildAuditRecord(
+function createAuditRecord(
   userId: string,
   accountId: string,
   action: AuditRecord["action"],
@@ -79,7 +79,7 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
     const bodyCheck = checkEntityWriteBody("create", entity, req.body, undefined, scoped);
     if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
     const requestRow = req.body as Record<string, unknown>;
-    const builtinCheck = builtinInternalWriteGuard("create", entity, undefined, requestRow);
+    const builtinCheck = resolveBuiltinWriteRejection("create", entity, undefined, requestRow);
     if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error });
     // P1.5 write gate (scoped tables only).
     if (scoped) {
@@ -88,7 +88,7 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
     try {
       // P1.6: a note-blind writer CREATING time off gets its `note` stripped (nothing stored
       // to preserve; they could never read back a note they authored) — see sanitizeWrite.
-      const vis = fieldVisibilityFor(req, entity, requestRow.accountId);
+      const visibility = fieldVisibilityFor(req, entity, requestRow.accountId);
       // Finding 7/9 funnel: sanitize + stamp + ACCOUNT-SCOPED read + validate in one place (was an
       // inline sanitize/stamp + a full-DB loadState here).
       const { row } = prepareScopedWrite({
@@ -96,23 +96,23 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
         entity,
         body: requestRow,
         existing: undefined,
-        vis,
+        vis: visibility,
         verb: "create",
       });
-      const auditRecord = buildAuditRecord(
+      const auditRecord = createAuditRecord(
         req.user!.id,
         (row.accountId as string | undefined) ?? (row.id as string),
         "create",
         entity,
         row.id as string,
-        appliedRequestedFieldNames(entity, requestRow, undefined, row),
+        listAppliedRequestedFieldNames(entity, requestRow, undefined, row),
       );
       commitProductAudit(reply, auditRecord, () => {
         insertRow(db, entity, row);
       });
       return reply.code(201).send(row);
-    } catch (err) {
-      return sendFail(reply, err);
+    } catch (error) {
+      return sendFail(reply, error);
     }
   });
 
@@ -132,7 +132,7 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
     if (scoped && !authorize(req, reply, body.accountId as string, "write")) return;
     try {
       const existing = getRow(db, entity, id);
-      const builtinCheck = builtinInternalWriteGuard("replace", entity, existing, body);
+      const builtinCheck = resolveBuiltinWriteRejection("replace", entity, existing, body);
       if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error });
       // Ordinary Editors may manage clients, but changing the server-owned Internal singleton's
       // identity also rewrites every referencing project. Preserve the documented legacy-id
@@ -154,7 +154,7 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
       // write (their round-tripped row was redacted, so a bare upsert would NULL a note they
       // never saw — see sanitizeWrite) AND to redact the note from everything echoed back below,
       // the 409 conflict payload included.
-      const vis = fieldVisibilityFor(req, entity, body.accountId);
+      const visibility = fieldVisibilityFor(req, entity, body.accountId);
       // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row — the
       // predicate is isStaleWrite, SHARED with the batch loop so the two paths can't drift.
       // The 409's `current` payload is a READ of the stored row, so it gets the same note
@@ -163,7 +163,7 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
       if (optimisticConcurrency && isStaleWrite(existing, body)) {
         return reply.code(409).send({
           error: "The record was modified more recently on the server.",
-          current: redactWriteEcho(entity, existing, vis),
+          current: redactWriteEcho(entity, existing, visibility),
         });
       }
       // Finding 7/9 funnel: sanitize + stamp + ACCOUNT-SCOPED read + validate in one place (was an
@@ -174,16 +174,16 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
         entity,
         body,
         existing,
-        vis,
+        vis: visibility,
         verb: "replace",
       });
-      const auditRecord = buildAuditRecord(
+      const auditRecord = createAuditRecord(
         req.user!.id,
         (body.accountId as string | undefined) ?? id,
         existing ? "update" : "create",
         entity,
         id,
-        appliedRequestedFieldNames(entity, body, existing, row),
+        listAppliedRequestedFieldNames(entity, body, existing, row),
       );
       let rewrittenAllocations: RewrittenAllocationRevision[] = [];
       commitProductAudit(reply, auditRecord, () => {
@@ -197,10 +197,10 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
         }
       });
       // A write response is a read: apply the same note/private-name projections as /api/state.
-      const echo = redactWriteEcho(entity, row, vis);
+      const echo = redactWriteEcho(entity, row, visibility);
       return reply.code(200).send(shapeActivityWriteEcho(entity, echo, rewrittenAllocations));
-    } catch (err) {
-      return sendFail(reply, err);
+    } catch (error) {
+      return sendFail(reply, error);
     }
   });
 
@@ -229,13 +229,13 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
         })
       )
         return;
-      const builtinCheck = builtinInternalWriteGuard("patch", entity, existing, req.body as Record<string, unknown>);
+      const builtinCheck = resolveBuiltinWriteRejection("patch", entity, existing, req.body as Record<string, unknown>);
       if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error });
       // P1.6 note pin (see sanitizeWrite): the merge already carries the STORED note (a note-blind
       // caller's PATCH body can't include one they never received), but the pin also stops a
       // crafted note change/clear riding a patch. accountId for the role lookup = the body's
       // override if present (then refused by ownsRow below), else the stored row's.
-      const vis = fieldVisibilityFor(
+      const visibility = fieldVisibilityFor(
         req,
         entity,
         (req.body as { accountId?: unknown }).accountId ?? existing.accountId,
@@ -244,7 +244,7 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
         entity,
         { ...existing, ...(req.body as Record<string, unknown>), id },
         existing,
-        vis,
+        visibility,
       );
       // accountId is immutable — a patch must not re-home the row to another company (ownsRow).
       if (!ownsRow(existing, merged.accountId)) {
@@ -253,7 +253,7 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
       if (optimisticConcurrency && isStaleWrite(existing, req.body as Record<string, unknown>, false)) {
         return reply.code(409).send({
           error: "The record was modified more recently on the server.",
-          current: redactWriteEcho(entity, existing, vis),
+          current: redactWriteEcho(entity, existing, visibility),
         });
       }
       const stamped = stampServerRevision(merged, existing);
@@ -265,18 +265,18 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
       const lookup = store.validationLookup?.();
       const validationState =
         entity === "clients" || lookup === undefined ? store.readFullSlice(scopeId) : emptyAppData();
-      validateWrite(validationState, entity, stamped, existing, lookup);
+      assertValidWrite(validationState, entity, stamped, existing, lookup);
       // Record only requested keys whose sanitized, pinned result actually differs from storage.
       let rewrittenAllocations: RewrittenAllocationRevision[] = [];
       commitProductAudit(
         reply,
-        buildAuditRecord(
+        createAuditRecord(
           req.user!.id,
           (merged.accountId as string | undefined) ?? id,
           "patch",
           entity,
           id,
-          appliedRequestedFieldNames(entity, req.body, existing, stamped),
+          listAppliedRequestedFieldNames(entity, req.body, existing, stamped),
         ),
         () => {
           if (entity === "activities") {
@@ -287,10 +287,10 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
         },
       );
       // The merge carries stored protected fields into `merged`; apply the normal read projection.
-      const echo = redactWriteEcho(entity, stamped, vis);
+      const echo = redactWriteEcho(entity, stamped, visibility);
       return reply.code(200).send(shapeActivityWriteEcho(entity, echo, rewrittenAllocations));
-    } catch (err) {
-      return sendFail(reply, err);
+    } catch (error) {
+      return sendFail(reply, error);
     }
   });
 
@@ -328,13 +328,13 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
         return reply.code(404).send({ error: "Not found" });
       }
       if (existing) {
-        commitProductAudit(reply, buildAuditRecord(req.user!.id, accountId, "delete", entity, id, []), () =>
+        commitProductAudit(reply, createAuditRecord(req.user!.id, accountId, "delete", entity, id, []), () =>
           deleteRow(db, entity, id),
         );
       }
       return reply.code(204).send();
-    } catch (err) {
-      return sendFail(reply, err);
+    } catch (error) {
+      return sendFail(reply, error);
     }
   });
 }

@@ -1,13 +1,13 @@
 import { isLoopbackHostname } from "./strictOidcAddressPolicy";
 import { MAX_OIDC_JSON_BYTES, StrictOidcConfigError, StrictOidcProviderUnavailableError } from "./strictOidcErrors";
 
-export function object(value: unknown): Record<string, unknown> | null {
+export function parseObject(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
 }
 
-export function requiredUrl(value: unknown, field: string): URL {
+export function parseRequiredUrl(value: unknown, field: string): URL {
   if (typeof value !== "string") throw new StrictOidcConfigError(`OIDC discovery is missing ${field}.`);
   let url: URL;
   try {
@@ -25,7 +25,7 @@ export function requiredUrl(value: unknown, field: string): URL {
   return url;
 }
 
-export function optionalPictureUrl(value: unknown): string | undefined {
+export function parseOptionalPictureUrl(value: unknown): string | undefined {
   if (typeof value !== "string" || value.length > 2048) return undefined;
   try {
     const url = new URL(value);
@@ -36,7 +36,7 @@ export function optionalPictureUrl(value: unknown): string | undefined {
   }
 }
 
-export async function json(url: string, init: RequestInit = {}): Promise<unknown> {
+export async function readJson(url: string, init: RequestInit = {}): Promise<unknown> {
   let response: Response;
   try {
     response = await fetch(url, {

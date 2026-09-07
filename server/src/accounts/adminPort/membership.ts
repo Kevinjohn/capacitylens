@@ -10,13 +10,13 @@ import {
   upsertMember,
 } from "../../controlTables";
 import { getRow } from "../../db";
-import { receipt } from "../accountFlowRuntime";
-import { getSecurityRevision } from "../state";
+import { createOperationReceipt } from "../accountFlowRuntime";
+import { readSecurityRevision } from "../state";
 import { assertAccountAuthority, assertAdministrativeAssurance } from "./authority";
 import type { AdminPortContext } from "./contracts";
 import { ACCOUNT_POLICY_VERSION, SsoCutoverAccountAdminPort } from "./contracts";
-import { assertInvitationRole, failure } from "./failures";
-import { membership, securityRevisionsByPrincipal } from "./mappers";
+import { assertInvitationRole, createAccountFailure } from "./failures";
+import { readMembership, readSecurityRevisionsByPrincipalId } from "./mappers";
 
 export function createMembership(
   context: Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa" | "runMutation">,
@@ -44,7 +44,7 @@ export function createMembership(
                   workspaceId: row.accountId,
                   workspaceName: String(workspace.name),
                   role: row.role,
-                  membershipRevision: String(getSecurityRevision(db, principalId)),
+                  membershipRevision: String(readSecurityRevision(db, principalId)),
                   policyVersion: ACCOUNT_POLICY_VERSION,
                 },
               ]
@@ -60,7 +60,7 @@ export function createMembership(
       const row = listMembershipsForUser(db, principalId).find(
         (candidate) => candidate.accountId === workspaceId && (includeInactive || candidate.status === "active"),
       );
-      return row ? membership(db, row) : null;
+      return row ? readMembership(db, row) : null;
     },
     async listMemberships({ actor, workspaceId, includeInactive = false }) {
       assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
@@ -73,7 +73,7 @@ export function createMembership(
       // N+1 fix: one bulk revision query (chunked) instead of one `getSecurityRevision` per member.
       // The output shape/coercion must match `membership()` exactly, so this builds the same object
       // by hand rather than introduce a second membership-mapping function.
-      const revisions = securityRevisionsByPrincipal(db, [...new Set(rows.map((row) => row.userId))]);
+      const revisions = readSecurityRevisionsByPrincipalId(db, [...new Set(rows.map((row) => row.userId))]);
       return rows.map((row) => ({
         workspaceId: row.accountId,
         principalId: row.userId,
@@ -99,9 +99,9 @@ export function createMembership(
           assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId);
           const acting = assertAccountAuthority(db, actor, workspaceId, "manage-members", trustedLocal);
           const target = getActiveMemberRole(db, workspaceId, targetPrincipalId);
-          if (!target) throw failure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
+          if (!target) throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
           if (!canManageMemberRole(acting, target, nextRole))
-            throw failure("FORBIDDEN", "Forbidden.", command.commandId);
+            throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
           upsertMember(db, {
             accountId: workspaceId,
             userId: targetPrincipalId,
@@ -112,7 +112,7 @@ export function createMembership(
           const row = listMembershipsForUser(db, targetPrincipalId).find(
             (candidate) => candidate.accountId === workspaceId,
           )!;
-          return membership(db, row);
+          return readMembership(db, row);
         },
       });
     },
@@ -133,16 +133,16 @@ export function createMembership(
           // disabled or archived membership is the whole point, and an active-only read would make
           // every such target look like a non-member.
           const target = getMembershipRow(db, workspaceId, targetPrincipalId);
-          if (!target) throw failure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
+          if (!target) throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
           if (!canChangeMemberStatus(acting, target.role, targetPrincipalId === actor.principalId))
-            throw failure("FORBIDDEN", "Forbidden.", command.commandId);
+            throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
           // "unchanged" is success, not a fault: the membership already holds the requested status,
           // so the caller's intent is satisfied and no reset link should have been burned for it.
           if (setMemberStatus(db, workspaceId, targetPrincipalId, nextStatus) === "missing")
-            throw failure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
+            throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
           // The post-write row is the pre-write row with the new status — the write above changed
           // nothing else. Re-reading it would only re-derive what we already hold.
-          return membership(db, { ...target, status: nextStatus });
+          return readMembership(db, { ...target, status: nextStatus });
         },
       });
     },
@@ -164,10 +164,11 @@ export function createMembership(
           // Remove 404 on exactly those rows, leaving no way to delete a disabled membership
           // except to restore the member's access first — the opposite of the intent.
           const target = getMembershipRow(db, workspaceId, targetPrincipalId);
-          if (!target) throw failure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
-          if (!canRemoveMember(acting, target.role)) throw failure("FORBIDDEN", "Forbidden.", command.commandId);
+          if (!target) throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
+          if (!canRemoveMember(acting, target.role))
+            throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
           removeMemberRow(db, workspaceId, targetPrincipalId);
-          return receipt(command.commandId);
+          return createOperationReceipt(command.commandId);
         },
       });
     },
@@ -188,10 +189,14 @@ export function createMembership(
           assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId);
           assertAccountAuthority(db, actor, workspaceId, "transfer-ownership", trustedLocal);
           if (actor.principalId === targetPrincipalId) {
-            throw failure("VALIDATION_FAILED", "The actor already owns this workspace.", command.commandId);
+            throw createAccountFailure(
+              "VALIDATION_FAILED",
+              "The actor already owns this workspace.",
+              command.commandId,
+            );
           }
           if (!getActiveMemberRole(db, workspaceId, targetPrincipalId)) {
-            throw failure("NOT_FOUND", "The next owner must already be a member.", command.commandId);
+            throw createAccountFailure("NOT_FOUND", "The next owner must already be a member.", command.commandId);
           }
           const now = new Date().toISOString();
           upsertMember(db, {
@@ -211,8 +216,8 @@ export function createMembership(
           const prior = listMembershipsForUser(db, actor.principalId).find((row) => row.accountId === workspaceId)!;
           const next = listMembershipsForUser(db, targetPrincipalId).find((row) => row.accountId === workspaceId)!;
           return {
-            previousOwner: membership(db, prior),
-            nextOwner: membership(db, next),
+            previousOwner: readMembership(db, prior),
+            nextOwner: readMembership(db, next),
           };
         },
       });

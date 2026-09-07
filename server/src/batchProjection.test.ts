@@ -10,7 +10,7 @@ import {
 import { deleteAccountCascade } from "@capacitylens/shared/domain/mutations";
 import { APP_DATA_KEYS, emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { BatchStateProjection } from "./batchProjection";
-import { validateWrite } from "./validate";
+import { assertValidWrite } from "./validate";
 
 const TS = "2026-01-01T00:00:00.000Z";
 const meta = { createdAt: TS, updatedAt: TS };
@@ -189,7 +189,7 @@ describe("BatchStateProjection", () => {
       const existing = projection.row("clients", id);
       expect(existing).toBeDefined();
       const updated = { ...existing!, name: `Updated ${index}` };
-      validateWrite(projection.data, "clients", updated, existing, projection);
+      assertValidWrite(projection.data, "clients", updated, existing, projection);
       projection.upsert("clients", updated);
     }
 

@@ -13,7 +13,7 @@ import { migrateMemberResetCeremoniesV14, USED_INVITATION_RETENTION_V24_DEFINITI
 import { migrateUsedInvitationHistoryV24 } from "../../controlTables";
 import { isInitialized, markInitialized } from "../initialization";
 import { isEmpty } from "@capacitylens/shared/types/entities";
-import { loadState } from "../slices";
+import { readState } from "../slices";
 import { ensureInternalClients, snapLegacyAccountColors, reactivateBuiltinInternalClientsV22 } from "../repairs";
 import { assertBuiltinInternalClientsActiveV22 } from "../repairs";
 import { V13_DEFINITION, V22_DEFINITION, TIME_OFF_RESOURCE_NULLABLE_V33_DEFINITION } from "./definitions";
@@ -57,7 +57,7 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       db.exec(SCHEMA_V8_SQL);
       migrateSchemaV8(db);
       ensureControlTables(db);
-      if (!isInitialized(db) && !isEmpty(loadState(db))) markInitialized(db);
+      if (!isInitialized(db) && !isEmpty(readState(db))) markInitialized(db);
       ensureInternalClients(db);
       db.exec(INTERNAL_CLIENT_UNIQUE_INDEX_SQL);
       assertSchemaV8(db);

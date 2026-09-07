@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
-import { buildApp } from "./app";
+import { createApp } from "./app";
 import { openDb, insertAll, getRow, type Db } from "./db";
 import { upsertMember } from "./controlTables";
-import { authFromEnv, runAuthMigrations } from "./auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { PASSWORD_ENV, call, signUp } from "./testHelpers";
 import { can, type Role } from "@capacitylens/shared/domain/access";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
@@ -107,10 +107,10 @@ async function appWithAuth(
   opts: { multiAccount?: boolean; optimisticConcurrency?: boolean } = {},
 ): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
-  const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
   await runAuthMigrations(auth!);
   return {
-    app: buildApp(db, {
+    app: createApp(db, {
       authMode: mode,
       auth,
       multiAccount: opts.multiAccount,
@@ -725,7 +725,7 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
 
   it("OFF mode (trusted-local): scoped read INCLUDES the note", async () => {
     const db = openDb(":memory:");
-    const app = buildApp(db, { optimisticConcurrency: false }); // no authMode ⇒ OFF
+    const app = createApp(db, { optimisticConcurrency: false }); // no authMode ⇒ OFF
     seedTwo(db);
     const res = await getState(app, "a1"); // no cookie needed in OFF
     expect(res.statusCode).toBe(200);
@@ -868,7 +868,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
 
   it("OFF mode (trusted-local): PUT without the note key still clears it — pre-change behaviour intact", async () => {
     const db = openDb(":memory:");
-    const app = buildApp(db, { optimisticConcurrency: false }); // OFF ⇒ the writer always "sees" the note
+    const app = createApp(db, { optimisticConcurrency: false }); // OFF ⇒ the writer always "sees" the note
     seedTwo(db);
     const res = await call(app, { method: "PUT", url: "/api/timeOff/to1", payload: stampedTimeOff() });
     expect(res.statusCode).toBe(200);
@@ -1156,7 +1156,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
 
   it("OFF mode: account update (PUT/PATCH/batch) is allow-all (no cookie, no membership)", async () => {
     const db = openDb(":memory:");
-    const app = buildApp(db, { optimisticConcurrency: false }); // OFF
+    const app = createApp(db, { optimisticConcurrency: false }); // OFF
     seedTwo(db);
     expect((await putAccount(app, "a1")).statusCode).toBe(200);
     expect((await patchAccount(app, "a1")).statusCode).toBe(200);
@@ -1342,7 +1342,7 @@ describe("P1.5 authorize — OFF mode stays allow-all/no-op (the #1 invariant)",
   // authorize() short-circuits to true on its first line, so membership/policy resolution never runs.
   function offApp(): FastifyInstance {
     const db = openDb(":memory:");
-    const app = buildApp(db, { allowReset: true, optimisticConcurrency: false });
+    const app = createApp(db, { allowReset: true, optimisticConcurrency: false });
     seedTwo(db);
     return app;
   }

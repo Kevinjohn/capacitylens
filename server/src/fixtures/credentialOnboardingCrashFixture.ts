@@ -1,4 +1,4 @@
-import { authFromEnv, runAuthMigrations } from "../auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "../auth";
 import { openDb } from "../db";
 import { correlatePendingAccountCommand, reserveAccountCommand } from "../accounts/state";
 
@@ -8,7 +8,7 @@ if (!dbPath || (boundary !== "after-user" && boundary !== "after-correlation-com
 }
 
 const db = openDb(dbPath);
-const configured = authFromEnv(db, {
+const configured = createAuthFromEnvironment(db, {
   NODE_ENV: "test",
   CAPACITYLENS_AUTH: "password",
   BETTER_AUTH_SECRET: "crash-fixture-secret-0123456789abcdef",

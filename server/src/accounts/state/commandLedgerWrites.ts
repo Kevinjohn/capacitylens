@@ -8,7 +8,7 @@ import {
   getAccountCommandById,
   getAccountCommandByGlobalId,
 } from "./commandLedgerReads";
-import { HOUSEKEEPING_INTERVAL_MS, lastCommandSweep, stableNowMs, stableNowIso } from "./runtime";
+import { HOUSEKEEPING_INTERVAL_MS, lastCommandSweep, readStableNowMilliseconds, readStableNowIso } from "./runtime";
 
 const COMMAND_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const PENDING_RECONCILIATION_MS = 15 * 60 * 1000;
@@ -36,7 +36,7 @@ export function getAccountCommandByIdForReconciliation(
   db: Db,
   applicationId: string,
   commandId: CommandId,
-  now = stableNowMs(),
+  now = readStableNowMilliseconds(),
 ): AccountCommandRecord | null {
   const record = getAccountCommandById(db, applicationId, commandId);
   return record ? transitionStalePending(db, record, now) : null;
@@ -64,7 +64,7 @@ export function reserveAccountCommand(
   if (!/^[a-f0-9]{64}$/.test(input.payloadHash)) {
     throw new Error("Account command payloadHash must be a lowercase SHA-256 digest.");
   }
-  const nowMs = input.now === undefined ? stableNowMs() : Date.parse(input.now);
+  const nowMs = input.now === undefined ? readStableNowMilliseconds() : Date.parse(input.now);
   const lastSweep = lastCommandSweep.get(db);
   if (lastSweep === undefined || nowMs - lastSweep >= HOUSEKEEPING_INTERVAL_MS) {
     db.prepare(
@@ -158,7 +158,7 @@ export function correlatePendingAccountCommand(
     .run(
       input.workspaceId ?? null,
       input.targetPrincipalId ?? null,
-      input.now ?? stableNowIso(),
+      input.now ?? readStableNowIso(),
       input.applicationId,
       input.operation,
       input.idempotencyKey,
@@ -248,7 +248,7 @@ export function closeAccountCommandReconciliation(
      WHERE applicationId = ? AND commandId = ? AND status = 'reconciliation_required'
   `,
     )
-    .run(referenceHash, stableNowIso(), applicationId, commandId);
+    .run(referenceHash, readStableNowIso(), applicationId, commandId);
   return result.changes === 1;
 }
 
@@ -276,7 +276,7 @@ export function finishAccountCommand(
       input.status,
       input.resultJson ?? null,
       input.failureCode ?? null,
-      input.now ?? stableNowIso(),
+      input.now ?? readStableNowIso(),
       input.applicationId,
       input.operation,
       input.idempotencyKey,

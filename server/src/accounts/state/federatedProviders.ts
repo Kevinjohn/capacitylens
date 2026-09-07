@@ -34,7 +34,7 @@ export function bindFederatedProvider(db: Db, applicationId: string, issuer: str
   ).run(applicationId, issuer, providerId, new Date().toISOString());
 }
 
-export function providerIdForIssuer(db: Db, applicationId: string, issuer: string): string | null {
+export function getProviderIdForIssuer(db: Db, applicationId: string, issuer: string): string | null {
   const row = db
     .prepare(
       `

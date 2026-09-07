@@ -7,20 +7,20 @@ const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
 
 /** One deployment posture for both forwarded client identity and public-origin scheme. The
  * canonical setting wins over the compatibility alias so an explicit `0` can retire an old `1`. */
-export function trustProxyHeadersFrom(env: ProxyTrustEnvironment, listenHost: string): boolean {
-  const canonical = env.CAPACITYLENS_TRUST_PROXY_HEADERS;
+export function canTrustProxyHeaders(environment: ProxyTrustEnvironment, listenHost: string): boolean {
+  const canonical = environment.CAPACITYLENS_TRUST_PROXY_HEADERS;
   const canonicalConfigured = canonical !== undefined && canonical !== "";
   const explicitlyTrusted = canonicalConfigured
     ? canonical === "1"
-    : env.CAPACITYLENS_RATE_LIMIT_TRUST_FORWARDED === "1";
+    : environment.CAPACITYLENS_RATE_LIMIT_TRUST_FORWARDED === "1";
   return explicitlyTrusted || LOOPBACK_HOSTS.has(listenHost);
 }
 
-export function legacyProxyTrustWarning(env: ProxyTrustEnvironment): string | null {
+export function resolveLegacyProxyTrustWarning(environment: ProxyTrustEnvironment): string | null {
   if (
-    env.CAPACITYLENS_RATE_LIMIT_TRUST_FORWARDED === undefined ||
-    env.CAPACITYLENS_RATE_LIMIT_TRUST_FORWARDED === "" ||
-    (env.CAPACITYLENS_TRUST_PROXY_HEADERS !== undefined && env.CAPACITYLENS_TRUST_PROXY_HEADERS !== "")
+    environment.CAPACITYLENS_RATE_LIMIT_TRUST_FORWARDED === undefined ||
+    environment.CAPACITYLENS_RATE_LIMIT_TRUST_FORWARDED === "" ||
+    (environment.CAPACITYLENS_TRUST_PROXY_HEADERS !== undefined && environment.CAPACITYLENS_TRUST_PROXY_HEADERS !== "")
   ) {
     return null;
   }

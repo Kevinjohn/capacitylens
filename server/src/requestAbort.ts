@@ -15,7 +15,7 @@ export function runWithRequestAbortSignal<T>(
   return requestAbortContext.run({ signal, reportQueueSaturation }, callback);
 }
 
-export function currentRequestAbortSignal(): AbortSignal | undefined {
+export function readCurrentRequestAbortSignal(): AbortSignal | undefined {
   return requestAbortContext.getStore()?.signal;
 }
 

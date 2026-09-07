@@ -16,25 +16,25 @@ export function toWebHeaders(raw: FastifyRequest["headers"]): Headers {
   return headers;
 }
 
-export function sessionUserFromApplicationSession(session: ApplicationSession): SessionUser {
+export function buildSessionUser(session: ApplicationSession): SessionUser {
   return {
     id: session.principal.id,
     email: session.principal.email,
     emailVerified: session.principal.emailVerified,
     name: session.principal.displayName,
     image: session.principal.image ?? null,
-    twoFactorEnabled: sessionSatisfiesRequiredMfa(session),
+    twoFactorEnabled: hasRequiredSessionMfa(session),
     sessionCreatedAt: session.createdAt,
   };
 }
 
 /** CapacityLens treats provider-authenticated and trusted-local sessions as satisfying its local
  * MFA gate; provider-side MFA enforcement remains an explicit operator responsibility. */
-export function sessionSatisfiesRequiredMfa(session: ApplicationSession): boolean {
+export function hasRequiredSessionMfa(session: ApplicationSession): boolean {
   return session.assurance === "mfa" || session.assurance === "federated" || session.assurance === "trusted-local";
 }
 
-export function replayAccountCommand(req: FastifyRequest): CommandIdentity | null {
+export function parseReplayAccountCommand(req: FastifyRequest): CommandIdentity | null {
   const idempotencyKey = req.headers["idempotency-key"];
   const commandId = req.headers["x-account-command-id"];
   return isAccountIdempotencyKey(idempotencyKey) && isAccountCommandId(commandId)
@@ -42,7 +42,7 @@ export function replayAccountCommand(req: FastifyRequest): CommandIdentity | nul
     : null;
 }
 
-export function accountCommand(req: FastifyRequest): CommandIdentity {
+export function createAccountCommand(req: FastifyRequest): CommandIdentity {
   const rawIdempotency = req.headers["idempotency-key"];
   const rawCommand = req.headers["x-account-command-id"];
   if (rawIdempotency !== undefined && !isAccountIdempotencyKey(rawIdempotency)) {

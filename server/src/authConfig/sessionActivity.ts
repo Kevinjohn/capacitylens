@@ -42,7 +42,7 @@ type SessionActivityStatements = {
 // in-memory handles don't leak.
 const sessionActivityStatementCache = new WeakMap<Db, SessionActivityStatements>();
 
-function sessionActivityStatements(db: Db): SessionActivityStatements {
+function createSessionActivityStatements(db: Db): SessionActivityStatements {
   const cached = sessionActivityStatementCache.get(db);
   if (cached) return cached;
   const statements: SessionActivityStatements = {
@@ -68,7 +68,7 @@ export async function enforceSessionActivity<
   },
 ): Promise<Session | null> {
   const token = session.session.token;
-  const stmts = sessionActivityStatements(db);
+  const stmts = createSessionActivityStatements(db);
   const readRaw = (): { updatedAt: string | number | null } | undefined =>
     stmts.read.get(token) as { updatedAt: string | number | null } | undefined;
   const destroy = (): null => {
@@ -169,7 +169,7 @@ export async function enforceSessionActivity<
  * per-provider value and use `?? false` as the safety net for any provider that omits it, so an
  * unverifiable provider can never present as verified.
  */
-export function normalizeSessionUser(raw: RawSessionUser): SessionUser {
+export function buildSessionUser(raw: RawSessionUser): SessionUser {
   const name = cleanText(typeof raw.name === "string" ? raw.name : "");
   return {
     id: raw.id,
@@ -177,7 +177,7 @@ export function normalizeSessionUser(raw: RawSessionUser): SessionUser {
     emailVerified: raw.emailVerified ?? false,
     twoFactorEnabled: raw.twoFactorEnabled === true,
     name: name || "User",
-    image: normalizeImageUrl(raw.image),
+    image: parseImageUrl(raw.image),
   };
 }
 
@@ -185,7 +185,7 @@ export function normalizeSessionUser(raw: RawSessionUser): SessionUser {
  *  credentials, ≤2048 chars — see server/src/strictOidc.ts), so a stored value is already validated.
  *  This backstop re-asserts the https invariant at the narrowing boundary so a non-https value (a
  *  hand-edited row, a future writer) can never reach the client as an `<img src>`. */
-function normalizeImageUrl(value: unknown): string | null {
+function parseImageUrl(value: unknown): string | null {
   return typeof value === "string" && value.startsWith("https://") ? value : null;
 }
 
@@ -195,10 +195,10 @@ function normalizeImageUrl(value: unknown): string | null {
 // short-lived in-memory handles don't leak.
 const twoFactorEnabledLookupCache = new WeakMap<Db, ReturnType<Db["prepare"]>>();
 
-export function twoFactorEnabledLookupStatement(db: Db): ReturnType<Db["prepare"]> {
+export function createTwoFactorEnabledLookupStatement(db: Db): ReturnType<Db["prepare"]> {
   const cached = twoFactorEnabledLookupCache.get(db);
   if (cached) return cached;
-  const stmt = db.prepare("SELECT twoFactorEnabled FROM user WHERE id = ?");
-  twoFactorEnabledLookupCache.set(db, stmt);
-  return stmt;
+  const statement = db.prepare("SELECT twoFactorEnabled FROM user WHERE id = ?");
+  twoFactorEnabledLookupCache.set(db, statement);
+  return statement;
 }

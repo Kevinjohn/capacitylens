@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { InjectOptions, LightMyRequestResponse } from "fastify";
-import { buildApp } from "./app";
+import { createApp } from "./app";
 import { getRow, insertRow, openDb } from "./db";
 import { emptyAppData, type AppData, type Discipline } from "@capacitylens/shared/types/entities";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
@@ -14,7 +14,7 @@ interface SyncAdapterConstructor {
   new (baseUrl: string, fetchImpl: typeof fetch): SyncAdapter;
 }
 
-let ServerSyncAdapter: SyncAdapterConstructor;
+let serverSyncAdapterConstructor: SyncAdapterConstructor;
 
 beforeAll(async () => {
   // Keep this integration spec in the server project without making the server TypeScript build
@@ -23,7 +23,7 @@ beforeAll(async () => {
   const adapterModule = (await import(/* @vite-ignore */ adapterUrl)) as {
     ServerSyncAdapter: SyncAdapterConstructor;
   };
-  ServerSyncAdapter = adapterModule.ServerSyncAdapter;
+  serverSyncAdapterConstructor = adapterModule.ServerSyncAdapter;
 });
 
 const TS1 = "2026-01-01T00:00:00.000Z";
@@ -73,7 +73,7 @@ function integrationHarness(arrivalOrder: ArrivalOrder, initial?: Discipline) {
   // first intercepted batch in tests whose subject is ordinary-vs-teardown request ordering.
   insertRow(db, "clients", buildInternalClient(account.id, TS1) as unknown as Record<string, unknown>);
   if (initial) insertRow(db, "disciplines", initial as unknown as Record<string, unknown>);
-  const app = buildApp(db, { optimisticConcurrency: false });
+  const app = createApp(db, { optimisticConcurrency: false });
   let firstBatch = true;
   let releaseFirst: (() => void) | undefined;
 
@@ -109,7 +109,7 @@ function integrationHarness(arrivalOrder: ArrivalOrder, initial?: Discipline) {
   return {
     app,
     db,
-    adapter: new ServerSyncAdapter("http://capacitylens.test", fetchImpl),
+    adapter: new serverSyncAdapterConstructor("http://capacitylens.test", fetchImpl),
     waitForFirstBatch: () => vi.waitFor(() => expect(releaseFirst).toBeTypeOf("function")),
     releaseFirstBatch: () => releaseFirst!(),
   };

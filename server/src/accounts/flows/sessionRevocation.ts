@@ -6,7 +6,9 @@ import type { LocalAccountFlows } from "../localAccountFlows";
 import { clearTrackedMemberSignIn } from "../memberSignInTracking";
 import type { LocalAccountFlowContext } from "./context";
 
-export function sessionRevocation(context: LocalAccountFlowContext): Pick<LocalAccountFlows, "revokeMemberSessions"> {
+export function createSessionRevocationFlows(
+  context: LocalAccountFlowContext,
+): Pick<LocalAccountFlows, "revokeMemberSessions"> {
   const {
     applicationId,
     db,

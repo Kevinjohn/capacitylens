@@ -8,14 +8,14 @@ import {
   correlatePendingAccountCommand,
   markAccountCommandReplay,
   resumeExistingCommand,
-  secretDigest,
+  buildSecretDigest,
   terminateCommand,
   terminatePendingCommand,
 } from "../commands";
 import type { LocalAccountFlows } from "../localAccountFlows";
 import type { LocalAccountFlowContext } from "./context";
 
-export function inviteSignup(
+export function createInviteSignupFlows(
   context: LocalAccountFlowContext,
 ): Pick<LocalAccountFlows, "acceptInviteWithPasswordSignup"> {
   const { applicationId, db, identity, administration, lock, persistTerminalOutcome, commandExecutionKey } = context;
@@ -34,7 +34,7 @@ export function inviteSignup(
           // Bind the full credential-bearing request without persisting either bearer, or a
           // standalone password verifier that a ledger reader could attack independently. Testing a
           // password candidate requires possession of the high-entropy invitation token as well.
-          credentialBindingDigest: secretDigest("invite-signup-credentials", `${token}\0${password}`),
+          credentialBindingDigest: buildSecretDigest("invite-signup-credentials", `${token}\0${password}`),
           normalizedEmail: normalizeAccountEmail(email),
           displayName,
         };

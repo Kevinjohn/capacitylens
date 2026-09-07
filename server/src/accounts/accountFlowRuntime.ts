@@ -12,7 +12,7 @@ export interface AccountAuditInput {
   changedFields?: readonly string[];
 }
 
-export function accountAuditWriter(
+export function createAccountAuditWriter(
   applicationId: string,
   port: AccountAuditPort | undefined,
 ): (event: AccountAuditInput) => void {
@@ -38,7 +38,7 @@ export function accountAuditWriter(
 /** Shared identity-port operation receipt: an embedded port (Better Auth, trusted-local) stamps
  *  this on completion rather than reading back a stored record (contrast {@link
  *  "./commands".operationReceipt}, which reflects a persisted command's own `updatedAt`). */
-export function receipt(commandId: string, changed?: boolean): OperationReceipt {
+export function createOperationReceipt(commandId: string, changed?: boolean): OperationReceipt {
   return { commandId, completedAt: new Date().toISOString(), ...(changed === undefined ? {} : { changed }) };
 }
 

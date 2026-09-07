@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
-import { buildApp } from "./app";
+import { createApp } from "./app";
 import { openDb, type Db } from "./db";
-import { authFromEnv, runAuthMigrations } from "./auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { signUp } from "./testHelpers";
 
 // P1.17 — the Phase-1 CAPSTONE. "Retire the open shared dataset": in the HOSTED (auth-on) posture
@@ -37,14 +37,14 @@ const PASSWORD_ENV = {
  */
 async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
-  const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
   await runAuthMigrations(auth!);
-  return { app: buildApp(db, { authMode: mode, auth, allowReset: true }), db };
+  return { app: createApp(db, { authMode: mode, auth, allowReset: true }), db };
 }
 
 /** Build an OFF (trusted-local) app — no authMode ⇒ off; allowReset on to mirror appWithAuth. */
 function offApp(): FastifyInstance {
-  return buildApp(openDb(":memory:"), { allowReset: true });
+  return createApp(openDb(":memory:"), { allowReset: true });
 }
 
 // Every /api/* route EXCEPT /api/health + /api/auth/* MUST 401 unauthenticated in the hosted posture

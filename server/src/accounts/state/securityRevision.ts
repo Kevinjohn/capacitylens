@@ -1,7 +1,7 @@
 import type { PrincipalId } from "@capacitylens/shared/account/types";
 import type { Db } from "../../db";
 
-export function getSecurityRevision(db: Db, principalId: PrincipalId): number {
+export function readSecurityRevision(db: Db, principalId: PrincipalId): number {
   const row = db.prepare(`SELECT revision FROM account_security_revisions WHERE principalId = ?`).get(principalId) as
     { revision?: number } | undefined;
   return Number(row?.revision ?? 0);
@@ -17,7 +17,7 @@ export function bumpSecurityRevision(db: Db, principalId: PrincipalId, now = new
       updatedAt = excluded.updatedAt
   `,
   ).run(principalId, now);
-  return getSecurityRevision(db, principalId);
+  return readSecurityRevision(db, principalId);
 }
 
 export function removeSecurityRevision(db: Db, principalId: PrincipalId): void {

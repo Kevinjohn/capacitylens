@@ -16,8 +16,8 @@ import { confirmTrackedMemberSignIn } from "../memberSignInTracking";
 import { assertWorkspaceExists } from "./authority";
 import type { AdminPortContext } from "./contracts";
 import type { SsoCutoverAccountAdminPort } from "./contracts";
-import { assertRedeemableInvitationRole, failure } from "./failures";
-import { membership } from "./mappers";
+import { assertRedeemableInvitationRole, createAccountFailure } from "./failures";
+import { readMembership } from "./mappers";
 
 export function createHashForToken(token: string): string {
   return createHash("sha256").update("account-command-invite\0").update(token).digest("hex");
@@ -35,12 +35,12 @@ export function createInvitationClaims(
     command: CommandIdentity;
   }): Membership {
     const live = getInvite(db, input.token);
-    if (!live) throw failure("NOT_FOUND", "Invite not found.", input.command.commandId);
+    if (!live) throw createAccountFailure("NOT_FOUND", "Invite not found.", input.command.commandId);
     if (live.usedAt !== null) {
-      throw failure("INVITATION_USED", "This invite has already been used.", input.command.commandId);
+      throw createAccountFailure("INVITATION_USED", "This invite has already been used.", input.command.commandId);
     }
     if (inviteIsExpired(live.expiresAt)) {
-      throw failure("INVITATION_EXPIRED", "This invite has expired.", input.command.commandId);
+      throw createAccountFailure("INVITATION_EXPIRED", "This invite has expired.", input.command.commandId);
     }
     assertRedeemableInvitationRole(live.role, input.command.commandId);
     assertWorkspaceExists(db, live.accountId);
@@ -55,7 +55,7 @@ export function createInvitationClaims(
         input.passwordMode,
       )
     ) {
-      throw failure(
+      throw createAccountFailure(
         "INVITATION_EMAIL_MISMATCH",
         "This invite is reserved for a different identity.",
         input.command.commandId,
@@ -69,7 +69,7 @@ export function createInvitationClaims(
     // membership is restored by an administrator through changeMemberStatus, never by its holder.
     const existing = getMembershipRow(db, live.accountId, input.principalId);
     if (existing && existing.status !== "active") {
-      throw failure(
+      throw createAccountFailure(
         "FORBIDDEN",
         // Covers disabled AND archived, so it names neither: the person redeeming the link has no
         // business knowing which, and an inaccurate "disabled" on an archived row would be worse.
@@ -95,7 +95,7 @@ export function createInvitationClaims(
       markInviteUsed(db, input.token, now);
     } catch (error) {
       if (error instanceof InviteAlreadyUsedError) {
-        throw failure("INVITATION_USED", "This invite has already been used.", input.command.commandId);
+        throw createAccountFailure("INVITATION_USED", "This invite has already been used.", input.command.commandId);
       }
       throw error;
     }
@@ -104,7 +104,7 @@ export function createInvitationClaims(
       (candidate) => candidate.accountId === live.accountId,
     );
     if (!row) throw new Error("Invitation claim committed without a membership row.");
-    return membership(db, row);
+    return readMembership(db, row);
   }
   return {
     async acceptInvitation({ actor, token, principalEmail, emailVerified, command }) {
@@ -119,7 +119,7 @@ export function createInvitationClaims(
       );
       if (resumed) return markAccountCommandReplay(resumed.result);
       const invite = getInvite(db, token);
-      if (!invite) throw failure("NOT_FOUND", "Invite not found.", command.commandId);
+      if (!invite) throw createAccountFailure("NOT_FOUND", "Invite not found.", command.commandId);
       const accepted = await runMutation({
         operation: "accept-invitation",
         actorPrincipalId: actor.principalId,
@@ -160,7 +160,7 @@ export function createInvitationClaims(
       );
       if (resumed) return markAccountCommandReplay(resumed.result);
       const invite = getInvite(db, token);
-      if (!invite) throw failure("NOT_FOUND", "Invite not found.", command.commandId);
+      if (!invite) throw createAccountFailure("NOT_FOUND", "Invite not found.", command.commandId);
       const claimed = await runMutation({
         operation: "claim-invitation",
         actorPrincipalId: null,
