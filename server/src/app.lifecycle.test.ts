@@ -46,7 +46,15 @@ const client = (id: string, accountId: string, extra: Record<string, unknown> = 
   ...meta(),
   ...extra,
 });
-const project = (id: string, accountId: string, clientId: string, extra: Record<string, unknown> = {}) => ({
+
+interface ProjectInput {
+  id: string;
+  accountId: string;
+  clientId: string;
+  extra?: Record<string, unknown> | undefined;
+}
+
+const project = ({ id, accountId, clientId, extra = {} }: ProjectInput) => ({
   id,
   accountId,
   name: "Web",
@@ -77,7 +85,15 @@ const phase = (id: string, accountId: string, projectId: string) => ({
   projectId,
   ...meta(),
 });
-const activity = (id: string, accountId: string, projectId: string, phaseId: string) => ({
+
+interface ActivityInput {
+  id: string;
+  accountId: string;
+  projectId: string;
+  phaseId: string;
+}
+
+const activity = ({ id, accountId, projectId, phaseId }: ActivityInput) => ({
   id,
   accountId,
   name: "Build",
@@ -86,7 +102,15 @@ const activity = (id: string, accountId: string, projectId: string, phaseId: str
   phaseId,
   ...meta(),
 });
-const allocation = (id: string, accountId: string, resourceId: string, activityId: string) => ({
+
+interface AllocationInput {
+  id: string;
+  accountId: string;
+  resourceId: string;
+  activityId: string;
+}
+
+const allocation = ({ id, accountId, resourceId, activityId }: AllocationInput) => ({
   id,
   accountId,
   resourceId,
@@ -156,7 +180,7 @@ it("rolls a lifecycle transition back when response redaction fails", async () =
     },
   });
 
-  const response = await lifecycleAction(app, "resources", "r1", "archive", "a1");
+  const response = await lifecycleAction({ app, entity: "resources", id: "r1", action: "archive", accountId: "a1" });
 
   expect(response.statusCode).toBe(500);
   expect(data.resources[0]).not.toHaveProperty("archivedAt");
@@ -173,16 +197,18 @@ async function appWithAuth(
   return { app: createApp(db, { authMode: mode, auth, securityLog }), db };
 }
 
+interface LifecycleActionInput {
+  app: FastifyInstance;
+  entity: string;
+  id: string;
+  action: "archive" | "unarchive" | "delete" | "purge";
+  accountId: string;
+  cookie?: string | undefined;
+}
+
 // ---- Lifecycle action requests (cookie carries the session in auth-on; omit it for OFF). ----
 
-const lifecycleAction = (
-  app: FastifyInstance,
-  entity: string,
-  id: string,
-  action: "archive" | "unarchive" | "delete" | "purge",
-  accountId: string,
-  cookie?: string,
-) =>
+const lifecycleAction = ({ app, entity, id, action, accountId, cookie }: LifecycleActionInput) =>
   call(app, {
     method: "POST",
     url: `/api/${entity}/${id}/${action}`,
@@ -214,7 +240,10 @@ function seedStates(db: Db): void {
   const d = emptyAppData() as unknown as Record<string, unknown[]>;
   d.accounts = [account("a1"), account("a2")];
   d.clients = [client("c1", "a1"), client("cArc", "a1", justArchived), INTERNAL, client("c2", "a2")];
-  d.projects = [project("p1", "a1", "c1"), project("pArc", "a1", "c1", justArchived)];
+  d.projects = [
+    project({ id: "p1", accountId: "a1", clientId: "c1" }),
+    project({ id: "pArc", accountId: "a1", clientId: "c1", extra: justArchived }),
+  ];
   d.resources = [
     person("r1", "a1"),
     person("rArc", "a1", justArchived),
@@ -240,10 +269,22 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
       createdAt: TS,
     });
 
-    expect((await lifecycleAction(app, "clients", "c1", "archive", "a1", cookie)).statusCode).toBe(403);
-    expect((await lifecycleAction(app, "clients", "cArc", "unarchive", "a1", cookie)).statusCode).toBe(403);
-    expect((await lifecycleAction(app, "resources", "rArc", "delete", "a1", cookie)).statusCode).toBe(403);
-    expect((await lifecycleAction(app, "resources", "rDel", "purge", "a1", cookie)).statusCode).toBe(403);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "c1", action: "archive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(403);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "cArc", action: "unarchive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(403);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rArc", action: "delete", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(403);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rDel", action: "purge", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(403);
     expect((await readInactive(app, "a1", cookie)).statusCode).toBe(403);
   });
 
@@ -259,11 +300,23 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
       createdAt: TS,
     });
 
-    expect((await lifecycleAction(app, "clients", "c1", "archive", "a1", cookie)).statusCode).toBe(200);
-    expect((await lifecycleAction(app, "clients", "cArc", "unarchive", "a1", cookie)).statusCode).toBe(200);
-    expect((await lifecycleAction(app, "resources", "rArc", "delete", "a1", cookie)).statusCode).toBe(403);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "c1", action: "archive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "cArc", action: "unarchive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rArc", action: "delete", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(403);
     // delete and purge are admin+ because neither has an undelete transition.
-    expect((await lifecycleAction(app, "resources", "rDel", "purge", "a1", cookie)).statusCode).toBe(403);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rDel", action: "purge", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(403);
     expect((await readInactive(app, "a1", cookie)).statusCode).toBe(403);
   });
 
@@ -279,10 +332,22 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
       createdAt: TS,
     });
 
-    expect((await lifecycleAction(app, "projects", "p1", "archive", "a1", cookie)).statusCode).toBe(200);
-    expect((await lifecycleAction(app, "projects", "pArc", "unarchive", "a1", cookie)).statusCode).toBe(200);
-    expect((await lifecycleAction(app, "resources", "rArc", "delete", "a1", cookie)).statusCode).toBe(200);
-    expect((await lifecycleAction(app, "resources", "rDel", "purge", "a1", cookie)).statusCode).toBe(204);
+    expect(
+      (await lifecycleAction({ app, entity: "projects", id: "p1", action: "archive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "projects", id: "pArc", action: "unarchive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rArc", action: "delete", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rDel", action: "purge", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(204);
     expect((await readInactive(app, "a1", cookie)).statusCode).toBe(200);
   });
 
@@ -291,10 +356,22 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
     seedStates(db);
     const { cookie } = await signUp(app, "stranger-lc@capacitylens.dev"); // NO membership
 
-    expect((await lifecycleAction(app, "clients", "c1", "archive", "a1", cookie)).statusCode).toBe(403);
-    expect((await lifecycleAction(app, "clients", "cArc", "unarchive", "a1", cookie)).statusCode).toBe(403);
-    expect((await lifecycleAction(app, "resources", "rArc", "delete", "a1", cookie)).statusCode).toBe(403);
-    expect((await lifecycleAction(app, "resources", "rDel", "purge", "a1", cookie)).statusCode).toBe(403);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "c1", action: "archive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(403);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "cArc", action: "unarchive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(403);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rArc", action: "delete", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(403);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rDel", action: "purge", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(403);
     expect((await readInactive(app, "a1", cookie)).statusCode).toBe(403);
   });
 
@@ -382,7 +459,14 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       createdAt: TS,
     });
 
-    const res = await lifecycleAction(app, "resources", "r1", "delete", "a1", cookie);
+    const res = await lifecycleAction({
+      app,
+      entity: "resources",
+      id: "r1",
+      action: "delete",
+      accountId: "a1",
+      cookie,
+    });
     expect(res.statusCode).toBe(409);
     expect(res.json().code).toBe("invalid_transition");
     expect(res.json().error).toMatch(/must be archived first/);
@@ -400,7 +484,14 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       createdAt: TS,
     });
 
-    const res = await lifecycleAction(app, "clients", "cArc", "archive", "a1", cookie);
+    const res = await lifecycleAction({
+      app,
+      entity: "clients",
+      id: "cArc",
+      action: "archive",
+      accountId: "a1",
+      cookie,
+    });
     expect(res.statusCode).toBe(409);
     expect(res.json().code).toBe("already_inactive");
     expect(res.json().error).toMatch(/already archived/);
@@ -418,7 +509,14 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       createdAt: TS,
     });
 
-    const res = await lifecycleAction(app, "clients", "c1", "unarchive", "a1", cookie);
+    const res = await lifecycleAction({
+      app,
+      entity: "clients",
+      id: "c1",
+      action: "unarchive",
+      accountId: "a1",
+      cookie,
+    });
     expect(res.statusCode).toBe(409);
     expect(res.json().code).toBe("invalid_transition");
     expect(res.json().error).toMatch(/not archived/);
@@ -436,7 +534,14 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       createdAt: TS,
     });
 
-    const res = await lifecycleAction(app, "resources", "rYoung", "purge", "a1", cookie);
+    const res = await lifecycleAction({
+      app,
+      entity: "resources",
+      id: "rYoung",
+      action: "purge",
+      accountId: "a1",
+      cookie,
+    });
     expect(res.statusCode).toBe(409);
     expect(res.json().error).toMatch(/at least 30 days old/);
   });
@@ -453,7 +558,14 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       createdAt: TS,
     });
 
-    const res = await lifecycleAction(app, "resources", "rArc", "purge", "a1", cookie);
+    const res = await lifecycleAction({
+      app,
+      entity: "resources",
+      id: "rArc",
+      action: "purge",
+      accountId: "a1",
+      cookie,
+    });
     expect(res.statusCode).toBe(409);
     expect(res.json().error).toMatch(/soft-deleted tombstone/);
   });
@@ -472,7 +584,14 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
 
     // rDel is a soft-delete tombstone (deletedAt set). Unarchive accepts archived rows ONLY, so clearing
     // archivedAt here would leave the tombstone still 'deleted' — the transition refuses outright.
-    const res = await lifecycleAction(app, "resources", "rDel", "unarchive", "a1", cookie);
+    const res = await lifecycleAction({
+      app,
+      entity: "resources",
+      id: "rDel",
+      action: "unarchive",
+      accountId: "a1",
+      cookie,
+    });
     expect(res.statusCode).toBe(409);
     expect(res.json().error).toMatch(/not archived/);
   });
@@ -490,7 +609,14 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       createdAt: TS,
     });
 
-    const res = await lifecycleAction(app, "resources", "rArc", "unarchive", "a1", cookie);
+    const res = await lifecycleAction({
+      app,
+      entity: "resources",
+      id: "rArc",
+      action: "unarchive",
+      accountId: "a1",
+      cookie,
+    });
 
     expect(res.statusCode).toBe(200);
     expect(res.json()).not.toHaveProperty("archivedAt");
@@ -514,7 +640,14 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
     });
 
     // rDel already reads 'deleted'; softDelete requires 'archived', so a re-delete is a 409, not a no-op.
-    const res = await lifecycleAction(app, "resources", "rDel", "delete", "a1", cookie);
+    const res = await lifecycleAction({
+      app,
+      entity: "resources",
+      id: "rDel",
+      action: "delete",
+      accountId: "a1",
+      cookie,
+    });
     expect(res.statusCode).toBe(409);
     expect(res.json().error).toMatch(/must be archived first/);
   });
@@ -532,7 +665,10 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
     });
 
     // 'phases' is scoped but carries NO lifecycle tombstone → 404 on a lifecycle route.
-    expect((await lifecycleAction(app, "phases", "x", "archive", "a1", cookie)).statusCode).toBe(404);
+    expect(
+      (await lifecycleAction({ app, entity: "phases", id: "x", action: "archive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(404);
     // missing accountId in the body → 400.
     const noAcct = await call(app, {
       method: "POST",
@@ -542,7 +678,10 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
     });
     expect(noAcct.statusCode).toBe(400);
     // a row that isn't there → 404 (after authorize passes).
-    expect((await lifecycleAction(app, "clients", "nope", "archive", "a1", cookie)).statusCode).toBe(404);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "nope", action: "archive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(404);
   });
 });
 
@@ -554,11 +693,11 @@ describe("P2.5a lifecycle — purge cascade removes the row + its descendants", 
     const d = emptyAppData() as unknown as Record<string, unknown[]>;
     d.accounts = [account("a1")];
     d.clients = [client("cTree", "a1", archivedTombstone)];
-    d.projects = [project("pTree", "a1", "cTree")];
+    d.projects = [project({ id: "pTree", accountId: "a1", clientId: "cTree" })];
     d.phases = [phase("phTree", "a1", "pTree")];
-    d.activities = [activity("actTree", "a1", "pTree", "phTree")];
+    d.activities = [activity({ id: "actTree", accountId: "a1", projectId: "pTree", phaseId: "phTree" })];
     d.resources = [person("rTree", "a1")];
-    d.allocations = [allocation("alTree", "a1", "rTree", "actTree")];
+    d.allocations = [allocation({ id: "alTree", accountId: "a1", resourceId: "rTree", activityId: "actTree" })];
     insertAll(db, d as unknown as AppData);
 
     const { cookie, userId } = await signUp(app, "cascade@capacitylens.dev");
@@ -570,7 +709,10 @@ describe("P2.5a lifecycle — purge cascade removes the row + its descendants", 
       createdAt: TS,
     });
 
-    expect((await lifecycleAction(app, "clients", "cTree", "purge", "a1", cookie)).statusCode).toBe(204);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "cTree", action: "purge", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(204);
 
     // Read the FULL (admin) slice and confirm the client AND its whole subtree are GONE.
     const after = await readInactive(app, "a1", cookie);
@@ -587,12 +729,19 @@ describe("P2.5a lifecycle — purge cascade removes the row + its descendants", 
 });
 
 describe("P2.5a lifecycle — purge stamps the survivor rows the cascade unbinds", () => {
+  interface PlaceholderInput {
+    id: string;
+    accountId: string;
+    projectId?: string | undefined;
+    extra?: Record<string, unknown> | undefined;
+  }
+
   // The web store's purgeEntity passes nextDataRevision so a survivor whose FK is cleared (a
   // placeholder unbound from the purged project) gets a fresh updatedAt. The server MUST match:
   // without it the survivor keeps its old updatedAt, so a colleague's stale session passes the
   // optimistic-concurrency check yet fails referential validation with a 400 (not the 409 that drives
   // the server-wins reload) and persist.ts wedges behind a permanent save banner.
-  const placeholder = (id: string, accountId: string, projectId?: string, extra: Record<string, unknown> = {}) => ({
+  const placeholder = ({ id, accountId, projectId, extra = {} }: PlaceholderInput) => ({
     ...person(id, accountId, extra),
     kind: "placeholder",
     projectId,
@@ -604,9 +753,12 @@ describe("P2.5a lifecycle — purge stamps the survivor rows the cascade unbinds
     d.accounts = [account("a1")];
     // A purge-eligible (aged tombstone) project, a placeholder BOUND to it, and an UNRELATED resource.
     d.clients = [client("c1", "a1")];
-    d.projects = [project("pBound", "a1", "c1", archivedTombstone)];
+    d.projects = [project({ id: "pBound", accountId: "a1", clientId: "c1", extra: archivedTombstone })];
     const futureOffsetRevision = "2099-01-01T01:00:00+01:00";
-    d.resources = [placeholder("phBound", "a1", "pBound", { updatedAt: futureOffsetRevision }), person("rFree", "a1")];
+    d.resources = [
+      placeholder({ id: "phBound", accountId: "a1", projectId: "pBound", extra: { updatedAt: futureOffsetRevision } }),
+      person("rFree", "a1"),
+    ];
     insertAll(db, d as unknown as AppData);
 
     const { cookie, userId } = await signUp(app, "survivor@capacitylens.dev");
@@ -618,7 +770,10 @@ describe("P2.5a lifecycle — purge stamps the survivor rows the cascade unbinds
       createdAt: TS,
     });
 
-    expect((await lifecycleAction(app, "projects", "pBound", "purge", "a1", cookie)).statusCode).toBe(204);
+    expect(
+      (await lifecycleAction({ app, entity: "projects", id: "pBound", action: "purge", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(204);
 
     const body = (await readInactive(app, "a1", cookie)).json();
     expect(body.projects.map((p: { id: string }) => p.id)).not.toContain("pBound");
@@ -652,8 +807,18 @@ describe("P2.5a lifecycle — resource soft-delete obfuscation persists (P2.3 ca
       createdAt: TS,
     });
 
-    expect((await lifecycleAction(app, "resources", "rSent", "archive", "a1", cookie)).statusCode).toBe(200);
-    const del = await lifecycleAction(app, "resources", "rSent", "delete", "a1", cookie);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rSent", action: "archive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(200);
+    const del = await lifecycleAction({
+      app,
+      entity: "resources",
+      id: "rSent",
+      action: "delete",
+      accountId: "a1",
+      cookie,
+    });
     expect(del.statusCode).toBe(200);
     // The route's own response already carries the scrubbed name.
     expect(del.json().name).toMatch(/^Removed person #/);
@@ -678,12 +843,16 @@ describe("P2.5a lifecycle — resource soft-delete obfuscation persists (P2.3 ca
     d.accounts = [account("a1")];
     d.resources = [person("rNotes", "a1", justArchived)];
     d.clients = [client("c1", "a1")];
-    d.projects = [project("p1", "a1", "c1")];
+    d.projects = [project({ id: "p1", accountId: "a1", clientId: "c1" })];
     d.phases = [phase("ph1", "a1", "p1")];
-    d.activities = [activity("act1", "a1", "p1", "ph1")];
+    d.activities = [activity({ id: "act1", accountId: "a1", projectId: "p1", phaseId: "ph1" })];
     d.allocations = [
-      { ...allocation("alNoted", "a1", "rNotes", "act1"), note: "private", updatedAt: futureRevision },
-      allocation("alPlain", "a1", "rNotes", "act1"),
+      {
+        ...allocation({ id: "alNoted", accountId: "a1", resourceId: "rNotes", activityId: "act1" }),
+        note: "private",
+        updatedAt: futureRevision,
+      },
+      allocation({ id: "alPlain", accountId: "a1", resourceId: "rNotes", activityId: "act1" }),
     ];
     d.timeOff = [
       {
@@ -709,7 +878,9 @@ describe("P2.5a lifecycle — resource soft-delete obfuscation persists (P2.3 ca
     ];
     insertAll(db, d as unknown as AppData);
 
-    expect((await lifecycleAction(app, "resources", "rNotes", "delete", "a1")).statusCode).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rNotes", action: "delete", accountId: "a1" })).statusCode,
+    ).toBe(200);
 
     const dependent = (table: "allocations" | "timeOff", id: string) =>
       db.prepare(`SELECT note, updatedAt FROM ${table} WHERE id = ?`).get(id) as {
@@ -742,7 +913,7 @@ describe("P2.5a lifecycle — built-in Internal client cannot be archived/delete
       createdAt: TS,
     });
 
-    const res = await lifecycleAction(app, "clients", INTERNAL.id, action, "a1", cookie);
+    const res = await lifecycleAction({ app, entity: "clients", id: INTERNAL.id, action, accountId: "a1", cookie });
     expect(res.statusCode).toBe(409);
     expect(res.json().code).toBe("protected_entity");
     expect(res.json().error).toMatch(/built-in Internal client/);
@@ -759,10 +930,18 @@ describe("P2.5a lifecycle — OFF mode is allow-all (the #1 invariant)", () => {
 
   it("every lifecycle route + read-inactive succeeds with NO auth cookie", async () => {
     const { app } = offApp();
-    expect((await lifecycleAction(app, "clients", "c1", "archive", "a1")).statusCode).toBe(200);
-    expect((await lifecycleAction(app, "clients", "cArc", "unarchive", "a1")).statusCode).toBe(200);
-    expect((await lifecycleAction(app, "resources", "rArc", "delete", "a1")).statusCode).toBe(200);
-    expect((await lifecycleAction(app, "resources", "rDel", "purge", "a1")).statusCode).toBe(204);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "c1", action: "archive", accountId: "a1" })).statusCode,
+    ).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "cArc", action: "unarchive", accountId: "a1" })).statusCode,
+    ).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rArc", action: "delete", accountId: "a1" })).statusCode,
+    ).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rDel", action: "purge", accountId: "a1" })).statusCode,
+    ).toBe(204);
     expect((await readInactive(app, "a1")).statusCode).toBe(200);
   });
 
@@ -776,7 +955,13 @@ describe("P2.5a lifecycle — OFF mode is allow-all (the #1 invariant)", () => {
       clients: [client("future-archive", "a1", { archivedAt: futureArchive })],
     });
 
-    const response = await lifecycleAction(app, "clients", "future-archive", "delete", "a1");
+    const response = await lifecycleAction({
+      app,
+      entity: "clients",
+      id: "future-archive",
+      action: "delete",
+      accountId: "a1",
+    });
     expect(response.statusCode).toBe(200);
     const deleted = response.json() as {
       archivedAt: string;
@@ -802,9 +987,15 @@ describe("P2.5a lifecycle — cross-tenant: a1 member acting on a2 row → 403/4
     });
 
     // Claiming accountId=a2 (the row's real owner) → not a member of a2 → 403.
-    expect((await lifecycleAction(app, "clients", "c2", "archive", "a2", cookie)).statusCode).toBe(403);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "c2", action: "archive", accountId: "a2", cookie }))
+        .statusCode,
+    ).toBe(403);
     // Claiming accountId=a1 (where they ARE a member) for a2's row id → the a1 slice has no such row → 404.
-    expect((await lifecycleAction(app, "clients", "c2", "archive", "a1", cookie)).statusCode).toBe(404);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "c2", action: "archive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(404);
   });
 });
 
@@ -839,7 +1030,10 @@ describe("P2.5a lifecycle — targeted writes preserve unrelated siblings", () =
     insertAll(db, d as unknown as AppData);
 
     // Mutate one active row through the owned lifecycle operation.
-    expect((await lifecycleAction(app, "resources", "rActive", "archive", "a1")).statusCode).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rActive", action: "archive", accountId: "a1" }))
+        .statusCode,
+    ).toBe(200);
 
     // Admin read (includeInactive=1) so the inactive siblings are visible to assert against.
     const after = await readInactive(app, "a1");
@@ -870,7 +1064,9 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     d.resources = [person("rA", "a1", { name: SENTINEL })];
     insertAll(db, d as unknown as AppData);
 
-    expect((await lifecycleAction(app, "resources", "rA", "archive", "a1")).statusCode).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rA", action: "archive", accountId: "a1" })).statusCode,
+    ).toBe(200);
 
     const lines = existsSync(file)
       ? readFileSync(file, "utf8")
@@ -903,10 +1099,15 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     d.accounts = [account("a1")];
     d.resources = [person("rDelAudit", "a1", { name: SENTINEL, ...justArchived })];
     d.clients = [client("c1", "a1")];
-    d.projects = [project("p1", "a1", "c1")];
+    d.projects = [project({ id: "p1", accountId: "a1", clientId: "c1" })];
     d.phases = [phase("ph1", "a1", "p1")];
-    d.activities = [activity("act1", "a1", "p1", "ph1")];
-    d.allocations = [{ ...allocation("al1", "a1", "rDelAudit", "act1"), note: NOTE_SENTINEL }];
+    d.activities = [activity({ id: "act1", accountId: "a1", projectId: "p1", phaseId: "ph1" })];
+    d.allocations = [
+      {
+        ...allocation({ id: "al1", accountId: "a1", resourceId: "rDelAudit", activityId: "act1" }),
+        note: NOTE_SENTINEL,
+      },
+    ];
     d.timeOff = [
       {
         id: "to1",
@@ -921,7 +1122,10 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     ];
     insertAll(db, d as unknown as AppData);
 
-    expect((await lifecycleAction(app, "resources", "rDelAudit", "delete", "a1")).statusCode).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rDelAudit", action: "delete", accountId: "a1" }))
+        .statusCode,
+    ).toBe(200);
 
     const lines = existsSync(file)
       ? readFileSync(file, "utf8")
@@ -952,14 +1156,18 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     const data = emptyAppData() as unknown as Record<string, unknown[]>;
     data.accounts = [account("a1")];
     data.clients = [client("cPurge", "a1", { ...archivedTombstone, name: SENTINEL })];
-    data.projects = [project("pPurge", "a1", "cPurge")];
+    data.projects = [project({ id: "pPurge", accountId: "a1", clientId: "cPurge" })];
     data.phases = [phase("phPurge", "a1", "pPurge")];
-    data.activities = [activity("actPurge", "a1", "pPurge", "phPurge")];
+    data.activities = [activity({ id: "actPurge", accountId: "a1", projectId: "pPurge", phaseId: "phPurge" })];
     data.resources = [person("rSurvives", "a1")];
-    data.allocations = [allocation("alPurge", "a1", "rSurvives", "actPurge")];
+    data.allocations = [
+      allocation({ id: "alPurge", accountId: "a1", resourceId: "rSurvives", activityId: "actPurge" }),
+    ];
     insertAll(db, data as unknown as AppData);
 
-    expect((await lifecycleAction(app, "clients", "cPurge", "purge", "a1")).statusCode).toBe(204);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "cPurge", action: "purge", accountId: "a1" })).statusCode,
+    ).toBe(204);
 
     const record = JSON.parse(readFileSync(file, "utf8").trim()) as AuditRecord;
     expect(record).toMatchObject({
@@ -997,7 +1205,14 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     return { app, db };
   };
 
-  const rowById = async (app: FastifyInstance, entity: "resources" | "clients", accountId: string, id: string) => {
+  interface RowByIdInput {
+    app: FastifyInstance;
+    entity: "resources" | "clients";
+    accountId: string;
+    id: string;
+  }
+
+  const rowById = async ({ app, entity, accountId, id }: RowByIdInput) => {
     const res = await readInactive(app, accountId); // includeInactive so a (wrongly) tombstoned row still shows
     expect(res.statusCode).toBe(200);
     return (res.json()[entity] as Array<{ id: string }>).find((e) => e.id === id) as
@@ -1018,7 +1233,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       },
     });
     expect(res.statusCode).toBe(200);
-    const r1 = await rowById(app, "resources", "a1", "r1");
+    const r1 = await rowById({ app, entity: "resources", accountId: "a1", id: "r1" });
     expect(r1?.deletedAt).toBeUndefined();
     expect(r1?.archivedAt).toBeUndefined();
     // Still ACTIVE: it appears in the DEFAULT (active-only) read too — the forged delete never took.
@@ -1040,7 +1255,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       payload: client("c1", "a1", { deletedAt: "2020-01-01T00:00:00.000Z" }),
     });
     expect(res.statusCode).toBe(200);
-    expect((await rowById(app, "clients", "a1", "c1"))?.deletedAt).toBeUndefined();
+    expect((await rowById({ app, entity: "clients", accountId: "a1", id: "c1" }))?.deletedAt).toBeUndefined();
   });
 
   it("PATCH {builtin:false} on the Internal client → 400 (cannot un-flag the singleton)", async () => {
@@ -1055,7 +1270,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     });
     expect(res.statusCode).toBe(400);
     // The flag survived — the singleton is intact.
-    expect((await rowById(app, "clients", "a1", INTERNAL.id))?.builtin).toBe(true);
+    expect((await rowById({ app, entity: "clients", accountId: "a1", id: INTERNAL.id }))?.builtin).toBe(true);
     // A regular client still updates normally (control — the guard is surgical, not a blanket clients lock).
     const ok = await call(app, {
       method: "PATCH",
@@ -1073,7 +1288,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       accounts: [account("a1")],
       resources: [person("r1", "a1")],
     });
-    expect((await lifecycleAction(app, "resources", "r1", "archive", "a1")).statusCode).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "r1", action: "archive", accountId: "a1" })).statusCode,
+    ).toBe(200);
     // Edit an unrelated field — the body never mentions archivedAt, but the merge spreads the stored
     // tombstone, and a blind strip would clear it. The pin keeps it.
     const res = await call(app, {
@@ -1082,7 +1299,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       payload: { role: "Senior Designer" },
     });
     expect(res.statusCode).toBe(200);
-    const r1 = await rowById(app, "resources", "a1", "r1");
+    const r1 = await rowById({ app, entity: "resources", accountId: "a1", id: "r1" });
     expect(typeof r1?.archivedAt).toBe("string"); // tombstone survived the edit
     expect(r1?.role).toBe("Senior Designer"); // the legit field DID change
     // Still ARCHIVED: absent from the DEFAULT (active-only) read — it was NOT resurrected.
@@ -1099,9 +1316,13 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       clients: [client("c1", "a1")],
     });
     // archived-first interlock, then soft-delete: the row now carries deletedAt (and archivedAt).
-    expect((await lifecycleAction(app, "clients", "c1", "archive", "a1")).statusCode).toBe(200);
-    expect((await lifecycleAction(app, "clients", "c1", "delete", "a1")).statusCode).toBe(200);
-    const before = await rowById(app, "clients", "a1", "c1");
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "c1", action: "archive", accountId: "a1" })).statusCode,
+    ).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "c1", action: "delete", accountId: "a1" })).statusCode,
+    ).toBe(200);
+    const before = await rowById({ app, entity: "clients", accountId: "a1", id: "c1" });
     expect(typeof before?.deletedAt).toBe("string"); // really soft-deleted
 
     const res = await call(app, {
@@ -1110,7 +1331,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       payload: { color: "#da2d92" },
     });
     expect(res.statusCode).toBe(400);
-    const after = await rowById(app, "clients", "a1", "c1");
+    const after = await rowById({ app, entity: "clients", accountId: "a1", id: "c1" });
     expect(after?.deletedAt).toBe(before?.deletedAt); // soft-delete tombstone intact
     expect(after?.archivedAt).toBe(before?.archivedAt); // archive tombstone intact
     expect(after?.color).toBe(before?.color);
@@ -1128,8 +1349,12 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       accounts: [account("a1")],
       clients: [INTERNAL, legacy],
     });
-    expect((await lifecycleAction(app, "clients", legacy.id, "archive", "a1")).statusCode).toBe(200);
-    expect((await lifecycleAction(app, "clients", legacy.id, "delete", "a1")).statusCode).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: legacy.id, action: "archive", accountId: "a1" })).statusCode,
+    ).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: legacy.id, action: "delete", accountId: "a1" })).statusCode,
+    ).toBe(200);
 
     const replacement = { ...buildInternalClient("a1", TS), id: legacy.id };
     const res = await call(app, {
@@ -1140,8 +1365,8 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
 
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/remain active/i);
-    expect((await rowById(app, "clients", "a1", INTERNAL.id))?.builtin).toBe(true);
-    const retainedLegacy = await rowById(app, "clients", "a1", legacy.id);
+    expect((await rowById({ app, entity: "clients", accountId: "a1", id: INTERNAL.id }))?.builtin).toBe(true);
+    const retainedLegacy = await rowById({ app, entity: "clients", accountId: "a1", id: legacy.id });
     expect(retainedLegacy?.builtin).toBeUndefined();
     expect(typeof retainedLegacy?.deletedAt).toBe("string");
   });
@@ -1153,7 +1378,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       accounts: [account("a1")],
       clients: [INTERNAL, legacy, ordinary],
     });
-    expect((await lifecycleAction(app, "clients", legacy.id, "archive", "a1")).statusCode).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: legacy.id, action: "archive", accountId: "a1" })).statusCode,
+    ).toBe(200);
 
     const res = await call(app, {
       method: "POST",
@@ -1178,11 +1405,11 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
 
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/remain active/i);
-    expect((await rowById(app, "clients", "a1", INTERNAL.id))?.builtin).toBe(true);
-    const retainedLegacy = await rowById(app, "clients", "a1", legacy.id);
+    expect((await rowById({ app, entity: "clients", accountId: "a1", id: INTERNAL.id }))?.builtin).toBe(true);
+    const retainedLegacy = await rowById({ app, entity: "clients", accountId: "a1", id: legacy.id });
     expect(retainedLegacy?.builtin).toBeUndefined();
     expect(typeof retainedLegacy?.archivedAt).toBe("string");
-    expect((await rowById(app, "clients", "a1", ordinary.id))?.name).toBe(ordinary.name);
+    expect((await rowById({ app, entity: "clients", accountId: "a1", id: ordinary.id }))?.name).toBe(ordinary.name);
   });
 
   it("rejects direct descendant writes beneath archived or transitively deleted ancestors", async () => {
@@ -1194,9 +1421,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
         client("c-deleted", "a1", archivedTombstone),
       ],
       projects: [
-        project("p-deleted", "a1", "c-active", archivedTombstone),
-        project("p-archived", "a1", "c-archived", justArchived),
-        project("p-under-deleted-client", "a1", "c-deleted"),
+        project({ id: "p-deleted", accountId: "a1", clientId: "c-active", extra: archivedTombstone }),
+        project({ id: "p-archived", accountId: "a1", clientId: "c-archived", extra: justArchived }),
+        project({ id: "p-under-deleted-client", accountId: "a1", clientId: "c-deleted" }),
       ],
       phases: [phase("ph-under-archived", "a1", "p-archived"), phase("ph-existing", "a1", "p-under-deleted-client")],
       resources: [person("placeholder-under-deleted-project", "a1", { kind: "placeholder", projectId: "p-deleted" })],
@@ -1210,7 +1437,12 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     const beneathDeletedClient = await call(app, {
       method: "POST",
       url: "/api/activities",
-      payload: activity("act-new", "a1", "p-under-deleted-client", "ph-existing"),
+      payload: activity({
+        id: "act-new",
+        accountId: "a1",
+        projectId: "p-under-deleted-client",
+        phaseId: "ph-existing",
+      }),
     });
     const updateBeneathDeletedClient = await call(app, {
       method: "PATCH",
@@ -1249,10 +1481,12 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     const { app, db } = offAppWith({
       accounts: [account("a1")],
       clients: [client("c1", "a1")],
-      projects: [project("p1", "a1", "c1")],
+      projects: [project({ id: "p1", accountId: "a1", clientId: "c1" })],
       phases: [phase("ph1", "a1", "p1")],
     });
-    expect((await lifecycleAction(app, "clients", "c1", "archive", "a1")).statusCode).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "clients", id: "c1", action: "archive", accountId: "a1" })).statusCode,
+    ).toBe(200);
 
     const batch = await call(app, {
       method: "POST",
@@ -1272,7 +1506,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
             method: "PUT",
             table: "activities",
             id: "act-batch",
-            row: activity("act-batch", "a1", "p1", "ph1"),
+            row: activity({ id: "act-batch", accountId: "a1", projectId: "p1", phaseId: "ph1" }),
           },
         ],
       },
@@ -1288,11 +1522,16 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       accounts: [account("a1")],
       resources: [person("rPut", "a1"), person("rBatch", "a1")],
     });
-    expect((await lifecycleAction(app, "resources", "rPut", "archive", "a1")).statusCode).toBe(200);
-    expect((await lifecycleAction(app, "resources", "rBatch", "archive", "a1")).statusCode).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rPut", action: "archive", accountId: "a1" })).statusCode,
+    ).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rBatch", action: "archive", accountId: "a1" }))
+        .statusCode,
+    ).toBe(200);
 
     // PUT the FULL row (person() omits archivedAt): pre-fix this NULLed the column; now it's pinned.
-    const archivedPut = await rowById(app, "resources", "a1", "rPut");
+    const archivedPut = await rowById({ app, entity: "resources", accountId: "a1", id: "rPut" });
     const put = await call(app, {
       method: "PUT",
       url: "/api/resources/rPut",
@@ -1302,10 +1541,12 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       }),
     });
     expect(put.statusCode).toBe(200);
-    expect(typeof (await rowById(app, "resources", "a1", "rPut"))?.archivedAt).toBe("string");
+    expect(typeof (await rowById({ app, entity: "resources", accountId: "a1", id: "rPut" }))?.archivedAt).toBe(
+      "string",
+    );
 
     // Same via the batch sync path (the real client verb) — the changed call site is covered too.
-    const archivedBatch = await rowById(app, "resources", "a1", "rBatch");
+    const archivedBatch = await rowById({ app, entity: "resources", accountId: "a1", id: "rBatch" });
     const batch = await call(app, {
       method: "POST",
       url: "/api/batch",
@@ -1324,6 +1565,8 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       },
     });
     expect(batch.statusCode).toBe(200);
-    expect(typeof (await rowById(app, "resources", "a1", "rBatch"))?.archivedAt).toBe("string");
+    expect(typeof (await rowById({ app, entity: "resources", accountId: "a1", id: "rBatch" }))?.archivedAt).toBe(
+      "string",
+    );
   });
 });

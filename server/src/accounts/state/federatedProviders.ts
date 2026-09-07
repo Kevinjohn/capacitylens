@@ -1,6 +1,13 @@
 import type { Db } from "../../db";
 
-export function bindFederatedProvider(db: Db, applicationId: string, issuer: string, providerId: string): void {
+interface BindFederatedProviderInput {
+  db: Db;
+  applicationId: string;
+  issuer: string;
+  providerId: string;
+}
+
+export function bindFederatedProvider({ db, applicationId, issuer, providerId }: BindFederatedProviderInput): void {
   const byIssuer = db
     .prepare(
       `

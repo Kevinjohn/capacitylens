@@ -32,7 +32,14 @@ function insertDiscipline(db: Db, id: string, accountId: string): void {
   ).run(id, accountId, id, TS, TS);
 }
 
-function insertProject(db: Db, id: string, accountId: string, clientId: string): void {
+interface InsertProjectInput {
+  db: Db;
+  id: string;
+  accountId: string;
+  clientId: string;
+}
+
+function insertProject({ db, id, accountId, clientId }: InsertProjectInput): void {
   db.prepare(
     `
     INSERT INTO projects (id, accountId, name, clientId, color, createdAt, updatedAt)
@@ -41,7 +48,14 @@ function insertProject(db: Db, id: string, accountId: string, clientId: string):
   ).run(id, accountId, id, clientId, TS, TS);
 }
 
-function insertPhase(db: Db, id: string, accountId: string, projectId: string): void {
+interface InsertPhaseInput {
+  db: Db;
+  id: string;
+  accountId: string;
+  projectId: string;
+}
+
+function insertPhase({ db, id, accountId, projectId }: InsertPhaseInput): void {
   db.prepare(
     `
     INSERT INTO phases (id, accountId, name, projectId, createdAt, updatedAt)
@@ -50,12 +64,14 @@ function insertPhase(db: Db, id: string, accountId: string, projectId: string): 
   ).run(id, accountId, id, projectId, TS, TS);
 }
 
-function insertResource(
-  db: Db,
-  id: string,
-  accountId: string,
-  refs: { disciplineId?: string; projectId?: string } = {},
-): void {
+interface InsertResourceInput {
+  db: Db;
+  id: string;
+  accountId: string;
+  refs?: { disciplineId?: string; projectId?: string } | undefined;
+}
+
+function insertResource({ db, id, accountId, refs = {} }: InsertResourceInput): void {
   db.prepare(
     `
     INSERT INTO resources (
@@ -66,12 +82,14 @@ function insertResource(
   ).run(id, accountId, id, refs.disciplineId ?? null, refs.projectId ?? null, TS, TS);
 }
 
-function insertActivity(
-  db: Db,
-  id: string,
-  accountId: string,
-  refs: { projectId?: string; phaseId?: string } = {},
-): void {
+interface InsertActivityInput {
+  db: Db;
+  id: string;
+  accountId: string;
+  refs?: { projectId?: string; phaseId?: string } | undefined;
+}
+
+function insertActivity({ db, id, accountId, refs = {} }: InsertActivityInput): void {
   db.prepare(
     `
     INSERT INTO activities (id, accountId, name, kind, projectId, phaseId, createdAt, updatedAt)
@@ -80,14 +98,16 @@ function insertActivity(
   ).run(id, accountId, id, refs.projectId ?? null, refs.phaseId ?? null, TS, TS);
 }
 
-function insertAllocation(
-  db: Db,
-  id: string,
-  accountId: string,
-  resourceId: string,
-  activityId: string,
-  projectId?: string,
-): void {
+interface InsertAllocationInput {
+  db: Db;
+  id: string;
+  accountId: string;
+  resourceId: string;
+  activityId: string;
+  projectId?: string | undefined;
+}
+
+function insertAllocation({ db, id, accountId, resourceId, activityId, projectId }: InsertAllocationInput): void {
   db.prepare(
     `
     INSERT INTO allocations (
@@ -98,7 +118,14 @@ function insertAllocation(
   ).run(id, accountId, resourceId, activityId, projectId ?? null, TS, TS);
 }
 
-function insertTimeOff(db: Db, id: string, accountId: string, resourceId: string): void {
+interface InsertTimeOffInput {
+  db: Db;
+  id: string;
+  accountId: string;
+  resourceId: string;
+}
+
+function insertTimeOff({ db, id, accountId, resourceId }: InsertTimeOffInput): void {
   db.prepare(
     `
     INSERT INTO timeOff (
@@ -116,82 +143,82 @@ const crossTenantEdges: Array<{
     relationship: "resources.disciplineId -> disciplines.id",
     seed(db) {
       insertDiscipline(db, "d1", "a1");
-      insertResource(db, "r2", "a2", { disciplineId: "d1" });
+      insertResource({ db, id: "r2", accountId: "a2", refs: { disciplineId: "d1" } });
     },
   },
   {
     relationship: "projects.clientId -> clients.id",
     seed(db) {
       insertClient(db, "c1", "a1");
-      insertProject(db, "p2", "a2", "c1");
+      insertProject({ db, id: "p2", accountId: "a2", clientId: "c1" });
     },
   },
   {
     relationship: "phases.projectId -> projects.id",
     seed(db) {
       insertClient(db, "c1", "a1");
-      insertProject(db, "p1", "a1", "c1");
-      insertPhase(db, "ph2", "a2", "p1");
+      insertProject({ db, id: "p1", accountId: "a1", clientId: "c1" });
+      insertPhase({ db, id: "ph2", accountId: "a2", projectId: "p1" });
     },
   },
   {
     relationship: "resources.projectId -> projects.id",
     seed(db) {
       insertClient(db, "c1", "a1");
-      insertProject(db, "p1", "a1", "c1");
-      insertResource(db, "r2", "a2", { projectId: "p1" });
+      insertProject({ db, id: "p1", accountId: "a1", clientId: "c1" });
+      insertResource({ db, id: "r2", accountId: "a2", refs: { projectId: "p1" } });
     },
   },
   {
     relationship: "activities.projectId -> projects.id",
     seed(db) {
       insertClient(db, "c1", "a1");
-      insertProject(db, "p1", "a1", "c1");
-      insertActivity(db, "act2", "a2", { projectId: "p1" });
+      insertProject({ db, id: "p1", accountId: "a1", clientId: "c1" });
+      insertActivity({ db, id: "act2", accountId: "a2", refs: { projectId: "p1" } });
     },
   },
   {
     relationship: "activities.phaseId -> phases.id",
     seed(db) {
       insertClient(db, "c1", "a1");
-      insertProject(db, "p1", "a1", "c1");
-      insertPhase(db, "ph1", "a1", "p1");
+      insertProject({ db, id: "p1", accountId: "a1", clientId: "c1" });
+      insertPhase({ db, id: "ph1", accountId: "a1", projectId: "p1" });
       insertClient(db, "c2", "a2");
-      insertProject(db, "p2", "a2", "c2");
-      insertActivity(db, "act2", "a2", { projectId: "p2", phaseId: "ph1" });
+      insertProject({ db, id: "p2", accountId: "a2", clientId: "c2" });
+      insertActivity({ db, id: "act2", accountId: "a2", refs: { projectId: "p2", phaseId: "ph1" } });
     },
   },
   {
     relationship: "allocations.resourceId -> resources.id",
     seed(db) {
-      insertResource(db, "r1", "a1");
-      insertActivity(db, "act2", "a2");
-      insertAllocation(db, "al2", "a2", "r1", "act2");
+      insertResource({ db, id: "r1", accountId: "a1" });
+      insertActivity({ db, id: "act2", accountId: "a2" });
+      insertAllocation({ db, id: "al2", accountId: "a2", resourceId: "r1", activityId: "act2" });
     },
   },
   {
     relationship: "allocations.activityId -> activities.id",
     seed(db) {
-      insertResource(db, "r2", "a2");
-      insertActivity(db, "act1", "a1");
-      insertAllocation(db, "al2", "a2", "r2", "act1");
+      insertResource({ db, id: "r2", accountId: "a2" });
+      insertActivity({ db, id: "act1", accountId: "a1" });
+      insertAllocation({ db, id: "al2", accountId: "a2", resourceId: "r2", activityId: "act1" });
     },
   },
   {
     relationship: "timeOff.resourceId -> resources.id",
     seed(db) {
-      insertResource(db, "r1", "a1");
-      insertTimeOff(db, "to2", "a2", "r1");
+      insertResource({ db, id: "r1", accountId: "a1" });
+      insertTimeOff({ db, id: "to2", accountId: "a2", resourceId: "r1" });
     },
   },
   {
     relationship: "allocations.projectId -> projects.id",
     seed(db) {
       insertClient(db, "c1", "a1");
-      insertProject(db, "p1", "a1", "c1");
-      insertResource(db, "r2", "a2");
-      insertActivity(db, "act2", "a2");
-      insertAllocation(db, "al2", "a2", "r2", "act2", "p1");
+      insertProject({ db, id: "p1", accountId: "a1", clientId: "c1" });
+      insertResource({ db, id: "r2", accountId: "a2" });
+      insertActivity({ db, id: "act2", accountId: "a2" });
+      insertAllocation({ db, id: "al2", accountId: "a2", resourceId: "r2", activityId: "act2", projectId: "p1" });
     },
   },
 ];

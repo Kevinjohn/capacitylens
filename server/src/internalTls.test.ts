@@ -15,7 +15,7 @@ import {
 describe("loadInternalTls", () => {
   it("keeps local development on HTTP when both paths are omitted", () => {
     const read = vi.fn<(path: string) => Buffer>();
-    expect(loadInternalTls({}, read)).toBeUndefined();
+    expect(loadInternalTls({ environment: {}, read })).toBeUndefined();
     expect(read).not.toHaveBeenCalled();
   });
 
@@ -36,21 +36,21 @@ describe("loadInternalTls", () => {
       },
     ],
   ])("fails closed when the configured path pair is incomplete or blank", (env) => {
-    expect(() => loadInternalTls(env)).toThrow(InternalTlsConfigError);
+    expect(() => loadInternalTls({ environment: env })).toThrow(InternalTlsConfigError);
   });
 
   it("loads both files and pins the minimum protocol to TLS 1.2", () => {
     const read = vi.fn((path: string) => Buffer.from(path.endsWith(".crt") ? "certificate" : "key"));
     expect(
-      loadInternalTls(
-        {
+      loadInternalTls({
+        environment: {
           CAPACITYLENS_INTERNAL_TLS_CERT: "/tls/api.crt",
           CAPACITYLENS_INTERNAL_TLS_KEY: "/tls/api.key",
         },
         read,
-        () => "2027-01-01T00:00:00.000Z",
-        () => undefined,
-      ),
+        expiry: () => "2027-01-01T00:00:00.000Z",
+        validateIdentity: () => undefined,
+      }),
     ).toEqual({
       cert: Buffer.from("certificate"),
       key: Buffer.from("key"),
@@ -63,53 +63,53 @@ describe("loadInternalTls", () => {
 
   it("frames unreadable and empty identities as configuration errors", () => {
     expect(() =>
-      loadInternalTls(
-        {
+      loadInternalTls({
+        environment: {
           CAPACITYLENS_INTERNAL_TLS_CERT: "/tls/api.crt",
           CAPACITYLENS_INTERNAL_TLS_KEY: "/tls/api.key",
         },
-        () => {
+        read: () => {
           throw new Error("permission denied");
         },
-      ),
+      }),
     ).toThrow(/Unable to read.*permission denied/);
 
     expect(() =>
-      loadInternalTls(
-        {
+      loadInternalTls({
+        environment: {
           CAPACITYLENS_INTERNAL_TLS_CERT: "/tls/api.crt",
           CAPACITYLENS_INTERNAL_TLS_KEY: "/tls/api.key",
         },
-        () => Buffer.alloc(0),
-      ),
+        read: () => Buffer.alloc(0),
+      }),
     ).toThrow(/must not be empty/);
   });
 
   it("fails closed when the configured certificate cannot be parsed", () => {
     expect(() =>
-      loadInternalTls(
-        {
+      loadInternalTls({
+        environment: {
           CAPACITYLENS_INTERNAL_TLS_CERT: "/tls/api.crt",
           CAPACITYLENS_INTERNAL_TLS_KEY: "/tls/api.key",
         },
-        () => Buffer.from("not-a-certificate"),
-      ),
+        read: () => Buffer.from("not-a-certificate"),
+      }),
     ).toThrow(/TLS identity is invalid/i);
   });
 
   it("frames a malformed or mismatched private key as a configuration error", () => {
     expect(() =>
-      loadInternalTls(
-        {
+      loadInternalTls({
+        environment: {
           CAPACITYLENS_INTERNAL_TLS_CERT: "/tls/api.crt",
           CAPACITYLENS_INTERNAL_TLS_KEY: "/tls/api.key",
         },
-        (path) => Buffer.from(path.endsWith(".crt") ? "certificate" : "malformed-key"),
-        () => "2027-01-01T00:00:00.000Z",
-        () => {
+        read: (path) => Buffer.from(path.endsWith(".crt") ? "certificate" : "malformed-key"),
+        expiry: () => "2027-01-01T00:00:00.000Z",
+        validateIdentity: () => {
           throw new Error("key values mismatch");
         },
-      ),
+      }),
     ).toThrow(/TLS identity is invalid.*key values mismatch/i);
   });
 
@@ -122,16 +122,16 @@ describe("loadInternalTls", () => {
       CAPACITYLENS_INTERNAL_TLS_GENERATION: "/tls/api.crt.sha256",
     };
     const load = (generation: string) =>
-      loadInternalTls(
-        env,
-        (path) => {
+      loadInternalTls({
+        environment: env,
+        read: (path) => {
           if (path.endsWith(".crt")) return certificate;
           if (path.endsWith(".key")) return Buffer.from("key");
           return Buffer.from(generation);
         },
-        () => "2027-01-01T00:00:00.000Z",
-        () => undefined,
-      );
+        expiry: () => "2027-01-01T00:00:00.000Z",
+        validateIdentity: () => undefined,
+      });
 
     expect(load(fingerprint)).toMatchObject({ fingerprintSha256: fingerprint });
     expect(() => load("0".repeat(64))).toThrow(/does not match its published generation/);

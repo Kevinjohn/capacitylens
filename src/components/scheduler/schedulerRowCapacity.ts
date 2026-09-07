@@ -63,7 +63,7 @@ export function createCapacitySource(
       };
     }
     // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
-    const capacityAllocations = applyCapacityMode(allocations, blocksMode);
+    const capacityAllocations = applyCapacityMode({ allocations: allocations, blocksMode: blocksMode });
     const rowTimeOff = resourceTimeOff;
     // Bucket this resource's load and time off by the days they cover, ONCE, so each of the
     // ~150 timeline days hands capacity.ts only the rows that actually touch that day instead

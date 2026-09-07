@@ -26,7 +26,13 @@ export function TimeOffList() {
 
   const currentWeekStart = readCurrentTimeOffWeekStart(calendarTimeZone, calendarWeekStartsOn);
   const groups = useMemo(
-    () => buildTimeOffGroups(data.timeOff, resources, currentWeekStart, placeholdersEnabled),
+    () =>
+      buildTimeOffGroups({
+        timeOff: data.timeOff,
+        resources: resources,
+        weekStart: currentWeekStart,
+        placeholdersEnabled: placeholdersEnabled,
+      }),
     [currentWeekStart, data.timeOff, placeholdersEnabled, resources],
   );
 

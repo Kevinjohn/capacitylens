@@ -189,7 +189,7 @@ describe("BatchStateProjection", () => {
       const existing = projection.row("clients", id);
       expect(existing).toBeDefined();
       const updated = { ...existing!, name: `Updated ${index}` };
-      assertValidWrite(projection.data, "clients", updated, existing, projection);
+      assertValidWrite({ state: projection.data, table: "clients", row: updated, existing, lookup: projection });
       projection.upsert("clients", updated);
     }
 

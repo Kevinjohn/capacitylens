@@ -1,20 +1,19 @@
-import type { Db } from "../../db";
 import { buildApplicationSessionHandle } from "../buildApplicationSessionHandle";
 import { removePrincipalSessionAssurance, removeSessionAssurance } from "../state";
 import type { IdentityTableProbes } from "./contracts";
-import type { MasqueradeSessionLifecycle } from "./contracts";
+import type { RevokePrincipalSessionsInTxInput } from "./contracts";
 
 export function createSessionRevocation(tables: Pick<IdentityTableProbes, "sessionTableExists">) {
   const { sessionTableExists } = tables;
   /** Delete a principal's provider sessions and app-owned assurance inside the caller's SQLite
    * transaction. This is used by identity corrections/repairs so no sign-in can land between a
    * pre-mutation revocation and the mutation itself. */
-  function revokePrincipalSessionsInTx(
-    db: Db,
-    applicationId: string,
-    principalId: string,
-    lifecycle?: MasqueradeSessionLifecycle,
-  ): readonly string[] {
+  function revokePrincipalSessionsInTx({
+    db,
+    applicationId,
+    principalId,
+    lifecycle,
+  }: RevokePrincipalSessionsInTxInput): readonly string[] {
     const masqueradeHandles = lifecycle?.prepareUsers([principalId], "session_revoked") ?? [];
     if (!sessionTableExists(db)) {
       removePrincipalSessionAssurance(db, principalId);

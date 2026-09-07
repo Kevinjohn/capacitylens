@@ -28,16 +28,28 @@ function transitionStalePending(db: Db, record: AccountCommandRecord, nowMs: num
     resultJson: JSON.stringify({ kind: "stale-pending" }),
     now: new Date(nowMs).toISOString(),
   });
-  return getAccountCommand(db, record.applicationId, record.operation, record.idempotencyKey)!;
+  return getAccountCommand({
+    db,
+    applicationId: record.applicationId,
+    operation: record.operation,
+    idempotencyKey: record.idempotencyKey,
+  })!;
+}
+
+interface GetAccountCommandByIdForReconciliationInput {
+  db: Db;
+  applicationId: string;
+  commandId: CommandId;
+  now?: number | undefined;
 }
 
 /** A reconciliation read is also the timeout boundary for abandoned in-flight commands. */
-export function getAccountCommandByIdForReconciliation(
-  db: Db,
-  applicationId: string,
-  commandId: CommandId,
+export function getAccountCommandByIdForReconciliation({
+  db,
+  applicationId,
+  commandId,
   now = readStableNowMilliseconds(),
-): AccountCommandRecord | null {
+}: GetAccountCommandByIdForReconciliationInput): AccountCommandRecord | null {
   const record = getAccountCommandById(db, applicationId, commandId);
   return record ? transitionStalePending(db, record, now) : null;
 }
@@ -75,7 +87,12 @@ export function reserveAccountCommand(
     ).run(new Date(nowMs - COMMAND_RETENTION_MS).toISOString());
     lastCommandSweep.set(db, nowMs);
   }
-  const existing = getAccountCommand(db, input.applicationId, input.operation, input.idempotencyKey);
+  const existing = getAccountCommand({
+    db,
+    applicationId: input.applicationId,
+    operation: input.operation,
+    idempotencyKey: input.idempotencyKey,
+  });
   if (existing) {
     // An idempotency key is authority-neutral, but its result is not. Never let a command retained
     // by a shared browser replay, age, or otherwise mutate another principal's ledger ceremony.
@@ -115,7 +132,12 @@ export function reserveAccountCommand(
   );
   return {
     kind: "reserved",
-    record: getAccountCommand(db, input.applicationId, input.operation, input.idempotencyKey)!,
+    record: getAccountCommand({
+      db,
+      applicationId: input.applicationId,
+      operation: input.operation,
+      idempotencyKey: input.idempotencyKey,
+    })!,
   };
 }
 
@@ -131,7 +153,12 @@ export function correlatePendingAccountCommand(
     now?: string;
   },
 ): void {
-  const row = getAccountCommand(db, input.applicationId, input.operation, input.idempotencyKey);
+  const row = getAccountCommand({
+    db,
+    applicationId: input.applicationId,
+    operation: input.operation,
+    idempotencyKey: input.idempotencyKey,
+  });
   if (!row || row.status !== "pending") {
     throw new Error("Only a pending account command may receive correlation coordinates.");
   }
@@ -169,7 +196,12 @@ export function correlatePendingAccountCommand(
 }
 
 export function finishAccountCommandIfPending(db: Db, input: Parameters<typeof finishAccountCommand>[1]): boolean {
-  const row = getAccountCommand(db, input.applicationId, input.operation, input.idempotencyKey);
+  const row = getAccountCommand({
+    db,
+    applicationId: input.applicationId,
+    operation: input.operation,
+    idempotencyKey: input.idempotencyKey,
+  });
   if (!row || row.status !== "pending") return false;
   finishAccountCommand(db, input);
   return true;
@@ -228,13 +260,20 @@ export function erasePrincipalCommandHistoryInTx(db: Db, principalId: PrincipalI
   );
 }
 
+interface CloseAccountCommandReconciliationInput {
+  db: Db;
+  applicationId: string;
+  commandId: CommandId;
+  referenceHash: string;
+}
+
 /** Operator-only closure after the recorded repair target has been inspected and repaired. */
-export function closeAccountCommandReconciliation(
-  db: Db,
-  applicationId: string,
-  commandId: CommandId,
-  referenceHash: string,
-): boolean {
+export function closeAccountCommandReconciliation({
+  db,
+  applicationId,
+  commandId,
+  referenceHash,
+}: CloseAccountCommandReconciliationInput): boolean {
   if (!/^[a-f0-9]{64}$/.test(referenceHash)) {
     throw new Error("The reconciliation reference must be supplied as a lowercase SHA-256 digest.");
   }

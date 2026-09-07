@@ -101,7 +101,7 @@ export function createCutover(
       // This arm converts existing account administration into a new Owner grant. Apply the same
       // step-up boundary as membership and invitation administration after proving the role, so a
       // lower-privilege caller still receives the ordinary authority refusal.
-      assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
+      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
       return { allowed: true };
     },
     provisionOwnerMembershipInTx({ workspaceId, principalId, joinedAt }) {
@@ -117,8 +117,8 @@ export function createCutover(
       return readMembership(db, row);
     },
     assertWorkspaceErasureAuthorityInTx(actor, workspaceId): void {
-      assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
-      const role = assertAccountAuthority(db, actor, workspaceId, "erase-workspace", trustedLocal);
+      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+      const role = assertAccountAuthority({ db, actor, workspaceId, action: "erase-workspace", trustedLocal });
       if (role !== "owner") throw createAccountFailure("FORBIDDEN", "Only the workspace owner may erase it.");
     },
     eraseWorkspaceAdministrationInTx(workspaceId) {

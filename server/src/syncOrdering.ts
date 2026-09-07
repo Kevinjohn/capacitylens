@@ -124,16 +124,18 @@ export function isSupersededSyncBatch(db: Db, order: SyncOrder): boolean {
 const hashRow = (row: Record<string, unknown>): string =>
   createHash("sha256").update(JSON.stringify(row)).digest("hex");
 
+interface IsSameSessionSuccessorInput {
+  db: Db;
+  order: SyncOrder;
+  table: string;
+  id: string;
+  current: Record<string, unknown>;
+}
+
 /** True only when the current stored row is exactly the result of an earlier batch from this
  * browser sync session. This lets its already-dispatched successor advance past the predecessor's
  * server-owned revision without treating an intervening write from another actor as its own. */
-export function isSameSessionSuccessor(
-  db: Db,
-  order: SyncOrder,
-  table: string,
-  id: string,
-  current: Record<string, unknown>,
-): boolean {
+export function isSameSessionSuccessor({ db, order, table, id, current }: IsSameSessionSuccessorInput): boolean {
   const cache = createSyncOrderingStatementCache(db);
   const statement = (cache.isSameSessionSuccessor ??= db.prepare(
     `

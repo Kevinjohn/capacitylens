@@ -284,7 +284,7 @@ async function betterAuthHarness(): Promise<Harness> {
       VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)
     `,
   ).run("session-row-1", LATER, token, NOW, NOW, created.id);
-  recordSessionAssurance(db, sessionId, created.id, "password");
+  recordSessionAssurance({ db, sessionId, principalId: created.id, assurance: "password" });
   const session: ApplicationSession = {
     id: sessionId,
     principal: { ...PRINCIPAL, id: created.id },
@@ -484,7 +484,7 @@ describe("revocation window race", () => {
         VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)
       `,
       ).run(`session-row-${suffix}`, LATER, bearer, NOW, NOW, created.id);
-      recordSessionAssurance(db, handle, created.id, "password");
+      recordSessionAssurance({ db, sessionId: handle, principalId: created.id, assurance: "password" });
       return handle;
     };
     seedSession("before"); // visible before revocation

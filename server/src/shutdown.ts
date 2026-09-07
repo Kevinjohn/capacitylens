@@ -27,13 +27,21 @@ export async function handleListenFailure(
   await shutdown(1, "listen_failure");
 }
 
-export function createShutdownHandler(
-  app: ClosableApp,
-  db: ClosableDb,
-  exit: (code: number) => void,
-  stopBackgroundWork?: () => Promise<unknown>,
+interface CreateShutdownHandlerInput {
+  app: ClosableApp;
+  db: ClosableDb;
+  exit: (code: number) => void;
+  stopBackgroundWork?: (() => Promise<unknown>) | undefined;
+  deadlineMs?: number | undefined;
+}
+
+export function createShutdownHandler({
+  app,
+  db,
+  exit,
+  stopBackgroundWork,
   deadlineMs = DEFAULT_SHUTDOWN_DEADLINE_MS,
-): (exitCode?: number, reason?: ShutdownReason) => Promise<void> {
+}: CreateShutdownHandlerInput): (exitCode?: number, reason?: ShutdownReason) => Promise<void> {
   let draining = false;
   return async (exitCode = 0, reason = "requested") => {
     if (draining) {

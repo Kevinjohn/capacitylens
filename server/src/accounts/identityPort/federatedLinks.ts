@@ -34,11 +34,20 @@ export function createFederatedLinks(
     revokePrincipalSessionsInTx,
   } = context;
   const { applicationId, auth, db } = input;
-  const removeFederatedLink = async (
-    { principalId, providerId, rowId, subject, audit }: FederatedLinkRemoval,
-    preserveSignIn: boolean,
-    authorizeInTransaction?: () => void,
-  ): Promise<boolean> => {
+
+  interface RemoveFederatedLinkInput {
+    removal: FederatedLinkRemoval;
+    preserveSignIn: boolean;
+    authorizeInTransaction?: (() => void) | undefined;
+  }
+
+  const removeFederatedLink = async ({
+    removal,
+    preserveSignIn,
+    authorizeInTransaction,
+  }: RemoveFederatedLinkInput): Promise<boolean> => {
+    const { principalId, providerId, rowId, subject, audit } = removal;
+
     if (providerId === "credential") {
       throw new AccountContractError({
         code: "VALIDATION_FAILED",
@@ -86,7 +95,12 @@ export function createFederatedLinks(
               });
             }
           }
-          masqueradeHandles = revokePrincipalSessionsInTx(db, applicationId, principalId, input.masqueradeSessions);
+          masqueradeHandles = revokePrincipalSessionsInTx({
+            db,
+            applicationId,
+            principalId,
+            lifecycle: input.masqueradeSessions,
+          });
           if (federatedLinkObservationsTableExists(db)) {
             db.prepare(`DELETE FROM capacitylens_federated_link_observations WHERE accountRowId = ?`).run(rowId);
           }
@@ -120,10 +134,14 @@ export function createFederatedLinks(
   };
   return {
     removeFederatedLink(input) {
-      return removeFederatedLink(input, true, input.authorizeInTransaction);
+      return removeFederatedLink({
+        removal: input,
+        preserveSignIn: true,
+        authorizeInTransaction: input.authorizeInTransaction,
+      });
     },
     removeFederatedLinkForStoppedRepair(input) {
-      return removeFederatedLink(input, false);
+      return removeFederatedLink({ removal: input, preserveSignIn: false });
     },
     async findPrincipalByFederatedSubject({ subject }): Promise<PrincipalSummary | null> {
       try {
@@ -193,7 +211,12 @@ export function createFederatedLinks(
             revokeResetTokensForUser(db, principalId);
             revokeFederatedLinkStateInTx(db, principalId);
             db.prepare(`DELETE FROM capacitylens_federated_link_ceremonies WHERE principalId = ?`).run(principalId);
-            masqueradeHandles = revokePrincipalSessionsInTx(db, applicationId, principalId, input.masqueradeSessions);
+            masqueradeHandles = revokePrincipalSessionsInTx({
+              db,
+              applicationId,
+              principalId,
+              lifecycle: input.masqueradeSessions,
+            });
             enqueueAudit(db, audit, audit.id);
           },
           "immediate",

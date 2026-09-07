@@ -80,7 +80,7 @@ export function createCutover(
           if (!requiresCutover) return { sessions: 0, ceremonies: 0 };
           for (const principalId of principals) {
             masqueradeHandles.push(
-              ...revokePrincipalSessionsInTx(db, applicationId, principalId, input.masqueradeSessions),
+              ...revokePrincipalSessionsInTx({ db, applicationId, principalId, lifecycle: input.masqueradeSessions }),
             );
           }
           if (verificationTableExists(db)) db.prepare(`DELETE FROM verification`).run();
