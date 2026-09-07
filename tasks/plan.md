@@ -672,15 +672,20 @@ cleanup behavior without changing production scheduling.
 - [ ] First separate patch release merged and verified.
 - [ ] #643 upkeep decision merged and closed.
 - [ ] Second separate patch release merged and verified.
-- [ ] #645 exact enforcement, fixes and initial residual baselines verified.
-- [ ] #647 all intended flags, structural rules and cleanup dispositions verified.
+- [x] #645 exact enforcement, fixes and initial residual baselines verified. Internal `AuthMode`
+      consumers use `AccountMode` while compatibility exports remain; unnecessary assertions and
+      every zero-baseline family are clean. The reviewed declaration ledger accounts for all 1,734
+      residual suppressions in the seven authorised smell families.
+- [x] #647 all intended flags, structural rules and cleanup dispositions verified. Both compiler
+      flags are enabled and pass with zero diagnostics in app, Node, E2E, shared production/test and
+      server projects.
       Structural enrollment is verified at `6a9cf77480a34cb4f3c3429bae48561af90b7948`: the frozen
       baseline contains 158 complexity, 59 depth and 694 length declarations, including 42 E2E length
       declarations, and exactly matches `eslint-suppressions.json`. The three byte-identical cached
       statement helpers remain local to account-state, audit-outbox and control-table owners because
       centralising the small closure would couple those layers for negligible reuse. The sole confirmed
-      dead declaration, `buildOperationReceipt`, remains pending removal with its stale JSDoc consumer
-      in a separate reviewed branch; #647 is not complete until that branch lands.
+      dead declaration, `buildOperationReceipt`, and its stale JSDoc consumer were removed in the
+      reviewed integrated tree; the other exact-body groups have explicit retain/defer dispositions.
 - [x] #646 all categories reconciled without duplicate findings. The exhaustive AST-backed site
       manifest and terminal ledger are pinned to `05fef1cf`; RU001–RU220 and AS001–AS771 are
       explicitly deferred to complete C6 owner blocks rather than asserted sound, BO204/BO205 are
