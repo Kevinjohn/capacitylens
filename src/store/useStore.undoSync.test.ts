@@ -88,7 +88,7 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
 
     useStore.getState().deletePhase("ph1");
     const afterDelete = useStore.getState().data;
-    expect(afterDelete.activities[0]?.phaseId).toBeUndefined();
+    expect(requireValue(afterDelete.activities[0], "activity")).not.toHaveProperty("phaseId");
     const ops = undoOps(afterDelete);
 
     expect(ops).toContainEqual(
@@ -112,7 +112,7 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
 
     useStore.getState().deleteDiscipline("d1");
     const afterDelete = useStore.getState().data;
-    expect(afterDelete.resources[0]?.disciplineId).toBeUndefined();
+    expect(requireValue(afterDelete.resources[0], "resource")).not.toHaveProperty("disciplineId");
     const ops = undoOps(afterDelete);
 
     expect(ops).toContainEqual(expect.objectContaining({ method: "PUT", table: "resources", id: "r1" }));
@@ -155,10 +155,10 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
 
     useStore.getState().purgeEntity("projects", "p1");
     const afterDelete = useStore.getState().data;
-    expect(afterDelete.resources[0]?.projectId).toBeUndefined();
+    expect(requireValue(afterDelete.resources[0], "resource")).not.toHaveProperty("projectId");
     const ops = undoOps(afterDelete);
     expect(ops).toEqual([]);
-    expect(useStore.getState().data.resources[0]?.projectId).toBeUndefined();
+    expect(requireValue(useStore.getState().data.resources[0], "resource")).not.toHaveProperty("projectId");
   });
 
   it("keeps a placeholder projectId removed after client purge and emits no undo sync", () => {
@@ -204,9 +204,9 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
 
     useStore.getState().purgeEntity("clients", "c1");
     const afterDelete = useStore.getState().data;
-    expect(afterDelete.resources[0]?.projectId).toBeUndefined();
+    expect(requireValue(afterDelete.resources[0], "resource")).not.toHaveProperty("projectId");
     const ops = undoOps(afterDelete);
     expect(ops).toEqual([]);
-    expect(useStore.getState().data.resources[0]?.projectId).toBeUndefined();
+    expect(requireValue(useStore.getState().data.resources[0], "resource")).not.toHaveProperty("projectId");
   });
 });

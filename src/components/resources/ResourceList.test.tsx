@@ -421,7 +421,7 @@ describe("ResourceList archive flow", () => {
     // Cancel keeps the resource active + visible.
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(useStore.getState().data.resources).toHaveLength(1);
-    expect(useStore.getState().data.resources[0]?.archivedAt).toBeUndefined();
+    expect(requireValue(useStore.getState().data.resources[0], "active resource")).not.toHaveProperty("archivedAt");
     expect(screen.getByText("Alice")).toBeInTheDocument();
   });
 

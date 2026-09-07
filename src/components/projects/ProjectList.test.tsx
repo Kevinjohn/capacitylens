@@ -3,7 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProjectList } from "./ProjectList";
 import { useStore } from "../../store/useStore";
-import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "../../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount, requireValue } from "../../test/fixtures";
 
 beforeEach(() => {
   resetStoreWithAccount();
@@ -140,7 +140,7 @@ describe("ProjectList", () => {
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(useStore.getState().data.projects[0]?.archivedAt).toBeUndefined();
+    expect(requireValue(useStore.getState().data.projects[0], "active project")).not.toHaveProperty("archivedAt");
     expect(screen.getByText("Kept Project")).toBeInTheDocument();
   });
 

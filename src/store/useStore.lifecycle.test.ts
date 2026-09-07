@@ -105,7 +105,7 @@ describe("softDeleteEntity", () => {
     const r = s().addResource(personDraft);
     // Active, not archived → cannot delete directly.
     expect(() => s().softDeleteEntity("resources", r.id)).toThrow(/archived first/i);
-    expect(s().data.resources[0]?.deletedAt).toBeUndefined();
+    expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("deletedAt");
   });
 
   it.each(["resources", "clients", "projects"] as const)(
@@ -346,7 +346,7 @@ describe("viewer guard no-ops every lifecycle action (defense-in-depth)", () => 
     expect(s().data.resources[0]?.archivedAt).toBe(archivedAt);
 
     s().softDeleteEntity("resources", r.id);
-    expect(s().data.resources[0]?.deletedAt).toBeUndefined(); // no tombstone
+    expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("deletedAt"); // no tombstone
 
     s().purgeEntity("resources", r.id);
     expect(s().data.resources.some((x) => x.id === r.id)).toBe(true); // still present

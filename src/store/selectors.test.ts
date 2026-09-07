@@ -63,7 +63,9 @@ describe("resourcesByDiscipline", () => {
     const groups = buildDisciplineGroups(data());
     expect(groups.map((g) => g.discipline?.name ?? "(none)")).toEqual(["Design", "Dev", "(none)"]);
     expect(groups[0]?.resources.map((r) => r.id)).toEqual(["r1"]);
-    expect(groups[2]?.discipline).toBeNull();
+    const ungrouped = groups[2];
+    if (!ungrouped) throw new Error("Expected ungrouped resources");
+    expect(ungrouped.discipline).toBeNull();
     expect(groups[2]?.resources.map((r) => r.id)).toEqual(["r3"]);
   });
 });

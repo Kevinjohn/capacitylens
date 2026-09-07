@@ -23,7 +23,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { seed } from "@capacitylens/shared/data/seed";
 import { deleteProjectCascade } from "@capacitylens/shared/lib/integrity";
-import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount, requireValue } from "../test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 
 const internalClient = (accountId: string) => ({
@@ -156,7 +156,11 @@ describe("attachPersistence", () => {
 
     useStore.getState().updateAllocation(allocation.id, { note: "Flushed edit" });
     await vi.waitFor(() => expect(saved).toHaveLength(1));
-    const flushedStamp = saved[0]?.allocations.find((row) => row.id === allocation.id)!.updatedAt;
+    const flushedSnapshot = requireValue(saved[0], "flushed snapshot");
+    const flushedStamp = requireValue(
+      flushedSnapshot.allocations.find((row) => row.id === allocation.id),
+      "flushed allocation",
+    ).updatedAt;
     useStore.getState().updateAllocation(allocation.id, { projectId: secondProject.id });
     const concurrentStamp = useStore.getState().data.allocations.find((row) => row.id === allocation.id)!.updatedAt;
     expect(concurrentStamp).not.toBe(flushedStamp);
@@ -379,7 +383,7 @@ describe("attachPersistence", () => {
     await Promise.resolve();
 
     expect(saveAll).toHaveBeenCalledOnce();
-    expect(saveAll.mock.calls[0]?.[1]).toBeUndefined();
+    expect(requireValue(saveAll.mock.calls[0], "initial saveAll call")[1]).toBeUndefined();
     visibility.mockRestore();
     detach();
   });
@@ -1906,7 +1910,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     releaseLoad!();
     expect(await refresh).toEqual({ kind: "reloaded" });
     expect(saveAll).toHaveBeenCalledTimes(2);
-    expect(saveAll.mock.calls[1]?.[1]).toBeUndefined();
+    expect(requireValue(saveAll.mock.calls[1], "second saveAll call")[1]).toBeUndefined();
     expect((saveAll.mock.calls[1]?.[0] as AppData).clients.some((c) => c.name === "Hidden-tab edit")).toBe(true);
     expect(onError).toHaveBeenCalledOnce();
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "keepalive dropped" }));

@@ -153,7 +153,7 @@ describe("store CRUD covers every entity", () => {
   it("activities: a general (no-project) activity can be added without a projectId", () => {
     const t = s().addActivity({ name: "Admin", kind: "repeatable" });
     expect(t.projectId).toBeUndefined();
-    expect(s().data.activities[0]?.projectId).toBeUndefined();
+    expect(requireValue(s().data.activities[0], "activity")).not.toHaveProperty("projectId");
     expect(s().data.activities[0]?.name).toBe("Admin");
   });
 
@@ -163,7 +163,7 @@ describe("store CRUD covers every entity", () => {
     const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
     s().updateActivity(t.id, { kind: "repeatable", projectId: undefined });
     expect(s().data.activities[0]?.kind).toBe("repeatable");
-    expect(s().data.activities[0]?.projectId).toBeUndefined();
+    expect(requireValue(s().data.activities[0], "activity")).not.toHaveProperty("projectId");
   });
 
   it("activities: kind ⇆ projectId coherence is enforced — clearing a project activity’s project alone throws", () => {
@@ -263,7 +263,7 @@ describe("store CRUD covers every entity", () => {
     expect(s().data.resources[0]?.isFavourite).toBe(true);
 
     s().undo();
-    expect(s().data.resources[0]?.isFavourite).toBeUndefined();
+    expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("isFavourite");
   });
 
   it("resources: a viewer cannot change an account favourite", () => {
@@ -272,7 +272,7 @@ describe("store CRUD covers every entity", () => {
     s().setActiveRole("viewer");
     s().updateResource(resource.id, { isFavourite: true });
 
-    expect(s().data.resources[0]?.isFavourite).toBeUndefined();
+    expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("isFavourite");
     expect(s().notice).toMatchObject({ tone: "error" });
   });
 
@@ -738,7 +738,7 @@ describe("update* re-validates the merged row so the store + server agree", () =
     // references an external resource with a non-zero load — the server 400s, so the store must too.
     expect(() => s().updateAllocation(alloc.id, { note: "just a note" })).toThrow(/external.*can.t carry hours/i);
     // Atomic failure: the bad patch did NOT land (the producer threw before `set`).
-    expect(s().data.allocations[0]?.note).toBeUndefined();
+    expect(requireValue(s().data.allocations[0], "allocation")).not.toHaveProperty("note");
   });
 
   it("a date-only updateTimeOff on an external resource now THROWS (matches the server)", () => {

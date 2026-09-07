@@ -80,6 +80,7 @@ describe("draw-mode toggle does not re-render allocation bars", () => {
     if (!bar) throw new Error("Expected the allocation bar to render.");
     const barsLayer = bar.parentElement;
     expect(barsLayer).not.toBeNull();
+    if (!barsLayer) throw new Error("Expected the allocation bar container to render.");
     expect(barsLayer).toHaveAttribute("inert");
 
     // Toggling back to work mode likewise must not re-render the bars (and clears inert).
@@ -87,6 +88,6 @@ describe("draw-mode toggle does not re-render allocation bars", () => {
       useStore.getState().setDrawMode("work");
     });
     expect(barRenderCount.mock.calls.length).toBe(beforeToggle);
-    expect(screen.getAllByTestId("allocation-bar")[0]?.parentElement).not.toHaveAttribute("inert");
+    expect(barsLayer).not.toHaveAttribute("inert");
   });
 });

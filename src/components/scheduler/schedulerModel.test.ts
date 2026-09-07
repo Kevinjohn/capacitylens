@@ -12,7 +12,7 @@ import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData, ISODate, Resource, Weekday } from "@capacitylens/shared/types/entities";
 import { isCreationStartBlocked } from "./creationAvailability";
-import { makeResource } from "../../test/fixtures";
+import { makeResource, requireValue } from "../../test/fixtures";
 
 interface CapacityForWindowOfTestInput {
   resource: Resource;
@@ -2974,7 +2974,8 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         externalEnabled: true,
       },
     });
-    expect(model.at(-1)!.rows[0]?.overSoon).toBe(false);
+    const externalGroup = requireValue(model.at(-1), "external group");
+    expect(requireValue(externalGroup.rows[0], "external group row").overSoon).toBe(false);
   });
 
   it("overSoon follows strict allocated > available on an opted-in weekend", () => {

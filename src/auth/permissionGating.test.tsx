@@ -14,7 +14,7 @@ import { buildColumnGeometry } from "../components/scheduler/columnGeometry";
 import type { BarLayout } from "../components/scheduler/schedulerModel";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { useStore } from "../store/useStore";
-import { resetStoreWithAccount, makeResourceDraft } from "../test/fixtures";
+import { resetStoreWithAccount, makeResourceDraft, requireValue } from "../test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation } from "@capacitylens/shared/types/entities";
 import type { Role } from "@capacitylens/shared/domain/access";
@@ -154,7 +154,7 @@ describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () =>
     // too. The row stays present and active (the lifecycle suite covers the full archive/delete/purge set).
     useStore.getState().archiveEntity("resources", seeded.id);
     expect(useStore.getState().data.resources).toHaveLength(1); // still there
-    expect(useStore.getState().data.resources[0]?.archivedAt).toBeUndefined(); // not archived — viewer no-op
+    expect(requireValue(useStore.getState().data.resources[0], "viewer resource")).not.toHaveProperty("archivedAt"); // not archived — viewer no-op
 
     // The viewer's add returned a non-persisted entity (its id isn't in state) — contained no-op.
     expect(useStore.getState().data.resources.some((x) => x.id === r.id)).toBe(false);

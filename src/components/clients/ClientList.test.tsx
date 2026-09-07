@@ -3,7 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ClientList } from "./ClientList";
 import { useStore } from "../../store/useStore";
-import { resetStoreWithAccount } from "../../test/fixtures";
+import { resetStoreWithAccount, requireValue } from "../../test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { internalClientFor } from "@capacitylens/shared/data/internalClient";
 
@@ -79,7 +79,7 @@ describe("ClientList archive flow", () => {
 
     // Cancel keeps it active.
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    expect(useStore.getState().data.clients[0]?.archivedAt).toBeUndefined();
+    expect(requireValue(useStore.getState().data.clients[0], "active client")).not.toHaveProperty("archivedAt");
 
     // Confirm archives it (children retained — archiving is reversible, not a cascade-delete).
     await user.click(screen.getByRole("button", { name: "Archive Acme" }));

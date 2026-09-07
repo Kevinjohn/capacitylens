@@ -1136,7 +1136,11 @@ describe("ServerSyncAdapter.saveAll", () => {
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
-    expect((batchOps(calls[1]) as unknown as Array<{ row: Allocation }>)[0]?.row.updatedAt).not.toBe(rewrittenAt);
+    const retriedOperation = required(
+      (batchOps(calls[1]) as unknown as Array<{ row: Allocation }>)[0],
+      "retried allocation operation",
+    );
+    expect(retriedOperation.row.updatedAt).not.toBe(rewrittenAt);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected or duplicate"));
   });
 

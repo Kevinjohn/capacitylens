@@ -147,9 +147,7 @@ describe("atomic allocation creation", () => {
     expect(created.map((allocation) => allocation.projectId)).toEqual([project.id, project.id]);
     const first = requireValue(created[0], "first repeated allocation");
     state().updateAllocation(first.id, { projectId: undefined });
-    expect(state().data.allocations.find((allocation) => allocation.id === created[0]?.id)).not.toHaveProperty(
-      "projectId",
-    );
+    expect(state().data.allocations.find((allocation) => allocation.id === first.id)).not.toHaveProperty("projectId");
     expect(state().data.allocations.find((allocation) => allocation.id === created[1]?.id)?.projectId).toBe(project.id);
   });
 

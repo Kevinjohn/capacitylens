@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ActivityList } from "./ActivityList";
 import { useStore } from "../../store/useStore";
-import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "../../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount, requireValue } from "../../test/fixtures";
 
 beforeEach(() => resetStoreWithAccount());
 
@@ -64,7 +64,7 @@ describe("ActivityList", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(useStore.getState().data.activities).toHaveLength(1);
     expect(useStore.getState().data.activities[0]?.kind).toBe("internal");
-    expect(useStore.getState().data.activities[0]?.projectId).toBeUndefined();
+    expect(requireValue(useStore.getState().data.activities[0], "created activity")).not.toHaveProperty("projectId");
 
     expect(screen.getByRole("heading", { name: "Internal activities" })).toBeInTheDocument();
     const row = within(screen.getByTestId("internal-activities")).getByTestId("activity-row");
