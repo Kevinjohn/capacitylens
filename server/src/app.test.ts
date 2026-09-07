@@ -298,8 +298,15 @@ interface ProjectBinding {
 }
 
 interface ResourceSnapshot extends ProjectBinding {
+  color: string;
   disciplineId?: string;
   employmentType?: string;
+  halfDays: number[];
+  isFavourite?: boolean;
+  kind: string;
+  role: string;
+  workingDays: number[];
+  workingHoursPerDay: number;
 }
 
 interface ClientSnapshot {
@@ -335,6 +342,32 @@ function readRequiredString(value: Record<string, unknown>, key: string, context
   return field;
 }
 
+function readRequiredNumber(value: Record<string, unknown>, key: string, context: string): number {
+  const field = value[key];
+  if (typeof field !== "number") throw new Error(`Expected ${context} ${key} to be a number.`);
+  return field;
+}
+
+function readOptionalString(value: Record<string, unknown>, key: string, context: string): string | undefined {
+  if (!(key in value)) return undefined;
+  return readRequiredString(value, key, context);
+}
+
+function readOptionalBoolean(value: Record<string, unknown>, key: string, context: string): boolean | undefined {
+  if (!(key in value)) return undefined;
+  const field = value[key];
+  if (typeof field !== "boolean") throw new Error(`Expected ${context} ${key} to be boolean.`);
+  return field;
+}
+
+function readNumberArray(value: Record<string, unknown>, key: string, context: string): number[] {
+  const field = value[key];
+  if (!Array.isArray(field) || !field.every((item): item is number => typeof item === "number")) {
+    throw new Error(`Expected ${context} ${key} to contain numbers.`);
+  }
+  return field;
+}
+
 function readStateArray(value: Record<string, unknown>, key: string): unknown[] {
   if (!(key in value) || !Array.isArray(value[key])) {
     throw new Error(`Expected the state response to contain a ${key} array.`);
@@ -357,22 +390,31 @@ function readProjectBindings(rows: unknown[], table: string): ProjectBinding[] {
   });
 }
 
+function readResourceSnapshot(source: Record<string, unknown>, binding: ProjectBinding): ResourceSnapshot {
+  if ("isFreelancer" in source) throw new Error("Expected migrated resources to omit isFreelancer.");
+  const disciplineId = readOptionalString(source, "disciplineId", "resource row");
+  const employmentType = readOptionalString(source, "employmentType", "resource row");
+  const isFavourite = readOptionalBoolean(source, "isFavourite", "resource row");
+  const snapshot: ResourceSnapshot = {
+    ...binding,
+    color: readRequiredString(source, "color", "resource row"),
+    halfDays: readNumberArray(source, "halfDays", "resource row"),
+    kind: readRequiredString(source, "kind", "resource row"),
+    role: readRequiredString(source, "role", "resource row"),
+    workingDays: readNumberArray(source, "workingDays", "resource row"),
+    workingHoursPerDay: readRequiredNumber(source, "workingHoursPerDay", "resource row"),
+  };
+  if (disciplineId !== undefined) snapshot.disciplineId = disciplineId;
+  if (employmentType !== undefined) snapshot.employmentType = employmentType;
+  if (isFavourite !== undefined) snapshot.isFavourite = isFavourite;
+  return snapshot;
+}
+
 function readResourceSnapshots(rows: unknown[]): ResourceSnapshot[] {
   return readProjectBindings(rows, "resource").map((binding, index) => {
     const source = rows[index];
     if (!isUnknownRecord(source)) throw new Error("Expected every resource row to be an object.");
-    if ("disciplineId" in source && typeof source.disciplineId !== "string") {
-      throw new Error("Expected every present resource disciplineId to be a string.");
-    }
-    if ("employmentType" in source && typeof source.employmentType !== "string") {
-      throw new Error("Expected every present resource employmentType to be a string.");
-    }
-    if ("isFreelancer" in source) throw new Error("Expected migrated resources to omit isFreelancer.");
-    return {
-      ...binding,
-      ...(typeof source.disciplineId === "string" ? { disciplineId: source.disciplineId } : {}),
-      ...(typeof source.employmentType === "string" ? { employmentType: source.employmentType } : {}),
-    };
+    return readResourceSnapshot(source, binding);
   });
 }
 
@@ -380,6 +422,14 @@ function readFirstResource(resources: ResourceSnapshot[]): ResourceSnapshot {
   const resource = resources[0];
   if (!resource) throw new Error("Expected the state response to contain a resource.");
   return resource;
+}
+
+function readResourceResponse(response: LightMyRequestResponse): ResourceSnapshot {
+  return readFirstResource(readResourceSnapshots([response.json()]));
+}
+
+async function patchResourceFavourite(app: FastifyInstance, isFavourite: boolean): Promise<ResourceSnapshot> {
+  return readResourceResponse(await patch({ app, entity: "resources", id: "r1", payload: { isFavourite } }));
 }
 
 function readClientSnapshots(rows: unknown[]): ClientSnapshot[] {
@@ -556,7 +606,7 @@ describe("CRUD round-trip", () => {
     const response = await post(app, "resources", { ...person("r1", "a1"), halfDays: [2, 4] });
 
     expect(response.statusCode).toBe(201);
-    expect((await state(app)).resources[0]).toMatchObject({
+    expect(readFirstResource((await readValidatedState(app)).resources)).toMatchObject({
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [2, 4],
     });
@@ -591,7 +641,7 @@ describe("CRUD round-trip", () => {
       },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().name).toBe("Renamed");
+    expect(readClientResponse(res).name).toBe("Renamed");
     await post(app, "disciplines", {
       id: "d1",
       accountId: "a1",
@@ -601,7 +651,7 @@ describe("CRUD round-trip", () => {
       ...meta(),
     });
     expect((await del({ app, entity: "disciplines", id: "d1", accountId: "a1" })).statusCode).toBe(204);
-    expect((await state(app)).disciplines).toHaveLength(0);
+    expect((await readValidatedState(app)).disciplines).toHaveLength(0);
   });
 
   it("PATCH on a missing id is 404; unknown entity is 404", async () => {
@@ -618,8 +668,8 @@ describe("CRUD round-trip", () => {
     // survive (a blind column-wise UPDATE would null the NOT NULL columns → 500/400).
     const res = await patch({ app, entity: "resources", id: "r1", payload: { role: "Lead Designer" } });
     expect(res.statusCode).toBe(200);
-    const s = await state(app);
-    const r = s.resources[0];
+    const s = await readValidatedState(app);
+    const r = readFirstResource(s.resources);
     expect(r.role).toBe("Lead Designer");
     expect(r.kind).toBe("person");
     expect(r.employmentType).toBe("permanent");
@@ -632,14 +682,14 @@ describe("CRUD round-trip", () => {
     const { app, db } = freshApp();
     await scaffold(app);
 
-    expect(
-      (await patch({ app, entity: "resources", id: "r1", payload: { isFavourite: true } })).json().isFavourite,
-    ).toBe(true);
+    const favouriteResponse = await patchResourceFavourite(app, true);
+    const favourite = favouriteResponse.isFavourite;
+    expect(favourite).toBe(true);
     expect(getRow(db, "resources", "r1")?.isFavourite).toBe(true);
 
-    expect(
-      (await patch({ app, entity: "resources", id: "r1", payload: { isFavourite: false } })).json().isFavourite,
-    ).toBe(false);
+    const unfavouriteResponse = await patchResourceFavourite(app, false);
+    const unfavourite = unfavouriteResponse.isFavourite;
+    expect(unfavourite).toBe(false);
     expect(getRow(db, "resources", "r1")?.isFavourite).toBe(false);
   });
 
@@ -651,7 +701,7 @@ describe("CRUD round-trip", () => {
     expect((await patch({ app, entity: "clients", id: "c1", payload: { accountId: "a2" } })).statusCode).toBe(404);
     expect((await put({ app, entity: "clients", id: "c1", payload: { ...client("c1", "a2") } })).statusCode).toBe(404);
     // …and c1 stays in a1.
-    expect((await state(app)).clients[0].accountId).toBe("a1");
+    expect(readFirstClient(await readStateClients(app)).accountId).toBe("a1");
   });
 
   it("scopes a non-lifecycle delete to its owning account", async () => {
@@ -675,7 +725,7 @@ describe("CRUD round-trip", () => {
         })
       ).statusCode,
     ).toBe(404);
-    expect((await state(app)).disciplines).toHaveLength(1);
+    expect((await readValidatedState(app)).disciplines).toHaveLength(1);
     // …the correct owner deletes it.
     expect(
       (
@@ -685,7 +735,7 @@ describe("CRUD round-trip", () => {
         })
       ).statusCode,
     ).toBe(204);
-    expect((await state(app)).disciplines).toHaveLength(0);
+    expect((await readValidatedState(app)).disciplines).toHaveLength(0);
   });
 
   it("refuses a scoped delete that omits accountId (the by-id bypass is closed → 400)", async () => {
