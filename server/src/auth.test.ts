@@ -863,9 +863,15 @@ describe("external identity creation gate", () => {
     );
     expect(before).toBeTypeOf("function");
 
-    await expect(
-      before({ email: "new-social@example.com", emailVerified: true } as never, { path: "/callback/google" } as never),
-    ).rejects.toMatchObject({ body: expect.objectContaining({ code: "STRICT_PROVIDER_REQUIRED" }) });
+    const error = parseApiErrorFields(
+      await readRejectedValue(
+        before(
+          { email: "new-social@example.com", emailVerified: true } as never,
+          { path: "/callback/google" } as never,
+        ),
+      ),
+    );
+    expect(error.code).toBe("STRICT_PROVIDER_REQUIRED");
   });
 
   it("creates a strict-OIDC session without querying password-only MFA columns", async () => {
