@@ -67,14 +67,14 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, record: Record<stri
         if (!isPlaceholderResource({ kind })) delete record.projectId;
       }
       if (isPlaceholderResource({ kind })) {
-        cleanField(record, "name");
+        cleanField({ record, field: "name" });
       } else {
         cleanRequiredField(record, "name", record.kind === "external" ? "Unnamed company" : "Unnamed person");
       }
       // Role is optional in both resource forms, but the storage column is NOT NULL. Preserve an
       // intentionally blank (or cleaning-to-blank) string; only synthesize a value when no string
       // was supplied at all.
-      if (typeof record.role === "string") cleanField(record, "role");
+      if (typeof record.role === "string") cleanField({ record, field: "role" });
       else record.role = "Team member";
       // Favourites are an optional binary flag. Preserve explicit true/false; absence is the
       // default-off representation and malformed hand-edited values must not become truthy.
@@ -98,13 +98,13 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, record: Record<stri
       }
       record.startDate = normalizeISODate(record.startDate);
       record.endDate = normalizeISODate(record.endDate);
-      cleanField(record, "note", true);
+      cleanField({ record, field: "note", multiline: true });
       break;
     case "timeOff":
       record.type = oneOf(record.type, VALID_TIMEOFF, "other");
       record.startDate = normalizeISODate(record.startDate);
       record.endDate = normalizeISODate(record.endDate);
-      cleanField(record, "note", true);
+      cleanField({ record, field: "note", multiline: true });
       break;
     case "closures":
       cleanRequiredField(record, "name", "Untitled closure");
