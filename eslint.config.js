@@ -125,6 +125,9 @@ export default defineConfig([
       "@typescript-eslint/switch-exhaustiveness-check": "error",
       "no-nested-ternary": "error",
       "no-param-reassign": "error",
+      complexity: ["error", { max: 12 }],
+      "max-depth": ["error", 3],
+      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
     },
   },
 
@@ -153,6 +156,9 @@ export default defineConfig([
       "@typescript-eslint/switch-exhaustiveness-check": "error",
       "no-nested-ternary": "error",
       "no-param-reassign": "error",
+      complexity: ["error", { max: 12 }],
+      "max-depth": ["error", 3],
+      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
     },
   },
 
