@@ -297,6 +297,11 @@ interface ProjectBinding {
   projectId?: string;
 }
 
+interface ResourceSnapshot extends ProjectBinding {
+  disciplineId?: string;
+  employmentType?: string;
+}
+
 interface ClientSnapshot {
   accountId: string;
   color: string;
@@ -314,7 +319,9 @@ interface ValidatedStateResponse {
   allocations: unknown[];
   clients: ClientSnapshot[];
   disciplines: unknown[];
-  resources: ProjectBinding[];
+  phases: unknown[];
+  projects: unknown[];
+  resources: ResourceSnapshot[];
   timeOff: unknown[];
 }
 
@@ -348,6 +355,31 @@ function readProjectBindings(rows: unknown[], table: string): ProjectBinding[] {
     }
     return { id: row.id };
   });
+}
+
+function readResourceSnapshots(rows: unknown[]): ResourceSnapshot[] {
+  return readProjectBindings(rows, "resource").map((binding, index) => {
+    const source = rows[index];
+    if (!isUnknownRecord(source)) throw new Error("Expected every resource row to be an object.");
+    if ("disciplineId" in source && typeof source.disciplineId !== "string") {
+      throw new Error("Expected every present resource disciplineId to be a string.");
+    }
+    if ("employmentType" in source && typeof source.employmentType !== "string") {
+      throw new Error("Expected every present resource employmentType to be a string.");
+    }
+    if ("isFreelancer" in source) throw new Error("Expected migrated resources to omit isFreelancer.");
+    return {
+      ...binding,
+      ...(typeof source.disciplineId === "string" ? { disciplineId: source.disciplineId } : {}),
+      ...(typeof source.employmentType === "string" ? { employmentType: source.employmentType } : {}),
+    };
+  });
+}
+
+function readFirstResource(resources: ResourceSnapshot[]): ResourceSnapshot {
+  const resource = resources[0];
+  if (!resource) throw new Error("Expected the state response to contain a resource.");
+  return resource;
 }
 
 function readClientSnapshots(rows: unknown[]): ClientSnapshot[] {
@@ -431,6 +463,12 @@ function readProjectId(rows: ProjectBinding[], id: string): string | undefined {
   return row.projectId;
 }
 
+function readFirstProjectId(rows: ProjectBinding[]): string | undefined {
+  const row = rows[0];
+  if (!row) throw new Error("Expected the state response to contain a project-bound row.");
+  return row.projectId;
+}
+
 async function readValidatedState(app: FastifyInstance): Promise<ValidatedStateResponse> {
   const value: unknown = (await call(app, { method: "GET", url: "/api/state" })).json();
   if (!isUnknownRecord(value)) {
@@ -442,7 +480,9 @@ async function readValidatedState(app: FastifyInstance): Promise<ValidatedStateR
     allocations: readStateArray(value, "allocations"),
     clients: readClientSnapshots(readStateArray(value, "clients")),
     disciplines: readStateArray(value, "disciplines"),
-    resources: readProjectBindings(readStateArray(value, "resources"), "resource"),
+    phases: readStateArray(value, "phases"),
+    projects: readStateArray(value, "projects"),
+    resources: readResourceSnapshots(readStateArray(value, "resources")),
     timeOff: readStateArray(value, "timeOff"),
   };
 }
@@ -1748,7 +1788,7 @@ describe("built-in Internal client is a per-account singleton on direct writes",
       builtin: true,
     });
     expect(dup.statusCode).toBe(400);
-    expect(dup.json().error).toMatch(/built-in|Internal/i);
+    expect(readErrorResponse(dup).error).toMatch(/built-in|Internal/i);
   });
 
   it("rejects generic updates to the generated builtin client", async () => {
@@ -1785,7 +1825,7 @@ describe("built-in Internal client is a per-account singleton on direct writes",
     ]);
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/generated|built-in|Internal/i);
+    expect(readErrorResponse(res).error).toMatch(/generated|built-in|Internal/i);
     expect((await state(app)).accounts).toEqual([]);
     expect((await state(app)).clients).toEqual([]);
   });
@@ -2143,13 +2183,13 @@ describe("import", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ imported: 2, skipped: 2 });
-    const s = await state(app);
+    const s = await readValidatedState(app);
     expect(s.projects).toHaveLength(0);
     expect(s.phases).toHaveLength(0);
     expect(s.activities).toHaveLength(1);
-    expect(s.activities[0].projectId).toBeUndefined(); // unbound → general activity
+    expect(readFirstProjectId(s.activities)).toBeUndefined(); // unbound → general activity
     expect(s.resources).toHaveLength(1);
-    expect(s.resources[0].disciplineId).toBeUndefined(); // unbound discipline
+    expect(readFirstResource(s.resources).disciplineId).toBeUndefined(); // unbound discipline
   });
 
   it("runs the v1→v2 migration on imported data (isFreelancer → employmentType)", async () => {
@@ -2164,9 +2204,9 @@ describe("import", () => {
       url: "/api/import",
       payload: { accountId: "a1", data: legacy },
     });
-    const s = await state(app);
-    expect(s.resources[0].employmentType).toBe("freelancer");
-    expect("isFreelancer" in s.resources[0]).toBe(false);
+    const s = await readValidatedState(app);
+    expect(readFirstResource(s.resources).employmentType).toBe("freelancer");
+    expect("isFreelancer" in readFirstResource(s.resources)).toBe(false);
   });
 
   it("requires an accountId", async () => {
@@ -2215,7 +2255,7 @@ describe("import", () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/schema version must be a non-negative safe integer/i);
+    expect(readErrorResponse(res).error).toMatch(/schema version must be a non-negative safe integer/i);
     expect(await state(app)).toEqual(before);
   });
 });
