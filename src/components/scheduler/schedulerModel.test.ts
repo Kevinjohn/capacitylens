@@ -1129,75 +1129,40 @@ describe("displayed utilisation % over the visible window (1/2/4/8 weeks)", () =
     expect(new Set(nums.map((n) => Math.round(n * 100))).size).toBe(5);
   });
 
+  const buildBoundaryModel = (id: string, allocationDate: ISODate) =>
+    buildSchedulerModel({
+      data: {
+        ...densityData(),
+        allocations: [
+          makeAllocation({
+            id,
+            accountId: "acct-test",
+            startDate: allocationDate,
+            endDate: allocationDate,
+          }),
+        ],
+      },
+      geom: winGeom,
+      days: winDays,
+      visibleWindow: { start: winStart, end: "2026-06-07" },
+      overSoonWindow: { start: winStart, end: winStart },
+      filters: buildEmptyFilters(),
+      preferences: {
+        disciplinesEnabled: false,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+      },
+    });
+
   it("inclusive-end boundary: a booking on the visible window LAST day counts; the day AFTER does not", () => {
     // Unbooked base fixture so only the boundary booking moves the number. Window = 1 week
     // [06-01, 06-07]; capacity 40h. An 8h booking ON the last working day before/at the edge
     // counts; a booking the day AFTER the inclusive end (06-08, a Monday) is outside and excluded.
-    const base = (): AppData => ({ ...densityData(), allocations: [] });
-    const visEnd = "2026-06-07"; // Sunday — 1-week inclusive end (visStart 06-01 + 6)
     // 06-05 (Friday) is INSIDE [06-01, 06-07]: 8h on one working day → 8 / 40 = 0.2.
-    const inside = {
-      ...base(),
-      allocations: [
-        {
-          id: "in",
-          accountId: "acct-test",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "r1",
-          activityId: "t1",
-          startDate: "2026-06-05",
-          endDate: "2026-06-05",
-          hoursPerDay: 8,
-          status: "confirmed" as const,
-        },
-      ],
-    };
-    const inModel = buildSchedulerModel({
-      data: inside,
-      geom: winGeom,
-      days: winDays,
-      visibleWindow: { start: winStart, end: visEnd },
-      overSoonWindow: { start: winStart, end: winStart },
-      filters: buildEmptyFilters(),
-      preferences: {
-        disciplinesEnabled: false,
-        placeholdersEnabled: true,
-        externalEnabled: true,
-      },
-    });
+    const inModel = buildBoundaryModel("in", "2026-06-05");
     expect(inModel.flatMap((g) => g.rows)[0]?.utilization).toBeCloseTo(0.2);
     // 06-08 (Monday) is the day AFTER the inclusive end → outside the window → 0%.
-    const after = {
-      ...base(),
-      allocations: [
-        {
-          id: "af",
-          accountId: "acct-test",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "r1",
-          activityId: "t1",
-          startDate: "2026-06-08",
-          endDate: "2026-06-08",
-          hoursPerDay: 8,
-          status: "confirmed" as const,
-        },
-      ],
-    };
-    const afterModel = buildSchedulerModel({
-      data: after,
-      geom: winGeom,
-      days: winDays,
-      visibleWindow: { start: winStart, end: visEnd },
-      overSoonWindow: { start: winStart, end: winStart },
-      filters: buildEmptyFilters(),
-      preferences: {
-        disciplinesEnabled: false,
-        placeholdersEnabled: true,
-        externalEnabled: true,
-      },
-    });
+    const afterModel = buildBoundaryModel("af", "2026-06-08");
     expect(afterModel.flatMap((g) => g.rows)[0]?.utilization).toBe(0);
   });
 });
