@@ -68,16 +68,18 @@ export function assertScopedRefs(
   const unchanged = (field: string) => previous !== undefined && record[field] === previous[field];
   const inAccount = (table: ScopedEntityKey, id: unknown): boolean => {
     if (typeof id !== "string") return false;
-    const entity = resolveValidationRow(data, table, id, lookup) as ScopedEntity | undefined;
+    const entity = resolveValidationRow({ data, table, id, lookup }) as ScopedEntity | undefined;
     return (
-      entity !== undefined && belongsToAccount(entity, accountId) && isEffectivelyActive(data, table, entity, lookup)
+      entity !== undefined &&
+      belongsToAccount(entity, accountId) &&
+      isEffectivelyActive({ data, table, row: entity, lookup })
     );
   };
   const need = (field: string, table: ScopedEntityKey, message: string) => {
     if (!present(field)) return;
     if (unchanged(field)) {
       const id = record[field];
-      const resolved = typeof id === "string" ? resolveValidationRow(data, table, id, lookup) : undefined;
+      const resolved = typeof id === "string" ? resolveValidationRow({ data, table, id, lookup }) : undefined;
       if (resolved === undefined || belongsToAccount(resolved as unknown as ScopedEntity, accountId)) return;
       domainError("reference_wrong_account", message);
     }
@@ -140,7 +142,8 @@ export function assertScopedRefs(
       // any lookup, so hoisting costs a non-phase write nothing.
       const phase =
         typeof record.phaseId === "string"
-          ? (resolveValidationRow(data, "phases", record.phaseId, lookup) as AppData["phases"][number] | undefined)
+          ? (resolveValidationRow({ data, table: "phases", id: record.phaseId, lookup }) as
+              AppData["phases"][number] | undefined)
           : undefined;
       const ownedPhase = phase && belongsToAccount(phase, accountId) ? phase : undefined;
       if (present("phaseId") && phasePairUnchanged) {
@@ -224,15 +227,18 @@ export function assertAllocationRefs(
   existing?: Pick<Allocation, "resourceId" | "activityId" | "projectId">,
   lookup?: ValidationDataLookup,
 ): void {
-  const resource = resolveOwnedRow<Resource>(data, "resources", resourceId, accountId, lookup);
-  const activity = resolveOwnedRow<Activity>(data, "activities", activityId, accountId, lookup);
+  const resource = resolveOwnedRow<Resource>({ data, table: "resources", id: resourceId, accountId, lookup });
+  const activity = resolveOwnedRow<Activity>({ data, table: "activities", id: activityId, accountId, lookup });
   if (!resource || !activity) {
     domainError(
       "allocation_references_invalid",
       "Allocation must reference an existing resource and activity in this company.",
     );
   }
-  if (existing?.resourceId !== resourceId && !isEffectivelyActive(data, "resources", resource, lookup)) {
+  if (
+    existing?.resourceId !== resourceId &&
+    !isEffectivelyActive({ data, table: "resources", row: resource, lookup })
+  ) {
     domainError("allocation_resource_inactive", "Allocation must reference an active resource in this company.");
   }
   if (projectId !== undefined && !allocationAttributionAllowed(activity.kind)) {
@@ -243,7 +249,13 @@ export function assertAllocationRefs(
   }
   const resolvedProjectId = effectiveProjectId({ projectId }, activity);
   const project = resolvedProjectId
-    ? resolveOwnedRow<AppData["projects"][number]>(data, "projects", resolvedProjectId, accountId, lookup)
+    ? resolveOwnedRow<AppData["projects"][number]>({
+        data,
+        table: "projects",
+        id: resolvedProjectId,
+        accountId,
+        lookup,
+      })
     : undefined;
   // A project-bound activity must resolve to a project in this account. Normally assertScopedRefs
   // and the database FK make this impossible, but this validator is also the last line of defence
@@ -253,14 +265,17 @@ export function assertAllocationRefs(
     (resolvedProjectId !== undefined && project === undefined) ||
     (existing?.projectId !== projectId &&
       project !== undefined &&
-      !isEffectivelyActive(data, "projects", project, lookup))
+      !isEffectivelyActive({ data, table: "projects", row: project, lookup }))
   ) {
     domainError(
       "allocation_project_inactive",
       "Allocation must reference an activity under an active project in this company.",
     );
   }
-  if (existing?.activityId !== activityId && !isEffectivelyActive(data, "activities", activity, lookup)) {
+  if (
+    existing?.activityId !== activityId &&
+    !isEffectivelyActive({ data, table: "activities", row: activity, lookup })
+  ) {
     domainError("allocation_activity_inactive", "Allocation must reference an activity under an active project.");
   }
   assertValid(validateAllocationAssignment(resource, resolvedProjectId));

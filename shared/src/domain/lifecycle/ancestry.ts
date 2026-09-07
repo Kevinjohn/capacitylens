@@ -2,6 +2,20 @@ import type { AppDataKey } from "../../types/entities";
 import { isLifecycleEntityKey, lifecycleStatus } from "./types";
 import type { LifecycleFields, LifecycleEntityKey, LifecycleState } from "./types";
 
+interface InspectAncestryOptions {
+  table: AppDataKey;
+  row: LifecycleAncestryRow;
+  lookup: LifecycleAncestryLookup;
+  memo: LifecycleAncestryMemo | undefined;
+}
+
+interface MemoisedAncestryOptions {
+  table: AppDataKey;
+  row: LifecycleAncestryRow;
+  lookup: LifecycleAncestryLookup;
+  memo: LifecycleAncestryMemo | undefined;
+}
+
 export type LifecycleAncestryRow = LifecycleFields & {
   id: string;
   accountId?: string;
@@ -74,15 +88,10 @@ export function inspectLifecycleAncestry(
   row: LifecycleAncestryRow,
   lookup: LifecycleAncestryLookup,
 ): LifecycleAncestryResult {
-  return inspectAncestry(table, row, lookup, undefined);
+  return inspectAncestry({ table, row, lookup, memo: undefined });
 }
 
-export function inspectAncestry(
-  table: AppDataKey,
-  row: LifecycleAncestryRow,
-  lookup: LifecycleAncestryLookup,
-  memo: LifecycleAncestryMemo | undefined,
-): LifecycleAncestryResult {
+export function inspectAncestry({ table, row, lookup, memo }: InspectAncestryOptions): LifecycleAncestryResult {
   const relations = CHILD_RELATIONS.get(table);
   if (!relations) return { visible: true };
   for (const relation of relations) {
@@ -104,7 +113,7 @@ export function inspectAncestry(
         };
       }
     }
-    const upstream = resolveMemoisedAncestry(relation.parent, parent, lookup, memo);
+    const upstream = resolveMemoisedAncestry({ table: relation.parent, row: parent, lookup, memo });
     if (!upstream.visible) return upstream;
   }
   return { visible: true };
@@ -112,17 +121,12 @@ export function inspectAncestry(
 
 /** One resolved parent's verdict, reused across every child that reaches it (see
  *  {@link LifecycleAncestryMemo}). Without a memo this is a plain recursive call. */
-function resolveMemoisedAncestry(
-  table: AppDataKey,
-  row: LifecycleAncestryRow,
-  lookup: LifecycleAncestryLookup,
-  memo: LifecycleAncestryMemo | undefined,
-): LifecycleAncestryResult {
-  if (!memo) return inspectAncestry(table, row, lookup, undefined);
+function resolveMemoisedAncestry({ table, row, lookup, memo }: MemoisedAncestryOptions): LifecycleAncestryResult {
+  if (!memo) return inspectAncestry({ table, row, lookup, memo: undefined });
   const key = `${table}|${row.id}`;
   const cached = memo.get(key);
   if (cached) return cached;
-  const result = inspectAncestry(table, row, lookup, memo);
+  const result = inspectAncestry({ table, row, lookup, memo });
   memo.set(key, result);
   return result;
 }
