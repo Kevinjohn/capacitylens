@@ -72,13 +72,13 @@ export function remapAndValidateImport(
   // Per-table maps resolve each FK against the table it actually references. FIRST
   // occurrence within a table wins; a record with a missing/non-string id is NOT keyed
   // (keying on `undefined` would collapse them all) — it gets a fresh id below.
-  const idMaps = Object.fromEntries(SCOPED_KEYS.map((k) => [k, new Map<ID, ID>()])) as Record<
+  const idMaps = Object.fromEntries(SCOPED_KEYS.map((key) => [key, new Map<ID, ID>()])) as Record<
     ScopedEntityKey,
     Map<ID, ID>
   >;
   for (const key of SCOPED_KEYS) {
-    for (const e of incomingRows[key]) {
-      if (typeof e.id === "string" && !idMaps[key].has(e.id)) idMaps[key].set(e.id, newId());
+    for (const entity of incomingRows[key]) {
+      if (typeof entity.id === "string" && !idMaps[key].has(entity.id)) idMaps[key].set(entity.id, newId());
     }
   }
   // Each foreign-key field points at exactly one table, so a ref is remapped via THAT
@@ -94,9 +94,9 @@ export function remapAndValidateImport(
     activityId: "activities",
   };
   const FK_FIELDS = Object.keys(FK_TARGET);
-  const remap = (field: string, ref: unknown): unknown => {
-    const m = idMaps[FK_TARGET[field]];
-    return typeof ref === "string" && m.has(ref) ? m.get(ref) : ref;
+  const remap = (field: string, reference: unknown): unknown => {
+    const idsBySourceId = idMaps[FK_TARGET[field]];
+    return typeof reference === "string" && idsBySourceId.has(reference) ? idsBySourceId.get(reference) : reference;
   };
 
   // Remap every incoming scoped entity into the active account, then repair its
@@ -111,22 +111,22 @@ export function remapAndValidateImport(
   const brought: Record<string, Array<Record<string, unknown>>> = {};
   for (const key of SCOPED_KEYS) {
     const ownIds = idMaps[key];
-    brought[key] = incomingRows[key].map((e) => {
-      // `ownIds.get(e.id) as ID` is sound: the FIRST loop above seeded this table's map with a
+    brought[key] = incomingRows[key].map((entity) => {
+      // `ownIds.get(entity.id) as ID` is sound: the FIRST loop above seeded this table's map with a
       // fresh id for EVERY record bearing a string id, so any record reaching here with a string
       // id is guaranteed to have an entry. A missing/non-string id falls to a fresh newId().
-      const mapped = typeof e.id === "string" ? (ownIds.get(e.id) as ID) : newId();
+      const mapped = typeof entity.id === "string" ? (ownIds.get(entity.id) as ID) : newId();
       const newRecordId = usedIds.has(mapped) ? newId() : mapped;
       usedIds.add(newRecordId);
       const copy: Record<string, unknown> = {
-        ...e,
+        ...entity,
         id: newRecordId,
         accountId,
         createdAt: now,
         updatedAt: now,
       };
-      for (const f of FK_FIELDS) {
-        if (copy[f] !== undefined) copy[f] = remap(f, copy[f]);
+      for (const field of FK_FIELDS) {
+        if (copy[field] !== undefined) copy[field] = remap(field, copy[field]);
       }
       const sanitized = sanitizeImportedRecord(key, copy);
       if (key === "resources" && sanitized.deletedAt !== undefined) {
@@ -143,8 +143,8 @@ export function remapAndValidateImport(
   // user data than the schema's CASCADE: a project activity whose project is absent survives as a
   // project-less repeatable activity (and loses its phase), as documented again in that pass below.
   // Every repair keeps a hand-edited file from reaching SQLite with an invalid reference.
-  const idSet = (rows: Array<Record<string, unknown>>) => new Set(rows.map((r) => r.id as string));
-  const has = (set: Set<string>, v: unknown): boolean => typeof v === "string" && set.has(v);
+  const idSet = (rows: Array<Record<string, unknown>>) => new Set(rows.map((row) => row.id as string));
+  const has = (set: Set<string>, value: unknown): boolean => typeof value === "string" && set.has(value);
 
   // Built-in "Internal" client: every account must have EXACTLY ONE (seed / addAccount / migrate
   // guarantee it). This is the IMPORT-FOLD enforcement point (2) of the single-Internal invariant —
@@ -160,39 +160,40 @@ export function remapAndValidateImport(
   //     that kept one (so anything they owned re-points at the single Internal).
   const remappedBuiltinId = new Map<string, string>();
   let keptInternalId: string | undefined;
-  brought.clients = brought.clients.filter((c) => {
-    if (c.builtin !== true) return true;
+  brought.clients = brought.clients.filter((client) => {
+    if (client.builtin !== true) return true;
     if (keptInternalId === undefined) {
-      keptInternalId = c.id as string;
-      c.name = INTERNAL_CLIENT_NAME;
-      c.color = INTERNAL_CLIENT_COLOR;
+      keptInternalId = client.id as string;
+      client.name = INTERNAL_CLIENT_NAME;
+      client.color = INTERNAL_CLIENT_COLOR;
       return true; // this row becomes the account's single Internal
     }
-    remappedBuiltinId.set(c.id as string, keptInternalId); // a duplicate builtin → fold into the kept one
+    remappedBuiltinId.set(client.id as string, keptInternalId); // a duplicate builtin → fold into the kept one
     return false;
   });
   // Re-point any FK that pointed at a folded-away imported builtin client at the single kept Internal
   // (projects.clientId is the only client FK). Done before the required-FK drop so the project keeps a
   // valid client and survives.
-  const rewireBuiltin = (v: unknown): unknown =>
-    typeof v === "string" && remappedBuiltinId.has(v) ? remappedBuiltinId.get(v) : v;
-  for (const p of brought.projects) p.clientId = rewireBuiltin(p.clientId);
+  const rewireBuiltin = (value: unknown): unknown =>
+    typeof value === "string" && remappedBuiltinId.has(value) ? remappedBuiltinId.get(value) : value;
+  for (const project of brought.projects) project.clientId = rewireBuiltin(project.clientId);
 
   const clientIds = idSet(brought.clients);
   const disciplineIds = idSet(brought.disciplines);
 
   // projects.clientId is REQUIRED → drop a project whose client didn't survive.
-  brought.projects = brought.projects.filter((p) => has(clientIds, p.clientId));
+  brought.projects = brought.projects.filter((project) => has(clientIds, project.clientId));
   const projectIds = idSet(brought.projects);
 
   // phases.projectId is REQUIRED → drop a phase whose project didn't survive.
-  brought.phases = brought.phases.filter((ph) => has(projectIds, ph.projectId));
+  brought.phases = brought.phases.filter((phase) => has(projectIds, phase.projectId));
   const phaseIds = idSet(brought.phases);
 
   // resources: disciplineId / placeholder projectId are OPTIONAL → unbind if dangling.
-  for (const r of brought.resources) {
-    if (r.disciplineId !== undefined && !has(disciplineIds, r.disciplineId)) r.disciplineId = undefined;
-    if (r.projectId !== undefined && !has(projectIds, r.projectId)) r.projectId = undefined;
+  for (const resource of brought.resources) {
+    if (resource.disciplineId !== undefined && !has(disciplineIds, resource.disciplineId))
+      resource.disciplineId = undefined;
+    if (resource.projectId !== undefined && !has(projectIds, resource.projectId)) resource.projectId = undefined;
   }
 
   // activities: keep kind ⇆ projectId/phaseId coherent (assertScopedRefs throws on a mismatch, and
@@ -200,22 +201,22 @@ export function remapAndValidateImport(
   // carries. A project-specific activity whose project didn't survive can no longer BE project-specific, so it
   // becomes 'repeatable' (and loses its now-orphaned phase). A surviving phase that belongs to a
   // DIFFERENT project is unbound — an activity's phase must be a phase of the activity's own project.
-  const phaseProject = new Map(brought.phases.map((p) => [p.id as string, p.projectId]));
-  for (const act of brought.activities) {
-    if (act.kind === "internal" || act.kind === "repeatable") {
-      act.projectId = undefined;
-      act.phaseId = undefined;
+  const phaseProject = new Map(brought.phases.map((phase) => [phase.id as string, phase.projectId]));
+  for (const activity of brought.activities) {
+    if (activity.kind === "internal" || activity.kind === "repeatable") {
+      activity.projectId = undefined;
+      activity.phaseId = undefined;
       continue;
     }
-    if (act.projectId !== undefined && !has(projectIds, act.projectId)) act.projectId = undefined;
-    if (act.projectId === undefined) {
-      act.phaseId = undefined;
-      act.kind = "repeatable";
+    if (activity.projectId !== undefined && !has(projectIds, activity.projectId)) activity.projectId = undefined;
+    if (activity.projectId === undefined) {
+      activity.phaseId = undefined;
+      activity.kind = "repeatable";
     } else if (
-      act.phaseId !== undefined &&
-      (!has(phaseIds, act.phaseId) || phaseProject.get(act.phaseId as string) !== act.projectId)
+      activity.phaseId !== undefined &&
+      (!has(phaseIds, activity.phaseId) || phaseProject.get(activity.phaseId as string) !== activity.projectId)
     ) {
-      act.phaseId = undefined;
+      activity.phaseId = undefined;
     }
   }
 
@@ -227,26 +228,30 @@ export function remapAndValidateImport(
   // stamped with id/accountId/timestamps, so reading them as typed entities for the referential
   // checks below is safe. Results are cast back to loose records afterwards so a dangling optional
   // FK can still be nulled in place. Field-level safety lives in sanitize/validate — NOT the cast.
-  const resources = new Map((brought.resources as unknown as Resource[]).map((r) => [r.id, r]));
-  const activities = new Map((brought.activities as unknown as Activity[]).map((act) => [act.id, act]));
+  const resourcesById = new Map(
+    (brought.resources as unknown as Resource[]).map((resource) => [resource.id, resource]),
+  );
+  const activitiesById = new Map(
+    (brought.activities as unknown as Activity[]).map((activity) => [activity.id, activity]),
+  );
   const projectById = new Map(brought.projects.map((project) => [project.id, project]));
   // Single pass: resolve the owning resource ONCE per allocation and use it for BOTH the keep/drop
   // decision (date range + resource/activity existence + placeholder rule) AND the external-load
   // coercion below, so the two can never diverge.
-  brought.allocations = (brought.allocations as unknown as Allocation[]).reduce<Allocation[]>((kept, a) => {
-    if (!validateDateRange(a.startDate, a.endDate).ok) return kept;
-    const resource = resources.get(a.resourceId);
-    const activity = activities.get(a.activityId);
+  brought.allocations = (brought.allocations as unknown as Allocation[]).reduce<Allocation[]>((kept, allocation) => {
+    if (!validateDateRange(allocation.startDate, allocation.endDate).ok) return kept;
+    const resource = resourcesById.get(allocation.resourceId);
+    const activity = activitiesById.get(allocation.activityId);
     if (!resource || !activity) return kept;
-    let repaired = a;
-    const attributedProject = a.projectId === undefined ? undefined : projectById.get(a.projectId);
+    let repaired = allocation;
+    const attributedProject = allocation.projectId === undefined ? undefined : projectById.get(allocation.projectId);
     const invalidAttribution =
-      a.projectId !== undefined &&
+      allocation.projectId !== undefined &&
       (!allocationAttributionAllowed(activity.kind) ||
         attributedProject === undefined ||
         attributedProject.accountId !== accountId ||
-        !validateAllocationAssignment(resource, a.projectId).ok);
-    if (invalidAttribution) repaired = withoutAllocationAttribution(a);
+        !validateAllocationAssignment(resource, allocation.projectId).ok);
+    if (invalidAttribution) repaired = withoutAllocationAttribution(allocation);
     if (!validateAllocationAssignment(resource, effectiveProjectId(repaired, activity)).ok) return kept;
     // An external resource's allocations carry NO load (the form forces hoursPerDay 0). Import is
     // the one write path that bypasses the form, and sanitizeImportedRecord is per-record so it
@@ -262,16 +267,18 @@ export function remapAndValidateImport(
     kept.push(repaired);
     return kept;
   }, []) as unknown as Array<Record<string, unknown>>;
-  brought.timeOff = (brought.timeOff as unknown as TimeOff[]).reduce<TimeOff[]>((kept, t) => {
-    if (!validateDateRange(t.startDate, t.endDate).ok) return kept;
+  brought.timeOff = (brought.timeOff as unknown as TimeOff[]).reduce<TimeOff[]>((kept, timeOff) => {
+    if (!validateDateRange(timeOff.startDate, timeOff.endDate).ok) return kept;
     // Drop time off on an external / 3rd-party resource: they have no capacity, so the store / server
     // reject it at the write boundary (assertResourceExists) and the scheduler hides it. Applying the
     // same rule here keeps import from landing an invisible orphan a hand-edited file could carry.
-    const resource = resources.get(t.resourceId);
+    const resource = resourcesById.get(timeOff.resourceId);
     if (resource === undefined || isExternalResource(resource)) return kept;
     // Medical/absence detail is the most sensitive dependent free text. Match the lifecycle delete
     // path by retaining the valid scheduling record while removing its note for a deleted person.
-    kept.push(resource.deletedAt !== undefined && t.note !== undefined ? { ...t, note: undefined } : t);
+    kept.push(
+      resource.deletedAt !== undefined && timeOff.note !== undefined ? { ...timeOff, note: undefined } : timeOff,
+    );
     return kept;
   }, []) as unknown as Array<Record<string, unknown>>;
   brought.closures = (brought.closures as unknown as AppData["closures"]).filter(
@@ -280,18 +287,18 @@ export function remapAndValidateImport(
 
   const next: AppData = { ...data };
   const srcKept = scopedTables(data);
-  const dst = scopedTables(next);
+  const destinationTables = scopedTables(next);
   // Count only NON-builtin clients toward `imported`: the built-in Internal is infrastructure (every
   // account has exactly one regardless of the file), so a kept/folded/synthesised Internal must never
   // inflate "imported N". This also fixes the over-report when a pre-v6 FULL export was given a builtin
   // by migrate (run before this import) — that auto-added row reaches here as a kept builtin, and must
   // still not count. The matching `totalIncoming` below excludes incoming builtins for the same reason.
   const countable = (key: ScopedEntityKey, rows: ReadonlyArray<Record<string, unknown>>): number =>
-    key === "clients" ? rows.filter((c) => c.builtin !== true).length : rows.length;
+    key === "clients" ? rows.filter((client) => client.builtin !== true).length : rows.length;
   let imported = 0;
   for (const key of SCOPED_KEYS) {
     const kept = srcKept[key].filter(notInAccount(accountId));
-    dst[key] = [...kept, ...(brought[key] as unknown as ScopedEntity[])];
+    destinationTables[key] = [...kept, ...(brought[key] as unknown as ScopedEntity[])];
     imported += countable(key, brought[key]);
   }
   // Post-step (AFTER counting): guarantee the ACTIVE account ends with exactly one built-in Internal.
@@ -310,6 +317,9 @@ export function remapAndValidateImport(
   // Everything that didn't land — a dropped parent, child, allocation or time-off — counts as skipped
   // (records merely unbound from a dangling optional FK still land). Incoming builtins are excluded
   // from BOTH sides so the auto-added Internal never shows up as imported or skipped.
-  const totalIncoming = SCOPED_KEYS.reduce((n, key) => n + countable(key, incomingRows[key]), malformedIncoming);
+  const totalIncoming = SCOPED_KEYS.reduce(
+    (recordCount, key) => recordCount + countable(key, incomingRows[key]),
+    malformedIncoming,
+  );
   return { data: result, imported, skipped: totalIncoming - imported };
 }

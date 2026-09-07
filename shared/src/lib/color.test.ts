@@ -193,7 +193,7 @@ describe("resolveBarColor", () => {
 
 describe("contrastRatio", () => {
   it("linearises a near-black channel via the low-s division branch, not the gamma curve", () => {
-    // s = 1/255 <= 0.03928, so channelLin must take the s/12.92 branch. Using the
+    // s = 1/255 <= 0.03928, so normalizeLinearChannel must take the s/12.92 branch. Using the
     // gamma (pow) branch instead, or multiplying instead of dividing, gives a very
     // different luminance and thus ratio.
     expect(contrastRatio("#010101", "#000000")).toBeCloseTo(1.0060705396709768, 9);
@@ -238,7 +238,7 @@ describe("readableTextColor", () => {
   });
 
   it("returns the dark-ink guard value directly for an unparseable hex", () => {
-    // relativeLuminance(hex) is null here, so the load-bearing guard must return DARK_INK
+    // calculateRelativeLuminance(hex) is null here, so the load-bearing guard must return DARK_INK
     // itself — not fall through into contrastRatio, where both sides would tie at the
     // "no contrast info" value of 1 and hand the answer to white ink instead.
     expect(readableTextColor("#zzzzzz")).toBe("#1c2230");

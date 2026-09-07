@@ -11,9 +11,9 @@ import type { Activity, Allocation, AppData, ID, ISODate, Resource, TimeOff } fr
 import { belongsToAccount } from "../tenancy";
 import { domainError, type DomainErrorCode } from "../errors";
 import {
-  ownedRow,
-  validationAllocationsFor,
-  throwIfInvalid,
+  resolveOwnedRow,
+  listValidationAllocations,
+  assertValid,
   isEffectivelyActive,
   type ValidationDataLookup,
 } from "../validationLookup";
@@ -47,11 +47,14 @@ export function assertResourceKindAllowsDependents(
   // A loaded allocation OR any time-off both vanish from the scheduler once the resource is external.
   // hoursPerDay !== 0 mirrors assertAllocationRefs' "externals carry no load" rule (a zero-load
   // allocation is allowed on an external, so it doesn't block the flip).
-  const owns = (e: Allocation | TimeOff) => e.resourceId === resourceId && belongsToAccount(e, accountId);
+  const owns = (entity: Allocation | TimeOff) =>
+    entity.resourceId === resourceId && belongsToAccount(entity, accountId);
   const hasLoadedAllocation = lookup
     ? lookup.resourceHasLoadedAllocation(accountId, resourceId)
-    : data.allocations.some((a) => owns(a) && a.hoursPerDay !== 0);
-  const hasTimeOff = lookup ? lookup.resourceHasTimeOff(accountId, resourceId) : data.timeOff.some((t) => owns(t));
+    : data.allocations.some((allocation) => owns(allocation) && allocation.hoursPerDay !== 0);
+  const hasTimeOff = lookup
+    ? lookup.resourceHasTimeOff(accountId, resourceId)
+    : data.timeOff.some((timeOff) => owns(timeOff));
   if (hasLoadedAllocation || hasTimeOff) {
     domainError(
       "resource_external_dependents",
@@ -108,17 +111,17 @@ function assertAllocationPairStaysValid(
   message: string,
   lookup?: ValidationDataLookup,
 ): void {
-  for (const allocation of validationAllocationsFor(data, accountId, edit.side, id, lookup)) {
+  for (const allocation of listValidationAllocations(data, accountId, edit.side, id, lookup)) {
     let before: ValidationResult | undefined;
     let after: ValidationResult;
     if (edit.side === "resource") {
-      const activity = ownedRow<Activity>(data, "activities", allocation.activityId, accountId, lookup);
+      const activity = resolveOwnedRow<Activity>(data, "activities", allocation.activityId, accountId, lookup);
       if (!activity) continue;
       const projectId = effectiveProjectId(allocation, activity);
       before = edit.existing && validateAllocationAssignment(edit.existing, projectId);
       after = validateAllocationAssignment(edit.merged, projectId);
     } else {
-      const resource = ownedRow<Resource>(data, "resources", allocation.resourceId, accountId, lookup);
+      const resource = resolveOwnedRow<Resource>(data, "resources", allocation.resourceId, accountId, lookup);
       if (!resource) continue;
       before = edit.existing && validateAllocationAssignment(resource, effectiveProjectId(allocation, edit.existing));
       const allocationAfter = allocationAttributionAllowed(edit.merged.kind)
@@ -160,7 +163,7 @@ export function assertActivityProjectAllowsDependents(
 
 /** No allocation or time-off may persist an empty, malformed, or reversed range. */
 export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
-  throwIfInvalid(validateDateRange(startDate, endDate));
+  assertValid(validateDateRange(startDate, endDate));
 }
 
 /**
@@ -178,7 +181,7 @@ export function assertResourceExists(
   existing?: Pick<TimeOff, "resourceId">,
   lookup?: ValidationDataLookup,
 ): void {
-  const resource = ownedRow<Resource>(data, "resources", resourceId, accountId, lookup);
+  const resource = resolveOwnedRow<Resource>(data, "resources", resourceId, accountId, lookup);
   if (!resource) {
     domainError("time_off_resource_invalid", "Time off must reference an existing resource in this company.");
   }

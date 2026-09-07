@@ -71,7 +71,7 @@ const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
  *  deterministic tie-break) is preserved. An entry is `null` only if a palette member were not a
  *  valid 6-digit hex — unreachable (pinned by a test), but kept nullable so such an entry is
  *  SKIPPED rather than poisoning every distance with NaN. */
-const PRESET_RGB: readonly ([number, number, number] | null)[] = PRESET_COLORS.map((preset) => toRgb(preset));
+const PRESET_RGB: readonly ([number, number, number] | null)[] = PRESET_COLORS.map((preset) => parseRgb(preset));
 
 export function isPresetColor(value: unknown): value is string {
   return typeof value === "string" && PRESET_COLOR_SET.has(value.trim().toLowerCase());
@@ -101,9 +101,9 @@ export function snapToPresetColor(value: unknown): string {
   if (typeof value !== "string") return FALLBACK_PRESET_COLOR;
   const normalized = value.trim().toLowerCase();
   if (PRESET_COLOR_SET.has(normalized)) return normalized;
-  const rgb = toRgb(normalized);
-  if (!rgb) return FALLBACK_PRESET_COLOR;
-  const [r, g, b] = rgb;
+  const channels = parseRgb(normalized);
+  if (!channels) return FALLBACK_PRESET_COLOR;
+  const [r, g, b] = channels;
   let nearest: string = PRESET_COLORS[0];
   let nearestDistance = Infinity;
   for (let i = 0; i < PRESET_COLORS.length; i++) {
@@ -170,32 +170,32 @@ const DARK_INK = "#1c2230";
 const LIGHT_INK = "#ffffff";
 
 // WCAG relative luminance: linearise each sRGB channel before weighting.
-function channelLin(c: number): number {
-  const s = c / 255;
-  return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+function normalizeLinearChannel(channel: number): number {
+  const normalizedChannel = channel / 255;
+  return normalizedChannel <= 0.03928 ? normalizedChannel / 12.92 : Math.pow((normalizedChannel + 0.055) / 1.055, 2.4);
 }
 
-function toRgb(hex: string): [number, number, number] | null {
+function parseRgb(hex: string): [number, number, number] | null {
   const normalized = hex.trim();
   if (!HEX_COLOR_RE.test(normalized)) return null;
   const body = normalized.slice(1);
   return [parseInt(body.slice(0, 2), 16), parseInt(body.slice(2, 4), 16), parseInt(body.slice(4, 6), 16)];
 }
 
-function relativeLuminance(hex: string): number | null {
-  const rgb = toRgb(hex);
-  if (!rgb) return null;
-  const [r, g, b] = rgb;
-  return 0.2126 * channelLin(r) + 0.7152 * channelLin(g) + 0.0722 * channelLin(b);
+function calculateRelativeLuminance(hex: string): number | null {
+  const channels = parseRgb(hex);
+  if (!channels) return null;
+  const [r, g, b] = channels;
+  return 0.2126 * normalizeLinearChannel(r) + 0.7152 * normalizeLinearChannel(g) + 0.0722 * normalizeLinearChannel(b);
 }
 
 export function contrastRatio(hexA: string, hexB: string): number {
-  const la = relativeLuminance(hexA);
-  const lb = relativeLuminance(hexB);
-  if (la === null || lb === null) return 1;
-  const hi = Math.max(la, lb);
-  const lo = Math.min(la, lb);
-  return (hi + 0.05) / (lo + 0.05);
+  const leftLuminance = calculateRelativeLuminance(hexA);
+  const rightLuminance = calculateRelativeLuminance(hexB);
+  if (leftLuminance === null || rightLuminance === null) return 1;
+  const higherLuminance = Math.max(leftLuminance, rightLuminance);
+  const lowerLuminance = Math.min(leftLuminance, rightLuminance);
+  return (higherLuminance + 0.05) / (lowerLuminance + 0.05);
 }
 
 /** Pick whichever of white / dark ink has the higher WCAG contrast on `hex`. */
@@ -203,7 +203,7 @@ export function readableTextColor(hex: string): string {
   // Load-bearing guard, NOT redundant with contrastRatio: an unparseable `hex` makes BOTH ratios
   // below the documented "no contrast info" value of 1, which would tie and hand the answer to
   // white ink. An unreadable colour must fall back to dark ink.
-  if (relativeLuminance(hex) === null) return DARK_INK;
+  if (calculateRelativeLuminance(hex) === null) return DARK_INK;
   return contrastRatio(hex, LIGHT_INK) >= contrastRatio(hex, DARK_INK) ? LIGHT_INK : DARK_INK;
 }
 
@@ -212,10 +212,11 @@ const AA_NORMAL = 4.5;
 /** The exact channel quantisation `toHex` writes (and therefore the value a later re-parse of that
  *  hex reads back). Shared so the nudge loop below can score a candidate from its live float
  *  channels WITHOUT round-tripping through a hex string, yet score the identical byte values. */
-const channelByte = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+const channelByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
 
-const toHex = (r: number, g: number, b: number) =>
-  "#" + [r, g, b].map((v) => channelByte(v).toString(16).padStart(2, "0")).join("");
+const toHex = (redChannel: number, greenChannel: number, blueChannel: number) =>
+  "#" +
+  [redChannel, greenChannel, blueChannel].map((value) => channelByte(value).toString(16).padStart(2, "0")).join("");
 
 /**
  * Bar label legibility: many mid-tone colours give neither white nor dark ink a
@@ -224,20 +225,22 @@ const toHex = (r: number, g: number, b: number) =>
  * ink — until the label clears WCAG AA. Returns the adjusted background + its ink.
  */
 export function ensureBarColors(hex: string): { bg: string; ink: string } {
-  const rgb = toRgb(hex);
+  const channels = parseRgb(hex);
   const ink = readableTextColor(hex);
-  if (!rgb) return { bg: NEUTRAL_COLOR, ink: readableTextColor(NEUTRAL_COLOR) };
-  let [r, g, b] = rgb;
+  if (!channels) return { bg: NEUTRAL_COLOR, ink: readableTextColor(NEUTRAL_COLOR) };
+  let [r, g, b] = channels;
   const darken = ink === LIGHT_INK;
   // The ink never changes inside the loop, so linearise it ONCE. Previously each iteration
   // re-formatted the candidate to hex and re-parsed BOTH it and the ink through contrastRatio;
   // now only the settled colour is formatted, after the loop.
-  const inkLuminance = relativeLuminance(ink) ?? 0;
+  const inkLuminance = calculateRelativeLuminance(ink) ?? 0;
   // Score from the quantised bytes (`channelByte`), i.e. exactly the channels a re-parse of
   // `toHex(r, g, b)` would yield — so the loop stops on precisely the same iteration as before.
   const contrastWithInk = () => {
     const luminance =
-      0.2126 * channelLin(channelByte(r)) + 0.7152 * channelLin(channelByte(g)) + 0.0722 * channelLin(channelByte(b));
+      0.2126 * normalizeLinearChannel(channelByte(r)) +
+      0.7152 * normalizeLinearChannel(channelByte(g)) +
+      0.0722 * normalizeLinearChannel(channelByte(b));
     return (Math.max(luminance, inkLuminance) + 0.05) / (Math.min(luminance, inkLuminance) + 0.05);
   };
   let nudged = false;

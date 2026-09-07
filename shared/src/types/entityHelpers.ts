@@ -29,8 +29,8 @@ export function scopedTables(data: AppData): Record<ScopedEntityKey, ScopedEntit
  *  ONE rule shared by the store write boundary (every allocation write) and the import
  *  sanitiser, so the two can never drift. 0 is legal (a 'blocks' booking carries 0 load);
  *  a day can't exceed 24h. */
-export function clampHoursPerDay(h: number): number {
-  return Number.isFinite(h) ? Math.max(0, Math.min(h, MAX_HOURS_PER_DAY)) : 0;
+export function clampHoursPerDay(hours: number): number {
+  return Number.isFinite(hours) ? Math.max(0, Math.min(hours, MAX_HOURS_PER_DAY)) : 0;
 }
 
 /** Clamp a RESOURCE's working hours/day to (0, MAX_HOURS_PER_DAY]. Unlike an allocation, a
@@ -38,36 +38,36 @@ export function clampHoursPerDay(h: number): number {
  *  reason the store rejects an empty working-week), so junk / <= 0 falls back to a normal 8h
  *  day; a finite positive value just clamps to the 24h ceiling. Shared by the import sanitiser
  *  and the store resource write path so the two stay in lockstep. */
-export function clampWorkingHoursPerDay(h: number): number {
-  return Number.isFinite(h) && h > 0 ? Math.min(h, MAX_HOURS_PER_DAY) : FULL_DAY_HOURS;
+export function clampWorkingHoursPerDay(hours: number): number {
+  return Number.isFinite(hours) && hours > 0 ? Math.min(hours, MAX_HOURS_PER_DAY) : FULL_DAY_HOURS;
 }
 
 /** Outsourced / 3rd-party resources have NO capacity (no hours, utilisation, or over-markers) and
  *  render in their own neutral band. This is the SINGLE predicate every capacity surface gates on —
  *  so a new capacity-free kind is a one-line change here, not N scattered `kind === 'external'`
  *  checks across the scheduler / forms / import. */
-export function isExternalResource(r: { kind: ResourceKind }): boolean {
-  return r.kind === "external";
+export function isExternalResource(resource: { kind: ResourceKind }): boolean {
+  return resource.kind === "external";
 }
 
 /** Inverse of {@link isExternalResource} — true when a resource participates in capacity/utilisation. */
-export function isCapacityTracked(r: { kind: ResourceKind }): boolean {
-  return !isExternalResource(r);
+export function isCapacityTracked(resource: { kind: ResourceKind }): boolean {
+  return !isExternalResource(resource);
 }
 
 /** True when a resource persists its own working-week pattern. Placeholders derive their live week
  *  from the company calendar, while externals have no capacity at all. */
-export function hasPersonalWorkingPattern(r: { kind: ResourceKind }): boolean {
-  return r.kind === "person";
+export function hasPersonalWorkingPattern(resource: { kind: ResourceKind }): boolean {
+  return resource.kind === "person";
 }
 
 /** The single kind check for placeholder-specific persistence and import rules. */
-export function isPlaceholderResource(r: { kind: ResourceKind }): boolean {
-  return r.kind === "placeholder";
+export function isPlaceholderResource(resource: { kind: ResourceKind }): boolean {
+  return resource.kind === "placeholder";
 }
 
 /** Fresh inert weekday arrays shared by resource kinds that do not persist a personal pattern. */
-function defaultCapacityWorkingPattern(): Pick<Resource, "workingDays" | "halfDays"> {
+function buildDefaultCapacityWorkingPattern(): Pick<Resource, "workingDays" | "halfDays"> {
   return {
     workingDays: [1, 2, 3, 4, 5],
     halfDays: [],
@@ -86,7 +86,7 @@ export function externalCapacityDefaults(): Pick<
     employmentType: "permanent",
     engagement: "studio" as const,
     workingHoursPerDay: FULL_DAY_HOURS,
-    ...defaultCapacityWorkingPattern(),
+    ...buildDefaultCapacityWorkingPattern(),
   };
 }
 
@@ -95,7 +95,7 @@ export function externalCapacityDefaults(): Pick<
  *  inert and must never copy an account's current selection. A factory gives every caller fresh
  *  arrays, avoiding aliases if a consumer mutates one. */
 export function placeholderCapacityDefaults(): Pick<Resource, "workingDays" | "halfDays"> {
-  return defaultCapacityWorkingPattern();
+  return buildDefaultCapacityWorkingPattern();
 }
 
 /** A fresh, empty dataset — the starting point before seeding. */

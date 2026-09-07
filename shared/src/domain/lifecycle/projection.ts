@@ -51,7 +51,7 @@ void projectedKeysAreComplete;
  * @returns a NEW AppData identical to `data` except non-active resources/clients/projects are removed.
  */
 export function activeOnly(data: AppData): AppData {
-  const isActive = (e: LifecycleFields) => lifecycleStatus(e) === "active";
+  const isActive = (entity: LifecycleFields) => lifecycleStatus(entity) === "active";
   const indexes = Object.fromEntries(
     PARENT_TABLES.map((table) => [
       table,
