@@ -15,7 +15,7 @@ interface StoredReplayEntry<T> {
 
 type ReplayEntry<T> = ReservedReplayEntry | StoredReplayEntry<T>;
 
-export type ReplayReservation = { accepted: true } | { accepted: false; retryAfterMs: number };
+export type ReplayReservationResult = { kind: "accepted" } | { kind: "rejected"; retryAfterMs: number };
 
 /** Bounded process-local cache for a write-once response. Callers reserve capacity before minting
  * a bearer, so pressure rejects a new issuance instead of silently displacing a completed response.
@@ -37,12 +37,12 @@ export class WriteOnceSecretReplay<T> {
     return entry?.kind === "stored" ? entry.value : undefined;
   }
 
-  reserve(commandId: string, now = Date.now()): ReplayReservation {
+  reserve(commandId: string, now = Date.now()): ReplayReservationResult {
     this.#prune(now);
     const duplicate = this.#entries.get(commandId);
     if (duplicate) {
       return {
-        accepted: false,
+        kind: "rejected",
         retryAfterMs: duplicate.kind === "stored" ? Math.max(1, duplicate.retainedUntil - now) : 1_000,
       };
     }
@@ -52,14 +52,14 @@ export class WriteOnceSecretReplay<T> {
         if (entry.kind === "stored") earliestRelease = Math.min(earliestRelease, entry.retainedUntil);
       }
       return {
-        accepted: false,
+        kind: "rejected",
         // Active reservations have no deadline because their provider call is still in progress.
         // Give callers a short, honest backoff when every slot is currently reserved.
         retryAfterMs: Number.isFinite(earliestRelease) ? Math.max(1, earliestRelease - now) : 1_000,
       };
     }
     this.#entries.set(commandId, { kind: "reserved" });
-    return { accepted: true };
+    return { kind: "accepted" };
   }
 
   storeReserved(commandId: string, value: T, now = Date.now()): void {
