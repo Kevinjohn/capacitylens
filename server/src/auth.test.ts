@@ -47,6 +47,24 @@ const assertPresent = <T>(value: T, label: string): NonNullable<T> => {
   if (value === null || value === undefined) throw new Error(`Expected ${label}`);
   return value;
 };
+const readRejectedValue = async (promise: Promise<unknown>): Promise<unknown> => {
+  try {
+    await promise;
+  } catch (error) {
+    return error;
+  }
+  throw new Error("Expected promise to reject");
+};
+const parseApiErrorFields = (value: unknown): { status: unknown; code: unknown } => {
+  if (typeof value !== "object" || value === null || !("status" in value) || !("body" in value)) {
+    throw new Error("Expected an API error object");
+  }
+  const { body, status } = value;
+  if (typeof body !== "object" || body === null || !("code" in body)) {
+    throw new Error("Expected an API error body with a code");
+  }
+  return { status, code: body.code };
+};
 
 describe("password verification backpressure", () => {
   it("maps scrypt saturation to a retryable service-unavailable API error", async () => {
@@ -55,12 +73,11 @@ describe("password verification backpressure", () => {
       verify: vi.fn().mockRejectedValue(new WorkQueueFullError("Password processing is at capacity.", "full")),
     };
 
-    await expect(
-      verifyPasswordWithBackpressure(hasher, { hash: "stored", password: "correct password" }),
-    ).rejects.toMatchObject({
-      status: "SERVICE_UNAVAILABLE",
-      body: expect.objectContaining({ code: "PASSWORD_PROCESSING_UNAVAILABLE" }),
-    });
+    const error = parseApiErrorFields(
+      await readRejectedValue(verifyPasswordWithBackpressure(hasher, { hash: "stored", password: "correct password" })),
+    );
+    expect(error.status).toBe("SERVICE_UNAVAILABLE");
+    expect(error.code).toBe("PASSWORD_PROCESSING_UNAVAILABLE");
   });
 
   it("maps new-hash saturation to the same retryable service-unavailable API error", async () => {
@@ -69,10 +86,11 @@ describe("password verification backpressure", () => {
       verify: vi.fn(),
     };
 
-    await expect(hashPasswordWithBackpressure(hasher, "correct horse battery staple")).rejects.toMatchObject({
-      status: "SERVICE_UNAVAILABLE",
-      body: expect.objectContaining({ code: "PASSWORD_PROCESSING_UNAVAILABLE" }),
-    });
+    const error = parseApiErrorFields(
+      await readRejectedValue(hashPasswordWithBackpressure(hasher, "correct horse battery staple")),
+    );
+    expect(error.status).toBe("SERVICE_UNAVAILABLE");
+    expect(error.code).toBe("PASSWORD_PROCESSING_UNAVAILABLE");
   });
 });
 
