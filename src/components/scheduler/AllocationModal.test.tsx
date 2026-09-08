@@ -2440,15 +2440,14 @@ describe("AllocationModal Enter key submission", () => {
   registerInlineActivityEnterTest();
 });
 
-// These cases drive many sequential user interactions and can exceed Vitest's 5 s default on CI hardware.
-describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
-  const addPerson = () => useStore.getState().addResource(makeResourceDraft({ name: "Tyler", color: "#111111" }));
+const addPerson = () => useStore.getState().addResource(makeResourceDraft({ name: "Tyler", color: "#111111" }));
 
-  const completeAssignment = async (user: ReturnType<typeof userEvent.setup>) => {
-    await chooseOption(user, "Project", "Acme / Lightning");
-    await chooseOption(user, "Activity", "Wireframes");
-  };
+const completeAssignment = async (user: ReturnType<typeof userEvent.setup>) => {
+  await chooseOption(user, "Project", "Acme / Lightning");
+  await chooseOption(user, "Activity", "Wireframes");
+};
 
+function registerRepeatOptionsTest() {
   it("shows all six create-only options, defaults to one-off and dirty-tracks repeat changes", async () => {
     const resource = addPerson();
     const { unmount } = render(
@@ -2484,7 +2483,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
     expect(screen.queryByRole("combobox", { name: "Repeat" })).not.toBeInTheDocument();
   });
+}
 
+function registerRepeatCutoffSeedTest() {
   it("defaults from the allocation start, follows untouched starts, and preserves a hand-edited cutoff", async () => {
     const resource = addPerson();
     const user = userEvent.setup();
@@ -2510,7 +2511,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     await user.type(start, "2028-02-10");
     expect(repeatUntil).toHaveValue("2028-04-15");
   });
+}
 
+function registerRepeatCutoffClampTest() {
   it("clamps the suggested cutoff at the supported date boundary", async () => {
     const resource = addPerson();
     const user = userEvent.setup();
@@ -2525,7 +2528,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     expect(screen.getByLabelText("Repeat until")).toHaveValue("9999-12-31");
     expect(screen.getByLabelText("Repeat until")).toHaveAttribute("max", "9999-12-31");
   });
+}
 
+function registerRepeatCadencePreviewTest() {
   it("previews every cadence with formatShortDate and creates weekly through one bulk call", async () => {
     const resource = addPerson();
     const bulkSpy = vi.spyOn(useStore.getState(), "addAllocations");
@@ -2573,7 +2578,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     bulkSpy.mockRestore();
     oneSpy.mockRestore();
   });
+}
 
+function registerRepeatAttributionTests() {
   it.each([
     ["Internal", "Operations", undefined],
     ["No specific project", "Planning", undefined],
@@ -2610,7 +2617,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
       bulkSpy.mockRestore();
     },
   );
+}
 
+function registerMonthlyRepeatSpanTest() {
   it("keeps the original monthly numeric day while preserving a multi-day span", async () => {
     // A seven-day company and person make the Saturday day-31 anchor an effective start — the
     // creation gate has no override (no ignored-creation escape hatch), so the numeric-day
@@ -2643,7 +2652,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     ]);
     bulkSpy.mockRestore();
   });
+}
 
+function registerNumericModeRepeatLimitTests() {
   it.each(["days", "blocks"] as const)(
     "rejects a %s repeat when a later occurrence cannot fit the complete working span",
     async (schedulingMode) => {
@@ -2679,7 +2690,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
       bulkSpy.mockRestore();
     },
   );
+}
 
+function registerZeroOverlapRepeatTest() {
   it("routes a zero-overlap repeat to the assignee/form error instead of Repeat until", async () => {
     useStore.getState().updateAccount(ACC, { workingDays: [2] });
     const resource = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1] });
@@ -2705,7 +2718,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     expect(onClose).not.toHaveBeenCalled();
     bulkSpy.mockRestore();
   });
+}
 
+function registerRepeatSubmissionPathTest() {
   it("keeps one-off on addAllocation and leaves a rejected bulk dialog open", async () => {
     const resource = addPerson();
     const oneSpy = vi.spyOn(useStore.getState(), "addAllocation");
@@ -2748,7 +2763,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     expect(onClose).not.toHaveBeenCalled();
     rejectBulk.mockRestore();
   });
+}
 
+function registerRepeatValidationTest() {
   it("validates the required, temporal and six-month Repeat until boundaries", async () => {
     useStore.getState().updateAccount(ACC, { timezone: "UTC" });
     const resource = addPerson();
@@ -2795,7 +2812,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     expect(bulkSpy).not.toHaveBeenCalled();
     bulkSpy.mockRestore();
   });
+}
 
+function registerRepeatBoundaryAndAdvisoryTests() {
   it("includes an occurrence on the cutoff and supports the complete six-month weekly range", async () => {
     const resource = addPerson();
     const user = userEvent.setup();
@@ -2851,7 +2870,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     expect(capacityAdvisoryMock).toHaveBeenCalledTimes(14);
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
+}
 
+function registerRepeatEffectiveWeekAndDuplicateTests() {
   it("surfaces monthly occurrences whose starts fall outside the effective week", async () => {
     const resource = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1] });
     const user = userEvent.setup();
@@ -2894,6 +2915,22 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     oneSpy.mockRestore();
     bulkSpy.mockRestore();
   });
+}
+
+// These cases drive many sequential user interactions and can exceed Vitest's 5 s default on CI hardware.
+describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
+  registerRepeatOptionsTest();
+  registerRepeatCutoffSeedTest();
+  registerRepeatCutoffClampTest();
+  registerRepeatCadencePreviewTest();
+  registerRepeatAttributionTests();
+  registerMonthlyRepeatSpanTest();
+  registerNumericModeRepeatLimitTests();
+  registerZeroOverlapRepeatTest();
+  registerRepeatSubmissionPathTest();
+  registerRepeatValidationTest();
+  registerRepeatBoundaryAndAdvisoryTests();
+  registerRepeatEffectiveWeekAndDuplicateTests();
 });
 
 describe("AllocationModal lifecycle", () => {
