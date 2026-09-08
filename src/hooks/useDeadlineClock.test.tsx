@@ -60,8 +60,12 @@ it("uses the injected clock to arm, wake past, and re-arm deadlines", () => {
   const { result } = renderHook(() => useDeadlineClock({ pickNextDeadline, readNow }));
   expect(result.current).toBe(initial);
 
+  now = first;
+  act(() => void vi.advanceTimersByTime(60_000));
+  expect(result.current).toBe(initial);
+
   now = first + 1;
-  act(() => void vi.advanceTimersByTime(60_001));
+  act(() => void vi.advanceTimersByTime(1));
   expect(result.current).toBe(first + 1);
 
   now = second + 1;
