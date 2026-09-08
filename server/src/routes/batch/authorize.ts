@@ -78,9 +78,7 @@ function readScopedAccountId(op: BatchOp): string {
 }
 
 function resolveScopedAction(op: BatchOp): Action {
-  return op.method === "PUT" && op.table === "clients" && op.row?.builtin === true
-    ? "manageInternalClient"
-    : "write";
+  return op.method === "PUT" && op.table === "clients" && op.row?.builtin === true ? "manageInternalClient" : "write";
 }
 
 function authorizeAccountPut(parameters: AuthorizeAccountPutInput): boolean {

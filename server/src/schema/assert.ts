@@ -121,8 +121,7 @@ function inspectUniqueIndexes(db: Db, table: string, constraintProblems: string[
     const expectedSql = expected.get(index.name);
     const actualSql = (
       db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?`).get(index.name) as
-        | { sql: string | null }
-        | undefined
+        { sql: string | null } | undefined
     )?.sql;
     if (!expectedSql || !actualSql || normalizeSchemaObjectSql(actualSql) !== expectedSql) {
       constraintProblems.push(`${table}.${index.name} is an unexpected or invalid UNIQUE constraint`);
@@ -143,8 +142,7 @@ function inspectTableConstraints(input: InspectTableConstraintsInput): void {
   const tableSql =
     (
       db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) as
-        | { sql: string | null }
-        | undefined
+        { sql: string | null } | undefined
     )?.sql ?? "";
   if (/\bCHECK\s*\(/i.test(tableSql)) problems.push(`${table} has an unexpected CHECK constraint`);
   inspectUniqueIndexes(db, table, problems);
