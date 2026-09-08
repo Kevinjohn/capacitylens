@@ -1,5 +1,6 @@
 import type { RefreshOutcome } from "./facades";
 import type { StoreApi } from "zustand";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import type { StoreState } from "../../store/useStore";
 import type { PersistenceAdapter } from "../PersistenceAdapter";
 import { applyOps, diffOps } from "../syncOps";
@@ -20,6 +21,158 @@ interface CreateRefreshControllerInput {
   onSuccess?: () => void;
 }
 
+interface RefreshSequenceInput extends CreateRefreshControllerInput {
+  dataAtSequenceStart: AppData;
+  dataAtLoad: AppData;
+  failedBeforeLoad: boolean;
+  myToken: number;
+  slice: AppData;
+}
+
+interface InstallLoadedSliceInput extends RefreshSequenceInput {
+  currentData: AppData;
+  editedMidLoad: boolean;
+  lostFailedEdits: boolean;
+}
+
+async function awaitCurrentSave(owner: AttachmentState): Promise<void> {
+  const currentSave = owner.current.inFlightSave;
+  if (currentSave) await currentSave;
+}
+
+function isRefreshInactive(owner: AttachmentState, token: number): boolean {
+  return owner.current.disposed || token !== owner.current.switchToken;
+}
+
+async function installSupersededSignedOutSlice({
+  store,
+  owner,
+  writes,
+  dataAtSequenceStart,
+  dataAtLoad,
+  slice,
+}: RefreshSequenceInput): Promise<void> {
+  if (store.getState().activeAccountId !== null) return;
+  const currentData = store.getState().data;
+  let installed = slice;
+  if (currentData !== dataAtLoad || owner.current.pending !== null) {
+    installed = applyOps(slice, diffOps(dataAtSequenceStart, currentData));
+    incrementPersistenceDiagnostic("editsRebased");
+    owner.update({ pending: null });
+    owner.update({ unacknowledged: installed });
+    writes.save(installed);
+    await awaitCurrentSave(owner);
+  }
+  owner.installSlice(installed);
+}
+
+function resolveLoadedSlice({
+  owner,
+  dataAtSequenceStart,
+  currentData,
+  editedMidLoad,
+  lostFailedEdits,
+  slice,
+}: InstallLoadedSliceInput): AppData {
+  if (owner.current.externalSuspendDepth > 0) owner.update({ externalAuthoritativeData: slice });
+  if (!editedMidLoad) {
+    if (lostFailedEdits) {
+      owner.update({ pending: null });
+      owner.update({ unacknowledged: null });
+    }
+    return slice;
+  }
+  const editBase =
+    owner.current.externalSuspendDepth > 0 && owner.current.externalBaseData
+      ? owner.current.externalBaseData
+      : dataAtSequenceStart;
+  const installed = applyOps(slice, diffOps(editBase, currentData));
+  incrementPersistenceDiagnostic("editsRebased");
+  owner.update({ pending: installed });
+  owner.update({ unacknowledged: installed });
+  return installed;
+}
+
+function installLoadedSlice(input: RefreshSequenceInput): void {
+  const { store, owner, onSuccess, failedBeforeLoad, dataAtLoad } = input;
+  const currentData = store.getState().data;
+  const editedMidLoad = currentData !== dataAtLoad || owner.current.pending !== null;
+  const lostFailedEdits = failedBeforeLoad && !owner.current.resolvingAuthoritativeReload;
+  const installed = resolveLoadedSlice({ ...input, currentData, editedMidLoad, lostFailedEdits });
+  if (lostFailedEdits) {
+    owner.discardEdit(
+      "capacitylens: an unsaved edit was discarded during an authoritative reload",
+      "An edit could not be saved before this company’s data reloaded.",
+    );
+  }
+  owner.installSlice(installed);
+  if (!editedMidLoad) owner.update({ unacknowledged: null });
+  owner.update({ authoritativeReloadRequiredFor: null });
+  owner.update({ failedSinceSuccess: false });
+  owner.update({ retryAttempts: 0 });
+  owner.cancelRetry();
+  onSuccess?.();
+}
+
+async function flushBeforeLoad(input: CreateRefreshControllerInput, token: number): Promise<boolean> {
+  const { owner, writes } = input;
+  await awaitCurrentSave(owner);
+  if (owner.supersededBy(token)) return false;
+  if (owner.current.pending && owner.current.externalSuspendDepth === 0) {
+    writes.save(owner.current.pending);
+    await awaitCurrentSave(owner);
+    if (owner.supersededBy(token)) return false;
+  }
+  return true;
+}
+
+async function handleInactiveRefresh(input: RefreshSequenceInput): Promise<boolean> {
+  const { owner, myToken } = input;
+  if (!isRefreshInactive(owner, myToken)) return false;
+  if (owner.current.disposed) return true;
+  incrementPersistenceDiagnostic("reloadsSuperseded");
+  await installSupersededSignedOutSlice(input);
+  return true;
+}
+
+async function runRefresh(
+  input: CreateRefreshControllerInput,
+  id: string,
+  abortIfSaveFailed: boolean,
+): Promise<Exclude<RefreshOutcome, { kind: "unattached" }>> {
+  const { store, adapter, owner, writes, onError } = input;
+  if (owner.current.disposed || store.getState().activeAccountId !== id) return { kind: "skipped" };
+  if (abortIfSaveFailed && owner.current.suspendDepth > owner.current.externalSuspendDepth) return { kind: "skipped" };
+  const myToken = owner.nextSwitchToken();
+  const dataAtSequenceStart = store.getState().data;
+  const resume = owner.beginSuspension({ external: false, writes });
+  try {
+    if (!(await flushBeforeLoad(input, myToken))) return { kind: "skipped" };
+    if (abortIfSaveFailed && owner.current.failedSinceSuccess) return { kind: "skipped" };
+    owner.cancelRetry();
+    const dataAtLoad = store.getState().data;
+    const failedBeforeLoad = owner.current.failedSinceSuccess;
+    const slice = await adapter.loadAll(id);
+    const sequence = {
+      ...input,
+      dataAtSequenceStart,
+      dataAtLoad,
+      failedBeforeLoad,
+      myToken,
+      slice,
+    };
+    if (await handleInactiveRefresh(sequence)) return { kind: "skipped" };
+    installLoadedSlice(sequence);
+    return { kind: "reloaded" };
+  } catch (error) {
+    if (isRefreshInactive(owner, myToken)) return { kind: "skipped" };
+    onError?.(error);
+    return { kind: "failed" };
+  } finally {
+    resume();
+  }
+}
+
 export function createRefreshController({
   store,
   adapter,
@@ -29,7 +182,6 @@ export function createRefreshController({
   onSuccess,
 }: CreateRefreshControllerInput) {
   const { save } = writes;
-  const { cancelRetry, supersededBy, installSlice, discardEdit } = owner;
   const beginSuspension = ({ external }: BeginSuspensionInput) =>
     owner.beginSuspension({ external: external, writes: writes });
   // Re-hydrate ONE non-null account's slice and re-seed the adapter's diff snapshot to it,
@@ -69,174 +221,22 @@ export function createRefreshController({
   // cross-tenant display, strictly worse); its flush failure is surfaced the same way and the loss is
   // bounded to the un-flushed edits.
 
-  const refreshActive = async (
+  const refreshActive = (
     id: string,
     options: { abortIfSaveFailed?: boolean } = {},
-  ): Promise<Exclude<RefreshOutcome, { kind: "unattached" }>> => {
-    const { abortIfSaveFailed = false } = options;
-    // ENTRY GUARD — before the token bump. An out-of-band caller with a STALE id (the lifecycle
-    // hook's post-mutation reload resolving after the user switched tenant A→B) must neither
-    // reload the wrong tenant NOR cancel a newer switch's in-flight slice load — bumping
-    // switchToken here would do exactly that: B's late-resolving loadAll hits `myToken !==
-    // switchToken` and is discarded while A's stale slice is installed under B's active id
-    // (cross-tenant display, then cross-tenant writes). The switch subscriber calls refreshActive
-    // AFTER setActiveAccount has already set the id, so this guard passes for every real switch;
-    // mid-flight supersession is still covered by the post-await token checks below.
-    if (owner.current.disposed || store.getState().activeAccountId !== id) return { kind: "skipped" };
-    // Focus and post-lifecycle refreshes are conveniences, never owners of an account transition.
-    // If a switch/refresh already holds an internal slice suspension, starting another abortable refresh
-    // would bump its token and could then abort on failedSinceSuccess without issuing a replacement
-    // load. The older load would have re-seeded the adapter but be forbidden to install its slice,
-    // leaving one tenant's data paired with another tenant's diff snapshot. An external import
-    // suspension is excluded: its owner deliberately invokes this refresh to reseed after import.
-    if (abortIfSaveFailed && owner.current.suspendDepth > owner.current.externalSuspendDepth)
-      return { kind: "skipped" };
-    const myToken = owner.nextSwitchToken();
-    // The ENTIRE sequence runs under a write suspension — not just loadAll. An edit landing during
-    // ANY await below is parked: it is included in the (a′) flush when it arrives before it (the
-    // parked tree is the whole store snapshot, so the flush carries it — safe pre-reseed), and
-    // rebased at (c) when it arrives after. Without whole-sequence coverage, an edit
-    // arriving during the (a)/(a′) awaits re-armed a debounce timer at depth 0 that fired MID-LOAD:
-    // its save was silently discarded by the adapter's seedGen guard, the (c) check couldn't see it
-    // (pending consumed, dataAtLoad snapshotted later), and the edit vanished with no surface.
-    // The finally-resume also re-schedules an edit left parked by an ordinary FAILED load (slice +
-    // snapshot unchanged → saving is correct). When this load is required to reconcile an unknown
-    // commit, save's gate retains the edit without replaying it until a later load succeeds.
-    const dataAtSequenceStart = store.getState().data;
-    const resume = beginSuspension({ external: false });
-    try {
-      // (a) Let a prior account's save settle before we re-seed the snapshot.
-      if (owner.current.inFlightSave) await owner.current.inFlightSave;
-      if (supersededBy(myToken)) return { kind: "skipped" }; // detached/newer owner owns effects
-      // (a′) FLUSH (don't drop) the current account's PENDING debounced edits before we re-seed.
-      // Merely dropping them would LOSE edits made within the debounce window of a switch/refresh.
-      // Flush NOW — while data AND the adapter's lastSynced snapshot are both this account — so
-      // `save()` diffs self-against-self (correct ops) and POSTs them, BEFORE loadAll(id) reseeds
-      // the snapshot. A flush failure surfaces via save's onError and we still proceed — the loss
-      // is then surfaced again at (c) via failedSinceSuccess. (Refresh-on-focus relies on this:
-      // the user's unsaved edits POST first, then loadAll → last-writer-wins, the user winning.)
-      // NOT under an EXTERNAL suspension: that `pending` is an edit that arrived while the
-      // server-mode import was in flight — flushing it would diff it against the PRE-import
-      // snapshot and upsert stale rows into the freshly imported slice (remapped ids insert
-      // cleanly, no 409 stops them). Leave it parked for (c)'s operation-level rebase.
-      if (owner.current.pending && owner.current.externalSuspendDepth === 0) {
-        save(owner.current.pending); // sets inFlightSave synchronously; pending is consumed inside save()
-        if (owner.current.inFlightSave) await owner.current.inFlightSave;
-        if (supersededBy(myToken)) return { kind: "skipped" }; // detached/newer owner owns effects
-      }
-      // See the abortIfSaveFailed doc above: a refresh must not reload over a failed save's edits.
-      // Checked AFTER the flush/await so a flush that just SUCCEEDED (clearing the flag) still refreshes.
-      if (abortIfSaveFailed && owner.current.failedSinceSuccess) return { kind: "skipped" };
-      // A pre-armed backoff retry must not survive into the load: it would fire mid-load, its
-      // stale save silently discarded by the seedGen guard while the success arm below cleared
-      // the failure state — hiding the loss. Cancel it; the loss it carried is surfaced at (c).
-      cancelRetry();
-      // Snapshot the store state the reload starts from, so an edit landing DURING loadAll is
-      // detectable below — a bare `pending` check alone can't see it (an immediate-mode save nulls
-      // pending while the edit's data is already in the store).
-      const dataAtLoad = store.getState().data;
-      // (b) Load the slice; loadAll(id) re-seeds the adapter's diff snapshot to it. Writes stay
-      // suspended so an edit arriving mid-load is parked and can be rebased after the response,
-      // never raced onto the server against the old snapshot.
-      // Capture failure state at this boundary. A teardown keepalive may fail DURING loadAll, but
-      // its mid-load edit is rebased below and is not discarded; only a failure already present
-      // before the loaded slice was requested can describe older state that replacement loses.
-      const failedBeforeLoad = owner.current.failedSinceSuccess;
-      const slice = await adapter.loadAll(id);
-      if (owner.current.disposed) return { kind: "skipped" };
-      if (myToken !== owner.current.switchToken) {
-        incrementPersistenceDiagnostic("reloadsSuperseded");
-        // Superseded AFTER loadAll resolved: the load has already RESEEDED the adapter's diff
-        // snapshot, and the superseding token bump may install nothing over it (the null-switch /
-        // A newer refresh owns any parked edit. A sign-out, however, starts no replacement load:
-        // preserve only the operations made during this window by rebasing them onto the slice
-        // that just seeded the adapter, then install that same tree behind the signed-out picker.
-        // activeAccountId stays null, so no tenant UI is exposed; the hidden store and adapter seed
-        // nevertheless remain paired unconditionally instead of diverging in the no-edit case.
-        if (store.getState().activeAccountId === null) {
-          const currentData = store.getState().data;
-          let installed = slice;
-          if (currentData !== dataAtLoad || owner.current.pending !== null) {
-            installed = applyOps(slice, diffOps(dataAtSequenceStart, currentData));
-            incrementPersistenceDiagnostic("editsRebased");
-            owner.update({ pending: null });
-            owner.update({ unacknowledged: installed });
-            save(installed);
-            if (owner.current.inFlightSave) await owner.current.inFlightSave;
-          }
-          installSlice(installed);
-        }
-        return { kind: "skipped" }; // superseded mid-load — discard this stale slice
-      }
-      // (c) Mid-load edit check — see the rebase-policy doc above the function. Three signals count:
-      // a changed data reference (the edit is in the store, saved or not), a non-null `pending`
-      // (a parked edit), or failedSinceSuccess (a switch/conflict path proceeded past a FAILED
-      // (a′) flush — those un-persisted edits are about to be discarded by the replaceAll below,
-      // and the success arm then clears the banner that was their only surface; the sticky notice
-      // raised here replaces it). An authoritative reconciliation reload is exempt from the third
-      // signal: its typed failure arm already raised the appropriate sticky notice for the same
-      // potentially lost edit.
-      const currentData = store.getState().data;
-      const editedMidLoad = currentData !== dataAtLoad || owner.current.pending !== null;
-      const lostFailedEdits = failedBeforeLoad && !owner.current.resolvingAuthoritativeReload;
-      let installed = slice;
-      if (owner.current.externalSuspendDepth > 0) owner.update({ externalAuthoritativeData: slice });
-      if (editedMidLoad) {
-        // Rebase only the operations the user performed during this network window onto the fresh
-        // server slice. This preserves remote additions and lifecycle/import changes while keeping
-        // the user's concurrent edit. The adapter was seeded to `slice`; parking `installed` lets
-        // the suspension owner either save that rebased state normally or deliberately drop it and
-        // restore `slice`.
-        const editBase =
-          owner.current.externalSuspendDepth > 0 && owner.current.externalBaseData
-            ? owner.current.externalBaseData
-            : dataAtSequenceStart;
-        installed = applyOps(slice, diffOps(editBase, currentData));
-        incrementPersistenceDiagnostic("editsRebased");
-        owner.update({ pending: installed });
-        owner.update({ unacknowledged: installed });
-      } else if (lostFailedEdits) {
-        owner.update({ pending: null });
-        owner.update({ unacknowledged: null });
-      }
-      // A successfully rebased mid-load edit and an older discarded failed write are independent
-      // outcomes. Preserve the former above, but always surface the latter before clearing the
-      // transient transport-failure state below.
-      if (lostFailedEdits) {
-        discardEdit(
-          "capacitylens: an unsaved edit was discarded during an authoritative reload",
-          "An edit could not be saved before this company’s data reloaded.",
-        );
-      }
-      // Swap `data` to the loaded slice WITHOUT it reading as a user edit, then advance lastData.
-      installSlice(installed);
-      if (!editedMidLoad) owner.update({ unacknowledged: null });
-      owner.update({ authoritativeReloadRequiredFor: null });
-      // The store now holds the server's authoritative slice and the snapshot is re-seeded to it —
-      // writes are CLEAN by construction, whatever their history. Clear the failure state and fire
-      // onSuccess (mirrors the 409 arm's follow-up empty save, which exists for the same reason):
-      //  - a prior tenant's exhausted-retry failure must not leak into this tenant (it would block
-      //    an import here via flushPendingWrites and suppress focus refreshes via abortIfSaveFailed);
-      //  - a rebase is followed by a normal save when suspension resumes; this success marks the
-      //    transport healthy without discarding either local or remote changes.
-      // Any loss this clearing could have hidden was surfaced by the (c) check above.
-      owner.update({ failedSinceSuccess: false });
-      owner.update({ retryAttempts: 0 });
-      cancelRetry();
-      onSuccess?.();
-      return { kind: "reloaded" };
-    } catch (e) {
-      // A failed slice load surfaces like any load failure: raise the persist banner (a stale
-      // banner clears on the next good write). Don't replaceAll — leaving the prior data is
-      // safer than blanking it, and the snapshot is unchanged so no bad diff can form. An edit
-      // parked during the failed load is re-scheduled by the finally-resume below.
-      if (owner.current.disposed || myToken !== owner.current.switchToken) return { kind: "skipped" }; // detached/newer owner owns outcome
-      onError?.(e);
-      return { kind: "failed" };
-    } finally {
-      resume();
-    }
-  };
+  ): Promise<Exclude<RefreshOutcome, { kind: "unattached" }>> =>
+    runRefresh(
+      {
+        store,
+        adapter,
+        owner,
+        writes,
+        ...(onError ? { onError } : {}),
+        ...(onSuccess ? { onSuccess } : {}),
+      },
+      id,
+      options.abortIfSaveFailed ?? false,
+    );
 
   // Resolve a stale/uncertain batch boundary exactly once at a time. A failed load deliberately
   // leaves authoritativeReloadRequiredFor set: subsequent online/focus activity retries the load,
@@ -254,7 +254,7 @@ export function createRefreshController({
         if (store.getState().activeAccountId !== activeId) return;
         if (owner.current.inFlightSave) return owner.current.inFlightSave;
         save(store.getState().data);
-        return owner.current.inFlightSave ?? undefined;
+        return owner.current.inFlightSave;
       })
       .finally(() => {
         owner.update({ resolvingAuthoritativeReload: false });
