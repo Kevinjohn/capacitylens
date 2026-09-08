@@ -427,7 +427,7 @@ async function completeRequiredMfaEnrollment(options: {
   return { enrolledCookie, secret };
 }
 
-describe("CAPACITYLENS_AUTH off (default)", () => {
+function registerAuthOffSurfaceTests(): void {
   it("reports the demo identity from /api/auth/me and gates nothing", async () => {
     const app = createApp(openDb(":memory:"));
     const me = await call(app, { method: "GET", url: "/api/auth/me" });
@@ -466,7 +466,9 @@ describe("CAPACITYLENS_AUTH off (default)", () => {
     });
     expect(signUp.statusCode).toBe(404);
   });
+}
 
+function registerAuthOffCommandIdentityTests(): void {
   it("rejects malformed caller-supplied command headers instead of silently replacing them", async () => {
     const app = createApp(openDb(":memory:"));
     const res = await call(app, {
@@ -497,7 +499,9 @@ describe("CAPACITYLENS_AUTH off (default)", () => {
       .get() as { commandId: string; idempotencyKey: string };
     expect(recorded.commandId).not.toBe(recorded.idempotencyKey);
   });
+}
 
+function registerAuthOffCommandStatusTests(): void {
   it("exposes command status only when both reconciliation bearers and operation match", async () => {
     const db = openDb(":memory:");
     const commandId = "command-000000000001";
@@ -548,7 +552,9 @@ describe("CAPACITYLENS_AUTH off (default)", () => {
       ).statusCode,
     ).toBe(404);
   });
+}
 
+function registerAuthOffRepairRedactionTests(): void {
   it("redacts operator repair coordinates from the public command-status ceremony", async () => {
     const db = openDb(":memory:");
     const commandId = "command-000000000002";
@@ -597,7 +603,9 @@ describe("CAPACITYLENS_AUTH off (default)", () => {
     });
     expect(response.body).not.toMatch(/workspace-secret|principal-target|principal-provisional|ceremony-secret/);
   });
+}
 
+function registerAuthOffCorruptRepairTests(): void {
   it("returns a generic 500 and logs only the command coordinate for corrupt repair metadata", async () => {
     const db = openDb(":memory:");
     const commandId = "command-000000000003";
@@ -651,6 +659,14 @@ describe("CAPACITYLENS_AUTH off (default)", () => {
       logged.mockRestore();
     }
   });
+}
+
+describe("CAPACITYLENS_AUTH off (default)", () => {
+  registerAuthOffSurfaceTests();
+  registerAuthOffCommandIdentityTests();
+  registerAuthOffCommandStatusTests();
+  registerAuthOffRepairRedactionTests();
+  registerAuthOffCorruptRepairTests();
 });
 
 describe("authentication request authority", () => {
