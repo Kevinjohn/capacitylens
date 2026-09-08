@@ -66,6 +66,19 @@ function allocation(overrides: Partial<Allocation> = {}): Allocation {
 }
 
 describe("server allocation project attribution", () => {
+  it("rejects malformed full-row fields before calling shared validation", () => {
+    const data = state();
+    const malformedHours = { ...allocation(), hoursPerDay: "8" };
+    const malformedProject = { ...allocation(), projectId: null };
+
+    expect(() => assertValidWrite({ state: data, table: "allocations", row: malformedHours })).toThrow(
+      /hoursPerDay must be a finite number/i,
+    );
+    expect(() => assertValidWrite({ state: data, table: "allocations", row: malformedProject })).toThrow(
+      /projectId must be a string when supplied/i,
+    );
+  });
+
   it("enforces activity kind, project existence and placeholder scope", () => {
     const data = state();
     expect(() =>
