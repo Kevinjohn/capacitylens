@@ -295,14 +295,6 @@
       "count": 3
     }
   },
-  "server/src/accounts/identityPort/credentials.ts": {
-    "max-lines-per-function": {
-      "count": 2
-    },
-    "no-nested-ternary": {
-      "count": 1
-    }
-  },
   "server/src/accounts/identityPort/cutover.ts": {
     "max-lines-per-function": {
       "count": 3
