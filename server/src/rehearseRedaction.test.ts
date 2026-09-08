@@ -10,8 +10,7 @@ function requireSqlRow(row: Record<string, unknown> | undefined): Record<string,
   return row;
 }
 
-function createFederatedIdentityDb(): DatabaseSync {
-  const db = new DatabaseSync(":memory:");
+function populateFederatedIdentityDb(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE user (id TEXT PRIMARY KEY);
     CREATE TABLE account_federated_provider_bindings (providerId TEXT PRIMARY KEY);
@@ -38,19 +37,20 @@ function createFederatedIdentityDb(): DatabaseSync {
       ('source-orphan-account-row', 'source-orphan-principal', 'source-orphan-provider', 'source-orphan-subject', '2026-02-01', '2026-02-02');
     INSERT INTO capacitylens_sso_cutover_state VALUES ('source-application', '2026-03-01');
   `);
-  return db;
 }
 
-function createProviderBindingAbsenceDb({
-  accountRowid,
-  provider,
-  hasUser,
-}: {
-  accountRowid: number;
-  provider: string;
-  hasUser: boolean;
-}) {
-  const db = new DatabaseSync(":memory:");
+function createProviderBindingAbsenceStatement(
+  db: DatabaseSync,
+  {
+    accountRowid,
+    provider,
+    hasUser,
+  }: {
+    accountRowid: number;
+    provider: string;
+    hasUser: boolean;
+  },
+) {
   db.exec(`
     CREATE TABLE user (id TEXT PRIMARY KEY);
     CREATE TABLE account (id TEXT PRIMARY KEY, userId TEXT, providerId TEXT, accountId TEXT);
@@ -82,13 +82,14 @@ function createProviderBindingAbsenceDb({
       AND account.providerId = observation.providerId
       AND account.accountId = observation.subject
   `);
-  return { db, verifiedLinks };
+  return verifiedLinks;
 }
 
-describe("federated identity joins", () => {
+function registerFederatedIdentityTest(): void {
   it("preserves federated identity joins while scrubbing ceremonies, observations and orphan identifiers", () => {
-    const db = createFederatedIdentityDb();
+    const db = new DatabaseSync(":memory:");
     try {
+      populateFederatedIdentityDb(db);
       anonymise(db);
 
       const principal = requireSqlRow(db.prepare("SELECT id FROM user").get());
@@ -135,9 +136,9 @@ describe("federated identity joins", () => {
       db.close();
     }
   });
-});
+}
 
-describe("stale observation redaction", () => {
+function registerStaleObservationTest(): void {
   it("keeps a stale observation subject unverified after redacting its existing provider account", () => {
     const db = new DatabaseSync(":memory:");
     try {
@@ -182,9 +183,9 @@ describe("stale observation redaction", () => {
       db.close();
     }
   });
-});
+}
 
-describe("provider binding absence", () => {
+function registerProviderBindingAbsenceTests(): void {
   it.each([
     {
       scenario: "valid proof with different rowids",
@@ -208,8 +209,9 @@ describe("provider binding absence", () => {
       expected: 1,
     },
   ])("preserves $scenario when provider bindings are absent", ({ accountRowid, provider, hasUser, expected }) => {
-    const { db, verifiedLinks } = createProviderBindingAbsenceDb({ accountRowid, provider, hasUser });
+    const db = new DatabaseSync(":memory:");
     try {
+      const verifiedLinks = createProviderBindingAbsenceStatement(db, { accountRowid, provider, hasUser });
       expect(verifiedLinks.get()).toEqual({ count: expected });
 
       anonymise(db);
@@ -224,9 +226,9 @@ describe("provider binding absence", () => {
       db.close();
     }
   });
-});
+}
 
-describe("membership confirmations", () => {
+function registerMembershipConfirmationTest(): void {
   it("remaps tracking workspaces and preserves nullable membership confirmations", () => {
     const db = new DatabaseSync(":memory:");
     try {
@@ -261,9 +263,9 @@ describe("membership confirmations", () => {
       db.close();
     }
   });
-});
+}
 
-describe("scheduling redaction", () => {
+function registerSchedulingRedactionTest(): void {
   it("scrubs closure names and ids, remaps allocation projects and retains scheduling values", () => {
     const db = new DatabaseSync(":memory:");
     try {
@@ -322,9 +324,9 @@ describe("scheduling redaction", () => {
       db.close();
     }
   });
-});
+}
 
-describe("tenant trigger preservation", () => {
+function registerTenantTriggerTest(): void {
   it("restores immutable tenant triggers byte-for-byte after remapping", () => {
     const db = new DatabaseSync(":memory:");
     try {
@@ -347,9 +349,9 @@ describe("tenant trigger preservation", () => {
       db.close();
     }
   });
-});
+}
 
-describe("redaction rollback", () => {
+function registerRedactionRollbackTest(): void {
   it("rolls back both trigger removal and row changes when redaction violates a constraint", () => {
     const db = new DatabaseSync(":memory:");
     try {
@@ -375,4 +377,14 @@ describe("redaction rollback", () => {
       db.close();
     }
   });
+}
+
+describe("migration rehearsal redaction", () => {
+  registerFederatedIdentityTest();
+  registerStaleObservationTest();
+  registerProviderBindingAbsenceTests();
+  registerMembershipConfirmationTest();
+  registerSchedulingRedactionTest();
+  registerTenantTriggerTest();
+  registerRedactionRollbackTest();
 });
