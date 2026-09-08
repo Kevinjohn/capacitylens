@@ -457,7 +457,7 @@ function okFetch() {
   return vi.fn(async (_url: string, init?: RequestInit) => commitReceipt(init));
 }
 
-describe("ServerSyncAdapter.loadAll", () => {
+function registerBootstrapLoadTests(): void {
   it("treats an unscoped 400 as an empty pre-account bootstrap without parsing its body", async () => {
     const fetchImpl = vi.fn(async () => new Response("not json", { status: 400 })) as unknown as typeof fetch;
     const adapter = new ServerSyncAdapter("http://x", fetchImpl);
@@ -471,7 +471,9 @@ describe("ServerSyncAdapter.loadAll", () => {
       setOfflineReadState("cleanup", false);
     }
   });
+}
 
+function registerInternalRepairLoadTests(): void {
   it("persists a synthesized Internal before acknowledging a repaired hydration snapshot", async () => {
     const raw = withData({ accounts: [account("a1")] });
     const calls: Array<{ url: string; init?: RequestInit }> = [];
@@ -521,7 +523,9 @@ describe("ServerSyncAdapter.loadAll", () => {
       }),
     ]);
   });
+}
 
+function registerInternalRepairFailureTests(): void {
   it("rejects hydration when a required Internal repair cannot be committed", async () => {
     const raw = withData({ accounts: [account("a1")] });
     const fetchImpl = vi.fn(async (url: string) => {
@@ -546,7 +550,9 @@ describe("ServerSyncAdapter.loadAll", () => {
       }),
     ]);
   });
+}
 
+function registerBaseLoadTests(): void {
   it("GETs /api/state (no-arg whole read, OFF/fallback), migrates, and seeds the snapshot so the next save diffs against it", async () => {
     const state = withData({ clients: [client("c1")] });
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
@@ -583,7 +589,9 @@ describe("ServerSyncAdapter.loadAll", () => {
     );
     await expect(wrongType.loadAll()).rejects.toThrow("invalid state payload");
   });
+}
 
+function registerScopedLoadTests(): void {
   it("loadAll(accountId) GETs /api/state?accountId= and seeds the snapshot to THAT slice (zero ops on an identical save)", async () => {
     // Per-account hydration (P1.13): the picker chose a1, so we load ONLY a1's slice.
     const a1Slice = scopedData("a1", { clients: [client("c1")] });
@@ -632,7 +640,9 @@ describe("ServerSyncAdapter.loadAll", () => {
     await adapter.saveAll(loaded);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
+}
 
+function registerCrossAccountLoadTests(): void {
   it("CROSS-ACCOUNT REGRESSION: re-seed to a2 then save a2 emits ONLY a2 ops — never deletes of a1", async () => {
     // The #1 correctness guard (§5): after a switch, lastSynced (the diff snapshot) MUST be the NEW
     // account's slice. If it stayed a1's, the first a2 save would diff a1→a2 and emit DELETEs for a1's
@@ -694,7 +704,9 @@ describe("ServerSyncAdapter.loadAll", () => {
     );
     expect(fetchImpl).not.toHaveBeenCalled();
   });
+}
 
+function registerRollingLoadTests(): void {
   it("scoped loadAll TOLERATES a MISSING known table (rolling deploy) and hydrates it empty", async () => {
     // FIX 1: an older server may OMIT a table this newer client already knows. The scoped path must
     // NOT throw "incomplete state payload" during the skew window — it hydrates the missing table
@@ -734,7 +746,9 @@ describe("ServerSyncAdapter.loadAll", () => {
       cause: timeout,
     });
   });
+}
 
+function registerMalformedLoadTests(): void {
   it.each([
     [
       "resources",
@@ -780,7 +794,9 @@ describe("ServerSyncAdapter.loadAll", () => {
 
     await expect(adapter.loadAll("a1")).rejects.toThrow(`omitted referenced table(s) [${missingKey}]`);
   });
+}
 
+function registerScopedValidationLoadTests(): void {
   it("scoped loadAll STILL rejects a PRESENT non-array known table", async () => {
     // FIX 1's missing-vs-wrong-type split: a table that is PRESENT and not an array is structural
     // damage and stays a HARD failure on the scoped path too (never coerced to []).
@@ -805,7 +821,9 @@ describe("ServerSyncAdapter.loadAll", () => {
     );
     await expect(a.loadAll("a1")).rejects.toThrow("cross-tenant or incomplete state payload");
   });
+}
 
+function registerLoadWarningTests(): void {
   it("warns ONCE naming the missing table(s) when hydrating them empty (FIX 3)", async () => {
     // FIX 3: a hydrated-empty missing key is DIAGNOSABLE — one console.warn per load listing every
     // omitted table, so a same-version proxy/server bug that drops a table is visible, not silent.
@@ -841,6 +859,19 @@ describe("ServerSyncAdapter.loadAll", () => {
       warn.mockRestore();
     }
   });
+}
+
+describe("ServerSyncAdapter.loadAll", () => {
+  registerBootstrapLoadTests();
+  registerInternalRepairLoadTests();
+  registerInternalRepairFailureTests();
+  registerBaseLoadTests();
+  registerScopedLoadTests();
+  registerCrossAccountLoadTests();
+  registerRollingLoadTests();
+  registerMalformedLoadTests();
+  registerScopedValidationLoadTests();
+  registerLoadWarningTests();
 });
 
 // Helper: pull the parsed ops array out of a recorded /api/batch POST.
