@@ -59,10 +59,14 @@ if (typeof globalThis.ResizeObserver === "undefined") {
     disconnect() {} // no-op
   };
 }
-if (!Reflect.has(Element.prototype, "scrollIntoView")) {
-  Element.prototype.scrollIntoView = () => {};
+const browserGlobals = globalThis as unknown as {
+  Element?: typeof Element;
+  HTMLElement?: typeof HTMLElement;
+};
+const elementPrototype = browserGlobals.Element?.prototype;
+if (elementPrototype && !Reflect.has(elementPrototype, "scrollIntoView")) {
+  elementPrototype.scrollIntoView = () => {};
 }
-const browserGlobals = globalThis as unknown as { HTMLElement?: typeof HTMLElement };
 const pointerCapturePrototype = browserGlobals.HTMLElement?.prototype as
   Partial<Pick<HTMLElement, "setPointerCapture" | "hasPointerCapture" | "releasePointerCapture">> | undefined;
 if (pointerCapturePrototype && typeof pointerCapturePrototype.setPointerCapture !== "function") {
