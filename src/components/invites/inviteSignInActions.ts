@@ -19,6 +19,26 @@ interface Dependencies {
   setBusy: Dispatch<SetStateAction<boolean>>;
 }
 
+function resolveJoinedAccount(list: Awaited<ReturnType<typeof refreshAccountSummaries>>, accountId?: string) {
+  if (list === null) return undefined;
+  if (accountId) return list.find((account) => account.id === accountId);
+  if (list.length === 1) return list[0];
+  return undefined;
+}
+
+function startProviderSignIn(provider: AuthProviderInfo, signal: AbortSignal) {
+  const options = {
+    callbackURL: window.location.href,
+    errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
+    disableRedirect: true,
+    fetchOptions: { signal },
+  };
+  if (provider.kind === "oidc") {
+    return authClient.signIn.oauth2({ ...options, providerId: provider.id });
+  }
+  return authClient.signIn.social({ ...options, provider: provider.id });
+}
+
 export function createInviteSignInActions({ email, password, refreshAuth, setState, setBusy }: Dependencies) {
   const signInAndReload = async (): Promise<void> => {
     const { error } = await authClient.signIn.email({ email, password });
@@ -36,19 +56,13 @@ export function createInviteSignInActions({ email, password, refreshAuth, setSta
       signal: AbortSignal.timeout(5000),
       allowCachedFallback: false,
     });
-    if (list !== null) {
-      const target = accountId
-        ? list.find((account) => account.id === accountId)
-        : list.length === 1
-          ? list[0]
-          : undefined;
-      if (target) {
-        // This route precedes the authenticated persistence lifecycle. The destination boot
-        // re-verifies and hydrates the selected company from this already-authoritative directory.
-        useStore.getState().setActiveAccount(target.id);
-        replaceWithJoinedAccount(target.id);
-        return;
-      }
+    const target = resolveJoinedAccount(list, accountId);
+    if (target) {
+      // This route precedes the authenticated persistence lifecycle. The destination boot
+      // re-verifies and hydrates the selected company from this already-authoritative directory.
+      useStore.getState().setActiveAccount(target.id);
+      replaceWithJoinedAccount(target.id);
+      return;
     }
     // A failed authoritative list read cannot safely activate a caller-supplied id. Reboot into the
     // ordinary authenticated picker, which retries the list without trusting the invite response.
@@ -74,25 +88,9 @@ export function createInviteSignInActions({ email, password, refreshAuth, setSta
     setBusy(true);
     setState({ kind: "auth" });
     await runExternalSignIn({
-      start: (signal) =>
-        provider.kind === "oidc"
-          ? authClient.signIn.oauth2({
-              providerId: provider.id,
-              callbackURL: window.location.href,
-              errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
-              // Keep redirect ownership in runExternalSignIn: Better Auth returns the provider URL
-              // without running its internal navigation hook, and a timed-out request is aborted
-              // before retry controls become available.
-              disableRedirect: true,
-              fetchOptions: { signal },
-            })
-          : authClient.signIn.social({
-              provider: provider.id,
-              callbackURL: window.location.href,
-              errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
-              disableRedirect: true,
-              fetchOptions: { signal },
-            }),
+      // Keep redirect ownership in runExternalSignIn: Better Auth returns the provider URL without
+      // running its navigation hook, and an aborted request must settle before retry is available.
+      start: (signal) => startProviderSignIn(provider, signal),
       onFailure: (message) => {
         setState({ kind: "auth", message: message ?? m.login_failed() });
         setBusy(false);

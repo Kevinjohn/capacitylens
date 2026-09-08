@@ -438,28 +438,12 @@
       "count": 1
     }
   },
-  "src/account/commandOutcome.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
-    }
-  },
   "src/account/sessionClient.test.ts": {
     "max-lines-per-function": {
       "count": 1
     }
   },
   "src/account/teamAccessClient.test.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/auth/AuthProvider.tsx": {
-    "complexity": {
-      "count": 1
-    },
     "max-lines-per-function": {
       "count": 1
     }
@@ -478,14 +462,6 @@
     }
   },
   "src/auth/ReauthDialog.test.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/auth/ReauthDialog.tsx": {
-    "complexity": {
-      "count": 1
-    },
     "max-lines-per-function": {
       "count": 1
     }
@@ -558,14 +534,6 @@
   },
   "src/components/GettingStarted.test.tsx": {
     "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/components/GettingStarted.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
       "count": 1
     }
   },
@@ -665,14 +633,6 @@
   },
   "src/components/invites/externalSignIn.test.ts": {
     "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/components/invites/inviteSignInActions.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
       "count": 1
     }
   },
@@ -850,11 +810,6 @@
       "count": 1
     }
   },
-  "src/components/settings/ssoReadiness.ts": {
-    "complexity": {
-      "count": 2
-    }
-  },
   "src/components/settings/useLocalDataActions.ts": {
     "max-lines-per-function": {
       "count": 1
@@ -876,14 +831,6 @@
     }
   },
   "src/components/timeoff/CompanyClosureSection.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/components/timeoff/TimeOffForm.tsx": {
-    "complexity": {
-      "count": 2
-    },
     "max-lines-per-function": {
       "count": 1
     }
