@@ -555,17 +555,6 @@
       "count": 1
     }
   },
-  "server/src/rehearseAnonymise.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
-    "max-depth": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "server/src/rehearseMigrations.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 2
@@ -625,17 +614,6 @@
       "count": 2
     },
     "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "server/src/routes/batch/authorize.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-depth": {
       "count": 1
     }
   },
