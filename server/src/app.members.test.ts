@@ -133,7 +133,7 @@ function parseErrorCode(value: unknown): string {
   return value.code;
 }
 
-describe("GET /api/accounts/:id/members — gate", () => {
+function registerMemberGateAccessTest(): void {
   it("owner and admin may list; editor/viewer/non-member are 403", async () => {
     for (const [role, allowed] of [
       ["owner", true],
@@ -144,18 +144,14 @@ describe("GET /api/accounts/:id/members — gate", () => {
       const { app, db } = await appWithAuth();
       seedTwo(db);
       const { cookie, userId } = await signUp(app, `${role}-list@capacitylens.dev`);
-      upsertMember(db, {
-        accountId: "a1",
-        userId,
-        role,
-        status: "active",
-        createdAt: TS,
-      });
+      upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
       const res = await membersReq(app, "a1", { cookie });
       expect(res.statusCode, `${role}`).toBe(allowed ? 200 : 403);
     }
   });
+}
 
+function registerMemberGateStrangerTest(): void {
   it("a non-member (cross-tenant stranger) is 403", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -163,69 +159,43 @@ describe("GET /api/accounts/:id/members — gate", () => {
     const res = await membersReq(app, "a1", { cookie });
     expect(res.statusCode).toBe(403);
   });
+}
 
+function registerMemberGateAnonymousTest(): void {
   it("a session-less request is 401", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
     const res = await membersReq(app, "a1");
     expect(res.statusCode).toBe(401);
   });
+}
 
+function registerMemberGateCrossTenantTest(): void {
   it("THE HEADLINE — an admin of a1 cannot list a2's members (cross-tenant leak → 403)", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
     const { cookie, userId } = await signUp(app, "a1-admin@capacitylens.dev");
-    upsertMember(db, {
-      accountId: "a1",
-      userId,
-      role: "admin",
-      status: "active",
-      createdAt: TS,
-    });
-    // Someone unrelated is in a2; the a1-admin must not be able to read them.
+    upsertMember(db, { accountId: "a1", userId, role: "admin", status: "active", createdAt: TS });
     const other = await signUp(app, "a2-owner@capacitylens.dev");
-    upsertMember(db, {
-      accountId: "a2",
-      userId: other.userId,
-      role: "owner",
-      status: "active",
-      createdAt: TS,
-    });
-
+    upsertMember(db, { accountId: "a2", userId: other.userId, role: "owner", status: "active", createdAt: TS });
     const res = await membersReq(app, "a2", { cookie });
     expect(res.statusCode).toBe(403);
   });
+}
 
+function registerMemberGateIdentityTest(): void {
   it("returns members with identity (name/email) + isSelf for the caller", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
     const owner = await signUp(app, "owner-id@capacitylens.dev");
-    upsertMember(db, {
-      accountId: "a1",
-      userId: owner.userId,
-      role: "owner",
-      status: "active",
-      createdAt: TS,
-    });
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
     const ed = await signUp(app, "editor-id@capacitylens.dev");
-    upsertMember(db, {
-      accountId: "a1",
-      userId: ed.userId,
-      role: "editor",
-      status: "active",
-      createdAt: TS,
-    });
-
+    upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
     const res = await membersReq(app, "a1", { cookie: owner.cookie });
     expect(res.statusCode).toBe(200);
     const members = (
       res.json() as {
-        members: Array<{
-          userId: string;
-          email: string | null;
-          isSelf: boolean;
-          role: string;
-        }>;
+        members: Array<{ userId: string; email: string | null; isSelf: boolean; role: string }>;
       }
     ).members;
     expect(members).toHaveLength(2);
@@ -238,7 +208,9 @@ describe("GET /api/accounts/:id/members — gate", () => {
     expect(otherRow.isSelf).toBe(false);
     expect(otherRow.role).toBe("editor");
   });
+}
 
+function registerMemberGateResetCapabilityTest(): void {
   it("reports mayResetPassword per-row from the SERVER's full cross-account judgment", async () => {
     // The client hides the reset control off this field, so it must equal what the reset route would
     // decide — true for an ordinary same-account target and the caller\'s own row, false for a target
@@ -303,6 +275,15 @@ describe("GET /api/accounts/:id/members — gate", () => {
     expect(by(owner.userId).mayRevokeSessions).toBe(true);
     expect(by(crossOwner.userId).mayRevokeSessions).toBe(false);
   });
+}
+
+describe("GET /api/accounts/:id/members — gate", () => {
+  registerMemberGateAccessTest();
+  registerMemberGateStrangerTest();
+  registerMemberGateAnonymousTest();
+  registerMemberGateCrossTenantTest();
+  registerMemberGateIdentityTest();
+  registerMemberGateResetCapabilityTest();
 });
 
 describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
