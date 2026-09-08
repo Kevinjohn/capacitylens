@@ -168,6 +168,19 @@ function parseCreatedUserId(value: unknown): string {
   return value.id;
 }
 
+function parseConfiguredAuth(auth: ReturnType<typeof createAuthFromEnvironment>["auth"]) {
+  if (auth === null) throw new Error("Expected authentication to be configured.");
+  return auth;
+}
+
+function parseFederatedLink(auth: ReturnType<typeof createAuthFromEnvironment>["auth"]) {
+  const configuredAuth = parseConfiguredAuth(auth);
+  if (configuredAuth.beginFederatedLink === undefined) {
+    throw new Error("Expected federated account linking to be configured.");
+  }
+  return configuredAuth.beginFederatedLink;
+}
+
 function totpCode(secret: string, at = Date.now()): string {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   let bits = "";
@@ -626,9 +639,9 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("guards provider-link initiation when no strict provider exists or the session principal does not match", async () => {
     const passwordDb = openDb(":memory:");
     const password = createAuthFromEnvironment(passwordDb, PASSWORD_ENV);
-    await runAuthMigrations(password.auth!);
+    await runAuthMigrations(parseConfiguredAuth(password.auth));
     await expect(
-      password.auth!.beginFederatedLink!({
+      parseFederatedLink(password.auth)({
         headers: new Headers(),
         principalId: "principal-1",
         callbackURL: "http://localhost:8787/settings",
@@ -638,9 +651,9 @@ describe("CAPACITYLENS_AUTH password", () => {
 
     const strictDb = openDb(":memory:");
     const strict = createAuthFromEnvironment(strictDb, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
-    await runAuthMigrations(strict.auth!);
+    await runAuthMigrations(parseConfiguredAuth(strict.auth));
     await expect(
-      strict.auth!.beginFederatedLink!({
+      parseFederatedLink(strict.auth)({
         headers: new Headers(),
         principalId: "different-principal",
         callbackURL: "http://localhost:8787/settings",
