@@ -64,9 +64,11 @@ describe("useDragResize", () => {
     render(<Harness onCommit={onCommit} onClick={onClick} onPreview={onPreview} />);
 
     const body = screen.getByTestId("body");
+    const dragTarget = screen.getByTestId("drag-target");
 
     // Start drag on the body span (no data-handle => 'move' mode)
     fireEvent.pointerDown(body, { clientX: 0, clientY: 10, button: 0, pointerId: 1 });
+    expect(dragTarget.hasPointerCapture(1)).toBe(true);
 
     // Movement below the threshold does not preview.
     document.dispatchEvent(new PointerEvent("pointermove", { clientX: 3, clientY: 12, pointerId: 1, bubbles: true }));
@@ -86,7 +88,7 @@ describe("useDragResize", () => {
 
     expect(onCommit).toHaveBeenCalledWith("move", 1, expect.objectContaining({ clientX: 48 }));
     expect(onClick).not.toHaveBeenCalled();
-    expect(body.hasPointerCapture(1)).toBe(false);
+    expect(dragTarget.hasPointerCapture(1)).toBe(false);
   });
 
   it("(b) pointerDown then pointerup with no move calls onClick", () => {
