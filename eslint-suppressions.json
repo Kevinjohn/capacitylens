@@ -1432,17 +1432,6 @@
       "count": 1
     }
   },
-  "src/components/invites/externalSignIn.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/components/invites/invitePreviewActions.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 3
