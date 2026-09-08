@@ -664,16 +664,6 @@
       "count": 1
     }
   },
-  "shared/src/data/migrate.test.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "shared/src/data/migrate/steps/v1-v6.ts": {
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 3
-    }
-  },
   "shared/src/data/seed/activities.ts": {
     "max-lines-per-function": {
       "count": 1
@@ -691,22 +681,6 @@
   },
   "shared/src/data/seed/resources.ts": {
     "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "shared/src/data/transfer.test.ts": {
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "shared/src/data/transfer.ts": {
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
       "count": 1
     }
   },

@@ -28,10 +28,18 @@ export function serializeData(data: AppData): string {
 // (I.e. the error is reachable, not dead code; keep it.)
 export const MAX_IMPORT_RECORDS = 200_000;
 
+function parseJson(json: string): unknown {
+  return JSON.parse(json) as unknown;
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
 export function parseData(json: string): AppData {
   let raw: unknown;
   try {
-    raw = JSON.parse(json);
+    raw = parseJson(json);
   } catch (e) {
     // Forward the SyntaxError as `cause` so the parse failure's chain survives behind our friendly
     // message (ESLint preserve-caught-error enforces this for re-thrown native errors).
@@ -49,7 +57,7 @@ export function parseData(json: string): AppData {
     throw new Error("This file is not CapacityLens data.");
   }
   const rawTotal = RECOGNISED_KEYS.reduce(
-    (recordCount, key) => recordCount + (Array.isArray(candidate[key]) ? candidate[key].length : 0),
+    (recordCount, key) => recordCount + (isUnknownArray(candidate[key]) ? candidate[key].length : 0),
     0,
   );
   if (rawTotal > MAX_IMPORT_RECORDS) {
@@ -61,7 +69,7 @@ export function parseData(json: string): AppData {
   // native property-access errors inside migration helpers.
   for (const key of RECOGNISED_KEYS) {
     const rows = candidate[key];
-    if (!Array.isArray(rows)) continue;
+    if (!isUnknownArray(rows)) continue;
     if (rows.some((row) => row === null || typeof row !== "object" || Array.isArray(row))) {
       throw new Error(`This file is damaged: the ${key} table contains an invalid record. Nothing was imported.`);
     }

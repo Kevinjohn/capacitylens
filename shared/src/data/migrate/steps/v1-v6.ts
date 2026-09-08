@@ -4,10 +4,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
 }
 
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
 // v1 → v2: early resources carried a boolean `isFreelancer`; convert it to the
 // richer `employmentType` enum.
 export function migrateV1toV2(data: Record<string, unknown>): Record<string, unknown> {
-  if (!Array.isArray(data.resources)) return data;
+  if (!isUnknownArray(data.resources)) return data;
   const resources = data.resources.map((resource) => {
     if (!isRecord(resource)) return resource;
     if ("isFreelancer" in resource && resource.employmentType === undefined) {
@@ -39,8 +43,8 @@ export function migrateV3toV4(data: Record<string, unknown>): Record<string, unk
         kind: activity.projectId !== undefined && activity.projectId !== null ? "project" : "repeatable",
       };
     });
-  const tasks = Array.isArray(data.tasks) ? applyKindBackfill(data.tasks) : undefined;
-  const activities = Array.isArray(data.activities) ? applyKindBackfill(data.activities) : undefined;
+  const tasks = isUnknownArray(data.tasks) ? applyKindBackfill(data.tasks) : undefined;
+  const activities = isUnknownArray(data.activities) ? applyKindBackfill(data.activities) : undefined;
   if (!tasks && !activities) return data;
   return {
     ...data,
@@ -59,8 +63,8 @@ export function migrateV4toV5(data: Record<string, unknown>): Record<string, unk
   const migratedData: Record<string, unknown> = { ...data };
   // Rename/merge the table: `tasks` → `activities`. Modern rows come first and own id
   // conflicts; malformed/missing ids are retained for the import sanitiser to repair later.
-  if (Array.isArray(migratedData.tasks)) {
-    if (!Array.isArray(migratedData.activities)) {
+  if (isUnknownArray(migratedData.tasks)) {
+    if (!isUnknownArray(migratedData.activities)) {
       migratedData.activities = migratedData.tasks;
     } else {
       const modernIds = new Set(
@@ -80,7 +84,7 @@ export function migrateV4toV5(data: Record<string, unknown>): Record<string, unk
   }
   delete migratedData.tasks;
   // Rename the FK on every allocation: `taskId` → `activityId`.
-  if (Array.isArray(migratedData.allocations)) {
+  if (isUnknownArray(migratedData.allocations)) {
     migratedData.allocations = migratedData.allocations.map((allocation) => {
       if (!isRecord(allocation) || !("taskId" in allocation)) return allocation;
       const migratedAllocation: Record<string, unknown> = { ...allocation };
@@ -107,8 +111,8 @@ export function migrateV4toV5(data: Record<string, unknown>): Record<string, unk
 // directly. The row SHAPE + the "match builtin by flag + accountId" predicate are kept in lockstep by
 // using the shared `buildInternalClient` factory for the row literal.
 export function migrateV5toV6(data: Record<string, unknown>): Record<string, unknown> {
-  if (!Array.isArray(data.accounts) || data.accounts.length === 0) return data;
-  const clients = Array.isArray(data.clients) ? [...data.clients] : [];
+  if (!isUnknownArray(data.accounts) || data.accounts.length === 0) return data;
+  const clients = isUnknownArray(data.clients) ? [...data.clients] : [];
   const accountsWithBuiltin = new Set(
     clients.flatMap((client) => {
       if (!isRecord(client)) return [];
