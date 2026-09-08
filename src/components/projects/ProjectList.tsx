@@ -1,5 +1,5 @@
 import { useActiveScopedData } from "../../store/useScopedData";
-import { useCrudListState } from "../../hooks/useCrudListState";
+import { useEntityListState } from "../../hooks/useEntityListState";
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
 import { ProjectForm } from "./ProjectForm";
 import type { AppData, Project } from "@capacitylens/shared/types/entities";
@@ -34,7 +34,7 @@ export function ProjectList() {
   // The per-row action ARCHIVES (soft-delete is reached later from Settings → Archived & deleted);
   // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
   const { archive } = useLifecycleActions();
-  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Project>();
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Project>();
 
   const resolveClientName = (id: string) => {
     const client = clientsById.get(id);

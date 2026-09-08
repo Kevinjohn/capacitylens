@@ -1,5 +1,5 @@
 import { useActiveScopedData } from "../../store/useScopedData";
-import { useCrudListState } from "../../hooks/useCrudListState";
+import { useEntityListState } from "../../hooks/useEntityListState";
 import { isBuiltinClient } from "@capacitylens/shared/data/internalClient";
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
 import { ClientForm } from "./ClientForm";
@@ -41,7 +41,7 @@ export function ClientList() {
   // The per-row action ARCHIVES (soft-delete is reached later from Settings → Archived & deleted);
   // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
   const { archive } = useLifecycleActions();
-  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Client>();
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Client>();
 
   return (
     <ListPage title={m.list_clients_title()} addLabel={m.list_clients_add()} onAdd={() => setCreating(true)}>

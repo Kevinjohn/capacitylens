@@ -1,6 +1,6 @@
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
-import { useCrudListState } from "../../hooks/useCrudListState";
+import { useEntityListState } from "../../hooks/useEntityListState";
 import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
 import { ActivityForm } from "./ActivityForm";
 import type { Activity } from "@capacitylens/shared/types/entities";
@@ -24,7 +24,7 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
   const projects = data.projects;
   const clients = data.clients;
   const deleteEntity = useStore((state) => state.deleteActivity);
-  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Activity>();
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Activity>();
   const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
   const selectedRowRef = useRef<HTMLDivElement | null>(null);
 

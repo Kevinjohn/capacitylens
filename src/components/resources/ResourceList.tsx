@@ -8,7 +8,7 @@ import {
   hasPlaceholdersEnabled,
 } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
-import { useCrudListState } from "../../hooks/useCrudListState";
+import { useEntityListState } from "../../hooks/useEntityListState";
 import { AddButton, ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
 import { Separator } from "../ui/separator";
 import { resolveResourceDisplayName } from "../../lib/metadata";
@@ -65,10 +65,10 @@ export function ResourceList() {
   // on an archived row). `archive` branches server/local in useLifecycleActions — and crucially, in
   // SERVER mode it reloads the active slice so the archived row vanishes from this list + the schedule.
   const { archive } = useLifecycleActions();
-  const { editing, setEditing, confirming, setConfirming } = useCrudListState<Resource>();
+  const { editing, setEditing, confirming, setConfirming } = useEntityListState<Resource>();
   // External rows get their OWN create/edit/confirm state + the trimmed ExternalForm (no capacity
   // fields), kept separate from the person/placeholder triple above so the two modals never collide.
-  const externalState = useCrudListState<Resource>();
+  const externalState = useEntityListState<Resource>();
   // People and placeholders each have their own add button; remember which kind is
   // being created so the right modal opens.
   const [creatingKind, setCreatingKind] = useState<ResourceKind | null>(null);

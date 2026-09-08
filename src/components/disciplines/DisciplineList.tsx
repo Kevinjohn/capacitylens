@@ -1,6 +1,6 @@
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
-import { useCrudListState } from "../../hooks/useCrudListState";
+import { useEntityListState } from "../../hooks/useEntityListState";
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
 import { NEUTRAL_COLOR } from "../../lib/palette";
 import { DisciplineForm } from "./DisciplineForm";
@@ -15,7 +15,7 @@ import { useConfirmDelete } from "../../hooks/useConfirmDelete";
 export function DisciplineList() {
   const disciplines = useActiveScopedData().disciplines;
   const deleteEntity = useStore((state) => state.deleteDiscipline);
-  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Discipline>();
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Discipline>();
   const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
 
   // Management is alphabetical for scanning; the scheduler deliberately keeps discipline sortOrder.
