@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Config, Driver } from "driver.js";
 import { m } from "@/i18n";
 import { TOUR_ANCHORS } from "./tourAnchors";
 
 // driver.js itself is loaded lazily inside startTour (see the file header comment in tour.ts), so
 // the mock only needs to cover the dynamic `import("driver.js")`, not a static import binding.
-const driverMock = vi.hoisted(() => vi.fn());
+const driverMock = vi.hoisted(() => vi.fn<(options?: Config) => Driver>());
 vi.mock("driver.js", () => ({ driver: driverMock }));
 
 import { startTour } from "./tour";
 
-const expectedSteps = [
+const expectedSteps: NonNullable<Config["steps"]> = [
   { element: TOUR_ANCHORS[0], popover: { title: m.tour_grid_title(), description: m.tour_grid_desc() } },
   { element: TOUR_ANCHORS[1], popover: { title: m.tour_toolbar_title(), description: m.tour_toolbar_desc() } },
   {
@@ -25,14 +26,49 @@ const expectedSteps = [
     popover: { title: m.tour_settings_title(), description: m.tour_settings_desc(), side: "right" },
   },
 ];
+const firstExpectedStep = expectedSteps[0];
+if (!firstExpectedStep) throw new Error("tour test steps are unexpectedly empty");
+
+function getDriverConfig(): Config {
+  const config = driverMock.mock.calls[0]?.[0];
+  if (!config) throw new Error("driver mock was not called with a config");
+  return config;
+}
+
+function createDriverStub(drive: () => void, destroy: () => void): Driver {
+  return {
+    isActive: vi.fn(),
+    refresh: vi.fn(),
+    drive,
+    setConfig: vi.fn(),
+    setSteps: vi.fn(),
+    getConfig: vi.fn(),
+    getState: vi.fn(),
+    getActiveIndex: vi.fn(),
+    isFirstStep: vi.fn(),
+    isLastStep: vi.fn(),
+    getActiveStep: vi.fn(),
+    getActiveElement: vi.fn(),
+    getPreviousElement: vi.fn(),
+    getPreviousStep: vi.fn(),
+    getNextStep: vi.fn(),
+    moveNext: vi.fn(),
+    movePrevious: vi.fn(),
+    moveTo: vi.fn(),
+    hasNextStep: vi.fn(),
+    hasPreviousStep: vi.fn(),
+    highlight: vi.fn(),
+    destroy,
+  };
+}
 
 describe("startTour", () => {
-  let driveSpy: ReturnType<typeof vi.fn>;
+  let driveSpy: ReturnType<typeof vi.fn<() => void>>;
 
   beforeEach(() => {
     document.body.className = "";
-    driveSpy = vi.fn();
-    driverMock.mockReset().mockReturnValue({ drive: driveSpy, destroy: vi.fn() });
+    driveSpy = vi.fn<() => void>();
+    driverMock.mockReset().mockReturnValue(createDriverStub(driveSpy, vi.fn()));
   });
 
   afterEach(() => {
@@ -44,14 +80,14 @@ describe("startTour", () => {
     await startTour();
 
     expect(driverMock).toHaveBeenCalledOnce();
-    const config = driverMock.mock.calls[0]?.[0];
+    const config = getDriverConfig();
     expect(config.steps).toEqual(expectedSteps);
   });
 
   it("configures progress display and nav copy through the Paraglide messages", async () => {
     await startTour();
 
-    const config = driverMock.mock.calls[0]?.[0];
+    const config = getDriverConfig();
     expect(config.showProgress).toBe(true);
     expect(config.progressText).toBe(m.tour_progress({ step: "{{current}}", total: "{{total}}" }));
     expect(config.nextBtnText).toBe(m.tour_next());
@@ -62,7 +98,7 @@ describe("startTour", () => {
   it("keeps spotlighted elements inert so a stray click can't navigate away mid-tour", async () => {
     await startTour();
 
-    const config = driverMock.mock.calls[0]?.[0];
+    const config = getDriverConfig();
     expect(config.disableActiveInteraction).toBe(true);
   });
 
@@ -70,11 +106,17 @@ describe("startTour", () => {
     const promise = startTour();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const config = driverMock.mock.calls[0]?.[0];
-    const activeTour = { destroy: vi.fn() };
-    config.onDestroyStarted(undefined, undefined, { driver: activeTour });
+    const config = getDriverConfig();
+    const destroySpy = vi.fn();
+    const activeTour = createDriverStub(vi.fn(), destroySpy);
+    config.onDestroyStarted?.(undefined, firstExpectedStep, {
+      config,
+      state: {},
+      driver: activeTour,
+      index: undefined,
+    });
 
-    expect(activeTour.destroy).toHaveBeenCalledOnce();
+    expect(destroySpy).toHaveBeenCalledOnce();
     await promise;
   });
 
