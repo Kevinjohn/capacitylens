@@ -463,6 +463,35 @@ function prepareV23InvitationHistory(db: Db): void {
   insert({ accountId: "account-2", id: "other-account", usedAt: "2998-01-01T00:00:00.000Z" });
 }
 
+function assertBootstrapClaimSchema(db: Db): void {
+  expect(db.prepare(`PRAGMA table_info(capacitylens_bootstrap_claim)`).all()).toEqual([
+    expect.objectContaining({
+      name: "id",
+      type: "INTEGER",
+      notnull: 0,
+      pk: 1,
+    }),
+    expect.objectContaining({
+      name: "claimedAt",
+      type: "TEXT",
+      notnull: 1,
+      pk: 0,
+    }),
+    expect.objectContaining({
+      name: "claimToken",
+      type: "TEXT",
+      notnull: 1,
+      pk: 0,
+    }),
+  ]);
+  expect(() => db.prepare(`INSERT INTO capacitylens_bootstrap_claim VALUES (2, ?, ?)`).run(TS, "token")).toThrow(
+    /check constraint/i,
+  );
+  expect(() => db.prepare(`INSERT INTO capacitylens_bootstrap_claim VALUES (1, ?, NULL)`).run(TS)).toThrow(
+    /not null constraint/i,
+  );
+}
+
 describe("schema migration of an existing on-disk DB", () => {
   it("pins synchronous FULL even when the connection inherited a weaker setting", () => {
     const copied = copyFixture("v16-off.db");
@@ -1636,32 +1665,7 @@ describe("schema migration of an existing on-disk DB", () => {
     ]);
 
     initializeOpenDb(db, ":memory:");
-    expect(db.prepare(`PRAGMA table_info(capacitylens_bootstrap_claim)`).all()).toEqual([
-      expect.objectContaining({
-        name: "id",
-        type: "INTEGER",
-        notnull: 0,
-        pk: 1,
-      }),
-      expect.objectContaining({
-        name: "claimedAt",
-        type: "TEXT",
-        notnull: 1,
-        pk: 0,
-      }),
-      expect.objectContaining({
-        name: "claimToken",
-        type: "TEXT",
-        notnull: 1,
-        pk: 0,
-      }),
-    ]);
-    expect(() => db.prepare(`INSERT INTO capacitylens_bootstrap_claim VALUES (2, ?, ?)`).run(TS, "token")).toThrow(
-      /check constraint/i,
-    );
-    expect(() => db.prepare(`INSERT INTO capacitylens_bootstrap_claim VALUES (1, ?, NULL)`).run(TS)).toThrow(
-      /not null constraint/i,
-    );
+    assertBootstrapClaimSchema(db);
     db.close();
   });
 
