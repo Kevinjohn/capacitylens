@@ -581,7 +581,7 @@ describe("placeholder binding", () => {
   });
 });
 
-describe("cascade deletes", () => {
+function registerResourceCascadeTests(): void {
   it("deleteResourceCascade removes the resource, its allocations and time off", () => {
     const next = deleteResourceCascade(sampleData(), "r1");
     expect(next.resources.map((r) => r.id)).toEqual(["ph1"]);
@@ -612,7 +612,9 @@ describe("cascade deletes", () => {
     expect(next.activities.map((t) => t.id)).toEqual(["t2"]);
     expect(next.allocations.map((a) => a.id)).toEqual(["a2"]);
   });
+}
 
+function registerPhaseCascadeTests(): void {
   it("deletePhaseCascade ungroups activities but keeps them", () => {
     const next = deletePhaseCascade(sampleData(), "phase1", CASCADE_REVISION);
     expect(next.phases).toHaveLength(0);
@@ -647,7 +649,9 @@ describe("cascade deletes", () => {
     expect(assertEntityById(next.activities, "t3").phaseId).toBe("phase2"); // NOT ungrouped
     expect(assertEntityById(next.activities, "t1").phaseId).toBeUndefined(); // was under phase1
   });
+}
 
+function registerProjectCascadeTests(): void {
   it("deleteProjectCascade removes project, phases, activities, their allocations, and unbinds placeholders", () => {
     const next = deleteProjectCascade(sampleData(), "p1", CASCADE_REVISION);
     expect(next.projects).toHaveLength(0);
@@ -713,7 +717,9 @@ describe("cascade deletes", () => {
     expect(next.allocations.map((a) => a.id)).toEqual(["al-p2"]); // sibling allocation survives
     expect(assertEntityById(next.resources, "ph2").projectId).toBe("p2"); // p2 placeholder keeps binding
   });
+}
 
+function registerClientCascadeTests(): void {
   it("deleteClientCascade cascades through its projects", () => {
     const data = sampleData();
     data.activities.push({
@@ -767,7 +773,9 @@ describe("cascade deletes", () => {
     expect(assertEntityById(next.resources, "phc1").projectId).toBeUndefined(); // bound to removed p1
     expect(assertEntityById(next.resources, "phc2").projectId).toBe("p2"); // bound to surviving p2
   });
+}
 
+function registerDisciplineCascadeTests(): void {
   it("deleteDisciplineCascade ungroups resources but keeps them", () => {
     const next = deleteDisciplineCascade(sampleData(), "d1", CASCADE_REVISION);
     expect(next.disciplines).toHaveLength(0);
@@ -825,4 +833,12 @@ describe("cascade deletes", () => {
     deleteClientCascade(data, "c1", CASCADE_REVISION);
     expect(JSON.stringify(data)).toBe(snapshot);
   });
+}
+
+describe("cascade deletes", () => {
+  registerResourceCascadeTests();
+  registerPhaseCascadeTests();
+  registerProjectCascadeTests();
+  registerClientCascadeTests();
+  registerDisciplineCascadeTests();
 });
