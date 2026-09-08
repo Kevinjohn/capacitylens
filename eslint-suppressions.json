@@ -634,11 +634,6 @@
       "count": 1
     }
   },
-  "src/auth/LoginScreen.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/auth/MfaEnrollmentScreen.test.tsx": {
     "max-lines-per-function": {
       "count": 1
@@ -910,14 +905,6 @@
     }
   },
   "src/components/resources/ResourceForm.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/components/resources/ResourceList.tsx": {
-    "complexity": {
-      "count": 1
-    },
     "max-lines-per-function": {
       "count": 1
     }
