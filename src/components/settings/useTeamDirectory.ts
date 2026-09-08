@@ -85,7 +85,7 @@ async function loadMembers({
   if (result.kind === "rejected" && result.status === 403) {
     if (!current()) return false;
     if (hadAuthorizedDirectory) {
-      setDirectory((previous) => errorDirectory(previous, accountId));
+      setDirectory({ kind: "error", accountId, content: { kind: "unavailable" } });
       fail(null, m.settings_members_err_access_changed());
     } else {
       setDirectory({ kind: "hidden", accountId });

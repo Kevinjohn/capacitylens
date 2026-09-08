@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MembersSection } from "./MembersSection";
 import { AuthContext, type AuthContextValue } from "../../auth/authContext";
@@ -8,6 +8,7 @@ import { useStore } from "../../store/useStore";
 import { refreshActiveAccountSlice } from "../../data/persist";
 import { setOfflineReadState } from "../../data/offlineCache";
 import { m } from "@/i18n";
+import { useTeamDirectory } from "./useTeamDirectory";
 
 interface ConfirmMemberActionInput {
   user: User;
@@ -414,6 +415,84 @@ describe("MembersSection — self-gate", () => {
 });
 
 describe("MembersSection — directory error retention", () => {
+  it("clears the authorized directory snapshot when a same-account refresh loses access", async () => {
+    const members = [{ userId: "me", role: "owner", isSelf: true }] as const;
+    let memberReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi([...members], {
+        "GET /members": () => {
+          memberReads += 1;
+          return memberReads === 1
+            ? jsonResponse({ signInTrackingEnabled: false, members: members.map((member) => rawMember(member)) })
+            : jsonResponse({ error: "Forbidden" }, 403);
+        },
+      }),
+    );
+    const fail = vi.fn();
+
+    const { result } = renderHook(() =>
+      useTeamDirectory({
+        enabled: true,
+        activeAccountId: DEFAULT_ACCOUNT_ID,
+        offlineReadOnly: false,
+        fail,
+      }),
+    );
+    await waitFor(() => expect(result.current.directory.kind).toBe("ready"));
+
+    act(() => result.current.reload());
+
+    await waitFor(() => expect(result.current.directory.kind).toBe("error"));
+    expect(result.current.directory).toMatchObject({
+      kind: "error",
+      accountId: DEFAULT_ACCOUNT_ID,
+      content: { kind: "unavailable" },
+    });
+  });
+});
+
+describe("MembersSection — transient directory state", () => {
+  it("retains the authorized directory snapshot across a transient same-account failure", async () => {
+    const members = [{ userId: "me", role: "owner", isSelf: true }] as const;
+    let memberReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi([...members], {
+        "GET /members": () => {
+          memberReads += 1;
+          return memberReads === 1
+            ? jsonResponse({ signInTrackingEnabled: false, members: members.map((member) => rawMember(member)) })
+            : jsonResponse({ error: "Unavailable" }, 503);
+        },
+      }),
+    );
+    const fail = vi.fn();
+
+    const { result } = renderHook(() =>
+      useTeamDirectory({
+        enabled: true,
+        activeAccountId: DEFAULT_ACCOUNT_ID,
+        offlineReadOnly: false,
+        fail,
+      }),
+    );
+    await waitFor(() => expect(result.current.directory.kind).toBe("ready"));
+    const readyDirectory = result.current.directory;
+    if (readyDirectory.kind !== "ready") throw new Error("Expected an authorized directory fixture.");
+
+    act(() => result.current.reload());
+
+    await waitFor(() => expect(result.current.directory.kind).toBe("error"));
+    expect(result.current.directory).toMatchObject({
+      kind: "error",
+      accountId: DEFAULT_ACCOUNT_ID,
+      content: { kind: "authorized", snapshot: readyDirectory.snapshot },
+    });
+  });
+});
+
+describe("MembersSection — retained authorization behavior", () => {
   it("retains authorization across a transient member refresh failure", async () => {
     const members = [{ userId: "me", role: "owner", isSelf: true }] as const;
     let memberReads = 0;
