@@ -353,7 +353,7 @@ afterEach(() => {
 });
 
 describe("MembersSection — self-gate", () => {
-  it("hides the previous account directory while the next account is authorizing", testAccountTransition);
+  registerAccountTransitionTest();
 
   it("defers privileged directory reads while offline and refreshes them on recovery", async () => {
     const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }]);
@@ -461,42 +461,44 @@ function registerSelfGateDisplayTests(): void {
   });
 }
 
-async function testAccountTransition(): Promise<void> {
-  const nextAccountId = "acc_second";
-  let resolveNextMembers: ((response: Response) => void) | undefined;
-  const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
-    const target = String(url);
-    const isRead = !init || init.method === undefined || init.method === "GET";
-    if (target.endsWith(`/${DEFAULT_ACCOUNT_ID}/members`) && isRead) {
-      return jsonResponse({
-        members: [rawMember({ userId: "first-owner", role: "owner", email: "first@example.test", isSelf: true })],
-      });
-    }
-    if (target.endsWith(`/${nextAccountId}/members`) && isRead) {
-      return await new Promise<Response>((resolve) => {
-        resolveNextMembers = resolve;
-      });
-    }
-    if (target.endsWith("/invites") && isRead) {
-      return jsonResponse({ invites: [] });
-    }
-    throw new Error(`Unexpected request: ${target}`);
-  });
-  vi.stubGlobal("fetch", fetchMock);
-  renderSection();
-  expect(await screen.findByText("first@example.test")).toBeInTheDocument();
+function registerAccountTransitionTest(): void {
+  it("hides the previous account directory while the next account is authorizing", async () => {
+    const nextAccountId = "acc_second";
+    let resolveNextMembers: ((response: Response) => void) | undefined;
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
+      const target = String(url);
+      const isRead = !init || init.method === undefined || init.method === "GET";
+      if (target.endsWith(`/${DEFAULT_ACCOUNT_ID}/members`) && isRead) {
+        return jsonResponse({
+          members: [rawMember({ userId: "first-owner", role: "owner", email: "first@example.test", isSelf: true })],
+        });
+      }
+      if (target.endsWith(`/${nextAccountId}/members`) && isRead) {
+        return await new Promise<Response>((resolve) => {
+          resolveNextMembers = resolve;
+        });
+      }
+      if (target.endsWith("/invites") && isRead) {
+        return jsonResponse({ invites: [] });
+      }
+      throw new Error(`Unexpected request: ${target}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection();
+    expect(await screen.findByText("first@example.test")).toBeInTheDocument();
 
-  act(() => useStore.setState({ activeAccountId: nextAccountId }));
-  expect(screen.queryByText("first@example.test")).not.toBeInTheDocument();
+    act(() => useStore.setState({ activeAccountId: nextAccountId }));
+    expect(screen.queryByText("first@example.test")).not.toBeInTheDocument();
 
-  await act(async () => {
-    resolveNextMembers?.(
-      jsonResponse({
-        members: [rawMember({ userId: "second-owner", role: "owner", email: "second@example.test", isSelf: true })],
-      }),
-    );
+    await act(async () => {
+      resolveNextMembers?.(
+        jsonResponse({
+          members: [rawMember({ userId: "second-owner", role: "owner", email: "second@example.test", isSelf: true })],
+        }),
+      );
+    });
+    expect(await screen.findByText("second@example.test")).toBeInTheDocument();
   });
-  expect(await screen.findByText("second@example.test")).toBeInTheDocument();
 }
 
 describe("MembersSection — admin affordances", () => {
@@ -1549,11 +1551,20 @@ function registerStatusFailureTests(): void {
 }
 
 describe("MembersSection — password reset and session failures", () => {
-  registerPasswordResetFailureTests();
+  async function requestReset(): Promise<void> {
+    await confirmMemberAction({
+      user: userEvent.setup(),
+      row: await findMemberRow(/ed@x\.io/),
+      testId: "member-reset-password",
+      confirmationName: "Reset password",
+    });
+  }
+
+  registerPasswordResetFailureTests(requestReset);
   registerSessionFailureTests();
 });
 
-function registerPasswordResetFailureTests(): void {
+function registerPasswordResetFailureTests(requestReset: () => Promise<void>): void {
   it.each([
     [503, jsonResponse({ error: "Uncertain." }, 503), /reset-token request had an unknown outcome/i],
     [200, new Response("not-json", { status: 200 }), /one-time value was lost/i],
@@ -1648,15 +1659,6 @@ function registerSessionFailureTests(): void {
     await waitFor(() => expect(reload).toHaveBeenCalledTimes(reloads ? 1 : 0));
     if (!self) await expectNotice(/unknown outcome.*session transport lost/i);
     else expect(useStore.getState().notice).toBeNull();
-  });
-}
-
-async function requestReset(): Promise<void> {
-  await confirmMemberAction({
-    user: userEvent.setup(),
-    row: await findMemberRow(/ed@x\.io/),
-    testId: "member-reset-password",
-    confirmationName: "Reset password",
   });
 }
 
@@ -2292,26 +2294,61 @@ function registerInviteClipboardFailureTests(): void {
   });
 }
 
-const providers: AuthContextValue["providers"] = [
-  { id: "workforce", label: "Workforce SSO", kind: "oidc", experimental: false },
-];
-const directory = [
-  { userId: "me", role: "owner" as const, isSelf: true },
-  { userId: "target", role: "admin" as const, isSelf: false },
-];
-
 describe("MembersSection — SSO cutover repair", () => {
-  registerSsoDraftTests();
-  registerSsoEmailRepairTests();
-  registerSsoEmailValidationTests();
-  registerSsoSelfEmailRepairTests();
-  registerSsoLinkRepairTests();
-  registerSsoReadinessLifecycleTests();
-  registerSsoReadinessFailureTests();
-  registerSsoModeTests();
+  const providers: AuthContextValue["providers"] = [
+    { id: "workforce", label: "Workforce SSO", kind: "oidc", experimental: false },
+  ];
+  const directory = [
+    { userId: "me", role: "owner" as const, isSelf: true },
+    { userId: "target", role: "admin" as const, isSelf: false },
+  ];
+
+  function ssoReadiness(linked: boolean, reason: string) {
+    return {
+      ready: false,
+      provider: { id: "workforce", label: "Workforce SSO", kind: "oidc", experimental: false },
+      members: [
+        {
+          principalId: "target",
+          email: "target@x.io",
+          displayName: "Target",
+          role: "admin",
+          linked,
+          blocking: true,
+          critical: true,
+          reason,
+          repairLinks: linked ? [{ rowId: "link-1", providerId: "workforce", subject: "subject-1" }] : [],
+        },
+      ],
+      issues: [],
+      globalIssues: [],
+    };
+  }
+
+  function ssoFetch(linked: boolean, reason: string) {
+    // A bare "GET " suffix would also swallow the /members read that mockApi's own default already
+    // serves, so key this explicitly on the readiness path; PATCH/DELETE fall through to mockApi's
+    // built-in 204 fallback for every other write.
+    return mockApi(directory, { "GET /sso-readiness": () => jsonResponse(ssoReadiness(linked, reason)) });
+  }
+
+  registerSsoDraftTests(directory, providers, ssoReadiness);
+  registerSsoEmailRepairTests(providers, ssoFetch);
+  registerSsoEmailValidationTests(providers, ssoFetch);
+  registerSsoRefusedEmailTest(directory, providers, ssoReadiness);
+  registerSsoSelfEmailRepairTests(directory, providers, ssoReadiness);
+  registerSsoLinkRepairTests(directory, providers, ssoReadiness);
+  registerSsoLinkFailureTest(directory, providers, ssoReadiness);
+  registerSsoReadinessLifecycleTests(directory, providers, ssoReadiness);
+  registerSsoReadinessFailureTests(directory, providers, ssoReadiness);
+  registerSsoModeTests(providers, ssoFetch);
 });
 
-function registerSsoDraftTests(): void {
+function registerSsoDraftTests<T>(
+  directory: RawMember[],
+  providers: AuthContextValue["providers"],
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
   it("preserves invite and member role drafts when the render children unmount and remount", async () => {
     const user = userEvent.setup();
     const directoryWithTracking = directory.map((member) => ({ ...member, signInConfirmed: true }));
@@ -2376,7 +2413,10 @@ function registerSsoDraftTests(): void {
   });
 }
 
-function registerSsoEmailRepairTests(): void {
+function registerSsoEmailRepairTests(
+  providers: AuthContextValue["providers"],
+  ssoFetch: (linked: boolean, reason: string) => ReturnType<typeof mockApi>,
+): void {
   it("corrects a blocking member email through the fresh identity-global route", async () => {
     const user = userEvent.setup();
     const fetchMock = ssoFetch(false, "member_not_linked");
@@ -2401,7 +2441,10 @@ function registerSsoEmailRepairTests(): void {
   });
 }
 
-function registerSsoEmailValidationTests(): void {
+function registerSsoEmailValidationTests(
+  providers: AuthContextValue["providers"],
+  ssoFetch: (linked: boolean, reason: string) => ReturnType<typeof mockApi>,
+): void {
   it("confirms removal of an unverified wrong-subject link before dispatch", async () => {
     const user = userEvent.setup();
     const fetchMock = ssoFetch(true, "unverified_provider_link");
@@ -2443,7 +2486,13 @@ function registerSsoEmailValidationTests(): void {
     expect(input).toHaveAttribute("aria-describedby", alert.id);
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
   });
+}
 
+function registerSsoRefusedEmailTest<T>(
+  directory: RawMember[],
+  providers: AuthContextValue["providers"],
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
   it("shows a refused email correction beside the repair field", async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
@@ -2467,7 +2516,11 @@ function registerSsoEmailValidationTests(): void {
   });
 }
 
-function registerSsoSelfEmailRepairTests(): void {
+function registerSsoSelfEmailRepairTests<T extends { members: { principalId: string; email: string }[] }>(
+  directory: RawMember[],
+  providers: AuthContextValue["providers"],
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
   it("reloads after correcting the current user's email without refreshing the directory", async () => {
     const reload = stubPageReload();
     const selfReadiness = ssoReadiness(false, "member_not_linked");
@@ -2523,7 +2576,11 @@ function registerSsoSelfEmailRepairTests(): void {
   });
 }
 
-function registerSsoLinkRepairTests(): void {
+function registerSsoLinkRepairTests<T extends { members: { principalId: string; email: string }[] }>(
+  directory: RawMember[],
+  providers: AuthContextValue["providers"],
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
   it("does not bump readiness when federated unlink is refused", async () => {
     const user = userEvent.setup();
     let readinessReads = 0;
@@ -2571,7 +2628,13 @@ function registerSsoLinkRepairTests(): void {
     await waitFor(() => expect(reload).toHaveBeenCalledOnce());
     expect(readinessReads).toBe(1);
   });
+}
 
+function registerSsoLinkFailureTest<T>(
+  directory: RawMember[],
+  providers: AuthContextValue["providers"],
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
   it("shows the remove-link error when unlink throws", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal(
@@ -2590,7 +2653,11 @@ function registerSsoLinkRepairTests(): void {
   });
 }
 
-function registerSsoReadinessLifecycleTests(): void {
+function registerSsoReadinessLifecycleTests<T>(
+  directory: RawMember[],
+  providers: AuthContextValue["providers"],
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
   it.each(["resolve", "reject"])("ignores a readiness request that finishes after unmount (%s)", async (outcome) => {
     let resolvePending: ((response: Response) => void) | undefined;
     let rejectPending: ((reason: Error) => void) | undefined;
@@ -2623,7 +2690,13 @@ function registerSsoReadinessLifecycleTests(): void {
   });
 }
 
-function registerSsoReadinessFailureTests(): void {
+function registerSsoReadinessFailureTests<
+  T extends { members: { principalId: unknown; repairLinks: { subject: string }[] }[] },
+>(
+  directory: RawMember[],
+  providers: AuthContextValue["providers"],
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
   it("surfaces a readiness fetch failure instead of hiding the cutover state", async () => {
     vi.stubGlobal("fetch", mockApi(directory, { "GET /sso-readiness": () => jsonResponse({}, 503) }));
     renderSection({ providers });
@@ -2643,7 +2716,10 @@ function registerSsoReadinessFailureTests(): void {
   });
 }
 
-function registerSsoModeTests(): void {
+function registerSsoModeTests(
+  providers: AuthContextValue["providers"],
+  ssoFetch: (linked: boolean, reason: string) => ReturnType<typeof mockApi>,
+): void {
   it("does not offer mixed-mode email or link repair after password sign-in is disabled", async () => {
     vi.stubGlobal("fetch", ssoFetch(true, "unverified_provider_link"));
     renderSection({ authMode: "sso", providers });
@@ -2652,35 +2728,6 @@ function registerSsoModeTests(): void {
     expect(screen.queryByTestId("sso-correct-email")).not.toBeInTheDocument();
     expect(screen.queryByTestId("sso-remove-link")).not.toBeInTheDocument();
   });
-}
-
-function ssoReadiness(linked: boolean, reason: string) {
-  return {
-    ready: false,
-    provider: { id: "workforce", label: "Workforce SSO", kind: "oidc", experimental: false },
-    members: [
-      {
-        principalId: "target",
-        email: "target@x.io",
-        displayName: "Target",
-        role: "admin",
-        linked,
-        blocking: true,
-        critical: true,
-        reason,
-        repairLinks: linked ? [{ rowId: "link-1", providerId: "workforce", subject: "subject-1" }] : [],
-      },
-    ],
-    issues: [],
-    globalIssues: [],
-  };
-}
-
-function ssoFetch(linked: boolean, reason: string) {
-  // A bare "GET " suffix would also swallow the /members read that mockApi's own default already
-  // serves, so key this explicitly on the readiness path; PATCH/DELETE fall through to mockApi's
-  // built-in 204 fallback for every other write.
-  return mockApi(directory, { "GET /sso-readiness": () => jsonResponse(ssoReadiness(linked, reason)) });
 }
 
 // Reference DEFAULT_ACCOUNT_ID so the fixture import is used (the URL the component builds).
