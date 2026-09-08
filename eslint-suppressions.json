@@ -298,14 +298,6 @@
       "count": 1
     }
   },
-  "server/src/accounts/flows/inviteSignup.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
   "server/src/accounts/flows/reconciliationRepair.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
