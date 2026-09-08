@@ -571,7 +571,7 @@ describe("AllocationModal compact layout", () => {
   registerCompactResourceLayoutTest();
 });
 
-describe("AllocationModal advisory work bounds", () => {
+function registerAdvisoryWorkBoundTests() {
   it("does not recompute the advisory when only the note changes", () => {
     const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     render(
@@ -627,7 +627,9 @@ describe("AllocationModal advisory work bounds", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Date span cannot exceed 36,500 calendar days.");
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerExternalSpanLimitTest() {
   it("rejects the same over-limit date span for an External resource", async () => {
     const resource = useStore.getState().addResource({
       kind: "external",
@@ -665,7 +667,9 @@ describe("AllocationModal advisory work bounds", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Date span cannot exceed 36,500 calendar days.");
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerExternalLiteralSpanTest() {
   it("keeps Ignore working days hidden for an External while preserving its literal calendar span", async () => {
     const resource = useStore.getState().addResource({
       kind: "external",
@@ -699,6 +703,12 @@ describe("AllocationModal advisory work bounds", () => {
       ignoreWeekends: true,
     });
   });
+}
+
+describe("AllocationModal advisory work bounds", () => {
+  registerAdvisoryWorkBoundTests();
+  registerExternalSpanLimitTest();
+  registerExternalLiteralSpanTest();
 });
 
 const enableDays = (workingDays?: Weekday[]) =>
