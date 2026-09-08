@@ -84,13 +84,19 @@ export function buildInternalClient(accountId: ID, now: ISOTimestamp, id: ID = i
   };
 }
 
+function isObjectValue(value: unknown): value is object {
+  return value !== null && typeof value === "object";
+}
+
+function isStringValue(value: unknown): value is string {
+  return typeof value === "string";
+}
+
 /** The account's built-in Internal client, or undefined if none exists yet. Identifies it by the
  *  `builtin` flag (id-independent so it survives import-remap). First match wins — the seed /
  *  addAccount / migrate paths guarantee at most one per account. */
 export function internalClientFor(clients: Client[], accountId: ID): Client | undefined {
-  return clients.find(
-    (client) => !!client && typeof client === "object" && isBuiltinClient(client) && client.accountId === accountId,
-  );
+  return clients.find((client) => isObjectValue(client) && isBuiltinClient(client) && client.accountId === accountId);
 }
 
 /** True when this client is the protected built-in (cannot be renamed or deleted). */
@@ -126,6 +132,105 @@ function needsInternalClientRepair(client: Client): boolean {
   );
 }
 
+interface IndexedClient {
+  client: Client;
+  index: number;
+}
+
+function collectUsedClientIds(clients: Client[]): Set<ID> {
+  return new Set(clients.flatMap((client) => (isObjectValue(client) && isStringValue(client.id) ? [client.id] : [])));
+}
+
+function collectBuiltinsByAccount(clients: Client[]): Map<ID, IndexedClient[]> {
+  const builtinsByAccount = new Map<ID, IndexedClient[]>();
+  clients.forEach((client, index) => {
+    if (
+      !isObjectValue(client) ||
+      !isStringValue(client.id) ||
+      !isStringValue(client.accountId) ||
+      client.builtin !== true
+    )
+      return;
+    const rows = builtinsByAccount.get(client.accountId);
+    const entry = { client, index };
+    if (rows) rows.push(entry);
+    else builtinsByAccount.set(client.accountId, [entry]);
+  });
+  return builtinsByAccount;
+}
+
+function compareBuiltinEntries(generatedId: ID, left: IndexedClient, right: IndexedClient): number {
+  if (left.client.id === generatedId && right.client.id !== generatedId) return -1;
+  if (right.client.id === generatedId && left.client.id !== generatedId) return 1;
+  const leftCreatedAt = isStringValue(left.client.createdAt) ? left.client.createdAt : "";
+  const rightCreatedAt = isStringValue(right.client.createdAt) ? right.client.createdAt : "";
+  return (
+    leftCreatedAt.localeCompare(rightCreatedAt) ||
+    left.client.id.localeCompare(right.client.id) ||
+    left.index - right.index
+  );
+}
+
+function recordBuiltinDuplicates(
+  builtins: IndexedClient[],
+  generatedId: ID,
+  state: {
+    duplicateIds: Map<ID, ID>;
+    duplicateIndexes: Set<number>;
+    retainedIndexes: Set<number>;
+  },
+): void {
+  builtins.sort((left, right) => compareBuiltinEntries(generatedId, left, right));
+  const retained = builtins[0];
+  if (retained === undefined) return;
+  state.retainedIndexes.add(retained.index);
+  for (const duplicate of builtins.slice(1)) {
+    state.duplicateIndexes.add(duplicate.index);
+    if (duplicate.client.id !== retained.client.id) {
+      state.duplicateIds.set(duplicate.client.id, retained.client.id);
+    }
+  }
+}
+
+function repairRetainedClients(
+  clients: Client[],
+  options: {
+    retainedIndexes: ReadonlySet<number>;
+    duplicateIndexes: ReadonlySet<number>;
+    now: ISOTimestamp;
+  },
+): { clients: Client[]; repairedAny: boolean } {
+  let repairedAny = false;
+  const repairedClients = clients.flatMap((client, index): Client[] => {
+    if (options.duplicateIndexes.has(index)) return [];
+    if (!options.retainedIndexes.has(index)) return [client];
+    // Sync detects changes by updatedAt, so bump only rows whose canonical fields actually change;
+    // unconditional bumps would create phantom writes on every load.
+    const altered = needsInternalClientRepair(client);
+    if (altered) repairedAny = true;
+    const repaired = { ...client, name: INTERNAL_CLIENT_NAME, color: INTERNAL_CLIENT_COLOR, builtin: true as const };
+    delete repaired.archivedAt;
+    delete repaired.deletedAt;
+    return [altered ? { ...repaired, updatedAt: repairRevision(client.updatedAt, options.now) } : repaired];
+  });
+  return { clients: repairedClients, repairedAny };
+}
+
+function rewireDuplicateProjects(
+  data: AppData,
+  duplicateIds: ReadonlyMap<ID, ID>,
+  now: ISOTimestamp,
+): AppData["projects"] {
+  if (duplicateIds.size === 0) return data.projects;
+  return data.projects.map((project) => {
+    if (!isObjectValue(project)) return project;
+    const replacement = duplicateIds.get(project.clientId);
+    return replacement
+      ? { ...project, clientId: replacement, updatedAt: repairRevision(project.updatedAt, now) }
+      : project;
+  });
+}
+
 /**
  * Ensure EVERY account in `data` has exactly one built-in Internal client. When legacy/corrupt data
  * contains duplicates, the generated id is preferred, otherwise the oldest/id-first row is retained;
@@ -139,32 +244,14 @@ function needsInternalClientRepair(client: Client): boolean {
  */
 export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData {
   const added: Client[] = [];
-  const usedIds = new Set(
-    data.clients.flatMap((client) =>
-      client && typeof client === "object" && typeof client.id === "string" ? [client.id] : [],
-    ),
-  );
+  const usedIds = collectUsedClientIds(data.clients);
   const duplicateIds = new Map<ID, ID>();
   const duplicateIndexes = new Set<number>();
   const retainedIndexes = new Set<number>();
-  const builtinsByAccount = new Map<ID, Array<{ client: Client; index: number }>>();
-  data.clients.forEach((client, index) => {
-    if (
-      !client ||
-      typeof client !== "object" ||
-      typeof client.id !== "string" ||
-      typeof client.accountId !== "string" ||
-      client.builtin !== true
-    )
-      return;
-    const rows = builtinsByAccount.get(client.accountId);
-    const entry = { client, index };
-    if (rows) rows.push(entry);
-    else builtinsByAccount.set(client.accountId, [entry]);
-  });
+  const builtinsByAccount = collectBuiltinsByAccount(data.clients);
   const processedAccountIds = new Set<ID>();
   for (const account of data.accounts) {
-    if (!account || typeof account !== "object" || typeof account.id !== "string") continue;
+    if (!isObjectValue(account) || !isStringValue(account.id)) continue;
     if (processedAccountIds.has(account.id)) continue;
     processedAccountIds.add(account.id);
     const generatedId = internalClientIdFor(account.id);
@@ -175,57 +262,18 @@ export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData
       added.push(buildInternalClient(account.id, now, id));
       continue;
     }
-    builtins.sort((left, right) => {
-      if (left.client.id === generatedId && right.client.id !== generatedId) return -1;
-      if (right.client.id === generatedId && left.client.id !== generatedId) return 1;
-      const leftCreatedAt = typeof left.client.createdAt === "string" ? left.client.createdAt : "";
-      const rightCreatedAt = typeof right.client.createdAt === "string" ? right.client.createdAt : "";
-      return (
-        leftCreatedAt.localeCompare(rightCreatedAt) ||
-        left.client.id.localeCompare(right.client.id) ||
-        left.index - right.index
-      );
-    });
-    const retained = builtins[0];
-    if (!retained) continue;
-    retainedIndexes.add(retained.index);
-    for (const duplicate of builtins.slice(1)) {
-      duplicateIndexes.add(duplicate.index);
-      if (duplicate.client.id !== retained.client.id) {
-        duplicateIds.set(duplicate.client.id, retained.client.id);
-      }
-    }
+    recordBuiltinDuplicates(builtins, generatedId, { duplicateIds, duplicateIndexes, retainedIndexes });
   }
   // ONE pass over the rows: the repaired projection and the "was anything actually repaired?" flag
   // come from the SAME predicate evaluation, so they cannot disagree.
-  let repairedAny = false;
-  const clients = data.clients.flatMap((client, index): Client[] => {
-    if (duplicateIndexes.has(index)) return [];
-    if (!retainedIndexes.has(index)) return [client];
-    // Bump updatedAt ONLY when the repair actually ALTERS a field. ServerSyncAdapter.diffOps detects
-    // changes solely by updatedAt, so a name/colour/builtin correction that left updatedAt untouched
-    // would be re-applied in memory on every load yet never emit a PUT — the repair never reaches the
-    // server. Bumping UNCONDITIONALLY would be the opposite disease: an already-canonical row would
-    // diff as changed on every load and churn phantom writes, so the guard must be exact.
-    const altered = needsInternalClientRepair(client);
-    if (altered) repairedAny = true;
-    const repaired = { ...client, name: INTERNAL_CLIENT_NAME, color: INTERNAL_CLIENT_COLOR, builtin: true as const };
-    delete repaired.archivedAt;
-    delete repaired.deletedAt;
-    return [altered ? { ...repaired, updatedAt: repairRevision(client.updatedAt, now) } : repaired];
+  const { clients, repairedAny } = repairRetainedClients(data.clients, {
+    retainedIndexes,
+    duplicateIndexes,
+    now,
   });
   // Identity stability is load-bearing: with nothing to add, fold or repair, callers must get the
   // very same AppData reference back (the projection built above is discarded).
   if (added.length === 0 && duplicateIndexes.size === 0 && !repairedAny) return data;
-  const projects =
-    duplicateIds.size === 0
-      ? data.projects
-      : data.projects.map((project) => {
-          if (!project || typeof project !== "object") return project;
-          const replacement = duplicateIds.get(project.clientId);
-          return replacement
-            ? { ...project, clientId: replacement, updatedAt: repairRevision(project.updatedAt, now) }
-            : project;
-        });
+  const projects = rewireDuplicateProjects(data, duplicateIds, now);
   return { ...data, clients: [...clients, ...added], projects };
 }
