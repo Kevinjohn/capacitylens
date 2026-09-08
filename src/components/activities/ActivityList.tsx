@@ -18,7 +18,7 @@ interface BoxInput {
   enrich?: { description: string; action: { label: string; onClick: () => void } } | undefined;
 }
 
-export function ActivityList({ selectedActivityId = null }: { selectedActivityId?: string | null }) {
+export function ActivityList({ selectedActivityId }: { selectedActivityId?: string }) {
   const data = useActiveScopedData();
   const activities = data.activities;
   const projects = data.projects;
