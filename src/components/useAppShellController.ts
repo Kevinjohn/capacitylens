@@ -82,11 +82,22 @@ interface SingleAccountReloadInput {
   previousAccountId: StoreState["previousAccountId"];
 }
 
-function findSingleAccountForReload(input: SingleAccountReloadInput, showPickerForReload: boolean) {
+interface ResolveSingleAccountForReloadInput {
+  accountSummaries: StoreState["accountSummaries"];
+  accountSummariesComplete: boolean;
+  activeAccountId: StoreState["activeAccountId"];
+  demoAuthActive: boolean;
+  fakeSignedIn: boolean;
+  joinedAccountHandoff: ReturnType<typeof readJoinedAccountHandoff>;
+  previousAccountId: StoreState["previousAccountId"];
+  showPickerForReload: boolean;
+}
+
+function resolveSingleAccountForReload(input: ResolveSingleAccountForReloadInput) {
   const account = input.accountSummaries[0];
   if (
     input.joinedAccountHandoff !== null ||
-    showPickerForReload ||
+    input.showPickerForReload ||
     input.activeAccountId !== null ||
     input.previousAccountId !== null ||
     (input.demoAuthActive && !input.fakeSignedIn) ||
@@ -119,19 +130,16 @@ function useSingleAccountReload(input: SingleAccountReloadInput) {
     if (accountSummaries.length === 0) return;
 
     singleAccountReloadHandled.current = true;
-    const account = findSingleAccountForReload(
-      {
-        accountSummaries,
-        accountSummariesComplete,
-        activeAccountId,
-        demoAuthActive,
-        fakeSignedIn,
-        hydrated,
-        joinedAccountHandoff,
-        previousAccountId,
-      },
+    const account = resolveSingleAccountForReload({
+      accountSummaries,
+      accountSummariesComplete,
+      activeAccountId,
+      demoAuthActive,
+      fakeSignedIn,
+      joinedAccountHandoff,
+      previousAccountId,
       showPickerForReload,
-    );
+    });
     if (!account) return;
 
     void transitionAccount(account.id);
@@ -162,18 +170,26 @@ function useAccountLocale(accounts: StoreState["data"]["accounts"], activeAccoun
   return { activeLanguage, activeLanguagePending };
 }
 
-function useDocumentTitle(
-  pathname: string,
-  activeLanguage: StoreState["data"]["accounts"][number]["language"] | undefined,
-  activeLanguagePending: boolean,
-) {
+interface DocumentTitleInput {
+  activeLanguage: StoreState["data"]["accounts"][number]["language"] | undefined;
+  activeLanguagePending: boolean;
+  pathname: string;
+}
+
+function useDocumentTitle(input: DocumentTitleInput) {
+  const { activeLanguage, activeLanguagePending, pathname } = input;
   useEffect(() => {
     const match = [...LINKS, ...ADMIN_LINKS].find(({ to }) => matchPath({ path: to, end: true }, pathname) !== null);
     document.title = match ? `${match.label()} · ${APP_NAME}` : APP_NAME;
   }, [pathname, activeLanguage, activeLanguagePending]);
 }
 
-function useBeforeUnloadWarning(dirtyForm: boolean) {
+interface BeforeUnloadWarningInput {
+  dirtyForm: boolean;
+}
+
+function useBeforeUnloadWarning(input: BeforeUnloadWarningInput) {
+  const { dirtyForm } = input;
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!dirtyForm && !hasUnsavedPersistenceWrites()) return;
@@ -215,7 +231,7 @@ interface GlobalShortcutsInput {
 type PaletteShortcutInput = Pick<GlobalShortcutsInput, "paletteOpen" | "setPaletteOpen">;
 type HistoryShortcutInput = Pick<GlobalShortcutsInput, "redo" | "undo">;
 
-function handlePaletteShortcut(event: KeyboardEvent, input: PaletteShortcutInput): boolean {
+function applyPaletteShortcutEffect(event: KeyboardEvent, input: PaletteShortcutInput): boolean {
   if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "k") return false;
   if (event.isComposing) return true;
   if (useStore.getState().dirtyForm) {
@@ -230,7 +246,7 @@ function handlePaletteShortcut(event: KeyboardEvent, input: PaletteShortcutInput
   return true;
 }
 
-function handleHistoryShortcut(event: KeyboardEvent, input: HistoryShortcutInput) {
+function applyHistoryShortcutEffect(event: KeyboardEvent, input: HistoryShortcutInput) {
   if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") return;
   if (event.isComposing || isTextEntryShortcutOwner(event.target) || hasOpenModal()) return;
   if (useStore.getState().dirtyForm) return;
@@ -243,8 +259,8 @@ function useGlobalShortcuts(input: GlobalShortcutsInput) {
   const { paletteOpen, redo, setPaletteOpen, undo } = input;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!handlePaletteShortcut(event, { paletteOpen, setPaletteOpen })) {
-        handleHistoryShortcut(event, { redo, undo });
+      if (!applyPaletteShortcutEffect(event, { paletteOpen, setPaletteOpen })) {
+        applyHistoryShortcutEffect(event, { redo, undo });
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -303,8 +319,8 @@ export function useAppShellController() {
     previousAccountId,
   });
   const { activeLanguage, activeLanguagePending } = useAccountLocale(accounts, activeAccountId);
-  useDocumentTitle(pathname, activeLanguage, activeLanguagePending);
-  useBeforeUnloadWarning(dirtyForm);
+  useDocumentTitle({ activeLanguage, activeLanguagePending, pathname });
+  useBeforeUnloadWarning({ dirtyForm });
   useNoticeBridge(notice, setNotice);
   useGlobalShortcuts({ paletteOpen, redo, setPaletteOpen, undo });
   useAuditWarning(setNotice);
