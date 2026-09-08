@@ -729,6 +729,25 @@ describe("normalizeSessionUser (P1.7a)", () => {
   });
 });
 
+interface SessionActivityBoundaryInput {
+  _label: string;
+  rep: "integer epoch" | "ISO-8601 text";
+  elapsed: number;
+  active: boolean;
+}
+
+const sessionActivityBoundaryCases: SessionActivityBoundaryInput[] = (
+  ["integer epoch", "ISO-8601 text"] as const
+).flatMap((rep) =>
+  (
+    [
+      ["one millisecond before", SESSION_INACTIVITY_TTL_SECONDS * 1000 - 1, true],
+      ["exactly at", SESSION_INACTIVITY_TTL_SECONDS * 1000, false],
+      ["one millisecond after", SESSION_INACTIVITY_TTL_SECONDS * 1000 + 1, false],
+    ] as const
+  ).map(([label, elapsed, active]) => ({ _label: `${label} (${rep})`, rep, elapsed, active })),
+);
+
 describe("CAPACITYLENS_AUTH password", () => {
   it("401s data routes without a session; /api/health stays open", async () => {
     const app = await appWithAuth(PASSWORD_ENV);
@@ -772,7 +791,9 @@ describe("CAPACITYLENS_AUTH password", () => {
       (await call(app, { method: "POST", url: "/api/auth/two-factor/generate-backup-codes", payload: {} })).statusCode,
     ).not.toBe(404);
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("refuses to relink a principal who already has the strict provider", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
@@ -803,7 +824,9 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(parseErrorCode(response)).toBe("PROVIDER_ALREADY_LINKED");
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("refuses a corrupted principal with multiple strict-provider links", async () => {
     const raw = openDb(":memory:");
     const observed = new Proxy(raw, {
@@ -850,7 +873,9 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(parseErrorCode(response)).toBe("MULTIPLE_PROVIDER_LINKS");
     expect(raw.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("guards provider-link initiation when no strict provider exists or the session principal does not match", async () => {
     const passwordDb = openDb(":memory:");
     const password = createAuthFromEnvironment(passwordDb, PASSWORD_ENV);
@@ -877,7 +902,9 @@ describe("CAPACITYLENS_AUTH password", () => {
     ).rejects.toMatchObject({ body: { code: "SESSION_EXPIRED" } });
     expect(strictDb.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("rejects an untrusted link return URL before persisting a ceremony", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
@@ -903,7 +930,9 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(parseErrorCode(response)).toBe("INVALID_CALLBACK_URL");
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it.each(["not an absolute URL", "http://user:password@localhost:8787/settings"])(
     "rejects malformed or credentialed link return URL %j before persisting a ceremony",
     async (callbackURL) => {
@@ -932,7 +961,9 @@ describe("CAPACITYLENS_AUTH password", () => {
       expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
     },
   );
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("forwards the signed OAuth state cookie when a provider-link ceremony starts", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
@@ -962,7 +993,9 @@ describe("CAPACITYLENS_AUTH password", () => {
       1,
     );
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("does not expose SSO email repair on an ordinary password-only installation", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -1005,7 +1038,9 @@ describe("CAPACITYLENS_AUTH password", () => {
       email: "owner@example.com",
     });
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("accepts federated assurance as MFA in mixed mode and advertises provider step-up", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
@@ -1056,7 +1091,9 @@ describe("CAPACITYLENS_AUTH password", () => {
       reauthProviderId: "sso",
     });
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("requires enrollment, verifies TOTP, and challenges every later password sign-in", async () => {
     const { app, email, password, signupCookie } = await createRequiredMfaFixture();
     const { enrolledCookie, secret } = await completeRequiredMfaEnrollment({
@@ -1110,7 +1147,9 @@ describe("CAPACITYLENS_AUTH password", () => {
       ).statusCode,
     ).toBe(200);
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("sign-up → session cookie → the session authenticates and /api/auth/me reports the user", async () => {
     const app = await appWithAuth(PASSWORD_ENV);
     const signUp = await call(app, {
@@ -1169,7 +1208,9 @@ describe("CAPACITYLENS_AUTH password", () => {
     });
     expect(scoped.statusCode).toBe(403);
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("emits a valid __Host session cookie for an HTTPS public origin", async () => {
     const app = await appWithAuth({
       ...PASSWORD_ENV,
@@ -1194,7 +1235,9 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(session).toMatch(/;\s*HttpOnly/i);
     expect(session).not.toMatch(/;\s*Domain=/i);
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it.each([
     ["ordinary cookie", PASSWORD_ENV],
     ["secure __Host- cookie", { ...PASSWORD_ENV, BETTER_AUTH_URL: "https://capacity.example" }],
@@ -1250,7 +1293,9 @@ describe("CAPACITYLENS_AUTH password", () => {
       ).toBe(401);
     },
   );
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("expires a session whose activity timestamp is in the future", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -1282,30 +1327,11 @@ describe("CAPACITYLENS_AUTH password", () => {
     ).toBe(401);
     expect((db.prepare(`SELECT COUNT(*) AS n FROM session`).get() as { n: number }).n).toBe(0);
   });
+});
 
-  interface SessionActivityBoundaryInput {
-    _label: string;
-    rep: "integer epoch" | "ISO-8601 text";
-    elapsed: number;
-    active: boolean;
-  }
-
-  // Both storage representations: ISO-8601 text is what Better Auth's node:sqlite adapter really
-  // writes (the column is declared `date`, so text stays text); integer epoch milliseconds is the
-  // legacy fixture representation the implementation must also survive. The column below is
-  // declared `date` like the real schema — a hand-made table with a different declared type once
-  // hid the representation mismatch entirely.
-  const boundaryCases: SessionActivityBoundaryInput[] = (["integer epoch", "ISO-8601 text"] as const).flatMap((rep) =>
-    (
-      [
-        ["one millisecond before", SESSION_INACTIVITY_TTL_SECONDS * 1000 - 1, true],
-        ["exactly at", SESSION_INACTIVITY_TTL_SECONDS * 1000, false],
-        ["one millisecond after", SESSION_INACTIVITY_TTL_SECONDS * 1000 + 1, false],
-      ] as const
-    ).map(([label, elapsed, active]) => ({ _label: `${label} (${rep})`, rep: rep, elapsed: elapsed, active: active })),
-  );
-
-  it.each(boundaryCases)(
+describe("CAPACITYLENS_AUTH password", () => {
+  // Both storage representations exercise the real `date` column representation.
+  it.each(sessionActivityBoundaryCases)(
     "treats a session $_label the inactivity deadline as active=$rep",
     async ({ rep, elapsed, active }: SessionActivityBoundaryInput) => {
       const db = openDb(":memory:");
@@ -1329,7 +1355,9 @@ describe("CAPACITYLENS_AUTH password", () => {
       }
     },
   );
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it.each([
     { caseName: "fresh concurrent activity", next: "2026-07-31T09:00:00.000Z", preparationFails: false },
     { caseName: "malformed concurrent activity", next: "not-a-timestamp", preparationFails: false },
@@ -1381,7 +1409,9 @@ describe("CAPACITYLENS_AUTH password", () => {
       raw.close();
     }
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("touches active sessions without extending their absolute expiry", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -1422,7 +1452,9 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(new Date(touched.updatedAt).getTime()).toBeGreaterThan(twoMinutesAgo);
     expect(new Date(touched.expiresAt).getTime()).toBe(new Date(initial.expiresAt).getTime());
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("does not delete a session touched after an expired request resolved its stale snapshot", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -1443,7 +1475,9 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(resolved).not.toBeNull();
     expect(db.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(stored.token)).toEqual({ updatedAt: newer });
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("does not move a concurrent newer session touch backward", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -1463,7 +1497,9 @@ describe("CAPACITYLENS_AUTH password", () => {
 
     expect(db.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(stored.token)).toEqual({ updatedAt: newer });
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("destroys a session resolved with a non-finite activity timestamp", async () => {
     const db = openDb(":memory:");
     db.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
@@ -1474,7 +1510,9 @@ describe("CAPACITYLENS_AUTH password", () => {
     ).resolves.toBeNull();
     expect(db.prepare(`SELECT token FROM session`).all()).toEqual([]);
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it.each([
     ["a vanished row", false],
     ["an unparseable stored timestamp", true],
@@ -1491,7 +1529,9 @@ describe("CAPACITYLENS_AUTH password", () => {
     ).resolves.toBeNull();
     expect(db.prepare(`SELECT token FROM session`).all()).toEqual([]);
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("adopts a concurrent touch when the idle-expiry CAS delete loses", async () => {
     const raw = openDb(":memory:");
     raw.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
@@ -1546,7 +1586,9 @@ describe("CAPACITYLENS_AUTH password", () => {
     ).resolves.toBeNull();
     expect(db.prepare(`SELECT token FROM session`).all()).toEqual([]);
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("revokes dependent sessions when malformed activity is deleted during a touch", async () => {
     const db = openDb(":memory:");
     const token = "touch-invalid-lifecycle";
@@ -1572,7 +1614,9 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(prepare).toHaveBeenCalledOnce();
     expect(commit).toHaveBeenCalledOnce();
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("adopts the winner when the activity-touch CAS loses", async () => {
     const raw = openDb(":memory:");
     raw.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
@@ -1610,7 +1654,9 @@ describe("CAPACITYLENS_AUTH password", () => {
     await expect(enforceSessionActivity(session, raced)).resolves.toBe(session);
     expect(session.session.updatedAt.getTime()).toBe(Date.parse(winner));
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("sign-out invalidates the session again", async () => {
     const app = await appWithAuth(PASSWORD_ENV);
     const signUp = await call(app, {
@@ -1640,7 +1686,9 @@ describe("CAPACITYLENS_AUTH password", () => {
       ).statusCode,
     ).toBe(401);
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("lists and revokes sessions through neutral opaque handles without exposing bearer tokens", async () => {
     const { app, cookie, db, raw, staleHandle } = await createSessionManagementFixture();
 
@@ -1682,7 +1730,9 @@ describe("CAPACITYLENS_AUTH password", () => {
       ).statusCode,
     ).toBe(401);
   });
+});
 
+describe("CAPACITYLENS_AUTH password", () => {
   it("propagates sign-out cookie clearing through the neutral account route", async () => {
     const app = await appWithAuth(PASSWORD_ENV);
     const signUp = await call(app, {

@@ -37,6 +37,10 @@ export function parseAuditConfig(
   // Compose mapping pass-throughs define omitted values as ''. Treat that generated empty value as
   // absent so deployments outside the packaged Compose file cannot accidentally create a sink at an
   // unusable path. Deliberately do not trim: spaces can be valid in an explicitly configured path.
-  const file = environment.CAPACITYLENS_AUDIT_FILE || join(dirname(dbPath), "capacitylens-audit.jsonl");
+  const configuredFile = environment.CAPACITYLENS_AUDIT_FILE;
+  const file =
+    configuredFile === "" || configuredFile === undefined
+      ? join(dirname(dbPath), "capacitylens-audit.jsonl")
+      : configuredFile;
   return { enabled, file };
 }

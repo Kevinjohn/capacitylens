@@ -13,6 +13,12 @@ export function readRowCountsByTable(db: DatabaseSync): Record<string, number> {
   );
 }
 
+function compareKeys(left: string, right: string): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 function buildSerializableValue(value: unknown): unknown {
   if (typeof value === "bigint") return value.toString();
   if (value instanceof Uint8Array) return Buffer.from(value).toString("base64");
@@ -20,7 +26,7 @@ function buildSerializableValue(value: unknown): unknown {
   if (value && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .sort(([left], [right]) => compareKeys(left, right))
         .map(([key, item]) => [key, buildSerializableValue(item)]),
     );
   }

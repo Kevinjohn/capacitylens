@@ -53,7 +53,8 @@ const TOMBSTONE = { archivedAt: TS, deletedAt: "2026-01-02T00:00:00.000Z" };
 async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  await runAuthMigrations(auth!);
+  if (!auth) throw new Error("Password auth fixture was not created.");
+  await runAuthMigrations(auth);
   return { app: buildApp(db, { authMode: mode, auth }), db };
 }
 

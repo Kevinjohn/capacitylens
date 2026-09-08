@@ -120,22 +120,7 @@ interface RemapIdentityCoordinatesInput {
   db: DatabaseSync;
   hasProviderCoordinates: boolean;
 }
-export function remapIdentityCoordinates({ db, hasProviderCoordinates }: RemapIdentityCoordinatesInput): void {
-  // Preserve the original admission proof before remapping any identity coordinates.
-  // A stale subject, principal or provider must never become a valid proof after scrubbing.
-  updateIfPresent({
-    db: db,
-    table: "capacitylens_federated_link_observations",
-    column: "subject",
-    expression: hasProviderCoordinates
-      ? `COALESCE((SELECT 'rehearsal-provider-account-' || account.rowid FROM account
-              WHERE account.id = capacitylens_federated_link_observations.accountRowId
-                AND account.accountId = capacitylens_federated_link_observations.subject
-                AND account.userId = capacitylens_federated_link_observations.principalId
-                AND account.providerId = capacitylens_federated_link_observations.providerId),
-              'rehearsal-orphan-subject-' || rowid)`
-      : `'rehearsal-orphan-subject-' || rowid`,
-  });
+function remapAccountCoordinates(db: DatabaseSync): void {
   remapIds({
     db: db,
     table: "accounts",
@@ -165,6 +150,9 @@ export function remapIdentityCoordinates({ db, hasProviderCoordinates }: RemapId
     idColumn: "id",
     references: [{ table: "resources", column: "disciplineId" }],
   });
+}
+
+function remapSchedulingCoordinates(db: DatabaseSync): void {
   remapIds({
     db: db,
     table: "projects",
@@ -209,6 +197,9 @@ export function remapIdentityCoordinates({ db, hasProviderCoordinates }: RemapId
   remapIds({ db: db, table: "allocations", idColumn: "id", references: [] });
   remapIds({ db: db, table: "timeOff", idColumn: "id", references: [] });
   remapIds({ db: db, table: "closures", idColumn: "id", references: [] });
+}
+
+function remapPrincipalCoordinates(db: DatabaseSync): void {
   remapIds({
     db: db,
     table: "user",
@@ -262,6 +253,9 @@ export function remapIdentityCoordinates({ db, hasProviderCoordinates }: RemapId
       { table: "capacitylens_federated_link_observations", column: "providerId" },
     ],
   });
+}
+
+function scrubIdentityCoordinates(db: DatabaseSync): void {
   scrubDanglingReferences({
     db: db,
     parentTable: "accounts",
@@ -308,4 +302,26 @@ export function remapIdentityCoordinates({ db, hasProviderCoordinates }: RemapId
     ],
     label: "provider",
   });
+}
+
+export function remapIdentityCoordinates({ db, hasProviderCoordinates }: RemapIdentityCoordinatesInput): void {
+  // Preserve the original admission proof before remapping any identity coordinates.
+  // A stale subject, principal or provider must never become a valid proof after scrubbing.
+  updateIfPresent({
+    db,
+    table: "capacitylens_federated_link_observations",
+    column: "subject",
+    expression: hasProviderCoordinates
+      ? `COALESCE((SELECT 'rehearsal-provider-account-' || account.rowid FROM account
+              WHERE account.id = capacitylens_federated_link_observations.accountRowId
+                AND account.accountId = capacitylens_federated_link_observations.subject
+                AND account.userId = capacitylens_federated_link_observations.principalId
+                AND account.providerId = capacitylens_federated_link_observations.providerId),
+              'rehearsal-orphan-subject-' || rowid)`
+      : `'rehearsal-orphan-subject-' || rowid`,
+  });
+  remapAccountCoordinates(db);
+  remapSchedulingCoordinates(db);
+  remapPrincipalCoordinates(db);
+  scrubIdentityCoordinates(db);
 }

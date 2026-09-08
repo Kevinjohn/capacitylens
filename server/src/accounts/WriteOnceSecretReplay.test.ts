@@ -41,6 +41,10 @@ describe("WriteOnceSecretReplay", () => {
     expect(replay.get("second")).toBe("secret-2");
     expect(vi.getTimerCount()).toBe(2);
   });
+});
+
+describe("WriteOnceSecretReplay reservations", () => {
+  afterEach(() => vi.useRealTimers());
 
   it("releases an unused reservation and never lets it delete a stored response", () => {
     const replay = new WriteOnceSecretReplay<string>(1);

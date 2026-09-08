@@ -8,6 +8,25 @@ import {
   setMemberSignInTracking,
 } from "./memberSignInTracking";
 
+function openTrackingDb(): Db {
+  const db = openDb(":memory:");
+  upsertMember(db, {
+    accountId: "account-a",
+    userId: "owner",
+    role: "owner",
+    status: "active",
+    createdAt: "2026-08-10T10:00:00.000Z",
+  });
+  upsertMember(db, {
+    accountId: "account-a",
+    userId: "editor",
+    role: "editor",
+    status: "active",
+    createdAt: "2026-08-10T10:01:00.000Z",
+  });
+  return db;
+}
+
 describe("privacy-preserving member sign-in confirmation", () => {
   let db: Db | null = null;
 
@@ -17,21 +36,7 @@ describe("privacy-preserving member sign-in confirmation", () => {
   });
 
   function setup(): Db {
-    db = openDb(":memory:");
-    upsertMember(db, {
-      accountId: "account-a",
-      userId: "owner",
-      role: "owner",
-      status: "active",
-      createdAt: "2026-08-10T10:00:00.000Z",
-    });
-    upsertMember(db, {
-      accountId: "account-a",
-      userId: "editor",
-      role: "editor",
-      status: "active",
-      createdAt: "2026-08-10T10:01:00.000Z",
-    });
+    db = openTrackingDb();
     return db;
   }
 
@@ -70,6 +75,20 @@ describe("privacy-preserving member sign-in confirmation", () => {
       .get() as { sql: string };
     expect(trackingSql.sql).not.toMatch(/timestamp|date|at\b/i);
   });
+});
+
+describe("member sign-in confirmation state", () => {
+  let db: Db | null = null;
+
+  afterEach(() => {
+    db?.close();
+    db = null;
+  });
+
+  function setup(): Db {
+    db = openTrackingDb();
+    return db;
+  }
 
   it("does not reset confirmations when an enabled setting is repeated", () => {
     const current = setup();
@@ -83,6 +102,20 @@ describe("privacy-preserving member sign-in confirmation", () => {
     });
     expect(readMemberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(true);
   });
+});
+
+describe("member sign-in confirmation lifecycle", () => {
+  let db: Db | null = null;
+
+  afterEach(() => {
+    db?.close();
+    db = null;
+  });
+
+  function setup(): Db {
+    db = openTrackingDb();
+    return db;
+  }
 
   it("clears a confirmation after a deliberate access reset", () => {
     const current = setup();
@@ -105,6 +138,20 @@ describe("privacy-preserving member sign-in confirmation", () => {
     );
     expect(readMemberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(false);
   });
+});
+
+describe("member sign-in confirmation erasure", () => {
+  let db: Db | null = null;
+
+  afterEach(() => {
+    db?.close();
+    db = null;
+  });
+
+  function setup(): Db {
+    db = openTrackingDb();
+    return db;
+  }
 
   it("erases every observation when the owner turns tracking off", () => {
     const current = setup();
