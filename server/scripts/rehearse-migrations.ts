@@ -130,6 +130,118 @@ function parseOptions(args: string[]): CliOptions {
   };
 }
 
+interface RehearsalSource {
+  beforeVersion: number;
+  beforeCounts: Record<string, number>;
+  beforeDigest: string;
+  beforeValues: ReturnType<typeof captureMigrationValues>;
+  expectedCounts: Record<string, number>;
+  plan: ReturnType<typeof planDatabaseMigrations>;
+}
+
+function readDatabaseVersion(db: DatabaseSync): number {
+  return Number((db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version);
+}
+
+function prepareRehearsalSource(base: string): RehearsalSource {
+  const db = new DatabaseSync(base, { enableForeignKeyConstraints: false });
+  try {
+    const sourceVersion = readDatabaseVersion(db);
+    const expectedCounts = readExpectedPostMigrationRowCounts(db, sourceVersion);
+    anonymise(db);
+    checkIntegrity(db, "anonymised source");
+    return {
+      beforeVersion: readDatabaseVersion(db),
+      beforeCounts: readRowCountsByTable(db),
+      beforeValues: captureMigrationValues(db),
+      beforeDigest: readDatabaseDigest(db),
+      expectedCounts,
+      plan: planDatabaseMigrations(db),
+    };
+  } finally {
+    db.close();
+  }
+}
+
+async function runHappyPath(directory: string, base: string, source: RehearsalSource): Promise<string> {
+  const happyPath = join(directory, "happy.db");
+  copyFileSync(base, happyPath);
+  const backups = join(directory, "backups");
+  mkdirSync(backups);
+  const db = openDbConnection(happyPath);
+  let rollback: string | null;
+  try {
+    rollback = await writePreMigrationBackup({
+      db,
+      options: {
+        dbPath: happyPath,
+        fromVersion: source.plan.fromVersion,
+        toVersion: source.plan.toVersion,
+        dir: backups,
+      },
+      log: () => {},
+    });
+    initializeOpenDb(db, happyPath);
+    checkIntegrity(db, "happy path");
+    assertPreserved(source.beforeCounts, readRowCountsByTable(db), source.expectedCounts);
+    assertMigrationValuesPreserved(source.beforeValues, captureMigrationValues(db), source.beforeVersion);
+  } finally {
+    db.close();
+  }
+  if (!rollback) throw new Error("happy path did not create a rollback snapshot");
+  return rollback;
+}
+
+function verifyRollbackSnapshot(rollback: string, beforeDigest: string): void {
+  const db = new DatabaseSync(rollback, { readOnly: true, enableForeignKeyConstraints: false });
+  try {
+    checkIntegrity(db, "rollback snapshot");
+    if (readDatabaseDigest(db) !== beforeDigest) throw new Error("rollback snapshot differs from anonymised source");
+  } finally {
+    db.close();
+  }
+}
+
+function verifyIdempotentReopen(happyPath: string): void {
+  const db = openDb(happyPath);
+  try {
+    if (planDatabaseMigrations(db).migrations.length !== 0) throw new Error("reopen was not idempotent");
+  } finally {
+    db.close();
+  }
+}
+
+function verifyDiskFullRollback(directory: string, base: string, beforeDigest: string): void {
+  const path = join(directory, "disk-full.db");
+  copyFileSync(base, path);
+  const db = openDbConnection(path);
+  const diskError = Object.assign(new Error("simulated ENOSPC during migration"), { code: "ENOSPC" });
+  try {
+    let failedAsExpected = false;
+    try {
+      initializeOpenDb(db, path, {
+        beforeCommit: () => {
+          throw diskError;
+        },
+      });
+    } catch (error) {
+      if (error === diskError) failedAsExpected = true;
+      else throw error;
+    }
+    if (!failedAsExpected) throw new Error("simulated disk exhaustion unexpectedly committed");
+    checkIntegrity(db, "disk-exhaustion rollback");
+    if (readDatabaseDigest(db) !== beforeDigest) throw new Error("disk exhaustion left a partially applied migration");
+  } finally {
+    db.close();
+  }
+}
+
+function requireLastMigrationVersion(plan: RehearsalSource["plan"]): number {
+  const migration = plan.migrations.at(-1);
+  if (!migration) throw new Error("migration rehearsal requires at least one pending migration");
+  return migration.version;
+}
+
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
   if (!existsSync(options.source)) throw new Error(`source database does not exist: ${options.source}`);
@@ -137,119 +249,23 @@ async function main(): Promise<void> {
   try {
     const base = join(directory, "anonymised-source.db");
     await copyDatabaseOnline(options.source, base);
-    const sanitising = new DatabaseSync(base, {
-      enableForeignKeyConstraints: false,
-    });
-    let expectedCounts: Record<string, number>;
-    let beforeVersion: number;
-    let beforeCounts: Record<string, number>;
-    let beforeDigest: string;
-    let beforeValues: ReturnType<typeof captureMigrationValues>;
-    let plan: ReturnType<typeof planDatabaseMigrations>;
-    try {
-      const sourceVersion = Number(
-        (
-          sanitising.prepare("PRAGMA user_version").get() as {
-            user_version: number;
-          }
-        ).user_version,
-      );
-      expectedCounts = readExpectedPostMigrationRowCounts(sanitising, sourceVersion);
-      anonymise(sanitising);
-      checkIntegrity(sanitising, "anonymised source");
-      beforeVersion = Number(
-        (
-          sanitising.prepare("PRAGMA user_version").get() as {
-            user_version: number;
-          }
-        ).user_version,
-      );
-      beforeCounts = readRowCountsByTable(sanitising);
-      beforeValues = captureMigrationValues(sanitising);
-      beforeDigest = readDatabaseDigest(sanitising);
-      plan = planDatabaseMigrations(sanitising);
-    } finally {
-      sanitising.close();
-    }
+    const source = prepareRehearsalSource(base);
+    const { beforeVersion, beforeCounts, beforeDigest, plan } = source;
     if (plan.migrations.length === 0) {
       throw new Error(`source is already at database v${DB_SCHEMA_VERSION}; choose an older released database`);
     }
 
     const happyPath = join(directory, "happy.db");
-    copyFileSync(base, happyPath);
-    const backups = join(directory, "backups");
-    mkdirSync(backups);
-    const happy = openDbConnection(happyPath);
-    let rollback: string | null;
-    try {
-      rollback = await writePreMigrationBackup({
-        db: happy,
-        options: {
-          dbPath: happyPath,
-          fromVersion: plan.fromVersion,
-          toVersion: plan.toVersion,
-          dir: backups,
-        },
-        log: () => {},
-      });
-      initializeOpenDb(happy, happyPath);
-      checkIntegrity(happy, "happy path");
-      assertPreserved(beforeCounts, readRowCountsByTable(happy), expectedCounts);
-      assertMigrationValuesPreserved(beforeValues, captureMigrationValues(happy), beforeVersion);
-    } finally {
-      happy.close();
-    }
-    if (!rollback) throw new Error("happy path did not create a rollback snapshot");
-
-    const rollbackDb = new DatabaseSync(rollback, {
-      readOnly: true,
-      enableForeignKeyConstraints: false,
-    });
-    try {
-      checkIntegrity(rollbackDb, "rollback snapshot");
-      if (readDatabaseDigest(rollbackDb) !== beforeDigest)
-        throw new Error("rollback snapshot differs from anonymised source");
-    } finally {
-      rollbackDb.close();
-    }
-
-    const reopened = openDb(happyPath);
-    try {
-      if (planDatabaseMigrations(reopened).migrations.length !== 0) throw new Error("reopen was not idempotent");
-    } finally {
-      reopened.close();
-    }
-
-    const diskFullPath = join(directory, "disk-full.db");
-    copyFileSync(base, diskFullPath);
-    const diskFull = openDbConnection(diskFullPath);
-    const diskError = Object.assign(new Error("simulated ENOSPC during migration"), { code: "ENOSPC" });
-    try {
-      let failedAsExpected = false;
-      try {
-        initializeOpenDb(diskFull, diskFullPath, {
-          beforeCommit: () => {
-            throw diskError;
-          },
-        });
-      } catch (error) {
-        if (error === diskError) failedAsExpected = true;
-        else throw error;
-      }
-      if (!failedAsExpected) throw new Error("simulated disk exhaustion unexpectedly committed");
-      checkIntegrity(diskFull, "disk-exhaustion rollback");
-      if (readDatabaseDigest(diskFull) !== beforeDigest)
-        throw new Error("disk exhaustion left a partially applied migration");
-    } finally {
-      diskFull.close();
-    }
+    verifyRollbackSnapshot(await runHappyPath(directory, base, source), beforeDigest);
+    verifyIdempotentReopen(happyPath);
+    verifyDiskFullRollback(directory, base, beforeDigest);
 
     const killedPath = join(directory, "killed.db");
     copyFileSync(base, killedPath);
     // Kill the LAST pending migration, after every earlier step has committed. This exercises a
     // real mid-chain restart rather than repeatedly killing only the first pending version, then
     // reopens the database and proves the remaining upgrade resumes to completion.
-    await expectKilledMigrationRollsBack(killedPath, plan.migrations.at(-1)!.version);
+    await expectKilledMigrationRollsBack(killedPath, requireLastMigrationVersion(plan));
 
     const totalRows = Object.values(beforeCounts).reduce((sum, count) => sum + count, 0);
     console.log(

@@ -39,6 +39,12 @@ function readVerificationSnapshot(path: string): VerificationSnapshot {
   }
 }
 
+function requireRetainedDirectory(stdout: string): string {
+  const retained = /Anonymised rehearsal artifacts retained at (.+)/.exec(stdout)?.[1]?.trim();
+  if (!retained) throw new Error("Expected the rehearsal to report its retained artifact directory");
+  return retained;
+}
+
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
@@ -137,13 +143,12 @@ describe("migration rehearsal", () => {
       },
     );
     expect(result.status, result.stderr || result.stdout).toBe(0);
-    const retained = /Anonymised rehearsal artifacts retained at (.+)/.exec(result.stdout)?.[1]?.trim();
-    expect(retained).toBeTruthy();
+    const retained = requireRetainedDirectory(result.stdout);
 
     // Read and close both native handles before asserting. If the observed state is wrong, Vitest
     // can now report the values and terminate instead of waiting for the job-level timeout.
-    const anonymised = readVerificationSnapshot(join(retained!, "anonymised-source.db"));
-    const migrated = readVerificationSnapshot(join(retained!, "happy.db"));
+    const anonymised = readVerificationSnapshot(join(retained, "anonymised-source.db"));
+    const migrated = readVerificationSnapshot(join(retained, "happy.db"));
 
     expect(anonymised.linkedCount).toBe(1);
     expect(anonymised.linkedValue).toMatch(/^rehearsal-user-/);

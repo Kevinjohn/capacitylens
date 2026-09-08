@@ -25,33 +25,33 @@ export function createStreamAuditSink(write: (line: string) => void): AuditSink 
   const remember = (auditId: string | undefined) => {
     if (auditId === undefined) return;
     if (recentlyEmitted.size >= MAX_RECOVERY_DELIVERY_IDS) {
-      recentlyEmitted.delete(recentlyEmitted.values().next().value!);
+      const oldest = recentlyEmitted.values().next();
+      if (!oldest.done) recentlyEmitted.delete(oldest.value);
     }
     recentlyEmitted.add(auditId);
   };
-  return {
-    append(record) {
-      return this.appendMany!([record]);
-    },
-    appendMany(records) {
-      try {
-        let ok = true;
-        for (const record of records) {
-          if (record.auditId !== undefined && recentlyEmitted.has(record.auditId)) continue; // already delivered
-          try {
-            write(JSON.stringify({ type: "capacitylens.audit", ...record }));
-            remember(record.auditId);
-          } catch {
-            degraded = true;
-            ok = false;
-          }
+  const appendMany: NonNullable<AuditSink["appendMany"]> = (records) => {
+    try {
+      let ok = true;
+      for (const record of records) {
+        if (record.auditId !== undefined && recentlyEmitted.has(record.auditId)) continue; // already delivered
+        try {
+          write(JSON.stringify({ type: "capacitylens.audit", ...record }));
+          remember(record.auditId);
+        } catch {
+          degraded = true;
+          ok = false;
         }
-        return ok;
-      } catch {
-        degraded = true;
-        return false;
       }
-    },
+      return ok;
+    } catch {
+      degraded = true;
+      return false;
+    }
+  };
+  return {
+    append: (record) => appendMany([record]),
+    appendMany,
     get degraded() {
       return degraded;
     },
