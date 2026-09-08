@@ -306,12 +306,6 @@
     }
   },
   "server/src/accounts/conformance/identityPort.contract.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 3
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 9
-    },
     "max-lines-per-function": {
       "count": 4
     }
@@ -528,17 +522,6 @@
       "count": 2
     }
   },
-  "server/src/accounts/state.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 14
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 5
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "server/src/accounts/state/commandLedgerWrites.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 2
@@ -569,20 +552,9 @@
       "count": 4
     }
   },
-  "server/src/app.accounts.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 3
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 10
-    }
-  },
   "server/src/app.auth.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
-      "count": 36
+      "count": 32
     },
     "max-lines-per-function": {
       "count": 9
@@ -631,11 +603,6 @@
       "count": 1
     }
   },
-  "server/src/app.invites.test.ts": {
-    "max-lines-per-function": {
-      "count": 4
-    }
-  },
   "server/src/app.lifecycle.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
@@ -661,17 +628,6 @@
     },
     "max-lines-per-function": {
       "count": 12
-    }
-  },
-  "server/src/app.orgs.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 12
-    },
-    "max-lines-per-function": {
-      "count": 2
     }
   },
   "server/src/app.resetPassword.test.ts": {
@@ -713,13 +669,13 @@
   },
   "server/src/app.test.ts": {
     "@typescript-eslint/no-unsafe-argument": {
-      "count": 17
+      "count": 16
     },
     "@typescript-eslint/no-unsafe-assignment": {
-      "count": 81
+      "count": 71
     },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 110
+      "count": 88
     },
     "max-lines-per-function": {
       "count": 15
@@ -1017,20 +973,11 @@
     }
   },
   "server/src/db.migrate.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 5
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 1
-    },
     "complexity": {
       "count": 1
     },
     "max-lines-per-function": {
-      "count": 12
+      "count": 10
     }
   },
   "server/src/db.permissions.test.ts": {
@@ -1770,11 +1717,6 @@
       "count": 1
     }
   },
-  "shared/src/lib/integrity.test.ts": {
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "shared/src/lib/integrity.ts": {
     "complexity": {
       "count": 1
@@ -2464,11 +2406,6 @@
       "count": 1
     }
   },
-  "src/components/scheduler/AllocationBar.interaction.test.tsx": {
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "src/components/scheduler/AllocationBar.test.tsx": {
     "max-lines-per-function": {
       "count": 1
@@ -2495,7 +2432,7 @@
   },
   "src/components/scheduler/AllocationModal.test.tsx": {
     "max-lines-per-function": {
-      "count": 7
+      "count": 1
     }
   },
   "src/components/scheduler/AllocationModal.tsx": {
@@ -3115,11 +3052,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "src/data/persist.test.ts": {
-    "max-lines-per-function": {
-      "count": 6
     }
   },
   "src/data/persistence/attachPersistence.ts": {
