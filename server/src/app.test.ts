@@ -3845,7 +3845,7 @@ describe("global error redaction", () => {
   });
 });
 
-describe("CORS allow-list", () => {
+function registerCorsOriginConfigurationTests() {
   it("defaults FAIL-CLOSED to the localhost allow-list (not a wildcard)", async () => {
     const { app } = freshApp();
     // A local dev origin is reflected (it's on the default allow-list)…
@@ -3898,7 +3898,9 @@ describe("CORS allow-list", () => {
       expect(() => createApp(openDb(":memory:"), { corsOrigin })).toThrow(/bare HTTP\(S\) origin/i);
     }
   });
+}
 
+function registerCorsReflectionTests() {
   it("reflects an allowed origin and omits the header for a disallowed one", async () => {
     const app = createApp(openDb(":memory:"), {
       corsOrigin: "http://good.test,http://also.test",
@@ -3916,7 +3918,9 @@ describe("CORS allow-list", () => {
     });
     expect(bad.headers["access-control-allow-origin"]).toBeUndefined();
   });
+}
 
+function registerCorsCredentialAndRequestGateTests() {
   it("pairs Allow-Credentials with every reflected explicit origin (P3.4)", async () => {
     // The client sends credentials: 'include' on every request; a credentialed
     // cross-origin response without this header is refused by the browser.
@@ -3975,7 +3979,9 @@ describe("CORS allow-list", () => {
     });
     expect(res.statusCode).toBe(403);
   });
+}
 
+function registerCorsSameOriginTests() {
   it("keeps non-browser clients and allowed same-origin writes working", async () => {
     const { app } = freshApp();
     expect((await call(app, { method: "POST", url: "/api/test/reset" })).statusCode).toBe(200);
@@ -4030,7 +4036,9 @@ describe("CORS allow-list", () => {
     });
     expect(response.statusCode).toBe(200);
   });
+}
 
+function registerCorsCrossSiteAndTlsTests() {
   it("lets a cross-site write through when its Origin is on the credentialed allow-list (Fetch Metadata notwithstanding)", async () => {
     // FIX: an Origin EXACTLY on the CORS allow-list is the operator's explicit cross-site contract,
     // so it must pass the gate even when the browser labels the request Sec-Fetch-Site: cross-site
@@ -4070,7 +4078,9 @@ describe("CORS allow-list", () => {
     expect(res.statusCode).toBe(403);
     expect(res.json()).toEqual({ error: "Cross-site request rejected." });
   });
+}
 
+function registerCorsTlsTerminationTests() {
   it("treats a TLS-terminated https Origin as same-origin when only the scheme differs from http req.protocol", async () => {
     // FIX: with no Fetch Metadata and forwarded-proto NOT trusted, the standard TLS-termination
     // deploy has the browser-set Origin claim https:// while req.protocol sees http (cleartext hop
@@ -4108,7 +4118,9 @@ describe("CORS allow-list", () => {
     });
     expect(res.statusCode).toBe(403);
   });
+}
 
+function registerCorsMalformedHostAndHeaderTests() {
   it("returns a clean 403 (not a 500) when a broken proxy sends a malformed Host header", async () => {
     // REGRESSION: the same-origin check reconstructs `${protocol}://${host}` from the Host header, an
     // untrusted, proxy-influenced string. A broken proxy (or a forged request) can send a Host that
@@ -4165,6 +4177,16 @@ describe("CORS allow-list", () => {
     expect(res.headers["access-control-allow-headers"]).toContain("x-capacitylens-sync-sequence");
     expect(res.headers["access-control-expose-headers"]).toContain("x-capacitylens-audit-warning");
   });
+}
+
+describe("CORS allow-list", () => {
+  registerCorsOriginConfigurationTests();
+  registerCorsReflectionTests();
+  registerCorsCredentialAndRequestGateTests();
+  registerCorsSameOriginTests();
+  registerCorsCrossSiteAndTlsTests();
+  registerCorsTlsTerminationTests();
+  registerCorsMalformedHostAndHeaderTests();
 });
 
 describe("sensitive response caching", () => {
