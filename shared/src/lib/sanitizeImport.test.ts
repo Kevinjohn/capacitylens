@@ -4,7 +4,20 @@ import { FALLBACK_PRESET_COLOR, snapToPresetColor } from "./color";
 import { SCOPED_KEYS } from "../types/entities";
 import { softDelete } from "../domain/lifecycle";
 
+type LifecycleKey = "resources" | "clients" | "projects";
+
 describe("sanitizeImportedRecord", () => {
+  registerImportedRecordBasics();
+  registerImportedResourceTests();
+  registerImportedFieldTests();
+  registerImportedColorTests();
+  registerImportedDateTests();
+  registerImportedTextFieldTests();
+  registerImportedLifecycleTests();
+  registerImportedLifecycleSuites();
+});
+
+function registerImportedRecordBasics(): void {
   it.each(SCOPED_KEYS)("drops undeclared properties from imported %s records", (key) => {
     const out = sanitizeImportedRecord(key, { opaquePrivateField: "must not persist" });
 
@@ -67,7 +80,9 @@ describe("sanitizeImportedRecord", () => {
     // the [0,24] floor rather than diverging to the import fallback.
     expect(sanitizeImportedRecord("allocations", { hoursPerDay: -3 }).hoursPerDay).toBe(0);
   });
+}
 
+function registerImportedResourceTests(): void {
   it("de-duplicates a resource’s working days so length reflects real coverage", () => {
     // [1×7] must NOT reach length 7 (which the scheduling math reads as a full 7-day
     // week and flips weekend-awareness off) — a Monday-only resource stays Monday-only.
@@ -130,7 +145,9 @@ describe("sanitizeImportedRecord", () => {
     expect(sanitizeImportedRecord("resources", { kind: "external", name: "  " }).name).toBe("Unnamed company");
     expect(sanitizeImportedRecord("resources", { kind: "placeholder" }).name).toBeUndefined();
   });
+}
 
+function registerImportedFieldTests(): void {
   it("repairs fields that are incoherent with the resource kind", () => {
     const person = sanitizeImportedRecord("resources", { kind: "person", role: "R", projectId: "p1" });
     expect(person.projectId).toBeUndefined();
@@ -186,7 +203,9 @@ describe("sanitizeImportedRecord", () => {
   it("repairs a padded non-preset hex colour to its nearest preset", () => {
     expect(sanitizeImportedRecord("clients", { color: "  #aAbBcC  " }).color).toBe(snapToPresetColor("#aabbcc"));
   });
+}
 
+function registerImportedColorTests(): void {
   it.each(["resources", "disciplines", "clients", "projects"] as const)(
     "%s snaps an off-palette hex through the shared nearest-preset mapping",
     (key) => {
@@ -202,7 +221,9 @@ describe("sanitizeImportedRecord", () => {
     expect(sanitizeImportedRecord("clients", { color: "#aabbccdd" }).color).toBe(FALLBACK_PRESET_COLOR); // 8 digits
     expect(sanitizeImportedRecord("projects", { color: "#abc" }).color).toBe(FALLBACK_PRESET_COLOR); // 3 digits
   });
+}
 
+function registerImportedDateTests(): void {
   it("normalizes sloppily-padded dates to canonical YYYY-MM-DD so the record is kept", () => {
     const a = sanitizeImportedRecord("allocations", { startDate: "2026-6-1", endDate: "2026-12-5" });
     expect(a.startDate).toBe("2026-06-01");
@@ -224,7 +245,9 @@ describe("sanitizeImportedRecord", () => {
     expect(sanitizeImportedRecord("allocations", { startDate: "x2026-6-1" }).startDate).toBe("x2026-6-1");
     expect(sanitizeImportedRecord("allocations", { startDate: "2026-6-1x" }).startDate).toBe("2026-6-1x");
   });
+}
 
+function registerImportedTextFieldTests(): void {
   it("backfills a project-less activity’s kind to repeatable (a project-bound one to project)", () => {
     expect(sanitizeImportedRecord("activities", { name: "Admin" }).kind).toBe("repeatable");
     expect(sanitizeImportedRecord("activities", { name: "Wires", projectId: "p1" }).kind).toBe("project");
@@ -285,7 +308,9 @@ describe("sanitizeImportedRecord", () => {
     expect(out).not.toHaveProperty("archivedAt");
     expect(out).not.toHaveProperty("deletedAt");
   });
+}
 
+function registerImportedLifecycleTests(): void {
   it.each(["clients", "projects"] as const)("%s keeps a coherent private code-name pair", (key) => {
     expect(
       sanitizeImportedRecord(key, {
@@ -347,93 +372,110 @@ describe("sanitizeImportedRecord", () => {
     const alloc = sanitizeImportedRecord("allocations", { note: `done ${String.fromCodePoint(0x2705)}` });
     expect(alloc.note).toBe("done");
   });
+}
 
-  // Lifecycle timestamps (archivedAt / deletedAt — P2.1) are optional ISO strings on
-  // resources / clients / projects; a valid string is kept, anything non-string is dropped
-  // (its absence reads back as active / not-deleted). Inert plumbing today.
+// Lifecycle timestamps (archivedAt / deletedAt — P2.1) are optional ISO strings on
+// resources / clients / projects; a valid string is kept, anything non-string is dropped
+// (its absence reads back as active / not-deleted). Inert plumbing today.
+function registerImportedLifecycleSuites(): void {
   describe.each(["resources", "clients", "projects"] as const)("%s lifecycle timestamps (P2.1)", (key) => {
-    it("keeps valid ISO-string archivedAt / deletedAt", () => {
-      const out = sanitizeImportedRecord(key, {
-        archivedAt: "2026-01-01T00:00:00.000Z",
-        deletedAt: "2026-06-01T12:00:00.000Z",
-      });
-      expect(out.archivedAt).toBe("2026-01-01T00:00:00.000Z");
-      expect(out.deletedAt).toBe("2026-06-01T12:00:00.000Z");
-    });
-
-    it("trims valid padded tombstones without reversing a soft-delete", () => {
-      const out = sanitizeImportedRecord(key, {
-        archivedAt: "  2026-01-01T00:00:00.000Z  ",
-        deletedAt: "\t2026-06-01T12:00:00.000Z\n",
-      });
-      expect(out.archivedAt).toBe("2026-01-01T00:00:00.000Z");
-      expect(out.deletedAt).toBe("2026-06-01T12:00:00.000Z");
-    });
-
-    it("drops a non-string archivedAt / deletedAt", () => {
-      const out = sanitizeImportedRecord(key, { archivedAt: 123, deletedAt: null });
-      expect(out.archivedAt).toBeUndefined();
-      expect(out.deletedAt).toBeUndefined();
-    });
-
-    it.each([
-      ["numeric shorthand", "0"],
-      ["locale date", "01/01/2000"],
-      ["timezone-less datetime", "2026-01-01T00:00:00"],
-      ["nonexistent calendar instant", "2026-02-29T00:00:00Z"],
-    ])("drops Date.parse-compatible non-ISO %s lifecycle timestamps", (_label, timestamp) => {
-      const out = sanitizeImportedRecord(key, { archivedAt: timestamp, deletedAt: timestamp });
-      expect(out.archivedAt).toBeUndefined();
-      expect(out.deletedAt).toBeUndefined();
-    });
-
-    it("canonicalizes valid timestamps and rejects impossible lifecycle ordering", () => {
-      const canonical = sanitizeImportedRecord(key, {
-        archivedAt: "2026-01-01T01:00:00+01:00",
-        deletedAt: "2026-02-01T00:00:00Z",
-      });
-      expect(canonical.archivedAt).toBe("2026-01-01T00:00:00.000Z");
-      expect(canonical.deletedAt).toBe("2026-02-01T00:00:00.000Z");
-
-      const deletedWithoutArchive = sanitizeImportedRecord(key, { deletedAt: "2026-02-01T00:00:00Z" });
-      expect(deletedWithoutArchive.deletedAt).toBeUndefined();
-
-      const deletedBeforeArchive = sanitizeImportedRecord(key, {
-        archivedAt: "2026-02-01T00:00:00Z",
-        deletedAt: "2026-01-01T00:00:00Z",
-      });
-      expect(deletedBeforeArchive.archivedAt).toBe("2026-02-01T00:00:00.000Z");
-      expect(deletedBeforeArchive.deletedAt).toBeUndefined();
-
-      const emptyTimestamps = sanitizeImportedRecord(key, { archivedAt: "   ", deletedAt: "" });
-      expect(emptyTimestamps.archivedAt).toBeUndefined();
-      expect(emptyTimestamps.deletedAt).toBeUndefined();
-
-      const invalidDeletion = sanitizeImportedRecord(key, {
-        archivedAt: "2026-02-01T00:00:00Z",
-        deletedAt: "not-a-timestamp",
-      });
-      expect(invalidDeletion.archivedAt).toBe("2026-02-01T00:00:00.000Z");
-      expect(invalidDeletion.deletedAt).toBeUndefined();
-
-      const sameTimestamp = sanitizeImportedRecord(key, {
-        archivedAt: "2026-02-01T00:00:00Z",
-        deletedAt: "2026-02-01T00:00:00Z",
-      });
-      expect(sameTimestamp.deletedAt).toBe("2026-02-01T00:00:00.000Z");
-    });
-
-    it("retains a soft-delete created while the caller clock trails a future archive", () => {
-      const transitioned = softDelete({ archivedAt: "2099-01-01T00:00:00.000Z" }, "2026-01-01T00:00:00.000Z");
-      const out = sanitizeImportedRecord(key, { ...transitioned });
-
-      expect(out.archivedAt).toBe("2099-01-01T00:00:00.000Z");
-      expect(out.deletedAt).toBe("2099-01-01T00:00:00.000Z");
-    });
+    registerLifecycleTimestampBasics(key);
+    registerLifecycleTimestampOrdering(key);
   });
-});
+}
+
+function registerLifecycleTimestampBasics(key: LifecycleKey): void {
+  it("keeps valid ISO-string archivedAt / deletedAt", () => {
+    const out = sanitizeImportedRecord(key, {
+      archivedAt: "2026-01-01T00:00:00.000Z",
+      deletedAt: "2026-06-01T12:00:00.000Z",
+    });
+    expect(out.archivedAt).toBe("2026-01-01T00:00:00.000Z");
+    expect(out.deletedAt).toBe("2026-06-01T12:00:00.000Z");
+  });
+
+  it("trims valid padded tombstones without reversing a soft-delete", () => {
+    const out = sanitizeImportedRecord(key, {
+      archivedAt: "  2026-01-01T00:00:00.000Z  ",
+      deletedAt: "\t2026-06-01T12:00:00.000Z\n",
+    });
+    expect(out.archivedAt).toBe("2026-01-01T00:00:00.000Z");
+    expect(out.deletedAt).toBe("2026-06-01T12:00:00.000Z");
+  });
+
+  it("drops a non-string archivedAt / deletedAt", () => {
+    const out = sanitizeImportedRecord(key, { archivedAt: 123, deletedAt: null });
+    expect(out.archivedAt).toBeUndefined();
+    expect(out.deletedAt).toBeUndefined();
+  });
+
+  it.each([
+    ["numeric shorthand", "0"],
+    ["locale date", "01/01/2000"],
+    ["timezone-less datetime", "2026-01-01T00:00:00"],
+    ["nonexistent calendar instant", "2026-02-29T00:00:00Z"],
+  ])("drops Date.parse-compatible non-ISO %s lifecycle timestamps", (_label, timestamp) => {
+    const out = sanitizeImportedRecord(key, { archivedAt: timestamp, deletedAt: timestamp });
+    expect(out.archivedAt).toBeUndefined();
+    expect(out.deletedAt).toBeUndefined();
+  });
+}
+
+function registerLifecycleTimestampOrdering(key: LifecycleKey): void {
+  it("canonicalizes valid timestamps and rejects impossible lifecycle ordering", () => {
+    const canonical = sanitizeImportedRecord(key, {
+      archivedAt: "2026-01-01T01:00:00+01:00",
+      deletedAt: "2026-02-01T00:00:00Z",
+    });
+    expect(canonical.archivedAt).toBe("2026-01-01T00:00:00.000Z");
+    expect(canonical.deletedAt).toBe("2026-02-01T00:00:00.000Z");
+
+    const deletedWithoutArchive = sanitizeImportedRecord(key, { deletedAt: "2026-02-01T00:00:00Z" });
+    expect(deletedWithoutArchive.deletedAt).toBeUndefined();
+
+    const deletedBeforeArchive = sanitizeImportedRecord(key, {
+      archivedAt: "2026-02-01T00:00:00Z",
+      deletedAt: "2026-01-01T00:00:00Z",
+    });
+    expect(deletedBeforeArchive.archivedAt).toBe("2026-02-01T00:00:00.000Z");
+    expect(deletedBeforeArchive.deletedAt).toBeUndefined();
+
+    const emptyTimestamps = sanitizeImportedRecord(key, { archivedAt: "   ", deletedAt: "" });
+    expect(emptyTimestamps.archivedAt).toBeUndefined();
+    expect(emptyTimestamps.deletedAt).toBeUndefined();
+
+    const invalidDeletion = sanitizeImportedRecord(key, {
+      archivedAt: "2026-02-01T00:00:00Z",
+      deletedAt: "not-a-timestamp",
+    });
+    expect(invalidDeletion.archivedAt).toBe("2026-02-01T00:00:00.000Z");
+    expect(invalidDeletion.deletedAt).toBeUndefined();
+
+    const sameTimestamp = sanitizeImportedRecord(key, {
+      archivedAt: "2026-02-01T00:00:00Z",
+      deletedAt: "2026-02-01T00:00:00Z",
+    });
+    expect(sameTimestamp.deletedAt).toBe("2026-02-01T00:00:00.000Z");
+  });
+
+  it("retains a soft-delete created while the caller clock trails a future archive", () => {
+    const transitioned = softDelete({ archivedAt: "2099-01-01T00:00:00.000Z" }, "2026-01-01T00:00:00.000Z");
+    const out = sanitizeImportedRecord(key, { ...transitioned });
+
+    expect(out.archivedAt).toBe("2099-01-01T00:00:00.000Z");
+    expect(out.deletedAt).toBe("2099-01-01T00:00:00.000Z");
+  });
+}
 
 describe("sanitizeAccount", () => {
+  registerAccountTimezoneTests();
+  registerAccountWeekTests();
+  registerAccountFeatureTests();
+  registerAccountVisibilityTests();
+  registerAccountLanguageTests();
+});
+
+function registerAccountTimezoneTests(): void {
   it("strips an invalid timezone", () => {
     const rec = { timezone: "Not/A/Zone" };
     sanitizeAccount(rec);
@@ -459,7 +501,9 @@ describe("sanitizeAccount", () => {
     sanitizeAccount(rec);
     expect(rec.timezone).toBeUndefined();
   });
+}
 
+function registerAccountWeekTests(): void {
   it("strips weekStartsOn values that are not 0 or 1", () => {
     expect(sanitizeAccount({ weekStartsOn: 2 }).weekStartsOn).toBeUndefined();
     expect(sanitizeAccount({ weekStartsOn: "monday" }).weekStartsOn).toBeUndefined();
@@ -477,7 +521,9 @@ describe("sanitizeAccount", () => {
     expect(sanitizeAccount({ weekStartsOn: 1, workingDays: [] }).workingDays).toEqual([1, 2, 3, 4, 5]);
     expect(sanitizeAccount({ weekStartsOn: 1, workingDays: [1, 9] }).workingDays).toEqual([1, 2, 3, 4, 5]);
   });
+}
 
+function registerAccountFeatureTests(): void {
   it("strips a non-boolean disciplinesEnabled", () => {
     expect(sanitizeAccount({ disciplinesEnabled: "yes" }).disciplinesEnabled).toBeUndefined();
     expect(sanitizeAccount({ disciplinesEnabled: 1 }).disciplinesEnabled).toBeUndefined();
@@ -517,7 +563,9 @@ describe("sanitizeAccount", () => {
     expect(sanitizeAccount({ externalEnabled: false }).externalEnabled).toBe(false);
     expect(sanitizeAccount({ externalEnabled: true }).externalEnabled).toBe(true);
   });
+}
 
+function registerAccountVisibilityTests(): void {
   it("keeps the two Internal colour modes and drops unknown values to the grey-by-absence default", () => {
     expect(sanitizeAccount({ internalColourMode: "grey" }).internalColourMode).toBe("grey");
     expect(sanitizeAccount({ internalColourMode: "palette" }).internalColourMode).toBe("palette");
@@ -557,7 +605,9 @@ describe("sanitizeAccount", () => {
     expect(sanitizeAccount({ inlineActivityCreateEnabled: false }).inlineActivityCreateEnabled).toBe(false);
     expect(sanitizeAccount({ inlineActivityCreateEnabled: true }).inlineActivityCreateEnabled).toBe(true);
   });
+}
 
+function registerAccountLanguageTests(): void {
   it("drops a language that is not the supported value (English-only until P1.5.1)", () => {
     expect(sanitizeAccount({ language: "fr" }).language).toBeUndefined();
     expect(sanitizeAccount({ language: 123 }).language).toBeUndefined();
@@ -567,4 +617,4 @@ describe("sanitizeAccount", () => {
   it("keeps language === 'en'", () => {
     expect(sanitizeAccount({ language: "en" }).language).toBe("en");
   });
-});
+}
