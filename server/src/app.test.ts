@@ -3490,17 +3490,18 @@ describe("scheduling-mode fields round-trip through the DB", () => {
   });
 });
 
-describe("account frozen fields (P1.14): language / weekStartsOn / timezone", () => {
-  // Seed an account carrying all three frozen fields (so a change is detectable).
-  const FROZEN = {
-    weekStartsOn: 1 as const,
-    timezone: "Etc/GMT",
-    language: "en",
-  };
-  async function seedFrozen(app: FastifyInstance) {
-    expect((await post(app, "accounts", { ...account("a1"), ...FROZEN })).statusCode).toBe(201);
-  }
+// Seed an account carrying all three frozen fields (so a change is detectable).
+const FROZEN = {
+  weekStartsOn: 1 as const,
+  timezone: "Etc/GMT",
+  language: "en",
+};
 
+async function seedFrozen(app: FastifyInstance) {
+  expect((await post(app, "accounts", { ...account("a1"), ...FROZEN })).statusCode).toBe(201);
+}
+
+function registerFrozenFieldPatchTests(): void {
   it("PATCH changing weekStartsOn → 409", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
@@ -3524,7 +3525,9 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
     expect((await patch({ app, entity: "accounts", id: "a1", payload: { language: "fr" } })).statusCode).toBe(200);
     expect((await readStateAccount(app)).language).toBe("en");
   });
+}
 
+function registerFrozenFieldPutTests(): void {
   it("PUT resending the row with a CHANGED frozen field → 409", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
@@ -3566,7 +3569,9 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
     await seedFrozen(app);
     expect((await patch({ app, entity: "accounts", id: "a1", payload: { weekStartsOn: 1 } })).statusCode).toBe(200);
   });
+}
 
+function registerFrozenFieldInitializationTest(): void {
   it("lets a minimal /api/orgs account set each missing frozen field once", async () => {
     const { app } = freshApp();
     expect(
@@ -3602,7 +3607,9 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
       language: "en",
     });
   });
+}
 
+function registerFrozenFieldSanitizationTest(): void {
   it("treats sanitiser-dropped frozen values as no-ops across PUT, PATCH and batch", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
@@ -3658,7 +3665,9 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
 
     expect(await readStateAccount(app)).toMatchObject(FROZEN);
   });
+}
 
+function registerFrozenFieldPreferenceAndBatchTests(): void {
   it("PATCH mutable account preferences, including engagement grouping", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
@@ -3690,6 +3699,14 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
     expect(res.statusCode).toBe(409);
     expect((await readStateAccount(app)).timezone).toBe("Etc/GMT"); // tx rolled back
   });
+}
+
+describe("account frozen fields (P1.14): language / weekStartsOn / timezone", () => {
+  registerFrozenFieldPatchTests();
+  registerFrozenFieldPutTests();
+  registerFrozenFieldInitializationTest();
+  registerFrozenFieldSanitizationTest();
+  registerFrozenFieldPreferenceAndBatchTests();
 });
 
 function registerErrorStatusMappingTest() {
