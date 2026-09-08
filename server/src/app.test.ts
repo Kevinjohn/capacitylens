@@ -4775,7 +4775,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     const { app } = freshApp();
     await post(app, "accounts", FIXTURE_ACCOUNT);
     expect((await post(app, "clients", FIXTURE_CLIENT)).statusCode).toBe(201);
-    expectFixture((await state(app)).clients[0], stripTombstones(FIXTURE_CLIENT));
+    expectFixture(readFirstClient((await readValidatedState(app)).clients), stripTombstones(FIXTURE_CLIENT));
   });
 
   it("discipline: every field round-trips (including optional color)", async () => {
@@ -4790,7 +4790,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     await post(app, "accounts", FIXTURE_ACCOUNT);
     await post(app, "clients", FIXTURE_CLIENT);
     expect((await post(app, "projects", FIXTURE_PROJECT)).statusCode).toBe(201);
-    expectFixture((await state(app)).projects[0], stripTombstones(FIXTURE_PROJECT));
+    expectFixture(readFirstProject((await readValidatedState(app)).projects), stripTombstones(FIXTURE_PROJECT));
   });
 
   it("phase: every field round-trips", async () => {
