@@ -453,7 +453,7 @@
   },
   "server/src/app.test.ts": {
     "max-lines-per-function": {
-      "count": 10
+      "count": 9
     }
   },
   "server/src/audit.test.ts": {
@@ -936,14 +936,6 @@
       "count": 1
     },
     "no-nested-ternary": {
-      "count": 1
-    }
-  },
-  "server/src/workQueue.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 3
-    },
-    "max-lines-per-function": {
       "count": 1
     }
   },
@@ -1857,14 +1849,6 @@
       "count": 1
     }
   },
-  "src/components/settings/ArchivedSection.test.tsx": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "src/components/settings/ArchivedSection.tsx": {
     "complexity": {
       "count": 1
@@ -2169,17 +2153,6 @@
       "count": 1
     }
   },
-  "src/data/sync/loadSlice.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-depth": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/data/sync/snapshot.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
@@ -2245,11 +2218,6 @@
   "src/lib/auditWarning.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
-    }
-  },
-  "src/lib/capacity.test.ts": {
-    "max-lines-per-function": {
-      "count": 5
     }
   },
   "src/lib/companyPickerEntry.test.ts": {
