@@ -657,11 +657,6 @@
       "count": 1
     }
   },
-  "server/src/txn.test.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "server/src/validate.allocationProject.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 2
@@ -870,14 +865,6 @@
     }
   },
   "src/auth/MfaEnrollmentScreen.test.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/auth/MfaEnrollmentScreen.tsx": {
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 2
-    },
     "max-lines-per-function": {
       "count": 1
     }
