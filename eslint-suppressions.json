@@ -453,7 +453,7 @@
   },
   "server/src/app.test.ts": {
     "max-lines-per-function": {
-      "count": 12
+      "count": 11
     }
   },
   "server/src/audit.test.ts": {
@@ -1034,17 +1034,6 @@
   },
   "shared/src/domain/access.test.ts": {
     "max-depth": {
-      "count": 1
-    }
-  },
-  "shared/src/domain/importFold.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "max-params": {
       "count": 1
     }
   },
@@ -1798,7 +1787,7 @@
   },
   "src/components/scheduler/schedulerModel.test.ts": {
     "max-lines-per-function": {
-      "count": 10
+      "count": 6
     }
   },
   "src/components/scheduler/schedulerModel.ts": {
@@ -2271,17 +2260,6 @@
       "count": 1
     }
   },
-  "src/hooks/useDragResize.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3
-    },
-    "max-lines-per-function": {
-      "count": 2
-    },
-    "no-nested-ternary": {
-      "count": 1
-    }
-  },
   "src/hooks/useExclusiveAction.test.tsx": {
     "max-lines-per-function": {
       "count": 1
@@ -2495,17 +2473,6 @@
   "src/store/slices/runtimeSlice.ts": {
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "src/store/slices/schedulerSlice.ts": {
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 2
-    },
-    "no-nested-ternary": {
-      "count": 2
     }
   },
   "src/store/storeGuards.ts": {
