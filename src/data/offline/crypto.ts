@@ -12,10 +12,16 @@ import type { CachedRecord, EncryptedRecord, WriteBoundary } from "./types";
 
 export function assertWebCrypto(): Crypto {
   const availableCrypto: unknown = Reflect.get(globalThis, "crypto");
-  if (availableCrypto === undefined || availableCrypto === null) {
+  if (!hasSubtleCrypto(availableCrypto)) {
     throw new Error("Web Crypto is unavailable; encrypted offline access cannot be enabled.");
   }
   return globalThis.crypto;
+}
+
+function hasSubtleCrypto(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  const subtle: unknown = Reflect.get(value, "subtle");
+  return subtle !== undefined && subtle !== null;
 }
 
 async function readDeviceKey(db: IDBDatabase): Promise<CryptoKey | null> {
