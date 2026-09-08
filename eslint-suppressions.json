@@ -529,11 +529,6 @@
       "count": 1
     }
   },
-  "server/src/erasure.test.ts": {
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
   "server/src/fieldPolicy.test.ts": {
     "max-lines-per-function": {
       "count": 1
