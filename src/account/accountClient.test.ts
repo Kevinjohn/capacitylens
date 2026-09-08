@@ -39,6 +39,14 @@ function expectCommand(init: RequestInit, method: string): void {
   expect(headers.get("x-account-command-id")).toBe(command.commandId);
 }
 
+function requestInitAt(calls: ReadonlyArray<Parameters<typeof mocks.apiFetch>>, index: number): RequestInit {
+  const call = calls[index];
+  if (!call?.[1]) {
+    throw new Error(`Expected request call ${index} to include init options.`);
+  }
+  return call[1];
+}
+
 describe("browser account client", () => {
   beforeEach(() => {
     clearStoredAccountCommands();
@@ -52,6 +60,29 @@ describe("browser account client", () => {
     vi.unstubAllGlobals();
   });
 
+  registerCommandCreationTests();
+  registerReadRouteTests();
+  registerAuditWarningTests();
+  registerMutationRouteTests();
+  registerMembershipRouteTests();
+  registerReconciliationTests();
+  registerStoredCommandTests();
+  registerStorageFallbackTests();
+  registerConflictTests();
+  registerCeremonyCleanupTests();
+  registerIdentityCleanupTests();
+  registerCleanupStorageTests();
+  registerIdentityRecoveryTests();
+  registerUnreadableCommandResponseTests();
+  registerExplicitCommandCeremonyTests();
+  registerSurvivingCeremonyTests();
+  registerSemanticPayloadTests();
+  registerSemanticPayloadOrderTests();
+  registerResponseClassificationTests();
+  registerTerminalClassificationTests();
+});
+
+function registerCommandCreationTests(): void {
   it("creates independent command and idempotency secrets", () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000000")
@@ -61,7 +92,9 @@ describe("browser account client", () => {
       idempotencyKey: "00000000-0000-4000-8000-000000000001",
     });
   });
+}
 
+function registerReadRouteTests(): void {
   it("owns unauthenticated status and workspace-list reads via apiFetch", async () => {
     // Routed through apiFetch (not raw fetch) so the audit-degradation header check that apiFetch
     // performs applies uniformly to these reads too.
@@ -79,7 +112,9 @@ describe("browser account client", () => {
       signal: controller.signal,
     });
   });
+}
 
+function registerAuditWarningTests(): void {
   it("surfaces an audit-degradation warning when apiFetch reports one for /api/auth/me", async () => {
     // accountClient.me used to call raw `fetch` directly, bypassing apiFetch's audit-degradation
     // header check entirely (the regression this test pins). Simulate apiFetch's real header-check
@@ -100,7 +135,9 @@ describe("browser account client", () => {
       globalThis.removeEventListener(AUDIT_WARNING_EVENT, warning);
     }
   });
+}
 
+function registerMutationRouteTests(): void {
   it("adds command headers, JSON encoding, safe path encoding, reauth, and bulk timeout policy", async () => {
     await accountClient.createWorkspace({ name: "Studio" }, command);
     await accountClient.eraseWorkspace("workspace / one", command);
@@ -143,7 +180,9 @@ describe("browser account client", () => {
       ]),
     );
   });
+}
 
+function registerMembershipRouteTests(): void {
   it("owns member, invitation preview, acceptance, and signup routes", async () => {
     await accountClient.listMembers("workspace / one");
     await accountClient.listInvitations("workspace / one");
@@ -168,21 +207,23 @@ describe("browser account client", () => {
       "https://app.example/api/invites/token%20%2F%20one/accept",
       "https://app.example/api/invites/token%20%2F%20one/signup",
     ]);
-    expect(mocks.apiFetch.mock.calls[0]![1]).toMatchObject({
+    expect(requestInitAt(mocks.apiFetch.mock.calls, 0)).toMatchObject({
       method: "POST",
       credentials: "include",
       body: JSON.stringify({ targetUserId: "person / one" }),
     });
-    expect(mocks.apiFetch.mock.calls[1]![1]).toEqual({ credentials: "include" });
-    expect(mocks.apiFetch.mock.calls[2]![1]).toMatchObject({
+    expect(requestInitAt(mocks.apiFetch.mock.calls, 1)).toEqual({ credentials: "include" });
+    expect(requestInitAt(mocks.apiFetch.mock.calls, 2)).toMatchObject({
       method: "DELETE",
       credentials: "include",
       body: JSON.stringify({ token: "token-1", reason: "explicit" }),
     });
-    expectCommand(mocks.apiFetch.mock.calls[4]![1]!, "POST");
-    expectCommand(mocks.apiFetch.mock.calls[5]![1]!, "POST");
+    expectCommand(requestInitAt(mocks.apiFetch.mock.calls, 4), "POST");
+    expectCommand(requestInitAt(mocks.apiFetch.mock.calls, 5), "POST");
   });
+}
 
+function registerReconciliationTests(): void {
   it("keeps reconciliation bearers out of the URL", async () => {
     await accountClient.reconcileCommand(command, "password-reset");
 
@@ -198,7 +239,9 @@ describe("browser account client", () => {
     expect(url).not.toContain(command.commandId);
     expect(url).not.toContain(command.idempotencyKey);
   });
+}
 
+function registerStoredCommandTests(): void {
   it("reuses a stored command across unknown outcomes and rotates it after terminal completion", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000001")
@@ -223,7 +266,9 @@ describe("browser account client", () => {
       "00000000-0000-4000-8000-000000000003",
     ]);
   });
+}
 
+function registerStorageFallbackTests(): void {
   it("reuses a stored command after HTTP 408 until a terminal completion is known", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000071")
@@ -248,7 +293,9 @@ describe("browser account client", () => {
       "00000000-0000-4000-8000-000000000073",
     ]);
   });
+}
 
+function registerConflictTests(): void {
   it("retains an implicit erasure command across an ambiguous post-delete 403", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000061")
@@ -274,7 +321,9 @@ describe("browser account client", () => {
       "00000000-0000-4000-8000-000000000063",
     ]);
   });
+}
 
+function registerCeremonyCleanupTests(): void {
   it("reuses an in-memory command when session storage is blocked", async () => {
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new DOMException("Access denied", "SecurityError");
@@ -308,7 +357,9 @@ describe("browser account client", () => {
       "00000000-0000-4000-8000-000000000053",
     ]);
   });
+}
 
+function registerIdentityCleanupTests(): void {
   it("keeps a command after an in-progress conflict but clears it after an idempotency conflict", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000003")
@@ -333,7 +384,9 @@ describe("browser account client", () => {
       "00000000-0000-4000-8000-000000000005",
     ]);
   });
+}
 
+function registerCleanupStorageTests(): void {
   it("clears retained command ceremonies without removing unrelated per-tab data", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000061")
@@ -358,7 +411,9 @@ describe("browser account client", () => {
       Array.from({ length: sessionStorage.length }, (_unused, index) => sessionStorage.key(index)),
     ).not.toContainEqual(expect.stringMatching(/^capacitylens\.account-command\./));
   });
+}
 
+function registerIdentityRecoveryTests(): void {
   it("retains same-user recovery but clears a ceremony before a different identity can use it", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000081")
@@ -387,7 +442,9 @@ describe("browser account client", () => {
     ]);
     expect(sessionStorage.getItem("capacitylens.account-command.identity")).toBe("user-two");
   });
+}
 
+function registerSurvivingCeremonyTests(): void {
   it("isolates a surviving stored ceremony when identity-change cleanup cannot enumerate storage", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000091")
@@ -411,7 +468,9 @@ describe("browser account client", () => {
     );
     expect(commandIds).toEqual(["00000000-0000-4000-8000-000000000091", "00000000-0000-4000-8000-000000000093"]);
   });
+}
 
+function registerUnreadableCommandResponseTests(): void {
   it("keeps the same command identity after an unreadable 409 response", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000041")
@@ -430,7 +489,9 @@ describe("browser account client", () => {
     );
     expect(commandIds).toEqual(["00000000-0000-4000-8000-000000000041", "00000000-0000-4000-8000-000000000041"]);
   });
+}
 
+function registerExplicitCommandCeremonyTests(): void {
   it("does not let an explicit command discard an implicit unknown-outcome ceremony", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000031")
@@ -453,7 +514,9 @@ describe("browser account client", () => {
       "00000000-0000-4000-8000-000000000031",
     ]);
   });
+}
 
+function registerSemanticPayloadTests(): void {
   it("keeps unknown-outcome ceremonies separate for different semantic payloads", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000011")
@@ -475,7 +538,9 @@ describe("browser account client", () => {
       "00000000-0000-4000-8000-000000000011",
     ]);
   });
+}
 
+function registerSemanticPayloadOrderTests(): void {
   it("treats object key order as irrelevant when binding a semantic payload", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000021")
@@ -490,7 +555,9 @@ describe("browser account client", () => {
     );
     expect(commandIds).toEqual(["00000000-0000-4000-8000-000000000021", "00000000-0000-4000-8000-000000000021"]);
   });
+}
 
+function registerResponseClassificationTests(): void {
   it("classifies server and in-progress responses as unknown without consuming the body", async () => {
     const inProgress = Response.json({ code: "COMMAND_IN_PROGRESS", error: "Still running." }, { status: 409 });
     await expect(readUnknownAccountCommandOutcome(inProgress)).resolves.toBe(true);
@@ -503,7 +570,9 @@ describe("browser account client", () => {
       readUnknownAccountCommandOutcome(Response.json({ code: "IDEMPOTENCY_CONFLICT" }, { status: 409 })),
     ).resolves.toBe(false);
   });
+}
 
+function registerTerminalClassificationTests(): void {
   it.each(["INVITATION_USED", "CONFLICT", "AUTHORITY_CHANGED", "IDEMPOTENCY_CONFLICT"])(
     "classifies the known terminal 409 code %s as final",
     async (code) => {
@@ -525,4 +594,4 @@ describe("browser account client", () => {
       readUnknownAccountCommandOutcome(Response.json({ code: "FUTURE_CONFLICT_CODE" }, { status: 409 })),
     ).resolves.toBe(true);
   });
-});
+}
