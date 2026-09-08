@@ -24,30 +24,40 @@ const parseCspOrigin = (value: unknown): string | undefined => {
   }
 };
 
+function parseCspReport(candidate: unknown): Record<string, unknown> | null {
+  if (!isRecord(candidate)) return null;
+  const legacy = isRecord(candidate["csp-report"]) ? candidate["csp-report"] : undefined;
+  const modern = candidate.type === "csp-violation" && isRecord(candidate.body) ? candidate.body : undefined;
+  const body = legacy ?? modern;
+  if (!body) return null;
+  return {
+    event: "csp_violation",
+    outcome: "reported",
+    documentOrigin: parseCspOrigin(body["document-uri"] ?? body.documentURL),
+    blockedOrigin: parseCspOrigin(body["blocked-uri"] ?? body.blockedURL),
+    effectiveDirective: parseCspDirective(body["effective-directive"] ?? body.effectiveDirective),
+    violatedDirective: parseCspDirective(body["violated-directive"]),
+    disposition: body.disposition === "report" || body.disposition === "enforce" ? body.disposition : undefined,
+  };
+}
+
 function parseCspReports(payload: unknown): Record<string, unknown>[] {
   const candidates = Array.isArray(payload) ? payload.slice(0, MAX_CSP_REPORTS_PER_REQUEST) : [payload];
   const reports: Record<string, unknown>[] = [];
   for (const candidate of candidates) {
-    if (!isRecord(candidate)) continue;
-    const legacy = isRecord(candidate["csp-report"]) ? candidate["csp-report"] : undefined;
-    const modern = candidate.type === "csp-violation" && isRecord(candidate.body) ? candidate.body : undefined;
-    const body = legacy ?? modern;
-    if (!body) continue;
-    reports.push({
-      event: "csp_violation",
-      outcome: "reported",
-      documentOrigin: parseCspOrigin(body["document-uri"] ?? body.documentURL),
-      blockedOrigin: parseCspOrigin(body["blocked-uri"] ?? body.blockedURL),
-      effectiveDirective: parseCspDirective(body["effective-directive"] ?? body.effectiveDirective),
-      violatedDirective: parseCspDirective(body["violated-directive"]),
-      disposition: body.disposition === "report" || body.disposition === "enforce" ? body.disposition : undefined,
-    });
+    const report = parseCspReport(candidate);
+    if (report) reports.push(report);
   }
   return reports;
 }
 
-export interface SystemRouteDependencies {
-  section: "public" | "meta";
+interface MetaRouteDependencies {
+  section: "meta";
+  isInitialized: () => boolean;
+}
+
+interface PublicRouteDependencies {
+  section: "public";
   securityEvent: (event: Record<string, unknown>) => void;
   healthStatement: { get(): unknown } | null;
   auditDrainer: { pendingCount(): number };
@@ -55,23 +65,37 @@ export interface SystemRouteDependencies {
   backupHealth?: () => Readonly<{ degraded: boolean; lastSuccessAt: string | null }>;
   internalTlsExpiresAt?: string;
   internalTlsFingerprintSha256?: string;
-  isInitialized: () => boolean;
 }
 
-// These routes are grouped as system endpoints but intentionally share no common access policy.
-export function registerSystemRoutes(app: FastifyInstance, dependencies: SystemRouteDependencies): void {
-  if (dependencies.section === "meta") {
-    // "has this dataset ever been initialised" (persistent marker), NOT "is it currently
-    // non-empty" — so a user who deletes all their data isn't re-seeded on the next load
-    // (the bug was: an emptied dataset reported hasData:false and got the demo seed back).
-    // This authenticated probe is deliberately not membership-gated: initialization is an
-    // instance-level bootstrap sentinel, not tenant data, and reveals no account, identity or row
-    // count. A membership-less principal therefore receives the same single boolean needed by the
-    // startup adapter without gaining access to any scoped state.
-    app.get("/api/meta", () => ({ hasData: dependencies.isInitialized() }));
-    return;
-  }
+export type SystemRouteDependencies = MetaRouteDependencies | PublicRouteDependencies;
 
+type AuditStatus = "degraded" | "recovering" | "ok";
+
+function buildAuditStatus(auditSink: Pick<AuditSink, "degraded">, pendingCount: number): AuditStatus {
+  if (auditSink.degraded) return "degraded";
+  if (pendingCount > 0) return "recovering";
+  return "ok";
+}
+
+function buildBackupHealth(backupHealth: Readonly<{ degraded: boolean; lastSuccessAt: string | null }>) {
+  let status: "degraded" | "ok" | "pending" = "pending";
+  if (backupHealth.degraded) status = "degraded";
+  else if (backupHealth.lastSuccessAt) status = "ok";
+  return { status, lastSuccessAt: backupHealth.lastSuccessAt };
+}
+
+function registerMetaRoute(app: FastifyInstance, dependencies: MetaRouteDependencies): void {
+  // "has this dataset ever been initialised" (persistent marker), NOT "is it currently
+  // non-empty" — so a user who deletes all their data isn't re-seeded on the next load
+  // (the bug was: an emptied dataset reported hasData:false and got the demo seed back).
+  // This authenticated probe is deliberately not membership-gated: initialization is an
+  // instance-level bootstrap sentinel, not tenant data, and reveals no account, identity or row
+  // count. A membership-less principal therefore receives the same single boolean needed by the
+  // startup adapter without gaining access to any scoped state.
+  app.get("/api/meta", () => ({ hasData: dependencies.isInitialized() }));
+}
+
+function registerPublicRoutes(app: FastifyInstance, dependencies: PublicRouteDependencies): void {
   // Public browser telemetry endpoint. It returns no data, accepts only bounded JSON media types,
   // is covered by the normal IP rate limit, and logs a strict origin/directive projection rather
   // than attacker-controlled full URLs. Authentication cannot be required because a CSP failure
@@ -100,14 +124,11 @@ export function registerSystemRoutes(app: FastifyInstance, dependencies: SystemR
       return {
         ok: true,
         db: true,
-        audit: dependencies.auditSink.degraded ? "degraded" : auditPending > 0 ? "recovering" : "ok",
+        audit: buildAuditStatus(dependencies.auditSink, auditPending),
         auditPending,
         ...(backupHealth
           ? {
-              backup: {
-                status: backupHealth.degraded ? "degraded" : backupHealth.lastSuccessAt ? "ok" : "pending",
-                lastSuccessAt: backupHealth.lastSuccessAt,
-              },
+              backup: buildBackupHealth(backupHealth),
             }
           : {}),
         ...(dependencies.internalTlsExpiresAt
@@ -127,4 +148,10 @@ export function registerSystemRoutes(app: FastifyInstance, dependencies: SystemR
       return reply.code(503).send({ ok: false });
     }
   });
+}
+
+// These routes are grouped as system endpoints but intentionally share no common access policy.
+export function registerSystemRoutes(app: FastifyInstance, dependencies: SystemRouteDependencies): void {
+  if (dependencies.section === "meta") registerMetaRoute(app, dependencies);
+  else registerPublicRoutes(app, dependencies);
 }
