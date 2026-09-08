@@ -228,6 +228,22 @@ const SSO_ENV = {
   CAPACITYLENS_SSO_ISSUER: "https://idp.test",
 };
 
+const SETUP_TOKEN = "unit-test-owner-setup-token-0123456789abcdef";
+/** PASSWORD_ENV but with the open-signup escape removed → default-closed posture. */
+const CLOSED_SIGNUP_ENV: Record<string, string> = {
+  ...PASSWORD_ENV,
+  CAPACITYLENS_SETUP_TOKEN: SETUP_TOKEN,
+};
+delete CLOSED_SIGNUP_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP;
+
+const signUpWithSetupToken = (app: FastifyInstance, email = "late@capacitylens.dev") =>
+  call(app, {
+    method: "POST",
+    url: "/api/auth/sign-up/email",
+    headers: { "x-capacitylens-setup-token": SETUP_TOKEN },
+    payload: { email, password: "password-123456", name: "Late" },
+  });
+
 async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, env);
@@ -1814,41 +1830,25 @@ describe("social providers (P1.7)", () => {
 // bootstrap exception is an empty user table plus the operator's setup token; the gate is enforced
 // live per request, so it closes on the very next request after the first identity. The explicit
 // CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 escape still re-opens registration unconditionally.
-describe("closed self-registration (P1.7) + first-run bootstrap", () => {
-  const SETUP_TOKEN = "unit-test-owner-setup-token-0123456789abcdef";
-  /** PASSWORD_ENV but with the open-signup escape removed → default-closed posture. */
-  const CLOSED_ENV: Record<string, string> = {
-    ...PASSWORD_ENV,
-    CAPACITYLENS_SETUP_TOKEN: SETUP_TOKEN,
-  };
-  delete CLOSED_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP;
-
-  const signUp = (app: FastifyInstance, email = "late@capacitylens.dev") =>
-    call(app, {
-      method: "POST",
-      url: "/api/auth/sign-up/email",
-      headers: { "x-capacitylens-setup-token": SETUP_TOKEN },
-      payload: { email, password: "password-123456", name: "Late" },
-    });
-
+function registerClosedSignupLifecycleTests(): void {
   it("allows the first sign-up only with the operator setup token, then closes live", async () => {
-    const app = await appWithAuth(CLOSED_ENV);
-    const first = await signUp(app, "owner@capacitylens.dev");
+    const app = await appWithAuth(CLOSED_SIGNUP_ENV);
+    const first = await signUpWithSetupToken(app, "owner@capacitylens.dev");
     expect(first.statusCode).toBe(200);
     expect(cookiesOf(first)).toContain("capacitylens.session_token");
     // The gate is per REQUEST, not per boot: the very next sign-up on the SAME running app must
     // be refused now that one user exists — Better Auth's unchanged 400
     // EMAIL_PASSWORD_SIGN_UP_DISABLED shape (a boot-time boolean would stay open until restart).
-    const second = await signUp(app, "late@capacitylens.dev");
+    const second = await signUpWithSetupToken(app, "late@capacitylens.dev");
     expect(second.statusCode).toBe(400);
     expect(cookiesOf(second)).not.toContain("capacitylens.session_token");
   });
 
   it("serializes concurrent first-owner sign-ups so exactly one identity is created", async () => {
-    const app = await appWithAuth(CLOSED_ENV);
+    const app = await appWithAuth(CLOSED_SIGNUP_ENV);
     const results = await Promise.all([
-      signUp(app, "owner-one@capacitylens.dev"),
-      signUp(app, "owner-two@capacitylens.dev"),
+      signUpWithSetupToken(app, "owner-one@capacitylens.dev"),
+      signUpWithSetupToken(app, "owner-two@capacitylens.dev"),
     ]);
     expect(results.filter((res) => res.statusCode === 200)).toHaveLength(1);
     expect(results.filter((res) => res.statusCode !== 200)).toHaveLength(1);
@@ -1856,19 +1856,21 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
 
   it("releases the bootstrap claim after success so erasing the sole identity reopens setup", async () => {
     const db = openDb(":memory:");
-    const { mode, auth } = createAuthFromEnvironment(db, CLOSED_ENV);
+    const { mode, auth } = createAuthFromEnvironment(db, CLOSED_SIGNUP_ENV);
     await runAuthMigrations(parseConfiguredAuth(auth));
     const app = createApp(db, { authMode: mode, auth });
-    expect((await signUp(app, "first-owner@capacitylens.dev")).statusCode).toBe(200);
+    expect((await signUpWithSetupToken(app, "first-owner@capacitylens.dev")).statusCode).toBe(200);
     expect((db.prepare(`SELECT COUNT(*) AS n FROM capacitylens_bootstrap_claim`).get() as { n: number }).n).toBe(0);
 
     db.exec(`DELETE FROM session; DELETE FROM account; DELETE FROM user;`);
-    expect((await signUp(app, "replacement-owner@capacitylens.dev")).statusCode).toBe(200);
+    expect((await signUpWithSetupToken(app, "replacement-owner@capacitylens.dev")).statusCode).toBe(200);
   });
+}
 
+function registerClosedSignupRejectionTests(): void {
   it("releases the bootstrap claim when first-owner password policy rejects the endpoint", async () => {
     const db = openDb(":memory:");
-    const { mode, auth } = createAuthFromEnvironment(db, CLOSED_ENV);
+    const { mode, auth } = createAuthFromEnvironment(db, CLOSED_SIGNUP_ENV);
     await runAuthMigrations(parseConfiguredAuth(auth));
     const app = createApp(db, { authMode: mode, auth });
 
@@ -1886,11 +1888,11 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
     expect(rejected.json()).toMatchObject({ code: "PASSWORD_CONTEXT_REJECTED" });
     expect((db.prepare(`SELECT COUNT(*) AS n FROM capacitylens_bootstrap_claim`).get() as { n: number }).n).toBe(0);
 
-    expect((await signUp(app, "replacement-owner@capacitylens.dev")).statusCode).toBe(200);
+    expect((await signUpWithSetupToken(app, "replacement-owner@capacitylens.dev")).statusCode).toBe(200);
   });
 
   it("refuses a network visitor who lacks the fresh-instance setup token", async () => {
-    const app = await appWithAuth(CLOSED_ENV);
+    const app = await appWithAuth(CLOSED_SIGNUP_ENV);
     const missing = await call(app, {
       method: "POST",
       url: "/api/auth/sign-up/email",
@@ -1914,22 +1916,24 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
     expect(wrong.statusCode).toBe(400);
     expect(cookiesOf(missing)).not.toContain("capacitylens.session_token");
   });
+}
 
+function registerOpenSignupEscapeTests(): void {
   it("allows sign-up with users already present only when CAPACITYLENS_ALLOW_OPEN_SIGNUP=1", async () => {
     const app = await appWithAuth({
-      ...CLOSED_ENV,
+      ...CLOSED_SIGNUP_ENV,
       CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
     });
     // First user consumes the bootstrap exception; the second still succeeds because the flag
     // re-opens sign-up unconditionally.
-    expect((await signUp(app, "first@capacitylens.dev")).statusCode).toBe(200);
-    const res = await signUp(app);
+    expect((await signUpWithSetupToken(app, "first@capacitylens.dev")).statusCode).toBe(200);
+    const res = await signUpWithSetupToken(app);
     expect(res.statusCode).toBe(200);
     expect(cookiesOf(res)).toContain("capacitylens.session_token");
   });
 
   it("open email signup validation failures leave the external bootstrap-claim table empty", async () => {
-    const env = { ...CLOSED_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1" };
+    const env = { ...CLOSED_SIGNUP_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1" };
     const db = openDb(":memory:");
     const { mode, auth } = createAuthFromEnvironment(db, env);
     await runAuthMigrations(parseConfiguredAuth(auth));
@@ -1947,22 +1951,24 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
     expect(invalid.statusCode).toBeLessThan(500);
     expect((db.prepare(`SELECT COUNT(*) AS n FROM capacitylens_bootstrap_claim`).get() as { n: number }).n).toBe(0);
   });
+}
 
+function registerClosedSignupStatusTests(): void {
   it("keeps the library flag OFF — the live hook owns the gate (disableSignUp stays false)", () => {
     // Better Auth 1.6.23 enforces disableSignUp even for server-side auth.api.signUpEmail
     // (sign-up.mjs:143), so the static flag must stay false in BOTH postures — the closed
     // behaviour above comes from hooks.before, never from this option.
     const open = createAuthFromEnvironment(openDb(":memory:"), {
-      ...CLOSED_ENV,
+      ...CLOSED_SIGNUP_ENV,
       CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
     });
-    const closed = createAuthFromEnvironment(openDb(":memory:"), CLOSED_ENV);
+    const closed = createAuthFromEnvironment(openDb(":memory:"), CLOSED_SIGNUP_ENV);
     expect(parseConfiguredAuth(open.auth).options.emailAndPassword?.disableSignUp).toBe(false);
     expect(parseConfiguredAuth(closed.auth).options.emailAndPassword?.disableSignUp).toBe(false);
   });
 
   it("reports needsSetup on the /api/auth/me 401 at zero users, and drops it once a user exists", async () => {
-    const app = await appWithAuth(CLOSED_ENV);
+    const app = await appWithAuth(CLOSED_SIGNUP_ENV);
     // Zero users: the login screen must offer "Create the owner account" instead of a dead end.
     const before = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(before.statusCode).toBe(401);
@@ -1970,11 +1976,18 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
     // The 401 shape still excludes account facts (only authMode/error/needsSetup — no capFields).
     expect(Object.keys(parseJsonObject(before)).sort()).toEqual(["authMode", "error", "needsSetup", "providers"]);
     // One user later, the flag is GONE (absent, not false — the client fail-closes on absence).
-    expect((await signUp(app, "owner@capacitylens.dev")).statusCode).toBe(200);
+    expect((await signUpWithSetupToken(app, "owner@capacitylens.dev")).statusCode).toBe(200);
     const after = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(after.statusCode).toBe(401);
     expect(hasNeedsSetup(after)).toBe(false);
   });
+}
+
+describe("closed self-registration (P1.7) + first-run bootstrap", () => {
+  registerClosedSignupLifecycleTests();
+  registerClosedSignupRejectionTests();
+  registerOpenSignupEscapeTests();
+  registerClosedSignupStatusTests();
 });
 
 // First-run owner bootstrap (--create-owner-admin-admin / CAPACITYLENS_CREATE_ADMIN_ADMIN=1):
