@@ -828,7 +828,7 @@ describe("cookie/session hardening (P1.16)", () => {
   registerSessionHardeningTests();
 });
 
-describe("external identity creation gate", () => {
+const registerExternalProviderConfigurationTests = () => {
   it("resolves the concrete provider from a parameterized database-hook route", () => {
     expect(
       parseProviderIdFromExternalContext({
@@ -857,7 +857,9 @@ describe("external identity creation gate", () => {
       db.prepare(`SELECT issuer FROM account_federated_provider_bindings WHERE providerId = 'google'`).get(),
     ).toEqual({ issuer: "https://accounts.google.com" });
   });
+};
 
+const registerExternalOpenSignupTest = () => {
   it("stays enforced when open email registration is deliberately enabled", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(
@@ -882,7 +884,9 @@ describe("external identity creation gate", () => {
       before({ email: "stranger@example.com", emailVerified: true } as never, { path: "/callback/google" } as never),
     ).rejects.toThrow(/not invited/);
   });
+};
 
+const registerExternalSsoProviderTest = () => {
   it("keeps named social providers as existing-principal sign-in doors in SSO-only mode", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(
@@ -915,7 +919,9 @@ describe("external identity creation gate", () => {
     );
     expect(error.code).toBe("STRICT_PROVIDER_REQUIRED");
   });
+};
 
+const registerExternalSessionAssuranceTest = () => {
   it("creates a strict-OIDC session without querying password-only MFA columns", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, {
@@ -957,7 +963,9 @@ describe("external identity creation gate", () => {
       providerId: "sso",
     });
   });
+};
 
+const registerExternalBootstrapAdmissionTests = () => {
   it("keeps the first-external-identity claim control when email registration is open", () => {
     const db = openDb(":memory:");
     const env = {
@@ -1005,7 +1013,9 @@ describe("external identity creation gate", () => {
       }),
     ).toBe(false);
   });
+};
 
+const registerExternalLiveInvitationTest = () => {
   it("allows a verified email with a live unused pre-authorised invite after bootstrap", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -1050,7 +1060,9 @@ describe("external identity creation gate", () => {
       }),
     ).toBe(false);
   });
+};
 
+const registerExternalBootstrapInvitationTest = () => {
   it("does not let an invitation replace the first-external-identity allow-list", () => {
     const db = openDb(":memory:");
     createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -1083,7 +1095,9 @@ describe("external identity creation gate", () => {
       }),
     ).toBe(true);
   });
+};
 
+const registerExternalExpiredInvitationTest = () => {
   it("rejects expired and consumed invitations after bootstrap", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -1133,4 +1147,15 @@ describe("external identity creation gate", () => {
       }),
     ).toBe(false);
   });
+};
+
+describe("external identity creation gate", () => {
+  registerExternalProviderConfigurationTests();
+  registerExternalOpenSignupTest();
+  registerExternalSsoProviderTest();
+  registerExternalSessionAssuranceTest();
+  registerExternalBootstrapAdmissionTests();
+  registerExternalLiveInvitationTest();
+  registerExternalBootstrapInvitationTest();
+  registerExternalExpiredInvitationTest();
 });
