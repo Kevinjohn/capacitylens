@@ -11,7 +11,7 @@ beforeEach(() => {
   resetStoreWithAccount(DEFAULT_ACCOUNT_ID);
 });
 
-describe("importData hardening", () => {
+function registerImportHardening1(): void {
   it("gives every id-less record its own fresh id (no collision on undefined)", () => {
     // Two records with NO id must not collapse onto a single shared id.
     const incoming = {
@@ -29,7 +29,9 @@ describe("importData hardening", () => {
     expect(ids).toHaveLength(2);
     expect(new Set(ids).size).toBe(2); // distinct
   });
+}
 
+function registerImportHardening2(): void {
   it("sanitizes value-level fields that bypass the form validators", () => {
     const incoming = {
       ...emptyAppData(),
@@ -51,13 +53,18 @@ describe("importData hardening", () => {
       ],
     } as unknown as AppData;
     s().importData(incoming);
-    const r = s().data.resources.find((x) => x.accountId === DEFAULT_ACCOUNT_ID)!;
+    const r = requireValue(
+      s().data.resources.find((x) => x.accountId === DEFAULT_ACCOUNT_ID),
+      "sanitized resource",
+    );
     expect(r.kind).toBe("person");
     expect(r.employmentType).toBe("permanent");
     expect(r.workingHoursPerDay).toBe(8);
     expect(r.color).toBe(FALLBACK_PRESET_COLOR);
   });
+}
 
+function registerImportHardening3(): void {
   it("returns a delta summary counting records kept vs. dropped as invalid", () => {
     const incoming = {
       ...emptyAppData(),
@@ -114,7 +121,9 @@ describe("importData hardening", () => {
     expect(summary.imported).toBe(5);
     expect(summary.skipped).toBe(1);
   });
+}
 
+function registerImportHardening4(): void {
   it("does not pollute Object.prototype via a crafted __proto__ payload", () => {
     const incoming = JSON.parse(
       '{"accounts":[],"disciplines":[],"clients":[{"id":"c","accountId":"X","createdAt":"t","updatedAt":"t","name":"P","color":"#111111","__proto__":{"polluted":true}}],"projects":[],"phases":[],"activities":[],"resources":[],"allocations":[],"timeOff":[],"closures":[]}',
@@ -123,7 +132,9 @@ describe("importData hardening", () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
     expect(Object.prototype).not.toHaveProperty("polluted");
   });
+}
 
+function registerImportHardening5(): void {
   it("does not create a second builtin Internal client on import; re-points an Internal-owned project at the existing one", () => {
     // The active account already has its builtin Internal client.
     s().replaceAll({
@@ -173,15 +184,16 @@ describe("importData hardening", () => {
     // the account's Internal) — never two. Its name stays the reserved "Internal".
     const builtins = s().data.clients.filter((c) => c.builtin && c.accountId === DEFAULT_ACCOUNT_ID);
     expect(builtins).toHaveLength(1);
-    expect(builtins[0]?.name).toBe("Internal");
+    const builtin = requireValue(builtins[0], "imported internal client");
+    expect(builtin.name).toBe("Internal");
     // The imported Internal-owned project survived and points at that single Internal client.
     const proj = s().data.projects.find((p) => p.name === "Internal Project");
     expect(proj).toBeTruthy();
-    expect(requireValue(proj, "imported internal project").clientId).toBe(
-      requireValue(builtins[0], "imported internal client").id,
-    );
+    expect(requireValue(proj, "imported internal project").clientId).toBe(builtin.id);
   });
+}
 
+function registerImportHardening6(): void {
   it("refuses a zero-record import rather than wiping the active account", () => {
     s().addClient({ name: "Keep me", color: "#123456" });
     const before = s().data.clients.filter((c) => c.accountId === DEFAULT_ACCOUNT_ID).length;
@@ -191,4 +203,13 @@ describe("importData hardening", () => {
     expect(summary.imported).toBe(0);
     expect(s().data.clients.filter((c) => c.accountId === DEFAULT_ACCOUNT_ID)).toHaveLength(before);
   });
+}
+
+describe("importData hardening", () => {
+  registerImportHardening1();
+  registerImportHardening2();
+  registerImportHardening3();
+  registerImportHardening4();
+  registerImportHardening5();
+  registerImportHardening6();
 });

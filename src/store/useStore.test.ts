@@ -18,9 +18,10 @@ beforeEach(() => resetStoreWithAccount());
 
 const personDraft = makeResourceDraft({ name: "Ty", role: "Dev", color: "#1" });
 
-describe("store CRUD", () => {
+function registerStoreCrudPart1(): void {
   it("publishes account deletion without an invalid active-tenant snapshot", () => {
-    const accountId = s().activeAccountId!;
+    const accountId = s().activeAccountId;
+    if (!accountId) throw new Error("Expected active account");
     const snapshots: Array<{ activeAccountId: string | null; accountExists: boolean }> = [];
     const unsubscribe = useStore.subscribe((state) => {
       snapshots.push({
@@ -34,7 +35,10 @@ describe("store CRUD", () => {
       unsubscribe();
     }
     expect(snapshots).toHaveLength(1);
-    expect(snapshots[0]).toEqual({ activeAccountId: null, accountExists: false });
+    expect(requireValue(snapshots[0], "account deletion snapshot")).toEqual({
+      activeAccountId: null,
+      accountExists: false,
+    });
   });
 
   it("adds entities with a generated id and timestamps", () => {
@@ -71,7 +75,9 @@ describe("store CRUD", () => {
       updatedAt: "+275760-09-13T00:00:00.000Z",
     });
   });
+}
 
+function registerStoreCrudPart2(): void {
   it("updates fields, advances updatedAt and emits a sync PUT", () => {
     const r = s().addResource({ ...personDraft });
     const before = s().data;
@@ -117,9 +123,14 @@ describe("store CRUD", () => {
     ).toThrow(/placeholder.*bound project/i);
     expect(s().data.allocations).toHaveLength(0);
   });
+}
+
+describe("store CRUD", () => {
+  registerStoreCrudPart1();
+  registerStoreCrudPart2();
 });
 
-describe("store scheduler UI", () => {
+function registerSchedulerUiPart1(): void {
   it("setZoom sets the weeks-visible level", () => {
     s().setZoom(8);
     expect(s().ui.zoom).toBe(8);
@@ -132,7 +143,9 @@ describe("store scheduler UI", () => {
     s().panDays(7);
     expect(s().ui.originDate).toBe("2026-06-08");
   });
+}
 
+function registerSchedulerUiPart5(): void {
   it("setActiveAccount reopens on the current week (resets a panned origin/focus)", () => {
     s().setOriginDate("2020-01-01");
     // Re-selecting the (already active) account still runs the switch reset.
@@ -155,7 +168,9 @@ describe("store scheduler UI", () => {
     expect(s().previousAccountId).toBeNull();
     expect(s().fakeSignedIn).toBe(false);
   });
+}
 
+function registerSchedulerUiPart7(): void {
   it("goToToday resets the origin and bumps recenterToken (so the grid re-scrolls)", () => {
     const before = s().ui.recenterToken;
     s().setOriginDate("2020-01-01");
@@ -214,7 +229,9 @@ describe("store scheduler UI", () => {
     // Origin sits the back-buffer behind the snapped Sunday, so the past stays scrollable.
     expect(useStore.getState().ui.originDate).toBe(addDaysISO("2026-09-06", -PAST_BUFFER_DAYS));
   });
+}
 
+function registerSchedulerUiPart2(): void {
   it("preserves the visible week when refreshing the currently loaded account", () => {
     s().goToDate("2026-09-09");
     const before = {
@@ -273,7 +290,9 @@ describe("store scheduler UI", () => {
     expect(s().ui.focusDate).not.toBe("2031-09-07");
     expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
   });
+}
 
+function registerSchedulerUiPart3(): void {
   it("setSnapToWeekStart persists to its own key, is OFF the undo stack, and is NOT in export", () => {
     // Device-global pref (default ON). Turning it off writes the 'off' literal and updates the
     // reactive store value.
@@ -312,7 +331,9 @@ describe("store scheduler UI", () => {
     s().toggleGroup("d-design");
     expect(s().ui.collapsedGroups).not.toContain("d-design");
   });
+}
 
+function registerSchedulerUiPart4(): void {
   it("undo and redo move through mutation history", () => {
     resetStoreWithAccount();
     const c = s().addClient({ name: "Acme", color: "#1" });
@@ -337,7 +358,9 @@ describe("store scheduler UI", () => {
     expect(stringify).not.toHaveBeenCalled();
     stringify.mockRestore();
   });
+}
 
+function registerSchedulerUiPart6(): void {
   it("setFilters merges, hasActiveFilters reflects state, clearFilters resets", () => {
     s().clearFilters();
     expect(hasActiveFilters(s().ui.filters)).toBe(false);
@@ -389,4 +412,14 @@ describe("store scheduler UI", () => {
     expect(s().ui.filters.clientId).toBeNull();
     expect(s().ui.filters.projectId).toBeNull();
   });
+}
+
+describe("store scheduler UI", () => {
+  registerSchedulerUiPart1();
+  registerSchedulerUiPart5();
+  registerSchedulerUiPart2();
+  registerSchedulerUiPart3();
+  registerSchedulerUiPart4();
+  registerSchedulerUiPart6();
+  registerSchedulerUiPart7();
 });

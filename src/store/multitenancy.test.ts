@@ -275,12 +275,7 @@ describe("setActiveAccount resets per-account view state", () => {
   });
 });
 
-describe("importData (account-scoped)", () => {
-  beforeEach(() => {
-    s().replaceAll(twoAccountData());
-    s().setActiveAccount("a1");
-  });
-
+function registerScopedImportPart1(): void {
   it("replaces only the active account’s slice, re-stamps incoming, keeps other accounts", () => {
     const incoming: AppData = {
       ...emptyAppData(),
@@ -312,7 +307,9 @@ describe("importData (account-scoped)", () => {
     s().updateClient(importedId, { name: "Changed" });
     expect(present(s().data.clients.find((c) => c.accountId === "a1")).name).toBe("Client A1");
   });
+}
 
+function registerScopedImportPart3(): void {
   it("remaps foreign keys among imported entities to the new ids", () => {
     s().setActiveAccount("a2");
     s().importData({
@@ -359,7 +356,9 @@ describe("importData (account-scoped)", () => {
         .map((c) => c.id),
     ).toEqual(["c1"]);
   });
+}
 
+function registerScopedImportPart2(): void {
   it("drops imported allocations/time-off that violate the integrity rules", () => {
     // The store is the integrity boundary on every write — import is no exception.
     s().importData(invalidImportedData);
@@ -373,4 +372,14 @@ describe("importData (account-scoped)", () => {
     expect(s().data.activities.some((t) => t.id === a1Allocs[0]?.activityId)).toBe(true);
     expect(s().data.resources.some((r) => r.id === a1Allocs[0]?.resourceId)).toBe(true);
   });
+}
+
+describe("importData (account-scoped)", () => {
+  beforeEach(() => {
+    s().replaceAll(twoAccountData());
+    s().setActiveAccount("a1");
+  });
+  registerScopedImportPart1();
+  registerScopedImportPart3();
+  registerScopedImportPart2();
 });
