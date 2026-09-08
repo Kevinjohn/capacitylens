@@ -931,11 +931,6 @@
       "count": 1
     }
   },
-  "src/auth/resetPasswordFailure.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3
-    }
-  },
   "src/auth/useAccountSummaries.test.tsx": {
     "max-lines-per-function": {
       "count": 3
