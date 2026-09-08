@@ -2413,55 +2413,55 @@ describe("schema migration of an existing on-disk DB", () => {
         .all() as Array<{ type: string; name: string; sql: string | null }>
     ).map((entry) => ({ ...entry, sql: normalizeSchemaSql(entry.sql) }));
 
+  function prepareV33TimeOffRows(path: string) {
+    const db = openDbConnection(path);
+    expect(() =>
+      initializeOpenDb(db, path, {
+        beforeCommit: (migration) => {
+          if (migration.version === 34) throw new Error("stop before v34 commit");
+        },
+      }),
+    ).toThrow(/stop before v34 commit/i);
+    expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(33);
+    expect(
+      (db.prepare(`PRAGMA table_info(timeOff)`).all() as Array<{ name: string; notnull: number }>).find(
+        ({ name }) => name === "resourceId",
+      )?.notnull,
+    ).toBe(0);
+    const target = db.prepare(`SELECT id AS resourceId, accountId FROM resources ORDER BY id LIMIT 1`).get() as {
+      resourceId: string;
+      accountId: string;
+    };
+    db.prepare(
+      `INSERT INTO timeOff
+        (id, accountId, resourceId, startDate, endDate, type, note, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      "to-v32-preserved",
+      target.accountId,
+      target.resourceId,
+      "2026-12-24",
+      "2026-12-25",
+      "holiday",
+      "Office closed",
+      TS,
+      TS,
+    );
+    db.prepare(
+      `INSERT INTO timeOff
+        (id, accountId, resourceId, startDate, endDate, type, note, createdAt, updatedAt)
+       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
+    ).run("to-v33-company-wide", target.accountId, "2026-12-31", "2027-01-01", "holiday", "Everyone", TS, TS);
+    const beforeRows = db.prepare(`SELECT * FROM timeOff WHERE resourceId IS NOT NULL ORDER BY id`).all();
+    const beforeObjects = timeOffSecondaryObjects(db);
+    db.close();
+    return { target, beforeRows, beforeObjects };
+  }
+
   it("v34 restores required personal time-off resources and creates first-class closures", () => {
     const copied = copyFixture("v25-off.db");
     try {
-      const v33 = openDbConnection(copied.path);
-      expect(() =>
-        initializeOpenDb(v33, copied.path, {
-          beforeCommit: (migration) => {
-            if (migration.version === 34) throw new Error("stop before v34 commit");
-          },
-        }),
-      ).toThrow(/stop before v34 commit/i);
-      expect((v33.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(33);
-      expect(
-        (v33.prepare(`PRAGMA table_info(timeOff)`).all() as Array<{ name: string; notnull: number }>).find(
-          ({ name }) => name === "resourceId",
-        )?.notnull,
-      ).toBe(0);
-
-      const target = v33.prepare(`SELECT id AS resourceId, accountId FROM resources ORDER BY id LIMIT 1`).get() as {
-        resourceId: string;
-        accountId: string;
-      };
-      v33
-        .prepare(
-          `INSERT INTO timeOff
-            (id, accountId, resourceId, startDate, endDate, type, note, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .run(
-          "to-v32-preserved",
-          target.accountId,
-          target.resourceId,
-          "2026-12-24",
-          "2026-12-25",
-          "holiday",
-          "Office closed",
-          TS,
-          TS,
-        );
-      v33
-        .prepare(
-          `INSERT INTO timeOff
-            (id, accountId, resourceId, startDate, endDate, type, note, createdAt, updatedAt)
-           VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
-        )
-        .run("to-v33-company-wide", target.accountId, "2026-12-31", "2027-01-01", "holiday", "Everyone", TS, TS);
-      const beforeRows = v33.prepare(`SELECT * FROM timeOff WHERE resourceId IS NOT NULL ORDER BY id`).all();
-      const beforeObjects = timeOffSecondaryObjects(v33);
-      v33.close();
+      const { target, beforeRows, beforeObjects } = prepareV33TimeOffRows(copied.path);
 
       const upgraded = openDb(copied.path);
       expect(
