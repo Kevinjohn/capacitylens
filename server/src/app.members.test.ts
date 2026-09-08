@@ -1455,18 +1455,18 @@ async function assertMemberSignInResetAndMfa({
   ]);
 }
 
-describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", () => {
-  /** Owner of a1 plus one editor, the shape nearly every case below needs. */
-  async function ownerAndEditor(suffix: string) {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const owner = await signUp(app, `owner-${suffix}@capacitylens.dev`);
-    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-    const ed = await signUp(app, `editor-${suffix}@capacitylens.dev`);
-    upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
-    return { app, db, owner, ed };
-  }
+/** Owner of a1 plus one editor, the shape nearly every case below needs. */
+async function ownerAndEditor(suffix: string) {
+  const { app, db } = await appWithAuth();
+  seedTwo(db);
+  const owner = await signUp(app, `owner-${suffix}@capacitylens.dev`);
+  upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+  const ed = await signUp(app, `editor-${suffix}@capacitylens.dev`);
+  upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
+  return { app, db, owner, ed };
+}
 
+function createDisableMemberTest(): void {
   it("disables a member, and the disabled member can no longer enter the account", async () => {
     const { app, db, owner, ed } = await ownerAndEditor("disable");
     // Precondition: the editor can read a1 today.
@@ -1494,7 +1494,9 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
     expect(accounts.statusCode).toBe(200);
     expect(JSON.stringify(accounts.json())).not.toContain("a1");
   });
+}
 
+function createArchiveMemberTest(): void {
   it("archives a member and denies entry exactly as disabling does", async () => {
     const { app, db, owner, ed } = await ownerAndEditor("archive");
     expect(
@@ -1513,7 +1515,9 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
       (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
     ).toBe(403);
   });
+}
 
+function createRestoreMemberTest(): void {
   it("restores a disabled member to active, and their role is preserved throughout", async () => {
     const { app, db, owner, ed } = await ownerAndEditor("restore");
     await patchStatusReq({
@@ -1541,7 +1545,9 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
       (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
     ).toBe(200);
   });
+}
 
+function createVisibleInactiveMemberTest(): void {
   it("keeps a non-active member VISIBLE in the directory, so an admin can reverse it", async () => {
     const { app, owner, ed } = await ownerAndEditor("visible");
     await patchStatusReq({
@@ -1561,7 +1567,9 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
     expect(row.status).toBe("disabled");
     expect(row.role).toBe("editor");
   });
+}
 
+function createOwnerDisableRejectionTest(): void {
   it("refuses to disable the OWNER — the account must never be left without one", async () => {
     const { app, db, owner, ed } = await ownerAndEditor("owner-target");
     upsertMember(db, { accountId: "a1", userId: ed.userId, role: "admin", status: "active", createdAt: TS });
@@ -1580,7 +1588,9 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
     ).toBe(403);
     expect(storedStatus(db, "a1", owner.userId)).toBe("active");
   });
+}
 
+function createSelfDisableRejectionTest(): void {
   it("refuses SELF-suspension — an admin must not be able to lock themselves out", async () => {
     const { app, db, owner } = await ownerAndEditor("self");
     expect(
@@ -1596,7 +1606,9 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
     ).toBe(403);
     expect(storedStatus(db, "a1", owner.userId)).toBe("active");
   });
+}
 
+function createLimitedStatusMutationRejectionTest(): void {
   it("editor and viewer cannot change any member's status", async () => {
     for (const role of ["editor", "viewer"] as const) {
       const { app, db } = await appWithAuth();
@@ -1623,7 +1635,9 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
       expect(storedStatus(db, "a1", target.userId), role).toBe("active");
     }
   });
+}
 
+function createCrossTenantStatusMutationTest(): void {
   it("cross-tenant: an owner of a1 cannot disable a member of a2", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -1645,7 +1659,9 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
     ).toBe(403);
     expect(storedStatus(db, "a2", a2member.userId)).toBe("active");
   });
+}
 
+function createInvalidStatusMutationTest(): void {
   it("rejects an unknown status with 400 and leaves the row untouched", async () => {
     const { app, db, owner, ed } = await ownerAndEditor("bad-status");
     for (const bad of ["suspended", "", null, 42, undefined]) {
@@ -1660,7 +1676,9 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
     }
     expect(storedStatus(db, "a1", ed.userId)).toBe("active");
   });
+}
 
+function createMissingMemberStatusMutationTest(): void {
   it("404s for a principal who is not a member of the account", async () => {
     const { app, owner } = await ownerAndEditor("missing");
     const outsider = await signUp(app, "outsider-status@capacitylens.dev");
@@ -1676,13 +1694,29 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
       ).statusCode,
     ).toBe(404);
   });
+}
 
+function createAnonymousStatusMutationTest(): void {
   it("a session-less request is 401", async () => {
     const { app, ed } = await ownerAndEditor("anon");
     expect((await patchStatusReq({ app, accountId: "a1", userId: ed.userId, status: "disabled" })).statusCode).toBe(
       401,
     );
   });
+}
+
+describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", () => {
+  createDisableMemberTest();
+  createArchiveMemberTest();
+  createRestoreMemberTest();
+  createVisibleInactiveMemberTest();
+  createOwnerDisableRejectionTest();
+  createSelfDisableRejectionTest();
+  createLimitedStatusMutationRejectionTest();
+  createCrossTenantStatusMutationTest();
+  createInvalidStatusMutationTest();
+  createMissingMemberStatusMutationTest();
+  createAnonymousStatusMutationTest();
 });
 
 describe("member sign-in confirmation", () => {
