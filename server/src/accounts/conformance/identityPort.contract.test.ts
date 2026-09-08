@@ -63,14 +63,29 @@ const summaryOf = (id: string): PrincipalSummary => ({
   email: PRINCIPAL.email,
 });
 
-function expectUnsupported(operation: Promise<unknown>, commandId?: string): Promise<void> {
-  return expect(operation).rejects.toMatchObject({
+async function expectUnsupported(operation: Promise<unknown>, commandId?: string): Promise<void> {
+  await expect(operation).rejects.toMatchObject({
     failure: {
       code: "UNSUPPORTED_CAPABILITY",
       retryable: false,
       ...(commandId ? { commandId } : {}),
     },
-  }) as Promise<void>;
+  });
+}
+
+function requireAuth(configured: ReturnType<typeof createAuthFromEnvironment>): Auth {
+  if (!configured.auth) throw new Error("expected configured authentication");
+  return configured.auth;
+}
+
+function requireMapValue<Key, Value>(map: ReadonlyMap<Key, Value>, key: Key): Value {
+  const value = map.get(key);
+  if (value === undefined) throw new Error("expected seeded map value");
+  return value;
+}
+
+function expectExactKeys(value: object, expectedKeys: string[]): void {
+  expect(Object.keys(value).sort()).toEqual(expectedKeys.sort());
 }
 
 /**
@@ -122,12 +137,11 @@ function identityPortContract(name: string, createHarness: HarnessFactory): void
       const sessions = await current.port.listSessions({ actor: current.actor });
       expect(Array.isArray(sessions)).toBe(true);
       for (const session of sessions) {
-        expect(session).toEqual({
-          id: expect.any(String),
-          createdAt: expect.toSatisfy(isIsoInstant),
-          expiresAt: expect.toSatisfy((value: unknown) => value === null || isIsoInstant(value)),
-          current: expect.any(Boolean),
-        });
+        expectExactKeys(session, ["createdAt", "current", "expiresAt", "id"]);
+        expect(typeof session.id).toBe("string");
+        expect(isIsoInstant(session.createdAt)).toBe(true);
+        expect(session.expiresAt === null || isIsoInstant(session.expiresAt)).toBe(true);
+        expect(typeof session.current).toBe("boolean");
         expect(session.id).not.toContain("bearer");
       }
     });
@@ -195,10 +209,9 @@ function identityPortContract(name: string, createHarness: HarnessFactory): void
       }
 
       const provisional = await create;
-      expect(provisional).toEqual({
-        principalId: expect.any(String),
-        compensationHandle: expect.any(String),
-      });
+      expectExactKeys(provisional, ["compensationHandle", "principalId"]);
+      expect(typeof provisional.principalId).toBe("string");
+      expect(typeof provisional.compensationHandle).toBe("string");
       expect(provisional.compensationHandle).not.toContain(provisional.principalId);
       await expect(
         current.port.compensateProvisionalPrincipal({
@@ -233,11 +246,10 @@ function identityPortContract(name: string, createHarness: HarnessFactory): void
       }
 
       const ceremony = await issue;
-      expect(ceremony).toEqual({
-        ceremonyId: expect.any(String),
-        token: expect.any(String),
-        expiresAt: expect.any(String),
-      });
+      expectExactKeys(ceremony, ["ceremonyId", "expiresAt", "token"]);
+      expect(typeof ceremony.ceremonyId).toBe("string");
+      expect(typeof ceremony.token).toBe("string");
+      expect(typeof ceremony.expiresAt).toBe("string");
       expect(ceremony.ceremonyId).not.toBe(ceremony.token);
       await expect(
         current.port.revokePasswordResetCeremony({
@@ -268,7 +280,7 @@ function identityPortContract(name: string, createHarness: HarnessFactory): void
 async function betterAuthHarness(): Promise<Harness> {
   const db = openDb(":memory:");
   const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-  const realAuth = configured.auth!;
+  const realAuth = requireAuth(configured);
   await runAuthMigrations(realAuth);
   const created = await realAuth.createCredentialUser({
     email: PRINCIPAL.email,
@@ -437,7 +449,7 @@ function fakeIdentityHarness(): Harness {
     port,
     session,
     actor: ACTOR,
-    knownPrincipal: principals.get(PRINCIPAL.id)!,
+    knownPrincipal: requireMapValue(principals, PRINCIPAL.id),
     capabilities: {
       durablePrincipalStorage: true,
       credentials: true,
@@ -467,7 +479,7 @@ describe("revocation window race", () => {
   it("removes assurance for sessions created inside the revocation window, not only the snapshot", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    const realAuth = configured.auth!;
+    const realAuth = requireAuth(configured);
     await runAuthMigrations(realAuth);
     const created = await realAuth.createCredentialUser({
       email: PRINCIPAL.email,
@@ -503,7 +515,10 @@ describe("revocation window race", () => {
 
     const remaining = db
       .prepare(`SELECT COUNT(*) AS n FROM account_session_assurance WHERE principalId = ?`)
-      .get(created.id) as { n: number };
+      .get(created.id);
+    if (typeof remaining !== "object" || !("n" in remaining) || typeof remaining.n !== "number") {
+      throw new Error("expected numeric assurance count");
+    }
     expect(remaining.n).toBe(0); // no orphaned assurance — including the in-window session
     db.close();
   });
