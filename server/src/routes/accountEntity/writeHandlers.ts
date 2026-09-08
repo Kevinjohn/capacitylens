@@ -62,6 +62,7 @@ function createPutAuditRecord(input: {
   return {
     ts: new Date().toISOString(),
     userId: requireUserId(req),
+    // Audit the mutated account from the URL; a caller's ownership assertion never selects a ledger.
     accountId: id,
     action: existing ? "update" : "create",
     entity: "accounts",
@@ -109,6 +110,8 @@ async function persistPut(input: {
 
 function allowPut(input: AccountWriteInput, existing: Record<string, unknown> | undefined): boolean {
   const { dependencies, req, reply, id } = input;
+  // Authenticated account creation is closed before the OFF-mode cap is considered. Existing rows
+  // skip the create-only cap and instead require write authority for their own account id.
   if (!existing && dependencies.authMode !== "off") {
     reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE });
     return false;
@@ -128,6 +131,8 @@ async function replayPut(
   },
 ): Promise<boolean> {
   const { dependencies, req, reply, id, body, existing, workspaceCommand, visibility } = input;
+  // Only trusted-local compatibility writes can replay here. Authenticated updates never await the
+  // coordinator between their authority decision and mutation, avoiding stale authorization.
   if (dependencies.authMode !== "off" || !existing) return false;
   const replay = await dependencies.flows.replayWorkspaceProvisioning<Record<string, unknown>>({
     actor: requireActor(req),
@@ -145,6 +150,8 @@ async function replayPut(
 async function applyPut(input: AccountWriteInput): Promise<FastifyReply | undefined> {
   const { dependencies, req, reply, id, body } = input;
   const { db, store, optimisticConcurrency, command, fieldVisibility, redact } = dependencies;
+  // Parse the command before reading state, and attempt trusted-local replay before the stale-write
+  // guard so a completed command is returned rather than rejected by a newer stored revision.
   const workspaceCommand = command(req);
   const existing = getRow(db, "accounts", id) ?? undefined;
   if (!allowPut(input, existing)) return;
@@ -221,6 +228,8 @@ function applyPatch(input: AccountWriteInput): FastifyReply | undefined {
   if (!authorize({ req, reply, accountId: id, action: "write" })) return;
   const visibility = fieldVisibility(req, "accounts", body.accountId ?? existing.accountId);
   const merged = sanitizeWrite({ table: "accounts", row: { ...existing, ...body, id }, existing, options: visibility });
+  // Accounts sanitization drops accountId, but ownsRow must see the caller's raw assertion so a
+  // foreign ownership claim is concealed as 404 instead of being silently ignored.
   if (
     enforceAccountWriteGuards({
       reply,
