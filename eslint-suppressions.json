@@ -367,7 +367,7 @@
   },
   "server/src/app.logging.test.ts": {
     "max-lines-per-function": {
-      "count": 3
+      "count": 1
     }
   },
   "server/src/app.members.test.ts": {
