@@ -577,11 +577,6 @@
       "count": 1
     }
   },
-  "server/src/routes/appSessionResolution.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "server/src/routes/masqueradeRoutes.ts": {
     "complexity": {
       "count": 1
