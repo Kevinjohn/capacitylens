@@ -2170,97 +2170,6 @@ function buildBlockTimeOffRows() {
 // Mutation-testing gap-fill: each block below targets a specific line the exhaustive suites above
 // happen not to exercise in a way that observes real output (a fallback path, an optional-chain
 // guard, a Map built via array-pair entries, etc).
-function registerMovedSchedulerTests23811(
-  companyData: () => AppData,
-  buildCompany: (blocksMode?: boolean) => GroupModel[],
-) {
-  it("applies closure capacity and conflict cells to every tracked row", () => {
-    const rows = buildCompany().flatMap((group) => group.rows);
-    const r1 = requireValue(
-      rows.find((row) => row.resource.id === "r1"),
-      "r1 scheduler row",
-    );
-    const r2 = requireValue(
-      rows.find((row) => row.resource.id === "r2"),
-      "r2 scheduler row",
-    );
-    const placeholder = requireValue(
-      rows.find((row) => row.resource.id === "placeholder-1"),
-      "placeholder scheduler row",
-    );
-
-    // Wednesday: r1 has work (red), while r2 and the placeholder have only the grey closure.
-    expect(r1.dayStates[2]).toMatchObject({
-      unavailable: true,
-      hasTimeOff: true,
-      over: true,
-      timeOffConflict: true,
-    });
-    expect(r2.dayStates[2]).toMatchObject({
-      unavailable: true,
-      hasTimeOff: true,
-      over: false,
-      timeOffConflict: false,
-    });
-    expect(placeholder.dayStates[2]).toMatchObject({
-      unavailable: true,
-      hasTimeOff: true,
-      over: false,
-      timeOffConflict: false,
-    });
-
-    // Saturday is already recurring-off: the marker/hatch remains without red unless work opts in.
-    expect(r1.dayStates[5]).toMatchObject({ hasTimeOff: true, over: false, timeOffConflict: false });
-    expect(r2.dayStates[5]).toMatchObject({ hasTimeOff: true, over: true, timeOffConflict: true });
-    expect(r1.overSoon).toBe(true);
-    expect(placeholder.overSoon).toBe(false);
-
-    // Personal time off remains a separate rendered fact while the closure independently removes capacity.
-    expect(r1.timeOff.map((entry) => entry.id)).toContain("personal-r1-wednesday");
-    expect(r2.timeOff).toEqual([]);
-    expect(companyData().closures.map((entry) => entry.id)).toContain("company-wednesday");
-    expect(r1.conflictDayCount).toBe(1);
-  });
-}
-
-function registerMovedSchedulerTests23812(buildCompany: (blocksMode?: boolean) => GroupModel[]) {
-  it("flags a zero-load Block overlapping a closure", () => {
-    const r1 = requireValue(
-      buildCompany(true)
-        .flatMap((group) => group.rows)
-        .find((row) => row.resource.id === "r1"),
-      "r1 scheduler row",
-    );
-
-    expect(r1.dayStates[2]).toMatchObject({ over: false, hasTimeOff: true, timeOffConflict: true });
-    expect(r1.conflictDayCount).toBe(1);
-  });
-}
-
-function registerMovedSchedulerTests23813(buildCompany: (blocksMode?: boolean) => GroupModel[]) {
-  it("keeps external capacity starved and exempt from company closures", () => {
-    const external = requireValue(
-      requireValue(
-        buildCompany().find((group) => group.external),
-        "external group",
-      ).rows[0],
-      "external scheduler row",
-    );
-
-    expect(external.timeOff).toEqual([]);
-    expect(external.conflictDayCount).toBe(0);
-    expect(external.utilization).toBe(0);
-    expect(external.overSoon).toBe(false);
-    expect(external.dayStates[2]).toMatchObject({
-      creationBlocked: false,
-      unavailable: false,
-      hasTimeOff: false,
-      over: false,
-      timeOffConflict: false,
-    });
-  });
-}
-
 function registerMovedSchedulerTests20101() {
   it("search is TRIMMED before matching (leading/trailing whitespace is not part of the term)", () => {
     const d = dataset();
@@ -2648,6 +2557,97 @@ function registerMovedSchedulerTests201010() {
     expect(r1.utilization).toBe(0);
     expect(r1.overSoon).toBe(false);
     expect(r2.dayStates[2]).toMatchObject({ unavailable: true, over: false, timeOffConflict: false });
+  });
+}
+
+function registerMovedSchedulerTests23811(
+  companyData: () => AppData,
+  buildCompany: (blocksMode?: boolean) => GroupModel[],
+) {
+  it("applies closure capacity and conflict cells to every tracked row", () => {
+    const rows = buildCompany().flatMap((group) => group.rows);
+    const r1 = requireValue(
+      rows.find((row) => row.resource.id === "r1"),
+      "r1 scheduler row",
+    );
+    const r2 = requireValue(
+      rows.find((row) => row.resource.id === "r2"),
+      "r2 scheduler row",
+    );
+    const placeholder = requireValue(
+      rows.find((row) => row.resource.id === "placeholder-1"),
+      "placeholder scheduler row",
+    );
+
+    // Wednesday: r1 has work (red), while r2 and the placeholder have only the grey closure.
+    expect(r1.dayStates[2]).toMatchObject({
+      unavailable: true,
+      hasTimeOff: true,
+      over: true,
+      timeOffConflict: true,
+    });
+    expect(r2.dayStates[2]).toMatchObject({
+      unavailable: true,
+      hasTimeOff: true,
+      over: false,
+      timeOffConflict: false,
+    });
+    expect(placeholder.dayStates[2]).toMatchObject({
+      unavailable: true,
+      hasTimeOff: true,
+      over: false,
+      timeOffConflict: false,
+    });
+
+    // Saturday is already recurring-off: the marker/hatch remains without red unless work opts in.
+    expect(r1.dayStates[5]).toMatchObject({ hasTimeOff: true, over: false, timeOffConflict: false });
+    expect(r2.dayStates[5]).toMatchObject({ hasTimeOff: true, over: true, timeOffConflict: true });
+    expect(r1.overSoon).toBe(true);
+    expect(placeholder.overSoon).toBe(false);
+
+    // Personal time off remains a separate rendered fact while the closure independently removes capacity.
+    expect(r1.timeOff.map((entry) => entry.id)).toContain("personal-r1-wednesday");
+    expect(r2.timeOff).toEqual([]);
+    expect(companyData().closures.map((entry) => entry.id)).toContain("company-wednesday");
+    expect(r1.conflictDayCount).toBe(1);
+  });
+}
+
+function registerMovedSchedulerTests23812(buildCompany: (blocksMode?: boolean) => GroupModel[]) {
+  it("flags a zero-load Block overlapping a closure", () => {
+    const r1 = requireValue(
+      buildCompany(true)
+        .flatMap((group) => group.rows)
+        .find((row) => row.resource.id === "r1"),
+      "r1 scheduler row",
+    );
+
+    expect(r1.dayStates[2]).toMatchObject({ over: false, hasTimeOff: true, timeOffConflict: true });
+    expect(r1.conflictDayCount).toBe(1);
+  });
+}
+
+function registerMovedSchedulerTests23813(buildCompany: (blocksMode?: boolean) => GroupModel[]) {
+  it("keeps external capacity starved and exempt from company closures", () => {
+    const external = requireValue(
+      requireValue(
+        buildCompany().find((group) => group.external),
+        "external group",
+      ).rows[0],
+      "external scheduler row",
+    );
+
+    expect(external.timeOff).toEqual([]);
+    expect(external.conflictDayCount).toBe(0);
+    expect(external.utilization).toBe(0);
+    expect(external.overSoon).toBe(false);
+    expect(external.dayStates[2]).toMatchObject({
+      creationBlocked: false,
+      unavailable: false,
+      hasTimeOff: false,
+      over: false,
+      timeOffConflict: false,
+    });
   });
 }
 
