@@ -223,11 +223,6 @@
       "count": 1
     }
   },
-  "server/src/accounts/accountFlowRuntime.test.ts": {
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 2
-    }
-  },
   "server/src/accounts/adminPort/cutover.ts": {
     "max-lines-per-function": {
       "count": 1
@@ -238,20 +233,10 @@
       "count": 2
     }
   },
-  "server/src/accounts/betterAuthIdentityPort.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "server/src/accounts/createLocalAccountFlows.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
     },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "server/src/accounts/createTrustedLocalIdentityPort.ts": {
     "max-lines-per-function": {
       "count": 1
     }
@@ -270,24 +255,6 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
     },
-    "complexity": {
-      "count": 1
-    }
-  },
-  "server/src/accounts/identityPort/erasure.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "server/src/accounts/identityPort/inspection.ts": {
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
-  "server/src/accounts/identityPort/verificationState.ts": {
     "complexity": {
       "count": 1
     }

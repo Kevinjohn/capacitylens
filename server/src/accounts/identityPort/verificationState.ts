@@ -22,25 +22,18 @@ export function createInvalidVerificationStateError(
   );
 }
 
-/**
- * Return the principal linked by Better Auth's JSON OAuth state. Opaque scalar ceremonies (reset
- * tokens and similar values) are intentionally unrelated unless they exactly equal the principal.
- * An object-shaped value is different: if it cannot be decoded, erasure cannot prove that it is
- * unrelated, so throw and let the caller's transaction roll back instead of reporting completion.
- */
-export function parseAccountLinkUserId(value: string): string | null {
-  let parsed: unknown;
+function parseStructuredVerification(value: string): unknown {
   try {
-    parsed = JSON.parse(value);
+    return JSON.parse(value);
   } catch (cause) {
     if (value.trimStart().startsWith("{")) {
       throw new MalformedVerificationStateError(MALFORMED_STRUCTURED_VERIFICATION, { cause });
     }
     return null;
   }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
-  if (!Object.hasOwn(parsed, "link")) return null;
-  const link = (parsed as { link: unknown }).link;
+}
+
+function readLinkUserId(link: unknown): string | null {
   if (typeof link !== "object" || link === null || Array.isArray(link)) {
     throw new MalformedVerificationStateError(MALFORMED_STRUCTURED_VERIFICATION);
   }
@@ -48,4 +41,17 @@ export function parseAccountLinkUserId(value: string): string | null {
   if (typeof userId === "string" && userId.length > 0) return userId;
   if (typeof userId === "number" && Number.isFinite(userId)) return String(userId);
   throw new MalformedVerificationStateError(MALFORMED_STRUCTURED_VERIFICATION);
+}
+
+/**
+ * Return the principal linked by Better Auth's JSON OAuth state. Opaque scalar ceremonies (reset
+ * tokens and similar values) are intentionally unrelated unless they exactly equal the principal.
+ * An object-shaped value is different: if it cannot be decoded, erasure cannot prove that it is
+ * unrelated, so throw and let the caller's transaction roll back instead of reporting completion.
+ */
+export function parseAccountLinkUserId(value: string): string | null {
+  const parsed = parseStructuredVerification(value);
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+  if (!Object.hasOwn(parsed, "link")) return null;
+  return readLinkUserId((parsed as { link: unknown }).link);
 }
