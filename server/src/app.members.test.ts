@@ -1123,22 +1123,22 @@ describe("member endpoints — OFF mode (trusted-local)", () => {
   });
 });
 
-describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership (owner-only)", () => {
-  interface TransferInput {
-    app: FastifyInstance;
-    accountId: string;
-    toUserId: string;
-    cookie?: string | undefined;
-  }
+interface TransferInput {
+  app: FastifyInstance;
+  accountId: string;
+  toUserId: string;
+  cookie?: string | undefined;
+}
 
-  const transfer = ({ app, accountId, toUserId, cookie }: TransferInput) =>
-    call(app, {
-      method: "POST",
-      url: `/api/accounts/${accountId}/transfer-ownership`,
-      payload: { toUserId },
-      headers: cookie ? { cookie } : {},
-    });
+const transfer = ({ app, accountId, toUserId, cookie }: TransferInput) =>
+  call(app, {
+    method: "POST",
+    url: `/api/accounts/${accountId}/transfer-ownership`,
+    payload: { toUserId },
+    headers: cookie ? { cookie } : {},
+  });
 
+function registerOwnershipTransferSuccessTest(): void {
   it("owner → existing member: target becomes owner, caller steps down to admin (atomic)", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -1176,7 +1176,9 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
     expect(createdAtOf(member.userId)).toBe(TS);
     expect(createdAtOf(owner.userId)).toBe(TS);
   });
+}
 
+function registerAdminOwnershipTransferRejectionTest(): void {
   it("admin cannot transfer ownership → 403 (transferOwnership is owner-only, above admin)", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -1203,7 +1205,9 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
     expect(getMemberRole(db, "a1", admin.userId)).toBe("admin"); // unchanged
     expect(getMemberRole(db, "a1", member.userId)).toBe("editor");
   });
+}
 
+function registerInvalidOwnershipTransferTargetTest(): void {
   it("target must be an existing member → 404; cannot transfer to self → 400 (both leave state intact)", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -1224,7 +1228,9 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
     expect(parseErrorCode(selfTransfer.json())).toBe("VALIDATION_FAILED");
     expect(getMemberRole(db, "a1", owner.userId)).toBe("owner"); // still the owner
   });
+}
 
+function registerOwnershipTransferShapeTest(): void {
   it("a missing or empty toUserId is a 400 (shape check, before the role/owner logic)", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -1252,7 +1258,9 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
     expect((await transfer({ app, accountId: "a1", toUserId: "", cookie: owner.cookie })).statusCode).toBe(400);
     expect(getMemberRole(db, "a1", owner.userId)).toBe("owner"); // still the owner; nothing changed
   });
+}
 
+function registerCrossTenantOwnershipTransferTest(): void {
   it("cross-tenant: an owner of a1 cannot transfer ownership within a2 → 403", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -1278,6 +1286,14 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
     ).toBe(403);
     expect(getMemberRole(db, "a2", a2member.userId)).toBe("editor"); // unchanged
   });
+}
+
+describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership (owner-only)", () => {
+  registerOwnershipTransferSuccessTest();
+  registerAdminOwnershipTransferRejectionTest();
+  registerInvalidOwnershipTransferTargetTest();
+  registerOwnershipTransferShapeTest();
+  registerCrossTenantOwnershipTransferTest();
 });
 
 interface PatchStatusReqInput {
