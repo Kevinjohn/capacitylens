@@ -61,7 +61,10 @@ interface MutationDependencies {
   audit: ReturnType<typeof createAccountAuditWriter>;
 }
 
-function buildCommandScope(dependencies: MutationDependencies, options: MutationOptions<() => unknown>) {
+function buildCommandScope(
+  dependencies: Pick<MutationDependencies, "applicationId">,
+  options: MutationOptions<() => unknown>,
+) {
   return {
     applicationId: dependencies.applicationId,
     operation: options.actorPrincipalId ? `${options.operation}:actor:${options.actorPrincipalId}` : options.operation,
@@ -72,7 +75,7 @@ function buildCommandScope(dependencies: MutationDependencies, options: Mutation
 }
 
 function writeMutationAudit(
-  dependencies: MutationDependencies,
+  dependencies: Pick<MutationDependencies, "audit">,
   options: MutationOptions<() => unknown>,
   outcome: "success" | "denied" | "failed",
 ): void {
@@ -94,7 +97,7 @@ function isDeniedMutation(error: unknown): boolean {
 }
 
 interface RecordFailedMutationInput {
-  dependencies: MutationDependencies;
+  dependencies: Pick<MutationDependencies, "db" | "audit">;
   options: MutationOptions<() => unknown>;
   scope: ReturnType<typeof buildCommandScope>;
   error: unknown;
@@ -124,7 +127,7 @@ function recordFailedMutation({ dependencies, options, scope, error }: RecordFai
 }
 
 function executeMutation<Execute extends () => unknown>(
-  dependencies: MutationDependencies,
+  dependencies: Pick<MutationDependencies, "db" | "audit">,
   options: MutationOptions<Execute>,
   scope: ReturnType<typeof buildCommandScope>,
 ): ReturnType<Execute> {
@@ -160,15 +163,16 @@ async function runLockedMutation<Execute extends () => unknown>(
       : (begun.result as ReturnType<Execute>);
     return markAccountCommandReplay(result);
   }
+  let result: ReturnType<Execute>;
   try {
-    const result = executeMutation(dependencies, options, scope);
-    options.afterCommit?.(result);
-    return result;
+    result = executeMutation(dependencies, options, scope);
   } catch (error) {
     options.afterRollback?.();
     recordFailedMutation({ dependencies, options, scope, error });
     throw error;
   }
+  options.afterCommit?.(result);
+  return result;
 }
 
 function createRunMutation(dependencies: MutationDependencies): AdminPortContext["runMutation"] {
