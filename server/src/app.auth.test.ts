@@ -157,6 +157,19 @@ function parseTotpSecret(res: LightMyRequestResponse): string {
   return secret;
 }
 
+function parseCreatedUserId(value: unknown): string {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    !("id" in value) ||
+    typeof value.id !== "string"
+  ) {
+    throw new Error("Expected the created user to include a string id.");
+  }
+  return value.id;
+}
+
 function totpCode(secret: string, at = Date.now()): string {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   let bits = "";
@@ -2066,20 +2079,20 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
 
   it("enforces the code-point policy on direct identity creation that bypasses HTTP routes", async () => {
     const { auth } = await bootstrapFixture();
+    if (auth === null) throw new Error("Expected password authentication to be configured.");
     await expect(
-      auth!.createCredentialUser({
+      auth.createCredentialUser({
         email: "direct-short@capacitylens.dev",
         name: "Direct Short",
         password: "🔐".repeat(14),
       }),
     ).rejects.toThrow(`at least ${MIN_PASSWORD_LENGTH} characters`);
-    await expect(
-      auth!.createCredentialUser({
-        email: "direct-max@capacitylens.dev",
-        name: "Direct Max",
-        password: "🔐".repeat(128),
-      }),
-    ).resolves.toEqual({ id: expect.any(String) });
+    const createdUser: unknown = await auth.createCredentialUser({
+      email: "direct-max@capacitylens.dev",
+      name: "Direct Max",
+      password: "🔐".repeat(128),
+    });
+    expect(parseCreatedUserId(createdUser)).toBeTypeOf("string");
   });
 
   it("skips with one line (not an error) when users already exist", async () => {
