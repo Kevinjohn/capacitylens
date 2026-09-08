@@ -306,6 +306,25 @@ interface ActivitySnapshot extends ProjectBinding {
   updatedAt: string;
 }
 
+interface DisciplineSnapshot {
+  accountId: string;
+  color?: string;
+  createdAt: string;
+  id: string;
+  name: string;
+  sortOrder: number;
+  updatedAt: string;
+}
+
+interface PhaseSnapshot {
+  accountId: string;
+  createdAt: string;
+  id: string;
+  name: string;
+  projectId: string;
+  updatedAt: string;
+}
+
 interface ResourceSnapshot extends ProjectBinding {
   accountId: string;
   color: string;
@@ -426,8 +445,8 @@ interface ValidatedStateResponse {
   allocations: AllocationSnapshot[];
   clients: ClientSnapshot[];
   closures: ClosureSnapshot[];
-  disciplines: unknown[];
-  phases: unknown[];
+  disciplines: DisciplineSnapshot[];
+  phases: PhaseSnapshot[];
   projects: ProjectSnapshot[];
   resources: ResourceSnapshot[];
   timeOff: TimeOffSnapshot[];
@@ -527,6 +546,55 @@ function readActivitySnapshots(rows: unknown[]): ActivitySnapshot[] {
     if (phaseId !== undefined) snapshot.phaseId = phaseId;
     return snapshot;
   });
+}
+
+function readDisciplineSnapshots(rows: unknown[]): DisciplineSnapshot[] {
+  return rows.map((row) => {
+    if (!isUnknownRecord(row)) throw new Error("Expected every discipline row to be an object.");
+    requireModeledKeys(
+      row,
+      ["accountId", "color", "createdAt", "id", "name", "sortOrder", "updatedAt"],
+      "discipline row",
+    );
+    const color = readOptionalString(row, "color", "discipline row");
+    const snapshot: DisciplineSnapshot = {
+      accountId: readRequiredString(row, "accountId", "discipline row"),
+      createdAt: readRequiredString(row, "createdAt", "discipline row"),
+      id: readRequiredString(row, "id", "discipline row"),
+      name: readRequiredString(row, "name", "discipline row"),
+      sortOrder: readRequiredNumber(row, "sortOrder", "discipline row"),
+      updatedAt: readRequiredString(row, "updatedAt", "discipline row"),
+    };
+    if (color !== undefined) snapshot.color = color;
+    return snapshot;
+  });
+}
+
+function readFirstDiscipline(disciplines: DisciplineSnapshot[]): DisciplineSnapshot {
+  const disciplineRow = disciplines[0];
+  if (!disciplineRow) throw new Error("Expected the state response to contain a discipline.");
+  return disciplineRow;
+}
+
+function readPhaseSnapshots(rows: unknown[]): PhaseSnapshot[] {
+  return rows.map((row) => {
+    if (!isUnknownRecord(row)) throw new Error("Expected every phase row to be an object.");
+    requireModeledKeys(row, ["accountId", "createdAt", "id", "name", "projectId", "updatedAt"], "phase row");
+    return {
+      accountId: readRequiredString(row, "accountId", "phase row"),
+      createdAt: readRequiredString(row, "createdAt", "phase row"),
+      id: readRequiredString(row, "id", "phase row"),
+      name: readRequiredString(row, "name", "phase row"),
+      projectId: readRequiredString(row, "projectId", "phase row"),
+      updatedAt: readRequiredString(row, "updatedAt", "phase row"),
+    };
+  });
+}
+
+function readFirstPhase(phases: PhaseSnapshot[]): PhaseSnapshot {
+  const phaseRow = phases[0];
+  if (!phaseRow) throw new Error("Expected the state response to contain a phase.");
+  return phaseRow;
 }
 
 function readFirstActivity(activities: ActivitySnapshot[]): ActivitySnapshot {
@@ -976,8 +1044,8 @@ function readValidatedStateValue(value: unknown): ValidatedStateResponse {
     allocations: readAllocationSnapshots(readStateArray(value, "allocations")),
     clients: readClientSnapshots(readStateArray(value, "clients")),
     closures: readClosureSnapshots(readStateArray(value, "closures")),
-    disciplines: readStateArray(value, "disciplines"),
-    phases: readStateArray(value, "phases"),
+    disciplines: readDisciplineSnapshots(readStateArray(value, "disciplines")),
+    phases: readPhaseSnapshots(readStateArray(value, "phases")),
     projects: readProjectSnapshots(readStateArray(value, "projects")),
     resources: readResourceSnapshots(readStateArray(value, "resources")),
     timeOff: readTimeOffSnapshots(readStateArray(value, "timeOff")),
@@ -4782,7 +4850,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     const { app } = freshApp();
     await post(app, "accounts", FIXTURE_ACCOUNT);
     expect((await post(app, "disciplines", FIXTURE_DISCIPLINE)).statusCode).toBe(201);
-    expectFixture((await state(app)).disciplines[0], FIXTURE_DISCIPLINE);
+    expectFixture(readFirstDiscipline((await readValidatedState(app)).disciplines), FIXTURE_DISCIPLINE);
   });
 
   it("project: every field round-trips (lifecycle archivedAt/deletedAt stripped by generic writes)", async () => {
@@ -4799,7 +4867,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     await post(app, "clients", FIXTURE_CLIENT);
     await post(app, "projects", FIXTURE_PROJECT);
     expect((await post(app, "phases", FIXTURE_PHASE)).statusCode).toBe(201);
-    expectFixture((await state(app)).phases[0], FIXTURE_PHASE);
+    expectFixture(readFirstPhase((await readValidatedState(app)).phases), FIXTURE_PHASE);
   });
 
   it("resource: every field round-trips (including optional name/disciplineId/projectId + json workingDays + lifecycle archivedAt/deletedAt)", async () => {
