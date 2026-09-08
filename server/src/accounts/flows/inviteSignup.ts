@@ -4,239 +4,322 @@ import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { recordTerminalOutcome } from "../accountFlowRuntime";
 import {
   beginCommand,
+  buildSecretDigest,
   completeCommand,
   correlatePendingAccountCommand,
   markAccountCommandReplay,
   resumeExistingCommand,
-  buildSecretDigest,
   terminateCommand,
   terminatePendingCommand,
 } from "../commands";
 import type { LocalAccountFlows } from "../createLocalAccountFlows";
 import type { LocalAccountFlowContext } from "./context";
 
+type InviteSignupInput = Parameters<LocalAccountFlows["acceptInviteWithPasswordSignup"]>[0];
+type ProvisionalPrincipal = Awaited<ReturnType<IdentityPort["createProvisionalCredentialPrincipal"]>>;
+type InviteSignupDependencies = Pick<
+  LocalAccountFlowContext,
+  | "administration"
+  | "applicationId"
+  | "buildCommandExecutionKey"
+  | "db"
+  | "identity"
+  | "lock"
+  | "persistTerminalOutcome"
+>;
+type SignupExecution = {
+  dependencies: InviteSignupDependencies;
+  input: InviteSignupInput;
+  operation: "invite-password-signup";
+  scope: { applicationId: string; operation: "invite-password-signup"; actorPrincipalId: null };
+};
+type SignupState = {
+  claimCommitted: boolean;
+  membership: InviteSignupResult["membership"] | null;
+  provisional: ProvisionalPrincipal | null;
+};
+type CompensationFailureInput = {
+  claimError: unknown;
+  compensationError: unknown;
+  execution: SignupExecution;
+  provisionalPrincipalId: string;
+};
+
+function recordCommittedClaimFailure(execution: SignupExecution, claimError: unknown, state: SignupState): never {
+  const { dependencies, input, scope } = execution;
+  const { db, persistTerminalOutcome } = dependencies;
+  const { command } = input;
+  const workspaceId = state.membership?.workspaceId ?? null;
+  const targetPrincipalId = state.provisional?.principalId ?? null;
+  recordTerminalOutcome(claimError, () =>
+    persistTerminalOutcome(
+      () =>
+        terminatePendingCommand({
+          db,
+          scope,
+          command,
+          status: "reconciliation_required",
+          failureCode: "DEPENDENCY_UNAVAILABLE",
+          result: {
+            kind: "invitation-claim-committed",
+            workspaceId,
+            targetPrincipalId,
+            provisionalPrincipalId: targetPrincipalId,
+            ceremonyId: null,
+          },
+        }),
+      {
+        action: "flow.reconciliation_required",
+        outcome: "failed",
+        workspaceId,
+        targetPrincipalId,
+        command,
+        changedFields: ["commandLedger"],
+      },
+    ),
+  );
+  throw new AccountContractError(
+    {
+      code: "DEPENDENCY_UNAVAILABLE",
+      message: "The invitation was claimed, but completion must be reconciled before retrying.",
+      retryable: true,
+      commandId: command.commandId,
+    },
+    { cause: claimError },
+  );
+}
+
+function recordPreProvisionFailure(execution: SignupExecution, claimError: unknown): never {
+  const { dependencies, input, scope } = execution;
+  const { db, persistTerminalOutcome } = dependencies;
+  const { command } = input;
+  recordTerminalOutcome(claimError, () =>
+    persistTerminalOutcome(
+      () =>
+        terminateCommand({
+          db,
+          scope,
+          command,
+          status: "compensated",
+          failureCode: claimError instanceof AccountContractError ? claimError.failure.code : "CONFLICT",
+        }),
+      { action: "flow.compensated", outcome: "compensated", command },
+    ),
+  );
+  throw claimError;
+}
+
+function recordCompensatedFailure(
+  execution: SignupExecution,
+  claimError: unknown,
+  provisionalPrincipalId: string,
+): never {
+  const { dependencies, input, scope } = execution;
+  const { db, persistTerminalOutcome } = dependencies;
+  const { command } = input;
+  recordTerminalOutcome(claimError, () =>
+    persistTerminalOutcome(
+      () =>
+        terminateCommand({
+          db,
+          scope,
+          command,
+          status: "compensated",
+          failureCode: claimError instanceof AccountContractError ? claimError.failure.code : "CONFLICT",
+        }),
+      {
+        action: "flow.compensated",
+        outcome: "compensated",
+        targetPrincipalId: provisionalPrincipalId,
+        command,
+        changedFields: ["localPrincipal"],
+      },
+    ),
+  );
+  throw claimError;
+}
+
+function recordCompensationFailure({
+  claimError,
+  compensationError,
+  execution,
+  provisionalPrincipalId,
+}: CompensationFailureInput): never {
+  const { dependencies, input, scope } = execution;
+  const { db, persistTerminalOutcome } = dependencies;
+  const { command } = input;
+  const combinedFailure = new AggregateError([claimError, compensationError]);
+  recordTerminalOutcome(combinedFailure, () =>
+    persistTerminalOutcome(
+      () =>
+        terminateCommand({
+          db,
+          scope,
+          command,
+          status: "reconciliation_required",
+          failureCode: "COMPENSATION_FAILED",
+          result: {
+            kind: "provisional-principal-compensation-failed",
+            workspaceId: null,
+            targetPrincipalId: provisionalPrincipalId,
+            provisionalPrincipalId,
+            ceremonyId: null,
+          },
+        }),
+      {
+        action: "flow.reconciliation_required",
+        outcome: "failed",
+        targetPrincipalId: provisionalPrincipalId,
+        command,
+        changedFields: ["localPrincipal"],
+      },
+    ),
+  );
+  throw new AccountContractError(
+    {
+      code: "COMPENSATION_FAILED",
+      message: "Invitation claim failed and the provisional local identity could not be removed.",
+      retryable: true,
+      commandId: command.commandId,
+    },
+    { cause: combinedFailure },
+  );
+}
+
+async function compensateFailedSignup(
+  execution: SignupExecution,
+  claimError: unknown,
+  provisional: ProvisionalPrincipal,
+): Promise<never> {
+  const { identity } = execution.dependencies;
+  const { command } = execution.input;
+  try {
+    await identity.compensateProvisionalPrincipal({
+      provisional,
+      reason: "invitation-claim-failed",
+      command,
+    });
+  } catch (compensationError) {
+    recordCompensationFailure({
+      execution,
+      claimError,
+      compensationError,
+      provisionalPrincipalId: provisional.principalId,
+    });
+  }
+  return recordCompensatedFailure(execution, claimError, provisional.principalId);
+}
+
+async function claimInvitation(
+  execution: SignupExecution,
+  admission: Awaited<ReturnType<LocalAccountFlowContext["administration"]["preparePasswordInvitationClaim"]>>,
+  state: SignupState,
+): Promise<InviteSignupResult> {
+  const { administration, db, lock } = execution.dependencies;
+  const { command, email, token } = execution.input;
+  const provisional = state.provisional;
+  if (!provisional) throw new Error("Invitation claim requires a provisional principal");
+
+  return lock.withKeys([provisional.principalId, `workspace:${admission.workspaceId}`], async () => {
+    const membership = await administration.claimInvitationForPrincipal({
+      token,
+      principalId: provisional.principalId,
+      principalEmail: email,
+      emailVerified: admission.emailVerifiedByInvitation,
+      passwordMode: true,
+      command: {
+        commandId: `${command.commandId}:claim`,
+        idempotencyKey: `${command.idempotencyKey}:claim`,
+      },
+    });
+    state.claimCommitted = true;
+    state.membership = membership;
+    const result: InviteSignupResult = { principalId: provisional.principalId, membership, compensated: false };
+    // Keep both keys through parent completion so workspace erasure cannot remove the command rows
+    // after the child claim commits but before this durable parent outcome is recorded.
+    completeCommand({ db, scope: execution.scope, command, result });
+    return result;
+  });
+}
+
+async function executeSignup(
+  execution: SignupExecution,
+  admission: Awaited<ReturnType<LocalAccountFlowContext["administration"]["preparePasswordInvitationClaim"]>>,
+  state: SignupState,
+): Promise<InviteSignupResult> {
+  const { applicationId, db, identity } = execution.dependencies;
+  const { command, displayName, email, password } = execution.input;
+  const { operation } = execution;
+  correlatePendingAccountCommand(db, {
+    applicationId,
+    operation,
+    idempotencyKey: command.idempotencyKey,
+    workspaceId: admission.workspaceId,
+  });
+  state.provisional = await identity.createCorrelatedProvisionalCredentialPrincipal({
+    email,
+    displayName,
+    password,
+    emailVerified: admission.emailVerifiedByInvitation,
+    command,
+    correlatePrincipalInTransaction: (principalId) =>
+      correlatePendingAccountCommand(db, {
+        applicationId,
+        operation,
+        idempotencyKey: command.idempotencyKey,
+        workspaceId: admission.workspaceId,
+        targetPrincipalId: principalId,
+      }),
+  });
+  return claimInvitation(execution, admission, state);
+}
+
+function buildCanonicalPayload({ displayName, email, password, token }: InviteSignupInput) {
+  return {
+    // Testing a password candidate requires possession of the high-entropy invitation token too.
+    credentialBindingDigest: buildSecretDigest("invite-signup-credentials", `${token}\0${password}`),
+    normalizedEmail: normalizeAccountEmail(email),
+    displayName,
+  };
+}
+
+async function acceptInviteWithPasswordSignup(
+  dependencies: InviteSignupDependencies,
+  input: InviteSignupInput,
+): Promise<InviteSignupResult> {
+  const { applicationId, buildCommandExecutionKey, db, lock } = dependencies;
+  const { administration } = dependencies;
+  const { command, email, token } = input;
+  const operation: SignupExecution["operation"] = "invite-password-signup";
+  const scope = { applicationId, operation, actorPrincipalId: null };
+  const canonicalPayload = buildCanonicalPayload(input);
+  return lock.withKeys([buildCommandExecutionKey(command)], async () => {
+    const replay = resumeExistingCommand<InviteSignupResult>({ db, scope, command, canonicalPayload });
+    if (replay) return markAccountCommandReplay(replay.result);
+
+    // The invitation is the only authority on this unauthenticated route. Validate it before
+    // reserving a command so invalid bearer values cannot amplify durable SQLite writes.
+    const admission = await administration.preparePasswordInvitationClaim({ token, normalizedEmail: email });
+    const begun = beginCommand<InviteSignupResult>({ db, scope, command, canonicalPayload });
+    if (begun.kind === "replay") return markAccountCommandReplay(begun.result);
+
+    const execution: SignupExecution = { dependencies, input, operation, scope };
+    const state: SignupState = { claimCommitted: false, membership: null, provisional: null };
+    try {
+      return await executeSignup(execution, admission, state);
+    } catch (claimError) {
+      if (state.claimCommitted) return recordCommittedClaimFailure(execution, claimError, state);
+      if (!state.provisional) return recordPreProvisionFailure(execution, claimError);
+      return compensateFailedSignup(execution, claimError, state.provisional);
+    }
+  });
+}
+
 export function createInviteSignupFlows(
   context: LocalAccountFlowContext,
 ): Pick<LocalAccountFlows, "acceptInviteWithPasswordSignup"> {
-  const { applicationId, db, identity, administration, lock, persistTerminalOutcome, buildCommandExecutionKey } =
-    context;
+  const dependencies: InviteSignupDependencies = context;
   return {
-    async acceptInviteWithPasswordSignup({
-      token,
-      email,
-      displayName,
-      password,
-      command,
-    }): Promise<InviteSignupResult> {
-      return lock.withKeys([buildCommandExecutionKey(command)], async () => {
-        const operation = "invite-password-signup";
-        const scope = { applicationId, operation, actorPrincipalId: null };
-        const canonicalPayload = {
-          // Bind the full credential-bearing request without persisting either bearer, or a
-          // standalone password verifier that a ledger reader could attack independently. Testing a
-          // password candidate requires possession of the high-entropy invitation token as well.
-          credentialBindingDigest: buildSecretDigest("invite-signup-credentials", `${token}\0${password}`),
-          normalizedEmail: normalizeAccountEmail(email),
-          displayName,
-        };
-        const replay = resumeExistingCommand<InviteSignupResult>({ db, scope, command, canonicalPayload });
-        if (replay) return markAccountCommandReplay(replay.result);
-
-        // The invitation is the only authority on this unauthenticated route. Validate it before
-        // reserving a command so arbitrary invalid bearer values cannot amplify durable SQLite
-        // writes. Completed retries were handled by the read-only lookup above because their
-        // legitimate single-use invitation has already been consumed.
-        const admission = await administration.preparePasswordInvitationClaim({
-          token,
-          normalizedEmail: email,
-        });
-        const begun = beginCommand<InviteSignupResult>({ db, scope, command, canonicalPayload });
-        if (begun.kind === "replay") return markAccountCommandReplay(begun.result);
-
-        let provisional: Awaited<ReturnType<IdentityPort["createProvisionalCredentialPrincipal"]>> | null = null;
-        const claimState: {
-          committed: boolean;
-          membership: InviteSignupResult["membership"] | null;
-        } = {
-          committed: false,
-          membership: null,
-        };
-        try {
-          correlatePendingAccountCommand(db, {
-            applicationId,
-            operation,
-            idempotencyKey: command.idempotencyKey,
-            workspaceId: admission.workspaceId,
-          });
-          provisional = await identity.createCorrelatedProvisionalCredentialPrincipal({
-            email,
-            displayName,
-            password,
-            emailVerified: admission.emailVerifiedByInvitation,
-            command,
-            // The embedded identity adapter invokes this after inserting the user and credential link
-            // but before their shared SQLite transaction commits. A crash can therefore leave either
-            // all three durable facts or none, never an uncorrelated provisional principal.
-            correlatePrincipalInTransaction: (principalId) =>
-              correlatePendingAccountCommand(db, {
-                applicationId,
-                operation,
-                idempotencyKey: command.idempotencyKey,
-                workspaceId: admission.workspaceId,
-                targetPrincipalId: principalId,
-              }),
-          });
-          return await lock.withKeys([provisional.principalId, `workspace:${admission.workspaceId}`], async () => {
-            const membership = await administration.claimInvitationForPrincipal({
-              token,
-              principalId: provisional!.principalId,
-              principalEmail: email,
-              emailVerified: admission.emailVerifiedByInvitation,
-              passwordMode: true,
-              command: {
-                commandId: `${command.commandId}:claim`,
-                idempotencyKey: `${command.idempotencyKey}:claim`,
-              },
-            });
-            claimState.committed = true;
-            claimState.membership = membership;
-            const result: InviteSignupResult = {
-              principalId: provisional!.principalId,
-              membership,
-              compensated: false,
-            };
-            // Keep the principal/workspace keys through parent completion. Otherwise workspace
-            // erasure could delete both command rows after the child claim commits but before this
-            // durable parent outcome is recorded, leaving the browser with nothing to reconcile.
-            completeCommand({ db, scope, command, result });
-            return result;
-          });
-        } catch (claimError) {
-          if (claimState.committed) {
-            recordTerminalOutcome(claimError, () =>
-              persistTerminalOutcome(
-                () =>
-                  terminatePendingCommand({
-                    db,
-                    scope,
-                    command,
-                    status: "reconciliation_required",
-                    failureCode: "DEPENDENCY_UNAVAILABLE",
-                    result: {
-                      kind: "invitation-claim-committed",
-                      workspaceId: claimState.membership?.workspaceId ?? null,
-                      targetPrincipalId: provisional?.principalId ?? null,
-                      provisionalPrincipalId: provisional?.principalId ?? null,
-                      ceremonyId: null,
-                    },
-                  }),
-                {
-                  action: "flow.reconciliation_required",
-                  outcome: "failed",
-                  workspaceId: claimState.membership?.workspaceId ?? null,
-                  targetPrincipalId: provisional?.principalId ?? null,
-                  command,
-                  changedFields: ["commandLedger"],
-                },
-              ),
-            );
-            throw new AccountContractError(
-              {
-                code: "DEPENDENCY_UNAVAILABLE",
-                message: "The invitation was claimed, but completion must be reconciled before retrying.",
-                retryable: true,
-                commandId: command.commandId,
-              },
-              { cause: claimError },
-            );
-          }
-          if (!provisional) {
-            recordTerminalOutcome(claimError, () =>
-              persistTerminalOutcome(
-                () =>
-                  terminateCommand({
-                    db,
-                    scope,
-                    command,
-                    status: "compensated",
-                    failureCode: claimError instanceof AccountContractError ? claimError.failure.code : "CONFLICT",
-                  }),
-                { action: "flow.compensated", outcome: "compensated", command },
-              ),
-            );
-            throw claimError;
-          }
-          const provisionalPrincipalId = provisional.principalId;
-          let compensationError: unknown = null;
-          try {
-            await identity.compensateProvisionalPrincipal({
-              provisional,
-              reason: "invitation-claim-failed",
-              command,
-            });
-          } catch (error) {
-            compensationError = error;
-          }
-          if (compensationError === null) {
-            recordTerminalOutcome(claimError, () =>
-              persistTerminalOutcome(
-                () =>
-                  terminateCommand({
-                    db,
-                    scope,
-                    command,
-                    status: "compensated",
-                    failureCode: claimError instanceof AccountContractError ? claimError.failure.code : "CONFLICT",
-                  }),
-                {
-                  action: "flow.compensated",
-                  outcome: "compensated",
-                  targetPrincipalId: provisionalPrincipalId,
-                  command,
-                  changedFields: ["localPrincipal"],
-                },
-              ),
-            );
-            throw claimError;
-          }
-          const combinedFailure = new AggregateError([claimError, compensationError]);
-          recordTerminalOutcome(combinedFailure, () =>
-            persistTerminalOutcome(
-              () =>
-                terminateCommand({
-                  db,
-                  scope,
-                  command,
-                  status: "reconciliation_required",
-                  failureCode: "COMPENSATION_FAILED",
-                  result: {
-                    kind: "provisional-principal-compensation-failed",
-                    workspaceId: null,
-                    targetPrincipalId: provisionalPrincipalId,
-                    provisionalPrincipalId,
-                    ceremonyId: null,
-                  },
-                }),
-              {
-                action: "flow.reconciliation_required",
-                outcome: "failed",
-                targetPrincipalId: provisionalPrincipalId,
-                command,
-                changedFields: ["localPrincipal"],
-              },
-            ),
-          );
-          throw new AccountContractError(
-            {
-              code: "COMPENSATION_FAILED",
-              message: "Invitation claim failed and the provisional local identity could not be removed.",
-              retryable: true,
-              commandId: command.commandId,
-            },
-            { cause: combinedFailure },
-          );
-        }
-      });
-    },
+    acceptInviteWithPasswordSignup: (input) => acceptInviteWithPasswordSignup(dependencies, input),
   };
 }
