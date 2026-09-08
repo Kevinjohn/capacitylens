@@ -331,6 +331,20 @@ interface AllocationSnapshot {
   updatedAt: string;
 }
 
+interface ProjectSnapshot {
+  accountId: string;
+  archivedAt?: string;
+  clientId: string;
+  codeName?: string;
+  color: string;
+  createdAt: string;
+  deletedAt?: string;
+  id: string;
+  isPrivate?: boolean;
+  name: string;
+  updatedAt: string;
+}
+
 interface ClientSnapshot {
   accountId: string;
   color: string;
@@ -349,7 +363,7 @@ interface ValidatedStateResponse {
   clients: ClientSnapshot[];
   disciplines: unknown[];
   phases: unknown[];
-  projects: unknown[];
+  projects: ProjectSnapshot[];
   resources: ResourceSnapshot[];
   timeOff: unknown[];
 }
@@ -517,6 +531,53 @@ function readFirstAllocation(allocations: AllocationSnapshot[]): AllocationSnaps
   return allocationRow;
 }
 
+function readProjectSnapshots(rows: unknown[]): ProjectSnapshot[] {
+  return rows.map((row) => {
+    if (!isUnknownRecord(row)) throw new Error("Expected every project row to be an object.");
+    requireModeledKeys(
+      row,
+      [
+        "accountId",
+        "archivedAt",
+        "clientId",
+        "codeName",
+        "color",
+        "createdAt",
+        "deletedAt",
+        "id",
+        "isPrivate",
+        "name",
+        "updatedAt",
+      ],
+      "project row",
+    );
+    const archivedAt = readOptionalString(row, "archivedAt", "project row");
+    const codeName = readOptionalString(row, "codeName", "project row");
+    const deletedAt = readOptionalString(row, "deletedAt", "project row");
+    const isPrivate = readOptionalBoolean(row, "isPrivate", "project row");
+    const snapshot: ProjectSnapshot = {
+      accountId: readRequiredString(row, "accountId", "project row"),
+      clientId: readRequiredString(row, "clientId", "project row"),
+      color: readRequiredString(row, "color", "project row"),
+      createdAt: readRequiredString(row, "createdAt", "project row"),
+      id: readRequiredString(row, "id", "project row"),
+      name: readRequiredString(row, "name", "project row"),
+      updatedAt: readRequiredString(row, "updatedAt", "project row"),
+    };
+    if (archivedAt !== undefined) snapshot.archivedAt = archivedAt;
+    if (codeName !== undefined) snapshot.codeName = codeName;
+    if (deletedAt !== undefined) snapshot.deletedAt = deletedAt;
+    if (isPrivate !== undefined) snapshot.isPrivate = isPrivate;
+    return snapshot;
+  });
+}
+
+function readFirstProject(projects: ProjectSnapshot[]): ProjectSnapshot {
+  const projectRow = projects[0];
+  if (!projectRow) throw new Error("Expected the state response to contain a project.");
+  return projectRow;
+}
+
 function readResourceSnapshots(rows: unknown[]): ResourceSnapshot[] {
   return readProjectBindings(rows, "resource").map((binding, index) => {
     const source = rows[index];
@@ -638,7 +699,7 @@ async function readValidatedState(app: FastifyInstance): Promise<ValidatedStateR
     clients: readClientSnapshots(readStateArray(value, "clients")),
     disciplines: readStateArray(value, "disciplines"),
     phases: readStateArray(value, "phases"),
-    projects: readStateArray(value, "projects"),
+    projects: readProjectSnapshots(readStateArray(value, "projects")),
     resources: readResourceSnapshots(readStateArray(value, "resources")),
     timeOff: readStateArray(value, "timeOff"),
   };
@@ -1407,10 +1468,10 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       { method: "DELETE", table: "clients", id: "c1", accountId: "a1" },
     ]);
     expect(res.statusCode).toBe(400);
-    const s = await state(app);
-    expect(s.clients.map((c: { id: string }) => c.id)).toEqual(["c1", "c2"]);
+    const s = await readValidatedState(app);
+    expect(readClientIds(s.clients)).toEqual(["c1", "c2"]);
     expect(s.projects).toHaveLength(1);
-    expect(s.projects[0].clientId).toBe("c1");
+    expect(readFirstProject(s.projects).clientId).toBe("c1");
     expect(s.activities).toHaveLength(1);
   });
 
@@ -1428,7 +1489,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       },
     ]);
     expect(res.statusCode).toBe(400);
-    const s = await state(app);
+    const s = await readValidatedState(app);
     expect(s.clients).toHaveLength(0); // c3 rolled back with the bad op — nothing persisted
     expect(s.projects).toHaveLength(0);
   });
