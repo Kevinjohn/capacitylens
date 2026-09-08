@@ -609,17 +609,6 @@
       "count": 1
     }
   },
-  "server/src/routes/batch/validateRequest.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "server/src/routes/lifecycleRoutes.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
