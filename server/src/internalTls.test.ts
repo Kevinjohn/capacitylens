@@ -12,6 +12,34 @@ import {
   loadInternalTls,
 } from "./internalTls";
 
+const registerInternalTlsIdentityReadTests = () => {
+  it("frames unreadable and empty identities as configuration errors", () => {
+    const readFailure = new Error("permission denied");
+    const loadUnreadableIdentity = () =>
+      loadInternalTls({
+        environment: {
+          CAPACITYLENS_INTERNAL_TLS_CERT: "/tls/api.crt",
+          CAPACITYLENS_INTERNAL_TLS_KEY: "/tls/api.key",
+        },
+        read: () => {
+          throw readFailure;
+        },
+      });
+
+    expect(loadUnreadableIdentity).toThrow(/Unable to read.*permission denied/);
+    expect(loadUnreadableIdentity).toThrow(expect.objectContaining({ cause: readFailure }));
+    expect(() =>
+      loadInternalTls({
+        environment: {
+          CAPACITYLENS_INTERNAL_TLS_CERT: "/tls/api.crt",
+          CAPACITYLENS_INTERNAL_TLS_KEY: "/tls/api.key",
+        },
+        read: () => Buffer.alloc(0),
+      }),
+    ).toThrow(/must not be empty/);
+  });
+};
+
 describe("loadInternalTls", () => {
   it("keeps local development on HTTP when both paths are omitted", () => {
     const read = vi.fn<(path: string) => Buffer>();
@@ -61,42 +89,7 @@ describe("loadInternalTls", () => {
     expect(read.mock.calls).toEqual([["/tls/api.crt"], ["/tls/api.key"]]);
   });
 
-  it("frames unreadable and empty identities as configuration errors", () => {
-    const readFailure = new Error("permission denied");
-    expect(() =>
-      loadInternalTls({
-        environment: {
-          CAPACITYLENS_INTERNAL_TLS_CERT: "/tls/api.crt",
-          CAPACITYLENS_INTERNAL_TLS_KEY: "/tls/api.key",
-        },
-        read: () => {
-          throw readFailure;
-        },
-      }),
-    ).toThrow(/Unable to read.*permission denied/);
-
-    expect(() =>
-      loadInternalTls({
-        environment: {
-          CAPACITYLENS_INTERNAL_TLS_CERT: "/tls/api.crt",
-          CAPACITYLENS_INTERNAL_TLS_KEY: "/tls/api.key",
-        },
-        read: () => {
-          throw readFailure;
-        },
-      }),
-    ).toThrow(expect.objectContaining({ cause: readFailure }));
-
-    expect(() =>
-      loadInternalTls({
-        environment: {
-          CAPACITYLENS_INTERNAL_TLS_CERT: "/tls/api.crt",
-          CAPACITYLENS_INTERNAL_TLS_KEY: "/tls/api.key",
-        },
-        read: () => Buffer.alloc(0),
-      }),
-    ).toThrow(/must not be empty/);
-  });
+  registerInternalTlsIdentityReadTests();
 
   it("fails closed when the configured certificate cannot be parsed", () => {
     expect(() =>

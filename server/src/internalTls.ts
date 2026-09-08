@@ -36,7 +36,7 @@ const parseCertificateExpiry = (certificate: Buffer): string => {
   return new Date(parsed).toISOString();
 };
 
-const getInternalTlsStatus = (remainingMs: number): InternalTlsHealth["status"] => {
+const resolveInternalTlsStatus = (remainingMs: number): InternalTlsHealth["status"] => {
   if (remainingMs <= 0) return "expired";
   if (remainingMs <= INTERNAL_TLS_RENEW_BEFORE_SECONDS * 1_000) return "expiring";
   return "ok";
@@ -51,7 +51,7 @@ export function buildInternalTlsHealth(
   const parsedExpiry = Date.parse(expiresAt);
   const remainingMs = Number.isFinite(parsedExpiry) ? parsedExpiry - now : 0;
   return {
-    status: getInternalTlsStatus(remainingMs),
+    status: resolveInternalTlsStatus(remainingMs),
     expiresAt,
     daysRemaining: Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1_000))),
     ...(fingerprintSha256 ? { fingerprintSha256 } : {}),
@@ -104,7 +104,7 @@ const assertInternalTlsIdentityValid = ({ cert, key, validateIdentity }: Validat
   }
 };
 
-const getInternalTlsExpiry = (cert: Buffer, expiry: (certificate: Buffer) => string): string => {
+const parseInternalTlsExpiry = (cert: Buffer, expiry: (certificate: Buffer) => string): string => {
   let expiresAt: string;
   try {
     expiresAt = expiry(cert);
@@ -181,7 +181,7 @@ export function loadInternalTls({
 
   const { cert, key } = readInternalTlsIdentity({ certPath, keyPath, readFile: read });
   assertInternalTlsIdentityValid({ cert, key, validateIdentity });
-  const expiresAt = getInternalTlsExpiry(cert, expiry);
+  const expiresAt = parseInternalTlsExpiry(cert, expiry);
   const fingerprintSha256 = createHash("sha256").update(cert).digest("hex");
   assertInternalTlsGeneration({ rawGenerationPath, generationPath, fingerprintSha256, readFile: read });
 
