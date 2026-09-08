@@ -4304,7 +4304,7 @@ describe("sensitive response caching", () => {
   });
 });
 
-describe("optimistic concurrency (default-on)", () => {
+function registerDirectPutConcurrencyTests(): void {
   it("rejects a stale PUT with 409 when enabled; allows same/newer", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
@@ -4345,7 +4345,9 @@ describe("optimistic concurrency (default-on)", () => {
     expect(fresh.statusCode).toBe(200);
     expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Fresh");
   });
+}
 
+function registerDirectPatchConcurrencyTests(): void {
   it("rejects a stale PATCH and accepts one carrying the current server revision", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
@@ -4373,7 +4375,9 @@ describe("optimistic concurrency (default-on)", () => {
     expect(readClientResponse(fresh).name).toBe("Fresh");
     expect(Date.parse(readClientResponse(fresh).updatedAt)).not.toBeNaN();
   });
+}
 
+function registerConcurrencyOptOutTests(): void {
   it("can be explicitly disabled for a trusted single-writer deployment", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
@@ -4399,7 +4403,9 @@ describe("optimistic concurrency (default-on)", () => {
     expect(stale.statusCode).toBe(200);
     expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Stale");
   });
+}
 
+function registerBatchStalePutConcurrencyTests(): void {
   // The batch PUT branch applies the SAME stale-write refusal as the direct PUT (it previously
   // had none — a stale client batch could silently overwrite newer server rows even with the flag
   // on). The 409 carries the stored row as `current`, and — the batch being one tx — rolls the
@@ -4448,7 +4454,9 @@ describe("optimistic concurrency (default-on)", () => {
     expect(readClientIds(s.clients)).toEqual(["c1"]); // c2 rolled back with the batch
     expect(readFirstClientName(s.clients)).toBe("Acme"); // c1 not overwritten
   });
+}
 
+function registerBatchFreshPutConcurrencyTests(): void {
   it("batch: a fresh (same/newer updatedAt) PUT op passes with the flag on", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
@@ -4489,7 +4497,9 @@ describe("optimistic concurrency (default-on)", () => {
     expect(isIsoInstant(revision.updatedAt)).toBe(true);
     expect(persisted.name).toBe("Fresh");
   });
+}
 
+function registerMissingRevisionConcurrencyTests(): void {
   it("rejects existing-row PUTs that omit the required revision precondition", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
@@ -4525,7 +4535,9 @@ describe("optimistic concurrency (default-on)", () => {
     expect(viaBatch.statusCode).toBe(409);
     expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Acme");
   });
+}
 
+function registerFutureRevisionConcurrencyTests(): void {
   it("rejects a future-authored revision instead of treating it as fresher than the server", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
@@ -4545,7 +4557,9 @@ describe("optimistic concurrency (default-on)", () => {
     expect(res.statusCode).toBe(409);
     expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Acme");
   });
+}
 
+function registerPartialPatchConcurrencyTests(): void {
   it("accepts a partial PATCH that omits updatedAt (a normal partial edit is never a 409)", async () => {
     // The PATCH route calls isStaleWrite unconditionally; a partial PATCH legitimately omits
     // updatedAt, so it must NOT be treated as a stale conflict — otherwise every ordinary partial
@@ -4558,7 +4572,9 @@ describe("optimistic concurrency (default-on)", () => {
     expect(readClientResponse(res).name).toBe("Renamed");
     expect(Date.parse(readClientResponse(res).updatedAt)).not.toBeNaN();
   });
+}
 
+function registerNullPatchConcurrencyTests(): void {
   it("rejects null for a required PATCH field without rewriting the stored value", async () => {
     const app = createApp(openDb(":memory:"));
     await post(app, "accounts", account("a1"));
@@ -4570,7 +4586,9 @@ describe("optimistic concurrency (default-on)", () => {
     expect(readErrorResponse(res).error).toMatch(/required field.*cannot be null/i);
     expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Acme");
   });
+}
 
+function registerUnparseableStoredRevisionTests(): void {
   it("keeps writing to a row whose STORED updatedAt is unparseable (never write-bricked)", async () => {
     // Regression: the inverted predicate returned "stale" whenever a timestamp failed to parse, so a
     // row with a corrupt/legacy stored updatedAt 409'd on EVERY write — permanently unrecoverable.
@@ -4596,7 +4614,9 @@ describe("optimistic concurrency (default-on)", () => {
     expect(readClientResponse(res).name).toBe("Recovered");
     expect(Date.parse(readClientResponse(res).updatedAt)).not.toBeNaN();
   });
+}
 
+function registerUnincrementableStoredRevisionTests(): void {
   it.each(["9999-12-31T23:59:59.999Z", "+010000-01-01T00:00:00.000Z", "+275760-09-13T00:00:00.000Z"])(
     "repairs an unincrementable or expanded stored revision through the API: %s",
     async (storedRevision) => {
@@ -4612,7 +4632,9 @@ describe("optimistic concurrency (default-on)", () => {
       expect(readClientResponse(res).updatedAt).not.toBe(storedRevision);
     },
   );
+}
 
+function registerBatchConcurrencyOptOutTests(): void {
   it("batch: explicit opt-out restores last-writer-wins semantics", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
@@ -4640,7 +4662,9 @@ describe("optimistic concurrency (default-on)", () => {
     expect(res.statusCode).toBe(200);
     expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Stale");
   });
+}
 
+function registerOrderedBatchSuccessorTests(): void {
   it.each([true, false])(
     "ordered browser batches preserve the newer edit when sequence 1 commits before sequence 2 (optimistic=%s)",
     async (optimisticConcurrency) => {
@@ -4690,7 +4714,9 @@ describe("optimistic concurrency (default-on)", () => {
       expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Newest");
     },
   );
+}
 
+function registerOrderedBatchSupersessionTests(): void {
   it.each([true, false])(
     "ordered browser batches preserve the newer edit when sequence 2 arrives before sequence 1 (optimistic=%s)",
     async (optimisticConcurrency) => {
@@ -4744,7 +4770,9 @@ describe("optimistic concurrency (default-on)", () => {
       expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Newest");
     },
   );
+}
 
+function registerOrderedLifecycleFenceTests(): void {
   it.each([true, false])(
     "an ordered teardown archive fences an older in-flight lifecycle creation (optimistic=%s)",
     async (optimisticConcurrency) => {
@@ -4788,7 +4816,9 @@ describe("optimistic concurrency (default-on)", () => {
       expect((await readValidatedState(app)).clients).toEqual([]);
     },
   );
+}
 
+function registerOrderedLifecycleArchiveTests(): void {
   it("applies an ordered lifecycle archive atomically and retains its inactive row", async () => {
     const db = openDb(":memory:");
     const app = createApp(db);
@@ -4818,7 +4848,9 @@ describe("optimistic concurrency (default-on)", () => {
     expect(readRequiredString(archivedRow, "accountId", "archived client row")).toBe("a1");
     expect(isIsoInstant(readRequiredString(archivedRow, "archivedAt", "archived client row"))).toBe(true);
   });
+}
 
+function registerOrderedExternalEditTests(): void {
   it("ordered successor still rejects a stale write after an intervening external edit", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
@@ -4857,7 +4889,9 @@ describe("optimistic concurrency (default-on)", () => {
     expect(successor.statusCode).toBe(409);
     expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("External");
   });
+}
 
+function registerOrderedStaleDeleteTests(): void {
   it("ordered stale DELETE rolls back its batch and preserves an externally edited row", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     const { baseRevision, external } = await createExternalAllocationEdit(app);
@@ -4911,7 +4945,9 @@ describe("optimistic concurrency (default-on)", () => {
     ]);
     expect(current.disciplines).toEqual([]);
   });
+}
 
+function registerOrderedStaleArchiveTests(): void {
   it("ordered stale ARCHIVE rolls back its batch when it is not a same-session successor", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
@@ -4952,7 +4988,9 @@ describe("optimistic concurrency (default-on)", () => {
     });
     expect(await readStateClients(app)).toEqual([expect.objectContaining({ id: "c1", name: "Externally edited" })]);
   });
+}
 
+function registerOrderedNonLifecycleDeletionTests(): void {
   it.each(["first-before-undo", "undo-before-first"])(
     "ordered creation followed by a non-lifecycle deletion cannot be resurrected (%s)",
     async (arrivalOrder) => {
@@ -4995,6 +5033,29 @@ describe("optimistic concurrency (default-on)", () => {
       expect((await readValidatedState(app)).disciplines).toEqual([]);
     },
   );
+}
+
+describe("optimistic concurrency (default-on)", () => {
+  registerDirectPutConcurrencyTests();
+  registerDirectPatchConcurrencyTests();
+  registerConcurrencyOptOutTests();
+  registerBatchStalePutConcurrencyTests();
+  registerBatchFreshPutConcurrencyTests();
+  registerMissingRevisionConcurrencyTests();
+  registerFutureRevisionConcurrencyTests();
+  registerPartialPatchConcurrencyTests();
+  registerNullPatchConcurrencyTests();
+  registerUnparseableStoredRevisionTests();
+  registerUnincrementableStoredRevisionTests();
+  registerBatchConcurrencyOptOutTests();
+  registerOrderedBatchSuccessorTests();
+  registerOrderedBatchSupersessionTests();
+  registerOrderedLifecycleFenceTests();
+  registerOrderedLifecycleArchiveTests();
+  registerOrderedExternalEditTests();
+  registerOrderedStaleDeleteTests();
+  registerOrderedStaleArchiveTests();
+  registerOrderedNonLifecycleDeletionTests();
 });
 
 describe("batch op-count cap (MAX_BATCH_OPS)", () => {
