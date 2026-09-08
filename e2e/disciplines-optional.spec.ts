@@ -75,9 +75,18 @@ test("turning disciplines off hides every surface; turning it back on restores t
 
   // The External band is the LAST item; scroll to the bottom so it's inside the virtualised
   // window before asserting (the grid drops off-screen rows from the DOM).
-  await page.getByTestId("scheduler-grid").evaluate((el) => {
+  const grid = page.getByTestId("scheduler-grid");
+  await grid.evaluate((el) => {
     (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight;
   });
+  // Firefox delivers the scroll event before the next paint; wait for the scheduler's scroll
+  // frame and the following paint so virtualization has observed the browser's bottom position.
+  await grid.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
   // External remains the final headed band (the seeded Kord Industries makes it present here).
   await expect(page.getByTestId("discipline-group").filter({ hasText: "External / 3rd party" })).toBeVisible();
   await expect(page.getByLabel("Filter by discipline")).toHaveCount(0);
