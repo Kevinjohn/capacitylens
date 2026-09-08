@@ -1702,17 +1702,6 @@
       "count": 2
     }
   },
-  "src/components/useAppShellController.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
-    }
-  },
   "src/data/ServerSyncAdapter.ts": {
     "complexity": {
       "count": 1
