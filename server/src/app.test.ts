@@ -633,6 +633,12 @@ function readFirstActivity(activities: ActivitySnapshot[]): ActivitySnapshot {
   return activityRow;
 }
 
+function readActivity(activities: ActivitySnapshot[], id: string): ActivitySnapshot {
+  const activityRow = activities.find((candidate) => candidate.id === id);
+  if (!activityRow) throw new Error(`Expected the state response to contain activity ${id}.`);
+  return activityRow;
+}
+
 function readResourceSnapshot(source: Record<string, unknown>, binding: ProjectBinding): ResourceSnapshot {
   requireModeledKeys(
     source,
@@ -730,6 +736,12 @@ function readAllocationSnapshots(rows: unknown[]): AllocationSnapshot[] {
 function readFirstAllocation(allocations: AllocationSnapshot[]): AllocationSnapshot {
   const allocationRow = allocations[0];
   if (!allocationRow) throw new Error("Expected the state response to contain an allocation.");
+  return allocationRow;
+}
+
+function readAllocation(allocations: AllocationSnapshot[], id: string): AllocationSnapshot {
+  const allocationRow = allocations.find((candidate) => candidate.id === id);
+  if (!allocationRow) throw new Error(`Expected the state response to contain allocation ${id}.`);
   return allocationRow;
 }
 
@@ -1631,8 +1643,8 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
 
   it("keeps at-flip-time clearing after an activity flips back before a dependent write", async () => {
     const fixture = await seedAttributedActivity("placeholder");
-    const before = await state(fixture.app);
-    const currentActivity = before.activities.find((row: { id: string }) => row.id === "repeatable");
+    const before = await readValidatedState(fixture.app);
+    const currentActivity = readActivity(before.activities, "repeatable");
 
     const response = await batch(fixture.app, [
       {
@@ -1651,14 +1663,14 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
         method: "PUT",
         table: "resources",
         id: "ph",
-        row: { ...before.resources[0], projectId: "p2" },
+        row: { ...readResource(before.resources, "ph"), projectId: "p2" },
       },
     ]);
 
     expect(response.statusCode, response.body).toBe(200);
-    const rewritten = (await state(fixture.app)).allocations[0];
+    const rewritten = readAllocation((await readValidatedState(fixture.app)).allocations, "allocation");
     expect(rewritten).not.toHaveProperty("projectId");
-    expect(response.json().revisions).toContainEqual({
+    expect(readBatchReceipt(response).revisions).toContainEqual({
       table: "allocations",
       id: rewritten.id,
       createdAt: rewritten.createdAt,
