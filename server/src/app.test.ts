@@ -297,6 +297,15 @@ interface ProjectBinding {
   projectId?: string;
 }
 
+interface ActivitySnapshot extends ProjectBinding {
+  accountId: string;
+  createdAt: string;
+  kind: string;
+  name: string;
+  phaseId?: string;
+  updatedAt: string;
+}
+
 interface ResourceSnapshot extends ProjectBinding {
   accountId: string;
   color: string;
@@ -413,7 +422,7 @@ type ClientResponse = ClientSnapshot;
 
 interface ValidatedStateResponse {
   accounts: AccountSnapshot[];
-  activities: ProjectBinding[];
+  activities: ActivitySnapshot[];
   allocations: AllocationSnapshot[];
   clients: ClientSnapshot[];
   closures: ClosureSnapshot[];
@@ -494,6 +503,29 @@ function readProjectBindings(rows: unknown[], table: string): ProjectBinding[] {
       return { id: row.id, projectId: row.projectId };
     }
     return { id: row.id };
+  });
+}
+
+function readActivitySnapshots(rows: unknown[]): ActivitySnapshot[] {
+  return readProjectBindings(rows, "activity").map((binding, index) => {
+    const source = rows[index];
+    if (!isUnknownRecord(source)) throw new Error("Expected every activity row to be an object.");
+    requireModeledKeys(
+      source,
+      ["accountId", "createdAt", "id", "kind", "name", "phaseId", "projectId", "updatedAt"],
+      "activity row",
+    );
+    const phaseId = readOptionalString(source, "phaseId", "activity row");
+    const snapshot: ActivitySnapshot = {
+      ...binding,
+      accountId: readRequiredString(source, "accountId", "activity row"),
+      createdAt: readRequiredString(source, "createdAt", "activity row"),
+      kind: readRequiredString(source, "kind", "activity row"),
+      name: readRequiredString(source, "name", "activity row"),
+      updatedAt: readRequiredString(source, "updatedAt", "activity row"),
+    };
+    if (phaseId !== undefined) snapshot.phaseId = phaseId;
+    return snapshot;
   });
 }
 
@@ -934,7 +966,7 @@ function readValidatedStateValue(value: unknown): ValidatedStateResponse {
   }
   return {
     accounts: readAccountSnapshots(readStateArray(value, "accounts")),
-    activities: readProjectBindings(readStateArray(value, "activities"), "activity"),
+    activities: readActivitySnapshots(readStateArray(value, "activities")),
     allocations: readAllocationSnapshots(readStateArray(value, "allocations")),
     clients: readClientSnapshots(readStateArray(value, "clients")),
     closures: readClosureSnapshots(readStateArray(value, "closures")),
@@ -2267,10 +2299,10 @@ describe("built-in Internal client is a per-account singleton on direct writes",
       builtin: true,
     });
     expect(replacement.statusCode).toBe(400);
-    const snapshot = (await call(app, { method: "GET", url: "/api/state?accountId=a1" })).json();
-    expect(snapshot.projects.find((p: { id: string }) => p.id === "p-internal")?.clientId).toBe("internal:a1");
-    expect(snapshot.activities.some((a: { id: string }) => a.id === "t-internal")).toBe(true);
-    expect(snapshot.allocations.some((a: { id: string }) => a.id === "al1")).toBe(true);
+    const snapshot = readStateResponse(await call(app, { method: "GET", url: "/api/state?accountId=a1" }));
+    expect(snapshot.projects.find((projectRow) => projectRow.id === "p-internal")?.clientId).toBe("internal:a1");
+    expect(snapshot.activities.some((activityRow) => activityRow.id === "t-internal")).toBe(true);
+    expect(snapshot.allocations.some((allocationRow) => allocationRow.id === "al1")).toBe(true);
   });
 
   it("rejects every generic attempt to create a builtin client", async () => {
