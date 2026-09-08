@@ -1,92 +1,15 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { useStore } from "../../store/useStore";
+import { memo } from "react";
 import { Plus } from "lucide-react";
-import { AllocationBar } from "./AllocationBar";
-import { LAYOUT } from "./layout";
-import type { ColumnGeometry } from "./columnGeometry";
-import type { BarLayout, DayState, TimeOffBlock } from "./schedulerModel";
 import type { ID, ISODate } from "@capacitylens/shared/types/entities";
+import { useStore } from "../../store/useStore";
+import { AllocationBar } from "./AllocationBar";
+import type { ColumnGeometry } from "./columnGeometry";
+import { LAYOUT } from "./layout";
+import type { BarLayout, DayState, TimeOffBlock } from "./schedulerModel";
+import { useResourceLaneInteraction } from "./useResourceLaneInteraction";
 
-/** Min pointer travel to treat a lane gesture as a draw (vs a bare click). */
-const DRAW_THRESHOLD_PX = 4;
-
-/**
- * The lane's allocation bars, wrapped in ONE transparent layer that carries the time-off-mode
- * `inert`. This is the single place the draw mode is read on the render path: in "Time off" mode
- * the work bars must go fully inert (not tab-stops, no hover popover, pointer events falling
- * THROUGH to the lane so you can draw time off across an existing allocation), and `inert` on this
- * one wrapper makes EVERY descendant bar inert in a single DOM write. The layer is split out from
- * ResourceLane so a mode toggle re-renders ONLY it — not the lane's markers / time-off blocks /
- * separators (which must stay interactive + keep glowing), and not the bars.
- *
- * On a toggle the bars bail PRIMARILY because ResourceLane itself doesn't re-render: SchedulerGrid's
- * `onDraw`/`onEdit` are referentially stable, so the lane's props don't change, so its React.memo
- * bails and only BarsLayer (the sole drawMode subscriber) re-renders — handing each AllocationBar the
- * same props instance it already had. Belt-and-braces, every prop this layer passes down
- * (`bar`, `geom`, `indexAtClientX`, `onEdit`) is ALSO a referentially-STABLE value, so the bail would
- * still hold if some future change made a lane prop unstable and forced ResourceLane to re-render:
- * `bars`/`geom`/`onEdit` are model-derived props unchanged by a toggle, and `indexAtClientX` is
- * `indexAt`, memoised (useCallback) so it survives a lane re-render. Hand a fresh inline
- * closure/array/object down here and that defense-in-depth is gone.
- * `absolute inset-0` makes the layer exactly cover the lane, so the bars' absolute coordinates are
- * unchanged; with no background it's transparent to pointers, so an empty-space draw still reaches
- * the lane underneath.
- *
- * The bars must stay OUTSIDE this wrapper's inert-ness in WORK mode — inert is unset then, so the
- * layer is a no-op pass-through (byte-identical interaction to having the bars as direct children).
- */
-const BarsLayer = memo(function BarsLayer({
-  bars,
-  geom: geometry,
-  indexAtClientX,
-  onEdit,
-}: {
-  bars: BarLayout[];
-  geom: ColumnGeometry;
-  indexAtClientX: (clientX: number) => number;
-  // Absent for a Viewer (P1.12): the bars then render display-only (AllocationBar attaches no
-  // drag/resize and opens no edit modal). Present for an editor — the stable memoised callback.
-  onEdit?: (allocationId: ID) => void;
-}) {
-  const inertInTimeOff = useStore((state) => state.ui.drawMode === "timeoff");
-  return (
-    <div className="absolute inset-0" inert={inertInTimeOff || undefined}>
-      {bars.map((bar) => (
-        <AllocationBar
-          key={bar.allocation.id}
-          bar={bar}
-          geom={geometry}
-          indexAtClientX={indexAtClientX}
-          {...(onEdit ? { onEdit } : {})}
-        />
-      ))}
-    </div>
-  );
-});
-
-// Memoised so a sibling lane's draw gesture (per-pointermove setDraw) and grid-level
-// UI re-renders (e.g. opening a modal) don't re-render every lane + its bars. Its
-// props are stable model-derived values; onEdit/onDraw are stabilised in SchedulerGrid.
-export const ResourceLane = memo(function ResourceLane({
-  resourceId,
-  ariaLabel,
-  days,
-  dayStates,
-  timeOff,
-  todayX,
-  geom: geometry,
-  rowHeight,
-  barTop,
-  bars,
-  placeholder = false,
-  weekStartsOn,
-  onEdit,
-  onDraw,
-}: {
+export interface ResourceLaneProps {
   resourceId: ID;
-  /** Accessible name for the lane's role="gridcell" (e.g. "Bruce Wayne timeline"). The cell is
-   *  column 2 of the grid; naming it keeps the 2-column structure honest (WCAG 1.3.1) without
-   *  echoing the rowheader's sr-only capacity summary. */
   ariaLabel: string;
   days: ISODate[];
   dayStates: DayState[];
@@ -94,273 +17,126 @@ export const ResourceLane = memo(function ResourceLane({
   todayX: number | null;
   geom: ColumnGeometry;
   rowHeight: number;
-  /** Top offset of lane 0 — the current density's `rowPadding` (see layout.ts). Passed in rather
-   *  than read from LAYOUT so the draw-to-create ghost lands on the same line as the real bar it
-   *  becomes, whichever density is active. */
   barTop: number;
   bars: BarLayout[];
   placeholder?: boolean;
   weekStartsOn: 0 | 1;
-  // Both ABSENT for a Viewer (P1.12): the lane then renders display-only — no draw-to-create gesture,
-  // no hover "+" hint, and its bars get no edit/drag/resize. Present for an editor (null/owner/admin/
-  // editor, incl. OFF/local) — the stable memoised callbacks, byte-identical to today.
   onEdit?: (allocationId: ID) => void;
   onDraw?: (resourceId: ID, startDate: ISODate, endDate: ISODate) => void;
-}) {
-  const laneRef = useRef<HTMLDivElement>(null);
-  const [draw, setDraw] = useState<{ a: number; b: number } | null>(null);
-  // The day cell under the mouse, for the hover "+" hint. Only updates when the
-  // pointer CROSSES a day boundary (setState bails on the same index), so plain
-  // mousemove within a cell doesn't re-render the lane.
-  const [hoverDay, setHoverDay] = useState<number | null>(null);
-  const teardownRef = useRef<(() => void) | null>(null);
-  useEffect(() => () => teardownRef.current?.(), []);
+}
+interface LayersProps extends Omit<ResourceLaneProps, "ariaLabel" | "geom" | "resourceId" | "rowHeight"> {
+  geometry: ColumnGeometry;
+  draw: { a: number; b: number } | null;
+  hoverDay: number | null;
+  indexAt: (x: number) => number;
+}
 
-  // Keep indexAtClientX stable for memoised bars whenever geometry is unchanged; laneRef is stable.
-  // A draw-mode toggle already skips ResourceLane because its model-derived props are stable.
-  // This callback also protects each bar if a future change makes a lane prop unstable on toggle.
-  // geometry is the only changing input, so recreate the callback only when columns change.
-  const indexAt = useCallback(
-    (clientX: number): number => {
-      const rect = laneRef.current?.getBoundingClientRect();
-      if (!rect) return 0;
-      // geometry.indexAt is the exact inverse of the column layout AND clamps to [0, days.length-1]:
-      // a pointerup can land outside the lane (the gesture is tracked on the document, so the
-      // pointer may release past either edge), and bounding the untrusted coord here means
-      // `days[idx]` is always a real day of the visible window — a drop past the edge snaps to
-      // the first/last day, never an off-window date. This is the SINGLE
-      // pointer→day inverse, shared with the bars' drag math (passed to AllocationBar below).
-      return geometry.indexAt(clientX - rect.left);
-    },
-    [geometry],
-  );
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    // Viewer (P1.12): no create callback → no draw gesture at all. Bail before any listener is bound
-    // so an empty-space press on a read-only lane does nothing (and never starts a ghost).
-    if (!onDraw) return;
-    if (e.button !== 0) return;
-    // Ignore a re-entrant pointerdown (a second finger / pen) while a draw is
-    // already live — otherwise its document listeners would leak (overwriting
-    // teardownRef) and a single pointerup could fire onDraw twice. Mirrors the
-    // guard in useDragResize.
-    if (teardownRef.current) return;
-    const pointerId = e.pointerId; // only react to THIS pointer's move/up/cancel
-    // Guarded because synthetic/older events may omit pointerId (treat a missing
-    // id as "the active pointer").
-    const isOtherPointer = (event: PointerEvent) => event.pointerId !== undefined && event.pointerId !== pointerId;
-    const startX = e.clientX;
-    const start = indexAt(e.clientX);
-    // Creation is gated at the gesture boundary, not merely by hiding the hover hint. A span may
-    // cross later blocked dates, so only the pointer-down date is checked.
-    if (dayStates[start]?.creationBlocked) return;
-    setDraw({ a: start, b: start });
-    const onMove = (event: PointerEvent) => {
-      if (isOtherPointer(event)) return;
-      const endIndex = indexAt(event.clientX);
-      // This fires on EVERY pointermove, but the ghost only changes when the pointer crosses a
-      // day boundary. Bail on an unchanged span (`a` is always `start` here) so a move within one
-      // column doesn't re-render the lane — the same idiom as the hover-day setState below.
-      setDraw((previousSpan) =>
-        previousSpan && previousSpan.b === endIndex ? previousSpan : { a: start, b: endIndex },
-      );
-    };
-    const detach = () => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-      document.removeEventListener("pointercancel", onCancel);
-      document.removeEventListener("keydown", onKeyDown);
-      teardownRef.current = null;
-    };
-    const onUp = (event: PointerEvent) => {
-      if (isOtherPointer(event)) return;
-      detach();
-      setDraw(null);
-      // A clean click creates one day; a drag spans start → release. Bar pointer events never
-      // reach this empty-space handler because bars stop propagation.
-      if (Math.abs(event.clientX - startX) < DRAW_THRESHOLD_PX) {
-        const day = days[start];
-        if (!day) return;
-        onDraw(resourceId, day, day);
-        return;
-      }
-      const end = indexAt(event.clientX);
-      const startDay = days[Math.min(start, end)];
-      const endDay = days[Math.max(start, end)];
-      if (!startDay || !endDay) return;
-      onDraw(resourceId, startDay, endDay);
-    };
-    const onCancel = (event: PointerEvent) => {
-      if (isOtherPointer(event)) return;
-      // Browser took over the gesture (e.g. to scroll): drop the ghost, don't create.
-      detach();
-      setDraw(null);
-    };
-    // Keyboard escape hatch: mirrors onCancel — a draw-to-create gesture is pointer-only, so
-    // Escape is otherwise the one platform-standard "back out" gesture with no way in. Drop the
-    // ghost rather than commit whatever span was last previewed.
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      detach();
-      setDraw(null);
-    };
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-    document.addEventListener("pointercancel", onCancel);
-    document.addEventListener("keydown", onKeyDown);
-    teardownRef.current = detach;
-  };
-
+const BarsLayer = memo(function BarsLayer({
+  bars,
+  geometry,
+  indexAt,
+  onEdit,
+}: Pick<LayersProps, "bars" | "geometry" | "indexAt" | "onEdit">) {
+  const inert = useStore((state) => state.ui.drawMode === "timeoff");
   return (
-    <div
-      ref={laneRef}
-      data-testid="resource-lane"
-      data-resource-id={resourceId}
-      role="gridcell"
-      aria-colindex={2}
-      aria-label={ariaLabel}
-      className="relative shrink-0 transition-colors"
-      style={{ width: geometry.totalWidth, height: rowHeight }}
-      onPointerDown={onPointerDown}
-      onPointerMove={(e) => {
-        if (!onDraw) return; // Viewer (P1.12): no create → no hover "+" hint to track.
-        if (e.pointerType !== "mouse") return; // touch/pen have no hover state
-        // A held move is a gesture, not a hover; pointer-up capture below clears its stale origin.
-        if (e.buttons !== 0) return;
-        const i = indexAt(e.clientX);
-        if (dayStates[i]?.creationBlocked) {
-          setHoverDay(null);
-          return;
-        }
-        setHoverDay((previousIndex) => (previousIndex === i ? previousIndex : i));
-      }}
-      onPointerUpCapture={(e) => {
-        if (!onDraw || e.pointerType !== "mouse") return;
-        // Allocation bars capture the pointer for their document-level gesture, so held-button
-        // moves do not reliably retarget this lane. Clear the pre-drag day at that captured
-        // pointer-up; the next ordinary mousemove restores the hint in its current column.
-        setHoverDay(null);
-      }}
-      onPointerLeave={() => setHoverDay(null)}
-    >
-      {/* Placeholder ("slot") rows: a diagonal hatch behind everything else, marking
-          the lane as a not-yet-staffed slot. First child so separators/markers/bars
-          paint on top. */}
-      {placeholder && <div aria-hidden className="hatch-lines pointer-events-none absolute inset-0" />}
+    <div className="absolute inset-0" inert={inert || undefined}>
+      {bars.map((bar) => (
+        <AllocationBar
+          key={bar.allocation.id}
+          bar={bar}
+          geom={geometry}
+          indexAtClientX={indexAt}
+          {...(onEdit ? { onEdit } : {})}
+        />
+      ))}
+    </div>
+  );
+});
 
-      {/* Vertical separators: Mondays draw the full week line at any zoom; the other
-          days get a barely-there hairline so Mon/Tue/Wed read as columns — fine zoom
-          only, same DOM-weight rule as the weekend tint below. */}
-      {days.map((day, i) => {
-        if (i === 0) return null;
-        const weekStart = geometry.weekdays[i] === weekStartsOn;
+function CalendarLayers({ days, dayStates, geometry, placeholder, weekStartsOn }: LayersProps) {
+  return (
+    <>
+      {placeholder && <div aria-hidden className="hatch-lines pointer-events-none absolute inset-0" />}
+      {days.map((day, index) => {
+        if (index === 0) return null;
+        const weekStart = geometry.weekdays[index] === weekStartsOn;
         if (!weekStart && !geometry.perDayColumns) return null;
         return (
           <div
             key={`w-${day}`}
             className={`absolute top-0 h-full border-l ${weekStart ? "border-line" : "border-line-faint"}`}
-            style={{ left: geometry.x(i) }}
+            style={{ left: geometry.x(index) }}
           />
         );
       })}
-
-      {/* weekend / unavailable tint — only at fine zoom (keeps the DOM light when zoomed out) */}
       {geometry.perDayColumns &&
-        days.map((day, i) =>
-          dayStates[i]?.unavailable ? (
+        days.map((day, index) =>
+          dayStates[index]?.unavailable ? (
             <div
               key={`u-${day}`}
               data-testid="unavailable-day"
               data-date={day}
               className="absolute top-0 h-full bg-weekend"
-              style={{ left: geometry.x(i), width: geometry.widthOf(i) }}
+              style={{ left: geometry.x(index), width: geometry.widthOf(index) }}
             />
           ) : null,
         )}
-
-      {/* A half working day keeps the whole cell interactive while the unavailable half uses the
-          same neutral family as a fully unavailable day. This decorative layer paints before time
-          off, conflicts, add hints and bars so every existing schedule signal remains legible. */}
       {geometry.perDayColumns &&
-        days.map((day, i) =>
-          dayStates[i]?.partialCapacity ? (
+        days.map((day, index) =>
+          dayStates[index]?.partialCapacity ? (
             <div
               key={`h-${day}`}
               aria-hidden
               data-testid="half-day"
               data-date={day}
               className="pointer-events-none absolute bottom-0 h-1/2 bg-weekend"
-              style={{ left: geometry.x(i), width: geometry.widthOf(i) }}
+              style={{ left: geometry.x(index), width: geometry.widthOf(index) }}
             />
           ) : null,
         )}
+    </>
+  );
+}
 
-      {/* time-off blocks (hatched, labelled) */}
-      {timeOff.map((timeOffEntry) => (
+function ScheduleSignals({ days, dayStates, geometry, timeOff }: LayersProps) {
+  return (
+    <>
+      {timeOff.map((entry) => (
         <div
-          key={timeOffEntry.id}
+          key={entry.id}
           data-testid="timeoff-block"
-          // No `title` here: this block is pointer-events-none, so a hover tooltip on it is unreachable.
-          // The specific label is instead carried for AT by the sr-only span below — which survives even
-          // when the block is too narrow (<=44px) for the VISIBLE uppercase label to fit.
-          // `scheduler-timeoff-block` is the semantic hook the time-off draw-mode CSS glows
-          // (index.css), keyed by class — NOT by `data-testid` (which stays test-only selection).
           className="scheduler-timeoff-block pointer-events-none absolute inset-y-1 flex items-center justify-center overflow-hidden rounded text-2xs font-semibold uppercase tracking-wide text-muted-foreground"
           style={{
-            left: timeOffEntry.x,
-            width: timeOffEntry.width,
+            left: entry.x,
+            width: entry.width,
             background:
               "repeating-linear-gradient(45deg, color-mix(in oklab, var(--color-faint) 28%, transparent) 0 5px, transparent 5px 10px)",
           }}
         >
-          {/* The specific time-off label is always available to AT (it's dropped from the VISIBLE label
-              below at narrow widths). The per-row sr-only summary only counts time-off periods; this
-              names them. aria-hidden on the visible label so the name isn't read twice when it IS shown. */}
-          <span className="sr-only">{timeOffEntry.label}</span>
-          <span aria-hidden>{timeOffEntry.width > 44 ? timeOffEntry.label : ""}</span>
+          <span className="sr-only">{entry.label}</span>
+          <span aria-hidden>{entry.width > 44 ? entry.label : ""}</span>
         </div>
       ))}
-
-      {/* Over-allocation markers paint AFTER time off so a real work/holiday conflict cannot be
-          hidden by the holiday band. Ordinary over days keep the opaque, AA-independent
-          `danger-cell` fill. A marker that intersects time off instead uses a stronger translucent
-          danger overlay: the day still reads unmistakably red while the hatch and holiday label
-          remain legible underneath. Allocation bars paint later and stay above both layers.
-
-          `over` remains allocated > available (strictly greater). `timeOffConflict` independently
-          covers zero-load Blocks placed over time off; ordinary non-working days are not included.
-          The solid top band supplies a non-colour-alone shape cue at every zoom. */}
-      {days.map((day, i) => {
-        const state = dayStates[i];
+      {days.map((day, index) => {
+        const state = dayStates[index];
         if (!state?.over && !state?.timeOffConflict) return null;
-        const left = geometry.x(i);
-        const width = geometry.widthOf(i);
-        // The model decided this in DATE space (DayState.hasTimeOff); re-deriving it here by
-        // intersecting the laid-out blocks in PIXEL space asked the same question in the space
-        // where a narrowed weekend column can answer it differently.
-        const overlapsTimeOff = state.hasTimeOff;
         return (
           <div
             key={`o-${day}`}
             data-testid="over-marker"
             data-date={day}
-            // No `title` here: this element is pointer-events-none, so a hover/focus tooltip on it is
-            // unreachable (does nothing). The over-capacity signal is carried accessibly by the per-row
-            // sr-only summary (SchedulerGrid's `scheduler_sr_over_capacity_*`) instead.
-            className={`pointer-events-none absolute top-0 h-full border-t-[3px] border-danger ${
-              overlapsTimeOff ? "bg-danger/55" : "bg-danger-cell"
-            }`}
-            style={{ left, width }}
+            className={`pointer-events-none absolute top-0 h-full border-t-[3px] border-danger ${state.hasTimeOff ? "bg-danger/55" : "bg-danger-cell"}`}
+            style={{ left: geometry.x(index), width: geometry.widthOf(index) }}
           />
         );
       })}
+    </>
+  );
+}
 
-      {/* Hover hint: a faint "+" in the day cell under the mouse, advertising that a
-          bare click creates an allocation right there (the lane gesture above) — the
-          row-header "+" was the only visible cue. Decorative (aria-hidden) and very
-          light on purpose. Mouse-only, fine-zoom only (no room for it in 8px columns),
-          hidden while a draw is live (the ghost is the affordance then). Painted
-          before the bars so scheduled work covers it. */}
+function GestureLayers({ barTop, draw, geometry, hoverDay, onDraw }: LayersProps) {
+  return (
+    <>
       {onDraw && hoverDay !== null && !draw && geometry.perDayColumns && (
         <div
           aria-hidden
@@ -371,8 +147,6 @@ export const ResourceLane = memo(function ResourceLane({
           <Plus />
         </div>
       )}
-
-      {/* draw-to-create ghost */}
       {draw && (
         <div
           className="pointer-events-none absolute rounded border-2 border-brand bg-brand/20"
@@ -384,17 +158,65 @@ export const ResourceLane = memo(function ResourceLane({
           }}
         />
       )}
+    </>
+  );
+}
 
-      <BarsLayer bars={bars} geom={geometry} indexAtClientX={indexAt} {...(onEdit ? { onEdit } : {})} />
-
-      {/* today line */}
-      {todayX !== null && (
+function ResourceLaneLayers(props: LayersProps) {
+  return (
+    <>
+      <CalendarLayers {...props} />
+      <ScheduleSignals {...props} />
+      <GestureLayers {...props} />
+      <BarsLayer {...props} />
+      {props.todayX !== null && (
         <div
           data-testid="today-line"
           className="pointer-events-none absolute inset-y-0 z-[2] w-0.5 bg-brand"
-          style={{ left: todayX }}
+          style={{ left: props.todayX }}
         />
       )}
+    </>
+  );
+}
+
+export const ResourceLane = memo(function ResourceLane({
+  geom: geometry,
+  placeholder = false,
+  ...props
+}: ResourceLaneProps) {
+  const { laneRef, draw, hoverDay, indexAt, onPointerDown, onPointerMove, onPointerUpCapture, setHoverDay } =
+    useResourceLaneInteraction({
+      resourceId: props.resourceId,
+      days: props.days,
+      dayStates: props.dayStates,
+      geometry,
+      ...(props.onDraw ? { onDraw: props.onDraw } : {}),
+    });
+  const layers = {
+    ...props,
+    geometry,
+    placeholder,
+    draw,
+    hoverDay,
+    indexAt,
+  };
+  return (
+    <div
+      ref={laneRef}
+      data-testid="resource-lane"
+      data-resource-id={props.resourceId}
+      role="gridcell"
+      aria-colindex={2}
+      aria-label={props.ariaLabel}
+      className="relative shrink-0 transition-colors"
+      style={{ width: geometry.totalWidth, height: props.rowHeight }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUpCapture={onPointerUpCapture}
+      onPointerLeave={() => setHoverDay(null)}
+    >
+      <ResourceLaneLayers {...layers} />
     </div>
   );
 });

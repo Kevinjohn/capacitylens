@@ -32,6 +32,68 @@ interface ResourceCapacitySourceInput {
   effectiveWeek: EffectiveWorkingWeek;
 }
 
+interface CapacityContext {
+  capacityDates: ISODate[];
+  capacityDateSet: Set<ISODate>;
+  closures: Closure[];
+  closuresByDate: Map<ISODate, Closure[]>;
+  blocksMode: boolean;
+}
+
+const buildEmptyDayCapacity = (date: ISODate): DayCapacity => ({ date, allocated: 0, available: 0, over: false });
+
+function createUntrackedCapacitySource(): CapacitySource {
+  return {
+    tracked: false,
+    listTimeOffOn: () => NO_TIME_OFF,
+    getCapacityOnDay: buildEmptyDayCapacity,
+    getAllocationCountOn: () => 0,
+    getTimeOffCountOn: () => 0,
+    resolveUtilizationOver: () => 0,
+    isOverOn: () => false,
+  };
+}
+
+function createTrackedCapacitySource(input: ResourceCapacitySourceInput, context: CapacityContext): CapacitySource {
+  const { resource, allocations, resourceTimeOff, effectiveWeek } = input;
+  const { capacityDates, capacityDateSet, closures, closuresByDate, blocksMode } = context;
+  const capacityAllocations = applyCapacityMode({ allocations, blocksMode });
+  const allocationsByDate = bucketByCoveredDate(capacityAllocations, capacityDates);
+  const personalTimeOffByDate = bucketByCoveredDate(resourceTimeOff, capacityDates);
+  const capacityByDate = new Map<ISODate, DayCapacity>();
+  const getCapacityOnDay = (date: ISODate): DayCapacity => {
+    const cached = capacityByDate.get(date);
+    if (cached) return cached;
+    const computed = buildDayCapacity({
+      resource,
+      date,
+      allocations: capacityDateSet.has(date) ? (allocationsByDate.get(date) ?? NO_ALLOCATIONS) : capacityAllocations,
+      timeOff: capacityDateSet.has(date) ? (personalTimeOffByDate.get(date) ?? NO_TIME_OFF) : resourceTimeOff,
+      effectiveWeek,
+      closures: capacityDateSet.has(date) ? (closuresByDate.get(date) ?? NO_CLOSURES) : closures,
+    });
+    capacityByDate.set(date, computed);
+    return computed;
+  };
+  const listTimeOffOn = (date: ISODate) =>
+    capacityDateSet.has(date) ? (personalTimeOffByDate.get(date) ?? NO_TIME_OFF) : resourceTimeOff;
+  const getTimeOffCountOn = (date: ISODate) => {
+    const closureCount = capacityDateSet.has(date)
+      ? (closuresByDate.get(date)?.length ?? 0)
+      : closures.filter((closure) => closure.startDate <= date && closure.endDate >= date).length;
+    return listTimeOffOn(date).length + closureCount;
+  };
+  return {
+    tracked: true,
+    listTimeOffOn,
+    getCapacityOnDay,
+    getAllocationCountOn: (date) => allocationsByDate.get(date)?.length ?? 0,
+    getTimeOffCountOn,
+    resolveUtilizationOver: (dates) => resolveUtilizationFromCapacity(dates.map(getCapacityOnDay)),
+    isOverOn: (dates) => dates.some((date) => getCapacityOnDay(date).over),
+  };
+}
+
 export function createCapacitySource({
   days,
   visibleWindow: { start: visibleStart, end: visibleEnd },
@@ -59,74 +121,19 @@ export function createCapacitySource({
   const capacityDateSet = new Set(capacityDates);
   const closuresByDate = bucketByCoveredDate(closures, capacityDates);
 
-  const buildEmptyDayCapacity = (date: ISODate): DayCapacity => ({ date, allocated: 0, available: 0, over: false });
+  const context = { capacityDates, capacityDateSet, closures, closuresByDate, blocksMode };
   const createResourceCapacitySource = ({
     resource,
     allocations,
     resourceTimeOff,
     effectiveWeek,
   }: ResourceCapacitySourceInput): CapacitySource => {
-    if (isExternalResource(resource)) {
-      return {
-        tracked: false,
-        listTimeOffOn: () => NO_TIME_OFF,
-        getCapacityOnDay: buildEmptyDayCapacity,
-        getAllocationCountOn: () => 0,
-        getTimeOffCountOn: () => 0,
-        resolveUtilizationOver: () => 0,
-        isOverOn: () => false,
-      };
-    }
+    if (isExternalResource(resource)) return createUntrackedCapacitySource();
     // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
-    const capacityAllocations = applyCapacityMode({ allocations: allocations, blocksMode: blocksMode });
-    const rowTimeOff = resourceTimeOff;
+    return createTrackedCapacitySource({ resource, allocations, resourceTimeOff, effectiveWeek }, context);
     // Bucket this resource's load and time off by the days they cover, ONCE, so each of the
     // ~150 timeline days hands capacity.ts only the rows that actually touch that day instead
     // of making it rescan every allocation (and every time-off row) per day.
-    const allocationsByDate = bucketByCoveredDate(capacityAllocations, capacityDates);
-    const personalTimeOffByDate = bucketByCoveredDate(resourceTimeOff, capacityDates);
-    const capacityByDate = new Map<ISODate, DayCapacity>();
-    const getCapacityOnDay = (date: ISODate): DayCapacity => {
-      const cached = capacityByDate.get(date);
-      if (cached) return cached;
-      // A date outside `capacityDates` has no bucket to read (an empty bucket and "not
-      // bucketed" are indistinguishable), so fall back to the full lists. Nothing queries
-      // such a date today; this keeps a future caller correct rather than silently empty.
-      const computed = capacityDateSet.has(date)
-        ? buildDayCapacity({
-            resource: resource,
-            date: date,
-            allocations: allocationsByDate.get(date) ?? NO_ALLOCATIONS,
-            timeOff: personalTimeOffByDate.get(date) ?? NO_TIME_OFF,
-            effectiveWeek: effectiveWeek,
-            closures: closuresByDate.get(date) ?? NO_CLOSURES,
-          })
-        : buildDayCapacity({
-            resource: resource,
-            date: date,
-            allocations: capacityAllocations,
-            timeOff: rowTimeOff,
-            effectiveWeek: effectiveWeek,
-            closures: closures,
-          });
-      capacityByDate.set(date, computed);
-      return computed;
-    };
-    const listTimeOffOn = (date: ISODate) =>
-      capacityDateSet.has(date) ? (personalTimeOffByDate.get(date) ?? NO_TIME_OFF) : rowTimeOff;
-    return {
-      tracked: true,
-      listTimeOffOn,
-      getCapacityOnDay,
-      getAllocationCountOn: (date) => allocationsByDate.get(date)?.length ?? 0,
-      getTimeOffCountOn: (date) =>
-        listTimeOffOn(date).length +
-        (capacityDateSet.has(date)
-          ? (closuresByDate.get(date)?.length ?? 0)
-          : closures.filter((closure) => closure.startDate <= date && closure.endDate >= date).length),
-      resolveUtilizationOver: (dates) => resolveUtilizationFromCapacity(dates.map(getCapacityOnDay)),
-      isOverOn: (dates) => dates.some((date) => getCapacityOnDay(date).over),
-    };
   };
 
   return { capacitySourceFor: createResourceCapacitySource, visDays: visibleDays, overDays };

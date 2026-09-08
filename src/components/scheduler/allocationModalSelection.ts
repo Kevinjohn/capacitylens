@@ -56,6 +56,58 @@ export function hasWorkingSpan(resource: Resource | undefined, mode: SchedulingM
   return !!resource && !isExternalResource(resource) && (mode === "blocks" || mode === "days");
 }
 
+function buildLiteralAllocationValues(input: EffectiveAllocationInput, external: boolean, validDaysOver: boolean) {
+  return {
+    external,
+    validDaysOver,
+    spanFitsDateDomain: true,
+    maximumDaysOver: MAX_SPAN_DAYS,
+    spanLimitedByDateDomain: !!input.startDate && daysInclusive(input.startDate, MAX_ISO_DATE) < MAX_SPAN_DAYS,
+    endDate: input.endDate,
+    hoursPerDay: external ? 0 : input.hoursPerDay,
+  };
+}
+
+function buildUnavailableWeekValues(input: EffectiveAllocationInput, external: boolean, validDaysOver: boolean) {
+  return {
+    external,
+    validDaysOver,
+    spanFitsDateDomain: validDaysOver,
+    maximumDaysOver: MAX_SPAN_DAYS,
+    spanLimitedByDateDomain: false,
+    endDate: input.endDate,
+    hoursPerDay:
+      input.mode === "blocks"
+        ? blockHoursPerDay(FULL_DAY_HOURS)
+        : hoursPerDayFor(input.daysOfWork, input.daysOver, FULL_DAY_HOURS),
+  };
+}
+
+function buildWorkingWeekValues(input: EffectiveAllocationInput, external: boolean, validDaysOver: boolean) {
+  const { effectiveWeek, startDate, endDate, mode, daysOver, daysOfWork, ignoreWeekends } = input;
+  const spanOptions = {
+    ...(effectiveWeek?.kind === "days" ? { workingDays: effectiveWeek.days } : {}),
+    ignoreWeekends,
+  };
+  const maximumDaysOver = startDate ? maxSpanDaysForStart(startDate, spanOptions) : MAX_SPAN_DAYS;
+  const spanFitsDateDomain = !!startDate && validDaysOver && daysOver <= maximumDaysOver;
+  const spanEnd = startDate
+    ? endDateForSpan(startDate, validDaysOver && spanFitsDateDomain ? daysOver : 1, spanOptions)
+    : endDate;
+  const effective =
+    mode === "blocks"
+      ? { endDate: spanEnd, hoursPerDay: blockHoursPerDay(FULL_DAY_HOURS) }
+      : { endDate: spanEnd, hoursPerDay: hoursPerDayFor(daysOfWork, daysOver, FULL_DAY_HOURS) };
+  return {
+    external,
+    validDaysOver,
+    spanFitsDateDomain,
+    maximumDaysOver,
+    spanLimitedByDateDomain: !!startDate && daysInclusive(startDate, MAX_ISO_DATE) < MAX_SPAN_DAYS,
+    ...effective,
+  };
+}
+
 export function buildEffectiveAllocationValues({
   resource,
   effectiveWeek,
@@ -70,17 +122,12 @@ export function buildEffectiveAllocationValues({
   const external = !!resource && isExternalResource(resource);
   const validDaysOver = Number.isSafeInteger(daysOver) && daysOver >= 1 && daysOver <= MAX_SPAN_DAYS;
   const usesWorkingSpan = hasWorkingSpan(resource, mode);
-  const spanLimitedByDateDomain = !!startDate && daysInclusive(startDate, MAX_ISO_DATE) < MAX_SPAN_DAYS;
   if (!usesWorkingSpan) {
-    return {
+    return buildLiteralAllocationValues(
+      { resource, effectiveWeek, mode, startDate, endDate, hoursPerDay, daysOver, daysOfWork, ignoreWeekends },
       external,
       validDaysOver,
-      spanFitsDateDomain: true,
-      maximumDaysOver: MAX_SPAN_DAYS,
-      spanLimitedByDateDomain,
-      endDate,
-      hoursPerDay: external ? 0 : hoursPerDay,
-    };
+    );
   }
 
   if (lacksEffectiveWorkingDays(effectiveWeek, ignoreWeekends)) {
@@ -88,40 +135,16 @@ export function buildEffectiveAllocationValues({
     // "Days over" is frozen at its seed (its field is disabled below). Every seed derives
     // daysOfWork and daysOver from the same span, so this recomputation is the identity on the
     // stored volume — the field freeze is what stops a manual change from silently diluting it.
-    return {
+    return buildUnavailableWeekValues(
+      { resource, effectiveWeek, mode, startDate, endDate, hoursPerDay, daysOver, daysOfWork, ignoreWeekends },
       external,
       validDaysOver,
-      spanFitsDateDomain: validDaysOver,
-      maximumDaysOver: MAX_SPAN_DAYS,
-      spanLimitedByDateDomain: false,
-      endDate,
-      hoursPerDay:
-        mode === "blocks" ? blockHoursPerDay(FULL_DAY_HOURS) : hoursPerDayFor(daysOfWork, daysOver, FULL_DAY_HOURS),
-    };
+    );
   }
 
-  const spanOptions = {
-    ...(effectiveWeek?.kind === "days" ? { workingDays: effectiveWeek.days } : {}),
-    ignoreWeekends,
-  };
-  const maximumDaysOver = startDate ? maxSpanDaysForStart(startDate, spanOptions) : MAX_SPAN_DAYS;
-  const spanFitsDateDomain = !!startDate && validDaysOver && daysOver <= maximumDaysOver;
-  const spanEnd = startDate
-    ? endDateForSpan(startDate, validDaysOver && spanFitsDateDomain ? daysOver : 1, spanOptions)
-    : endDate;
-  const effective =
-    mode === "blocks"
-      ? { endDate: spanEnd, hoursPerDay: blockHoursPerDay(FULL_DAY_HOURS) }
-      : {
-          endDate: spanEnd,
-          hoursPerDay: hoursPerDayFor(daysOfWork, daysOver, FULL_DAY_HOURS),
-        };
-  return {
+  return buildWorkingWeekValues(
+    { resource, effectiveWeek, mode, startDate, endDate, hoursPerDay, daysOver, daysOfWork, ignoreWeekends },
     external,
     validDaysOver,
-    spanFitsDateDomain,
-    maximumDaysOver,
-    spanLimitedByDateDomain,
-    ...effective,
-  };
+  );
 }

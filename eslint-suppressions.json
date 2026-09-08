@@ -739,36 +739,7 @@
       "count": 1
     }
   },
-  "src/components/scheduler/DateHeader.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/ResourceLane.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/SchedulerGridGroupHeader.tsx": {
-    "no-nested-ternary": {
-      "count": 2
-    }
-  },
   "src/components/scheduler/SchedulerGridRows.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/SchedulerToolbar.tsx": {
-    "complexity": {
-      "count": 1
-    },
     "max-lines-per-function": {
       "count": 1
     }
@@ -798,14 +769,6 @@
       "count": 1
     }
   },
-  "src/components/scheduler/allocationModalSelection.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/components/scheduler/creationAvailability.test.ts": {
     "max-lines-per-function": {
       "count": 1
@@ -816,32 +779,11 @@
       "count": 1
     }
   },
-  "src/components/scheduler/schedulerModelFilters.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/schedulerRowCapacity.ts": {
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "src/components/scheduler/useAllocationModalState.ts": {
     "max-lines-per-function": {
       "count": 1
     },
     "no-nested-ternary": {
-      "count": 1
-    }
-  },
-  "src/components/scheduler/useAllocationScheduleState.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
       "count": 1
     }
   },

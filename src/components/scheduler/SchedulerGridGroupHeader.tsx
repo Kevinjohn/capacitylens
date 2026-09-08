@@ -16,6 +16,13 @@ interface SchedulerGridGroupHeaderProps {
   geom: ColumnGeometry;
   utilizationPrefs: StoreState["utilizationPrefs"];
 }
+
+function resolveGroupSummary(group: GroupModel, collapsed: boolean, showDisciplineUtilization: boolean): string {
+  if (collapsed) return m.scheduler_group_hidden({ count: group.rows.length });
+  if (group.external || !showDisciplineUtilization) return "";
+  return m.scheduler_group_avg_utilisation({ percent: buildAverageUtilizationLabel(group.rows) });
+}
+
 export function SchedulerGridGroupHeader({
   group,
   rowIndex,
@@ -60,13 +67,7 @@ export function SchedulerGridGroupHeader({
         className="flex shrink-0 items-center px-3 text-xs"
         style={{ width: geometry.totalWidth }}
       >
-        {collapsed
-          ? m.scheduler_group_hidden({ count: group.rows.length })
-          : group.external
-            ? "" /* external parties have no capacity — an avg utilisation here would misleadingly read 0% */
-            : utilizationPreferences.showDiscipline
-              ? m.scheduler_group_avg_utilisation({ percent: buildAverageUtilizationLabel(group.rows) })
-              : ""}
+        {resolveGroupSummary(group, collapsed, utilizationPreferences.showDiscipline)}
       </div>
     </div>
   );
