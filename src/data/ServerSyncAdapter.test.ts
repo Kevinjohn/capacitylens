@@ -2363,22 +2363,22 @@ describe("snapshot generation guard (superseded loads / in-flight batches)", () 
   });
 });
 
-describe("ServerSyncAdapter fault-injection branches", () => {
-  async function saveAgainstReceipt(
-    receipt: unknown,
-    options: { initial?: AppData; next?: AppData; unload?: boolean } = {},
-  ): Promise<void> {
-    const initial = options.initial ?? emptyAppData();
-    const next = options.next ?? withData({ clients: [client("c1")] });
-    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
-      if (String(url).includes("/api/state")) return new Response(JSON.stringify(initial), { status: 200 });
-      return new Response(JSON.stringify(receipt), { status: 200 });
-    });
-    const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
-    await adapter.loadAll();
-    await adapter.saveAll(next, options.unload ? { unload: true } : undefined);
-  }
+async function saveAgainstReceipt(
+  receipt: unknown,
+  options: { initial?: AppData; next?: AppData; unload?: boolean } = {},
+): Promise<void> {
+  const initial = options.initial ?? emptyAppData();
+  const next = options.next ?? withData({ clients: [client("c1")] });
+  const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+    if (String(url).includes("/api/state")) return new Response(JSON.stringify(initial), { status: 200 });
+    return new Response(JSON.stringify(receipt), { status: 200 });
+  });
+  const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
+  await adapter.loadAll();
+  await adapter.saveAll(next, options.unload ? { unload: true } : undefined);
+}
 
+function registerStateFaultTests(): void {
   it.each([[[]], ["not-an-object"]])("rejects a valid JSON %j state body that is not a record", async (body) => {
     const adapter = new ServerSyncAdapter(
       "http://api.test",
@@ -2430,7 +2430,9 @@ describe("ServerSyncAdapter fault-injection branches", () => {
       ),
     );
   });
+}
 
+function registerOfflineFaultTests(): void {
   it("hydrates a scoped cached slice on a fetch TypeError and publishes its saved time", async () => {
     await withOfflineCache(async () => {
       const cached = scopedData("a1", {});
@@ -2484,7 +2486,9 @@ describe("ServerSyncAdapter fault-injection branches", () => {
     );
     await expect(adapter.hasExisting()).rejects.toThrow("Failed to read meta (503)");
   });
+}
 
+function registerCommitReceiptFaultTests(): void {
   it("maps an unrecognised empty 400 batch response to a generic validation error", async () => {
     const fetchImpl = vi.fn(async (url: string | URL | Request) =>
       String(url).includes("/api/state")
@@ -2527,7 +2531,9 @@ describe("ServerSyncAdapter fault-injection branches", () => {
     await adapter.saveAll(next);
     expect(batches).toBe(2);
   });
+}
 
+function registerArchiveReceiptFaultTests(): void {
   it.each([
     [{ ok: true, applied: 1, revisions: [] }, "committed without lifecycle archive receipts"],
     [{ ok: true, applied: 1, revisions: [], archives: [null] }, "invalid lifecycle archive receipt"],
@@ -2552,7 +2558,9 @@ describe("ServerSyncAdapter fault-injection branches", () => {
     const initial = withData({ clients: [client("c1")] });
     await expect(saveAgainstReceipt(receipt, { initial, next: emptyAppData(), unload: true })).rejects.toThrow(message);
   });
+}
 
+function registerArchiveOutcomeFaultTests(): void {
   it("accepts archived:false as a complete teardown lifecycle receipt", async () => {
     const initial = withData({ clients: [client("c1")] });
     await expect(
@@ -2608,7 +2616,9 @@ describe("ServerSyncAdapter fault-injection branches", () => {
       message: JSON.stringify({ code: "protected" }),
     });
   });
+}
 
+function registerRestoreReceiptFaultTests(): void {
   it.each([
     { label: "non-record", body: null },
     { label: "wrong id", body: { id: "wrong", createdAt: TS1, updatedAt: TS2 } },
@@ -2635,4 +2645,13 @@ describe("ServerSyncAdapter fault-injection branches", () => {
     expect(archived).toBe(true);
     await expect(adapter.saveAll(initial)).rejects.toBeInstanceOf(LifecycleRestoreError);
   });
+}
+
+describe("ServerSyncAdapter fault-injection branches", () => {
+  registerStateFaultTests();
+  registerOfflineFaultTests();
+  registerCommitReceiptFaultTests();
+  registerArchiveReceiptFaultTests();
+  registerArchiveOutcomeFaultTests();
+  registerRestoreReceiptFaultTests();
 });
