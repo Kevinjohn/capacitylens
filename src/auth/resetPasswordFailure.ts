@@ -13,12 +13,13 @@ import { m } from "@/i18n";
  *  Exported so this library-shape sniff is test-pinned per DEFENSIVE-CODING.md §2 — see
  *  ResetPassword.test.tsx. The caller casts an untyped `res.json()` result `as { code?: string }`
  *  without runtime validation, so `body` itself is untrusted (a same-shape-JSON server could answer
- *  `null`/a string/an array) — `body?.code` keeps that a safe `undefined` (→ generic fallback)
+ *  `null`/a string/an array) — the nullable body check keeps that a safe `undefined` (→ generic fallback)
  *  instead of a `TypeError` crashing the submit handler. */
-export function resolveResetPasswordFailureMessage(body: { code?: string }, status?: number): string {
+export function resolveResetPasswordFailureMessage(body: { code?: string } | null, status?: number): string {
   if (status === 404) return m.reset_err_unavailable();
-  if (body?.code === "INVALID_TOKEN") return m.reset_err_invalid();
-  if (body?.code === "PASSWORD_TOO_SHORT") return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
-  if (body?.code === "PASSWORD_TOO_LONG") return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
+  if (body === null) return m.reset_err_generic();
+  if (body.code === "INVALID_TOKEN") return m.reset_err_invalid();
+  if (body.code === "PASSWORD_TOO_SHORT") return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
+  if (body.code === "PASSWORD_TOO_LONG") return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
   return m.reset_err_generic();
 }
