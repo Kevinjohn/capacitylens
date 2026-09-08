@@ -39,16 +39,17 @@ function resolveInitialDaysOver({
   seedEnd: ISODate | undefined;
   initialStart: ISODate;
   initialUsesWorkingSpan: boolean;
-  initialEffectiveWeek: ReturnType<typeof effectiveWorkingWeek>;
+  initialEffectiveWeek: ReturnType<typeof effectiveWorkingWeek> | null;
   initialIgnoreWeekends: boolean;
 }) {
   if (!seedEnd) return 1;
   if (initialUsesWorkingSpan && lacksEffectiveWorkingDays(initialEffectiveWeek, initialIgnoreWeekends)) return 1;
   if (!initialUsesWorkingSpan) return Math.max(1, daysInclusive(initialStart, seedEnd));
+  const workingDays = initialEffectiveWeek?.kind === "days" ? initialEffectiveWeek.days : undefined;
   return Math.max(
     1,
     spanDays(initialStart, seedEnd, {
-      ...(initialEffectiveWeek.kind === "days" ? { workingDays: initialEffectiveWeek.days } : {}),
+      ...(workingDays ? { workingDays } : {}),
       ignoreWeekends: initialIgnoreWeekends,
     }),
   );
@@ -80,12 +81,11 @@ function resolveSeedSelection(input: SeedInput) {
   const initialEffectiveWeek = initialResource ? effectiveWorkingWeek(initialResource, accountWorkingDays) : null;
   const initialPlaceholderProjectId = initialResource?.kind === "placeholder" ? initialResource.projectId : undefined;
   return {
+    ...draftValues,
     initialActivity,
-    initialResourceId,
     initialResource,
     initialEffectiveWeek,
     initialPlaceholderProjectId,
-    ...draftValues,
   };
 }
 

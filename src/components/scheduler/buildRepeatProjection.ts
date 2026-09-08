@@ -41,7 +41,7 @@ function resolveProjectionContext(input: ProjectionInput) {
   const { activityId, create, repeat, resourceId, selectedEffectiveWeek, selectedResource } = input;
   if (!create || repeat === "none" || !selectedResource || selectedEffectiveWeek === undefined) return null;
   if (!resourceId || !activityId) return null;
-  return { activityId, resourceId, selectedEffectiveWeek, selectedResource };
+  return { activityId, repeat, resourceId, selectedEffectiveWeek, selectedResource };
 }
 
 function hasValidProjectionDates(input: ProjectionInput) {
@@ -80,12 +80,11 @@ function buildProjection(input: ProjectionInput, context: NonNullable<ReturnType
     isExternal,
     mode,
     note,
-    repeat,
     repeatUntil,
     startDate,
     status,
   } = input;
-  const { activityId, resourceId, selectedEffectiveWeek, selectedResource } = context;
+  const { activityId, repeat, resourceId, selectedEffectiveWeek, selectedResource } = context;
   try {
     const { startDates } = generateRepeatingStartDates(startDate, repeatUntil, resolveRepeatPattern(repeat));
     const drafts = buildRepeatedAllocationDrafts(
