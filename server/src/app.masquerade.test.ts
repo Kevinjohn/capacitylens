@@ -134,16 +134,19 @@ describe("identity masquerade", () => {
     expect(
       (await call(app, { method: "GET", url: "/api/accounts", headers: { cookie: actor.cookie } })).json(),
     ).toEqual([expect.objectContaining({ id: "a1", role: "viewer" })]);
-    expect(auditEvents).toContainEqual(
-      expect.objectContaining({
-        action: "identity.masquerade_started",
-        targetPrincipalId: target.userId,
-      }),
+    const startedEvent = auditEvents.find(
+      (event) =>
+        event.action === "identity.masquerade_started" &&
+        "targetPrincipalId" in event &&
+        event.targetPrincipalId === target.userId,
     );
-    const startedEvent = auditEvents.find(({ action }) => action === "identity.masquerade_started");
     if (!startedEvent || !("expiresAt" in startedEvent)) {
       throw new TypeError("Expected masquerade start audit event with an expiry.");
     }
+    expect(startedEvent).toMatchObject({
+      action: "identity.masquerade_started",
+      targetPrincipalId: target.userId,
+    });
     expect(typeof startedEvent.expiresAt).toBe("string");
 
     const ended = await call(app, {
