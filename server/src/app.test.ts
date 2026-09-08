@@ -903,6 +903,12 @@ function readFirstResource(resources: ResourceSnapshot[]): ResourceSnapshot {
   return resource;
 }
 
+function readResource(resources: ResourceSnapshot[], id: string): ResourceSnapshot {
+  const resource = resources.find((candidate) => candidate.id === id);
+  if (!resource) throw new Error(`Expected the state response to contain resource ${id}.`);
+  return resource;
+}
+
 function readResourceResponse(response: LightMyRequestResponse): ResourceSnapshot {
   return readFirstResource(readResourceSnapshots([response.json()]));
 }
@@ -2337,7 +2343,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       allocation({ id: "al", accountId: "a1", resourceId: "r1", activityId: "t1", o: { hoursPerDay: 0 } }),
     );
     expect((await patch({ app, entity: "resources", id: "r1", payload: { kind: "external" } })).statusCode).toBe(200);
-    expect(readFirstResource((await readValidatedState(app)).resources).kind).toBe("external");
+    expect(readResource((await readValidatedState(app)).resources, "r1").kind).toBe("external");
   });
 
   it("accepts creating an external resource with no dependents, and editing its name", async () => {
