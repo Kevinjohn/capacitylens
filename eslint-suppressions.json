@@ -715,11 +715,6 @@
       "count": 1
     }
   },
-  "shared/src/domain/lifecycle.test.ts": {
-    "max-lines-per-function": {
-      "count": 4
-    }
-  },
   "shared/src/domain/privateNames.test.ts": {
     "max-lines-per-function": {
       "count": 1

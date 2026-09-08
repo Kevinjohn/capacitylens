@@ -24,7 +24,7 @@ import type {
   LifecycleFields,
 } from "@capacitylens/shared/domain/lifecycle";
 import { emptyAppData } from "../types/entities";
-import type { AppData, Resource } from "../types/entities";
+import type { AppData, Resource, Weekday } from "../types/entities";
 
 // These tests are an INDEPENDENT oracle of the P2.2 lifecycle state machine: the expected states /
 // booleans below are hand-derived from the contract (deletedAt wins; archive needs active; delete +
@@ -430,233 +430,198 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
   });
 });
 
-describe("activeOnly — VIEW/read projection that drops non-active resources/clients/projects (pure, immutable)", () => {
-  // A small AppData with a deliberate MIX in each lifecycle-bearing table: one active, one archived
-  // (archivedAt only), one soft-deleted (deletedAt set). The non-lifecycle tables carry a row each so
-  // we can assert they pass through byte-for-byte (no lifecycle field ⇒ never filtered). Field shapes
-  // need only satisfy the array element types loosely — the projection reads ONLY the tombstones.
-  const A = "acct-1";
-  function mixedData(): AppData {
-    return {
-      ...emptyAppData(),
-      // accounts has no lifecycle field — pass-through.
-      accounts: [{ id: A, name: "Studio", color: "#3b82f6", createdAt: T_ARCH, updatedAt: T_ARCH }],
-      disciplines: [{ id: "d1", accountId: A, name: "Design", sortOrder: 0, createdAt: T_ARCH, updatedAt: T_ARCH }],
-      resources: [
-        {
-          id: "r-active",
-          accountId: A,
-          kind: "person",
-          name: "Active",
-          role: "Designer",
-          employmentType: "permanent",
-          engagement: "studio" as const,
-          workingHoursPerDay: 8,
-          workingDays: [1, 2, 3, 4, 5],
-          halfDays: [],
-          color: "#3b82f6",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-        },
-        {
-          id: "r-archived",
-          accountId: A,
-          kind: "person",
-          name: "Archived",
-          role: "Designer",
-          employmentType: "permanent",
-          engagement: "studio" as const,
-          workingHoursPerDay: 8,
-          workingDays: [1, 2, 3, 4, 5],
-          halfDays: [],
-          color: "#3b82f6",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-          archivedAt: T_ARCH,
-        },
-        {
-          id: "r-deleted",
-          accountId: A,
-          kind: "person",
-          name: "Deleted",
-          role: "Designer",
-          employmentType: "permanent",
-          engagement: "studio" as const,
-          workingHoursPerDay: 8,
-          workingDays: [1, 2, 3, 4, 5],
-          halfDays: [],
-          color: "#3b82f6",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-          archivedAt: T_ARCH,
-          deletedAt: T_DEL,
-        },
-      ],
-      clients: [
-        { id: "c-active", accountId: A, name: "Active Co", color: "#3b82f6", createdAt: T_ARCH, updatedAt: T_ARCH },
-        {
-          id: "c-archived",
-          accountId: A,
-          name: "Archived Co",
-          color: "#3b82f6",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-          archivedAt: T_ARCH,
-        },
-        {
-          id: "c-deleted",
-          accountId: A,
-          name: "Deleted Co",
-          color: "#3b82f6",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-          deletedAt: T_DEL,
-        },
-      ],
-      projects: [
-        {
-          id: "p-active",
-          accountId: A,
-          name: "Active P",
-          clientId: "c-active",
-          color: "#3b82f6",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-        },
-        {
-          id: "p-hidden-parent",
-          accountId: A,
-          name: "Hidden with client",
-          clientId: "c-archived",
-          color: "#3b82f6",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-        },
-        {
-          id: "p-archived",
-          accountId: A,
-          name: "Archived P",
-          clientId: "c-active",
-          color: "#3b82f6",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-          archivedAt: T_ARCH,
-        },
-        {
-          id: "p-deleted",
-          accountId: A,
-          name: "Deleted P",
-          clientId: "c-active",
-          color: "#3b82f6",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-          deletedAt: T_DEL,
-        },
-      ],
-      // Non-lifecycle child tables — carry a row each to prove pass-through.
-      phases: [
-        { id: "ph1", accountId: A, name: "Build", projectId: "p-active", createdAt: T_ARCH, updatedAt: T_ARCH },
-        {
-          id: "ph-hidden",
-          accountId: A,
-          name: "Hidden",
-          projectId: "p-hidden-parent",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-        },
-      ],
-      activities: [
-        {
-          id: "act1",
-          accountId: A,
-          name: "Activity",
-          kind: "project",
-          projectId: "p-active",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-        },
-        {
-          id: "act-hidden",
-          accountId: A,
-          name: "Hidden Activity",
-          kind: "project",
-          projectId: "p-hidden-parent",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-        },
-      ],
-      allocations: [
-        {
-          id: "al1",
-          accountId: A,
-          resourceId: "r-active",
-          activityId: "act1",
-          startDate: "2026-01-01",
-          endDate: "2026-01-05",
-          hoursPerDay: 8,
-          status: "confirmed" as const,
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-        },
-        {
-          id: "al-hidden-activity",
-          accountId: A,
-          resourceId: "r-active",
-          activityId: "act-hidden",
-          startDate: "2026-01-01",
-          endDate: "2026-01-05",
-          hoursPerDay: 8,
-          status: "confirmed",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-        },
-        {
-          id: "al-hidden-resource",
-          accountId: A,
-          resourceId: "r-archived",
-          activityId: "act1",
-          startDate: "2026-01-01",
-          endDate: "2026-01-05",
-          hoursPerDay: 8,
-          status: "confirmed",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-        },
-      ],
-      timeOff: [
-        {
-          id: "to1",
-          accountId: A,
-          resourceId: "r-active",
-          startDate: "2026-02-01",
-          endDate: "2026-02-03",
-          type: "holiday",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-        },
-        {
-          id: "to-hidden",
-          accountId: A,
-          resourceId: "r-archived",
-          startDate: "2026-02-01",
-          endDate: "2026-02-03",
-          type: "holiday",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-        },
-      ],
-    };
-  }
+const ACTIVE_ONLY_ACCOUNT = "acct-1";
 
+const makeActiveOnlyResource = (id: string, name: string, tombstones: LifecycleFields = {}) => ({
+  id,
+  accountId: ACTIVE_ONLY_ACCOUNT,
+  kind: "person" as const,
+  name,
+  role: "Designer",
+  employmentType: "permanent" as const,
+  engagement: "studio" as const,
+  workingHoursPerDay: 8,
+  workingDays: [1, 2, 3, 4, 5] as Weekday[],
+  halfDays: [],
+  color: "#3b82f6",
+  createdAt: T_ARCH,
+  updatedAt: T_ARCH,
+  ...tombstones,
+});
+const makeActiveOnlyClient = (id: string, name: string, tombstones: LifecycleFields = {}) => ({
+  id,
+  accountId: ACTIVE_ONLY_ACCOUNT,
+  name,
+  color: "#3b82f6",
+  createdAt: T_ARCH,
+  updatedAt: T_ARCH,
+  ...tombstones,
+});
+const makeActiveOnlyProject = ({
+  id,
+  name,
+  clientId,
+  tombstones = {},
+}: {
+  id: string;
+  name: string;
+  clientId: string;
+  tombstones?: LifecycleFields;
+}) => ({
+  id,
+  accountId: ACTIVE_ONLY_ACCOUNT,
+  name,
+  clientId,
+  color: "#3b82f6",
+  createdAt: T_ARCH,
+  updatedAt: T_ARCH,
+  ...tombstones,
+});
+const ACTIVE_ONLY_DATA: AppData = {
+  ...emptyAppData(),
+  accounts: [{ id: ACTIVE_ONLY_ACCOUNT, name: "Studio", color: "#3b82f6", createdAt: T_ARCH, updatedAt: T_ARCH }],
+  disciplines: [
+    { id: "d1", accountId: ACTIVE_ONLY_ACCOUNT, name: "Design", sortOrder: 0, createdAt: T_ARCH, updatedAt: T_ARCH },
+  ],
+  resources: [
+    makeActiveOnlyResource("r-active", "Active"),
+    makeActiveOnlyResource("r-archived", "Archived", { archivedAt: T_ARCH }),
+    makeActiveOnlyResource("r-deleted", "Deleted", { archivedAt: T_ARCH, deletedAt: T_DEL }),
+  ],
+  clients: [
+    makeActiveOnlyClient("c-active", "Active Co"),
+    makeActiveOnlyClient("c-archived", "Archived Co", { archivedAt: T_ARCH }),
+    makeActiveOnlyClient("c-deleted", "Deleted Co", { deletedAt: T_DEL }),
+  ],
+  projects: [
+    makeActiveOnlyProject({ id: "p-active", name: "Active P", clientId: "c-active" }),
+    makeActiveOnlyProject({ id: "p-hidden-parent", name: "Hidden with client", clientId: "c-archived" }),
+    makeActiveOnlyProject({
+      id: "p-archived",
+      name: "Archived P",
+      clientId: "c-active",
+      tombstones: { archivedAt: T_ARCH },
+    }),
+    makeActiveOnlyProject({
+      id: "p-deleted",
+      name: "Deleted P",
+      clientId: "c-active",
+      tombstones: { deletedAt: T_DEL },
+    }),
+  ],
+  phases: [
+    {
+      id: "ph1",
+      accountId: ACTIVE_ONLY_ACCOUNT,
+      name: "Build",
+      projectId: "p-active",
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+    {
+      id: "ph-hidden",
+      accountId: ACTIVE_ONLY_ACCOUNT,
+      name: "Hidden",
+      projectId: "p-hidden-parent",
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+  ],
+  activities: [
+    {
+      id: "act1",
+      accountId: ACTIVE_ONLY_ACCOUNT,
+      name: "Activity",
+      kind: "project" as const,
+      projectId: "p-active",
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+    {
+      id: "act-hidden",
+      accountId: ACTIVE_ONLY_ACCOUNT,
+      name: "Hidden Activity",
+      kind: "project" as const,
+      projectId: "p-hidden-parent",
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+  ],
+  allocations: [
+    {
+      id: "al1",
+      accountId: ACTIVE_ONLY_ACCOUNT,
+      resourceId: "r-active",
+      activityId: "act1",
+      startDate: "2026-01-01",
+      endDate: "2026-01-05",
+      hoursPerDay: 8,
+      status: "confirmed" as const,
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+    {
+      id: "al-hidden-activity",
+      accountId: ACTIVE_ONLY_ACCOUNT,
+      resourceId: "r-active",
+      activityId: "act-hidden",
+      startDate: "2026-01-01",
+      endDate: "2026-01-05",
+      hoursPerDay: 8,
+      status: "confirmed" as const,
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+    {
+      id: "al-hidden-resource",
+      accountId: ACTIVE_ONLY_ACCOUNT,
+      resourceId: "r-archived",
+      activityId: "act1",
+      startDate: "2026-01-01",
+      endDate: "2026-01-05",
+      hoursPerDay: 8,
+      status: "confirmed" as const,
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+  ],
+  timeOff: [
+    {
+      id: "to1",
+      accountId: ACTIVE_ONLY_ACCOUNT,
+      resourceId: "r-active",
+      startDate: "2026-02-01",
+      endDate: "2026-02-03",
+      type: "holiday" as const,
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+    {
+      id: "to-hidden",
+      accountId: ACTIVE_ONLY_ACCOUNT,
+      resourceId: "r-archived",
+      startDate: "2026-02-01",
+      endDate: "2026-02-03",
+      type: "holiday" as const,
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+  ],
+};
+const makeActiveOnlyData = (): AppData => structuredClone(ACTIVE_ONLY_DATA);
+
+const registerActiveOnlyTest1 = (): void => {
   it("DROPS archived AND soft-deleted resources/clients/projects; KEEPS the active ones", () => {
-    const out = activeOnly(mixedData());
+    const out = activeOnly(makeActiveOnlyData());
     expect(out.resources.map((r) => r.id)).toEqual(["r-active"]);
     expect(out.clients.map((c) => c.id)).toEqual(["c-active"]);
     expect(out.projects.map((p) => p.id)).toEqual(["p-active"]);
   });
+};
 
+const registerActiveOnlyTest2 = (): void => {
   it("closure-prunes descendants of hidden parents/resources while preserving top-level metadata", () => {
-    const input = mixedData();
+    const input = makeActiveOnlyData();
     const out = activeOnly(input);
     expect(out.phases.map((row) => row.id)).toEqual(["ph1"]);
     expect(out.activities.map((row) => row.id)).toEqual(["act1"]);
@@ -665,7 +630,9 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
     expect(out.disciplines).toBe(input.disciplines);
     expect(out.accounts).toBe(input.accounts);
   });
+};
 
+const registerActiveOnlyTest3 = (): void => {
   it("retains active rows with unresolved parents instead of inventing hidden lifecycle state", () => {
     const input = {
       ...emptyAppData(),
@@ -694,7 +661,9 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
     expect(out.projects.map(({ id }) => id)).toEqual(["p-dangling", "p-missing-field"]);
     expect(out.projects.every((project) => lifecycleStatus(project) === "active")).toBe(true);
   });
+};
 
+const registerActiveOnlyTest4 = (): void => {
   it("treats null optional activity parents as absent and retains their allocations", () => {
     const input = {
       ...emptyAppData(),
@@ -730,7 +699,9 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
     expect(out.activities.map(({ id }) => id)).toEqual(["activity-with-null-parents"]);
     expect(out.allocations.map(({ id }) => id)).toEqual(["allocation-1"]);
   });
+};
 
+const registerActiveOnlyTest5 = (): void => {
   it("hides a repeatable allocation attributed to an inactive project", () => {
     const input: AppData = {
       ...emptyAppData(),
@@ -765,9 +736,11 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
 
     expect(activeOnly(input).allocations).toEqual([]);
   });
+};
 
+const registerActiveOnlyTest6 = (): void => {
   it("identifies the exact inactive ancestor inherited through every projection edge", () => {
-    const input = mixedData();
+    const input = makeActiveOnlyData();
     const lookup: LifecycleAncestryLookup = (table, id) =>
       (input[table] as unknown as LifecycleAncestryRow[]).find((row) => row.id === id);
     const inspect = (table: Parameters<typeof inspectLifecycleAncestry>[0], id: string) => {
@@ -808,9 +781,11 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
     });
     expect(inspect("allocations", "al1")).toEqual({ visible: true });
   });
+};
 
+const registerActiveOnlyTest7 = (): void => {
   it("does NOT mutate the input (deep-equal the original) and returns a NEW object", () => {
-    const input = mixedData();
+    const input = makeActiveOnlyData();
     const snapshot = structuredClone(input);
     const out = activeOnly(input);
     expect(input).toEqual(snapshot); // input deep-unchanged — every archived/deleted row still present
@@ -819,9 +794,11 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
     expect(input.projects).toHaveLength(4);
     expect(out).not.toBe(input); // a fresh AppData reference
   });
+};
 
+const registerActiveOnlyTest8 = (): void => {
   it("an all-active dataset is preserved (every row kept, every table present)", () => {
-    const input = mixedData();
+    const input = makeActiveOnlyData();
     // Strip the non-active rows so everything left is active.
     input.resources = input.resources.filter((r) => r.id === "r-active");
     input.clients = input.clients.filter((c) => c.id === "c-active");
@@ -832,97 +809,147 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
     expect(out.projects).toHaveLength(1);
     expect(Object.keys(out).sort()).toEqual(Object.keys(emptyAppData()).sort());
   });
+};
 
+const registerActiveOnlyTest9 = (): void => {
   it("an empty dataset projects to an empty dataset (no throw)", () => {
     const out = activeOnly(emptyAppData());
     expect(out.resources).toEqual([]);
     expect(out.clients).toEqual([]);
     expect(out.projects).toEqual([]);
   });
+};
+
+describe("activeOnly — VIEW/read projection that drops non-active resources/clients/projects (pure, immutable)", () => {
+  registerActiveOnlyTest1();
+  registerActiveOnlyTest2();
+  registerActiveOnlyTest3();
+  registerActiveOnlyTest4();
+  registerActiveOnlyTest5();
+  registerActiveOnlyTest6();
+  registerActiveOnlyTest7();
+  registerActiveOnlyTest8();
+  registerActiveOnlyTest9();
 });
 
-describe("archiveImpact", () => {
-  const A = "acct-1";
-  // A minimal live tree: client c1 → project p1 → project-activity a1 → allocation al1; plus an
-  // internal activity (no project) whose allocation al-internal hangs off the resource, not the
-  // client; plus time-off to1. c-empty has nothing beneath it.
-  function base(): AppData {
-    return {
-      ...emptyAppData(),
-      accounts: [{ id: A, name: "Studio", color: "#3b82f6", createdAt: T_ARCH, updatedAt: T_ARCH }],
-      resources: [
-        {
-          id: "r1",
-          accountId: A,
-          kind: "person",
-          name: "R",
-          role: "Dev",
-          employmentType: "permanent",
-          engagement: "studio" as const,
-          workingHoursPerDay: 8,
-          workingDays: [1, 2, 3, 4, 5],
-          halfDays: [],
-          color: "#3b82f6",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-        },
-      ],
-      clients: [
-        { id: "c1", accountId: A, name: "C1", color: "#3b82f6", createdAt: T_ARCH, updatedAt: T_ARCH },
-        { id: "c-empty", accountId: A, name: "Empty", color: "#3b82f6", createdAt: T_ARCH, updatedAt: T_ARCH },
-      ],
-      projects: [
-        { id: "p1", accountId: A, name: "P1", clientId: "c1", color: "#3b82f6", createdAt: T_ARCH, updatedAt: T_ARCH },
-      ],
-      phases: [{ id: "ph1", accountId: A, name: "Discovery", projectId: "p1", createdAt: T_ARCH, updatedAt: T_ARCH }],
-      activities: [
-        { id: "a1", accountId: A, name: "A1", kind: "project", projectId: "p1", createdAt: T_ARCH, updatedAt: T_ARCH },
-        { id: "internal", accountId: A, name: "Admin", kind: "internal", createdAt: T_ARCH, updatedAt: T_ARCH },
-      ],
-      allocations: [
-        {
-          id: "al1",
-          accountId: A,
-          resourceId: "r1",
-          activityId: "a1",
-          startDate: "2026-01-01",
-          endDate: "2026-01-05",
-          hoursPerDay: 8,
-          status: "confirmed",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-        },
-        {
-          id: "al-internal",
-          accountId: A,
-          resourceId: "r1",
-          activityId: "internal",
-          startDate: "2026-01-01",
-          endDate: "2026-01-05",
-          hoursPerDay: 8,
-          status: "confirmed",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-        },
-      ],
-      timeOff: [
-        {
-          id: "to1",
-          accountId: A,
-          resourceId: "r1",
-          startDate: "2026-02-01",
-          endDate: "2026-02-03",
-          type: "holiday",
-          createdAt: T_ARCH,
-          updatedAt: T_ARCH,
-        },
-      ],
-    };
-  }
+const ARCHIVE_IMPACT_ACCOUNT = "acct-1";
 
+const ARCHIVE_IMPACT_DATA: AppData = {
+  ...emptyAppData(),
+  accounts: [{ id: ARCHIVE_IMPACT_ACCOUNT, name: "Studio", color: "#3b82f6", createdAt: T_ARCH, updatedAt: T_ARCH }],
+  resources: [
+    {
+      id: "r1",
+      accountId: ARCHIVE_IMPACT_ACCOUNT,
+      kind: "person",
+      name: "R",
+      role: "Dev",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5] as Weekday[],
+      halfDays: [],
+      color: "#3b82f6",
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+  ],
+  clients: [
+    { id: "c1", accountId: ARCHIVE_IMPACT_ACCOUNT, name: "C1", color: "#3b82f6", createdAt: T_ARCH, updatedAt: T_ARCH },
+    {
+      id: "c-empty",
+      accountId: ARCHIVE_IMPACT_ACCOUNT,
+      name: "Empty",
+      color: "#3b82f6",
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+  ],
+  projects: [
+    {
+      id: "p1",
+      accountId: ARCHIVE_IMPACT_ACCOUNT,
+      name: "P1",
+      clientId: "c1",
+      color: "#3b82f6",
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+  ],
+  phases: [
+    {
+      id: "ph1",
+      accountId: ARCHIVE_IMPACT_ACCOUNT,
+      name: "Discovery",
+      projectId: "p1",
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+  ],
+  activities: [
+    {
+      id: "a1",
+      accountId: ARCHIVE_IMPACT_ACCOUNT,
+      name: "A1",
+      kind: "project",
+      projectId: "p1",
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+    {
+      id: "internal",
+      accountId: ARCHIVE_IMPACT_ACCOUNT,
+      name: "Admin",
+      kind: "internal",
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+  ],
+  allocations: [
+    {
+      id: "al1",
+      accountId: ARCHIVE_IMPACT_ACCOUNT,
+      resourceId: "r1",
+      activityId: "a1",
+      startDate: "2026-01-01",
+      endDate: "2026-01-05",
+      hoursPerDay: 8,
+      status: "confirmed",
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+    {
+      id: "al-internal",
+      accountId: ARCHIVE_IMPACT_ACCOUNT,
+      resourceId: "r1",
+      activityId: "internal",
+      startDate: "2026-01-01",
+      endDate: "2026-01-05",
+      hoursPerDay: 8,
+      status: "confirmed",
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+  ],
+  timeOff: [
+    {
+      id: "to1",
+      accountId: ARCHIVE_IMPACT_ACCOUNT,
+      resourceId: "r1",
+      startDate: "2026-02-01",
+      endDate: "2026-02-03",
+      type: "holiday",
+      createdAt: T_ARCH,
+      updatedAt: T_ARCH,
+    },
+  ],
+};
+const makeArchiveImpactData = (): AppData => structuredClone(ARCHIVE_IMPACT_DATA);
+
+describe("archiveImpact", () => {
   it("counts a client’s active descendants: its projects + their project-activities + allocations", () => {
     // al-internal stays (its activity is internal, not under c1); to1 is a resource descendant.
-    expect(archiveImpact(base(), "clients", "c1")).toEqual({
+    expect(archiveImpact(makeArchiveImpactData(), "clients", "c1")).toEqual({
       projects: 1,
       phases: 1,
       activities: 1,
@@ -932,7 +959,7 @@ describe("archiveImpact", () => {
   });
 
   it("reports zero descendants for an empty client", () => {
-    expect(archiveImpact(base(), "clients", "c-empty")).toEqual({
+    expect(archiveImpact(makeArchiveImpactData(), "clients", "c-empty")).toEqual({
       projects: 0,
       phases: 0,
       activities: 0,
@@ -946,7 +973,7 @@ describe("archiveImpact", () => {
     ["deleted", { archivedAt: T_ARCH, deletedAt: T_DEL }, "already_inactive"],
     ["missing", null, "invalid_transition"],
   ] as const)("fails loudly when the impact target is %s", (_state, tombstones, code) => {
-    const input = base();
+    const input = makeArchiveImpactData();
     if (tombstones) {
       input.clients = input.clients.map((client) => (client.id === "c1" ? { ...client, ...tombstones } : client));
     }
@@ -958,7 +985,7 @@ describe("archiveImpact", () => {
   });
 
   it("for a project: activities + allocations, and NEVER a self project count", () => {
-    expect(archiveImpact(base(), "projects", "p1")).toEqual({
+    expect(archiveImpact(makeArchiveImpactData(), "projects", "p1")).toEqual({
       projects: 0,
       phases: 1,
       activities: 1,
@@ -968,7 +995,7 @@ describe("archiveImpact", () => {
   });
 
   it("for a resource: all its allocations (incl. the internal-activity one) + its time off", () => {
-    expect(archiveImpact(base(), "resources", "r1")).toEqual({
+    expect(archiveImpact(makeArchiveImpactData(), "resources", "r1")).toEqual({
       projects: 0,
       phases: 0,
       activities: 0,
@@ -978,7 +1005,7 @@ describe("archiveImpact", () => {
   });
 
   it("does NOT mutate the input", () => {
-    const input = base();
+    const input = makeArchiveImpactData();
     const snapshot = structuredClone(input);
     archiveImpact(input, "clients", "c1");
     expect(input).toEqual(snapshot);
