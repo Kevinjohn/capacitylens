@@ -843,11 +843,6 @@
       "count": 1
     }
   },
-  "src/auth/LoginScreen.test.tsx": {
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
   "src/auth/LoginScreen.tsx": {
     "complexity": {
       "count": 1
