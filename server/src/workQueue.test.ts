@@ -2,7 +2,14 @@ import type { WorkQueueOptions } from "./workQueue";
 import { describe, expect, it, vi } from "vitest";
 import { BoundedWorkQueue, WorkQueueFullError } from "./workQueue";
 
-describe("BoundedWorkQueue", () => {
+function required<T>(value: T | undefined): T {
+  if (value === undefined) {
+    throw new Error("Expected a deferred resolver to be registered");
+  }
+  return value;
+}
+
+function registerConstructorTests(registerTest: typeof it): void {
   interface WorkQueueBoundsInput {
     active: number;
     queued: number;
@@ -10,7 +17,7 @@ describe("BoundedWorkQueue", () => {
     message: RegExp;
   }
 
-  it.each([
+  registerTest.each([
     { active: 0, queued: 0, options: {}, message: /maxActive/ },
     { active: 1, queued: -1, options: {}, message: /maxQueued/ },
     { active: 1, queued: 0, options: { maxWaitMs: 0 }, message: /maxWaitMs/ },
@@ -22,31 +29,36 @@ describe("BoundedWorkQueue", () => {
       ).toThrow(message);
     },
   );
+}
 
-  it("supports a zero-depth queue and preserves FIFO order after queued failure", async () => {
+function registerFifoTest(registerTest: typeof it): void {
+  registerTest("supports a zero-depth queue and preserves FIFO order after queued failure", async () => {
     const zeroDepth = new BoundedWorkQueue({ maxActive: 1, maxQueued: 0, fullMessage: "busy" });
-    let release!: () => void;
+    let release: (() => void) | undefined;
     const active = zeroDepth.run(() => new Promise<void>((resolve) => (release = resolve)));
     await expect(zeroDepth.run(async () => undefined)).rejects.toMatchObject({ reason: "full" });
-    release();
+    required(release)();
     await active;
 
     const queue = new BoundedWorkQueue({ maxActive: 1, maxQueued: 2, fullMessage: "busy" });
     const order: string[] = [];
-    let firstRelease!: () => void;
+    let firstRelease: (() => void) | undefined;
     const first = queue.run(() => new Promise<void>((resolve) => (firstRelease = resolve)));
     const failed = queue.run(async () => {
       order.push("failed");
       throw new Error("queued failure");
     });
     const last = queue.run(async () => order.push("last"));
-    firstRelease();
+    required(firstRelease)();
     await first;
     await expect(failed).rejects.toThrow("queued failure");
     await last;
     expect(order).toEqual(["failed", "last"]);
   });
-  it("bounds active work, preserves the queue and refuses overflow", async () => {
+}
+
+function registerBoundsTest(registerTest: typeof it): void {
+  registerTest("bounds active work, preserves the queue and refuses overflow", async () => {
     const queue = new BoundedWorkQueue({ maxActive: 2, maxQueued: 1, fullMessage: "busy" });
     const releases: (() => void)[] = [];
     let active = 0;
@@ -67,17 +79,19 @@ describe("BoundedWorkQueue", () => {
     expect(active).toBe(2);
     expect(peak).toBe(2);
 
-    releases.shift()!();
+    required(releases.shift())();
     await expect(first).resolves.toBe(1);
     await Promise.resolve();
     expect(active).toBe(2);
-    releases.shift()!();
-    releases.shift()!();
+    required(releases.shift())();
+    required(releases.shift())();
     await expect(Promise.all([second, queued])).resolves.toEqual([2, 3]);
     expect(peak).toBe(2);
   });
+}
 
-  it("releases a slot after failed work", async () => {
+function registerFailedWorkTest(registerTest: typeof it): void {
+  registerTest("releases a slot after failed work", async () => {
     const queue = new BoundedWorkQueue({ maxActive: 1, maxQueued: 1, fullMessage: "busy" });
     await expect(
       queue.run(async () => {
@@ -86,10 +100,12 @@ describe("BoundedWorkQueue", () => {
     ).rejects.toThrow("failed");
     await expect(queue.run(async () => "recovered")).resolves.toBe("recovered");
   });
+}
 
-  it("withdraws aborted waiting work without running it or blocking a later caller", async () => {
+function registerAbortWithdrawalTest(registerTest: typeof it): void {
+  registerTest("withdraws aborted waiting work without running it or blocking a later caller", async () => {
     const queue = new BoundedWorkQueue({ maxActive: 1, maxQueued: 2, fullMessage: "busy" });
-    let release!: () => void;
+    let release: (() => void) | undefined;
     const active = queue.run(
       () =>
         new Promise<string>((resolve) => {
@@ -104,14 +120,16 @@ describe("BoundedWorkQueue", () => {
 
     controller.abort(new Error("request gone"));
     await expect(abandoned).rejects.toThrow("request gone");
-    release();
+    required(release)();
 
     await expect(Promise.all([active, useful])).resolves.toEqual(["active", "useful"]);
     expect(abandonedWork).not.toHaveBeenCalled();
     expect(usefulWork).toHaveBeenCalledOnce();
   });
+}
 
-  it("expires queued work and reports saturation exactly once", async () => {
+function registerWaitTimeoutTest(registerTest: typeof it): void {
+  registerTest("expires queued work and reports saturation exactly once", async () => {
     vi.useFakeTimers();
     try {
       const onSaturated = vi.fn();
@@ -124,7 +142,7 @@ describe("BoundedWorkQueue", () => {
           onSaturated,
         },
       });
-      let release!: () => void;
+      let release: (() => void) | undefined;
       const active = queue.run(
         () =>
           new Promise<string>((resolve) => {
@@ -144,37 +162,41 @@ describe("BoundedWorkQueue", () => {
       expect(onSaturated).toHaveBeenCalledWith("wait_timeout");
       expect(waitingWork).not.toHaveBeenCalled();
 
-      release();
+      required(release)();
       await expect(active).resolves.toBe("active");
       await expect(queue.run(async () => "next")).resolves.toBe("next");
     } finally {
       vi.useRealTimers();
     }
   });
+}
 
-  it("ignores an abort that fires after its work already left the queue via dequeue", async () => {
+function registerAbortAfterDequeueTest(registerTest: typeof it): void {
+  registerTest("ignores an abort that fires after its work already left the queue via dequeue", async () => {
     // Regression for the shared removeFromWaiting withdrawal: the dequeue-on-settle path (execute()'s
     // finally) already shifted this item out of `waiting` and removed its abort listener before we
-    // call abort() below, so the abort handler must not fire at all — no reject, no double-settle,
-    // and the now-running work must complete normally.
+    // call abort() below, so the abort handler must not fire at all — no reject, no double-settle, and
+    // the now-running work must complete normally.
     const queue = new BoundedWorkQueue({ maxActive: 1, maxQueued: 1, fullMessage: "busy" });
-    let releaseActive!: () => void;
+    let releaseActive: (() => void) | undefined;
     const active = queue.run(() => new Promise<string>((resolve) => (releaseActive = () => resolve("active"))));
     const controller = new AbortController();
-    let releaseQueued!: () => void;
+    let releaseQueued: (() => void) | undefined;
     const queuedWork = vi.fn(() => new Promise<string>((resolve) => (releaseQueued = () => resolve("queued"))));
     const queued = queue.run(queuedWork, controller.signal);
 
-    releaseActive();
+    required(releaseActive)();
     await active;
     expect(queuedWork).toHaveBeenCalledOnce();
 
     controller.abort(new Error("too late — already dequeued"));
-    releaseQueued();
+    required(releaseQueued)();
     await expect(queued).resolves.toBe("queued");
   });
+}
 
-  it("ignores a wait timer that fires after its work already left the queue via dequeue", async () => {
+function registerTimerAfterDequeueTest(registerTest: typeof it): void {
+  registerTest("ignores a wait timer that fires after its work already left the queue via dequeue", async () => {
     // Regression for the shared removeFromWaiting withdrawal: dequeue-on-settle clears the queued
     // item's wait timer as part of removing it (before this item ever gets a chance to time out), so
     // advancing fake timers past maxWaitMs afterward must not reject the now-running work.
@@ -187,30 +209,32 @@ describe("BoundedWorkQueue", () => {
         fullMessage: "busy",
         options: { maxWaitMs: 100, onSaturated },
       });
-      let releaseActive!: () => void;
+      let releaseActive: (() => void) | undefined;
       const active = queue.run(() => new Promise<string>((resolve) => (releaseActive = () => resolve("active"))));
-      let releaseQueued!: () => void;
+      let releaseQueued: (() => void) | undefined;
       const queuedWork = vi.fn(() => new Promise<string>((resolve) => (releaseQueued = () => resolve("queued"))));
       const queued = queue.run(queuedWork);
 
-      releaseActive();
+      required(releaseActive)();
       await active;
       expect(queuedWork).toHaveBeenCalledOnce();
 
       await vi.advanceTimersByTimeAsync(200);
       expect(onSaturated).not.toHaveBeenCalled();
 
-      releaseQueued();
+      required(releaseQueued)();
       await expect(queued).resolves.toBe("queued");
     } finally {
       vi.useRealTimers();
     }
   });
+}
 
-  it("reports immediate overflow without double-reporting cancellation", async () => {
+function registerOverflowCancellationTest(registerTest: typeof it): void {
+  registerTest("reports immediate overflow without double-reporting cancellation", async () => {
     const onSaturated = vi.fn();
     const queue = new BoundedWorkQueue({ maxActive: 1, maxQueued: 1, fullMessage: "busy", options: { onSaturated } });
-    let release!: () => void;
+    let release: (() => void) | undefined;
     const active = queue.run(
       () =>
         new Promise<void>((resolve) => {
@@ -229,7 +253,19 @@ describe("BoundedWorkQueue", () => {
     controller.abort();
     await expect(cancelled).rejects.toMatchObject({ name: "AbortError" });
     expect(onSaturated).toHaveBeenCalledOnce();
-    release();
+    required(release)();
     await active;
   });
+}
+
+describe("BoundedWorkQueue", () => {
+  registerConstructorTests(it);
+  registerFifoTest(it);
+  registerBoundsTest(it);
+  registerFailedWorkTest(it);
+  registerAbortWithdrawalTest(it);
+  registerWaitTimeoutTest(it);
+  registerAbortAfterDequeueTest(it);
+  registerTimerAfterDequeueTest(it);
+  registerOverflowCancellationTest(it);
 });
