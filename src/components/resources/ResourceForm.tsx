@@ -34,8 +34,8 @@ import {
 type ResourceFormProps = { resource?: Resource; kind?: ResourceKind; onClose: () => void };
 
 function useResourceFormState(resource?: Resource) {
-  const text = getInitialTextState(resource);
-  const capacity = getInitialCapacityState(resource);
+  const text = buildInitialTextState(resource);
+  const capacity = buildInitialCapacityState(resource);
   const [name, setName] = useState(text.name);
   const [role, setRole] = useState(text.role);
   const [disciplineId, setDisciplineId] = useState(text.disciplineId);
@@ -61,7 +61,7 @@ function useResourceFormState(resource?: Resource) {
   };
 }
 
-function getInitialTextState(resource?: Resource) {
+function buildInitialTextState(resource?: Resource) {
   return {
     name: resource?.name ?? "",
     role: resource?.role ?? "",
@@ -70,7 +70,7 @@ function getInitialTextState(resource?: Resource) {
   };
 }
 
-function getInitialCapacityState(resource?: Resource) {
+function buildInitialCapacityState(resource?: Resource) {
   return {
     engagement: resource?.engagement ?? "studio",
     workingDays: resource?.workingDays ?? [1, 2, 3, 4, 5],
@@ -105,72 +105,104 @@ function useProjectOptions({ resource, projects, clients, rawProjects, rawClient
   return [...baseOptions, { value: resource.projectId, label, disabled: true }];
 }
 
-function getFormTitle(resource: Resource | undefined, isPlaceholder: boolean) {
+function resolveFormTitle(resource: Resource | undefined, isPlaceholder: boolean) {
   if (resource) return isPlaceholder ? m.form_resource_edit_placeholder_title() : m.form_resource_edit_resource_title();
   return isPlaceholder ? m.form_resource_add_placeholder_title() : m.form_resource_add_resource_title();
 }
 
+type Fail = ReturnType<typeof useFieldError>["fail"];
+type AddResource = ReturnType<typeof useStore.getState>["addResource"];
+type UpdateResource = ReturnType<typeof useStore.getState>["updateResource"];
 type SubmitInput = {
   resource: Resource | undefined;
   kind: ResourceKind;
   isPlaceholder: boolean;
   form: FormState;
-  fail: ReturnType<typeof useFieldError>["fail"];
+  fail: Fail;
   onClose: () => void;
-  add: ReturnType<typeof useStore.getState>["addResource"];
-  update: ReturnType<typeof useStore.getState>["updateResource"];
+  add: AddResource;
+  update: UpdateResource;
 };
 
 type ValidatedFields = { name: string; role: string };
 
-function validateForm(form: FormState, isPlaceholder: boolean, fail: SubmitInput["fail"]): ValidatedFields | null {
-  const name = validateText(form.name, fail, {
+type ParseFormFieldsInput = {
+  name: string;
+  role: string;
+  projectId: string;
+  workingDays: Weekday[];
+  isPlaceholder: boolean;
+  fail: Fail;
+};
+
+function parseFormFields(input: ParseFormFieldsInput): ValidatedFields | null {
+  const { name: rawName, role: rawRole, projectId, workingDays, isPlaceholder, fail } = input;
+  const name = validateText(rawName, fail, {
     field: "name",
     required: !isPlaceholder,
     requiredMessage: m.form_resource_err_name_required(),
   });
   if (name === null) return null;
-  const role = validateText(form.role, fail, { field: "role", required: false });
+  const role = validateText(rawRole, fail, { field: "role", required: false });
   if (role === null) return null;
-  if (isPlaceholder && !form.projectId) {
+  if (isPlaceholder && !projectId) {
     fail("projectId", m.form_resource_err_placeholder_project());
     return null;
   }
-  if (!isPlaceholder && !validateWorkingDays(form.workingDays, fail)) return null;
+  if (!isPlaceholder && !validateWorkingDays(workingDays, fail)) return null;
   return { name, role };
 }
 
-function buildResourcePatch(
-  input: Pick<SubmitInput, "resource" | "kind" | "isPlaceholder" | "form">,
-  fields: ValidatedFields,
-) {
-  const { resource, kind, isPlaceholder, form } = input;
+type BuildResourcePatchInput = {
+  resource: Resource | undefined;
+  kind: ResourceKind;
+  isPlaceholder: boolean;
+  disciplineId: string;
+  engagement: ResourceEngagement;
+  workingDays: Weekday[];
+  halfDays: Weekday[];
+  projectId: string;
+  fields: ValidatedFields;
+};
+
+function buildResourcePatch(input: BuildResourcePatchInput) {
+  const { resource, kind, isPlaceholder, fields } = input;
   const basePatch = {
     name: fields.name || undefined,
     role: fields.role,
-    disciplineId: form.disciplineId || undefined,
+    disciplineId: input.disciplineId || undefined,
     employmentType: isPlaceholder ? ("permanent" as const) : (resource?.employmentType ?? "permanent"),
-    engagement: isPlaceholder ? ("studio" as const) : form.engagement,
+    engagement: isPlaceholder ? ("studio" as const) : input.engagement,
     workingHoursPerDay: FULL_DAY_HOURS,
-    projectId: isPlaceholder ? form.projectId : undefined,
+    projectId: isPlaceholder ? input.projectId : undefined,
     color: resource?.color ?? DEFAULT_COLORS.resource,
   };
   return isPlaceholder
     ? { ...basePatch, kind: "placeholder" as const, ...placeholderCapacityDefaults() }
-    : { ...basePatch, kind, workingDays: form.workingDays, halfDays: form.halfDays };
+    : { ...basePatch, kind, workingDays: input.workingDays, halfDays: input.halfDays };
 }
 
 type ResourcePatch = ReturnType<typeof buildResourcePatch>;
 
-function saveResource(input: SubmitInput, patch: ResourcePatch) {
-  const { resource, fail, add, update } = input;
+type SaveResourceInput = {
+  resource: Resource | undefined;
+  patch: ResourcePatch;
+  add: AddResource;
+  update: UpdateResource;
+};
+
+function validateResourceFreshness(resource: Resource | undefined, resources: Resource[], fail: Fail): boolean {
+  if (!resource) return true;
+  if (!isStaleEdit(resources, resource.id, resource.updatedAt)) return true;
+  fail(null, m.form_resource_err_changed());
+  return false;
+}
+
+function saveResource(input: SaveResourceInput) {
+  const { resource, patch, add, update } = input;
   if (resource) {
-    if (isStaleEdit(useStore.getState().data.resources, resource.id, resource.updatedAt)) {
-      fail(null, m.form_resource_err_changed());
-      return false;
-    }
     update(resource.id, patch);
-    return true;
+    return;
   }
   add({
     role: patch.role,
@@ -185,16 +217,34 @@ function saveResource(input: SubmitInput, patch: ResourcePatch) {
     ...(patch.disciplineId ? { disciplineId: patch.disciplineId } : {}),
     ...(patch.projectId ? { projectId: patch.projectId } : {}),
   });
-  return true;
 }
 
 function createSubmit(input: SubmitInput) {
   return () => {
-    const fields = validateForm(input.form, input.isPlaceholder, input.fail);
+    const fields = parseFormFields({
+      name: input.form.name,
+      role: input.form.role,
+      projectId: input.form.projectId,
+      workingDays: input.form.workingDays,
+      isPlaceholder: input.isPlaceholder,
+      fail: input.fail,
+    });
     if (!fields) return;
-    const patch = buildResourcePatch(input, fields);
+    const patch = buildResourcePatch({
+      resource: input.resource,
+      kind: input.kind,
+      isPlaceholder: input.isPlaceholder,
+      disciplineId: input.form.disciplineId,
+      engagement: input.form.engagement,
+      workingDays: input.form.workingDays,
+      halfDays: input.form.halfDays,
+      projectId: input.form.projectId,
+      fields,
+    });
     try {
-      if (saveResource(input, patch)) input.onClose();
+      if (!validateResourceFreshness(input.resource, useStore.getState().data.resources, input.fail)) return;
+      saveResource({ resource: input.resource, patch, add: input.add, update: input.update });
+      input.onClose();
     } catch (e) {
       input.fail(null, resolveErrorMessage(e));
     }
@@ -291,7 +341,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
   const submit = createSubmit({ resource, kind, isPlaceholder, form, fail, onClose, add, update });
   return (
     <Modal
-      title={getFormTitle(resource, isPlaceholder)}
+      title={resolveFormTitle(resource, isPlaceholder)}
       onClose={onClose}
       onSubmit={submit}
       footer={<FormActions onCancel={onClose} />}
