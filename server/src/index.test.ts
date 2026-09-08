@@ -50,73 +50,103 @@ function boot(overrides: NodeJS.ProcessEnv) {
   }
 }
 
+async function createSsoCutoverDatabase(): Promise<{ database: string; directory: string }> {
+  const directory = mkdtempSync(join(tmpdir(), "capacitylens-sso-cutover-test-"));
+  const database = join(directory, "capacitylens.db");
+  const db = openDb(database);
+  const { auth } = createAuthFromEnvironment(db, {
+    SMALLSASS_ACCOUNT_MODE: "password",
+    SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
+    SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
+  });
+  if (auth === null) throw new Error("Expected password auth for the startup fixture");
+  await runAuthMigrations(auth);
+  createSsoIdentity(db);
+  createSsoWorkspace(db);
+  db.close();
+  return { database, directory };
+}
+
+function createSsoIdentity(db: ReturnType<typeof openDb>): void {
+  const timestamp = "2026-08-07T00:00:00.000Z";
+  db.prepare(
+    `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
+     VALUES (?, ?, ?, 1, ?, ?)`,
+  ).run("owner-1", "Owner", "owner@example.com", timestamp, timestamp);
+  db.prepare(
+    `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+     VALUES (?, 'credential', ?, ?, ?, ?)`,
+  ).run("credential-1", "owner-1", "owner-1", timestamp, timestamp);
+  db.prepare(
+    `INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run("live-session", "2099-01-01T00:00:00.000Z", "live-token", timestamp, timestamp, "owner-1");
+  db.prepare(
+    `INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(
+    "live-reset",
+    "reset-password:owner@example.com",
+    "reset-value",
+    "2099-01-01T00:00:00.000Z",
+    timestamp,
+    timestamp,
+  );
+}
+
+function createSsoWorkspace(db: ReturnType<typeof openDb>): void {
+  const timestamp = "2026-08-07T00:00:00.000Z";
+  db.prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`).run(
+    "workspace-1",
+    "Wayne Enterprises",
+    "#3b82f6",
+    timestamp,
+    timestamp,
+  );
+  upsertMember(db, {
+    accountId: "workspace-1",
+    userId: "owner-1",
+    role: "owner",
+    status: "active",
+    createdAt: timestamp,
+  });
+}
+
+function buildSsoEnvironment(profile?: string): NodeJS.ProcessEnv {
+  const environment = {
+    SMALLSASS_ACCOUNT_MODE: "sso",
+    SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
+    SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
+    SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
+    SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
+    SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+    SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+    SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
+  };
+  return profile === undefined ? environment : { ...environment, SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: profile };
+}
+
+function assertPreservedSsoState(database: string): void {
+  const preserved = openDb(database);
+  expect(preserved.prepare(`SELECT id FROM session`).all()).toEqual([{ id: "live-session" }]);
+  expect(preserved.prepare(`SELECT id FROM verification`).all()).toEqual([{ id: "live-reset" }]);
+  expect(
+    preserved.prepare(`SELECT json_extract(payload, '$.action') AS action FROM capacitylens_audit_outbox`).all(),
+  ).toEqual([]);
+  preserved.close();
+}
+
 // Each `boot` is a full entrypoint spawn through tsx with a 10 s budget of its own, and the SSO
 // refusal case boots twice. The per-test budget must cover the spawn budgets, not vitest's 5 s
 // default: on the shared CI runner the two-boot case already sat near that default before the
 // server module graph grew.
 describe("server entrypoint startup refusals", { timeout: 30_000 }, () => {
   it("refuses a direct SSO-only flip and names an Owner without a verified provider link", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "capacitylens-sso-cutover-test-"));
-    const database = join(directory, "capacitylens.db");
-    const db = openDb(database);
-    const password = createAuthFromEnvironment(db, {
-      SMALLSASS_ACCOUNT_MODE: "password",
-      SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
-      SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
-    });
-    await runAuthMigrations(password.auth!);
-    const timestamp = "2026-08-07T00:00:00.000Z";
-    db.prepare(
-      `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
-       VALUES (?, ?, ?, 1, ?, ?)`,
-    ).run("owner-1", "Owner", "owner@example.com", timestamp, timestamp);
-    db.prepare(
-      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-       VALUES (?, 'credential', ?, ?, ?, ?)`,
-    ).run("credential-1", "owner-1", "owner-1", timestamp, timestamp);
-    db.prepare(
-      `INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("live-session", "2099-01-01T00:00:00.000Z", "live-token", timestamp, timestamp, "owner-1");
-    db.prepare(
-      `INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run(
-      "live-reset",
-      "reset-password:owner@example.com",
-      "reset-value",
-      "2099-01-01T00:00:00.000Z",
-      timestamp,
-      timestamp,
-    );
-    db.prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`).run(
-      "workspace-1",
-      "Wayne Enterprises",
-      "#3b82f6",
-      timestamp,
-      timestamp,
-    );
-    upsertMember(db, {
-      accountId: "workspace-1",
-      userId: "owner-1",
-      role: "owner",
-      status: "active",
-      createdAt: timestamp,
-    });
-    db.close();
-
+    const { database, directory } = await createSsoCutoverDatabase();
     try {
       const result = boot({
         CAPACITYLENS_DB: database,
-        SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-sso-only",
-        SMALLSASS_ACCOUNT_MODE: "sso",
-        SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
-        SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
-        SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-        SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-        SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-        SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
-        SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
+        ...buildSsoEnvironment("self-hosted-sso-only"),
       });
 
       expect(result.status, result.stderr).toBe(1);
@@ -127,25 +157,11 @@ describe("server entrypoint startup refusals", { timeout: 30_000 }, () => {
       const repeated = boot({
         CAPACITYLENS_DB: database,
         // The bounded no-profile compatibility posture must not bypass the same SSO interlock.
-        SMALLSASS_ACCOUNT_MODE: "sso",
-        SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
-        SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
-        SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-        SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-        SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-        SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
-        SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
+        ...buildSsoEnvironment(),
       });
       expect(repeated.status, repeated.stderr).toBe(1);
       expect(repeated.stderr).toContain("SSO cutover readiness failed");
-
-      const preserved = openDb(database);
-      expect(preserved.prepare(`SELECT id FROM session`).all()).toEqual([{ id: "live-session" }]);
-      expect(preserved.prepare(`SELECT id FROM verification`).all()).toEqual([{ id: "live-reset" }]);
-      expect(
-        preserved.prepare(`SELECT json_extract(payload, '$.action') AS action FROM capacitylens_audit_outbox`).all(),
-      ).toEqual([]);
-      preserved.close();
+      assertPreservedSsoState(database);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
