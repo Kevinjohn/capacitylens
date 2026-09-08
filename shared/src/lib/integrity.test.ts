@@ -74,6 +74,79 @@ function assertEntityById<T extends { id: string }>(entities: readonly T[], id: 
   return entity;
 }
 
+function sampleActivityData(): Pick<AppData, "activities" | "resources"> {
+  return {
+    activities: [
+      {
+        id: "t1",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Wires",
+        kind: "project",
+        projectId: "p1",
+        phaseId: "phase1",
+      },
+      {
+        id: "t2",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Visual",
+        kind: "project",
+        projectId: "p1",
+      },
+    ],
+    resources: [
+      person({ id: "r1", disciplineId: "d1" }),
+      placeholder({ id: "ph1", projectId: "p1", disciplineId: "d1" }),
+    ],
+  };
+}
+
+function sampleCapacityData(): Pick<AppData, "allocations" | "timeOff"> {
+  return {
+    allocations: [
+      {
+        id: "a1",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r1",
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 8,
+        status: "confirmed",
+      },
+      {
+        id: "a2",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "ph1",
+        activityId: "t2",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      },
+    ],
+    timeOff: [
+      {
+        id: "to1",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r1",
+        startDate: "2026-06-10",
+        endDate: "2026-06-11",
+        type: "holiday",
+      },
+    ],
+  };
+}
+
 // A small connected dataset: client c1 -> project p1 -> phase ph -> activities; allocations; a bound placeholder.
 function sampleData(): AppData {
   return {
@@ -119,69 +192,8 @@ function sampleData(): AppData {
         projectId: "p1",
       },
     ],
-    activities: [
-      {
-        id: "t1",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Wires",
-        kind: "project",
-        projectId: "p1",
-        phaseId: "phase1",
-      },
-      {
-        id: "t2",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Visual",
-        kind: "project",
-        projectId: "p1",
-      },
-    ],
-    resources: [
-      person({ id: "r1", disciplineId: "d1" }),
-      placeholder({ id: "ph1", projectId: "p1", disciplineId: "d1" }),
-    ],
-    allocations: [
-      {
-        id: "a1",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r1",
-        activityId: "t1",
-        startDate: "2026-06-01",
-        endDate: "2026-06-03",
-        hoursPerDay: 8,
-        status: "confirmed",
-      },
-      {
-        id: "a2",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "ph1",
-        activityId: "t2",
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
-        hoursPerDay: 8,
-        status: "confirmed",
-      },
-    ],
-    timeOff: [
-      {
-        id: "to1",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r1",
-        startDate: "2026-06-10",
-        endDate: "2026-06-11",
-        type: "holiday",
-      },
-    ],
+    ...sampleActivityData(),
+    ...sampleCapacityData(),
   };
 }
 
