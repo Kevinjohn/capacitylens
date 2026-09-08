@@ -67,7 +67,7 @@ export function AccountPicker() {
     errorField,
     errorId,
     clear,
-    tzSelectOptions: timeZoneSelectOptions,
+    timeZoneSelectOptions,
     weekStartSelectOptions,
   } = form;
   const { deleting, confirming, setConfirming, confirmDelete } = useDeleteAccount({ refreshAuth });
