@@ -796,11 +796,6 @@
       "count": 1
     }
   },
-  "shared/src/lib/sanitizeImport.test.ts": {
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
   "shared/src/lib/sanitizeImport.ts": {
     "complexity": {
       "count": 1
