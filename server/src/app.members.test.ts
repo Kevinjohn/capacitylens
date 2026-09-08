@@ -788,7 +788,7 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
   });
 });
 
-describe("exactly-one-Owner protection", () => {
+function registerOwnerDemotionProtectionTest(): void {
   it("the Owner cannot be demoted through the generic role endpoint", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -816,7 +816,9 @@ describe("exactly-one-Owner protection", () => {
     ).toBe(403);
     expect(getMemberRole(db, "a1", owner.userId)).toBe("owner");
   });
+}
 
+function registerOwnerRemovalProtectionTest(): void {
   it("the Owner cannot be removed through the member endpoint", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -832,7 +834,9 @@ describe("exactly-one-Owner protection", () => {
       (await removeReq({ app, accountId: "a1", userId: owner.userId, headers: { cookie: owner.cookie } })).statusCode,
     ).toBe(403);
   });
+}
 
+function registerDuplicateOwnerProtectionTest(): void {
   it("the database refuses a second active Owner", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -856,6 +860,12 @@ describe("exactly-one-Owner protection", () => {
     ).toThrow(/unique/i);
     expect(getMemberRole(db, "a1", owner.userId)).toBe("owner");
   });
+}
+
+describe("exactly-one-Owner protection", () => {
+  registerOwnerDemotionProtectionTest();
+  registerOwnerRemovalProtectionTest();
+  registerDuplicateOwnerProtectionTest();
 });
 
 describe("DELETE /api/accounts/:id/members/:userId — revoke gate", () => {
