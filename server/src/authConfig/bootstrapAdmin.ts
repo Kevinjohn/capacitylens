@@ -274,10 +274,7 @@ export function createBootstrapAdminFactory(dependencies: BootstrapAdminDependen
    * @throws AuthConfigError when mode is not 'password' (boot must refuse, not limp on).
    */
   async function createBootstrapAdmin(
-    db: Db,
-    mode: AccountMode,
-    auth: Auth | null,
-    log: BootstrapLog = console.log,
+    ...[db, mode, auth, log = console.log]: [Db, AccountMode, Auth | null, BootstrapLog?]
   ): Promise<"created" | "skipped"> {
     const result = await createBootstrapAdminResult(dependencies, { auth, db, log, mode });
     return result.kind;
