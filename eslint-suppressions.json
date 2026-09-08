@@ -2013,11 +2013,6 @@
       "count": 2
     }
   },
-  "src/components/ui/toggle-group.tsx": {
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 4
-    }
-  },
   "src/components/useAppShellController.ts": {
     "complexity": {
       "count": 2
