@@ -837,11 +837,6 @@
       "count": 1
     }
   },
-  "src/account/teamAccessClient.ts": {
-    "complexity": {
-      "count": 3
-    }
-  },
   "src/auth/AuthProvider.test.tsx": {
     "@typescript-eslint/no-unsafe-assignment": {
       "count": 2
