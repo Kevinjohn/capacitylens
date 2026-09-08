@@ -1340,8 +1340,7 @@ const patchStatusReq = ({ app, accountId, userId, status, headers = {} }: PatchS
 const storedStatus = (db: Db, accountId: string, userId: string): string | undefined =>
   (
     db.prepare(`SELECT status FROM account_members WHERE accountId = ? AND userId = ?`).get(accountId, userId) as
-      | { status: string }
-      | undefined
+      { status: string } | undefined
   )?.status;
 
 interface SignInDirectory {
