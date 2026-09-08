@@ -382,7 +382,7 @@
   },
   "server/src/app.test.ts": {
     "max-lines-per-function": {
-      "count": 5
+      "count": 4
     }
   },
   "server/src/audit.test.ts": {
