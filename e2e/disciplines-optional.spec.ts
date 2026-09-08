@@ -73,8 +73,7 @@ test("turning disciplines off hides every surface; turning it back on restores t
   await expect(studioToggle).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toContainText(/utilisation/i);
 
-  // The External band is the LAST item; scroll to the bottom so it's inside the virtualised
-  // window before asserting (the grid drops off-screen rows from the DOM).
+  // Scroll to the bottom so the virtualised External band is rendered before asserting.
   const grid = page.getByTestId("scheduler-grid");
   await grid.evaluate((el) => {
     const element = el as HTMLElement;
