@@ -58,6 +58,22 @@ interface ReadinessIndexes {
   duplicateSubjects: ReadonlySet<string>;
 }
 
+function memberReadinessReason(input: {
+  principalExists: boolean;
+  requiredLinks: SsoCutoverIdentityFacts["requiredProviderLinks"];
+  unsupportedAlternatives: SsoCutoverIdentityFacts["alternativeProviderLinks"];
+  duplicateSubject: boolean;
+}): SsoReadinessReason {
+  const { principalExists, requiredLinks, unsupportedAlternatives, duplicateSubject } = input;
+  if (!principalExists) return "principal_missing";
+  if (unsupportedAlternatives.length > 0) return "alternative_provider_linked";
+  if (requiredLinks.length === 0) return "member_not_linked";
+  if (requiredLinks.length > 1) return "multiple_required_provider_links";
+  if (duplicateSubject) return "duplicate_provider_subject";
+  if (requiredLinks[0]?.verified !== true) return "unverified_provider_link";
+  return "ready";
+}
+
 function memberReadiness(
   member: SsoCutoverWorkspaceFact["members"][number],
   indexes: ReadinessIndexes,
@@ -67,19 +83,12 @@ function memberReadiness(
   const links = indexes.requiredByPrincipal.get(member.principalId) ?? [];
   const unsupportedAlternatives = indexes.unsupportedAlternativeByPrincipal.get(member.principalId) ?? [];
   const duplicateSubject = links.some((link) => indexes.duplicateSubjects.has(link.subject));
-  const reason: SsoReadinessReason = !principal
-    ? "principal_missing"
-    : unsupportedAlternatives.length > 0
-      ? "alternative_provider_linked"
-      : links.length === 0
-        ? "member_not_linked"
-        : links.length > 1
-          ? "multiple_required_provider_links"
-          : duplicateSubject
-            ? "duplicate_provider_subject"
-            : links[0]?.verified !== true
-              ? "unverified_provider_link"
-              : "ready";
+  const reason = memberReadinessReason({
+    principalExists: principal !== undefined,
+    requiredLinks: links,
+    unsupportedAlternatives,
+    duplicateSubject,
+  });
   return {
     principalId: member.principalId,
     email: principal?.email ?? null,
@@ -103,20 +112,18 @@ function memberLabel(member: SsoReadinessMember): string {
   return `${member.email ?? member.displayName ?? member.principalId} (${member.role})`;
 }
 
-/** Evaluate immutable workspace and identity facts without performing repairs or cleanup. */
-export function evaluateSsoCutoverReadiness(input: {
-  provider: AuthProviderInfo;
-  providers: readonly AuthProviderInfo[];
-  workspaces: readonly SsoCutoverWorkspaceFact[];
-  identity: SsoCutoverIdentityFacts;
-  openSignup: boolean;
-}): SsoCutoverReadiness {
-  const { provider, workspaces, identity } = input;
-  const principalById = new Map(identity.principals.map((principal) => [principal.id, principal] as const));
-  const requiredByPrincipal = new Map<string, SsoCutoverIdentityFacts["requiredProviderLinks"]>();
-  for (const link of identity.requiredProviderLinks) {
-    requiredByPrincipal.set(link.principalId, [...(requiredByPrincipal.get(link.principalId) ?? []), link]);
+function indexLinksByPrincipal<Link extends { principalId: string }>(links: readonly Link[]): Map<string, Link[]> {
+  const linksByPrincipal = new Map<string, Link[]>();
+  for (const link of links) {
+    linksByPrincipal.set(link.principalId, [...(linksByPrincipal.get(link.principalId) ?? []), link]);
   }
+  return linksByPrincipal;
+}
+
+function readinessIndexes(identity: SsoCutoverIdentityFacts, providers: readonly AuthProviderInfo[]): ReadinessIndexes {
+  const principalById = new Map<string, SsoCutoverIdentityFacts["principals"][number]>();
+  for (const principal of identity.principals) principalById.set(principal.id, principal);
+  const requiredByPrincipal = indexLinksByPrincipal(identity.requiredProviderLinks);
   const subjectsByPrincipal = new Map<string, Set<string>>();
   for (const link of identity.requiredProviderLinks) {
     const principals = subjectsByPrincipal.get(link.subject) ?? new Set<string>();
@@ -126,55 +133,25 @@ export function evaluateSsoCutoverReadiness(input: {
   const duplicateSubjects = new Set(
     [...subjectsByPrincipal].filter(([, principals]) => principals.size > 1).map(([subject]) => subject),
   );
-  const configuredProviderIds = new Set(input.providers.map(({ id }) => id));
-  const unsupportedAlternativeByPrincipal = new Map<string, SsoCutoverIdentityFacts["alternativeProviderLinks"]>();
-  for (const link of identity.alternativeProviderLinks) {
-    if (configuredProviderIds.has(link.providerId)) continue;
-    unsupportedAlternativeByPrincipal.set(link.principalId, [
-      ...(unsupportedAlternativeByPrincipal.get(link.principalId) ?? []),
-      link,
-    ]);
-  }
-  const indexes: ReadinessIndexes = {
-    principalById,
-    requiredByPrincipal,
-    unsupportedAlternativeByPrincipal,
-    duplicateSubjects,
-  };
-  const globalIssues: SsoReadinessIssue[] = [];
-  if (input.openSignup) {
-    globalIssues.push({
-      reason: "open_signup_enabled",
-      message: "Open password signup is enabled and must be disabled before cutover.",
-      blocking: true,
-      critical: true,
-      workspaceId: null,
-      principalId: null,
-    });
-  }
-  const memberPrincipalIds = new Set(
-    workspaces.flatMap((workspace) => workspace.members.map((member) => member.principalId)),
+  const configuredProviderIds = new Set(providers.map(({ id }) => id));
+  const unsupportedAlternativeByPrincipal = indexLinksByPrincipal(
+    identity.alternativeProviderLinks.filter((link) => !configuredProviderIds.has(link.providerId)),
   );
-  for (const [principalId, links] of unsupportedAlternativeByPrincipal) {
-    if (memberPrincipalIds.has(principalId)) continue;
-    const principal = principalById.get(principalId);
-    const coordinates = links.map((link) => `${link.providerId}:${link.subject}`).join(", ");
-    globalIssues.push({
-      reason: "alternative_provider_linked",
-      message:
-        `${principal?.email ?? principalId} has ${links.length} link(s) to an unconfigured identity provider; ` +
-        `repair coordinates: ${coordinates}.`,
-      blocking: true,
-      critical: true,
-      workspaceId: null,
-      principalId,
-    });
-  }
+  return { principalById, requiredByPrincipal, unsupportedAlternativeByPrincipal, duplicateSubjects };
+}
+
+function orphanIssues(
+  input: { identity: SsoCutoverIdentityFacts; provider: AuthProviderInfo },
+  indexes: ReadinessIndexes,
+  memberPrincipalIds: ReadonlySet<string>,
+): SsoReadinessIssue[] {
+  const { identity, provider } = input;
+  const issues: SsoReadinessIssue[] = [];
   for (const principal of identity.principals) {
     if (memberPrincipalIds.has(principal.id)) continue;
-    const unverifiedRequiredLinks = (requiredByPrincipal.get(principal.id) ?? []).filter((link) => !link.verified);
-    for (const link of unverifiedRequiredLinks) {
-      globalIssues.push({
+    const requiredLinks = indexes.requiredByPrincipal.get(principal.id) ?? [];
+    for (const link of requiredLinks.filter((candidate) => !candidate.verified)) {
+      issues.push({
         reason: "unverified_provider_link",
         message:
           `${principal.email} has an unverified ${provider.id} link with subject ${link.subject} ` +
@@ -188,8 +165,8 @@ export function evaluateSsoCutoverReadiness(input: {
     const alternativeProviderIds = principal.providerIds.filter(
       (providerId) => providerId !== "credential" && providerId !== provider.id,
     );
-    if ((requiredByPrincipal.get(principal.id) ?? []).length === 0 && alternativeProviderIds.length > 0) {
-      globalIssues.push({
+    if (requiredLinks.length === 0 && alternativeProviderIds.length > 0) {
+      issues.push({
         reason: "member_not_linked",
         message:
           `${principal.email} has no ${provider.id} link and no active workspace membership; ` +
@@ -201,7 +178,7 @@ export function evaluateSsoCutoverReadiness(input: {
       });
     }
     if (principal.providerIds.length === 0) {
-      globalIssues.push({
+      issues.push({
         reason: "providerless_orphan",
         message: `${principal.email} is a providerless principal with no active workspace membership.`,
         blocking: true,
@@ -210,7 +187,7 @@ export function evaluateSsoCutoverReadiness(input: {
         principalId: principal.id,
       });
     } else if (principal.providerIds.length === 1 && principal.providerIds[0] === "credential") {
-      globalIssues.push({
+      issues.push({
         reason: "credential_only_orphan",
         message: `${principal.email} is a credential-only principal with no active workspace membership.`,
         blocking: true,
@@ -220,9 +197,48 @@ export function evaluateSsoCutoverReadiness(input: {
       });
     }
   }
-  for (const principalId of identity.outstandingResetPrincipalIds) {
-    const principal = principalById.get(principalId);
-    globalIssues.push({
+  return issues;
+}
+
+function globalReadinessIssues(
+  input: {
+    provider: AuthProviderInfo;
+    identity: SsoCutoverIdentityFacts;
+    openSignup: boolean;
+  },
+  indexes: ReadinessIndexes,
+  memberPrincipalIds: ReadonlySet<string>,
+): SsoReadinessIssue[] {
+  const issues: SsoReadinessIssue[] = [];
+  if (input.openSignup) {
+    issues.push({
+      reason: "open_signup_enabled",
+      message: "Open password signup is enabled and must be disabled before cutover.",
+      blocking: true,
+      critical: true,
+      workspaceId: null,
+      principalId: null,
+    });
+  }
+  for (const [principalId, links] of indexes.unsupportedAlternativeByPrincipal) {
+    if (memberPrincipalIds.has(principalId)) continue;
+    const principal = indexes.principalById.get(principalId);
+    const coordinates = links.map((link) => `${link.providerId}:${link.subject}`).join(", ");
+    issues.push({
+      reason: "alternative_provider_linked",
+      message:
+        `${principal?.email ?? principalId} has ${links.length} link(s) to an unconfigured identity provider; ` +
+        `repair coordinates: ${coordinates}.`,
+      blocking: true,
+      critical: true,
+      workspaceId: null,
+      principalId,
+    });
+  }
+  issues.push(...orphanIssues(input, indexes, memberPrincipalIds));
+  for (const principalId of input.identity.outstandingResetPrincipalIds) {
+    const principal = indexes.principalById.get(principalId);
+    issues.push({
       reason: "outstanding_password_reset",
       message: `${principal?.email ?? principalId} has an outstanding password or identity verification ceremony that cutover will revoke.`,
       blocking: false,
@@ -231,55 +247,77 @@ export function evaluateSsoCutoverReadiness(input: {
       principalId,
     });
   }
+  return issues;
+}
 
-  const evaluatedWorkspaces = workspaces.map((workspace): SsoWorkspaceReadiness => {
-    const members = workspace.members
-      .map((member) => memberReadiness(member, indexes, provider))
-      .sort(
-        (left, right) =>
-          Number(right.critical && right.blocking) - Number(left.critical && left.blocking) ||
-          Number(right.blocking) - Number(left.blocking) ||
-          left.principalId.localeCompare(right.principalId),
-      );
-    const issues: SsoReadinessIssue[] = [];
-    if (members.length === 0) {
-      issues.push({
-        reason: "workspace_has_no_members",
-        message: `${workspace.workspaceName} (${workspace.workspaceId}) has no active members.`,
-        blocking: true,
-        critical: true,
-        workspaceId: workspace.workspaceId,
-        principalId: null,
-      });
-    }
-    if (!members.some((member) => member.role === "owner")) {
-      issues.push({
-        reason: "workspace_has_no_owner",
-        message: `${workspace.workspaceName} (${workspace.workspaceId}) has no active Owner.`,
-        blocking: true,
-        critical: true,
-        workspaceId: workspace.workspaceId,
-        principalId: null,
-      });
-    }
-    for (const member of members.filter((candidate) => candidate.blocking)) {
-      issues.push({
-        reason: member.reason,
-        message: `${memberLabel(member)} is not ready for strict OIDC cutover (${member.reason}).`,
-        blocking: true,
-        critical: member.critical,
-        workspaceId: workspace.workspaceId,
-        principalId: member.principalId,
-      });
-    }
-    return {
+function workspaceReadiness(
+  workspace: SsoCutoverWorkspaceFact,
+  indexes: ReadinessIndexes,
+  provider: AuthProviderInfo,
+): SsoWorkspaceReadiness {
+  const members = workspace.members
+    .map((member) => memberReadiness(member, indexes, provider))
+    .sort(
+      (left, right) =>
+        Number(right.critical && right.blocking) - Number(left.critical && left.blocking) ||
+        Number(right.blocking) - Number(left.blocking) ||
+        left.principalId.localeCompare(right.principalId),
+    );
+  const issues: SsoReadinessIssue[] = [];
+  if (members.length === 0) {
+    issues.push({
+      reason: "workspace_has_no_members",
+      message: `${workspace.workspaceName} (${workspace.workspaceId}) has no active members.`,
+      blocking: true,
+      critical: true,
       workspaceId: workspace.workspaceId,
-      workspaceName: workspace.workspaceName,
-      ready: !issues.some((issue) => issue.blocking),
-      members,
-      issues,
-    };
-  });
+      principalId: null,
+    });
+  }
+  if (!members.some((member) => member.role === "owner")) {
+    issues.push({
+      reason: "workspace_has_no_owner",
+      message: `${workspace.workspaceName} (${workspace.workspaceId}) has no active Owner.`,
+      blocking: true,
+      critical: true,
+      workspaceId: workspace.workspaceId,
+      principalId: null,
+    });
+  }
+  for (const member of members.filter((candidate) => candidate.blocking)) {
+    issues.push({
+      reason: member.reason,
+      message: `${memberLabel(member)} is not ready for strict OIDC cutover (${member.reason}).`,
+      blocking: true,
+      critical: member.critical,
+      workspaceId: workspace.workspaceId,
+      principalId: member.principalId,
+    });
+  }
+  return {
+    workspaceId: workspace.workspaceId,
+    workspaceName: workspace.workspaceName,
+    ready: !issues.some((issue) => issue.blocking),
+    members,
+    issues,
+  };
+}
+
+/** Evaluate immutable workspace and identity facts without performing repairs or cleanup. */
+export function evaluateSsoCutoverReadiness(input: {
+  provider: AuthProviderInfo;
+  providers: readonly AuthProviderInfo[];
+  workspaces: readonly SsoCutoverWorkspaceFact[];
+  identity: SsoCutoverIdentityFacts;
+  openSignup: boolean;
+}): SsoCutoverReadiness {
+  const { provider, workspaces, identity } = input;
+  const indexes = readinessIndexes(identity, input.providers);
+  const memberPrincipalIds = new Set(
+    workspaces.flatMap((workspace) => workspace.members.map((member) => member.principalId)),
+  );
+  const globalIssues = globalReadinessIssues(input, indexes, memberPrincipalIds);
+  const evaluatedWorkspaces = workspaces.map((workspace) => workspaceReadiness(workspace, indexes, provider));
 
   const issues = [...globalIssues, ...evaluatedWorkspaces.flatMap((workspace) => workspace.issues)].sort(
     (left, right) => Number(right.critical) - Number(left.critical) || left.message.localeCompare(right.message),
