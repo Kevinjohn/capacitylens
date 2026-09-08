@@ -86,66 +86,107 @@ export function AppSidebar({
         } as React.CSSProperties
       }
     >
-      <SidebarHeader className="flex-row items-center">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <SidebarTrigger aria-expanded={expanded} aria-label={toggleLabel} />
-          </TooltipTrigger>
-          <TooltipContent>{toggleLabel}</TooltipContent>
-        </Tooltip>
-        <div
-          data-visual-intent="brand"
-          className="truncate text-xl font-bold text-sidebar-foreground group-data-[collapsible=icon]:hidden"
-        >
-          {APP_NAME}
-        </div>
-      </SidebarHeader>
-
-      <SidebarContent>
-        {/* ONE <nav> landmark around both groups. The admin group is a separate visual block (issues
-            #169/#172) but the same navigation region, so screen-reader users still hear a single
-            "Navigation" landmark rather than two competing ones. `mt-auto` pushes it to the bottom of
-            the scroll area whenever the primary list is shorter than the viewport. */}
-        <nav className="flex flex-1 flex-col">
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <NavMenu links={navLinks} pathname={pathname} onNavigate={closeOnMobile} />
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          {adminLinks.length > 0 && (
-            <SidebarGroup className="mt-auto">
-              <SidebarSeparator className="mx-0 mb-1" />
-              <SidebarGroupContent>
-                <NavMenu links={adminLinks} pathname={pathname} onNavigate={closeOnMobile} />
-              </SidebarGroupContent>
-            </SidebarGroup>
-          )}
-        </nav>
-      </SidebarContent>
-
-      {activeAccount && (
-        <SidebarFooter className="group-data-[collapsible=icon]:hidden">
-          <SidebarSeparator className="mx-0" />
-          <div className="min-w-0 px-2">
-            <div className="truncate text-sm font-semibold" title={activeAccount.name}>
-              {activeAccount.name}
-            </div>
-            <ActiveRoleBadge />
-          </div>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton size="sm" onClick={onSwitchAccount}>
-                {m.nav_switch_company()}
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SessionMenuItem demoAuthActive={demoAuthActive} onSignOutDemo={onSignOut} />
-          </SidebarMenu>
-        </SidebarFooter>
-      )}
+      <SidebarHeaderContent expanded={expanded} toggleLabel={toggleLabel} />
+      <SidebarNavigation navLinks={navLinks} adminLinks={adminLinks} pathname={pathname} onNavigate={closeOnMobile} />
+      <SidebarAccountFooter
+        activeAccount={activeAccount}
+        demoAuthActive={demoAuthActive}
+        onSignOut={onSignOut}
+        onSwitchAccount={onSwitchAccount}
+      />
 
       <SidebarRail aria-hidden="true" />
     </Sidebar>
+  );
+}
+
+function SidebarHeaderContent({ expanded, toggleLabel }: { expanded: boolean; toggleLabel: string }) {
+  return (
+    <SidebarHeader className="flex-row items-center">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <SidebarTrigger aria-expanded={expanded} aria-label={toggleLabel} />
+        </TooltipTrigger>
+        <TooltipContent>{toggleLabel}</TooltipContent>
+      </Tooltip>
+      <div
+        data-visual-intent="brand"
+        className="truncate text-xl font-bold text-sidebar-foreground group-data-[collapsible=icon]:hidden"
+      >
+        {APP_NAME}
+      </div>
+    </SidebarHeader>
+  );
+}
+
+function SidebarNavigation({
+  navLinks,
+  adminLinks,
+  pathname,
+  onNavigate,
+}: {
+  navLinks: NavigationLinkDefinition[];
+  adminLinks: NavigationLinkDefinition[];
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  return (
+    <SidebarContent>
+      {/* ONE <nav> landmark around both groups. The admin group is a separate visual block (issues
+          #169/#172) but the same navigation region, so screen-reader users still hear a single
+          "Navigation" landmark rather than two competing ones. `mt-auto` pushes it to the bottom of
+          the scroll area whenever the primary list is shorter than the viewport. */}
+      <nav className="flex flex-1 flex-col">
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <NavMenu links={navLinks} pathname={pathname} onNavigate={onNavigate} />
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {adminLinks.length > 0 && (
+          <SidebarGroup className="mt-auto">
+            <SidebarSeparator className="mx-0 mb-1" />
+            <SidebarGroupContent>
+              <NavMenu links={adminLinks} pathname={pathname} onNavigate={onNavigate} />
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+      </nav>
+    </SidebarContent>
+  );
+}
+
+function SidebarAccountFooter({
+  activeAccount,
+  demoAuthActive,
+  onSignOut,
+  onSwitchAccount,
+}: {
+  activeAccount: AppSidebarProps["activeAccount"];
+  demoAuthActive: boolean;
+  onSignOut: () => void;
+  onSwitchAccount: () => void;
+}) {
+  if (!activeAccount) return null;
+
+  return (
+    <SidebarFooter className="group-data-[collapsible=icon]:hidden">
+      <SidebarSeparator className="mx-0" />
+      <div className="min-w-0 px-2">
+        <div className="truncate text-sm font-semibold" title={activeAccount.name}>
+          {activeAccount.name}
+        </div>
+        <ActiveRoleBadge />
+      </div>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton size="sm" onClick={onSwitchAccount}>
+            {m.nav_switch_company()}
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SessionMenuItem demoAuthActive={demoAuthActive} onSignOutDemo={onSignOut} />
+      </SidebarMenu>
+    </SidebarFooter>
   );
 }
 
@@ -195,8 +236,14 @@ function SessionMenuItem({ demoAuthActive, onSignOutDemo }: { demoAuthActive: bo
   const { authMode, signOut, user } = useAuth();
   if (!demoAuthActive && authMode === "off") return null;
 
-  const name = demoAuthActive ? FAKE_USER.name : (user?.name ?? user?.email ?? m.settings_signed_in_unknown());
-  const imageUrl = demoAuthActive ? demoAvatarUrl : (user?.image ?? undefined);
+  let name = FAKE_USER.name;
+  let imageUrl: string | undefined = demoAvatarUrl;
+  let onSignOut = onSignOutDemo;
+  if (!demoAuthActive) {
+    name = user?.name ?? user?.email ?? m.settings_signed_in_unknown();
+    imageUrl = user?.image ?? undefined;
+    onSignOut = () => void signOut();
+  }
 
   return (
     <SidebarMenuItem>
@@ -204,7 +251,7 @@ function SessionMenuItem({ demoAuthActive, onSignOutDemo }: { demoAuthActive: bo
         size="sm"
         data-testid="nav-sign-out"
         title={m.nav_signed_in_as({ who: name })}
-        onClick={demoAuthActive ? onSignOutDemo : () => void signOut()}
+        onClick={onSignOut}
       >
         <Avatar name={name} color={DEFAULT_COLORS.account} size={20} {...(imageUrl ? { imageUrl } : {})} />
         <span className="truncate">{m.nav_sign_out()}</span>
@@ -228,6 +275,16 @@ function ActiveRoleBadge() {
     role: resolvedRole,
   });
   const viewOnly = offline.readOnly || resolvedRole === "viewer";
+  let roleContent: React.ReactNode = label;
+  if (offline.readOnly) {
+    roleContent = <span data-testid="view-only">{label}</span>;
+  } else if (resolvedRole === "viewer") {
+    roleContent = (
+      <>
+        {label} · <span data-testid="view-only">{m.nav_view_only()}</span>
+      </>
+    );
+  }
 
   return (
     <Badge
@@ -237,15 +294,7 @@ function ActiveRoleBadge() {
       title={viewOnly ? m.nav_view_only_title() : undefined}
     >
       {viewOnly && <EyeIcon aria-hidden="true" focusable="false" />}
-      {offline.readOnly ? (
-        <span data-testid="view-only">{label}</span>
-      ) : resolvedRole === "viewer" ? (
-        <>
-          {label} · <span data-testid="view-only">{m.nav_view_only()}</span>
-        </>
-      ) : (
-        label
-      )}
+      {roleContent}
     </Badge>
   );
 }
