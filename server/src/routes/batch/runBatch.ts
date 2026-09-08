@@ -142,11 +142,15 @@ function applyOperations(parameters: RunBatchParameters, auditRecords: Array<Aud
     affectedAccountIds,
     hasAccountOperations,
   } = parameters;
+  // Read only affected tenants, then advance this projection with each write so op N validates
+  // against the exact state produced by ops 1..N-1 without scanning unrelated accounts.
   const state = emptyAppData();
   for (const accountId of affectedAccountIds) {
     appendAppDataSlice(state, store.readSlice(accountId, FULL_SLICE_READ));
   }
   const projection = new BatchStateProjection(state);
+  // Recompute after acquiring the provisioning lock: the pre-scan may have waited behind another
+  // account mutation, and both competing first-company batches must not commit from stale counts.
   const projectedWorkspaceCount = hasAccountOperations ? projectBatchAccounts(db, ops).count : 0;
   const mintedInternalIds = new Set<string>();
   for (const [opIndex, op] of ops.entries()) {
@@ -184,7 +188,11 @@ function applyOperations(parameters: RunBatchParameters, auditRecords: Array<Aud
 
 function runLockedBatch(parameters: RunBatchParameters): BatchRunResult {
   const { ops, syncOrder, req, db, authorizeOperations } = parameters;
+  // Lock acquisition may wait behind membership or ownership changes, so authorization must be
+  // re-evaluated immediately before the synchronous transaction begins.
   if (!authorizeOperations()) throw new BatchAuthorizationResponseSent();
+  // Classify audit actions from the post-wait database and preceding projected ops so each verb
+  // describes the state observed by the immediately following transaction.
   const auditRecords = buildAuditRecords({ ops, db, req });
   const applied = tx(
     db,
