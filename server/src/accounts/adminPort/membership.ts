@@ -8,8 +8,9 @@ import {
   removeMember as removeMemberRow,
   setMemberStatus,
   upsertMember,
+  type AccountMember,
 } from "../../controlTables";
-import { getRow } from "../../db";
+import { getRow, type Db } from "../../db";
 import { createOperationReceipt } from "../accountFlowRuntime";
 import { readSecurityRevision } from "../state";
 import { assertAccountAuthority, assertAdministrativeAssurance } from "./authority";
@@ -18,9 +19,8 @@ import { ACCOUNT_POLICY_VERSION, SsoCutoverAccountAdminPort } from "./contracts"
 import { assertInvitationRole, createAccountFailure } from "./failures";
 import { readMembership, readSecurityRevisionsByPrincipalId } from "./mappers";
 
-export function createMembership(
-  context: Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa" | "runMutation">,
-): Pick<
+type MembershipContext = Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa" | "runMutation">;
+type MembershipPort = Pick<
   SsoCutoverAccountAdminPort,
   | "listWorkspacesForPrincipal"
   | "getMembership"
@@ -29,9 +29,21 @@ export function createMembership(
   | "changeMemberStatus"
   | "removeMember"
   | "transferOwnership"
-> {
-  const { db, trustedLocal, requireMfa, runMutation } = context;
+>;
 
+function readRequiredMembership(db: Db, principalId: string, workspaceId: string): AccountMember {
+  const row = listMembershipsForUser(db, principalId).find((candidate) => candidate.accountId === workspaceId);
+  if (!row) {
+    throw new Error(`Membership write did not produce ${workspaceId}/${principalId}.`);
+  }
+  return row;
+}
+
+function createMembershipReads({
+  db,
+  trustedLocal,
+  requireMfa,
+}: MembershipContext): Pick<MembershipPort, "listWorkspacesForPrincipal" | "getMembership" | "listMemberships"> {
   return {
     async listWorkspacesForPrincipal({ principalId }) {
       return listMembershipsForUser(db, principalId)
@@ -65,14 +77,10 @@ export function createMembership(
     async listMemberships({ actor, workspaceId, includeInactive = false }) {
       assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
       assertAccountAuthority({ db, actor, workspaceId, action: "list-members", trustedLocal });
-      // Default active-only. `includeInactive` is a LISTING widening for the administrative
-      // directory, never an authorization one — this read is already gated on 'list-members', and
-      // the returned rows carry their real status so a caller cannot mistake a disabled membership
-      // for an active one.
+      // `includeInactive` widens the administrative listing, never authorization: the read is
+      // already gated above and every returned row retains its real status.
       const rows = listMembersForAccount(db, workspaceId).filter((row) => includeInactive || row.status === "active");
-      // N+1 fix: one bulk revision query (chunked) instead of one `getSecurityRevision` per member.
-      // The output shape/coercion must match `membership()` exactly, so this builds the same object
-      // by hand rather than introduce a second membership-mapping function.
+      // One chunked bulk revision query avoids an N+1 read while preserving readMembership's shape.
       const revisions = readSecurityRevisionsByPrincipalId(db, [...new Set(rows.map((row) => row.userId))]);
       return rows.map((row) => ({
         workspaceId: row.accountId,
@@ -84,6 +92,16 @@ export function createMembership(
         policyVersion: ACCOUNT_POLICY_VERSION,
       }));
     },
+  };
+}
+
+function createRoleChange({
+  db,
+  trustedLocal,
+  requireMfa,
+  runMutation,
+}: MembershipContext): Pick<MembershipPort, "changeMemberRole"> {
+  return {
     async changeMemberRole({ actor, workspaceId, targetPrincipalId, nextRole, command }) {
       assertInvitationRole(nextRole, command.commandId);
       return runMutation({
@@ -109,13 +127,20 @@ export function createMembership(
             status: "active",
             createdAt: new Date().toISOString(),
           });
-          const row = listMembershipsForUser(db, targetPrincipalId).find(
-            (candidate) => candidate.accountId === workspaceId,
-          )!;
-          return readMembership(db, row);
+          return readMembership(db, readRequiredMembership(db, targetPrincipalId, workspaceId));
         },
       });
     },
+  };
+}
+
+function createStatusChange({
+  db,
+  trustedLocal,
+  requireMfa,
+  runMutation,
+}: MembershipContext): Pick<MembershipPort, "changeMemberStatus"> {
+  return {
     async changeMemberStatus({ actor, workspaceId, targetPrincipalId, nextStatus, command }) {
       return runMutation({
         operation: "change-member-status",
@@ -129,26 +154,31 @@ export function createMembership(
         execute: () => {
           assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
           const acting = assertAccountAuthority({ db, actor, workspaceId, action: "manage-members", trustedLocal });
-          // Status-AGNOSTIC lookup, unlike changeMemberRole's getActiveMemberRole: restoring a
-          // disabled or archived membership is the whole point, and an active-only read would make
-          // every such target look like a non-member.
+          // Status-agnostic: restoring a disabled or archived membership is the operation's purpose.
           const target = getMembershipRow(db, workspaceId, targetPrincipalId);
           if (!target) throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
           if (!canChangeMemberStatus(acting, target.role, targetPrincipalId === actor.principalId))
             throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
-          // "unchanged" is success, not a fault: the membership already holds the requested status,
-          // so the caller's intent is satisfied and no reset link should have been burned for it.
+          // "unchanged" is success: the requested state already holds and no reset link is burned.
           if (
-            setMemberStatus({ db: db, accountId: workspaceId, userId: targetPrincipalId, status: nextStatus }) ===
-            "missing"
+            setMemberStatus({ db, accountId: workspaceId, userId: targetPrincipalId, status: nextStatus }) === "missing"
           )
             throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
-          // The post-write row is the pre-write row with the new status — the write above changed
-          // nothing else. Re-reading it would only re-derive what we already hold.
+          // The write changes only status; re-reading would re-derive the row already held here.
           return readMembership(db, { ...target, status: nextStatus });
         },
       });
     },
+  };
+}
+
+function createRemoval({
+  db,
+  trustedLocal,
+  requireMfa,
+  runMutation,
+}: MembershipContext): Pick<MembershipPort, "removeMember"> {
+  return {
     async removeMember({ actor, workspaceId, targetPrincipalId, command }) {
       return runMutation({
         operation: "remove-member",
@@ -162,10 +192,7 @@ export function createMembership(
         execute: () => {
           assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
           const acting = assertAccountAuthority({ db, actor, workspaceId, action: "manage-members", trustedLocal });
-          // Status-AGNOSTIC, like changeMemberStatus and for the same reason: the members table
-          // lists non-active rows so an administrator can act on them. An active-only read made
-          // Remove 404 on exactly those rows, leaving no way to delete a disabled membership
-          // except to restore the member's access first — the opposite of the intent.
+          // Status-agnostic so an administrator can remove non-active members without restoring access.
           const target = getMembershipRow(db, workspaceId, targetPrincipalId);
           if (!target) throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
           if (!canRemoveMember(acting, target.role))
@@ -175,6 +202,16 @@ export function createMembership(
         },
       });
     },
+  };
+}
+
+function createOwnershipTransfer({
+  db,
+  trustedLocal,
+  requireMfa,
+  runMutation,
+}: MembershipContext): Pick<MembershipPort, "transferOwnership"> {
+  return {
     async transferOwnership({ actor, workspaceId, targetPrincipalId, command }): Promise<OwnershipTransfer> {
       return runMutation({
         operation: "transfer-ownership",
@@ -184,10 +221,7 @@ export function createMembership(
         command,
         payload: { workspaceId, targetPrincipalId },
         lockKeys: [actor.principalId, targetPrincipalId, `workspace:${workspaceId}`],
-        audit: {
-          action: "ownership.transferred",
-          changedFields: ["role", "owner"],
-        },
+        audit: { action: "ownership.transferred", changedFields: ["role", "owner"] },
         execute: () => {
           assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
           assertAccountAuthority({ db, actor, workspaceId, action: "transfer-ownership", trustedLocal });
@@ -216,14 +250,22 @@ export function createMembership(
             status: "active",
             createdAt: now,
           });
-          const prior = listMembershipsForUser(db, actor.principalId).find((row) => row.accountId === workspaceId)!;
-          const next = listMembershipsForUser(db, targetPrincipalId).find((row) => row.accountId === workspaceId)!;
           return {
-            previousOwner: readMembership(db, prior),
-            nextOwner: readMembership(db, next),
+            previousOwner: readMembership(db, readRequiredMembership(db, actor.principalId, workspaceId)),
+            nextOwner: readMembership(db, readRequiredMembership(db, targetPrincipalId, workspaceId)),
           };
         },
       });
     },
+  };
+}
+
+export function createMembership(context: MembershipContext): MembershipPort {
+  return {
+    ...createMembershipReads(context),
+    ...createRoleChange(context),
+    ...createStatusChange(context),
+    ...createRemoval(context),
+    ...createOwnershipTransfer(context),
   };
 }
