@@ -4,7 +4,35 @@ import { cn } from "@/lib/utils";
 import { SectionHelp } from "../common/ui";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "../ui/card";
 
-// eslint-disable-next-line complexity -- collapsible and danger variants are independent presentation branches
+function SettingsSectionTitle({
+  title,
+  collapsible,
+  open,
+  contentId,
+  toggleOpen,
+}: {
+  title: string;
+  collapsible: boolean;
+  open: boolean;
+  contentId: string;
+  toggleOpen: () => void;
+}) {
+  if (!collapsible) return title;
+
+  return (
+    <button
+      type="button"
+      className="flex w-full items-center gap-2 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-expanded={open}
+      aria-controls={contentId}
+      onClick={toggleOpen}
+    >
+      <ChevronRight aria-hidden="true" className={cn("size-4 transition-transform", { "rotate-90": open })} />
+      {title}
+    </button>
+  );
+}
+
 export function SettingsSection({
   title,
   help,
@@ -31,25 +59,18 @@ export function SettingsSection({
   return (
     <Card
       data-testid={testId}
-      className={cn(danger && "border-danger/40", collapsible && "py-4", collapsible && !open && "gap-0")}
+      className={cn({ "border-danger/40": danger, "py-4": collapsible, "gap-0": collapsible && !open })}
     >
       <CardHeader className="flex items-center gap-0">
-        <CardTitle className={cn("flex-1", danger && "text-danger")}>
+        <CardTitle className={cn("flex-1", { "text-danger": danger })}>
           <h2>
-            {collapsible ? (
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-expanded={open}
-                aria-controls={contentId}
-                onClick={() => setOpen((current) => !current)}
-              >
-                <ChevronRight aria-hidden="true" className={cn("size-4 transition-transform", open && "rotate-90")} />
-                {title}
-              </button>
-            ) : (
-              title
-            )}
+            <SettingsSectionTitle
+              title={title}
+              collapsible={collapsible}
+              open={open}
+              contentId={contentId}
+              toggleOpen={() => setOpen((current) => !current)}
+            />
           </h2>
         </CardTitle>
         <CardAction className="self-center">
