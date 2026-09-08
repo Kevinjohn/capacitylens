@@ -10,6 +10,29 @@ import { ssoCutoverReadiness } from "./ssoCutover";
 
 type AuthorizeMemberManagementInput = Omit<AuthorizeBasicInput, "action"> & { action: "manageMembers" };
 
+function createAuthenticationRequiredError(): AccountContractError {
+  return new AccountContractError({
+    code: "AUTHENTICATION_REQUIRED",
+    message: "Sign in to continue.",
+    retryable: false,
+  });
+}
+
+function requireAccountActor(req: FastifyRequest): NonNullable<FastifyRequest["accountActor"]> {
+  if (!req.accountActor) throw createAuthenticationRequiredError();
+  return req.accountActor;
+}
+
+function requireAuthenticatedUser(req: FastifyRequest): NonNullable<FastifyRequest["user"]> {
+  if (!req.user) throw createAuthenticationRequiredError();
+  return req.user;
+}
+
+function requireFederatedLink(auth: Auth): NonNullable<Auth["beginFederatedLink"]> {
+  if (!auth.beginFederatedLink) throw new Error("Federated identity linking is not configured.");
+  return auth.beginFederatedLink;
+}
+
 /** The 400 "no strict provider" guard shared byte-for-byte by the two write endpoints below (email
  *  correction, federated-link removal). Distinct from the 404 variant on GET /api/identity/provider
  *  and the pre-derived check inside sso-readiness — those are left untouched. Sends the response and
@@ -45,7 +68,7 @@ export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: Sso
     const provider = auth.strictProvider;
     if (!provider) return reply.code(404).send({ error: "No strict OIDC provider is configured." });
     try {
-      const links = identity.inspectProviderLinks(req.user!.id, provider.id);
+      const links = identity.inspectProviderLinks(requireAuthenticatedUser(req).id, provider.id);
       return {
         provider,
         connected: links.length > 0,
@@ -72,7 +95,7 @@ export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: Sso
       return reply.code(400).send({ error: "Valid callback and error return URLs are required." });
     }
     try {
-      const result = await auth.beginFederatedLink!({
+      const result = await requireFederatedLink(auth)({
         headers: toWebHeaders(req.headers),
         principalId: req.accountActor.principalId,
         callbackURL: body.callbackURL,
@@ -176,7 +199,7 @@ export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: Sso
     if (!isAccountEmail(email)) return reply.code(400).send({ error: "A valid email address is required." });
     try {
       const authority = await administration.evaluateIdentityAdminAuthority({
-        actor: req.accountActor!,
+        actor: requireAccountActor(req),
         targetPrincipalId: userId,
         action: "correct-email",
       });
@@ -193,7 +216,7 @@ export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: Sso
         email,
         authorizeInTransaction: () =>
           administration.assertIdentityRepairAuthorityInTx({
-            actor: req.accountActor!,
+            actor: requireAccountActor(req),
             workspaceId: accountId,
             targetPrincipalId: userId,
             action: "correct-email",
@@ -204,7 +227,7 @@ export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: Sso
           occurredAt,
           applicationId,
           workspaceId: accountId,
-          actorPrincipalId: req.accountActor!.principalId,
+          actorPrincipalId: requireAccountActor(req).principalId,
           targetPrincipalId: userId,
           commandId: null,
           action: "identity.email_corrected",
@@ -242,7 +265,7 @@ export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: Sso
     }
     try {
       const authority = await administration.evaluateIdentityAdminAuthority({
-        actor: req.accountActor!,
+        actor: requireAccountActor(req),
         targetPrincipalId: userId,
         action: "remove-federated-link",
       });
@@ -261,7 +284,7 @@ export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: Sso
         subject: body.subject,
         authorizeInTransaction: () =>
           administration.assertIdentityRepairAuthorityInTx({
-            actor: req.accountActor!,
+            actor: requireAccountActor(req),
             workspaceId: accountId,
             targetPrincipalId: userId,
             action: "remove-federated-link",
@@ -272,7 +295,7 @@ export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: Sso
           occurredAt,
           applicationId,
           workspaceId: accountId,
-          actorPrincipalId: req.accountActor!.principalId,
+          actorPrincipalId: requireAccountActor(req).principalId,
           targetPrincipalId: userId,
           commandId: null,
           action: "identity.federated_link_removed",
