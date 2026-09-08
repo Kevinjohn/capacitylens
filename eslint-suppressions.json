@@ -655,20 +655,6 @@
       "count": 3
     }
   },
-  "server/src/app.masquerade.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 6
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 15
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "server/src/app.members.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 10
@@ -730,10 +716,10 @@
       "count": 17
     },
     "@typescript-eslint/no-unsafe-assignment": {
-      "count": 83
+      "count": 81
     },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 125
+      "count": 110
     },
     "max-lines-per-function": {
       "count": 15
@@ -1786,7 +1772,7 @@
   },
   "shared/src/lib/integrity.test.ts": {
     "max-lines-per-function": {
-      "count": 4
+      "count": 2
     }
   },
   "shared/src/lib/integrity.ts": {
@@ -2509,7 +2495,7 @@
   },
   "src/components/scheduler/AllocationModal.test.tsx": {
     "max-lines-per-function": {
-      "count": 10
+      "count": 7
     }
   },
   "src/components/scheduler/AllocationModal.tsx": {
