@@ -52,6 +52,10 @@ async function installSupersededSignedOutSlice({
   dataAtLoad,
   slice,
 }: RefreshSequenceInput): Promise<void> {
+  // A newer refresh owns parked edits. A sign-out starts no replacement load, however, even
+  // though this completed load has already re-seeded the adapter. Rebase only edits made during
+  // this window and install the same hidden tree so signed-out store state and adapter seed remain
+  // paired; activeAccountId is null, so no tenant data is exposed by this repair.
   if (store.getState().activeAccountId !== null) return;
   const currentData = store.getState().data;
   let installed = slice;
@@ -96,6 +100,9 @@ function resolveLoadedSlice({
 function installLoadedSlice(input: RefreshSequenceInput): void {
   const { store, owner, onSuccess, failedBeforeLoad, dataAtLoad } = input;
   const currentData = store.getState().data;
+  // These signals describe different outcomes. editedMidLoad is safely rebased onto the fresh
+  // slice. lostFailedEdits describes an older failed write that replacement discards and must be
+  // surfaced even when a newer mid-load edit was successfully preserved.
   const editedMidLoad = currentData !== dataAtLoad || owner.current.pending !== null;
   const lostFailedEdits = failedBeforeLoad && !owner.current.resolvingAuthoritativeReload;
   const installed = resolveLoadedSlice({ ...input, currentData, editedMidLoad, lostFailedEdits });
@@ -116,8 +123,13 @@ function installLoadedSlice(input: RefreshSequenceInput): void {
 
 async function flushBeforeLoad(input: CreateRefreshControllerInput, token: number): Promise<boolean> {
   const { owner, writes } = input;
+  // First let the prior account's write settle. Then flush pending debounce data while store data
+  // and adapter snapshot still describe the same account, before loadAll re-seeds the snapshot.
   await awaitCurrentSave(owner);
   if (owner.supersededBy(token)) return false;
+  // A pending edit under an external suspension arrived during a server-side import. Flushing it
+  // against the pre-import snapshot could recreate stale rows in the replacement, so it remains
+  // parked for the operation-level rebase after loadAll.
   if (owner.current.pending && owner.current.externalSuspendDepth === 0) {
     writes.save(owner.current.pending);
     await awaitCurrentSave(owner);
@@ -141,16 +153,28 @@ async function runRefresh(
   abortIfSaveFailed: boolean,
 ): Promise<Exclude<RefreshOutcome, { kind: "unattached" }>> {
   const { store, adapter, owner, writes, onError } = input;
+  // Guard a stale out-of-band account id before bumping the token. Bumping first could invalidate
+  // the real account switch, then install the stale account under the new active id and enable
+  // cross-tenant display or writes.
   if (owner.current.disposed || store.getState().activeAccountId !== id) return { kind: "skipped" };
+  // Focus and post-lifecycle refreshes do not own account transitions. They must not supersede an
+  // internal reload and then abort without a replacement load. External import suspension is the
+  // exception because its owner deliberately invokes this refresh to re-seed after replacement.
   if (abortIfSaveFailed && owner.current.suspendDepth > owner.current.externalSuspendDepth) return { kind: "skipped" };
   const myToken = owner.nextSwitchToken();
   const dataAtSequenceStart = store.getState().data;
+  // Suspend writes across every await, not only loadAll. Edits arriving during the initial save,
+  // flush, or load are parked until they can be included before re-seed or rebased afterward.
   const resume = owner.beginSuspension({ external: false, writes });
   try {
     if (!(await flushBeforeLoad(input, myToken))) return { kind: "skipped" };
     if (abortIfSaveFailed && owner.current.failedSinceSuccess) return { kind: "skipped" };
+    // A pre-armed retry must not fire during load against the old snapshot and then have its
+    // discarded save hidden by the successful reload bookkeeping.
     owner.cancelRetry();
     const dataAtLoad = store.getState().data;
+    // Capture immediately before loadAll. A teardown write may fail during the load, but its edit
+    // is part of this window and can be rebased; only an older failure risks replacement loss.
     const failedBeforeLoad = owner.current.failedSinceSuccess;
     const slice = await adapter.loadAll(id);
     const sequence = {
@@ -166,6 +190,9 @@ async function runRefresh(
     return { kind: "reloaded" };
   } catch (error) {
     if (isRefreshInactive(owner, myToken)) return { kind: "skipped" };
+    // Keep the prior store data and adapter snapshot paired when loadAll fails. The suspension's
+    // finally-resume re-schedules any edit parked during the failed request, and the error remains
+    // visible through the persistence callback.
     onError?.(error);
     return { kind: "failed" };
   } finally {
