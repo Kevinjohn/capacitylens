@@ -207,6 +207,11 @@ function requireValue<T>(value: T | undefined, context: string): T {
   return value;
 }
 
+function requireCallback(value: (() => void) | null, context: string): () => void {
+  if (value === null) throw new Error(`Expected ${context}`);
+  return value;
+}
+
 /** Row actions moved behind the row's gear popover (#175). Open it; the popover renders in a
  *  PORTAL, so its items are reachable from `screen`, never from `within(row)`. */
 async function openMemberMenu(user: User, row: HTMLElement): Promise<void> {
@@ -1171,7 +1176,7 @@ describe("MembersSection — member lifecycle", () => {
     const mutations = fetchMock.mock.calls.filter(([, init]) => init?.method && init.method !== "GET");
     expect(mutations).toHaveLength(1);
     expect(String(mutations[0]?.[0])).toContain("/status");
-    requireValue(release, "the pending member mutation release callback")();
+    requireCallback(release, "the pending member mutation release callback")();
     await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(3));
   });
 });
@@ -1963,10 +1968,8 @@ describe("MembersSection — invite mint", () => {
       else await expectNotice(expected);
       expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
       if (fieldError) {
-        expect(screen.getByTestId("invite-preauth")).toHaveAttribute(
-          "aria-describedby",
-          requireValue(alert, "the invitation field error").id,
-        );
+        if (alert === null) throw new Error("Expected the invitation field error");
+        expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-describedby", alert.id);
       }
     },
   );

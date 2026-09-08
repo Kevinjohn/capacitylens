@@ -36,6 +36,11 @@ const internalClient = (accountId: string) => ({
   updatedAt: "t",
 });
 
+function requireCallback(value: (() => void) | null, context: string): () => void {
+  if (value === null) throw new Error(`Expected ${context}`);
+  return value;
+}
+
 const addAllocationFixture = (projectName: string) => {
   const resource = useStore.getState().addResource({
     kind: "person",
@@ -155,7 +160,7 @@ it("attachPersistence keeps an allocation edit made while its rewrite receipt is
   ).updatedAt;
   expect(concurrentStamp).not.toBe(flushedStamp);
 
-  requireValue(releaseReceipt, "rewrite receipt release")();
+  requireCallback(releaseReceipt, "rewrite receipt release")();
   await vi.waitFor(() => expect(saved).toHaveLength(2));
 
   const visible = requireValue(
@@ -412,7 +417,7 @@ it("attachPersistence keeps a newer failed teardown snapshot dirty when an older
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "keepalive dropped" }));
     expect(hasUnsavedPersistenceWrites()).toBe(true);
 
-    requireValue(releaseFirst, "first save release")(); // the older success must not cancel the newer snapshot's retry
+    requireCallback(releaseFirst, "first save release")(); // the older success must not cancel the newer snapshot's retry
     await Promise.resolve();
     await vi.advanceTimersByTimeAsync(1000);
 
@@ -880,7 +885,7 @@ function registerMidSwitchRebaseTest() {
     // Edit lands mid-switch (still inside the debounce window when B's slice arrives).
     const edit = useStore.getState().addClient({ name: "Mid-switch edit", color: "#222222" });
     saveAll.mockClear();
-    requireValue(releaseB, "account B load release")();
+    requireCallback(releaseB, "account B load release")();
     await new Promise((r) => setTimeout(r, 5));
 
     expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["cb", edit.id]);
@@ -1369,7 +1374,7 @@ function registerFocusSwitchRaceTest() {
     // abort on A's failed-save flag. Otherwise the adapter snapshot becomes B while data stays A.
     window.dispatchEvent(new Event("focus"));
     await new Promise((resolve) => setTimeout(resolve, 5));
-    requireValue(releaseB, "account B load release")();
+    requireCallback(releaseB, "account B load release")();
     await new Promise((resolve) => setTimeout(resolve, 5));
 
     expect(useStore.getState().activeAccountId).toBe("b1");
@@ -1486,7 +1491,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
     expect(loadAll.mock.calls.filter((c) => c[0] === "a1").length).toBe(aLoadsBefore); // …as a no-op
 
     // B's in-flight load was NOT cancelled: when it resolves, B's slice still lands.
-    requireValue(releaseB, "account B load release")();
+    requireCallback(releaseB, "account B load release")();
     await new Promise((r) => setTimeout(r, 5));
     expect(useStore.getState().activeAccountId).toBe("b1");
     expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["cb"]); // B's slice, never A's
@@ -1512,7 +1517,7 @@ function heldFirstSaveAdapter() {
     });
   });
   const loadAll = vi.fn(async () => a2Slice());
-  const releaseFirst = () => requireValue(release, "first flush release")();
+  const releaseFirst = () => requireCallback(release, "first flush release")();
   return { adapter: { loadAll, saveAll }, releaseFirst, saveAll };
 }
 
@@ -1754,7 +1759,7 @@ function registerSuspendedReloadOutcomeTests() {
     await new Promise((r) => setTimeout(r, 350)); // longer than the debounce — a re-armed timer WOULD have fired
     expect(saveAll).toHaveBeenCalledTimes(1); // parked instead
 
-    requireValue(releaseSave, "pending save release")();
+    requireCallback(releaseSave, "pending save release")();
     expect(await refresh).toEqual({ kind: "reloaded" });
     await new Promise((r) => setTimeout(r, 350));
     expect(saveAll).toHaveBeenCalledTimes(2);
@@ -1788,7 +1793,7 @@ function registerFailedSuspendedLoadTest() {
     const refresh = refreshActiveAccountSlice("a2");
     await new Promise((r) => setTimeout(r, 5));
     useStore.getState().addClient({ name: "Mid-failed-reload", color: "#222222" }); // parked
-    requireValue(release, "failed reload release")();
+    requireCallback(release, "failed reload release")();
     expect(await refresh).toEqual({ kind: "failed" });
     await new Promise((r) => setTimeout(r, 5));
 
@@ -1828,7 +1833,7 @@ function registerSuspendedReloadUnloadTest() {
     expect(saveAll.mock.calls[0]?.[1]).toEqual({ unload: true });
     expect((saveAll.mock.calls[0]?.[0] as AppData).clients.some((c) => c.name === "Mid-reload")).toBe(true);
 
-    requireValue(release, "reload release")();
+    requireCallback(release, "reload release")();
     expect(await refresh).toEqual({ kind: "reloaded" });
     // The page survived: the reload rebases the parked edit and performs a normal confirmed save.
     expect(saveAll).toHaveBeenCalledTimes(2);
@@ -1868,7 +1873,7 @@ function registerSuspendedKeepaliveFailureTest() {
     useStore.getState().addClient({ name: "Hidden-tab edit", color: "#222222" }); // parked
     window.dispatchEvent(new Event("pagehide")); // keepalive dispatched — and REJECTS
 
-    requireValue(releaseLoad, "reload release")();
+    requireCallback(releaseLoad, "reload release")();
     expect(await refresh).toEqual({ kind: "reloaded" });
     expect(saveAll).toHaveBeenCalledTimes(2);
     expect(requireValue(saveAll.mock.calls[1], "second saveAll call")[1]).toBeUndefined();
@@ -1922,7 +1927,7 @@ function registerSupersededReloadEditTest() {
       ],
     });
 
-    requireValue(release, "refresh release")();
+    requireCallback(release, "refresh release")();
     expect(await refresh).toEqual({ kind: "skipped" });
     await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).toHaveBeenCalledTimes(1);
@@ -1956,7 +1961,7 @@ function registerSuspensionBoundaryTests() {
     const refresh = refreshActiveAccountSlice("a2");
     await new Promise((resolve) => setTimeout(resolve, 5));
     useStore.getState().setActiveAccount(null);
-    requireValue(release, "refresh release")();
+    requireCallback(release, "refresh release")();
 
     expect(await refresh).toEqual({ kind: "skipped" });
     expect(useStore.getState().activeAccountId).toBeNull();
@@ -2033,7 +2038,7 @@ describe("mid-reload edits are rebased onto the fresh server slice", () => {
     await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).not.toHaveBeenCalled(); // …yet nothing was sent: writes are suspended during the load
 
-    requireValue(release, "refresh release")();
+    requireCallback(release, "refresh release")();
     expect(await refresh).toEqual({ kind: "reloaded" });
     await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).toHaveBeenCalledTimes(1);
@@ -2158,7 +2163,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
       const releaseB = readReleaseB();
       expect(releaseB).not.toBeNull();
       const midSwitchEdit = useStore.getState().addClient({ name: "New in B", color: "#333333" });
-      requireValue(releaseB, "account B load release")();
+      requireCallback(releaseB, "account B load release")();
       await vi.advanceTimersByTimeAsync(5);
 
       // The destination edit is rebased and saved, but that must not hide the older source loss.
@@ -2415,7 +2420,7 @@ function registerConflictReloadEditTest() {
     await new Promise((r) => setTimeout(r, 5));
     const savesBeforeReloadSettled = saveAll.mock.calls.length;
 
-    requireValue(release, "conflict reload release")(); // the reload resolves LAST
+    requireCallback(release, "conflict reload release")(); // the reload resolves LAST
     await new Promise((r) => setTimeout(r, 5));
 
     const names = useStore.getState().data.clients.map((c) => c.name);
