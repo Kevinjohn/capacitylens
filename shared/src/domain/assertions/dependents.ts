@@ -30,6 +30,40 @@ interface AssertAllocationPairStaysValidOptions {
   lookup?: ValidationDataLookup;
 }
 
+interface AssertResourceKindAllowsDependentsOptions {
+  data: AppData;
+  accountId: ID;
+  resourceId: ID;
+  mergedKind: unknown;
+  lookup?: ValidationDataLookup;
+}
+
+interface AssertResourceProjectAllowsDependentsOptions {
+  data: AppData;
+  accountId: ID;
+  resourceId: ID;
+  merged: Resource;
+  existing?: Resource;
+  lookup?: ValidationDataLookup;
+}
+
+interface AssertActivityProjectAllowsDependentsOptions {
+  data: AppData;
+  accountId: ID;
+  activityId: ID;
+  merged: Activity;
+  existing?: Activity;
+  lookup?: ValidationDataLookup;
+}
+
+interface AssertResourceExistsOptions {
+  data: AppData;
+  accountId: ID;
+  resourceId: ID;
+  existing?: Pick<TimeOff, "resourceId">;
+  lookup?: ValidationDataLookup;
+}
+
 /**
  * A resource may only BE external if it carries no disallowed dependents. The v0.8.1 rule
  * ("an external / 3rd-party resource has no capacity, so no loaded allocation and no time off")
@@ -48,13 +82,13 @@ interface AssertAllocationPairStaysValidOptions {
  * (remapAndValidateImport coerces the load to 0 and drops the time-off) — a bulk file is a
  * different contract from an interactive edit, so don't route it here.
  */
-export function assertResourceKindAllowsDependents(
-  data: AppData,
-  accountId: ID,
-  resourceId: ID,
-  mergedKind: unknown,
-  lookup?: ValidationDataLookup,
-): void {
+function assertResourceKindAllowsDependentsWithOptions({
+  data,
+  accountId,
+  resourceId,
+  mergedKind,
+  lookup,
+}: AssertResourceKindAllowsDependentsOptions): void {
   if (!isExternalResource({ kind: mergedKind as Resource["kind"] })) return;
   // A loaded allocation OR any time-off both vanish from the scheduler once the resource is external.
   // hoursPerDay !== 0 mirrors assertAllocationRefs' "externals carry no load" rule (a zero-load
@@ -75,6 +109,26 @@ export function assertResourceKindAllowsDependents(
   }
 }
 
+const assertResourceKindAllowsDependents = function assertResourceKindAllowsDependents(
+  ...[data, accountId, resourceId, mergedKind, lookup]: [
+    data: AppData,
+    accountId: ID,
+    resourceId: ID,
+    mergedKind: unknown,
+    lookup?: ValidationDataLookup,
+  ]
+): void {
+  assertResourceKindAllowsDependentsWithOptions({
+    data,
+    accountId,
+    resourceId,
+    mergedKind,
+    ...(lookup === undefined ? {} : { lookup }),
+  });
+};
+
+Object.defineProperty(assertResourceKindAllowsDependents, "length", { value: 5 });
+
 /**
  * A resource edit must not turn an allocation that is valid for the stored resource into one that
  * violates the placeholder project rule. This covers both rebinding an existing placeholder and
@@ -84,14 +138,14 @@ export function assertResourceKindAllowsDependents(
  * an unrelated edit the repair boundary, while a project/kind edit that repairs them remains
  * available. Import retains its separate reconciling contract.
  */
-export function assertResourceProjectAllowsDependents(
-  data: AppData,
-  accountId: ID,
-  resourceId: ID,
-  merged: Resource,
-  existing?: Resource,
-  lookup?: ValidationDataLookup,
-): void {
+function assertResourceProjectAllowsDependentsWithOptions({
+  data,
+  accountId,
+  resourceId,
+  merged,
+  existing,
+  lookup,
+}: AssertResourceProjectAllowsDependentsOptions): void {
   // The resource side short-circuits only when NEITHER kind nor projectId moved: both feed the
   // placeholder rule, so either one changing can newly invalidate an allocation.
   if (existing !== undefined && merged.kind === existing.kind && merged.projectId === existing.projectId) return;
@@ -105,6 +159,28 @@ export function assertResourceProjectAllowsDependents(
     ...(lookup === undefined ? {} : { lookup }),
   });
 }
+
+const assertResourceProjectAllowsDependents = function assertResourceProjectAllowsDependents(
+  ...[data, accountId, resourceId, merged, existing, lookup]: [
+    data: AppData,
+    accountId: ID,
+    resourceId: ID,
+    merged: Resource,
+    existing?: Resource,
+    lookup?: ValidationDataLookup,
+  ]
+): void {
+  assertResourceProjectAllowsDependentsWithOptions({
+    data,
+    accountId,
+    resourceId,
+    merged,
+    ...(existing === undefined ? {} : { existing }),
+    ...(lookup === undefined ? {} : { lookup }),
+  });
+};
+
+Object.defineProperty(assertResourceProjectAllowsDependents, "length", { value: 6 });
 
 /** The shared body of the two mirrored "did this edit retroactively invalidate an existing
  * allocation?" guards. `edit` says which END of the allocation is being written: that end is held
@@ -162,14 +238,14 @@ function assertAllocationPairStaysValid({
  * activity (or turning project-less work into project work) must not retroactively invalidate a
  * placeholder allocation. Existing corrupt rows do not block unrelated activity edits.
  */
-export function assertActivityProjectAllowsDependents(
-  data: AppData,
-  accountId: ID,
-  activityId: ID,
-  merged: Activity,
-  existing?: Activity,
-  lookup?: ValidationDataLookup,
-): void {
+function assertActivityProjectAllowsDependentsWithOptions({
+  data,
+  accountId,
+  activityId,
+  merged,
+  existing,
+  lookup,
+}: AssertActivityProjectAllowsDependentsOptions): void {
   // Kind changes can change whether allocation-level attribution is effective, so both fields feed
   // the placeholder rule on this side.
   if (existing !== undefined && merged.kind === existing.kind && merged.projectId === existing.projectId) return;
@@ -184,6 +260,28 @@ export function assertActivityProjectAllowsDependents(
   });
 }
 
+const assertActivityProjectAllowsDependents = function assertActivityProjectAllowsDependents(
+  ...[data, accountId, activityId, merged, existing, lookup]: [
+    data: AppData,
+    accountId: ID,
+    activityId: ID,
+    merged: Activity,
+    existing?: Activity,
+    lookup?: ValidationDataLookup,
+  ]
+): void {
+  assertActivityProjectAllowsDependentsWithOptions({
+    data,
+    accountId,
+    activityId,
+    merged,
+    ...(existing === undefined ? {} : { existing }),
+    ...(lookup === undefined ? {} : { lookup }),
+  });
+};
+
+Object.defineProperty(assertActivityProjectAllowsDependents, "length", { value: 6 });
+
 /** No allocation or time-off may persist an empty, malformed, or reversed range. */
 export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
   assertValid(validateDateRange(startDate, endDate));
@@ -197,13 +295,13 @@ export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
  * so a direct store / API write can't persist an invisible orphan.
  *
  */
-export function assertResourceExists(
-  data: AppData,
-  accountId: ID,
-  resourceId: ID,
-  existing?: Pick<TimeOff, "resourceId">,
-  lookup?: ValidationDataLookup,
-): void {
+function assertResourceExistsWithOptions({
+  data,
+  accountId,
+  resourceId,
+  existing,
+  lookup,
+}: AssertResourceExistsOptions): void {
   const lookupOptions = lookup === undefined ? {} : { lookup };
   const resource = resolveOwnedRow<Resource>({ data, table: "resources", id: resourceId, accountId, ...lookupOptions });
   if (!resource) {
@@ -219,3 +317,30 @@ export function assertResourceExists(
     domainError("time_off_external_resource", "Time off can’t be recorded for an external / 3rd-party resource.");
   }
 }
+
+const assertResourceExists = function assertResourceExists(
+  ...[data, accountId, resourceId, existing, lookup]: [
+    data: AppData,
+    accountId: ID,
+    resourceId: ID,
+    existing?: Pick<TimeOff, "resourceId">,
+    lookup?: ValidationDataLookup,
+  ]
+): void {
+  assertResourceExistsWithOptions({
+    data,
+    accountId,
+    resourceId,
+    ...(existing === undefined ? {} : { existing }),
+    ...(lookup === undefined ? {} : { lookup }),
+  });
+};
+
+Object.defineProperty(assertResourceExists, "length", { value: 5 });
+
+export {
+  assertActivityProjectAllowsDependents,
+  assertResourceExists,
+  assertResourceKindAllowsDependents,
+  assertResourceProjectAllowsDependents,
+};
