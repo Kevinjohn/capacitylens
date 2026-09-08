@@ -516,14 +516,6 @@
       "count": 1
     }
   },
-  "src/components/StorageRecovery.test.tsx": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "src/components/accounts/DeleteCompanyDialog.tsx": {
     "max-lines-per-function": {
       "count": 1
@@ -534,22 +526,9 @@
       "count": 1
     }
   },
-  "src/components/activities/ActivityForm.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/components/activities/ActivityList.test.tsx": {
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "src/components/activities/ActivityList.tsx": {
-    "max-lines-per-function": {
-      "count": 2
     }
   },
   "src/components/activities/activityListModel.ts": {
@@ -829,22 +808,6 @@
       "count": 2
     }
   },
-  "src/data/offlineCache.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
-  "src/data/persist.overlap.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/e2eOidcHarness.test.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
@@ -864,17 +827,6 @@
     }
   },
   "src/hooks/useExclusiveAction.test.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/hooks/useLifecycleActions.test.tsx": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 1
-    },
     "max-lines-per-function": {
       "count": 1
     }
@@ -945,14 +897,6 @@
   "src/lib/lanePacking.ts": {
     "no-nested-ternary": {
       "count": 1
-    }
-  },
-  "src/lib/repeatingAllocations.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
     }
   },
   "src/lib/repeatingAllocations.ts": {

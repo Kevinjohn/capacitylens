@@ -160,18 +160,18 @@ function workerLifecycle(initial: ServiceWorkerState) {
   };
 }
 
+beforeEach(() => {
+  vi.stubGlobal("indexedDB", new IDBFactory());
+});
+
+afterEach(() => {
+  localStorage.clear();
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
+
 describe("offline preference", () => {
-  beforeEach(() => {
-    vi.stubGlobal("indexedDB", new IDBFactory());
-  });
-
-  afterEach(() => {
-    localStorage.clear();
-    vi.restoreAllMocks();
-    vi.unstubAllEnvs();
-    vi.unstubAllGlobals();
-  });
-
   it("rejects blocked upgrades and closes connections on late success or version change", async () => {
     const request = {} as IDBOpenDBRequest;
     const close = vi.fn();
@@ -220,7 +220,9 @@ describe("offline preference", () => {
     localStorage.setItem("capacitylens/offlineRead", "on");
     await expect(readCachedAuthSnapshot()).rejects.toThrow("The offline cache could not be read");
   });
+});
 
+describe("offline preference storage failures", () => {
   it("closes the database and stringifies a non-Error retention-sweep failure", async () => {
     const cursorRequest = { error: "cursor exploded" } as unknown as IDBRequest<IDBCursorWithValue | null>;
     const tx = {
@@ -287,7 +289,9 @@ describe("offline preference", () => {
     await enabling;
     expect(isOfflineReadEnabled()).toBe(true);
   });
+});
 
+describe("offline preference activation", () => {
   it("does not enable when shell installation makes the worker redundant", async () => {
     const lifecycle = workerLifecycle("installing");
     const register = vi.fn().mockResolvedValue({
@@ -348,7 +352,9 @@ describe("offline preference", () => {
     await expect(revalidateOfflineShell()).resolves.toBe(false);
     expect(isOfflineReadEnabled()).toBe(false);
   });
+});
 
+describe("offline preference cleanup", () => {
   it("deletes shell metadata as well as release caches when offline access is disabled", async () => {
     const unregister = vi.fn().mockResolvedValue(true);
     vi.stubGlobal("navigator", {
@@ -407,7 +413,9 @@ describe("offline preference", () => {
       expect.objectContaining({ message: "cache blocked" }),
     );
   });
+});
 
+describe("offline preference inspection failures", () => {
   it("surfaces a stale-preference removal failure while still failing closed", async () => {
     localStorage.setItem("capacitylens/offlineRead", "on");
     vi.stubGlobal("navigator", { serviceWorker: { getRegistrations: vi.fn().mockResolvedValue([]) } });
@@ -450,7 +458,9 @@ describe("offline preference", () => {
     });
     await expect(setOfflineReadEnabled(true)).rejects.toThrow("failed before activation");
   });
+});
 
+describe("offline preference worker failures", () => {
   it("times out a worker that never activates", async () => {
     const lifecycle = workerLifecycle("installing");
     const realSetTimeout = globalThis.setTimeout;
@@ -499,7 +509,7 @@ describe("offline preference", () => {
   });
 });
 
-describe("offline tenant cache", () => {
+function registerTenantCacheHooks() {
   beforeEach(() => {
     vi.stubGlobal("indexedDB", new IDBFactory());
     localStorage.setItem("capacitylens/offlineRead", "on");
@@ -511,7 +521,10 @@ describe("offline tenant cache", () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
+}
 
+describe("offline tenant cache", () => {
+  registerTenantCacheHooks();
   it("reports why writes are skipped instead of resolving ambiguously", async () => {
     localStorage.removeItem("capacitylens/offlineRead");
     await expect(cacheAccountSummaries([])).resolves.toEqual({ kind: "skipped", reason: "disabled" });
@@ -530,10 +543,16 @@ describe("offline tenant cache", () => {
       reason: "unchanged",
     });
 
-    slice.accounts[0]!.updatedAt = "2026-07-30T10:00:00.000Z";
+    const account = slice.accounts[0];
+    expect(account).toBeDefined();
+    if (account === undefined) throw new Error("Expected the cached account fixture");
+    account.updatedAt = "2026-07-30T10:00:00.000Z";
     await expect(cacheAccountSlice("a-studio", slice)).resolves.toEqual({ kind: "written" });
   });
+});
 
+describe("offline tenant cache write failures", () => {
+  registerTenantCacheHooks();
   it("does not suppress a retry after a failed slice write", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     const slice = accountSlice("a-studio");
@@ -566,7 +585,10 @@ describe("offline tenant cache", () => {
     expect(warning).toHaveBeenCalledWith("capacitylens: offline encryption key persistence failed", cause);
     expect(readOfflineStateSnapshot().cacheWriteFailed).toBe(true);
   });
+});
 
+describe("offline tenant cache competing keys", () => {
+  registerTenantCacheHooks();
   it("uses the device key persisted by a competing tab after add fails", async () => {
     const winner = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
     const originalGet = FakeIDBObjectStore.prototype.get;
@@ -605,7 +627,10 @@ describe("offline tenant cache", () => {
     await expect(getRaw(`auth:${currentCacheNamespace()}`)).resolves.toBeUndefined();
     vi.doUnmock("./apiConfig");
   });
+});
 
+describe("offline tenant cache unavailable capabilities", () => {
+  registerTenantCacheHooks();
   it("fails a scoped read cleanly when IndexedDB disappears", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     vi.stubGlobal("indexedDB", undefined);
@@ -644,7 +669,10 @@ describe("offline tenant cache", () => {
     expect(localStorage.getItem("capacitylens/offlineWriteBoundary")).toBe(firstToken);
     expect(boundaryPuts).toHaveLength(1);
   });
+});
 
+describe("offline tenant cache durable boundary", () => {
+  registerTenantCacheHooks();
   it("surfaces a write-boundary preference read failure and refuses the cache write", async () => {
     await putRawKey({ id: "write-boundary-v1", token: "durable-token" });
     const cause = new Error("getItem blocked");
@@ -696,7 +724,10 @@ describe("offline tenant cache", () => {
       cause,
     );
   });
+});
 
+describe("offline tenant cache cleanup boundaries", () => {
+  registerTenantCacheHooks();
   it("falls back when randomUUID fails and completes cleanup", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     vi.spyOn(crypto, "randomUUID").mockImplementation(() => {
@@ -735,7 +766,10 @@ describe("offline tenant cache", () => {
     await expect(clearOfflineDataForCurrentUser()).rejects.toBe(cause);
     await expect(getRaw(`auth:${currentCacheNamespace()}`)).resolves.toBeUndefined();
   });
+});
 
+describe("offline tenant cache malformed identifiers", () => {
+  registerTenantCacheHooks();
   it.each([null, undefined, false, 0, ""])(
     "completes cleanup when storage throws a falsy value (%p)",
     async (cause) => {
@@ -761,7 +795,10 @@ describe("offline tenant cache", () => {
       await expect(clearAllOfflineData()).resolves.toBeUndefined();
     },
   );
+});
 
+describe("offline tenant cache concurrent writes", () => {
+  registerTenantCacheHooks();
   it("drops writes whose generation changes during encryption", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     const originalEncrypt = crypto.subtle.encrypt.bind(crypto.subtle);
@@ -812,7 +849,10 @@ describe("offline tenant cache", () => {
     await expect(readCachedAccountSummaries()).resolves.toBeNull();
     await expect(getRaw(key)).resolves.toBeUndefined();
   });
+});
 
+describe("offline tenant cache malformed records", () => {
+  registerTenantCacheHooks();
   it("sweeps a seeded envelope whose savedAt is not numeric", async () => {
     const key = "malformed-saved-at";
     await putRaw({ key, savedAt: "yesterday", version: 1, iv: new ArrayBuffer(1), ciphertext: new ArrayBuffer(1) });
@@ -834,7 +874,10 @@ describe("offline tenant cache", () => {
     await putEncryptedValue(`accounts:${currentCacheNamespace()}:user-a`, { id: "a-studio" });
     await expect(readCachedAccountSummaries()).resolves.toBeNull();
   });
+});
 
+describe("offline tenant cache cross-tab boundaries", () => {
+  registerTenantCacheHooks();
   it("observes offline preference and cleanup boundaries from another tab", async () => {
     localStorage.removeItem("capacitylens/offlineRead");
     await cacheAuthSnapshot(authSnapshot("user-a")); // establishes the live page's identity scope
@@ -889,7 +932,10 @@ describe("offline tenant cache", () => {
 
     await expect(newBackend.readCachedAuthSnapshot()).resolves.toBeNull();
   });
+});
 
+describe("offline tenant cache expiry", () => {
+  registerTenantCacheHooks();
   it("expires account data after seven days", async () => {
     const savedAt = new Date("2026-07-01T00:00:00.000Z").getTime();
     const clock = vi.spyOn(Date, "now").mockReturnValue(savedAt);
@@ -902,7 +948,10 @@ describe("offline tenant cache", () => {
     clock.mockReturnValue(savedAt + 7 * DAY_MS + 1);
     await expect(readCachedAccountSlice("a-studio")).resolves.toBeNull();
   });
+});
 
+describe("offline tenant cache account slices", () => {
+  registerTenantCacheHooks();
   it("round-trips attributed and unattributed allocation rows", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     const slice = accountSlice("a-studio");
@@ -947,7 +996,10 @@ describe("offline tenant cache", () => {
     await cacheAccountSlice("a-studio", accountSlice("a-studio"));
     await expect(getRaw(`slice:${currentCacheNamespace()}:user-a:a-studio`)).resolves.toBeDefined();
   });
+});
 
+describe("offline tenant cache retention", () => {
+  registerTenantCacheHooks();
   it("physically sweeps every expired envelope when cache maintenance next runs", async () => {
     const savedAt = new Date("2026-07-01T00:00:00.000Z").getTime();
     const clock = vi.spyOn(Date, "now").mockReturnValue(savedAt);
@@ -996,7 +1048,10 @@ describe("offline tenant cache", () => {
     await expect(getRaw(`slice:${origin}:user-a:a-studio`)).resolves.toBeUndefined();
     await expect(getRaw(`slice:${origin}:user-b:a-studio`)).resolves.toBeUndefined();
   });
+});
 
+describe("offline tenant cache encryption", () => {
+  registerTenantCacheHooks();
   it("stores only authenticated ciphertext and deletes an entry whose tag no longer verifies", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     await cacheAccountSummaries([{ id: "a-studio", name: "Confidential Studio", role: "owner" }]);
@@ -1050,7 +1105,10 @@ describe("offline tenant cache", () => {
       value: [{ id: "new", name: "Newest", role: "owner" }],
     });
   });
+});
 
+describe("offline tenant cache transaction failures", () => {
+  registerTenantCacheHooks();
   it("rejects when invalid-entry deletion aborts after its request succeeds", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     await cacheAccountSummaries([{ id: "a-studio", name: "Confidential Studio", role: "owner" }]);
@@ -1092,7 +1150,10 @@ describe("offline tenant cache", () => {
     });
     await expect(Promise.race([clearOfflineDataForCurrentUser(), timeout])).rejects.toThrow(/abort/i);
   });
+});
 
+describe("offline tenant cache validation", () => {
+  registerTenantCacheHooks();
   it("rejects and deletes an envelope whose timestamp is in the future", async () => {
     const now = new Date("2026-07-01T00:00:00.000Z").getTime();
     vi.spyOn(Date, "now").mockReturnValue(now);
@@ -1134,7 +1195,10 @@ describe("offline tenant cache", () => {
     await expect(readCachedAccountSlice("a-studio")).resolves.toBeNull();
     expect(decrypt).toHaveBeenCalledOnce();
   });
+});
 
+describe("offline tenant cache identity isolation", () => {
+  registerTenantCacheHooks();
   it("never exposes one verified user's account slice to another", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     await cacheAccountSlice("a-studio", accountSlice("a-studio"));
@@ -1166,7 +1230,10 @@ describe("offline tenant cache", () => {
     await expect(getRaw(auth)).resolves.toBeUndefined();
     await expect(getRaw(accountKey)).resolves.toBeDefined();
   });
+});
 
+describe("offline tenant cache sign-out failures", () => {
+  registerTenantCacheHooks();
   it("uses the fallback message when the sign-out key cursor errors without an error object", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     const originalOpenKeyCursor = FakeIDBObjectStore.prototype.openKeyCursor;
@@ -1202,7 +1269,10 @@ describe("offline tenant cache", () => {
     vi.stubGlobal("indexedDB", availableIndexedDb);
     await expect(readCachedAuthSnapshot()).resolves.toBeNull();
   });
+});
 
+describe("offline tenant cache sign-out concurrency", () => {
+  registerTenantCacheHooks();
   it("sign-out cleanup in another page rejects identity, directory and slice writes already encrypting", async () => {
     // Establish the same verified-user scope in two independent module instances, mirroring tabs.
     await cacheAuthSnapshot(authSnapshot("user-a"));
@@ -1245,7 +1315,10 @@ describe("offline tenant cache", () => {
     await expect(getRaw(`accounts:${origin}:user-a`)).resolves.toBeUndefined();
     await expect(getRaw(`slice:${origin}:user-a:a-studio`)).resolves.toBeUndefined();
   });
+});
 
+describe("offline tenant cache explicit wipe", () => {
+  registerTenantCacheHooks();
   it("the explicit device-data wipe clears every user's cached slice", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     await cacheAccountSlice("a-studio", accountSlice("a-studio"));
