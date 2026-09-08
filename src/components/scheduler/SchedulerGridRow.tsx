@@ -54,6 +54,27 @@ function ResourceIdentity({ group, row, density }: Pick<SchedulerGridRowProps, "
   );
 }
 
+function UtilizationCell({
+  utilization,
+  overSoon,
+  visibleWeeksLabel,
+}: Pick<RowModel, "utilization" | "overSoon"> & { visibleWeeksLabel: string }) {
+  const title = overSoon
+    ? m.scheduler_util_title_oversoon({ days: UTILIZATION_WINDOW_DAYS, span: visibleWeeksLabel })
+    : m.scheduler_util_title({ span: visibleWeeksLabel });
+  return (
+    <span
+      data-testid="utilization"
+      title={title}
+      className={`flex w-11 flex-1 items-center justify-center border-t border-line text-2xs ${
+        overSoon ? "font-semibold text-danger" : "text-faint"
+      }`}
+    >
+      {formatUtilizationPercent(utilization)}%
+    </span>
+  );
+}
+
 function ResourceActions({
   row,
   ui,
@@ -69,9 +90,6 @@ function ResourceActions({
   const { resource, utilization, overSoon } = row;
   const canCreate = canEdit && (ui.drawMode !== "timeoff" || !isExternalResource(resource));
   const showUtilization = utilizationPrefs.showPersonal && isCapacityTracked(resource);
-  const utilizationTitle = overSoon
-    ? m.scheduler_util_title_oversoon({ days: UTILIZATION_WINDOW_DAYS, span: visibleWeeksLabel })
-    : m.scheduler_util_title({ span: visibleWeeksLabel });
   return (
     <div className="flex shrink-0 flex-col self-stretch overflow-hidden border-s border-line text-center leading-none">
       {canCreate && (
@@ -99,15 +117,7 @@ function ResourceActions({
         </Button>
       )}
       {showUtilization && (
-        <span
-          data-testid="utilization"
-          title={utilizationTitle}
-          className={`flex w-11 flex-1 items-center justify-center border-t border-line text-2xs ${
-            overSoon ? "font-semibold text-danger" : "text-faint"
-          }`}
-        >
-          {formatUtilizationPercent(utilization)}%
-        </span>
+        <UtilizationCell utilization={utilization} overSoon={overSoon} visibleWeeksLabel={visibleWeeksLabel} />
       )}
     </div>
   );
