@@ -19,11 +19,18 @@ import { PermissionContext } from "../../auth/permissionContext";
 import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { chooseOption, GEOM, indexAtClientX, renderWithTooltip } from "./__tests__/schedulerTestKit";
 
-function first<T>(values: T[]): T {
-  const value = values[0];
+function required<T>(value: T | undefined | null, message: string): T {
   expect(value).toBeDefined();
-  if (value === undefined) throw new Error("Expected a non-empty test result.");
+  if (value === undefined || value === null) throw new Error(message);
   return value;
+}
+
+function first<T>(values: T[]): T {
+  return required(values[0], "Expected a non-empty test result.");
+}
+
+function closestForm(control: HTMLElement): HTMLFormElement {
+  return required(control.closest("form"), "Expected the allocation control to belong to a form.");
 }
 
 interface AllocationScopeCaseInput {
@@ -94,7 +101,10 @@ beforeEach(() => {
 describe("AllocationModal create", () => {
   it("orders project scopes and activities, and exposes status as a labelled radiogroup", async () => {
     useStore.getState().addClient({ name: "Zeta", color: "#123456" });
-    const zetaClient = useStore.getState().data.clients.find((client) => client.name === "Zeta")!;
+    const zetaClient = required(
+      useStore.getState().data.clients.find((client) => client.name === "Zeta"),
+      "Expected the newly added Zeta client.",
+    );
     useStore.getState().addProject({ name: "Alpha", clientId: zetaClient.id, color: "#123456" });
     useStore.getState().addActivity({ name: "Support", kind: "internal" });
     useStore.getState().addActivity({ name: "Admin", kind: "internal" });
@@ -707,7 +717,7 @@ describe("AllocationModal days mode", () => {
     expect(daysOver).toHaveAttribute("max", "4");
     fireEvent.change(daysOver, { target: { value: "5" } });
     fireEvent.change(screen.getByLabelText("Days of work"), { target: { value: "0" } });
-    fireEvent.submit(daysOver.closest("form")!);
+    fireEvent.submit(closestForm(daysOver));
 
     expect(screen.getByRole("alert")).toHaveTextContent(/cannot extend beyond 31 December 9999/i);
     expect(daysOver).toHaveAttribute("aria-invalid", "true");
@@ -1005,7 +1015,7 @@ describe("AllocationModal days mode", () => {
     // single number input), which skips the field's on-blur clamp.
     const daysOver = screen.getByLabelText("Days over");
     fireEvent.change(daysOver, { target: { value: "" } });
-    fireEvent.submit(daysOver.closest("form")!);
+    fireEvent.submit(closestForm(daysOver));
 
     expect(onClose).not.toHaveBeenCalled();
     expect(addAllocation).not.toHaveBeenCalled();
@@ -1078,7 +1088,10 @@ describe("AllocationModal days mode", () => {
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: "Save" }));
-    const after = useStore.getState().data.allocations.find((a) => a.id === alloc.id)!;
+    const after = required(
+      useStore.getState().data.allocations.find((candidate) => candidate.id === alloc.id),
+      "Expected the unchanged allocation to remain saved.",
+    );
     expect(after.endDate).toBe("2026-06-03");
     expect(after.hoursPerDay).toBeCloseTo(5, 6);
   });
@@ -1350,7 +1363,10 @@ describe("AllocationModal edit", () => {
       const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
       const activity =
         activityKind === "project"
-          ? useStore.getState().data.activities.find((candidate) => candidate.id === "t1")!
+          ? required(
+              useStore.getState().data.activities.find((candidate) => candidate.id === "t1"),
+              "Expected the seeded project activity.",
+            )
           : useStore.getState().addActivity({ name: activityName, kind: activityKind });
       const allocation = useStore.getState().addAllocation({
         resourceId: resource.id,
@@ -1368,7 +1384,10 @@ describe("AllocationModal edit", () => {
       expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent(activityName);
       await user.click(screen.getByRole("button", { name: "Save" }));
 
-      const saved = useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)!;
+      const saved = required(
+        useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id),
+        "Expected the edited allocation to remain saved.",
+      );
       if (allocationProjectId) expect(saved).toHaveProperty("projectId", allocationProjectId);
       else expect(saved).not.toHaveProperty("projectId");
     },
@@ -1623,7 +1642,11 @@ describe("AllocationModal edit", () => {
     await chooseOption(user, "Assignee", "Bob");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(useStore.getState().data.allocations.find((x) => x.id === alloc.id)!.resourceId).toBe(b.id);
+    const reassigned = required(
+      useStore.getState().data.allocations.find((candidate) => candidate.id === alloc.id),
+      "Expected the reassigned allocation to remain saved.",
+    );
+    expect(reassigned.resourceId).toBe(b.id);
   });
 
   it("rejects reassigning a normal allocation to a zero-overlap person", async () => {
@@ -1963,11 +1986,17 @@ describe("#257: modal and gesture effective-week agreement", () => {
 
     fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "5" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
-    const modalAllocation = useStore.getState().data.allocations.find(({ id }) => id === allocation.id)!;
+    const modalAllocation = required(
+      useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
+      "Expected the modal-resized allocation.",
+    );
     modal.unmount();
 
     useStore.getState().updateAllocation(allocation.id, { endDate: "2026-06-04", hoursPerDay: 8 });
-    const resetAllocation = useStore.getState().data.allocations.find(({ id }) => id === allocation.id)!;
+    const resetAllocation = required(
+      useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
+      "Expected the reset allocation.",
+    );
     renderWithTooltip(
       <AllocationBar
         bar={{
@@ -1985,7 +2014,10 @@ describe("#257: modal and gesture effective-week agreement", () => {
       />,
     );
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", shiftKey: true });
-    const gestureAllocation = useStore.getState().data.allocations.find(({ id }) => id === allocation.id)!;
+    const gestureAllocation = required(
+      useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
+      "Expected the gesture-resized allocation.",
+    );
 
     expect(modalAllocation).toMatchObject({ endDate: "2026-06-08", hoursPerDay: 6.4 });
     expect(gestureAllocation).toMatchObject({
