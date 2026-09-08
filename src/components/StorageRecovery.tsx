@@ -35,6 +35,14 @@ interface StorageResetErrorInput {
   cause?: unknown;
 }
 
+type StorageRecoveryError = "download" | "reset" | "reset-local" | "reset-all";
+
+interface StorageRecoveryActionsProps {
+  resetting: boolean;
+  download: () => void;
+  reset: () => Promise<void>;
+}
+
 // Exported beside the recovery boundary so its injected reset path can be tested without mutating
 // real browser storage.
 // eslint-disable-next-line react-refresh/only-export-components
@@ -101,12 +109,54 @@ export async function resetLocalStorage({
   });
 }
 
+function resolveResetError(caught: unknown): StorageRecoveryError {
+  if (!(caught instanceof StorageResetError)) return "reset";
+  if (caught.offlineDataCleared) return "reset-local";
+  return "reset-all";
+}
+
+function resolveErrorMessage(error: StorageRecoveryError): string {
+  if (error === "download") return m.storage_download_error();
+  if (error === "reset-local") return m.storage_reset_partial_local_error();
+  if (error === "reset-all") return m.storage_reset_full_error();
+  return m.storage_reset_error();
+}
+
+function StorageRecoveryActions({ resetting, download, reset }: StorageRecoveryActionsProps) {
+  return (
+    <CardFooter className="flex-wrap justify-end gap-2">
+      <Button size="sm" variant="outline" onClick={download} disabled={resetting}>
+        {m.storage_download()}
+      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button size="sm" variant="destructive" disabled={resetting}>
+            {m.storage_reset()}
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{m.storage_reset_confirm_title()}</AlertDialogTitle>
+            <AlertDialogDescription>{m.storage_reset_confirm_message({ app: APP_NAME })}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resetting}>{m.form_cancel()}</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" disabled={resetting} onClick={() => void reset()}>
+              {m.storage_reset_confirm_label()}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </CardFooter>
+  );
+}
+
 /** Recovery boundary for unreadable local bytes. Nothing is changed until reset is confirmed. */
 export function StorageRecovery({
   onDownload = downloadRawStorage,
   onReset = resetLocalStorage,
 }: StorageRecoveryProps = {}) {
-  const [error, setError] = useState<"download" | "reset" | "reset-local" | "reset-all" | null>(null);
+  const [error, setError] = useState<StorageRecoveryError | null>(null);
   const [resetting, setResetting] = useState(false);
 
   const download = () => {
@@ -125,21 +175,10 @@ export function StorageRecovery({
       setError(null);
       setResetting(false);
     } catch (caught) {
-      setError(
-        caught instanceof StorageResetError ? (caught.offlineDataCleared ? "reset-local" : "reset-all") : "reset",
-      );
+      setError(resolveResetError(caught));
       setResetting(false);
     }
   };
-
-  const errorMessage =
-    error === "download"
-      ? m.storage_download_error()
-      : error === "reset-local"
-        ? m.storage_reset_partial_local_error()
-        : error === "reset-all"
-          ? m.storage_reset_full_error()
-          : m.storage_reset_error();
 
   return (
     <main className="flex min-h-full items-center justify-center bg-canvas p-6">
@@ -151,34 +190,11 @@ export function StorageRecovery({
           <CardDescription>{m.storage_body({ app: APP_NAME })}</CardDescription>
           {error !== null && (
             <p role="alert" className="text-sm text-danger">
-              {errorMessage}
+              {resolveErrorMessage(error)}
             </p>
           )}
         </CardHeader>
-        <CardFooter className="flex-wrap justify-end gap-2">
-          <Button size="sm" variant="outline" onClick={download} disabled={resetting}>
-            {m.storage_download()}
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button size="sm" variant="destructive" disabled={resetting}>
-                {m.storage_reset()}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{m.storage_reset_confirm_title()}</AlertDialogTitle>
-                <AlertDialogDescription>{m.storage_reset_confirm_message({ app: APP_NAME })}</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={resetting}>{m.form_cancel()}</AlertDialogCancel>
-                <AlertDialogAction variant="destructive" disabled={resetting} onClick={() => void reset()}>
-                  {m.storage_reset_confirm_label()}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </CardFooter>
+        <StorageRecoveryActions resetting={resetting} download={download} reset={reset} />
       </Card>
     </main>
   );
