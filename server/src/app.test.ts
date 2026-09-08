@@ -1185,6 +1185,10 @@ async function readStateAccount(app: FastifyInstance): Promise<AccountSnapshot> 
   return readFirstAccount((await readValidatedState(app)).accounts);
 }
 
+async function readStateAllocation(app: FastifyInstance, id: string): Promise<AllocationSnapshot> {
+  return readAllocation((await readValidatedState(app)).allocations, id);
+}
+
 /** Seed a minimal account → client → project → activity → person chain. */
 async function scaffold(app: FastifyInstance) {
   await post(app, "accounts", account("a1"));
@@ -1814,25 +1818,25 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
         o: { projectId: "p1" },
       }),
     );
-    const before = await state(fixture.app);
+    const before = await readValidatedState(fixture.app);
 
     const response = await batch(fixture.app, [
       {
         method: "PUT",
         table: "activities",
         id: "repeatable",
-        row: { ...before.activities[0], kind: "internal", projectId: undefined },
+        row: { ...readActivity(before.activities, "repeatable"), kind: "internal", projectId: undefined },
       },
       {
         method: "PUT",
         table: "resources",
         id: "ph",
-        row: { ...before.resources[0], projectId: "p2" },
+        row: { ...readResource(before.resources, "ph"), projectId: "p2" },
       },
     ]);
 
     expect(response.statusCode).toBe(200);
-    expect((await state(fixture.app)).allocations[0]).not.toHaveProperty("projectId");
+    expect(await readStateAllocation(fixture.app, "allocation")).not.toHaveProperty("projectId");
   });
 
   it("clears and echoes allocation attribution before a later lifecycle archive in the same batch", async () => {
