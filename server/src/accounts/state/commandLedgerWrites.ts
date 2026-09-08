@@ -13,6 +13,15 @@ import { HOUSEKEEPING_INTERVAL_MS, lastCommandSweep, readStableNowMilliseconds, 
 const COMMAND_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const PENDING_RECONCILIATION_MS = 15 * 60 * 1000;
 
+function getRequiredAccountCommand(
+  db: Db,
+  input: { applicationId: string; operation: string; idempotencyKey: IdempotencyKey },
+): AccountCommandRecord {
+  const record = getAccountCommand({ db, ...input });
+  if (!record) throw new Error("Account command was not found after its ledger write.");
+  return record;
+}
+
 function transitionStalePending(db: Db, record: AccountCommandRecord, nowMs: number): AccountCommandRecord {
   const updatedAtMs = Date.parse(record.updatedAt);
   // A corrupt/unparseable timestamp fails forward into reconciliation: leaving an unknowably old
@@ -28,12 +37,11 @@ function transitionStalePending(db: Db, record: AccountCommandRecord, nowMs: num
     resultJson: JSON.stringify({ kind: "stale-pending" }),
     now: new Date(nowMs).toISOString(),
   });
-  return getAccountCommand({
-    db,
+  return getRequiredAccountCommand(db, {
     applicationId: record.applicationId,
     operation: record.operation,
     idempotencyKey: record.idempotencyKey,
-  })!;
+  });
 }
 
 interface GetAccountCommandByIdForReconciliationInput {
@@ -59,57 +67,41 @@ export type ReserveAccountCommandResult =
   | { kind: "existing"; record: AccountCommandRecord }
   | { kind: "conflict"; record: AccountCommandRecord };
 
-export function reserveAccountCommand(
-  db: Db,
-  input: {
-    applicationId: string;
-    operation: string;
-    idempotencyKey: IdempotencyKey;
-    commandId: CommandId;
-    actorPrincipalId: PrincipalId | null;
-    targetPrincipalId?: PrincipalId | null;
-    workspaceId?: WorkspaceId | null;
-    payloadHash: string;
-    now?: string;
-  },
-): ReserveAccountCommandResult {
-  if (!/^[a-f0-9]{64}$/.test(input.payloadHash)) {
-    throw new Error("Account command payloadHash must be a lowercase SHA-256 digest.");
-  }
-  const nowMs = input.now === undefined ? readStableNowMilliseconds() : Date.parse(input.now);
+type ReserveAccountCommandInput = Parameters<typeof reserveAccountCommand>[1];
+
+function sweepExpiredAccountCommands(db: Db, nowMs: number): void {
   const lastSweep = lastCommandSweep.get(db);
-  if (lastSweep === undefined || nowMs - lastSweep >= HOUSEKEEPING_INTERVAL_MS) {
-    db.prepare(
-      `
+  if (lastSweep !== undefined && nowMs - lastSweep < HOUSEKEEPING_INTERVAL_MS) return;
+  db.prepare(
+    `
       DELETE FROM account_commands
        WHERE status IN ('completed', 'compensated') AND updatedAt < ?
     `,
-    ).run(new Date(nowMs - COMMAND_RETENTION_MS).toISOString());
-    lastCommandSweep.set(db, nowMs);
-  }
-  const existing = getAccountCommand({
-    db,
-    applicationId: input.applicationId,
-    operation: input.operation,
-    idempotencyKey: input.idempotencyKey,
-  });
-  if (existing) {
-    // An idempotency key is authority-neutral, but its result is not. Never let a command retained
-    // by a shared browser replay, age, or otherwise mutate another principal's ledger ceremony.
-    if (existing.actorPrincipalId !== input.actorPrincipalId) {
-      return { kind: "conflict", record: existing };
-    }
-    const reconciled = transitionStalePending(db, existing, nowMs);
-    return reconciled.payloadHash === input.payloadHash && reconciled.commandId === input.commandId
-      ? { kind: "existing", record: reconciled }
-      : { kind: "conflict", record: reconciled };
-  }
-  // commandId is a durable reconciliation handle and is globally unique in the frozen v15 schema.
-  // Normalize reuse across a different operation/key/application instead of leaking a SQLite UNIQUE
-  // failure as an unexpected 500.
-  const commandIdOwner = getAccountCommandByGlobalId(db, input.commandId);
-  if (commandIdOwner) return { kind: "conflict", record: commandIdOwner };
-  const now = input.now ?? new Date(nowMs).toISOString();
+  ).run(new Date(nowMs - COMMAND_RETENTION_MS).toISOString());
+  lastCommandSweep.set(db, nowMs);
+}
+
+function decideExistingReservation({
+  db,
+  input,
+  existing,
+  nowMs,
+}: {
+  db: Db;
+  input: ReserveAccountCommandInput;
+  existing: AccountCommandRecord;
+  nowMs: number;
+}): ReserveAccountCommandResult {
+  // An idempotency key is authority-neutral, but its result is not. Never let a command retained
+  // by a shared browser replay, age, or otherwise mutate another principal's ledger ceremony.
+  if (existing.actorPrincipalId !== input.actorPrincipalId) return { kind: "conflict", record: existing };
+  const reconciled = transitionStalePending(db, existing, nowMs);
+  return reconciled.payloadHash === input.payloadHash && reconciled.commandId === input.commandId
+    ? { kind: "existing", record: reconciled }
+    : { kind: "conflict", record: reconciled };
+}
+
+function insertAccountCommand(db: Db, input: ReserveAccountCommandInput, now: string): AccountCommandRecord {
   db.prepare(
     `
     INSERT INTO account_commands (
@@ -130,15 +122,58 @@ export function reserveAccountCommand(
     now,
     now,
   );
-  return {
-    kind: "reserved",
-    record: getAccountCommand({
-      db,
-      applicationId: input.applicationId,
-      operation: input.operation,
-      idempotencyKey: input.idempotencyKey,
-    })!,
-  };
+  return getRequiredAccountCommand(db, input);
+}
+
+export function reserveAccountCommand(
+  db: Db,
+  input: {
+    applicationId: string;
+    operation: string;
+    idempotencyKey: IdempotencyKey;
+    commandId: CommandId;
+    actorPrincipalId: PrincipalId | null;
+    targetPrincipalId?: PrincipalId | null;
+    workspaceId?: WorkspaceId | null;
+    payloadHash: string;
+    now?: string;
+  },
+): ReserveAccountCommandResult {
+  if (!/^[a-f0-9]{64}$/.test(input.payloadHash)) {
+    throw new Error("Account command payloadHash must be a lowercase SHA-256 digest.");
+  }
+  const nowMs = input.now === undefined ? readStableNowMilliseconds() : Date.parse(input.now);
+  sweepExpiredAccountCommands(db, nowMs);
+  const existing = getAccountCommand({
+    db,
+    applicationId: input.applicationId,
+    operation: input.operation,
+    idempotencyKey: input.idempotencyKey,
+  });
+  if (existing) return decideExistingReservation({ db, input, existing, nowMs });
+  // commandId is a durable reconciliation handle and is globally unique in the frozen v15 schema.
+  // Normalize reuse across a different operation/key/application instead of leaking a SQLite UNIQUE
+  // failure as an unexpected 500.
+  const commandIdOwner = getAccountCommandByGlobalId(db, input.commandId);
+  if (commandIdOwner) return { kind: "conflict", record: commandIdOwner };
+  const now = input.now ?? new Date(nowMs).toISOString();
+  return { kind: "reserved", record: insertAccountCommand(db, input, now) };
+}
+
+function assertValidCorrelation(
+  row: AccountCommandRecord,
+  input: { workspaceId?: WorkspaceId; targetPrincipalId?: PrincipalId },
+): void {
+  if (input.workspaceId !== undefined && row.workspaceId !== null && row.workspaceId !== input.workspaceId) {
+    throw new Error("A pending account command cannot be rebound to another workspace.");
+  }
+  if (
+    input.targetPrincipalId !== undefined &&
+    row.targetPrincipalId !== null &&
+    row.targetPrincipalId !== input.targetPrincipalId
+  ) {
+    throw new Error("A pending account command cannot be rebound to another principal.");
+  }
 }
 
 /** Add newly learned privacy/repair coordinates to a still-pending coordinator command. */
@@ -162,16 +197,7 @@ export function correlatePendingAccountCommand(
   if (!row || row.status !== "pending") {
     throw new Error("Only a pending account command may receive correlation coordinates.");
   }
-  if (input.workspaceId !== undefined && row.workspaceId !== null && row.workspaceId !== input.workspaceId) {
-    throw new Error("A pending account command cannot be rebound to another workspace.");
-  }
-  if (
-    input.targetPrincipalId !== undefined &&
-    row.targetPrincipalId !== null &&
-    row.targetPrincipalId !== input.targetPrincipalId
-  ) {
-    throw new Error("A pending account command cannot be rebound to another principal.");
-  }
+  assertValidCorrelation(row, input);
   const result = db
     .prepare(
       `
