@@ -26,7 +26,9 @@ export interface PackResult {
 function compareIntervals(a: Interval, b: Interval): number {
   if (a.startDate !== b.startDate) return a.startDate < b.startDate ? -1 : 1;
   if (a.endDate !== b.endDate) return a.endDate < b.endDate ? -1 : 1;
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  if (a.id < b.id) return -1;
+  if (a.id > b.id) return 1;
+  return 0;
 }
 
 export function packLanes(items: Interval[]): PackResult {
