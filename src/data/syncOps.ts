@@ -26,6 +26,82 @@ export interface Op {
   updatedAt?: string;
 }
 
+interface TableDiff {
+  upserts: Op[];
+  deletes: Op[];
+}
+
+function createDeleteOp(table: TableKey, row: Entity): Op {
+  // Carry the owning account (from the pre-delete snapshot) so the server can scope
+  // the delete; accounts are top-level so they carry none.
+  const accountId = table === "accounts" ? undefined : (row as { accountId?: string }).accountId;
+  return {
+    method: "DELETE",
+    table,
+    id: row.id,
+    ...(accountId === undefined ? {} : { accountId }),
+    updatedAt: row.updatedAt,
+  };
+}
+
+function collectSingleBaseDeletes(
+  table: TableKey,
+  baseIndex: Map<string, Entity>,
+  nextById: Map<string, Entity>,
+): Op[] {
+  const deletes: Op[] = [];
+  for (const [id, row] of baseIndex) {
+    if (!nextById.has(id)) deletes.push(createDeleteOp(table, row));
+  }
+  return deletes;
+}
+
+interface PossibleBaseDeletesInput {
+  table: TableKey;
+  baseRows: Entity[][];
+  baseIndexes: Map<string, Entity>[];
+  nextById: Map<string, Entity>;
+}
+
+function collectPossibleBaseDeletes({ table, baseRows, baseIndexes, nextById }: PossibleBaseDeletesInput): Op[] {
+  const deletes: Op[] = [];
+  const candidateIds = new Set(baseRows.flatMap((rows) => rows.map((row) => row.id)));
+  for (const id of candidateIds) {
+    if (nextById.has(id)) continue;
+    const row = baseIndexes.map((index) => index.get(id)).find((candidate) => candidate !== undefined);
+    if (!row) throw new Error(`diffOps: candidate row "${id}" is missing from every possible base.`);
+    deletes.push(createDeleteOp(table, row));
+  }
+  return deletes;
+}
+
+function diffTable(table: TableKey, possibleBases: readonly AppData[], next: AppData): TableDiff {
+  // INVARIANT: every AppData reaching the adapter is post-migrate (migrate() guarantees each
+  // table column is an array) and lastSynced begins as emptyAppData() — so these `as Entity[]`
+  // casts are always over real arrays. A non-array here is an UPSTREAM PROGRAMMER ERROR, not
+  // user data; the assert turns an otherwise-cryptic "x.map is not a function" into a diagnosable
+  // message. Pure function — a throw correctly propagates to the caller's error path.
+  const nextRows = next[table] as Entity[];
+  const baseRows = possibleBases.map((base) => base[table] as Entity[]);
+  if (baseRows.some((rows) => !Array.isArray(rows)) || !Array.isArray(nextRows)) {
+    throw new Error(`diffOps: table "${table}" is not an array — inputs must be post-migrate AppData.`);
+  }
+  const baseIndexes = baseRows.map((rows) => new Map(rows.map((entity) => [entity.id, entity])));
+  const nextById = new Map(nextRows.map((entity) => [entity.id, entity]));
+  const upserts = nextRows
+    .filter((row) => baseIndexes.some((index) => index.get(row.id)?.updatedAt !== row.updatedAt))
+    .map((row): Op => ({ method: "PUT", table, id: row.id, row }));
+  if (baseIndexes.length !== 1) {
+    return { upserts, deletes: collectPossibleBaseDeletes({ table, baseRows, baseIndexes, nextById }) };
+  }
+  // The ordinary single-base diff: that base's index ALREADY is the candidate id set — same
+  // first-seen order, same per-id row (the last duplicate) the multi-base lookup above picks —
+  // so iterate it instead of flattening every row id into a throwaway array plus a Set.
+  const [baseIndex] = baseIndexes;
+  if (!baseIndex) throw new Error("diffOps: expected the single possible base index.");
+  return { upserts, deletes: collectSingleBaseDeletes(table, baseIndex, nextById) };
+}
+
 /** Compute the ordered operations that turn `prev` into `next`, applied as one
  *  transactional batch. Upserts run parent-first, then deletes run child-first. An
  *  entity is an "upsert" when it's new or its updatedAt changed (the store bumps
@@ -52,54 +128,9 @@ export function diffOpsFromPossibleBases(possibleBases: readonly AppData[], next
   const upserts: Op[] = [];
   const deletes: Op[] = [];
   for (const table of UPSERT_ORDER) {
-    // INVARIANT: every AppData reaching the adapter is post-migrate (migrate() guarantees each
-    // table column is an array) and lastSynced begins as emptyAppData() — so these `as Entity[]`
-    // casts are always over real arrays. A non-array here is an UPSTREAM PROGRAMMER ERROR, not
-    // user data; the assert turns an otherwise-cryptic "x.map is not a function" into a diagnosable
-    // message. Pure function — a throw correctly propagates to the caller's error path.
-    const nextRows = next[table] as Entity[];
-    const baseRows = possibleBases.map((base) => base[table] as Entity[]);
-    if (baseRows.some((rows) => !Array.isArray(rows)) || !Array.isArray(nextRows)) {
-      throw new Error(`diffOps: table "${table}" is not an array — inputs must be post-migrate AppData.`);
-    }
-    const baseIndexes = baseRows.map((rows) => new Map(rows.map((entity) => [entity.id, entity])));
-    const nextById = new Map(nextRows.map((entity) => [entity.id, entity]));
-    for (const row of nextRows) {
-      if (baseIndexes.some((index) => index.get(row.id)?.updatedAt !== row.updatedAt)) {
-        upserts.push({ method: "PUT", table, id: row.id, row });
-      }
-    }
-    // Carry the owning account (from the pre-delete snapshot) so the server can scope
-    // the delete; accounts are top-level so they carry none.
-    const pushDelete = (row: Entity): void => {
-      const accountId = table === "accounts" ? undefined : (row as { accountId?: string }).accountId;
-      deletes.push({
-        method: "DELETE",
-        table,
-        id: row.id,
-        ...(accountId === undefined ? {} : { accountId }),
-        updatedAt: row.updatedAt,
-      });
-    };
-    if (baseIndexes.length === 1) {
-      // The ordinary single-base diff: that base's index ALREADY is the candidate id set — same
-      // first-seen order, same per-id row (the last duplicate) the multi-base lookup below picks —
-      // so iterate it instead of flattening every row id into a throwaway array plus a Set.
-      const [baseIndex] = baseIndexes;
-      if (!baseIndex) throw new Error("diffOps: expected the single possible base index.");
-      for (const [id, row] of baseIndex) {
-        if (!nextById.has(id)) pushDelete(row);
-      }
-    } else {
-      const candidateIds = new Set(baseRows.flatMap((rows) => rows.map((row) => row.id)));
-      for (const id of candidateIds) {
-        if (!nextById.has(id)) {
-          const row = baseIndexes.map((index) => index.get(id)).find((candidate) => candidate !== undefined);
-          if (!row) throw new Error(`diffOps: candidate row "${id}" is missing from every possible base.`);
-          pushDelete(row);
-        }
-      }
-    }
+    const tableDiff = diffTable(table, possibleBases, next);
+    upserts.push(...tableDiff.upserts);
+    deletes.push(...tableDiff.deletes);
   }
   // upserts parent-first, then deletes child-first (reverse table order).
   deletes.reverse();
@@ -133,33 +164,47 @@ export function applyOps(base: AppData, ops: Op[]): AppData {
   // array; a PUT whose row carries a different id than the op renames a slot), so the next lookup
   // rebuilds from the live array rather than trusting a stale position.
   const indexByTable = new Map<TableKey, Map<string, number>>();
-  const indexFor = (table: TableKey): Map<string, number> => {
-    let index = indexByTable.get(table);
-    if (!index) {
-      index = new Map<string, number>();
-      for (const [position, row] of next[table].entries()) {
-        if (!index.has(row.id)) index.set(row.id, position);
-      }
-      indexByTable.set(table, index);
-    }
-    return index;
-  };
   for (const op of ops) {
-    const list = next[op.table];
-    if (op.method === "DELETE") {
-      next[op.table] = list.filter((row) => row.id !== op.id);
-      indexByTable.delete(op.table);
-    } else if (op.row) {
-      const index = indexFor(op.table);
-      const rowIndex = index.get(op.id);
-      if (rowIndex !== undefined) {
-        list[rowIndex] = op.row;
-        if (op.row.id !== op.id) indexByTable.delete(op.table);
-      } else {
-        list.push(op.row);
-        if (!index.has(op.row.id)) index.set(op.row.id, list.length - 1);
-      }
-    }
+    applyOp({ next, indexByTable }, op);
   }
   return next as unknown as AppData;
+}
+
+interface ApplyState {
+  next: Record<TableKey, Entity[]>;
+  indexByTable: Map<TableKey, Map<string, number>>;
+}
+
+function applyOp(state: ApplyState, op: Op): void {
+  const list = state.next[op.table];
+  if (op.method === "DELETE") {
+    state.next[op.table] = list.filter((row) => row.id !== op.id);
+    state.indexByTable.delete(op.table);
+    return;
+  }
+  if (!op.row) return;
+  const index = indexFor(state.next, state.indexByTable, op.table);
+  const rowIndex = index.get(op.id);
+  if (rowIndex === undefined) {
+    list.push(op.row);
+    if (!index.has(op.row.id)) index.set(op.row.id, list.length - 1);
+    return;
+  }
+  list[rowIndex] = op.row;
+  if (op.row.id !== op.id) state.indexByTable.delete(op.table);
+}
+
+function indexFor(
+  next: Record<TableKey, Entity[]>,
+  indexByTable: Map<TableKey, Map<string, number>>,
+  table: TableKey,
+): Map<string, number> {
+  const existing = indexByTable.get(table);
+  if (existing) return existing;
+  const index = new Map<string, number>();
+  for (const [position, row] of next[table].entries()) {
+    if (!index.has(row.id)) index.set(row.id, position);
+  }
+  indexByTable.set(table, index);
+  return index;
 }
