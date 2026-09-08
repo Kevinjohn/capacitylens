@@ -192,17 +192,17 @@ function registerParseBackupConfigLogTests(): void {
 
 describe("parseBackupConfig (fail-closed)", registerParseBackupConfigTests);
 
-describe("pre-migration rollback snapshot", registerPreMigrationRollbackTest);
+describe("pre-migration rollback snapshot", registerPreMigrationRollbackTests);
 
-function registerPreMigrationRollbackTest(): void {
-  registerPreMigrationRollbackTest1();
-  registerPreMigrationRollbackTest2();
-  registerPreMigrationRollbackTest3();
-  registerPreMigrationRollbackTest4();
-  registerPreMigrationRollbackTest5();
+function registerPreMigrationRollbackTests(): void {
+  registerRollbackDirectoryPermissionsTest();
+  registerReleasedDatabaseRollbackMigrationTest();
+  registerInMemoryRollbackSkipTest();
+  registerRollbackPublicationFailureTests();
+  registerRollbackArtifactRefreshTest();
 }
 
-function registerPreMigrationRollbackTest1(): void {
+function registerRollbackDirectoryPermissionsTest(): void {
   it("tightens an existing rollback directory to mode 0700", async () => {
     const work = tempDir();
     const dbPath = join(work, "capacitylens.db");
@@ -223,7 +223,7 @@ function registerPreMigrationRollbackTest1(): void {
   });
 }
 
-function registerPreMigrationRollbackTest2(): void {
+function registerReleasedDatabaseRollbackMigrationTest(): void {
   it("copies and verifies v7 before the live handle advances through every current migration", async () => {
     const dir = tempDir();
     const dbPath = join(dir, "capacitylens.db");
@@ -295,7 +295,7 @@ function assertReleasedRollbackSnapshot(snapshot: string): void {
   rollback.close();
 }
 
-function registerPreMigrationRollbackTest3(): void {
+function registerInMemoryRollbackSkipTest(): void {
   it("does not create a rollback artifact for an in-memory database", async () => {
     const db = openDb(":memory:");
     await expect(
@@ -312,7 +312,7 @@ function registerPreMigrationRollbackTest3(): void {
   });
 }
 
-function registerPreMigrationRollbackTest4(): void {
+function registerRollbackPublicationFailureTests(): void {
   it.each(["chmod-file", "sync-file", "rename", "sync-directory"] as const)(
     "refuses migration when the %s publication barrier fails",
     async (failureStage) => {
@@ -360,7 +360,7 @@ function registerPreMigrationRollbackTest4(): void {
   );
 }
 
-function registerPreMigrationRollbackTest5(): void {
+function registerRollbackArtifactRefreshTest(): void {
   it("atomically refreshes one rollback artifact per migration pair across restart attempts", async () => {
     const dir = tempDir();
     const dbPath = join(dir, "capacitylens.db");
@@ -405,34 +405,34 @@ function registerPreMigrationRollbackTest5(): void {
   });
 }
 
-describe("startBackups", registerStartBackupsTest);
+describe("startBackups", registerStartBackupTests);
 
-function registerStartBackupsTest(): void {
-  registerStartBackupsTest1();
-  registerStartBackupsTest2();
-  registerStartBackupsTest3();
-  registerStartBackupsTest4();
-  registerStartBackupsTest5();
-  registerStartBackupsTest6();
-  registerStartBackupsTest7();
-  registerStartBackupsTest8();
-  registerStartBackupsTest9();
-  registerStartBackupsTest10();
-  registerStartBackupsTest11();
-  registerStartBackupsTest12();
-  registerStartBackupsTest13();
-  registerStartBackupsTest14();
-  registerStartBackupsTest15();
-  registerStartBackupsTest16();
-  registerStartBackupsTest17();
-  registerStartBackupsTest18();
-  registerStartBackupsTest19();
-  registerStartBackupsTest20();
-  registerStartBackupsTest21();
-  registerStartBackupsTest22();
+function registerStartBackupTests(): void {
+  registerUncreatableBackupDirectoryTest();
+  registerScheduledBackupDirectoryPermissionsTest();
+  registerOpenableSnapshotTest();
+  registerSnapshotPublicationOrderTest();
+  registerScheduledPublicationFailureTests();
+  registerSnapshotRetentionTest();
+  registerDaylightSavingRetentionTest();
+  registerLiveDatabaseRetentionExclusionTest();
+  registerLiveDatabaseHardLinkRetentionExclusionTest();
+  registerInvalidSnapshotRejectionTest();
+  registerMonotonicSnapshotNameTest();
+  registerInFlightIntervalSkipTest();
+  registerIntervalSnapshotTest();
+  registerStartupSnapshotDrainTest();
+  registerRestartFilenameCollisionTest();
+  registerExistingFilenameCollisionTest();
+  registerStaleTempFileSweepTest();
+  registerUnstatableStartupEntryTest();
+  registerRetentionRemovalFailureTest();
+  registerFailedSnapshotCleanupTest();
+  registerConcurrentSnapshotSerializationTest();
+  registerShutdownSnapshotRefusalTest();
 }
 
-function registerStartBackupsTest1(): void {
+function registerUncreatableBackupDirectoryTest(): void {
   it("frames an uncreatable configured directory with the variable and recovery choices", () => {
     const parentFile = join(tempDir(), "not-a-directory");
     writeFileSync(parentFile, "occupied");
@@ -453,7 +453,7 @@ function registerStartBackupsTest1(): void {
   });
 }
 
-function registerStartBackupsTest2(): void {
+function registerScheduledBackupDirectoryPermissionsTest(): void {
   it("tightens an existing scheduled-backup directory to mode 0700", async () => {
     const dir = tempDir();
     chmodSync(dir, 0o777);
@@ -471,7 +471,7 @@ function registerStartBackupsTest2(): void {
   });
 }
 
-function registerStartBackupsTest3(): void {
+function registerOpenableSnapshotTest(): void {
   it("writes a real, openable snapshot containing the seeded rows", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -495,7 +495,7 @@ function registerStartBackupsTest3(): void {
   });
 }
 
-function registerStartBackupsTest4(): void {
+function registerSnapshotPublicationOrderTest(): void {
   it("persists the scheduled snapshot name before retention and then persists deletions", async () => {
     const dir = tempDir();
     const oldSnapshot = join(dir, "capacitylens-20200101-000000-000.db");
@@ -540,7 +540,7 @@ function registerStartBackupsTest4(): void {
   });
 }
 
-function registerStartBackupsTest5(): void {
+function registerScheduledPublicationFailureTests(): void {
   it.each(["chmod-file", "sync-file", "rename", "sync-directory"] as const)(
     "skips scheduled retention when the %s publication barrier fails",
     async (failureStage) => {
@@ -575,7 +575,7 @@ function registerStartBackupsTest5(): void {
   );
 }
 
-function registerStartBackupsTest6(): void {
+function registerSnapshotRetentionTest(): void {
   it("prunes to the newest `keep` snapshots, oldest first, leaving other files alone", async () => {
     const dir = tempDir();
     writeFileSync(join(dir, "not-a-snapshot.txt"), "keep me");
@@ -598,7 +598,7 @@ function registerStartBackupsTest6(): void {
   });
 }
 
-function registerStartBackupsTest7(): void {
+function registerDaylightSavingRetentionTest(): void {
   it("retains and returns the newer snapshot across a daylight-saving fall-back", async () => {
     vi.stubEnv("TZ", "Europe/London");
     const dir = tempDir();
@@ -622,7 +622,7 @@ function registerStartBackupsTest7(): void {
   });
 }
 
-function registerStartBackupsTest8(): void {
+function registerLiveDatabaseRetentionExclusionTest(): void {
   it("never treats the live database as retention when its path has a snapshot-shaped name", async () => {
     const dir = tempDir();
     const livePath = join(dir, "capacitylens-20000101-000000-000.db");
@@ -645,7 +645,7 @@ function registerStartBackupsTest8(): void {
   });
 }
 
-function registerStartBackupsTest9(): void {
+function registerLiveDatabaseHardLinkRetentionExclusionTest(): void {
   it("excludes a snapshot-shaped hard-link alias of the live database from retention", async () => {
     const dir = tempDir();
     const livePath = join(dir, "live.db");
@@ -665,7 +665,7 @@ function registerStartBackupsTest9(): void {
   });
 }
 
-function registerStartBackupsTest10(): void {
+function registerInvalidSnapshotRejectionTest(): void {
   it("rejects a foreign-key-invalid snapshot without publishing it or pruning the last good restore point", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -698,7 +698,7 @@ function registerStartBackupsTest10(): void {
   });
 }
 
-function registerStartBackupsTest11(): void {
+function registerMonotonicSnapshotNameTest(): void {
   it("never reuses a filename, even when the clock does not advance (monotonic stamp bump)", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -716,7 +716,7 @@ function registerStartBackupsTest11(): void {
   });
 }
 
-function registerStartBackupsTest12(): void {
+function registerInFlightIntervalSkipTest(): void {
   it("skips (and logs) an interval tick while a snapshot is still in flight", async () => {
     vi.useFakeTimers();
     const dir = tempDir();
@@ -740,7 +740,7 @@ function registerStartBackupsTest12(): void {
   });
 }
 
-function registerStartBackupsTest13(): void {
+function registerIntervalSnapshotTest(): void {
   it("the interval timer keeps snapshotting until stop()", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -759,7 +759,7 @@ function registerStartBackupsTest13(): void {
   });
 }
 
-function registerStartBackupsTest14(): void {
+function registerStartupSnapshotDrainTest(): void {
   it("stop() resolves only after the in-flight start-up snapshot has completed", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -781,7 +781,7 @@ function registerStartBackupsTest14(): void {
   });
 }
 
-function registerStartBackupsTest15(): void {
+function registerRestartFilenameCollisionTest(): void {
   it("never clobbers an existing snapshot after a restart, even with a stuck/stepped-back clock", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -803,7 +803,7 @@ function registerStartBackupsTest15(): void {
   });
 }
 
-function registerStartBackupsTest16(): void {
+function registerExistingFilenameCollisionTest(): void {
   it("never overwrites a pre-existing file with the exact colliding name (existsSync backstop)", async () => {
     const dir = tempDir();
     // A second-precision UTC name seeds the restart floor at .000 while another file already
@@ -830,7 +830,7 @@ function registerStartBackupsTest16(): void {
   });
 }
 
-function registerStartBackupsTest17(): void {
+function registerStaleTempFileSweepTest(): void {
   it("sweeps only STALE .tmp files at start-up, sparing fresh ones and other files", async () => {
     const dir = tempDir();
     // A stale temp is a torn write from a crashed process; a FRESH one could be a sibling
@@ -859,7 +859,7 @@ function registerStartBackupsTest17(): void {
   });
 }
 
-function registerStartBackupsTest18(): void {
+function registerUnstatableStartupEntryTest(): void {
   it("the start-up sweep skips (never throws on) an entry it cannot stat, and still boots", async () => {
     const dir = tempDir();
     // A dangling symlink makes statSync throw ENOENT — the same failure shape as a tmp file a
@@ -884,7 +884,7 @@ function registerStartBackupsTest18(): void {
   });
 }
 
-function registerStartBackupsTest19(): void {
+function registerRetentionRemovalFailureTest(): void {
   it("a snapshot still succeeds when retention cannot remove an old entry (warn + skip)", async () => {
     const dir = tempDir();
     // A directory squatting on the oldest snapshot name: rmSync without `recursive` refuses
@@ -906,7 +906,7 @@ function registerStartBackupsTest19(): void {
   });
 }
 
-function registerStartBackupsTest20(): void {
+function registerFailedSnapshotCleanupTest(): void {
   it("a failed snapshot removes its temp file and surfaces the original error", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -933,7 +933,7 @@ function registerStartBackupsTest20(): void {
   });
 }
 
-function registerStartBackupsTest21(): void {
+function registerConcurrentSnapshotSerializationTest(): void {
   it("overlapping snapshotNow() calls serialize, and stop() awaits ALL in-flight work", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -973,7 +973,7 @@ function registerStartBackupsTest21(): void {
   });
 }
 
-function registerStartBackupsTest22(): void {
+function registerShutdownSnapshotRefusalTest(): void {
   it("stop() drains the pre-stop chain, and a snapshotNow() during shutdown is refused", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
