@@ -22,6 +22,13 @@ interface ApplyGestureInput {
   options?: GestureOptions | undefined;
 }
 
+interface ApplyResizeInput {
+  mode: "resize-start" | "resize-end";
+  range: DateRange;
+  deltaDays: number;
+  weekendAwareDays: Weekday[] | null;
+}
+
 // Pure drag/resize math, extracted from the pointer hook so it can be unit
 // tested without a DOM. A gesture is: pixels dragged -> whole-day delta (snap)
 // -> new inclusive [start, end]. Resizes keep a minimum 1-day duration.
@@ -110,12 +117,7 @@ function applyMove(range: DateRange, deltaDays: number, weekendAwareDays: Weekda
   return { startDate: newStart, endDate: newEnd };
 }
 
-function applyResize(
-  mode: "resize-start" | "resize-end",
-  range: DateRange,
-  deltaDays: number,
-  weekendAwareDays: Weekday[] | null,
-): DateRange {
+function applyResize({ mode, range, deltaDays, weekendAwareDays }: ApplyResizeInput): DateRange {
   const edge = mode === "resize-start" ? "start" : "end";
   const moved = resolveResizedEdge({ range, deltaDays, edge, weekendAwareDays });
   return edge === "start"
@@ -135,6 +137,6 @@ export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureIn
       return applyMove(range, deltaDays, weekendAwareDays);
     case "resize-start":
     case "resize-end":
-      return applyResize(mode, range, deltaDays, weekendAwareDays);
+      return applyResize({ mode, range, deltaDays, weekendAwareDays });
   }
 }
