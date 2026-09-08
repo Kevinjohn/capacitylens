@@ -1857,22 +1857,22 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
         o: { projectId: "p1" },
       }),
     );
-    const before = await state(fixture.app);
+    const before = await readValidatedState(fixture.app);
 
     const response = await batch(fixture.app, [
       {
         method: "PUT",
         table: "activities",
         id: "repeatable",
-        row: { ...before.activities[0], kind: "internal", projectId: undefined },
+        row: { ...readActivity(before.activities, "repeatable"), kind: "internal", projectId: undefined },
       },
       { method: "ARCHIVE", table: "projects", id: "p1", accountId: "a1" },
     ]);
 
     expect(response.statusCode).toBe(200);
-    const rewritten = (await state(fixture.app)).allocations[0];
+    const rewritten = readAllocation((await readValidatedState(fixture.app)).allocations, "allocation");
     expect(rewritten).not.toHaveProperty("projectId");
-    expect(response.json().revisions).toContainEqual({
+    expect(readBatchReceipt(response).revisions).toContainEqual({
       table: "allocations",
       id: rewritten.id,
       createdAt: rewritten.createdAt,
