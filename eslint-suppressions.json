@@ -429,7 +429,7 @@
   },
   "server/src/app.test.ts": {
     "max-lines-per-function": {
-      "count": 8
+      "count": 7
     }
   },
   "server/src/audit.test.ts": {
