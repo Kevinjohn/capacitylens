@@ -582,10 +582,7 @@
   },
   "server/src/app.auth.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
-      "count": 44
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 2
+      "count": 36
     },
     "max-lines-per-function": {
       "count": 9
@@ -635,17 +632,8 @@
     }
   },
   "server/src/app.invites.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 17
-    },
-    "@typescript-eslint/no-unsafe-argument": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 12
-    },
     "max-lines-per-function": {
-      "count": 8
+      "count": 4
     }
   },
   "server/src/app.lifecycle.test.ts": {
@@ -742,10 +730,10 @@
       "count": 17
     },
     "@typescript-eslint/no-unsafe-assignment": {
-      "count": 86
+      "count": 83
     },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 144
+      "count": 125
     },
     "max-lines-per-function": {
       "count": 15
@@ -824,11 +812,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "server/src/auth.test.ts": {
-    "max-lines-per-function": {
-      "count": 3
     }
   },
   "server/src/auth.ts": {
@@ -1802,11 +1785,8 @@
     }
   },
   "shared/src/lib/integrity.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 18
-    },
     "max-lines-per-function": {
-      "count": 5
+      "count": 4
     }
   },
   "shared/src/lib/integrity.ts": {
@@ -2499,11 +2479,8 @@
     }
   },
   "src/components/scheduler/AllocationBar.interaction.test.tsx": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 28
-    },
     "max-lines-per-function": {
-      "count": 4
+      "count": 2
     }
   },
   "src/components/scheduler/AllocationBar.test.tsx": {
@@ -2531,9 +2508,6 @@
     }
   },
   "src/components/scheduler/AllocationModal.test.tsx": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 10
-    },
     "max-lines-per-function": {
       "count": 10
     }
@@ -3104,11 +3078,6 @@
       "count": 1
     }
   },
-  "src/data/ServerSyncAdapter.test.ts": {
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
   "src/data/ServerSyncAdapter.ts": {
     "complexity": {
       "count": 1
@@ -3164,7 +3133,7 @@
   },
   "src/data/persist.test.ts": {
     "max-lines-per-function": {
-      "count": 10
+      "count": 6
     }
   },
   "src/data/persistence/attachPersistence.ts": {
