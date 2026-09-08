@@ -56,7 +56,11 @@ export async function listSessions(req: FastifyRequest, reply: FastifyReply, con
 export async function revokeSession(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const { identity: identityPort, command: accountCommand, fail: accountFail } = context;
 
-  const { sessionId } = req.params as { sessionId: string };
+  const params: unknown = req.params;
+  const sessionId =
+    typeof params === "object" && params !== null && "sessionId" in params && typeof params.sessionId === "string"
+      ? params.sessionId
+      : undefined;
   if (!isAccountSessionId(sessionId)) {
     return reply.code(400).send({ error: "Invalid session id." });
   }
