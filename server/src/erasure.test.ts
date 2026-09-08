@@ -321,87 +321,93 @@ describe("CROSS_TENANT_ERASURE_EDGE_SQL", () => {
   });
 });
 
-describe("workspace erasure tenant-boundary guard", () => {
-  it("refuses to erase product data outside an existing transaction", () => {
-    const db = openDb(":memory:");
-    seedAccounts(db);
+function testExistingTransactionRequirement(): void {
+  const db = openDb(":memory:");
+  seedAccounts(db);
 
-    expect(() => eraseWorkspaceProductDataInTx(db, "a1")).toThrow(
-      "Workspace product-data erasure must run inside an existing transaction.",
-    );
-    expect(db.prepare(`SELECT id FROM accounts ORDER BY id`).all()).toEqual([{ id: "a1" }, { id: "a2" }]);
-    db.close();
-  });
+  expect(() => eraseWorkspaceProductDataInTx(db, "a1")).toThrow(
+    "Workspace product-data erasure must run inside an existing transaction.",
+  );
+  expect(db.prepare(`SELECT id FROM accounts ORDER BY id`).all()).toEqual([{ id: "a1" }, { id: "a2" }]);
+  db.close();
+}
 
-  it.each(crossTenantEdges)("refuses $relationship", ({ relationship, seed }) => {
-    const db = openDb(":memory:");
-    seedAccounts(db);
-    // Current v19 databases reject these edges at write time and on boot. Remove only the insert
-    // guards to model post-start operator tampering and retain the erasure layer's last-ditch
-    // containment coverage for every relationship.
-    const insertTriggers = db
-      .prepare(
-        `
+function testCrossTenantEdgeRefusal({ relationship, seed }: (typeof crossTenantEdges)[number]): void {
+  const db = openDb(":memory:");
+  seedAccounts(db);
+  // Current v19 databases reject these edges at write time and on boot. Remove only the insert
+  // guards to model post-start operator tampering and retain the erasure layer's last-ditch
+  // containment coverage for every relationship.
+  const insertTriggers = db
+    .prepare(
+      `
       SELECT name FROM sqlite_master
        WHERE type = 'trigger'
          AND name LIKE 'capacitylens_tenant_%_insert'
     `,
-      )
-      .all()
-      .map((row: unknown) => readString(row, "name"));
-    for (const name of insertTriggers) db.exec(`DROP TRIGGER ${name}`);
-    seed(db);
+    )
+    .all()
+    .map((row: unknown) => readString(row, "name"));
+  for (const name of insertTriggers) db.exec(`DROP TRIGGER ${name}`);
+  seed(db);
 
-    // The remaining id-only foreign keys consider the relationship structurally valid. Even after
-    // trigger tampering, erasure remains the final containment boundary before a cascade can cross.
-    expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+  // The remaining id-only foreign keys consider the relationship structurally valid. Even after
+  // trigger tampering, erasure remains the final containment boundary before a cascade can cross.
+  expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
 
-    let thrown: unknown;
-    try {
-      tx(db, () => eraseWorkspaceProductDataInTx(db, "a1"));
-    } catch (error) {
-      thrown = error;
-    }
-
-    expect(thrown).toBeInstanceOf(TenantErasureIntegrityError);
-    expect(readErrorMessage(thrown)).toContain(relationship);
-    expect(db.prepare(`SELECT id FROM accounts ORDER BY id`).all()).toEqual([{ id: "a1" }, { id: "a2" }]);
-  });
-
-  it("removes only the erased workspace sync provenance", () => {
-    const db = openDb(":memory:");
-    seedAccounts(db);
-    insertClient(db, "c1", "a1");
-    insertClient(db, "c2", "a2");
-    recordAppliedSyncBatch(db, { sessionId: "browser-session-a1", sequence: 1 }, [
-      {
-        table: "clients",
-        id: "c1",
-        accountId: "a1",
-        row: readRecord(db.prepare(`SELECT * FROM clients WHERE id = 'c1'`).get()),
-      },
-    ]);
-    recordAppliedSyncBatch(db, { sessionId: "browser-session-a2", sequence: 1 }, [
-      {
-        table: "clients",
-        id: "c2",
-        accountId: "a2",
-        row: readRecord(db.prepare(`SELECT * FROM clients WHERE id = 'c2'`).get()),
-      },
-    ]);
-
+  let thrown: unknown;
+  try {
     tx(db, () => eraseWorkspaceProductDataInTx(db, "a1"));
+  } catch (error) {
+    thrown = error;
+  }
 
-    expect(
-      db
-        .prepare(
-          `
+  expect(thrown).toBeInstanceOf(TenantErasureIntegrityError);
+  expect(readErrorMessage(thrown)).toContain(relationship);
+  expect(db.prepare(`SELECT id FROM accounts ORDER BY id`).all()).toEqual([{ id: "a1" }, { id: "a2" }]);
+}
+
+function testScopedSyncProvenanceRemoval(): void {
+  const db = openDb(":memory:");
+  seedAccounts(db);
+  insertClient(db, "c1", "a1");
+  insertClient(db, "c2", "a2");
+  recordAppliedSyncBatch(db, { sessionId: "browser-session-a1", sequence: 1 }, [
+    {
+      table: "clients",
+      id: "c1",
+      accountId: "a1",
+      row: readRecord(db.prepare(`SELECT * FROM clients WHERE id = 'c1'`).get()),
+    },
+  ]);
+  recordAppliedSyncBatch(db, { sessionId: "browser-session-a2", sequence: 1 }, [
+    {
+      table: "clients",
+      id: "c2",
+      accountId: "a2",
+      row: readRecord(db.prepare(`SELECT * FROM clients WHERE id = 'c2'`).get()),
+    },
+  ]);
+
+  tx(db, () => eraseWorkspaceProductDataInTx(db, "a1"));
+
+  expect(
+    db
+      .prepare(
+        `
       SELECT tableName, rowId, accountId
         FROM capacitylens_sync_row_provenance
        ORDER BY rowId
     `,
-        )
-        .all(),
-    ).toEqual([{ tableName: "clients", rowId: "c2", accountId: "a2" }]);
-  });
-});
+      )
+      .all(),
+  ).toEqual([{ tableName: "clients", rowId: "c2", accountId: "a2" }]);
+}
+
+function registerWorkspaceErasureTenantBoundaryGuardTests(): void {
+  it("refuses to erase product data outside an existing transaction", testExistingTransactionRequirement);
+  it.each(crossTenantEdges)("refuses $relationship", testCrossTenantEdgeRefusal);
+  it("removes only the erased workspace sync provenance", testScopedSyncProvenanceRemoval);
+}
+
+describe("workspace erasure tenant-boundary guard", registerWorkspaceErasureTenantBoundaryGuardTests);
