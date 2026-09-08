@@ -106,6 +106,108 @@ const V35_MIGRATION = {
   name: "add-allocation-project-id",
   checksum: "19c2729bf7048ca0a3e317f3d00088b29c7c7c2cd4d60febce28146d1c42c9a3",
 } as const;
+const RELEASED_MIGRATION_HISTORY = [
+  {
+    version: 8,
+    name: "establish-explicit-migration-baseline",
+    checksum: "90add4af35f1914f7de3ca031528ad81e061424526b50ae099512aacf650ef3d",
+  },
+  {
+    version: 9,
+    name: "add-internal-colour-mode",
+    checksum: "41f8f933f17eb59dac8bfc7a385db70e46df61e249a295fd622f821dcc3bb1f0",
+  },
+  {
+    version: 10,
+    name: "enforce-single-owner",
+    checksum: "a178fba43ad4c58ca8508117303b568c05103a05cc6e48512f2e92306e857653",
+  },
+  {
+    version: 11,
+    name: "repair-ownerless-memberships",
+    checksum: "561d0b306d9702e807d45702ec2424f0421b44eb2bc34adab7abc8ba08875117",
+  },
+  {
+    version: 12,
+    name: "revoke-owner-reset-ceremonies",
+    checksum: "4e7a506b4324de4e8d48ad843d1eabe70b4723c6e9bb4e44f2ed1c76046b2b56",
+  },
+  {
+    version: 13,
+    name: "snap-legacy-account-colors",
+    checksum: "1067b03a5483de517efc575e5597c633e8f6a6640bec02c5f0087e76b53ce7d1",
+  },
+  {
+    version: 14,
+    name: "revoke-member-reset-ceremonies",
+    checksum: "a99f4cb99587c3cfeef7cc3fe618a4223160ba3c01b2ec391a64251ae17556e1",
+  },
+  {
+    version: 15,
+    name: "add-account-boundary-state",
+    checksum: "3aaf6516f6ccd9d0f107d2d972d94219709e907d1cdc0fdf65c218d8e38b0efb",
+  },
+  {
+    version: 16,
+    name: "add-account-view-prefs",
+    checksum: "7c6209e72a7a3a100a8d1b513420341f9ddbe73c562810ce01c277f0480c99a1",
+  },
+  {
+    version: 17,
+    name: "add-durable-audit-outbox",
+    checksum: "f2a4dba4fb74de14aa40f57b42c214593a824ffdee2617972fc44d65f8e9f372",
+  },
+  {
+    version: 18,
+    name: "add-browser-sync-ordering",
+    checksum: "9f36a8cc44912588daa937c7144386d45c44f9d165aa4df2bb08b69b279aa49a",
+  },
+  {
+    version: 19,
+    name: "enforce-tenant-relationship-integrity",
+    checksum: "558cc0192ffdae7ef6aa47e189a10ef6e371154fedb74242ff692bb9e52ed74c",
+  },
+  {
+    version: 20,
+    name: "version-bootstrap-claim-control",
+    checksum: "3723fb194afa8f85d3fe9a93493197f3e59eabbb030a8286ac1e030c661077b0",
+  },
+  {
+    version: 21,
+    name: "index-tenant-entity-slices",
+    checksum: "431d2dc119c652583f26e0bc47f39a80957ca24c82ac6519cec9e8e846db7441",
+  },
+  {
+    version: 22,
+    name: "reactivate-builtin-internal-clients",
+    checksum: "05283dd0a42049e3a20cb75a7a0a3063670e003aace3a3c7d3a3ed6d35698560",
+  },
+  {
+    version: 23,
+    name: "index-foreign-key-children",
+    checksum: "b9cd82f6191f8e3ba675a77f09cbf5cc8cbc05b130e486d9dd1681ea0403e6ef",
+  },
+  {
+    version: 24,
+    name: "bound-used-invitation-history",
+    checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
+  },
+  {
+    version: 25,
+    name: "secure-federated-identity-linking",
+    checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
+  },
+  V26_MIGRATION,
+  V27_MIGRATION,
+  V28_MIGRATION,
+  V29_MIGRATION,
+  V30_MIGRATION,
+  V31_MIGRATION,
+  V32_MIGRATION,
+  V33_MIGRATION,
+  V34_MIGRATION,
+  V35_MIGRATION,
+] as const;
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
 const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25, 34] as const;
 const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
@@ -1378,108 +1480,7 @@ describe("schema migration of an existing on-disk DB", () => {
         name,
         checksum,
       })),
-    ).toEqual([
-      {
-        version: 8,
-        name: "establish-explicit-migration-baseline",
-        checksum: "90add4af35f1914f7de3ca031528ad81e061424526b50ae099512aacf650ef3d",
-      },
-      {
-        version: 9,
-        name: "add-internal-colour-mode",
-        checksum: "41f8f933f17eb59dac8bfc7a385db70e46df61e249a295fd622f821dcc3bb1f0",
-      },
-      {
-        version: 10,
-        name: "enforce-single-owner",
-        checksum: "a178fba43ad4c58ca8508117303b568c05103a05cc6e48512f2e92306e857653",
-      },
-      {
-        version: 11,
-        name: "repair-ownerless-memberships",
-        checksum: "561d0b306d9702e807d45702ec2424f0421b44eb2bc34adab7abc8ba08875117",
-      },
-      {
-        version: 12,
-        name: "revoke-owner-reset-ceremonies",
-        checksum: "4e7a506b4324de4e8d48ad843d1eabe70b4723c6e9bb4e44f2ed1c76046b2b56",
-      },
-      {
-        version: 13,
-        name: "snap-legacy-account-colors",
-        checksum: "1067b03a5483de517efc575e5597c633e8f6a6640bec02c5f0087e76b53ce7d1",
-      },
-      {
-        version: 14,
-        name: "revoke-member-reset-ceremonies",
-        checksum: "a99f4cb99587c3cfeef7cc3fe618a4223160ba3c01b2ec391a64251ae17556e1",
-      },
-      {
-        version: 15,
-        name: "add-account-boundary-state",
-        checksum: "3aaf6516f6ccd9d0f107d2d972d94219709e907d1cdc0fdf65c218d8e38b0efb",
-      },
-      {
-        version: 16,
-        name: "add-account-view-prefs",
-        checksum: "7c6209e72a7a3a100a8d1b513420341f9ddbe73c562810ce01c277f0480c99a1",
-      },
-      {
-        version: 17,
-        name: "add-durable-audit-outbox",
-        checksum: "f2a4dba4fb74de14aa40f57b42c214593a824ffdee2617972fc44d65f8e9f372",
-      },
-      {
-        version: 18,
-        name: "add-browser-sync-ordering",
-        checksum: "9f36a8cc44912588daa937c7144386d45c44f9d165aa4df2bb08b69b279aa49a",
-      },
-      {
-        version: 19,
-        name: "enforce-tenant-relationship-integrity",
-        checksum: "558cc0192ffdae7ef6aa47e189a10ef6e371154fedb74242ff692bb9e52ed74c",
-      },
-      {
-        version: 20,
-        name: "version-bootstrap-claim-control",
-        checksum: "3723fb194afa8f85d3fe9a93493197f3e59eabbb030a8286ac1e030c661077b0",
-      },
-      {
-        version: 21,
-        name: "index-tenant-entity-slices",
-        checksum: "431d2dc119c652583f26e0bc47f39a80957ca24c82ac6519cec9e8e846db7441",
-      },
-      {
-        version: 22,
-        name: "reactivate-builtin-internal-clients",
-        checksum: "05283dd0a42049e3a20cb75a7a0a3063670e003aace3a3c7d3a3ed6d35698560",
-      },
-      {
-        version: 23,
-        name: "index-foreign-key-children",
-        checksum: "b9cd82f6191f8e3ba675a77f09cbf5cc8cbc05b130e486d9dd1681ea0403e6ef",
-      },
-      {
-        version: 24,
-        name: "bound-used-invitation-history",
-        checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
-      },
-      {
-        version: 25,
-        name: "secure-federated-identity-linking",
-        checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
-      },
-      V26_MIGRATION,
-      V27_MIGRATION,
-      V28_MIGRATION,
-      V29_MIGRATION,
-      V30_MIGRATION,
-      V31_MIGRATION,
-      V32_MIGRATION,
-      V33_MIGRATION,
-      V34_MIGRATION,
-      V35_MIGRATION,
-    ]);
+    ).toEqual(RELEASED_MIGRATION_HISTORY);
     expect(history.every((row) => !Number.isNaN(Date.parse(row.appliedAt)))).toBe(true);
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
     db.close();
