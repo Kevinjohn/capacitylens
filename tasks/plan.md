@@ -691,17 +691,22 @@ cleanup behavior without changing production scheduling.
       explicitly deferred to complete C6 owner blocks rather than asserted sound, BO204/BO205 are
       fixed, BO203/BO211 have explicit #647 owners, BO207–BO210 and BO212–BO227 have complete
       stable-ID blocks, and BO228 is accepted with a quoted-rule analysis.
-- [ ] Complete final review and required local gates pass on the accepted tree.
-      At integrated commit `cda2d81bf73d81d426478f97ea951db380a3afd2`, Node 24.19.0 app and
-      server policy, formatting, typecheck, lint and build phases pass. The app and server audit
-      steps require registry access unavailable in the restricted local environment. Local unit
-      failures are confined to sandbox-blocked localhost listeners and one dependency-mount ESM
-      spy behavior reproduced on the already certified PR #688 tree. The current-head E2E run is
-      still required: this worktree's path beneath `node_modules` prevents Node from loading the
-      TypeScript Playwright configuration. Manually dispatched GitHub `gate.yml` and `e2e.yml`
-      workflows on the published branch are the authoritative remaining integrated certification.
+- [x] Complete final review and required integrated gates pass on the accepted tree.
+      Independent integrated review accepted the final implementation and its CI corrections. On
+      Node 24.19.0, manually dispatched GitHub `gate.yml` and `e2e.yml` workflows passed at exact
+      head `52935f3dc5d3f2e6b30f5a94a2bbbb255a3c1920`: application and server gate run
+      [34254878250](https://github.com/Kevinjohn/capacitylens/actions/runs/34254878250), and Chromium,
+      Firefox, WebKit and strict-OIDC run
+      [34254882401](https://github.com/Kevinjohn/capacitylens/actions/runs/34254882401). PR #689 merged
+      that certified head as `f03d3baae31f7a06e8c05e43d320ab0eef67e9ab`; issue #687 closed and
+      the remote feature branch was deleted.
 - [ ] Separate minor release passes necessary GitHub CI and is verified after merge.
-- [ ] Actual finish, residual debt and any unmet criteria recorded.
+- [x] Actual finish, residual debt and unmet criteria recorded. The general suppression ledger is
+      empty. The final inline inventory contains only 27 documented standards-defined diagnostics:
+      ten compile-time column assertions, six scenario-continuity test exceptions, one public
+      compatibility signature, one Playwright fixture signature and nine React Refresh tooling
+      exceptions. There is no remaining production structural debt. A minor release and automatic
+      version bump were explicitly not required for this conformance stage.
 
 ## Selected retirement batches
 
