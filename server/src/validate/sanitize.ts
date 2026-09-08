@@ -128,8 +128,9 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
   assertScopedWriteFields(table, copy, options);
   const cleaned = sanitizeImportedRecord(table, copy);
   // Lifecycle tombstones (archivedAt/deletedAt, P2.1) are owned ONLY by the four dedicated
-  // archive/unarchive/delete/purge routes, which build rows via the pure lifecycle transitions +
-  // replaceAccountSlice and NEVER pass through sanitizeWrite. So across every GENERIC write
+  // archive/unarchive/delete/purge routes, which build rows via the pure lifecycle transitions and
+  // persist them through TenantStore.writeLifecycleRow without passing through sanitizeWrite. So
+  // across every GENERIC write
   // (POST/PUT/PATCH/batch) they are IMMUTABLE in BOTH directions — PIN them to whatever is already
   // stored (`existing`), ignoring the body. A crafted body can't SET a tombstone on an active row,
   // and an unrelated edit can't CLEAR one and silently resurrect a row. On CREATE both fields are
@@ -143,7 +144,7 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
     if (typeof existing.seriesId === "string") cleaned.seriesId = existing.seriesId;
     else delete cleaned.seriesId;
   }
-  // P1.6 field-confidentiality PINS (note-erasure guard + private-name guard): the fields are
+  // Field-confidentiality PINS (note-erasure guard + private-name guard): the fields are
   // single-sourced in GATED_FIELD_POLICIES. A writer who cannot see a gated field has it pinned to
   // the stored value on UPDATE and stripped on CREATE; a writer who can see it passes it through.
   pinGatedFields({ table, cleaned, existing, options });
