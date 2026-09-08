@@ -83,6 +83,18 @@ interface PurgeLifecycleRowInput {
   id: string;
 }
 
+function collectRemovedCounts(
+  before: Record<ScopedEntityKey, number>,
+  after: Record<ScopedEntityKey, number>,
+): Partial<Record<ScopedEntityKey, number>> {
+  const removedCounts: Partial<Record<ScopedEntityKey, number>> = {};
+  for (const table of SCOPED_KEYS) {
+    const removed = before[table] - after[table];
+    if (removed > 0) removedCounts[table] = removed;
+  }
+  return removedCounts;
+}
+
 function purgeLifecycleRow({ db, accountId, entity, id }: PurgeLifecycleRowInput): PurgeLifecycleResult | null {
   if (!getOwnedLifecycleRow({ db, accountId, entity, id })) return null;
   const before = readScopedRowCounts(db, accountId);
@@ -143,12 +155,7 @@ function purgeLifecycleRow({ db, accountId, entity, id }: PurgeLifecycleRowInput
 
   deleteRow(db, entity, id);
   const after = readScopedRowCounts(db, accountId);
-  const removedCounts: Partial<Record<ScopedEntityKey, number>> = {};
-  for (const table of SCOPED_KEYS) {
-    const removed = before[table] - after[table];
-    if (removed > 0) removedCounts[table] = removed;
-  }
-  return { removedCounts };
+  return { removedCounts: collectRemovedCounts(before, after) };
 }
 
 // TENANT-SCOPING STORAGE SEAM. Permissioned routes use these accountId-keyed reads, validation

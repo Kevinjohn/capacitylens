@@ -41,48 +41,136 @@ interface RegisterApiRoutesInput {
   authorization: ReturnType<typeof createAuthorization>;
 }
 
-export function registerApiRoutes({
-  app,
-  db,
-  runtime,
-  config,
-  options,
-  rootHelpers,
-  sessionResolution,
-  authorization,
-}: RegisterApiRoutesInput): void {
-  const {
-    accountAdminPort,
-    accountAudit,
-    accountFlows,
-    audit,
-    auditDrainer,
+interface RegisterRouteGroupInput extends RegisterApiRoutesInput {
+  childApp: FastifyInstance;
+}
+
+function registerImportRouteGroup(input: RegisterRouteGroupInput): void {
+  const { childApp: app, db, runtime, config, options, rootHelpers, authorization } = input;
+  registerImportRoutes(app, {
+    db,
+    store: runtime.store,
+    authMode: config.authMode,
+    allowReset: options.allowReset === true,
+    accountAdminPort: runtime.accountAdminPort,
+    authorize: authorization.authorizeAllowed,
+    executeImportWorker: config.executeImportWorker,
+    commitProductAudit: runtime.commitProductAudit,
+    fail: rootHelpers.sendFail,
+  });
+}
+
+function registerDataRoutes(input: RegisterRouteGroupInput): void {
+  const { childApp: app, db, runtime, config, options, rootHelpers, authorization } = input;
+  const { accountFlows, commitProductAudit, drainProductAudit, store } = runtime;
+  const { authMode } = config;
+  const { accountFail, sendFail } = rootHelpers;
+  const { authorizeAllowed, fieldVisibilityFor, redactWriteEcho } = authorization;
+  registerAccountEntityRoutes(app, {
+    db,
+    store,
+    authMode,
+    multiAccount: options.multiAccount === true,
+    optimisticConcurrency: options.optimisticConcurrency !== false,
+    flows: accountFlows,
+    authorize: authorizeAllowed,
+    command: createAccountCommand,
+    replayCommand: parseReplayAccountCommand,
+    fieldVisibility: fieldVisibilityFor,
+    redact: redactWriteEcho,
     commitProductAudit,
     drainProductAudit,
-    healthStmt,
-    identityPort,
-    masquerades,
+    ownsRow,
+    isStaleWrite,
+    enqueueAudit: (record) => enqueueAudit(db, record),
+    fail: sendFail,
+    accountFail,
+  });
+  registerEntityRoutes(app, {
+    db,
     store,
-  } = runtime;
-  const { application, auditSink, auth, authMode, executeImportWorker, logOn } = config;
+    authMode,
+    optimisticConcurrency: options.optimisticConcurrency !== false,
+    authorize: authorizeAllowed,
+    fieldVisibility: fieldVisibilityFor,
+    redact: redactWriteEcho,
+    commitProductAudit,
+    fail: sendFail,
+  });
+  registerBatchRoutes(app, {
+    db,
+    store,
+    authMode,
+    multiAccount: options.multiAccount === true,
+    optimisticConcurrency: options.optimisticConcurrency !== false,
+    accountFlows,
+    authorize: authorizeAllowed,
+    fieldVisibility: fieldVisibilityFor,
+    redact: redactWriteEcho,
+    drainProductAudit,
+    fail: sendFail,
+    accountFail,
+  });
+  registerImportRouteGroup(input);
+}
+
+function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
+  const { childApp: app, db, runtime, config, rootHelpers, authorization } = input;
+  const { accountAdminPort, accountAudit, accountFlows, audit, identityPort, masquerades, store, commitProductAudit } =
+    runtime;
+  const { application, auth, authMode } = config;
+  const { accountFail, sendFail } = rootHelpers;
+  const { authorizeAllowed, fieldVisibilityFor, memberReadProjection, redactWriteEcho, resolveEffectiveRole } =
+    authorization;
+  registerAccountRoutes(app, {
+    authMode,
+    authenticationConfigured: auth !== null,
+    requiredSsoProviderId: authMode === "sso" ? (auth?.strictProvider?.id ?? null) : null,
+    administration: accountAdminPort,
+    identity: identityPort,
+    flows: accountFlows,
+    memberSignInTracking: {
+      snapshot: (workspaceId) => readMemberSignInTrackingSnapshot(db, workspaceId),
+      set: ({ workspaceId, actorPrincipalId, enabled }) =>
+        setMemberSignInTracking({ db, accountId: workspaceId, actorPrincipalId, enabled }),
+    },
+    authorize: authorizeAllowed,
+    command: createAccountCommand,
+    audit,
+    fail: accountFail,
+    memberReadProjection,
+  });
+  registerMasqueradeRoutes(app, {
+    authMode,
+    applicationId: application.applicationId,
+    accountAudit,
+    registry: masquerades,
+    identity: identityPort,
+    authorize: authorizeAllowed,
+    roleForPrincipal: (principalId, accountId) => accountAdminPort.roleForPrincipalInWorkspace(principalId, accountId),
+    effectiveRole: resolveEffectiveRole,
+  });
+  registerLifecycleRoutes(app, {
+    store,
+    authorize: authorizeAllowed,
+    commit: (reply, record, mutation) => {
+      commitProductAudit(reply, record, mutation);
+    },
+    fail: sendFail,
+    redact: ({ req, entity, row, accountId }: LifecycleRedactionInput) =>
+      redactWriteEcho(entity, row, fieldVisibilityFor(req, entity, accountId)),
+  });
+}
+
+function buildPlatformRouteDependencies(input: RegisterApiRoutesInput) {
+  const { db, runtime, config, options, rootHelpers, sessionResolution, authorization } = input;
+  const { accountAdminPort, accountFlows, auditDrainer, drainProductAudit, healthStmt, masquerades, store } = runtime;
+  const { auditSink, auth, authMode, logOn } = config;
   const { accountFail, securityEvent, sendFail } = rootHelpers;
   const { resolveIncomingSession } = sessionResolution;
-  const {
-    authorize,
-    authorizeAllowed,
-    fieldVisibilityFor,
-    memberReadProjection,
-    redactWriteEcho,
-    resolveEffectiveRole,
-  } = authorization;
-  // Every route below registers through a child plugin, NOT directly on the root:
-  // @fastify/rate-limit attaches to routes via an onRoute hook that only exists once the
-  // plugin LOADS (at ready(), in registration order) — a route declared straight on the
-  // root would register first and silently escape the limiter. The child loads after it,
-  // so its routes are seen, and it inherits the root CORS hook + error handler. The
-  // callback shadows `app` deliberately: the route code is identical without the wrapper.
-  void app.register(async (app) => {
-    const systemRouteDependencies = {
+  const { authorize, resolveEffectiveRole } = authorization;
+  return {
+    system: {
       securityEvent,
       healthStatement: healthStmt,
       auditDrainer,
@@ -93,8 +181,8 @@ export function registerApiRoutes({
         ? {}
         : { internalTlsFingerprintSha256: options.internalTlsFingerprintSha256 }),
       isInitialized: () => isInitialized(db),
-    };
-    const authProxyRouteDependencies = {
+    },
+    authProxy: {
       authMode,
       auth,
       db,
@@ -107,8 +195,8 @@ export function registerApiRoutes({
       sessionSatisfiesRequiredMfa: hasRequiredSessionMfa,
       toWebHeaders,
       logOn,
-    };
-    const stateRouteDependencies = {
+    },
+    state: {
       db,
       store,
       authMode,
@@ -124,144 +212,48 @@ export function registerApiRoutes({
       accountFail,
       sendFail,
       drainProductAudit,
-    };
+    },
+  };
+}
 
-    registerSystemRoutes(app, { ...systemRouteDependencies, section: "public" });
-
-    registerAuthProxyRoutes(app, { ...authProxyRouteDependencies, section: "identity" });
-
-    // Better Auth's own endpoints (sign-up/sign-in/sign-out/session/OAuth callbacks),
-    // mounted ONLY when auth is on — in 'off' mode this route does not exist (the OFF
-    // guarantee: zero new attack surface). The static /api/auth/me above outranks this
-    // wildcard in Fastify's router. Translation layer: Fastify req → web Request,
-    // web Response → Fastify reply (set-cookie kept as separate headers; content-length
-    // recomputed by Fastify).
-    if (authMode !== "off" && auth) {
-      registerSsoCutoverRoutes(app, {
-        auth,
-        authMode,
-        identity: identityPort as SsoCutoverIdentityPort,
-        administration: accountAdminPort,
-        applicationId: application.applicationId,
-        openSignup: options.allowOpenSignup === true,
-        authorize: authorizeAllowed,
-        fail: accountFail,
-        toWebHeaders,
-      });
-      registerAuthProxyRoutes(app, { ...authProxyRouteDependencies, section: "proxy" });
-    }
-
-    registerStateRoutes(app, { ...stateRouteDependencies, section: "read" });
-
-    registerSystemRoutes(app, { ...systemRouteDependencies, section: "meta" });
-
-    registerStateRoutes(app, { ...stateRouteDependencies, section: "org" });
-
-    registerAccountRoutes(app, {
+function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
+  const { childApp: app, runtime, config, options, rootHelpers, authorization } = input;
+  const dependencies = buildPlatformRouteDependencies(input);
+  const { accountAdminPort, identityPort } = runtime;
+  const { application, auth, authMode } = config;
+  registerSystemRoutes(app, { ...dependencies.system, section: "public" });
+  registerAuthProxyRoutes(app, { ...dependencies.authProxy, section: "identity" });
+  if (authMode !== "off" && auth) {
+    registerSsoCutoverRoutes(app, {
+      auth,
       authMode,
-      authenticationConfigured: auth !== null,
-      requiredSsoProviderId: authMode === "sso" ? (auth?.strictProvider?.id ?? null) : null,
+      identity: identityPort as SsoCutoverIdentityPort,
       administration: accountAdminPort,
-      identity: identityPort,
-      flows: accountFlows,
-      memberSignInTracking: {
-        snapshot: (workspaceId) => readMemberSignInTrackingSnapshot(db, workspaceId),
-        set: ({ workspaceId, actorPrincipalId, enabled }) =>
-          setMemberSignInTracking({ db, accountId: workspaceId, actorPrincipalId, enabled }),
-      },
-      authorize: authorizeAllowed,
-      command: createAccountCommand,
-      audit,
-      fail: accountFail,
-      memberReadProjection,
-    });
-
-    registerMasqueradeRoutes(app, {
-      authMode,
       applicationId: application.applicationId,
-      accountAudit,
-      registry: masquerades,
-      identity: identityPort,
-      authorize: authorizeAllowed,
-      roleForPrincipal: (principalId, accountId) =>
-        accountAdminPort.roleForPrincipalInWorkspace(principalId, accountId),
-      effectiveRole: resolveEffectiveRole,
+      openSignup: options.allowOpenSignup === true,
+      authorize: authorization.authorizeAllowed,
+      fail: rootHelpers.accountFail,
+      toWebHeaders,
     });
+    registerAuthProxyRoutes(app, { ...dependencies.authProxy, section: "proxy" });
+  }
+  registerStateRoutes(app, { ...dependencies.state, section: "read" });
+  registerSystemRoutes(app, { ...dependencies.system, section: "meta" });
+  registerStateRoutes(app, { ...dependencies.state, section: "org" });
+}
 
-    registerLifecycleRoutes(app, {
-      store,
-      authorize: authorizeAllowed,
-      commit: (reply, record, mutation) => {
-        commitProductAudit(reply, record, mutation);
-      },
-      fail: sendFail,
-      redact: ({ req, entity, row, accountId }: LifecycleRedactionInput) =>
-        redactWriteEcho(entity, row, fieldVisibilityFor(req, entity, accountId)),
-    });
+export function registerApiRoutes(input: RegisterApiRoutesInput): void {
+  const { app } = input;
+  // Every route below registers through a child plugin, NOT directly on the root:
+  // @fastify/rate-limit attaches to routes via an onRoute hook that only exists once the
+  // plugin LOADS (at ready(), in registration order) — a route declared straight on the
+  // root would register first and silently escape the limiter. The child loads after it,
+  // so its routes are seen, and it inherits the root CORS hook + error handler. The
+  // callback shadows `app` deliberately: the route code is identical without the wrapper.
+  void app.register(async (app) => {
+    registerPlatformRoutes({ ...input, childApp: app });
 
-    // The `accounts` row write surface. These are STATIC paths, which find-my-way matches ahead of
-    // the parametric /api/:entity routes below — so an account write can never reach the generic
-    // handlers and pick up SCOPED-entity semantics (isScopedTable/ownsRow are both no-ops for a
-    // table with no accountId column). Registering them here also deletes the ~25 hand-replicated
-    // `entity === "accounts"` branches the generic routes carried, one per verb per rule.
-    registerAccountEntityRoutes(app, {
-      db,
-      store,
-      authMode,
-      multiAccount: options.multiAccount === true,
-      optimisticConcurrency: options.optimisticConcurrency !== false,
-      flows: accountFlows,
-      authorize: authorizeAllowed,
-      command: createAccountCommand,
-      replayCommand: parseReplayAccountCommand,
-      fieldVisibility: fieldVisibilityFor,
-      redact: redactWriteEcho,
-      commitProductAudit,
-      drainProductAudit,
-      ownsRow,
-      isStaleWrite,
-      enqueueAudit: (record) => enqueueAudit(db, record),
-      fail: sendFail,
-      accountFail,
-    });
-
-    registerEntityRoutes(app, {
-      db,
-      store,
-      authMode,
-      optimisticConcurrency: options.optimisticConcurrency !== false,
-      authorize: authorizeAllowed,
-      fieldVisibility: fieldVisibilityFor,
-      redact: redactWriteEcho,
-      commitProductAudit,
-      fail: sendFail,
-    });
-
-    registerBatchRoutes(app, {
-      db,
-      store,
-      authMode,
-      multiAccount: options.multiAccount === true,
-      optimisticConcurrency: options.optimisticConcurrency !== false,
-      accountFlows,
-      authorize: authorizeAllowed,
-      fieldVisibility: fieldVisibilityFor,
-      redact: redactWriteEcho,
-      drainProductAudit,
-      fail: sendFail,
-      accountFail,
-    });
-
-    registerImportRoutes(app, {
-      db,
-      store,
-      authMode,
-      allowReset: options.allowReset === true,
-      accountAdminPort,
-      authorize: authorizeAllowed,
-      executeImportWorker,
-      commitProductAudit,
-      fail: sendFail,
-    });
+    registerAccountControlRoutes({ ...input, childApp: app });
+    registerDataRoutes({ ...input, childApp: app });
   });
 }

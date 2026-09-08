@@ -1,6 +1,6 @@
 import type { Db } from "../db";
 import { INTERNAL_CLIENT_UNIQUE_INDEX_SQL } from "../tables";
-import type { TableSpec } from "../tables";
+import type { ColumnSpec, TableSpec } from "../tables";
 import { V32_TABLES } from "./historicalSpecs";
 import { hasColumn, schemaColumns } from "./introspection";
 const normalizeSchemaObjectSql = (sql: string): string =>
@@ -63,49 +63,86 @@ const createSchemaProblems = (): SchemaProblems => ({
   foreignKeys: [],
 });
 
+type LiveColumn = ReturnType<typeof schemaColumns>[number];
+
+interface InspectColumnInput extends Omit<InspectTableInput, "db" | "allowCompatibleExtensions" | "spec"> {
+  liveColumn: LiveColumn | undefined;
+  column: ColumnSpec;
+}
+
+function inspectColumn({ table, tableSpecs, problems, liveColumn, column }: InspectColumnInput): void {
+  if (!liveColumn) {
+    problems.missing.push(`${table}.${column.name}`);
+    return;
+  }
+  inspectColumnShape({ table, column, liveColumn, problems });
+  if (column.name === "id") return;
+  inspectColumnNullability({ table, tableSpecs, problems, liveColumn, column });
+}
+
+function inspectColumnShape({
+  table,
+  column,
+  liveColumn,
+  problems,
+}: Omit<InspectColumnInput, "tableSpecs" | "liveColumn"> & { liveColumn: LiveColumn }): void {
+  if (liveColumn.hidden !== 0) problems.constraints.push(`${table}.${column.name} is unexpectedly generated or hidden`);
+  const expectedType = column.sqlType ?? "TEXT";
+  if (liveColumn.type.toUpperCase() !== expectedType) {
+    problems.types.push(`${table}.${column.name} (spec ${expectedType}, DB ${liveColumn.type || "untyped"})`);
+  }
+  const expectedPrimaryKey = column.name === "id" ? 1 : 0;
+  if (liveColumn.pk !== expectedPrimaryKey) {
+    problems.primaryKeys.push(`${table}.${column.name} (spec PK ${expectedPrimaryKey}, DB PK ${liveColumn.pk})`);
+  }
+}
+
+function inspectColumnNullability({ table, tableSpecs, problems, liveColumn, column }: InspectColumnInput): void {
+  if (!liveColumn) return;
+  const liveNotNull = liveColumn.notnull === 1;
+  const specNotNull = !column.optional;
+  // Historical migrations may run against the already-widened v33 shape. Nullable resourceId is
+  // forward-compatible with every personal v8-v32 row; the current spec still requires it.
+  const compatibleV33Widening =
+    tableSpecs === V32_TABLES && table === "timeOff" && column.name === "resourceId" && specNotNull && !liveNotNull;
+  if (liveNotNull !== specNotNull && !compatibleV33Widening) {
+    problems.nullability.push(
+      `${table}.${column.name} (spec ${specNotNull ? "required" : "optional"}, ` +
+        `DB ${liveNotNull ? "NOT NULL" : "nullable"})`,
+    );
+  }
+}
+
+interface InspectUnexpectedColumnInput {
+  column: LiveColumn;
+  table: string;
+  allowCompatibleExtensions: boolean;
+  problems: SchemaProblems;
+}
+
+function inspectUnexpectedColumn({
+  column,
+  table,
+  allowCompatibleExtensions,
+  problems,
+}: InspectUnexpectedColumnInput): void {
+  if (!allowCompatibleExtensions) problems.unexpectedColumns.push(`${table}.${column.name}`);
+  else if (column.notnull === 1 && column.dflt_value === null)
+    problems.unexpectedRequired.push(`${table}.${column.name}`);
+  if (column.pk > 0) problems.primaryKeys.push(`${table}.${column.name} is an unexpected primary-key column`);
+}
+
 function inspectTableColumns(input: InspectTableInput): void {
   const { table, spec, tableSpecs, allowCompatibleExtensions, problems } = input;
   const liveColumns = schemaColumns(input.db, table);
   const liveByName = new Map(liveColumns.map((column) => [column.name, column]));
   const includedNames = new Set(spec.columns.map((column) => column.name));
   for (const column of spec.columns) {
-    const liveColumn = liveByName.get(column.name);
-    if (!liveColumn) {
-      problems.missing.push(`${table}.${column.name}`);
-      continue;
-    }
-    if (liveColumn.hidden !== 0) {
-      problems.constraints.push(`${table}.${column.name} is unexpectedly generated or hidden`);
-    }
-    const expectedType = column.sqlType ?? "TEXT";
-    if (liveColumn.type.toUpperCase() !== expectedType) {
-      problems.types.push(`${table}.${column.name} (spec ${expectedType}, DB ${liveColumn.type || "untyped"})`);
-    }
-    const expectedPrimaryKey = column.name === "id" ? 1 : 0;
-    if (liveColumn.pk !== expectedPrimaryKey) {
-      problems.primaryKeys.push(`${table}.${column.name} (spec PK ${expectedPrimaryKey}, DB PK ${liveColumn.pk})`);
-    }
-    if (column.name === "id") continue;
-    const liveNotNull = liveColumn.notnull === 1;
-    const specNotNull = !column.optional;
-    // Historical migrations may be replayed in tests or an idempotent recovery against the
-    // already-widened v33 shape. Nullable resourceId is forward-compatible with every personal
-    // v8-v32 row; the current TABLES assertion still requires it because its spec is optional.
-    const compatibleV33Widening =
-      tableSpecs === V32_TABLES && table === "timeOff" && column.name === "resourceId" && specNotNull && !liveNotNull;
-    if (liveNotNull !== specNotNull && !compatibleV33Widening) {
-      problems.nullability.push(
-        `${table}.${column.name} (spec ${specNotNull ? "required" : "optional"}, ` +
-          `DB ${liveNotNull ? "NOT NULL" : "nullable"})`,
-      );
-    }
+    inspectColumn({ table, tableSpecs, problems, liveColumn: liveByName.get(column.name), column });
   }
   for (const column of liveColumns) {
     if (includedNames.has(column.name)) continue;
-    if (!allowCompatibleExtensions) problems.unexpectedColumns.push(`${table}.${column.name}`);
-    else if (column.notnull === 1 && column.dflt_value === null)
-      problems.unexpectedRequired.push(`${table}.${column.name}`);
-    if (column.pk > 0) problems.primaryKeys.push(`${table}.${column.name} is an unexpected primary-key column`);
+    inspectUnexpectedColumn({ column, table, allowCompatibleExtensions, problems });
   }
 }
 
