@@ -228,14 +228,6 @@
       "count": 2
     }
   },
-  "server/src/accounts/adminPort/authority.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "server/src/accounts/adminPort/cutover.ts": {
     "max-lines-per-function": {
       "count": 1
