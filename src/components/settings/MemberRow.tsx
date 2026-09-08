@@ -87,6 +87,228 @@ function MemberMenuItem({
   );
 }
 
+interface MemberRowActions {
+  busy: boolean;
+  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
+  setRoleEdit: Dispatch<SetStateAction<MemberRoleEdit | null>>;
+}
+
+function MemberIdentity({ member }: { member: TeamMember }) {
+  const trimmedName = member.name?.trim();
+  let name = member.userId;
+  if (trimmedName) name = trimmedName;
+
+  let roleLabel = resolveRoleLabel(member.role);
+  if (member.role === "owner") roleLabel = m.settings_member_sole_owner_protected();
+
+  let statusLabel: string | null = null;
+  if (member.status === "disabled") statusLabel = m.settings_member_status_disabled();
+  if (member.status === "archived") statusLabel = m.settings_member_status_archived();
+
+  return (
+    <td className="py-2 pr-3">
+      <div className="flex flex-col items-start gap-1">
+        <span className="text-ink">
+          {name}
+          {member.isSelf && <span className="ml-1 text-xs text-muted-foreground">{m.settings_member_you()}</span>}
+        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground" data-testid="member-role">
+            {roleLabel}
+          </span>
+          {statusLabel && (
+            <Badge variant="outline" data-testid="member-status">
+              {statusLabel}
+            </Badge>
+          )}
+        </div>
+      </div>
+    </td>
+  );
+}
+
+function MemberPrimaryActions({
+  member,
+  memberLabel,
+  mayMasquerade,
+  mayTouch,
+  busy,
+  chooseMemberAction,
+  setRoleEdit,
+}: MemberRowActions & {
+  member: TeamMember;
+  memberLabel: string;
+  mayMasquerade: boolean;
+  mayTouch: boolean;
+}) {
+  return (
+    <td className="w-10 py-2 pl-8 text-right">
+      {mayMasquerade && (
+        <Button
+          size="sm"
+          variant="ghost"
+          title={m.settings_masquerade_aria({ member: memberLabel })}
+          aria-label={m.settings_masquerade_aria({ member: memberLabel })}
+          data-testid="member-masquerade"
+          disabled={busy}
+          onClick={() => chooseMemberAction("masquerade", member)}
+        >
+          <Eye />
+        </Button>
+      )}
+      {mayTouch && (
+        <Button
+          size="sm"
+          variant="ghost"
+          title={m.settings_member_edit_aria({ member: memberLabel })}
+          aria-label={m.settings_member_edit_aria({ member: memberLabel })}
+          data-testid="member-edit"
+          disabled={busy}
+          onClick={() => setRoleEdit({ member: member, nextRole: member.role })}
+        >
+          <Pencil />
+        </Button>
+      )}
+    </td>
+  );
+}
+
+function MemberStatusMenuItems({
+  member,
+  memberLabel,
+  chooseMemberAction,
+}: {
+  member: TeamMember;
+  memberLabel: string;
+  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
+}) {
+  if (member.status !== "active") {
+    return (
+      <MemberMenuItem
+        testId="member-restore"
+        label={m.settings_member_restore()}
+        ariaLabel={m.settings_member_restore_aria({ member: memberLabel })}
+        onSelect={() => chooseMemberAction("restore", member)}
+      />
+    );
+  }
+  return (
+    <>
+      <MemberMenuItem
+        testId="member-disable"
+        label={m.settings_member_disable()}
+        ariaLabel={m.settings_member_disable_aria({ member: memberLabel })}
+        onSelect={() => chooseMemberAction("disable", member)}
+      />
+      <MemberMenuItem
+        testId="member-archive"
+        label={m.settings_member_archive()}
+        ariaLabel={m.settings_member_archive_aria({ member: memberLabel })}
+        onSelect={() => chooseMemberAction("archive", member)}
+      />
+    </>
+  );
+}
+
+function MemberSettingsMenuItems({
+  member,
+  memberLabel,
+  affordances,
+  chooseMemberAction,
+}: {
+  member: TeamMember;
+  memberLabel: string;
+  affordances: ReturnType<typeof buildMemberAffordances>;
+  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
+}) {
+  return (
+    <>
+      {affordances.mayReset && (
+        <MemberMenuItem
+          testId="member-reset-password"
+          label={m.settings_member_reset_password()}
+          ariaLabel={m.settings_member_reset_password_aria({ member: memberLabel })}
+          onSelect={() => chooseMemberAction("resetPassword", member)}
+        />
+      )}
+      {member.mayRevokeSessions && (
+        <MemberMenuItem
+          testId="member-revoke-sessions"
+          label={m.settings_member_revoke_sessions()}
+          ariaLabel={m.settings_member_revoke_sessions_aria({ member: memberLabel })}
+          onSelect={() => chooseMemberAction("revokeSessions", member)}
+        />
+      )}
+      {affordances.mayChangeStatus && (
+        <MemberStatusMenuItems member={member} memberLabel={memberLabel} chooseMemberAction={chooseMemberAction} />
+      )}
+      {affordances.mayRemove && (
+        <MemberMenuItem
+          testId="member-remove"
+          label={m.settings_member_remove()}
+          ariaLabel={m.settings_member_remove_aria({ member: memberLabel })}
+          danger
+          onSelect={() => chooseMemberAction("remove", member)}
+        />
+      )}
+    </>
+  );
+}
+
+interface MemberSettingsMenuProps {
+  member: TeamMember;
+  memberLabel: string;
+  affordances: ReturnType<typeof buildMemberAffordances>;
+  busy: boolean;
+  openMenuFor: string | null;
+  setOpenMenuFor(value: string | null): void;
+  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
+}
+
+function MemberSettingsMenu({
+  member,
+  memberLabel,
+  affordances,
+  busy,
+  openMenuFor,
+  setOpenMenuFor,
+  chooseMemberAction,
+}: MemberSettingsMenuProps) {
+  if (!affordances.hasMenu) return <td className="w-10 py-2 pl-2 text-right" />;
+  return (
+    <td className="w-10 py-2 pl-2 text-right">
+      <Popover
+        open={openMenuFor === member.userId}
+        onOpenChange={(open) => setOpenMenuFor(open ? member.userId : null)}
+      >
+        <PopoverTrigger asChild>
+          <Button
+            size="sm"
+            variant="ghost"
+            title={m.settings_member_settings_aria({ member: memberLabel })}
+            aria-label={m.settings_member_settings_aria({ member: memberLabel })}
+            data-testid="member-menu"
+            disabled={busy}
+          >
+            <Settings />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-56 p-1">
+          <p className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+            {m.settings_member_settings_heading()}
+          </p>
+          <MemberSettingsMenuItems
+            member={member}
+            memberLabel={memberLabel}
+            affordances={affordances}
+            chooseMemberAction={chooseMemberAction}
+          />
+        </PopoverContent>
+      </Popover>
+    </td>
+  );
+}
+
 export function MemberRow({
   member: member,
   myRole,
@@ -110,34 +332,11 @@ export function MemberRow({
   // identical wherever the row is drawn — only the grouping differs.
   // NB: the row var is `mem`, NOT `m` — `m` is the imported i18n message catalogue
   // (P1.5.2); shadowing it would make `m.settings_*()` resolve against the Member.
-  const { mayMasquerade, mayTouch, mayRemove, mayChangeStatus, mayReset, hasMenu } = buildMemberAffordances(
-    myRole,
-    member,
-  );
+  const affordances = buildMemberAffordances(myRole, member);
   const memberLabel = resolveMemberLabel(member);
-  const name = member.name?.trim() || member.userId;
   return (
     <tr className="border-b last:border-b-0" data-testid="member-row">
-      <td className="py-2 pr-3">
-        <div className="flex flex-col items-start gap-1">
-          <span className="text-ink">
-            {name}
-            {member.isSelf && <span className="ml-1 text-xs text-muted-foreground">{m.settings_member_you()}</span>}
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground" data-testid="member-role">
-              {member.role === "owner" ? m.settings_member_sole_owner_protected() : resolveRoleLabel(member.role)}
-            </span>
-            {member.status !== "active" && (
-              <Badge variant="outline" data-testid="member-status">
-                {member.status === "disabled"
-                  ? m.settings_member_status_disabled()
-                  : m.settings_member_status_archived()}
-              </Badge>
-            )}
-          </div>
-        </div>
-      </td>
+      <MemberIdentity member={member} />
       <td className="py-2 pr-3 text-muted-foreground" data-testid="member-email">
         {member.email ?? m.settings_member_email_missing()}
       </td>
@@ -146,109 +345,24 @@ export function MemberRow({
           {member.signInConfirmed ? m.settings_member_sign_in_confirmed() : m.settings_member_sign_in_not_confirmed()}
         </td>
       )}
-      <td className="w-10 py-2 pl-8 text-right">
-        {mayMasquerade && (
-          <Button
-            size="sm"
-            variant="ghost"
-            title={m.settings_masquerade_aria({ member: memberLabel })}
-            aria-label={m.settings_masquerade_aria({ member: memberLabel })}
-            data-testid="member-masquerade"
-            disabled={busy}
-            onClick={() => chooseMemberAction("masquerade", member)}
-          >
-            <Eye />
-          </Button>
-        )}
-        {mayTouch && (
-          <Button
-            size="sm"
-            variant="ghost"
-            title={m.settings_member_edit_aria({ member: memberLabel })}
-            aria-label={m.settings_member_edit_aria({ member: memberLabel })}
-            data-testid="member-edit"
-            disabled={busy}
-            onClick={() => setRoleEdit({ member: member, nextRole: member.role })}
-          >
-            <Pencil />
-          </Button>
-        )}
-      </td>
-      <td className="w-10 py-2 pl-2 text-right">
-        {hasMenu && (
-          <Popover
-            open={openMenuFor === member.userId}
-            onOpenChange={(open) => setOpenMenuFor(open ? member.userId : null)}
-          >
-            <PopoverTrigger asChild>
-              <Button
-                size="sm"
-                variant="ghost"
-                title={m.settings_member_settings_aria({ member: memberLabel })}
-                aria-label={m.settings_member_settings_aria({ member: memberLabel })}
-                data-testid="member-menu"
-                disabled={busy}
-              >
-                <Settings />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-56 p-1">
-              <p className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                {m.settings_member_settings_heading()}
-              </p>
-              {mayReset && (
-                <MemberMenuItem
-                  testId="member-reset-password"
-                  label={m.settings_member_reset_password()}
-                  ariaLabel={m.settings_member_reset_password_aria({ member: memberLabel })}
-                  onSelect={() => chooseMemberAction("resetPassword", member)}
-                />
-              )}
-              {member.mayRevokeSessions && (
-                <MemberMenuItem
-                  testId="member-revoke-sessions"
-                  label={m.settings_member_revoke_sessions()}
-                  ariaLabel={m.settings_member_revoke_sessions_aria({ member: memberLabel })}
-                  onSelect={() => chooseMemberAction("revokeSessions", member)}
-                />
-              )}
-              {mayChangeStatus &&
-                (member.status === "active" ? (
-                  <>
-                    <MemberMenuItem
-                      testId="member-disable"
-                      label={m.settings_member_disable()}
-                      ariaLabel={m.settings_member_disable_aria({ member: memberLabel })}
-                      onSelect={() => chooseMemberAction("disable", member)}
-                    />
-                    <MemberMenuItem
-                      testId="member-archive"
-                      label={m.settings_member_archive()}
-                      ariaLabel={m.settings_member_archive_aria({ member: memberLabel })}
-                      onSelect={() => chooseMemberAction("archive", member)}
-                    />
-                  </>
-                ) : (
-                  <MemberMenuItem
-                    testId="member-restore"
-                    label={m.settings_member_restore()}
-                    ariaLabel={m.settings_member_restore_aria({ member: memberLabel })}
-                    onSelect={() => chooseMemberAction("restore", member)}
-                  />
-                ))}
-              {mayRemove && (
-                <MemberMenuItem
-                  testId="member-remove"
-                  label={m.settings_member_remove()}
-                  ariaLabel={m.settings_member_remove_aria({ member: memberLabel })}
-                  danger
-                  onSelect={() => chooseMemberAction("remove", member)}
-                />
-              )}
-            </PopoverContent>
-          </Popover>
-        )}
-      </td>
+      <MemberPrimaryActions
+        member={member}
+        memberLabel={memberLabel}
+        mayMasquerade={affordances.mayMasquerade}
+        mayTouch={affordances.mayTouch}
+        busy={busy}
+        chooseMemberAction={chooseMemberAction}
+        setRoleEdit={setRoleEdit}
+      />
+      <MemberSettingsMenu
+        member={member}
+        memberLabel={memberLabel}
+        affordances={affordances}
+        busy={busy}
+        openMenuFor={openMenuFor}
+        setOpenMenuFor={setOpenMenuFor}
+        chooseMemberAction={chooseMemberAction}
+      />
     </tr>
   );
 }

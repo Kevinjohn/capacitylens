@@ -46,25 +46,85 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   if (orchestration.directory.kind === "loading" || orchestration.directory.kind === "hidden") return null;
   if (orchestration.directory.kind === "error") {
     return (
-      <Card data-testid="members-section">
-        <CardHeader>
-          <CardTitle>
-            <h2>{m.settings_members_heading()}</h2>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col items-start gap-3">
-          <FieldError id={orchestration.errorId}>{orchestration.error}</FieldError>
-          <Button type="button" variant="outline" size="sm" onClick={orchestration.reload}>
-            {m.settings_members_retry()}
-          </Button>
-        </CardContent>
-      </Card>
+      <MembersErrorCard errorId={orchestration.errorId} error={orchestration.error} reload={orchestration.reload} />
     );
   }
-  const { members, signInTrackingEnabled, invites } = orchestration.directory.snapshot;
+  const { invites } = orchestration.directory.snapshot;
+  return (
+    <>
+      <MembersCard orchestration={orchestration} setActionStatusElement={setActionStatusElement} />
+      {/* Inviting someone is its own job, not a footnote to the member table (#175): it lives in a
+          separate card together with the invites that are still outstanding. */}
+      {orchestration.mayManageInvites && (
+        <InviteMemberPanel
+          authMode={orchestration.authMode}
+          busy={orchestration.busyAction !== null}
+          inviteRole={orchestration.inviteRole}
+          setInviteRole={orchestration.setInviteRole}
+          invitationPreauthorizedEmail={orchestration.invitationPreauthorizedEmail}
+          setInvitationPreauthorizedEmail={orchestration.setInvitationPreauthorizedEmail}
+          error={orchestration.error}
+          errorField={orchestration.errorField}
+          errorId={orchestration.errorId}
+          clear={orchestration.clear}
+          mintedLink={orchestration.mintedLink}
+          copyLink={orchestration.copyLink}
+          submitInvite={orchestration.submitInvite}
+          invites={invites}
+          renderedAt={orchestration.renderedAt}
+          revokeInvite={orchestration.revokeInvite}
+          roleOptions={orchestration.roleOptions}
+        />
+      )}
+      <MemberConfirmations
+        memberConfirmation={orchestration.memberConfirmation}
+        setMemberConfirmation={orchestration.setMemberConfirmation}
+        confirmedMemberAction={orchestration.confirmedMemberAction}
+        roleEdit={orchestration.roleEdit}
+        setRoleEdit={orchestration.setRoleEdit}
+        roleOptions={orchestration.roleOptions}
+        busy={orchestration.busyAction !== null}
+        changeRole={orchestration.changeRole}
+        unlinkRepair={orchestration.unlinkRepair}
+        setUnlinkRepair={orchestration.setUnlinkRepair}
+        removeIncorrectSsoLink={orchestration.removeIncorrectSsoLink}
+      />
+    </>
+  );
+}
 
-  // Wrapped in an overflow container so a narrow viewport scrolls the TABLE, never the page.
-  const renderMembersTable = (rows: TeamMember[], testId: string) => (
+type MembersOrchestration = Omit<ReturnType<typeof useMembersOrchestration>, "setActionStatusElement">;
+
+function MembersErrorCard({ errorId, error, reload }: { errorId: string; error: string | null; reload(): void }) {
+  return (
+    <Card data-testid="members-section">
+      <CardHeader>
+        <CardTitle>
+          <h2>{m.settings_members_heading()}</h2>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col items-start gap-3">
+        <FieldError id={errorId}>{error}</FieldError>
+        <Button type="button" variant="outline" size="sm" onClick={reload}>
+          {m.settings_members_retry()}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MembersTable({
+  rows,
+  testId,
+  signInTrackingEnabled,
+  orchestration,
+}: {
+  rows: TeamMember[];
+  testId: string;
+  signInTrackingEnabled: boolean;
+  orchestration: MembersOrchestration;
+}) {
+  return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm" data-testid={testId}>
         <thead>
@@ -106,159 +166,162 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
       </table>
     </div>
   );
+}
 
+function ReadinessPanels({ orchestration }: { orchestration: MembersOrchestration }) {
   return (
     <>
-      <Card data-testid="members-section" aria-busy={orchestration.busyAction !== null}>
-        <CardHeader>
-          <CardTitle>
-            <h2>{m.settings_members_heading()}</h2>
-          </CardTitle>
-          <CardDescription>{m.settings_members_intro()}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <p ref={setActionStatusElement} role="status" aria-live="polite" tabIndex={-1} className="sr-only">
-            {orchestration.busyAction ? m.settings_members_updating() : ""}
-          </p>
-          <FieldError id={orchestration.errorId}>
-            {orchestration.errorField === null ? orchestration.error : null}
-          </FieldError>
-          {orchestration.readinessApplies && orchestration.readinessError && (
-            <section
-              className="flex flex-col gap-2 rounded-md border border-danger/40 bg-danger/5 p-3"
-              data-testid="sso-readiness-error"
-              role="alert"
-            >
-              <h3 className="text-sm font-medium text-danger">{m.settings_sso_readiness_heading()}</h3>
-              <p className="text-xs text-danger">{m.settings_sso_readiness_error()}</p>
-            </section>
-          )}
-          {orchestration.readinessApplies && orchestration.readiness && (
-            <SsoReadinessPanel
-              authMode={orchestration.authMode}
-              readiness={orchestration.readiness}
-              busy={orchestration.busyAction !== null}
-              emailRepair={orchestration.emailRepair}
-              setEmailRepair={orchestration.setEmailRepair}
-              error={orchestration.error}
-              errorField={orchestration.errorField}
-              errorId={orchestration.errorId}
-              onCorrectEmail={() => void orchestration.correctSsoEmail()}
-              onRemoveLink={(member, link) => orchestration.setUnlinkRepair({ member, link })}
-            />
-          )}
-          {orchestration.mayManageSignInTracking && (
-            <Field orientation="horizontal" data-disabled={orchestration.busyAction !== null || undefined}>
-              <FieldContent>
-                <FieldLabel htmlFor="member-sign-in-tracking">{m.settings_members_sign_in_tracking_label()}</FieldLabel>
-                <FieldDescription>{m.settings_members_sign_in_tracking_description()}</FieldDescription>
-              </FieldContent>
-              <Switch
-                id="member-sign-in-tracking"
-                data-testid="member-sign-in-tracking"
-                checked={signInTrackingEnabled}
-                disabled={orchestration.busyAction !== null}
-                onCheckedChange={(next) => void orchestration.changeSignInTracking({ next: next })}
-              />
-            </Field>
-          )}
-          {/* The role stays visible beneath the member's name without consuming a column. The
-              optional coarse sign-in confirmation contains no date; edit and settings remain two
-              separate columns pushed to the right, in that order. */}
-          {members.length === 0 ? (
-            <p className="py-2 text-sm text-muted-foreground">{m.settings_members_empty()}</p>
-          ) : orchestration.activeMembers ? (
-            renderMembersTable(orchestration.activeMembers, "members-table")
-          ) : null}
-          {/* Disabled and archived memberships, collapsed behind a disclosure (#175). They are still
-              real rows an administrator has to be able to reach — to restore one, or to remove it —
-              but they are not the team, so they do not compete with it for the reader's attention.
-              The group is absent entirely when there is nothing in it. */}
-          {orchestration.inactiveMembers.length > 0 && (
-            <section className="flex flex-col gap-2">
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 self-start text-sm font-medium text-brand underline-offset-2 hover:underline"
-                aria-expanded={orchestration.inactiveOpen}
-                aria-controls="members-inactive"
-                data-testid="members-inactive-toggle"
-                onClick={() => orchestration.setInactiveOpen((open) => !open)}
-              >
-                {orchestration.inactiveOpen ? (
-                  <ChevronDown data-icon="inline-start" />
-                ) : (
-                  <ChevronRight data-icon="inline-start" />
-                )}
-                {m.settings_members_inactive_group({ count: orchestration.inactiveMembers.length })}
-              </button>
-              {orchestration.inactiveOpen && (
-                <div id="members-inactive">
-                  {renderMembersTable(orchestration.inactiveMembers, "members-inactive-table")}
-                </div>
-              )}
-            </section>
-          )}
-          {/* Freshly-minted password-reset link (P1.18) — write-once, same posture as the invite link
-          below: shown straight from the create response and never read back. Named + dated so the
-          admin hands the right link to the right person before it disappears. */}
-          {orchestration.resetLink && (
-            <CopyableLinkBlock
-              link={orchestration.resetLink.link}
-              testId="reset-link"
-              copiedNotice={m.settings_members_reset_copied()}
-              copyLabel={m.settings_reset_copy_aria({ member: orchestration.resetLink.member })}
-              copyLink={orchestration.copyLink}
-              intro={
-                <p className="text-xs text-muted-foreground">
-                  {m.settings_members_reset_intro({
-                    member: orchestration.resetLink.member,
-                    // Date + TIME on the viewer's wall clock: the link lives only 24h, so a
-                    // date-only string (and a UTC one at that) misleads by up to a day in non-UTC
-                    // zones and hides the hour it dies.
-                    when: formatInstant(orchestration.resetLink.expiresAt),
-                  })}
-                </p>
-              }
-            />
-          )}
-        </CardContent>
-      </Card>
-      {/* Inviting someone is its own job, not a footnote to the member table (#175): it lives in a
-          separate card together with the invites that are still outstanding. */}
-      {orchestration.mayManageInvites && (
-        <InviteMemberPanel
+      {orchestration.readinessApplies && orchestration.readinessError && (
+        <section
+          className="flex flex-col gap-2 rounded-md border border-danger/40 bg-danger/5 p-3"
+          data-testid="sso-readiness-error"
+          role="alert"
+        >
+          <h3 className="text-sm font-medium text-danger">{m.settings_sso_readiness_heading()}</h3>
+          <p className="text-xs text-danger">{m.settings_sso_readiness_error()}</p>
+        </section>
+      )}
+      {orchestration.readinessApplies && orchestration.readiness && (
+        <SsoReadinessPanel
           authMode={orchestration.authMode}
+          readiness={orchestration.readiness}
           busy={orchestration.busyAction !== null}
-          inviteRole={orchestration.inviteRole}
-          setInviteRole={orchestration.setInviteRole}
-          invitationPreauthorizedEmail={orchestration.invitationPreauthorizedEmail}
-          setInvitationPreauthorizedEmail={orchestration.setInvitationPreauthorizedEmail}
+          emailRepair={orchestration.emailRepair}
+          setEmailRepair={orchestration.setEmailRepair}
           error={orchestration.error}
           errorField={orchestration.errorField}
           errorId={orchestration.errorId}
-          clear={orchestration.clear}
-          mintedLink={orchestration.mintedLink}
-          copyLink={orchestration.copyLink}
-          submitInvite={orchestration.submitInvite}
-          invites={invites}
-          renderedAt={orchestration.renderedAt}
-          revokeInvite={orchestration.revokeInvite}
-          roleOptions={orchestration.roleOptions}
+          onCorrectEmail={() => void orchestration.correctSsoEmail()}
+          onRemoveLink={(member, link) => orchestration.setUnlinkRepair({ member, link })}
         />
       )}
-      <MemberConfirmations
-        memberConfirmation={orchestration.memberConfirmation}
-        setMemberConfirmation={orchestration.setMemberConfirmation}
-        confirmedMemberAction={orchestration.confirmedMemberAction}
-        roleEdit={orchestration.roleEdit}
-        setRoleEdit={orchestration.setRoleEdit}
-        roleOptions={orchestration.roleOptions}
-        busy={orchestration.busyAction !== null}
-        changeRole={orchestration.changeRole}
-        unlinkRepair={orchestration.unlinkRepair}
-        setUnlinkRepair={orchestration.setUnlinkRepair}
-        removeIncorrectSsoLink={orchestration.removeIncorrectSsoLink}
-      />
     </>
+  );
+}
+
+function MemberDirectory({
+  orchestration,
+  members,
+  signInTrackingEnabled,
+}: {
+  orchestration: MembersOrchestration;
+  members: TeamMember[];
+  signInTrackingEnabled: boolean;
+}) {
+  let activeContent = null;
+  if (members.length === 0)
+    activeContent = <p className="py-2 text-sm text-muted-foreground">{m.settings_members_empty()}</p>;
+  else if (orchestration.activeMembers)
+    activeContent = (
+      <MembersTable
+        rows={orchestration.activeMembers}
+        testId="members-table"
+        signInTrackingEnabled={signInTrackingEnabled}
+        orchestration={orchestration}
+      />
+    );
+  let disclosureIcon = <ChevronRight data-icon="inline-start" />;
+  if (orchestration.inactiveOpen) disclosureIcon = <ChevronDown data-icon="inline-start" />;
+  return (
+    <>
+      {activeContent}
+      {orchestration.inactiveMembers.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 self-start text-sm font-medium text-brand underline-offset-2 hover:underline"
+            aria-expanded={orchestration.inactiveOpen}
+            aria-controls="members-inactive"
+            data-testid="members-inactive-toggle"
+            onClick={() => orchestration.setInactiveOpen((open) => !open)}
+          >
+            {disclosureIcon}
+            {m.settings_members_inactive_group({ count: orchestration.inactiveMembers.length })}
+          </button>
+          {orchestration.inactiveOpen && (
+            <div id="members-inactive">
+              <MembersTable
+                rows={orchestration.inactiveMembers}
+                testId="members-inactive-table"
+                signInTrackingEnabled={signInTrackingEnabled}
+                orchestration={orchestration}
+              />
+            </div>
+          )}
+        </section>
+      )}
+    </>
+  );
+}
+
+function ResetLink({ orchestration }: { orchestration: MembersOrchestration }) {
+  if (!orchestration.resetLink) return null;
+  return (
+    <CopyableLinkBlock
+      link={orchestration.resetLink.link}
+      testId="reset-link"
+      copiedNotice={m.settings_members_reset_copied()}
+      copyLabel={m.settings_reset_copy_aria({ member: orchestration.resetLink.member })}
+      copyLink={orchestration.copyLink}
+      intro={
+        <p className="text-xs text-muted-foreground">
+          {m.settings_members_reset_intro({
+            member: orchestration.resetLink.member,
+            when: formatInstant(orchestration.resetLink.expiresAt),
+          })}
+        </p>
+      }
+    />
+  );
+}
+
+function MembersCard({
+  orchestration,
+  setActionStatusElement,
+}: {
+  orchestration: MembersOrchestration;
+  setActionStatusElement(element: HTMLParagraphElement | null): void;
+}) {
+  if (orchestration.directory.kind !== "ready") return null;
+  const { members, signInTrackingEnabled } = orchestration.directory.snapshot;
+  return (
+    <Card data-testid="members-section" aria-busy={orchestration.busyAction !== null}>
+      <CardHeader>
+        <CardTitle>
+          <h2>{m.settings_members_heading()}</h2>
+        </CardTitle>
+        <CardDescription>{m.settings_members_intro()}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <p ref={setActionStatusElement} role="status" aria-live="polite" tabIndex={-1} className="sr-only">
+          {orchestration.busyAction ? m.settings_members_updating() : ""}
+        </p>
+        <FieldError id={orchestration.errorId}>
+          {orchestration.errorField === null ? orchestration.error : null}
+        </FieldError>
+        <ReadinessPanels orchestration={orchestration} />
+        {orchestration.mayManageSignInTracking && (
+          <Field orientation="horizontal" data-disabled={orchestration.busyAction !== null || undefined}>
+            <FieldContent>
+              <FieldLabel htmlFor="member-sign-in-tracking">{m.settings_members_sign_in_tracking_label()}</FieldLabel>
+              <FieldDescription>{m.settings_members_sign_in_tracking_description()}</FieldDescription>
+            </FieldContent>
+            <Switch
+              id="member-sign-in-tracking"
+              data-testid="member-sign-in-tracking"
+              checked={signInTrackingEnabled}
+              disabled={orchestration.busyAction !== null}
+              onCheckedChange={(next) => void orchestration.changeSignInTracking({ next: next })}
+            />
+          </Field>
+        )}
+        <MemberDirectory
+          orchestration={orchestration}
+          members={members}
+          signInTrackingEnabled={signInTrackingEnabled}
+        />
+        <ResetLink orchestration={orchestration} />
+      </CardContent>
+    </Card>
   );
 }
