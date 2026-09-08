@@ -12,7 +12,9 @@ export type MemberConfirmation = { kind: MemberConfirmationAction; member: TeamM
 export function resolveMemberLabel(member: TeamMember): string {
   const name = member.name?.trim();
   if (name && member.email) return `${name} (${member.email})`;
-  return name || member.email || member.userId;
+  if (name) return name;
+  if (member.email) return member.email;
+  return member.userId;
 }
 
 export function buildMemberConfirmationCopy({ kind, member }: MemberConfirmation): {
