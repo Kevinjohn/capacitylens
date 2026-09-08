@@ -107,6 +107,181 @@ function withApplicationSession(auth: Auth, principalId: string, sessionId: stri
   };
 }
 
+function registerIdentityReadTests(setup: () => Promise<Harness>): void {
+  it("normalizes the verified application session", async () => {
+    const current = await setup();
+    await expect(current.port.verifyApplicationSession({ headers: new Headers() })).resolves.toEqual(current.session);
+  });
+
+  it("deduplicates known principal summaries and omits unknown principals", async () => {
+    const current = await setup();
+    const summaries = await current.port.getPrincipalSummaries({
+      principalIds: [current.knownPrincipal.id, "unknown-principal", current.knownPrincipal.id],
+    });
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0]).toEqual(current.knownPrincipal);
+  });
+
+  it("does not correlate an unknown upstream identity by email", async () => {
+    const current = await setup();
+    await expect(
+      current.port.findPrincipalByFederatedSubject({
+        subject: { issuer: "https://unknown-issuer.example", subject: current.knownPrincipal.email ?? "" },
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it("returns transport-neutral sign-out mutations and session summaries", async () => {
+    const current = await setup();
+    const result = await current.port.signOut({ headers: new Headers() });
+    expect(Array.isArray(result.setCookies)).toBe(true);
+    expect(result.setCookies.every((cookie) => typeof cookie === "string")).toBe(true);
+    const sessions = await current.port.listSessions({ actor: current.actor });
+    expect(Array.isArray(sessions)).toBe(true);
+    for (const session of sessions) {
+      expectExactKeys(session, ["createdAt", "current", "expiresAt", "id"]);
+      expect(typeof session.id).toBe("string");
+      expect(isIsoInstant(session.createdAt)).toBe(true);
+      expect(session.expiresAt === null || isIsoInstant(session.expiresAt)).toBe(true);
+      expect(typeof session.current).toBe("boolean");
+      expect(session.id).not.toContain("bearer");
+    }
+  });
+}
+
+function registerIdentityMutationTests(setup: () => Promise<Harness>): void {
+  it("revokes an own-session handle idempotently without exposing a bearer", async () => {
+    const current = await setup();
+    const operation = command("own-session");
+    const sessionExisted = (await current.port.listSessions({ actor: current.actor })).some(
+      (session) => session.id === current.actor.sessionId,
+    );
+    await expect(
+      current.port.revokeOwnSession({
+        actor: current.actor,
+        sessionId: current.actor.sessionId,
+        command: operation,
+      }),
+    ).resolves.toMatchObject({ commandId: operation.commandId, changed: sessionExisted });
+    await expect(
+      current.port.revokeOwnSession({
+        actor: current.actor,
+        sessionId: current.actor.sessionId,
+        command: operation,
+      }),
+    ).resolves.toMatchObject({ commandId: operation.commandId, changed: false });
+  });
+
+  it("deprovisions only the requested installation-local principal", async () => {
+    const current = await setup();
+    const operation = command("deprovision");
+    await expect(
+      current.port.deprovisionLocalPrincipal({
+        principalId: current.knownPrincipal.id,
+        reason: "identity-erasure",
+        command: operation,
+      }),
+    ).resolves.toMatchObject({ commandId: operation.commandId });
+    if (current.capabilities.durablePrincipalStorage) {
+      await expect(current.port.getPrincipalSummaries({ principalIds: [current.knownPrincipal.id] })).resolves.toEqual(
+        [],
+      );
+    }
+  });
+}
+
+function registerCredentialTests(setup: () => Promise<Harness>): void {
+  it("implements credential provisioning or rejects the entire capability explicitly", async () => {
+    const current = await setup();
+    const operation = command("credential");
+    const create = current.port.createProvisionalCredentialPrincipal({
+      email: "new-person@example.com",
+      displayName: "New Person",
+      password: "conformance-password-123",
+      emailVerified: true,
+      command: operation,
+    });
+    if (!current.capabilities.credentials) {
+      await expectUnsupported(create, operation.commandId);
+      await expectUnsupported(
+        current.port.compensateProvisionalPrincipal({
+          provisional: { principalId: "unsupported", compensationHandle: "opaque" },
+          reason: "invitation-claim-failed",
+          command: operation,
+        }),
+        operation.commandId,
+      );
+      return;
+    }
+
+    const provisional = await create;
+    expectExactKeys(provisional, ["compensationHandle", "principalId"]);
+    expect(typeof provisional.principalId).toBe("string");
+    expect(typeof provisional.compensationHandle).toBe("string");
+    expect(provisional.compensationHandle).not.toContain(provisional.principalId);
+    await expect(
+      current.port.compensateProvisionalPrincipal({
+        provisional,
+        reason: "invitation-claim-failed",
+        command: operation,
+      }),
+    ).resolves.toBeUndefined();
+    await expect(current.port.getPrincipalSummaries({ principalIds: [provisional.principalId] })).resolves.toEqual([]);
+  });
+}
+
+function registerPasswordAndRevocationTests(setup: () => Promise<Harness>): void {
+  it("implements reset-ceremony issue/revoke or rejects both operations explicitly", async () => {
+    const current = await setup();
+    const operation = command("password-reset");
+    const issue = current.port.issuePasswordReset({
+      targetPrincipalId: current.knownPrincipal.id,
+      command: operation,
+    });
+    if (!current.capabilities.passwordReset) {
+      await expectUnsupported(issue, operation.commandId);
+      await expectUnsupported(
+        current.port.revokePasswordResetCeremony({
+          targetPrincipalId: current.knownPrincipal.id,
+          ceremonyId: "unsupported",
+          command: operation,
+        }),
+        operation.commandId,
+      );
+      return;
+    }
+
+    const ceremony = await issue;
+    expectExactKeys(ceremony, ["ceremonyId", "expiresAt", "token"]);
+    expect(typeof ceremony.ceremonyId).toBe("string");
+    expect(typeof ceremony.token).toBe("string");
+    expect(typeof ceremony.expiresAt).toBe("string");
+    expect(ceremony.ceremonyId).not.toBe(ceremony.token);
+    await expect(
+      current.port.revokePasswordResetCeremony({
+        targetPrincipalId: current.knownPrincipal.id,
+        ceremonyId: ceremony.ceremonyId,
+        command: operation,
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("implements identity-global session revocation or rejects it explicitly", async () => {
+    const current = await setup();
+    const operation = command("principal-sessions");
+    const revoke = current.port.revokePrincipalSessions({
+      targetPrincipalId: current.knownPrincipal.id,
+      command: operation,
+    });
+    if (!current.capabilities.administrativeSessionRevocation) {
+      await expectUnsupported(revoke, operation.commandId);
+      return;
+    }
+    await expect(revoke).resolves.toMatchObject({ commandId: operation.commandId });
+    await expect(current.port.listSessions({ actor: current.actor })).resolves.toEqual([]);
+  });
+}
+
 /**
  * One provider-neutral executable contract. Every implementation runs the same assertions; an
  * adapter may omit a capability only by returning the contract's explicit fail-closed error.
@@ -125,174 +300,10 @@ function identityPortContract(name: string, createHarness: HarnessFactory): void
       return harness;
     }
 
-    it("normalizes the verified application session", async () => {
-      const current = await setup();
-      await expect(current.port.verifyApplicationSession({ headers: new Headers() })).resolves.toEqual(current.session);
-    });
-
-    it("deduplicates known principal summaries and omits unknown principals", async () => {
-      const current = await setup();
-      const summaries = await current.port.getPrincipalSummaries({
-        principalIds: [current.knownPrincipal.id, "unknown-principal", current.knownPrincipal.id],
-      });
-      expect(summaries).toHaveLength(1);
-      expect(summaries[0]).toEqual(current.knownPrincipal);
-    });
-
-    it("does not correlate an unknown upstream identity by email", async () => {
-      const current = await setup();
-      await expect(
-        current.port.findPrincipalByFederatedSubject({
-          subject: { issuer: "https://unknown-issuer.example", subject: current.knownPrincipal.email ?? "" },
-        }),
-      ).resolves.toBeNull();
-    });
-
-    it("returns transport-neutral sign-out mutations and session summaries", async () => {
-      const current = await setup();
-      const result = await current.port.signOut({ headers: new Headers() });
-      expect(Array.isArray(result.setCookies)).toBe(true);
-      expect(result.setCookies.every((cookie) => typeof cookie === "string")).toBe(true);
-      const sessions = await current.port.listSessions({ actor: current.actor });
-      expect(Array.isArray(sessions)).toBe(true);
-      for (const session of sessions) {
-        expectExactKeys(session, ["createdAt", "current", "expiresAt", "id"]);
-        expect(typeof session.id).toBe("string");
-        expect(isIsoInstant(session.createdAt)).toBe(true);
-        expect(session.expiresAt === null || isIsoInstant(session.expiresAt)).toBe(true);
-        expect(typeof session.current).toBe("boolean");
-        expect(session.id).not.toContain("bearer");
-      }
-    });
-
-    it("revokes an own-session handle idempotently without exposing a bearer", async () => {
-      const current = await setup();
-      const operation = command("own-session");
-      const sessionExisted = (await current.port.listSessions({ actor: current.actor })).some(
-        (session) => session.id === current.actor.sessionId,
-      );
-      await expect(
-        current.port.revokeOwnSession({
-          actor: current.actor,
-          sessionId: current.actor.sessionId,
-          command: operation,
-        }),
-      ).resolves.toMatchObject({ commandId: operation.commandId, changed: sessionExisted });
-      await expect(
-        current.port.revokeOwnSession({
-          actor: current.actor,
-          sessionId: current.actor.sessionId,
-          command: operation,
-        }),
-      ).resolves.toMatchObject({ commandId: operation.commandId, changed: false });
-    });
-
-    it("deprovisions only the requested installation-local principal", async () => {
-      const current = await setup();
-      const operation = command("deprovision");
-      await expect(
-        current.port.deprovisionLocalPrincipal({
-          principalId: current.knownPrincipal.id,
-          reason: "identity-erasure",
-          command: operation,
-        }),
-      ).resolves.toMatchObject({ commandId: operation.commandId });
-      if (current.capabilities.durablePrincipalStorage) {
-        await expect(
-          current.port.getPrincipalSummaries({ principalIds: [current.knownPrincipal.id] }),
-        ).resolves.toEqual([]);
-      }
-    });
-
-    it("implements credential provisioning or rejects the entire capability explicitly", async () => {
-      const current = await setup();
-      const operation = command("credential");
-      const create = current.port.createProvisionalCredentialPrincipal({
-        email: "new-person@example.com",
-        displayName: "New Person",
-        password: "conformance-password-123",
-        emailVerified: true,
-        command: operation,
-      });
-      if (!current.capabilities.credentials) {
-        await expectUnsupported(create, operation.commandId);
-        await expectUnsupported(
-          current.port.compensateProvisionalPrincipal({
-            provisional: { principalId: "unsupported", compensationHandle: "opaque" },
-            reason: "invitation-claim-failed",
-            command: operation,
-          }),
-          operation.commandId,
-        );
-        return;
-      }
-
-      const provisional = await create;
-      expectExactKeys(provisional, ["compensationHandle", "principalId"]);
-      expect(typeof provisional.principalId).toBe("string");
-      expect(typeof provisional.compensationHandle).toBe("string");
-      expect(provisional.compensationHandle).not.toContain(provisional.principalId);
-      await expect(
-        current.port.compensateProvisionalPrincipal({
-          provisional,
-          reason: "invitation-claim-failed",
-          command: operation,
-        }),
-      ).resolves.toBeUndefined();
-      await expect(current.port.getPrincipalSummaries({ principalIds: [provisional.principalId] })).resolves.toEqual(
-        [],
-      );
-    });
-
-    it("implements reset-ceremony issue/revoke or rejects both operations explicitly", async () => {
-      const current = await setup();
-      const operation = command("password-reset");
-      const issue = current.port.issuePasswordReset({
-        targetPrincipalId: current.knownPrincipal.id,
-        command: operation,
-      });
-      if (!current.capabilities.passwordReset) {
-        await expectUnsupported(issue, operation.commandId);
-        await expectUnsupported(
-          current.port.revokePasswordResetCeremony({
-            targetPrincipalId: current.knownPrincipal.id,
-            ceremonyId: "unsupported",
-            command: operation,
-          }),
-          operation.commandId,
-        );
-        return;
-      }
-
-      const ceremony = await issue;
-      expectExactKeys(ceremony, ["ceremonyId", "expiresAt", "token"]);
-      expect(typeof ceremony.ceremonyId).toBe("string");
-      expect(typeof ceremony.token).toBe("string");
-      expect(typeof ceremony.expiresAt).toBe("string");
-      expect(ceremony.ceremonyId).not.toBe(ceremony.token);
-      await expect(
-        current.port.revokePasswordResetCeremony({
-          targetPrincipalId: current.knownPrincipal.id,
-          ceremonyId: ceremony.ceremonyId,
-          command: operation,
-        }),
-      ).resolves.toBeUndefined();
-    });
-
-    it("implements identity-global session revocation or rejects it explicitly", async () => {
-      const current = await setup();
-      const operation = command("principal-sessions");
-      const revoke = current.port.revokePrincipalSessions({
-        targetPrincipalId: current.knownPrincipal.id,
-        command: operation,
-      });
-      if (!current.capabilities.administrativeSessionRevocation) {
-        await expectUnsupported(revoke, operation.commandId);
-        return;
-      }
-      await expect(revoke).resolves.toMatchObject({ commandId: operation.commandId });
-      await expect(current.port.listSessions({ actor: current.actor })).resolves.toEqual([]);
-    });
+    registerIdentityReadTests(setup);
+    registerIdentityMutationTests(setup);
+    registerCredentialTests(setup);
+    registerPasswordAndRevocationTests(setup);
   });
 }
 
