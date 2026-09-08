@@ -123,11 +123,10 @@ describe("ResourceList display", () => {
 
     render(<ResourceList />);
 
-    const studio = requireValue(screen.getByRole("heading", { name: "Studio" }).closest("section"), "Studio section");
-    const supplementary = requireValue(
-      screen.getByRole("heading", { name: "Supplementary" }).closest("section"),
-      "Supplementary section",
-    );
+    const studio = screen.getByRole("heading", { name: "Studio" }).closest("section");
+    if (!studio) throw new Error("Studio section missing");
+    const supplementary = screen.getByRole("heading", { name: "Supplementary" }).closest("section");
+    if (!supplementary) throw new Error("Supplementary section missing");
     expect(
       within(studio)
         .getAllByTestId("resource-row")
