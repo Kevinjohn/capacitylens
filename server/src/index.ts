@@ -1,7 +1,6 @@
-import { createApp, DEFAULT_CORS, parseRateLimit } from "./app";
+import { DEFAULT_CORS, parseRateLimit } from "./app";
 import { initializeOpenDb, openDbConnection, planDatabaseMigrations, seedIfUninitialized, type Db } from "./db";
 import { seedForCurrentWeek } from "@capacitylens/shared/data/seed";
-import { createLastResortErrorHandler, createShutdownHandler, handleListenFailure } from "./shutdown";
 import { installStartupSignalHandlers, stopStartupIfRequested } from "./startupSignals";
 import { isResetForbidden } from "./bootGuard";
 import { evaluateProductionPosture } from "./productionGuard";
@@ -15,14 +14,7 @@ import {
   ensureAuthControlTables,
   planAuthSchemaMigrations,
 } from "./auth";
-import { parseBackupConfig, startBackups, formatBackupStartupFailure, writePreMigrationBackup } from "./backup";
-import {
-  createCompositeAuditSink,
-  createFileAuditSink,
-  createNoopAuditSink,
-  parseAuditConfig,
-  createStreamAuditSink,
-} from "./audit";
+import { parseBackupConfig, writePreMigrationBackup } from "./backup";
 import { loadInternalTls } from "./internalTls";
 import { resolveAccountEnvironment } from "./accountConfig";
 import type { BoundApplication } from "@capacitylens/shared/account/types";
@@ -33,59 +25,13 @@ import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort"
 import { createSqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
 import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
 import { formatSsoCutoverRefusal, ssoCutoverReadiness } from "./accounts/ssoCutover";
-import type { FastifyInstance } from "fastify";
 
-import { refuseToStart, tryOrRefuse, closeDbSafely, parsePort, parseAuditMaxMb } from "./boot/refusals";
+import { refuseToStart, tryOrRefuse, closeDbSafely, parsePort } from "./boot/refusals";
+import { createServerRuntime } from "./boot/serverRuntime";
 
 export { parseAuditMaxMb } from "./boot/refusals";
 
 const ACCOUNT_APPLICATION: BoundApplication = DEFAULT_ACCOUNT_APPLICATION;
-type ServerApp = FastifyInstance;
-type BackupController = ReturnType<typeof startBackups>;
-type ShutdownHandler = ReturnType<typeof createShutdownHandler>;
-type StartupSignals = ReturnType<typeof installStartupSignalHandlers>;
-type SecurityLog = (event: Record<string, unknown>) => void;
-
-type ConfiguredAuditSinkInput = {
-  environment: NodeJS.ProcessEnv;
-  dbPath: string;
-  logError: (message: string) => void;
-  logOutput: (message: string) => void;
-};
-
-type ApplicationStartupFailureInput = {
-  error: unknown;
-  startingBackups: boolean;
-  backupDirectory?: string;
-};
-
-type ConfiguredApplicationInput = {
-  db: Db;
-  options: Parameters<typeof createApp>[1];
-};
-
-type ShutdownHandlersInput = {
-  app: ServerApp;
-  backups: BackupController | null;
-  db: Db;
-  startupSignals: StartupSignals;
-  securityLog: SecurityLog;
-  exit: (code: number) => never;
-  onProcessEvent: NodeJS.Process["on"];
-  logInfo: (message: string) => void;
-  logError: (message: string, error: unknown) => void;
-};
-
-type ListenForRequestsInput = {
-  app: ServerApp;
-  shutdown: ShutdownHandler;
-  port: number;
-  host: string;
-  dbPath: string;
-  allowReset: boolean;
-  logInfo: (message: string) => void;
-};
-
 function resolveOptionalEnvironmentValue(value: string | undefined): string | undefined {
   if (!value) return undefined;
   return value;
@@ -291,171 +237,50 @@ const securityLog = (event: Record<string, unknown>) => {
   );
 };
 
-function createConfiguredAuditSink(input: ConfiguredAuditSinkInput) {
-  const auditConfig = parseAuditConfig(input.environment, input.dbPath);
-  const auditMaxBytes = parseAuditMaxMb(input.environment.CAPACITYLENS_AUDIT_MAX_MB) * 1024 * 1024;
-  const auditFileSink = auditConfig.enabled
-    ? createFileAuditSink(auditConfig.file, input.logError, {
-        maxBytes: auditMaxBytes,
-      })
-    : createNoopAuditSink();
-
-  if (input.environment.CAPACITYLENS_AUDIT_STDOUT === "1") {
-    return createCompositeAuditSink(auditFileSink, createStreamAuditSink(input.logOutput));
-  }
-  return auditFileSink;
-}
-
-function formatApplicationStartupFailure(input: ApplicationStartupFailureInput): string {
-  if (input.startingBackups && input.backupDirectory !== undefined) {
-    return formatBackupStartupFailure(input.backupDirectory, input.error);
-  }
-  if (input.error instanceof Error) return input.error.message;
-  return String(input.error);
-}
-
-function createConfiguredApplication(input: ConfiguredApplicationInput): ServerApp {
-  return createApp(input.db, input.options);
-}
-
-function createServerApplication(): { app: ServerApp; backups: BackupController | null } {
-  let startingBackups = false;
-  try {
-    // A successful explicit admin bootstrap makes the captured count nonzero and skips this notice.
-    if (authMode === "password" && userCount === 0) {
-      console.warn(
-        "capacitylens-server: SETUP LOCKED — no user accounts exist yet; owner creation requires the " +
-          "configured SMALLSASS_ACCOUNT_SETUP_TOKEN.",
-      );
-    }
-
-    let backupController: BackupController | null = null;
-    const audit = createConfiguredAuditSink({
-      environment: process.env,
-      dbPath,
-      logError: (message) => console.error(message),
-      logOutput: console.log,
-    });
-    const app = createConfiguredApplication({
-      db,
-      options: {
-        application: ACCOUNT_APPLICATION,
-        ...(internalTls
-          ? {
-              internalTls: {
-                ...(internalTls.key === undefined ? {} : { key: internalTls.key }),
-                ...(internalTls.cert === undefined ? {} : { cert: internalTls.cert }),
-                ...(internalTls.minVersion === undefined ? {} : { minVersion: internalTls.minVersion }),
-              },
-              internalTlsExpiresAt: internalTls.expiresAt,
-              internalTlsFingerprintSha256: internalTls.fingerprintSha256,
-            }
-          : {}),
-        allowReset,
-        corsOrigin,
-        optimisticConcurrency,
-        multiAccount,
-        https,
-        log,
-        healthDeep,
-        ...(backupConfig
-          ? {
-              backupHealth: () =>
-                backupController?.health ?? {
-                  degraded: false,
-                  lastSuccessAt: null,
-                },
-            }
-          : {}),
-        rateLimit,
-        trustProxyHeaders,
-        ...(bootstrapToken === undefined ? {} : { bootstrapToken }),
-        authMode,
-        auth,
-        requireMfa,
-        allowOpenSignup: accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1",
-        audit,
-        securityLog,
-      },
-    });
-
-    if (backupConfig) {
-      startingBackups = true;
-      backupController = startBackups({
-        db,
-        config: backupConfig,
-        log: log ? (message) => app.log.info(message) : console.log,
-      });
-      startingBackups = false;
-    }
-    return { app, backups: backupController };
-  } catch (error) {
-    closeDbSafely(db);
-    startupSignals.dispose();
-    refuseToStart(
-      formatApplicationStartupFailure({
-        error,
-        startingBackups,
-        ...(backupConfig === null ? {} : { backupDirectory: backupConfig.dir }),
-      }),
-    );
-  }
-}
-
-function installShutdownHandlers(input: ShutdownHandlersInput): ShutdownHandler {
-  const backups = input.backups;
-  const shutdown = createShutdownHandler({
-    app: input.app,
-    db: input.db,
-    exit: input.exit,
-    stopBackgroundWork: backups ? () => backups.stop() : undefined,
-  });
-  const onSignal = (signal: NodeJS.Signals) => {
-    input.logInfo(`capacitylens-server: ${signal} — draining requests, then exiting`);
-    void shutdown(0, `signal:${signal}`);
-  };
-  // No event-loop turn occurs between removing the startup listeners and installing these handlers,
-  // so a queued signal is observed by one phase or the other, never by neither.
-  input.startupSignals.dispose();
-  input.onProcessEvent("SIGTERM", () => onSignal("SIGTERM"));
-  input.onProcessEvent("SIGINT", () => onSignal("SIGINT"));
-
-  const lastResort = createLastResortErrorHandler(shutdown, input.securityLog, input.logError);
-  input.onProcessEvent("uncaughtException", (error) => {
-    void lastResort("uncaught_exception", error);
-  });
-  input.onProcessEvent("unhandledRejection", (reason) => {
-    void lastResort("unhandled_rejection", reason);
-  });
-  return shutdown;
-}
-
-function listenForRequests(input: ListenForRequestsInput): void {
-  input.app
-    .listen({ port: input.port, host: input.host })
-    .then((address) =>
-      input.logInfo(`capacitylens-server listening on ${address} (db=${input.dbPath}, reset=${input.allowReset})`),
-    )
-    .catch((error) => {
-      void handleListenFailure(error, input.shutdown);
-    });
-}
-
 // Frame the complete post-migration boot phase. These steps are all fatal preconditions, but raw
 // top-level stacks are poor operator diagnostics and bypass the entrypoint's refusal convention.
-const { app, backups } = createServerApplication();
-
-// Stop backups and accepting requests together, then close SQLite after both drains complete.
-// A repeated signal force-exits rather than waiting on a stuck drain.
-const shutdown = installShutdownHandlers({
-  app,
-  backups,
+createServerRuntime({
+  application: ACCOUNT_APPLICATION,
+  applicationOptions: {
+    ...(internalTls
+      ? {
+          internalTls: {
+            ...(internalTls.key === undefined ? {} : { key: internalTls.key }),
+            ...(internalTls.cert === undefined ? {} : { cert: internalTls.cert }),
+            ...(internalTls.minVersion === undefined ? {} : { minVersion: internalTls.minVersion }),
+          },
+          internalTlsExpiresAt: internalTls.expiresAt,
+          internalTlsFingerprintSha256: internalTls.fingerprintSha256,
+        }
+      : {}),
+    allowReset,
+    corsOrigin,
+    optimisticConcurrency,
+    multiAccount,
+    https,
+    log,
+    healthDeep,
+    rateLimit,
+    trustProxyHeaders,
+    ...(bootstrapToken === undefined ? {} : { bootstrapToken }),
+    authMode,
+    auth,
+    requireMfa,
+    allowOpenSignup: accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1",
+  },
+  backupConfig,
   db,
+  dbPath,
+  environment: process.env,
+  host,
+  port,
   startupSignals,
   securityLog,
+  userCount,
+  logEnabled: log,
+  logWarning: console.warn,
   exit: (code) => process.exit(code),
   onProcessEvent: process.on.bind(process),
   logInfo: console.log,
-  logError: (message, error) => console.error(message, error),
+  logError: console.error,
 });
-listenForRequests({ app, shutdown, port, host, dbPath, allowReset, logInfo: console.log });
