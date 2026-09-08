@@ -41,10 +41,11 @@ interface StorageResetErrorInput {
 export class StorageResetError extends Error {
   readonly offlineDataCleared: boolean;
 
-  constructor({ offlineDataCleared, cause }: StorageResetErrorInput) {
-    super("Browser storage could not be fully reset.", { cause });
+  constructor(input: StorageResetErrorInput) {
+    const options = Object.hasOwn(input, "cause") ? { cause: input.cause } : undefined;
+    super("Browser storage could not be fully reset.", options);
     this.name = "StorageResetError";
-    this.offlineDataCleared = offlineDataCleared;
+    this.offlineDataCleared = input.offlineDataCleared;
   }
 }
 

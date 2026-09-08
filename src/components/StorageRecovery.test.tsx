@@ -3,6 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 import { resetLocalStorage, StorageRecovery, StorageResetError } from "./StorageRecovery";
 
 describe("resetLocalStorage", () => {
+  it("preserves native cause property presence semantics", () => {
+    const omittedCause = new StorageResetError({ offlineDataCleared: false });
+    const explicitUndefinedCause = new StorageResetError({ offlineDataCleared: false, cause: undefined });
+
+    expect(Object.hasOwn(omittedCause, "cause")).toBe(false);
+    expect(Object.hasOwn(explicitUndefinedCause, "cause")).toBe(true);
+    expect(explicitUndefinedCause.cause).toBeUndefined();
+  });
+
   it("attempts both backends and reloads after both clear successfully", async () => {
     const clearOfflineData = vi.fn().mockResolvedValue(undefined);
     const clearLocalStorage = vi.fn();
