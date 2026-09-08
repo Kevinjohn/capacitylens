@@ -184,7 +184,12 @@ const SCOPED_KEYS = [
   "timeOff",
 ] as const;
 
-describe("readSlice — tenant isolation", () => {
+function createReadSliceTenantIsolationTests(): void {
+  createReadSliceBaseTests();
+  createReadSliceSnapshotTest();
+}
+
+function createReadSliceBaseTests(): void {
   it("returns ONLY the requested account in every table (a1)", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
@@ -197,7 +202,6 @@ describe("readSlice — tenant isolation", () => {
       expect(rows.every((r) => (r as { accountId: string }).accountId === "a1")).toBe(true);
     }
   });
-
   it("is symmetric for a2 (no a1 rows leak)", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
@@ -208,7 +212,6 @@ describe("readSlice — tenant isolation", () => {
       expect(slice[key].some((r) => (r as { accountId: string }).accountId === "a1")).toBe(false);
     }
   });
-
   it("unknown accountId → empty slice (accounts:[], every scoped array empty), no throw", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
@@ -218,7 +221,6 @@ describe("readSlice — tenant isolation", () => {
     // Result has EVERY AppData key present (starts from emptyAppData), not a partial object.
     expect(Object.keys(slice).sort()).toEqual(Object.keys(emptyAppData()).sort());
   });
-
   it("round-trips optional + json columns through the codec", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
@@ -230,7 +232,9 @@ describe("readSlice — tenant isolation", () => {
       allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "act1" }),
     );
   });
+}
 
+function createReadSliceSnapshotTest(): void {
   it("returns one WAL snapshot when another handle commits between scoped table reads", () => {
     const directory = mkdtempSync(join(tmpdir(), "capacitylens-slice-snapshot-"));
     const path = join(directory, "capacitylens.db");
@@ -286,7 +290,9 @@ describe("readSlice — tenant isolation", () => {
       rmSync(directory, { recursive: true, force: true });
     }
   });
-});
+}
+
+describe("readSlice — tenant isolation", createReadSliceTenantIsolationTests);
 
 describe("replaceAccountSlice", () => {
   it("replaces only the requested account and preserves every other tenant", () => {
@@ -339,7 +345,14 @@ describe("replaceAccountSlice", () => {
   });
 });
 
-describe("sqliteTenantStore", () => {
+function createSqliteTenantStoreTests(): void {
+  createTenantStoreTypeTests();
+  createTenantStoreLifecycleWriteTest();
+  createTenantStoreLookupTest();
+  createTenantStoreScrubTests();
+}
+
+function createTenantStoreTypeTests(): void {
   it("keeps projected reads type-incompatible with complete replacement input", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
@@ -356,7 +369,9 @@ describe("sqliteTenantStore", () => {
     const storeSlice = createSqliteTenantStore(db).readSlice("a1", FULL);
     expect(storeSlice).toEqual(readSlice(db, "a1", FULL));
   });
+}
 
+function createTenantStoreLifecycleWriteTest(): void {
   it("writes one lifecycle row without rewriting tenant siblings", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
@@ -390,7 +405,9 @@ describe("sqliteTenantStore", () => {
     ]);
     expect(store.readSlice("a2", FULL)).toEqual(readSlice(db, "a2", FULL));
   });
+}
 
+function createTenantStoreLookupTest(): void {
   it("serves indexed mutation-validation lookups without crossing tenant boundaries", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
@@ -407,7 +424,9 @@ describe("sqliteTenantStore", () => {
     expect(lookup?.resourceHasLoadedAllocation("a1", "r1")).toBe(false);
     expect(lookup?.resourceHasLoadedAllocation("a2", "r2")).toBe(true);
   });
+}
 
+function createTenantStoreScrubTests(): void {
   it("scrubs resource notes, advances revisions and preserves another tenant", () => {
     const db = openDb(":memory:");
     const data = seedTwoAccounts() as unknown as Record<string, unknown[]>;
@@ -445,7 +464,9 @@ describe("sqliteTenantStore", () => {
     expect(store.readSlice("a2", FULL)).toEqual(readSlice(db, "a2", FULL));
     expect(store.purgeLifecycleRow("a1", entity, id)).toBeNull();
   });
-});
+}
+
+describe("sqliteTenantStore", createSqliteTenantStoreTests);
 
 describe("readSlice — P1.6 time-off note redaction", () => {
   // Seed a1 with a time-off row carrying a note; the standalone primitive decides note visibility
@@ -539,42 +560,46 @@ describe("readSlice — private client/project name redaction", () => {
   });
 });
 
-describe("readSlice — P2.4 lifecycle projection (includeInactive)", () => {
-  const ARCH = "2026-03-01T00:00:00.000Z";
-  const DEL = "2026-04-01T00:00:00.000Z";
+const ARCH = "2026-03-01T00:00:00.000Z";
+const DEL = "2026-04-01T00:00:00.000Z";
 
-  // One account 'a1' with a MIX in each lifecycle-bearing table: an active + an archived resource,
-  // an active + a soft-deleted client, an active + a soft-deleted project. Plus a phase, an activity
-  // and a time-off row (no lifecycle field) to prove they pass through regardless of the flag.
-  function seedLifecycleMix(): Db {
-    const db = openDb(":memory:");
-    const d = emptyAppData() as unknown as Record<string, unknown[]>;
-    d.accounts = [account("a1")];
-    d.disciplines = [discipline("d1", "a1")];
-    d.clients = [
-      client("c-active", "a1"),
-      { ...client("c-deleted", "a1"), archivedAt: ARCH, deletedAt: DEL }, // soft-deleted
-    ];
-    d.projects = [
-      project("p-active", "a1", "c-active"),
-      {
-        ...project("p-deleted", "a1", "c-active"),
-        archivedAt: ARCH,
-        deletedAt: DEL,
-      }, // soft-deleted
-    ];
-    d.resources = [
-      person("r-active", "a1", "d1"),
-      { ...person("r-archived", "a1", "d1"), archivedAt: ARCH }, // archived (not deleted)
-    ];
-    // Non-lifecycle children — must survive BOTH flags untouched.
-    d.phases = [phase("ph1", "a1", "p-active")];
-    d.activities = [activity("act1", "a1", "p-active")];
-    d.timeOff = [timeOff({ id: "to1", accountId: "a1", resourceId: "r-active" })];
-    insertAll(db, d as unknown as AppData);
-    return db;
-  }
+// One account 'a1' with a MIX in each lifecycle-bearing table: an active + an archived resource,
+// an active + a soft-deleted client, an active + a soft-deleted project. Plus a phase, an activity
+// and a time-off row (no lifecycle field) to prove they pass through regardless of the flag.
+function seedLifecycleMix(): Db {
+  const db = openDb(":memory:");
+  const d = emptyAppData() as unknown as Record<string, unknown[]>;
+  d.accounts = [account("a1")];
+  d.disciplines = [discipline("d1", "a1")];
+  d.clients = [
+    client("c-active", "a1"),
+    { ...client("c-deleted", "a1"), archivedAt: ARCH, deletedAt: DEL }, // soft-deleted
+  ];
+  d.projects = [
+    project("p-active", "a1", "c-active"),
+    {
+      ...project("p-deleted", "a1", "c-active"),
+      archivedAt: ARCH,
+      deletedAt: DEL,
+    }, // soft-deleted
+  ];
+  d.resources = [
+    person("r-active", "a1", "d1"),
+    { ...person("r-archived", "a1", "d1"), archivedAt: ARCH }, // archived (not deleted)
+  ];
+  // Non-lifecycle children — must survive BOTH flags untouched.
+  d.phases = [phase("ph1", "a1", "p-active")];
+  d.activities = [activity("act1", "a1", "p-active")];
+  d.timeOff = [timeOff({ id: "to1", accountId: "a1", resourceId: "r-active" })];
+  insertAll(db, d as unknown as AppData);
+  return db;
+}
 
+function createLifecycleProjectionTests(): void {
+  createLifecycleProjectionReadTests();
+}
+
+function createLifecycleProjectionReadTests(): void {
   it("includeInactive:false returns ONLY the active resource/client/project rows", () => {
     const slice = readSlice(seedLifecycleMix(), "a1", {
       includeTimeOffNote: true,
@@ -613,4 +638,6 @@ describe("readSlice — P2.4 lifecycle projection (includeInactive)", () => {
     expect(all.clients.filter((c) => c.accountId === "a1").length).toBe(2);
     expect(all.projects.filter((p) => p.accountId === "a1").length).toBe(2);
   });
-});
+}
+
+describe("readSlice — P2.4 lifecycle projection (includeInactive)", createLifecycleProjectionTests);
