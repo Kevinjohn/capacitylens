@@ -500,14 +500,6 @@
       "count": 2
     }
   },
-  "server/src/index.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "server/src/internalTls.test.ts": {
     "max-lines-per-function": {
       "count": 1
