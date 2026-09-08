@@ -250,20 +250,17 @@ function applyDelete(parameters: OperationParameters, op: ApplyBatchOperationPar
 export function applyBatchOperation(parameters: ApplyBatchOperationParameters): void {
   const { opIndex, op, ...operationParameters } = parameters;
   const context = { ...operationParameters, opIndex };
-  const method: unknown = op.method;
   // Shape, method, known-table and id validation completed before authorization and before
   // opening this transaction. This dispatch owns only state-dependent validation and mutation.
-  if (method === "PUT") {
-    applyPut(context, op);
-    return;
+  switch (op.method) {
+    case "PUT":
+      applyPut(context, op);
+      return;
+    case "ARCHIVE":
+      applyArchive(context, op);
+      return;
+    case "DELETE":
+      applyDelete(context, op);
+      return;
   }
-  if (method === "ARCHIVE") {
-    applyArchive(context, op);
-    return;
-  }
-  if (method === "DELETE") {
-    applyDelete(context, op);
-    return;
-  }
-  throw new ValidationError(`Unknown op method: ${String(method)}`);
 }
