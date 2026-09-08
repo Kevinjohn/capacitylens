@@ -362,14 +362,6 @@
       "count": 2
     }
   },
-  "server/src/app.retire-open-dataset.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 2
-    }
-  },
   "server/src/app.syncOrdering.integration.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
@@ -645,14 +637,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "server/src/routes/systemRoutes.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 2
     }
   },
   "server/src/rowCodec.test.ts": {
