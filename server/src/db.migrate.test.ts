@@ -405,6 +405,26 @@ function rollBackCurrentDatabaseToV25(db: DatabaseSync): void {
   `);
 }
 
+function assertPresentAccountViewPreferences(db: Db): void {
+  const row = getRow(db, "accounts", "a2");
+  expect(row?.placeholdersEnabled).toBe(true);
+  expect(row?.externalEnabled).toBe(true);
+  expect(row?.groupResourcesByEngagement).toBe(false);
+  expect(row?.showInternalProjects).toBe(false);
+  expect(row?.showInternalActivities).toBe(false);
+  expect(row?.inlineActivityCreateEnabled).toBe(false);
+}
+
+function assertAbsentAccountViewPreferences(db: Db): void {
+  const oldRow = getRow(db, "accounts", "a1");
+  expect(oldRow?.placeholdersEnabled).toBeUndefined();
+  expect(oldRow?.externalEnabled).toBeUndefined();
+  expect(oldRow?.groupResourcesByEngagement).toBeUndefined();
+  expect(oldRow?.showInternalProjects).toBeUndefined();
+  expect(oldRow?.showInternalActivities).toBeUndefined();
+  expect(oldRow?.inlineActivityCreateEnabled).toBeUndefined();
+}
+
 describe("schema migration of an existing on-disk DB", () => {
   it("pins synchronous FULL even when the connection inherited a weaker setting", () => {
     const copied = copyFixture("v16-off.db");
@@ -1148,23 +1168,11 @@ describe("schema migration of an existing on-disk DB", () => {
         createdAt: TS,
         updatedAt: TS,
       });
-      const row = getRow(db, "accounts", "a2");
-      expect(row?.placeholdersEnabled).toBe(true);
-      expect(row?.externalEnabled).toBe(true);
-      expect(row?.groupResourcesByEngagement).toBe(false);
       // JSON boolean columns round-trip an explicit `false` (not lost / not coerced to absent).
-      expect(row?.showInternalProjects).toBe(false);
-      expect(row?.showInternalActivities).toBe(false);
-      expect(row?.inlineActivityCreateEnabled).toBe(false);
       // The old row (without the new fields) reads back without them (absent → default true client-side
       // for the view prefs, false for placeholders/external).
-      const old2 = getRow(db, "accounts", "a1");
-      expect(old2?.placeholdersEnabled).toBeUndefined();
-      expect(old2?.externalEnabled).toBeUndefined();
-      expect(old2?.groupResourcesByEngagement).toBeUndefined();
-      expect(old2?.showInternalProjects).toBeUndefined();
-      expect(old2?.showInternalActivities).toBeUndefined();
-      expect(old2?.inlineActivityCreateEnabled).toBeUndefined();
+      assertPresentAccountViewPreferences(db);
+      assertAbsentAccountViewPreferences(db);
       db.close();
     } finally {
       cleanup();
