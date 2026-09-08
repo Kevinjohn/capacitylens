@@ -34,6 +34,7 @@ import {
   assertFederatedIdentitySchemaCurrent,
   createAuthFromEnvironment,
   runAuthMigrations,
+  type Auth,
 } from "./auth";
 import { TABLES } from "./tables";
 import {
@@ -117,6 +118,12 @@ const FIXTURE_PASSWORD_ENV = {
   BETTER_AUTH_SECRET: "fixture-secret-0123456789abcdef-012345",
   BETTER_AUTH_URL: "http://localhost:8787",
 } as const;
+
+function createFixtureAuth(db: Db): Auth {
+  const { auth } = createAuthFromEnvironment(db, FIXTURE_PASSWORD_ENV);
+  if (!auth) throw new Error("Expected password authentication for the migration fixture.");
+  return auth;
+}
 
 function copyFixture(name: string): { path: string; cleanup: () => void } {
   const path = join(tmpdir(), `capacitylens-${name}-${process.pid}-${Date.now()}.db`);
@@ -2611,9 +2618,10 @@ describe("schema migration of an existing on-disk DB", () => {
         ...originalAccounts,
         columns: [...originalAccounts.columns, { name: "futureOptional", optional: true }],
       };
-      db = openDbConnection(copied.path);
+      const connection = openDbConnection(copied.path);
+      db = connection;
       expect(() =>
-        initializeOpenDb(db!, copied.path, {
+        initializeOpenDb(connection, copied.path, {
           beforeCommit: (migration) => {
             if (migration.version === 9) throw new Error("stop before v9 commit");
           },
@@ -2644,9 +2652,10 @@ describe("schema migration of an existing on-disk DB", () => {
         ...originalPhases,
         columns: [...originalPhases.columns, { name: "futureRequired" }],
       };
-      db = openDbConnection(copied.path);
+      const connection = openDbConnection(copied.path);
+      db = connection;
       expect(() =>
-        initializeOpenDb(db!, copied.path, {
+        initializeOpenDb(connection, copied.path, {
           beforeCommit: (migration) => {
             if (migration.version === 17) throw new Error("stop after committed v16");
           },
@@ -2842,8 +2851,7 @@ describe("schema migration of an existing on-disk DB", () => {
         released.close();
 
         const db = openDb(copied.path);
-        const configured = createAuthFromEnvironment(db, FIXTURE_PASSWORD_ENV);
-        await runAuthMigrations(configured.auth!);
+        await runAuthMigrations(createFixtureAuth(db));
         assertMigrationValuesPreserved(originalValues, captureMigrationValues(db), version);
         expect(db.prepare(`SELECT id, email FROM user ORDER BY id`).all()).toEqual(originalUsers);
         expect(db.prepare(`SELECT id, userId FROM session ORDER BY id`).all()).toEqual(originalSessions);
@@ -2857,15 +2865,13 @@ describe("schema migration of an existing on-disk DB", () => {
         }
 
         const fresh = openDb(":memory:");
-        const freshConfigured = createAuthFromEnvironment(fresh, FIXTURE_PASSWORD_ENV);
-        await runAuthMigrations(freshConfigured.auth!);
+        await runAuthMigrations(createFixtureAuth(fresh));
         expect(schemaFingerprint(db)).toEqual(schemaFingerprint(fresh));
         fresh.close();
         db.close();
 
         const reopened = openDb(copied.path);
-        const reopenedConfigured = createAuthFromEnvironment(reopened, FIXTURE_PASSWORD_ENV);
-        await runAuthMigrations(reopenedConfigured.auth!);
+        await runAuthMigrations(createFixtureAuth(reopened));
         expect(planDatabaseMigrations(reopened).migrations).toEqual([]);
         expect(reopened.prepare(`PRAGMA foreign_key_check`).all()).toEqual([]);
         reopened.close();
