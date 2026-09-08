@@ -1,4 +1,5 @@
-import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import { isAccountEmail } from "@capacitylens/shared/account/validation";
@@ -28,21 +29,20 @@ interface InviteMutationDependencies extends MemberInviteDependencies {
   setMintedLink: Dispatch<SetStateAction<MintedInviteLink | null>>;
 }
 
-function resolveInviteEmail(
+type InviteEmailValidationResult = { kind: "valid"; email: string } | { kind: "invalid"; message: string };
+
+function buildInviteEmailValidation(
   authMode: MemberInviteDependencies["authMode"],
   email: string,
-  fail: MemberInviteDependencies["fail"],
-) {
+): InviteEmailValidationResult {
   const trimmed = email.trim();
   if (authMode === "sso" && trimmed.length === 0) {
-    fail("invite", m.settings_sso_invite_email_required());
-    return null;
+    return { kind: "invalid", message: m.settings_sso_invite_email_required() };
   }
   if (trimmed.length > 0 && !isAccountEmail(trimmed)) {
-    fail("invite", m.identity_err_email());
-    return null;
+    return { kind: "invalid", message: m.identity_err_email() };
   }
-  return trimmed;
+  return { kind: "valid", email: trimmed };
 }
 
 function resolveInviteMutationError(message: string, error: unknown) {
@@ -67,8 +67,11 @@ function createSubmitInvite({
   return async () => {
     clear();
     requestAccountId();
-    const trimmed = resolveInviteEmail(authMode, invitationPreauthorizedEmail, fail);
-    if (trimmed === null) return;
+    const emailValidation = buildInviteEmailValidation(authMode, invitationPreauthorizedEmail);
+    if (emailValidation.kind === "invalid") {
+      return fail("invite", emailValidation.message);
+    }
+    const trimmed = emailValidation.email;
     await withMemberAction("invite:create", async (accountId) => {
       setMintedLink(null);
       try {
@@ -199,7 +202,7 @@ export function useMemberInvites() {
     reloadInvites,
     reconcileUnknownMutation,
   }: MemberInviteDependencies) => {
-    const dependencies = {
+    const submitInvite = createSubmitInvite({
       authMode,
       clear,
       requestAccountId,
@@ -213,10 +216,17 @@ export function useMemberInvites() {
       inviteRole,
       setInvitationPreauthorizedEmail,
       setMintedLink,
-    };
-    const submitInvite = createSubmitInvite(dependencies);
-    const revokeInvite = createRevokeInvite(dependencies);
-    const copyLink = createCopyLink(dependencies);
+    });
+    const revokeInvite = createRevokeInvite({
+      withMemberAction,
+      isActiveAccount,
+      fail,
+      setNotice,
+      reloadInvites,
+      reconcileUnknownMutation,
+      setMintedLink,
+    });
+    const copyLink = createCopyLink({ requestAccountId, isActiveAccount, setNotice });
     return { submitInvite, revokeInvite, copyLink };
   };
   return {
