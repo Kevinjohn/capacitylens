@@ -6,11 +6,19 @@ import { SESSION_INACTIVITY_TTL_SECONDS, SESSION_ACTIVITY_WRITE_INTERVAL_SECONDS
 
 /** Parse stored activity as epoch milliseconds or ISO text; malformed values have no timestamp. */
 function parseSessionTimestamp(value: string | number | null | undefined): number | null {
-  const milliseconds = typeof value === "number" ? value : typeof value === "string" ? Date.parse(value) : null;
+  let milliseconds: number | null = null;
+  if (typeof value === "number") milliseconds = value;
+  if (typeof value === "string") milliseconds = Date.parse(value);
   return milliseconds !== null && Number.isFinite(milliseconds) ? milliseconds : null;
 }
 
 type SessionActivityResult = { kind: "deleted" } | { kind: "active"; currentMs: number };
+type SessionActivityLifecycle = {
+  prepare(sessionToken: string, reason: "session_expired"): readonly string[];
+  commit(sessionHandles: readonly string[]): void;
+};
+type SessionActivitySession = { session: { token: string; updatedAt: Date | string } };
+type StoredSessionActivity = { updatedAt: string | number | null };
 
 /**
  * Apply the app's idle timeout to a session Better Auth has already resolved.
@@ -33,6 +41,7 @@ type SessionActivityStatements = {
   casDelete: ReturnType<Db["prepare"]>;
   casTouch: ReturnType<Db["prepare"]>;
 };
+type SessionActivityContext = { db: Db; statements: SessionActivityStatements };
 
 // This runs on every authenticated request (via enforceSessionActivity below) — cache the four
 // prepared statements per Db handle instead of re-preparing them on each call. WeakMap keyed by
@@ -53,107 +62,128 @@ function createSessionActivityStatements(db: Db): SessionActivityStatements {
   return statements;
 }
 
-export async function enforceSessionActivity<
-  Session extends {
-    session: { token: string; updatedAt: Date | string };
-  },
->(
+function readSessionActivity(statements: SessionActivityStatements, token: string): StoredSessionActivity | undefined {
+  return statements.read.get(token) as StoredSessionActivity | undefined;
+}
+
+function destroySession(context: SessionActivityContext, token: string, lifecycle?: SessionActivityLifecycle): null {
+  let sessionHandles: readonly string[] = [];
+  tx(
+    context.db,
+    () => {
+      if (lifecycle) sessionHandles = lifecycle.prepare(token, "session_expired");
+      context.statements.destroy.run(token);
+    },
+    "immediate",
+  );
+  if (lifecycle) lifecycle.commit(sessionHandles);
+  return null;
+}
+
+function adoptSessionActivity<Session extends SessionActivitySession>(session: Session, currentMs: number): Session {
+  session.session.updatedAt = new Date(currentMs);
+  return session;
+}
+
+function enforceExpiredSessionWithoutLifecycle<Session extends SessionActivitySession>(
+  session: Session,
+  context: SessionActivityContext,
+  row: StoredSessionActivity,
+): Session | null {
+  const token = session.session.token;
+  const removed = context.statements.casDelete.run(token, row.updatedAt);
+  if (removed.changes >= 1) return null;
+
+  // Lost a race to a concurrent touch between the read and the delete — re-read it.
+  const current = readSessionActivity(context.statements, token);
+  if (!current) return null;
+  const currentMs = parseSessionTimestamp(current.updatedAt);
+  if (currentMs === null) return destroySession(context, token);
+  return adoptSessionActivity(session, currentMs);
+}
+
+function enforceExpiredSessionWithLifecycle<Session extends SessionActivitySession>(
+  session: Session,
+  context: SessionActivityContext,
+  lifecycle: SessionActivityLifecycle,
+): Session | null {
+  const token = session.session.token;
+  const lastActivity = new Date(session.session.updatedAt).getTime();
+  let sessionHandles: readonly string[] = [];
+  const result = tx(
+    context.db,
+    (): SessionActivityResult => {
+      // Re-read after taking the writer reservation. Another process may have touched the row
+      // between the optimistic read and this transaction.
+      const current = readSessionActivity(context.statements, token);
+      if (!current) return { kind: "deleted" };
+      const currentMs = parseSessionTimestamp(current.updatedAt);
+      if (currentMs !== null && currentMs !== lastActivity) return { kind: "active", currentMs };
+      sessionHandles = lifecycle.prepare(token, "session_expired");
+      context.statements.destroy.run(token);
+      return { kind: "deleted" };
+    },
+    "immediate",
+  );
+  if (result.kind === "active") return adoptSessionActivity(session, result.currentMs);
+  lifecycle.commit(sessionHandles);
+  return null;
+}
+
+function enforceExpiredSession<Session extends SessionActivitySession>(
+  session: Session,
+  context: SessionActivityContext,
+  lifecycle?: SessionActivityLifecycle,
+): Session | null {
+  const token = session.session.token;
+  const lastActivity = new Date(session.session.updatedAt).getTime();
+  if (!Number.isFinite(lastActivity)) return destroySession(context, token, lifecycle);
+
+  const row = readSessionActivity(context.statements, token);
+  if (!row) return null;
+  const rowMs = parseSessionTimestamp(row.updatedAt);
+  if (rowMs === null) return destroySession(context, token, lifecycle);
+  if (rowMs !== lastActivity) return adoptSessionActivity(session, rowMs);
+  if (!lifecycle) return enforceExpiredSessionWithoutLifecycle(session, context, row);
+  return enforceExpiredSessionWithLifecycle(session, context, lifecycle);
+}
+
+function touchSessionActivity<Session extends SessionActivitySession>(
+  session: Session,
+  context: SessionActivityContext,
+  now: number,
+): Session | null {
+  const token = session.session.token;
+  const row = readSessionActivity(context.statements, token);
+  if (!row) return null;
+  const rowMs = parseSessionTimestamp(row.updatedAt);
+  if (rowMs === null) return destroySession(context, token);
+  if (rowMs >= now) return adoptSessionActivity(session, rowMs);
+
+  const next: string | number = typeof row.updatedAt === "number" ? now : new Date(now).toISOString();
+  const touched = context.statements.casTouch.run(next, token, row.updatedAt);
+  if (touched.changes >= 1) return adoptSessionActivity(session, now);
+
+  // A concurrent touch won the CAS; adopt whatever it wrote.
+  const current = readSessionActivity(context.statements, token);
+  if (!current) return null;
+  const currentMs = parseSessionTimestamp(current.updatedAt);
+  if (currentMs === null) return destroySession(context, token);
+  return adoptSessionActivity(session, currentMs);
+}
+
+export async function enforceSessionActivity<Session extends SessionActivitySession>(
   session: Session,
   db: Db,
-  lifecycle?: {
-    prepare(sessionToken: string, reason: "session_expired"): readonly string[];
-    commit(sessionHandles: readonly string[]): void;
-  },
+  lifecycle?: SessionActivityLifecycle,
 ): Promise<Session | null> {
-  const token = session.session.token;
-  const stmts = createSessionActivityStatements(db);
-  const readRaw = (): { updatedAt: string | number | null } | undefined =>
-    stmts.read.get(token) as { updatedAt: string | number | null } | undefined;
-  const destroy = (): null => {
-    let sessionHandles: readonly string[] = [];
-    tx(
-      db,
-      () => {
-        sessionHandles = lifecycle?.prepare(token, "session_expired") ?? [];
-        stmts.destroy.run(token);
-      },
-      "immediate",
-    );
-    lifecycle?.commit(sessionHandles);
-    return null;
-  };
+  const context = { db, statements: createSessionActivityStatements(db) };
   const lastActivity = new Date(session.session.updatedAt).getTime();
   const now = Date.now();
   const elapsed = now - lastActivity;
-  if (!Number.isFinite(lastActivity) || elapsed < 0 || elapsed >= SESSION_INACTIVITY_TTL_SECONDS * 1000) {
-    if (!Number.isFinite(lastActivity)) return destroy();
-    const row = readRaw();
-    if (!row) return null;
-    const rowMs = parseSessionTimestamp(row.updatedAt);
-    if (rowMs === null) return destroy();
-    if (rowMs === lastActivity) {
-      if (!lifecycle) {
-        const removed = stmts.casDelete.run(token, row.updatedAt as string | number);
-        if (removed.changes >= 1) return null;
-        // Lost a race to a concurrent touch between the read and the delete — re-read it.
-        const current = readRaw();
-        if (!current) return null;
-        const currentMs = parseSessionTimestamp(current.updatedAt);
-        if (currentMs === null) return destroy();
-        session.session.updatedAt = new Date(currentMs);
-        return session;
-      }
-      let sessionHandles: readonly string[] = [];
-      const result = tx(
-        db,
-        (): SessionActivityResult => {
-          // Re-read after taking the writer reservation. Another process may have touched the row
-          // between the optimistic read above and this transaction.
-          const current = readRaw();
-          if (!current) return { kind: "deleted" };
-          const currentMs = parseSessionTimestamp(current.updatedAt);
-          if (currentMs !== null && currentMs !== lastActivity) {
-            return { kind: "active", currentMs };
-          }
-          sessionHandles = lifecycle?.prepare(token, "session_expired") ?? [];
-          stmts.destroy.run(token);
-          return { kind: "deleted" };
-        },
-        "immediate",
-      );
-      if (result.kind === "deleted") {
-        lifecycle?.commit(sessionHandles);
-        return null;
-      }
-      session.session.updatedAt = new Date(result.currentMs);
-      return session;
-    }
-    // A concurrent request touched the row after this request resolved its session.
-    // Adopt that newer activity instead of deleting it from a stale snapshot.
-    session.session.updatedAt = new Date(rowMs);
-    return session;
-  }
-  if (elapsed >= SESSION_ACTIVITY_WRITE_INTERVAL_SECONDS * 1000) {
-    const row = readRaw();
-    if (!row) return null;
-    const rowMs = parseSessionTimestamp(row.updatedAt);
-    if (rowMs === null) return destroy();
-    let adopted = rowMs;
-    if (rowMs < now) {
-      const next: string | number = typeof row.updatedAt === "number" ? now : new Date(now).toISOString();
-      const touched = stmts.casTouch.run(next, token, row.updatedAt as string | number);
-      if (touched.changes >= 1) adopted = now;
-      else {
-        // A concurrent touch won the CAS; adopt whatever it wrote.
-        const current = readRaw();
-        if (!current) return null;
-        const currentMs = parseSessionTimestamp(current.updatedAt);
-        if (currentMs === null) return destroy();
-        adopted = currentMs;
-      }
-    }
-    session.session.updatedAt = new Date(adopted);
-  }
+  const expired = !Number.isFinite(lastActivity) || elapsed < 0 || elapsed >= SESSION_INACTIVITY_TTL_SECONDS * 1000;
+  if (expired) return enforceExpiredSession(session, context, lifecycle);
+  if (elapsed >= SESSION_ACTIVITY_WRITE_INTERVAL_SECONDS * 1000) return touchSessionActivity(session, context, now);
   return session;
 }
 
