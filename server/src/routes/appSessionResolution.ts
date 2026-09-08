@@ -215,7 +215,7 @@ function createSessionPreHandler(dependencies: CreateSessionPreHandlerInput) {
     if (!path.startsWith("/api/") || isPublicApiPath(path)) return;
     const resolution = await dependencies.resolveIncomingSession({ req });
     if (resolution.kind === "verified") attachVerifiedSession(req, resolution.session);
-    const unsafe = req.method !== "GET" && req.method !== "HEAD" && req.method !== "OPTIONS";
+    const unsafe = isUnsafeMethod(req.method);
     if (await applyMasqueradePolicy({ dependencies, path, reply, req, resolution, unsafe })) return;
     if (resolution.kind === "backend_failure" && unsafe) {
       req.log.error(resolution.error);
@@ -226,6 +226,10 @@ function createSessionPreHandler(dependencies: CreateSessionPreHandlerInput) {
     if (dependencies.authMode === "off") return attachTrustedLocalActor(req);
     await requireApplicationSession({ dependencies, path, reply, req, resolution });
   };
+}
+
+function isUnsafeMethod(method: string): boolean {
+  return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
 }
 
 export function installSessionResolution({
