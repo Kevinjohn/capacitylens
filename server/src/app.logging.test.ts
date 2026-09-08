@@ -10,25 +10,25 @@ import type { Db } from "./db";
 // byte today's behaviour (no request logs, bare console.error on 500s). The logStream
 // seam exists only so these tests can read the JSON lines instead of stdout.
 
-function capture(): { lines: string[]; stream: { write(msg: string): void } } {
+function createLogCapture(): { lines: string[]; stream: { write(msg: string): void } } {
   const lines: string[] = [];
   return { lines, stream: { write: (msg: string) => void lines.push(msg) } };
 }
 
-function requireAuth(auth: Auth | null): Auth {
+function assertAuth(auth: Auth | null): Auth {
   if (!auth) throw new Error("Password auth fixture was not created.");
   return auth;
 }
 
 async function createPasswordAuth(db: Db): Promise<{ mode: AccountMode; auth: Auth }> {
   const result = createAuthFromEnvironment(db, PASSWORD_ENV);
-  const auth = requireAuth(result.auth);
+  const auth = assertAuth(result.auth);
   await runAuthMigrations(auth);
   return { mode: result.mode, auth };
 }
 
 async function assertInviteTokenUrlIsRedacted(operation: "preview" | "signup"): Promise<void> {
-  const { lines, stream } = capture();
+  const { lines, stream } = createLogCapture();
   const app = createApp(openDb(":memory:"), {
     log: true,
     logStream: stream,
@@ -44,13 +44,36 @@ async function assertInviteTokenUrlIsRedacted(operation: "preview" | "signup"): 
   expect(out).not.toContain(token);
 }
 
+function assertLastSecurityEvent(events: Array<Record<string, unknown>>): Record<string, unknown> {
+  const event = events.at(-1);
+  if (!event) throw new Error("Expected a security event.");
+  return event;
+}
+
+async function assertPreflightDoesNotLogAuthentication(
+  app: ReturnType<typeof createApp>,
+  events: Array<Record<string, unknown>>,
+): Promise<void> {
+  const authenticationEventCount = events.filter((event) => event.event === "authentication").length;
+  const preflight = await call(app, {
+    method: "OPTIONS",
+    url: "/api/auth/sign-in/email",
+    headers: {
+      origin: "http://localhost:5173",
+      "access-control-request-method": "POST",
+    },
+  });
+  expect(preflight.statusCode).toBe(204);
+  expect(events.filter((event) => event.event === "authentication")).toHaveLength(authenticationEventCount);
+}
+
 afterEach(() => vi.restoreAllMocks());
 
 const inviteOperations = ["preview", "signup"] as const;
 
 describe("CAPACITYLENS_LOG on", () => {
   it("emits method/path/status request-completion JSON lines", async () => {
-    const { lines, stream } = capture();
+    const { lines, stream } = createLogCapture();
     const app = createApp(openDb(":memory:"), { log: true, logStream: stream });
     await app.inject({ method: "GET", url: "/api/health" });
     const out = lines.join("");
@@ -62,7 +85,7 @@ describe("CAPACITYLENS_LOG on", () => {
 
   it("routes the 500-path error through the request logger, not console.error", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { lines, stream } = capture();
+    const { lines, stream } = createLogCapture();
     const db = openDb(":memory:");
     const app = createApp(db, { log: true, logStream: stream });
     db.close(); // /api/state now throws → the 500 redaction funnel
@@ -129,7 +152,7 @@ describe("CAPACITYLENS_LOG redaction (P0.5.5)", () => {
   // End-to-end: a real request carrying secret headers. They don't appear because default
   // serializers don't log headers — this guards against a future serializer change leaking them.
   it("keeps authorization/cookie headers off the request log lines", async () => {
-    const { lines, stream } = capture();
+    const { lines, stream } = createLogCapture();
     const app = createApp(openDb(":memory:"), { log: true, logStream: stream });
     await app.inject({
       method: "GET",
@@ -150,7 +173,7 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
   // The invite-accept URL carries the bearer token in its PATH; pino logs req.url verbatim, so a
   // serializer must mask the :token segment before it reaches stdout. Other URLs stay intact.
   it("rewrites /api/invites/<token>/accept to /api/invites/[redacted]/accept", async () => {
-    const { lines, stream } = capture();
+    const { lines, stream } = createLogCapture();
     const app = createApp(openDb(":memory:"), { log: true, logStream: stream });
     const TOKEN = "SENTINEL_LIVE_INVITE_TOKEN";
     // The token is unknown → the route 404s, but the request IS logged with the URL we care about.
@@ -195,7 +218,7 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
   });
 
   it("redacts secret query parameters while preserving ordinary query state", async () => {
-    const { lines, stream } = capture();
+    const { lines, stream } = createLogCapture();
     const app = createApp(openDb(":memory:"), { log: true, logStream: stream });
     const CODE = "SENTINEL_CALLBACK_CODE";
     const STATE = "SENTINEL_CALLBACK_STATE";
@@ -212,7 +235,7 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
   });
 
   it("leaves every other URL intact", async () => {
-    const { lines, stream } = capture();
+    const { lines, stream } = createLogCapture();
     const app = createApp(openDb(":memory:"), { log: true, logStream: stream });
     await app.inject({ method: "GET", url: "/api/health" });
     expect(lines.join("")).toContain('"url":"/api/health"');
@@ -252,7 +275,7 @@ describe("security-event client identity", () => {
 
 describe("CAPACITYLENS_LOG off (default)", () => {
   it("emits no request logs at all", async () => {
-    const { lines, stream } = capture();
+    const { lines, stream } = createLogCapture();
     const app = createApp(openDb(":memory:"), { logStream: stream }); // stream ignored when off
     await app.inject({ method: "GET", url: "/api/health" });
     expect(lines).toEqual([]);
@@ -260,7 +283,7 @@ describe("CAPACITYLENS_LOG off (default)", () => {
 
   it("keeps the 500-path on console.error (today, byte for byte)", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { lines, stream } = capture();
+    const { lines, stream } = createLogCapture();
     const db = openDb(":memory:");
     const app = createApp(db, { logStream: stream });
     db.close();
@@ -306,14 +329,15 @@ describe("authentication security events", () => {
       payload: { email, password: "wrong-password-123456" },
     });
     expect(failed.statusCode).toBe(401);
-    expect(events.at(-1)).toMatchObject({
+    const failedEvent = assertLastSecurityEvent(events);
+    expect(failedEvent).toMatchObject({
       event: "authentication",
       path: "/api/auth/sign-in/email",
       outcome: "failure",
     });
-    expect(events.at(-1)).not.toHaveProperty("userId");
-    expect(JSON.stringify(events.at(-1))).not.toContain(email);
-    expect(JSON.stringify(events.at(-1))).not.toContain("wrong-password-123456");
+    expect(failedEvent).not.toHaveProperty("userId");
+    expect(JSON.stringify(failedEvent)).not.toContain(email);
+    expect(JSON.stringify(failedEvent)).not.toContain("wrong-password-123456");
 
     const signIn = await call(app, {
       method: "POST",
@@ -321,25 +345,13 @@ describe("authentication security events", () => {
       payload: { email, password: "password-123456" },
     });
     expect(signIn.statusCode).toBe(200);
-    expect(events.at(-1)).toMatchObject({
+    expect(assertLastSecurityEvent(events)).toMatchObject({
       event: "authentication",
       path: "/api/auth/sign-in/email",
       outcome: "success",
       userId,
     });
 
-    const authenticationEventsBeforePreflight = events.filter((event) => event.event === "authentication").length;
-    const preflight = await call(app, {
-      method: "OPTIONS",
-      url: "/api/auth/sign-in/email",
-      headers: {
-        origin: "http://localhost:5173",
-        "access-control-request-method": "POST",
-      },
-    });
-    expect(preflight.statusCode).toBe(204);
-    expect(events.filter((event) => event.event === "authentication")).toHaveLength(
-      authenticationEventsBeforePreflight,
-    );
+    await assertPreflightDoesNotLogAuthentication(app, events);
   });
 });
