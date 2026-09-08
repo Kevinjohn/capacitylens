@@ -957,17 +957,6 @@
       "count": 1
     }
   },
-  "src/components/AppSidebar.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
-    }
-  },
   "src/components/CommandPalette.tsx": {
     "max-lines-per-function": {
       "count": 1
