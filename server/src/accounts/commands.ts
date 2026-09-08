@@ -26,15 +26,17 @@ export {
 const replayedCommandResults = new WeakSet<object>();
 
 function compareCanonicalKeys(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
 }
 
 function buildCanonicalJson(value: unknown): string {
   if (value === null) return "null";
   if (typeof value === "number" && !Number.isFinite(value)) return "null";
+  if (value === undefined || typeof value === "function" || typeof value === "symbol") return "null";
   if (typeof value !== "object") {
-    const encoded = JSON.stringify(value);
-    return encoded === undefined ? "null" : encoded;
+    return JSON.stringify(value);
   }
   if (Array.isArray(value)) return `[${value.map((child) => buildCanonicalJson(child)).join(",")}]`;
   const toJSON = (value as { toJSON?: unknown }).toJSON;
@@ -95,15 +97,17 @@ function throwCommandConflict(
     (record.applicationId !== scope.applicationId ||
       record.operation !== scope.operation ||
       record.idempotencyKey !== command.idempotencyKey);
+  let message = "That idempotency key was already used for a different command payload.";
+  if (commandIdReused) {
+    message = "That command id is already bound to another account operation.";
+  } else if (record.commandId !== command.commandId) {
+    message = "That idempotency key is already bound to another command id.";
+  } else if (record.actorPrincipalId !== scope.actorPrincipalId) {
+    message = "That idempotency key is already bound to another command context.";
+  }
   throw new AccountContractError({
     code: "IDEMPOTENCY_CONFLICT",
-    message: commandIdReused
-      ? "That command id is already bound to another account operation."
-      : record.commandId !== command.commandId
-        ? "That idempotency key is already bound to another command id."
-        : record.actorPrincipalId !== scope.actorPrincipalId
-          ? "That idempotency key is already bound to another command context."
-          : "That idempotency key was already used for a different command payload.",
+    message,
     retryable: false,
     commandId: record.commandId,
   });
@@ -117,18 +121,18 @@ function replayOrRejectExistingCommand<T>(record: AccountCommandRecord): Replaye
       result: JSON.parse(record.resultJson) as T,
     };
   }
+  if (record.status === "pending") {
+    throw new AccountContractError({
+      code: "COMMAND_IN_PROGRESS",
+      message: "That command is already in progress.",
+      retryable: true,
+      commandId: record.commandId,
+    });
+  }
   throw new AccountContractError({
-    code:
-      record.status === "reconciliation_required"
-        ? "DEPENDENCY_UNAVAILABLE"
-        : record.status === "pending"
-          ? "COMMAND_IN_PROGRESS"
-          : "CONFLICT",
-    message:
-      record.status === "pending"
-        ? "That command is already in progress."
-        : "That command already reached a terminal non-success state.",
-    retryable: record.status === "pending" || record.status === "reconciliation_required",
+    code: record.status === "reconciliation_required" ? "DEPENDENCY_UNAVAILABLE" : "CONFLICT",
+    message: "That command already reached a terminal non-success state.",
+    retryable: record.status === "reconciliation_required",
     commandId: record.commandId,
   });
 }
