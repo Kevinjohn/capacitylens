@@ -63,10 +63,14 @@ type TransactionConfiguration =
   | [options: TransactionOptions];
 
 function resolveTransactionOptions(configuration: TransactionConfiguration): Required<TransactionOptions> {
-  const [modeOrOptions, positionalReporter] = configuration;
-  if (positionalReporter !== undefined) {
-    return { mode: modeOrOptions ?? "deferred", reportRollbackFailure: positionalReporter };
+  if (configuration.length === 2) {
+    const [mode, reportRollbackFailure] = configuration;
+    return {
+      mode: mode ?? "deferred",
+      reportRollbackFailure: reportRollbackFailure ?? defaultRollbackFailureReporter,
+    };
   }
+  const [modeOrOptions] = configuration;
   if (typeof modeOrOptions === "string") {
     return { mode: modeOrOptions, reportRollbackFailure: defaultRollbackFailureReporter };
   }
