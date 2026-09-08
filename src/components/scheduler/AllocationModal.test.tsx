@@ -2344,7 +2344,7 @@ describe("AllocationModal inline activity creation pref", () => {
   registerInlineActivityUnavailableTests();
 });
 
-describe("AllocationModal Enter key submission", () => {
+function registerEnterSubmissionTests() {
   it("operates the Hours / day select with the keyboard", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = first(useStore.getState().data.resources).id;
@@ -2396,7 +2396,9 @@ describe("AllocationModal Enter key submission", () => {
     expect(onClose).toHaveBeenCalled();
     expect(useStore.getState().data.allocations).toHaveLength(1);
   });
+}
 
+function registerInlineActivityEnterTest() {
   it("pressing Enter in the new-activity input calls onAddActivity, not submit", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = first(useStore.getState().data.resources).id;
@@ -2421,6 +2423,11 @@ describe("AllocationModal Enter key submission", () => {
     expect(activities.find((activity) => activity.name === "Brand new activity")).toMatchObject({ kind: "internal" });
     expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent("Brand new activity");
   });
+}
+
+describe("AllocationModal Enter key submission", () => {
+  registerEnterSubmissionTests();
+  registerInlineActivityEnterTest();
 });
 
 // These cases drive many sequential user interactions and can exceed Vitest's 5 s default on CI hardware.
