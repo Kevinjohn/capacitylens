@@ -62,20 +62,20 @@ if (typeof globalThis.ResizeObserver === "undefined") {
 if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => {};
 }
-const pointerCapturePrototype = HTMLElement.prototype as Partial<
-  Pick<HTMLElement, "setPointerCapture" | "hasPointerCapture" | "releasePointerCapture">
->;
-if (typeof pointerCapturePrototype.setPointerCapture !== "function") {
+const browserGlobals = globalThis as unknown as { HTMLElement?: typeof HTMLElement };
+const pointerCapturePrototype = browserGlobals.HTMLElement?.prototype as
+  Partial<Pick<HTMLElement, "setPointerCapture" | "hasPointerCapture" | "releasePointerCapture">> | undefined;
+if (pointerCapturePrototype && typeof pointerCapturePrototype.setPointerCapture !== "function") {
   const capturedPointers = new WeakMap<HTMLElement, Set<number>>();
-  HTMLElement.prototype.setPointerCapture = function (pointerId) {
+  pointerCapturePrototype.setPointerCapture = function (this: HTMLElement, pointerId) {
     const pointers = capturedPointers.get(this) ?? new Set<number>();
     pointers.add(pointerId);
     capturedPointers.set(this, pointers);
   };
-  HTMLElement.prototype.hasPointerCapture = function (pointerId) {
+  pointerCapturePrototype.hasPointerCapture = function (this: HTMLElement, pointerId) {
     return capturedPointers.get(this)?.has(pointerId) ?? false;
   };
-  HTMLElement.prototype.releasePointerCapture = function (pointerId) {
+  pointerCapturePrototype.releasePointerCapture = function (this: HTMLElement, pointerId) {
     capturedPointers.get(this)?.delete(pointerId);
   };
 }
