@@ -1315,7 +1315,9 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     // No value leak: the sentinel name never reaches the audit line.
     expect(readFileSync(file, "utf8")).not.toContain(SENTINEL);
   });
+});
 
+describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
   it("a resource soft-delete audits its row and cascaded note scrubs without leaking values", async () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-lc-audit-del-"));
     const file = join(dir, "audit.jsonl");
@@ -1377,7 +1379,9 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     expect(readFileSync(file, "utf8")).not.toContain(SENTINEL);
     expect(readFileSync(file, "utf8")).not.toContain(NOTE_SENTINEL);
   });
+});
 
+describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
   it("records privacy-safe per-table counts for an irreversible purge cascade", async () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-lc-audit-purge-"));
     const file = join(dir, "audit.jsonl");
