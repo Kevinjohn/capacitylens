@@ -447,6 +447,16 @@ interface BatchReceipt {
   superseded?: boolean;
 }
 
+interface RewrittenAllocationSnapshot {
+  createdAt: string;
+  id: string;
+  updatedAt: string;
+}
+
+interface ActivityWriteResponse extends ActivitySnapshot {
+  rewrittenAllocations: RewrittenAllocationSnapshot[];
+}
+
 interface ClientSnapshot {
   accountId: string;
   archivedAt?: string;
@@ -1116,6 +1126,38 @@ function readBatchReceipt(response: LightMyRequestResponse): BatchReceipt {
   return receipt;
 }
 
+function readActivityWriteResponse(response: LightMyRequestResponse): ActivityWriteResponse {
+  const value: unknown = response.json();
+  if (!isUnknownRecord(value)) throw new Error("Expected the activity response to be an object.");
+  requireModeledKeys(
+    value,
+    ["accountId", "createdAt", "id", "kind", "name", "phaseId", "projectId", "rewrittenAllocations", "updatedAt"],
+    "activity response",
+  );
+  const phaseId = readOptionalString(value, "phaseId", "activity response");
+  const projectId = readOptionalString(value, "projectId", "activity response");
+  const activity: ActivitySnapshot = {
+    accountId: readRequiredString(value, "accountId", "activity response"),
+    createdAt: readRequiredString(value, "createdAt", "activity response"),
+    id: readRequiredString(value, "id", "activity response"),
+    kind: readRequiredString(value, "kind", "activity response"),
+    name: readRequiredString(value, "name", "activity response"),
+    updatedAt: readRequiredString(value, "updatedAt", "activity response"),
+  };
+  if (phaseId !== undefined) activity.phaseId = phaseId;
+  if (projectId !== undefined) activity.projectId = projectId;
+  const rewrittenAllocations = readStateArray(value, "rewrittenAllocations").map((revision) => {
+    if (!isUnknownRecord(revision)) throw new Error("Expected every rewritten allocation to be an object.");
+    requireModeledKeys(revision, ["createdAt", "id", "updatedAt"], "rewritten allocation");
+    return {
+      createdAt: readRequiredString(revision, "createdAt", "rewritten allocation"),
+      id: readRequiredString(revision, "id", "rewritten allocation"),
+      updatedAt: readRequiredString(revision, "updatedAt", "rewritten allocation"),
+    };
+  });
+  return { ...activity, rewrittenAllocations };
+}
+
 function readProjectId(rows: ProjectBinding[], id: string): string | undefined {
   const row = rows.find((candidate) => candidate.id === id);
   if (!row) throw new Error(`Expected the state response to contain row ${id}.`);
@@ -1703,34 +1745,34 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
 
   it("keeps direct activity PUT attribution clearing behavior", async () => {
     const fixture = await seedAttributedActivity();
-    const before = await state(fixture.app);
-    const existingActivity = before.activities.find((row: { id: string }) => row.id === "repeatable");
+    const before = await readValidatedState(fixture.app);
+    const allocationBefore = readAllocation(before.allocations, "allocation");
 
     const response = await put({
       app: fixture.app,
       entity: "activities",
       id: "repeatable",
       payload: {
-        ...existingActivity,
+        ...readActivity(before.activities, "repeatable"),
         kind: "internal",
         projectId: undefined,
       },
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ id: "repeatable", kind: "internal" });
-    expect(response.json()).not.toHaveProperty("table");
-    const allocationAfter = (await state(fixture.app)).allocations[0];
+    expect(readActivityWriteResponse(response)).toMatchObject({ id: "repeatable", kind: "internal" });
+    expect(readActivityWriteResponse(response)).not.toHaveProperty("table");
+    const allocationAfter = readAllocation((await readValidatedState(fixture.app)).allocations, "allocation");
     expect(allocationAfter).not.toHaveProperty("projectId");
-    expect(Date.parse(allocationAfter.updatedAt)).toBeGreaterThan(Date.parse(before.allocations[0].updatedAt));
-    expect(response.json().rewrittenAllocations).toEqual([
+    expect(Date.parse(allocationAfter.updatedAt)).toBeGreaterThan(Date.parse(allocationBefore.updatedAt));
+    expect(readActivityWriteResponse(response).rewrittenAllocations).toEqual([
       { id: allocationAfter.id, createdAt: allocationAfter.createdAt, updatedAt: allocationAfter.updatedAt },
     ]);
   });
 
   it("keeps direct activity PATCH attribution clearing behavior", async () => {
     const fixture = await seedAttributedActivity();
-    const before = await state(fixture.app);
+    const allocationBefore = await readStateAllocation(fixture.app, "allocation");
 
     const response = await patch({
       app: fixture.app,
@@ -1743,10 +1785,10 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    const allocationAfter = (await state(fixture.app)).allocations[0];
+    const allocationAfter = readAllocation((await readValidatedState(fixture.app)).allocations, "allocation");
     expect(allocationAfter).not.toHaveProperty("projectId");
-    expect(Date.parse(allocationAfter.updatedAt)).toBeGreaterThan(Date.parse(before.allocations[0].updatedAt));
-    expect(response.json().rewrittenAllocations).toEqual([
+    expect(Date.parse(allocationAfter.updatedAt)).toBeGreaterThan(Date.parse(allocationBefore.updatedAt));
+    expect(readActivityWriteResponse(response).rewrittenAllocations).toEqual([
       { id: allocationAfter.id, createdAt: allocationAfter.createdAt, updatedAt: allocationAfter.updatedAt },
     ]);
   });
