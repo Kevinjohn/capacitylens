@@ -3090,7 +3090,7 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
     await seedFrozen(app);
     const res = await patch({ app, entity: "accounts", id: "a1", payload: { weekStartsOn: 0 } });
     expect(res.statusCode).toBe(409);
-    expect((await state(app)).accounts[0].weekStartsOn).toBe(1); // unchanged
+    expect((await readStateAccount(app)).weekStartsOn).toBe(1); // unchanged
   });
 
   it("PATCH changing timezone → 409", async () => {
@@ -3099,14 +3099,14 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
     expect(
       (await patch({ app, entity: "accounts", id: "a1", payload: { timezone: "Europe/London" } })).statusCode,
     ).toBe(409);
-    expect((await state(app)).accounts[0].timezone).toBe("Etc/GMT");
+    expect((await readStateAccount(app)).timezone).toBe("Etc/GMT");
   });
 
   it("PATCH with an unsupported language is sanitised to an unchanged no-op", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
     expect((await patch({ app, entity: "accounts", id: "a1", payload: { language: "fr" } })).statusCode).toBe(200);
-    expect((await state(app)).accounts[0].language).toBe("en");
+    expect((await readStateAccount(app)).language).toBe("en");
   });
 
   it("PUT resending the row with a CHANGED frozen field → 409", async () => {
@@ -3123,7 +3123,7 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
       },
     });
     expect(res.statusCode).toBe(409);
-    expect((await state(app)).accounts[0].weekStartsOn).toBe(1);
+    expect((await readStateAccount(app)).weekStartsOn).toBe(1);
   });
 
   it("an UNCHANGED PUT of the frozen fields → 200 (change-not-presence)", async () => {
@@ -3142,7 +3142,7 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
       },
     });
     expect(res.statusCode).toBe(200);
-    expect((await state(app)).accounts[0].name).toBe("Renamed");
+    expect((await readStateAccount(app)).name).toBe("Renamed");
   });
 
   it("an UNCHANGED PATCH of a frozen field → 200", async () => {
@@ -3179,7 +3179,7 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
     ).toBe(200);
     expect((await patch({ app, entity: "accounts", id: "a1", payload: { timezone: "Etc/GMT" } })).statusCode).toBe(409);
 
-    const stored = (await state(app)).accounts[0];
+    const stored = await readStateAccount(app);
     expect(stored).toMatchObject({
       weekStartsOn: 0,
       timezone: "Europe/London",
@@ -3240,7 +3240,7 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
       ).statusCode,
     ).toBe(200);
 
-    expect((await state(app)).accounts[0]).toMatchObject(FROZEN);
+    expect(await readStateAccount(app)).toMatchObject(FROZEN);
   });
 
   it("PATCH mutable account preferences, including engagement grouping", async () => {
@@ -3256,7 +3256,7 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
     expect((await patch({ app, entity: "accounts", id: "a1", payload: { schedulingMode: "blocks" } })).statusCode).toBe(
       200,
     );
-    expect((await state(app)).accounts[0].groupResourcesByEngagement).toBe(false);
+    expect((await readStateAccount(app)).groupResourcesByEngagement).toBe(false);
   });
 
   it("a batch PUT changing a frozen field returns the same reloadable 409 as direct writes", async () => {
@@ -3272,7 +3272,7 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
       },
     ]);
     expect(res.statusCode).toBe(409);
-    expect((await state(app)).accounts[0].timezone).toBe("Etc/GMT"); // tx rolled back
+    expect((await readStateAccount(app)).timezone).toBe("Etc/GMT"); // tx rolled back
   });
 });
 
