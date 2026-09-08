@@ -61,43 +61,9 @@ interface InviteAcceptViewProps {
 }
 
 /** Pure state-specific presentation for the invite route; async orchestration stays in useInviteAcceptController. */
-export function InviteAcceptView({
-  state,
-  preview,
-  user,
-  authMode,
-  providers,
-  busy,
-  errorId,
-  name,
-  email,
-  password,
-  flowStatusRef,
-  continueRef,
-  onNameChange,
-  onEmailChange,
-  onPasswordChange,
-  onAccept,
-  onSignOut,
-  onSignIn,
-  onProviderSignIn,
-  onCreateAccount,
-  onRetryPreview,
-}: InviteAcceptViewProps) {
-  const joinedStatus =
-    state.kind === "joined"
-      ? preview
-        ? m.invite_joined_company({ company: preview.accountName, role: resolveRoleLabel(state.role) })
-        : `${m.invite_joined_base()}${state.role ? m.invite_joined_role({ role: state.role }) : ""}.`
-      : null;
-  const flowStatus =
-    state.kind === "previewing"
-      ? m.invite_checking()
-      : state.kind === "ready"
-        ? m.invite_review_prompt()
-        : state.kind === "accepting"
-          ? m.invite_joining()
-          : (joinedStatus ?? "");
+export function InviteAcceptView(props: InviteAcceptViewProps) {
+  const { state, preview, flowStatusRef } = props;
+  const flowStatus = resolveFlowStatus(state, preview);
   const showsFlowStatus = ["previewing", "ready", "accepting", "joined"].includes(state.kind);
 
   return (
@@ -111,29 +77,7 @@ export function InviteAcceptView({
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            {preview && (
-              <Item variant="muted" data-testid="invite-preview">
-                <ItemContent>
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {m.invite_company_label()}
-                  </p>
-                  <ItemTitle>
-                    <h2>{preview.accountName}</h2>
-                  </ItemTitle>
-                  <ItemDescription>{resolveRoleSummary(preview.role)}</ItemDescription>
-                  <ItemDescription>{m.invite_existing_role_note()}</ItemDescription>
-                  <ItemDescription>
-                    {m.invite_expires({ when: new Date(preview.expiresAt).toLocaleString() })}
-                  </ItemDescription>
-                </ItemContent>
-                <ItemActions className="self-start text-right">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">{m.invite_proposed_role_label()}</p>
-                    <Badge>{resolveRoleLabel(preview.role)}</Badge>
-                  </div>
-                </ItemActions>
-              </Item>
-            )}
+            {preview && <InvitePreviewDetails preview={preview} />}
             <p
               ref={flowStatusRef}
               role="status"
@@ -142,135 +86,227 @@ export function InviteAcceptView({
             >
               {flowStatus}
             </p>
-            {state.kind === "ready" && (
-              <>
-                <p className="text-sm text-muted-foreground">
-                  {m.invite_signed_in_as({ identity: user?.email ?? user?.name ?? m.invite_current_account() })}
-                </p>
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Button size="sm" type="button" variant="outline" disabled={busy} onClick={onSignOut}>
-                    {m.invite_use_different_account()}
-                  </Button>
-                  <Button asChild size="sm">
-                    <Link to="/">{m.invite_go_to_app()}</Link>
-                  </Button>
-                  <Button size="sm" type="button" disabled={busy} onClick={onAccept}>
-                    {m.invite_accept_action()}
-                  </Button>
-                </div>
-              </>
-            )}
-            {state.kind === "joined" && !state.activating && (
-              <div className="flex justify-end">
-                <Button asChild size="sm">
-                  <Link ref={continueRef} to="/">
-                    {m.invite_continue()}
-                  </Link>
-                </Button>
-              </div>
-            )}
-            {state.kind === "auth" &&
-              (authMode === "sso" ? (
-                <div className="flex flex-col gap-3">
-                  <p className="text-sm text-muted-foreground">{m.invite_sso_prompt()}</p>
-                  <FieldError id={errorId}>{state.message}</FieldError>
-                  {providers.length === 0 ? (
-                    <FieldError>{m.invite_sso_unavailable()}</FieldError>
-                  ) : (
-                    <ProviderButtons providers={providers} busy={busy} onSelect={onProviderSignIn} />
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {providers.length > 0 && (
-                    <div className="flex flex-col gap-2">
-                      <ProviderButtons providers={providers} busy={busy} onSelect={onProviderSignIn} />
-                      <p className="text-center text-xs text-muted-foreground">{m.invite_use_email_password()}</p>
-                    </div>
-                  )}
-                  <form onSubmit={onSignIn} className="flex flex-col gap-3" noValidate>
-                    <p className="text-sm text-muted-foreground">{m.invite_onboard_intro()}</p>
-                    <TextField
-                      label={m.invite_name()}
-                      autoComplete="name"
-                      value={name}
-                      maxLength={MAX_NAME_INPUT_CODE_UNITS}
-                      onChange={onNameChange}
-                      invalid={state.errorField === "name"}
-                      describedById={errorId}
-                    />
-                    <TextField
-                      label={m.login_email()}
-                      type="email"
-                      autoComplete="email"
-                      value={email}
-                      maxLength={MAX_EMAIL_LENGTH}
-                      onChange={onEmailChange}
-                      invalid={state.errorField === "email"}
-                      describedById={errorId}
-                    />
-                    <TextField
-                      label={m.login_password()}
-                      type="password"
-                      autoComplete="current-password"
-                      value={password}
-                      minLength={MIN_PASSWORD_LENGTH}
-                      maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
-                      onChange={onPasswordChange}
-                      invalid={state.errorField === "password"}
-                      describedById={errorId}
-                    />
-                    <FieldError id={errorId}>{state.message}</FieldError>
-                    <div className="flex flex-wrap justify-end gap-2">
-                      <Button size="sm" type="submit" variant="outline" disabled={busy}>
-                        {m.invite_sign_in_accept()}
-                      </Button>
-                      <Button size="sm" type="button" disabled={busy} onClick={onCreateAccount}>
-                        {m.invite_create_account()}
-                      </Button>
-                    </div>
-                  </form>
-                </div>
-              ))}
-            {state.kind === "error" && (
-              <>
-                <FieldError>{state.message}</FieldError>
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Button asChild size="sm">
-                    <Link to="/">{m.invite_go_to_app()}</Link>
-                  </Button>
-                  {state.retryAccept && preview && user && (
-                    <Button size="sm" type="button" disabled={busy} onClick={onAccept}>
-                      {m.invite_retry_accept()}
-                    </Button>
-                  )}
-                  {state.switchIdentity && (
-                    <Button size="sm" type="button" variant="outline" disabled={busy} onClick={onSignOut}>
-                      {m.invite_use_different_account()}
-                    </Button>
-                  )}
-                  {state.retryPreview && (
-                    <Button size="sm" type="button" onClick={onRetryPreview}>
-                      {m.common_try_again()}
-                    </Button>
-                  )}
-                </div>
-              </>
-            )}
-            {state.kind === "local" && (
-              <>
-                <p className="text-sm text-muted-foreground">{m.invite_local_mode({ app: APP_NAME })}</p>
-                <div className="flex justify-end">
-                  <Button asChild size="sm">
-                    <Link to="/">{m.invite_go_to_app()}</Link>
-                  </Button>
-                </div>
-              </>
-            )}
+            <InviteStateContent {...props} />
           </CardContent>
         </Card>
       </main>
     </div>
+  );
+}
+
+function resolveFlowStatus(state: InviteAcceptState, preview: InvitePreview | null) {
+  if (state.kind === "previewing") return m.invite_checking();
+  if (state.kind === "ready") return m.invite_review_prompt();
+  if (state.kind === "accepting") return m.invite_joining();
+  if (state.kind !== "joined") return "";
+  if (preview) {
+    return m.invite_joined_company({ company: preview.accountName, role: resolveRoleLabel(state.role) });
+  }
+  return `${m.invite_joined_base()}${m.invite_joined_role({ role: state.role })}.`;
+}
+
+function InvitePreviewDetails({ preview }: { preview: InvitePreview }) {
+  return (
+    <Item variant="muted" data-testid="invite-preview">
+      <ItemContent>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{m.invite_company_label()}</p>
+        <ItemTitle>
+          <h2>{preview.accountName}</h2>
+        </ItemTitle>
+        <ItemDescription>{resolveRoleSummary(preview.role)}</ItemDescription>
+        <ItemDescription>{m.invite_existing_role_note()}</ItemDescription>
+        <ItemDescription>{m.invite_expires({ when: new Date(preview.expiresAt).toLocaleString() })}</ItemDescription>
+      </ItemContent>
+      <ItemActions className="self-start text-right">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">{m.invite_proposed_role_label()}</p>
+          <Badge>{resolveRoleLabel(preview.role)}</Badge>
+        </div>
+      </ItemActions>
+    </Item>
+  );
+}
+
+function InviteStateContent(props: InviteAcceptViewProps) {
+  switch (props.state.kind) {
+    case "ready":
+      return <ReadyContent {...props} />;
+    case "joined":
+      return props.state.activating ? null : <JoinedContent continueRef={props.continueRef} />;
+    case "auth":
+      return props.authMode === "sso" ? <SsoContent {...props} /> : <PasswordContent {...props} />;
+    case "error":
+      return <ErrorContent {...props} />;
+    case "local":
+      return <LocalContent />;
+    case "previewing":
+    case "accepting":
+      return null;
+  }
+}
+
+function ReadyContent({ user, busy, onSignOut, onAccept }: InviteAcceptViewProps) {
+  return (
+    <>
+      <p className="text-sm text-muted-foreground">
+        {m.invite_signed_in_as({ identity: user?.email ?? user?.name ?? m.invite_current_account() })}
+      </p>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button size="sm" type="button" variant="outline" disabled={busy} onClick={onSignOut}>
+          {m.invite_use_different_account()}
+        </Button>
+        <Button asChild size="sm">
+          <Link to="/">{m.invite_go_to_app()}</Link>
+        </Button>
+        <Button size="sm" type="button" disabled={busy} onClick={onAccept}>
+          {m.invite_accept_action()}
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function JoinedContent({ continueRef }: Pick<InviteAcceptViewProps, "continueRef">) {
+  return (
+    <div className="flex justify-end">
+      <Button asChild size="sm">
+        <Link ref={continueRef} to="/">
+          {m.invite_continue()}
+        </Link>
+      </Button>
+    </div>
+  );
+}
+
+function SsoContent({ state, providers, busy, errorId, onProviderSignIn }: InviteAcceptViewProps) {
+  if (state.kind !== "auth") return null;
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-muted-foreground">{m.invite_sso_prompt()}</p>
+      <FieldError id={errorId}>{state.message}</FieldError>
+      {providers.length === 0 ? (
+        <FieldError>{m.invite_sso_unavailable()}</FieldError>
+      ) : (
+        <ProviderButtons providers={providers} busy={busy} onSelect={onProviderSignIn} />
+      )}
+    </div>
+  );
+}
+
+function PasswordContent(props: InviteAcceptViewProps) {
+  const { state, providers, busy, errorId, onProviderSignIn, onSignIn, onCreateAccount } = props;
+  if (state.kind !== "auth") return null;
+  return (
+    <div className="flex flex-col gap-4">
+      {providers.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <ProviderButtons providers={providers} busy={busy} onSelect={onProviderSignIn} />
+          <p className="text-center text-xs text-muted-foreground">{m.invite_use_email_password()}</p>
+        </div>
+      )}
+      <form onSubmit={onSignIn} className="flex flex-col gap-3" noValidate>
+        <p className="text-sm text-muted-foreground">{m.invite_onboard_intro()}</p>
+        <SignInFields {...props} errorField={state.errorField} />
+        <FieldError id={errorId}>{state.message}</FieldError>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button size="sm" type="submit" variant="outline" disabled={busy}>
+            {m.invite_sign_in_accept()}
+          </Button>
+          <Button size="sm" type="button" disabled={busy} onClick={onCreateAccount}>
+            {m.invite_create_account()}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function SignInFields({
+  name,
+  email,
+  password,
+  errorId,
+  errorField,
+  onNameChange,
+  onEmailChange,
+  onPasswordChange,
+}: InviteAcceptViewProps & { errorField: string | null | undefined }) {
+  return (
+    <>
+      <TextField
+        label={m.invite_name()}
+        autoComplete="name"
+        value={name}
+        maxLength={MAX_NAME_INPUT_CODE_UNITS}
+        onChange={onNameChange}
+        invalid={errorField === "name"}
+        describedById={errorId}
+      />
+      <TextField
+        label={m.login_email()}
+        type="email"
+        autoComplete="email"
+        value={email}
+        maxLength={MAX_EMAIL_LENGTH}
+        onChange={onEmailChange}
+        invalid={errorField === "email"}
+        describedById={errorId}
+      />
+      <TextField
+        label={m.login_password()}
+        type="password"
+        autoComplete="current-password"
+        value={password}
+        minLength={MIN_PASSWORD_LENGTH}
+        maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
+        onChange={onPasswordChange}
+        invalid={errorField === "password"}
+        describedById={errorId}
+      />
+    </>
+  );
+}
+
+function ErrorContent(props: InviteAcceptViewProps) {
+  const { state, preview, user, busy, onAccept, onSignOut, onRetryPreview } = props;
+  if (state.kind !== "error") return null;
+  return (
+    <>
+      <FieldError>{state.message}</FieldError>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button asChild size="sm">
+          <Link to="/">{m.invite_go_to_app()}</Link>
+        </Button>
+        {state.retryAccept && preview && user && (
+          <Button size="sm" type="button" disabled={busy} onClick={onAccept}>
+            {m.invite_retry_accept()}
+          </Button>
+        )}
+        {state.switchIdentity && (
+          <Button size="sm" type="button" variant="outline" disabled={busy} onClick={onSignOut}>
+            {m.invite_use_different_account()}
+          </Button>
+        )}
+        {state.retryPreview && (
+          <Button size="sm" type="button" onClick={onRetryPreview}>
+            {m.common_try_again()}
+          </Button>
+        )}
+      </div>
+    </>
+  );
+}
+
+function LocalContent() {
+  return (
+    <>
+      <p className="text-sm text-muted-foreground">{m.invite_local_mode({ app: APP_NAME })}</p>
+      <div className="flex justify-end">
+        <Button asChild size="sm">
+          <Link to="/">{m.invite_go_to_app()}</Link>
+        </Button>
+      </div>
+    </>
   );
 }
 
