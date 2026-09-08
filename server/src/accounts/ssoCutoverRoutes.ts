@@ -288,7 +288,11 @@ function parseFederatedLinkCoordinate(body: unknown): FederatedLinkCoordinate | 
   if (typeof candidate.providerId !== "string" || candidate.providerId.length === 0) return undefined;
   if (candidate.providerId === "credential") return undefined;
   if (typeof candidate.subject !== "string" || candidate.subject.length === 0) return undefined;
-  return candidate as FederatedLinkCoordinate;
+  return {
+    rowId: candidate.rowId,
+    providerId: candidate.providerId,
+    subject: candidate.subject,
+  };
 }
 
 async function removeFederatedLink(req: RouteRequest, reply: FastifyReply, dependencies: SsoCutoverRouteDependencies) {

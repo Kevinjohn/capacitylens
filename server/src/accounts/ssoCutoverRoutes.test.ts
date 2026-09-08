@@ -253,6 +253,41 @@ describe("SSO cutover routes", () => {
     await app.close();
   });
 
+  it("uses the authorized path principal when a link-removal body contains extra identity fields", async () => {
+    const removeFederatedLink = vi.fn(async (input: Parameters<SsoCutoverIdentityPort["removeFederatedLink"]>[0]) => {
+      void input;
+      return true;
+    });
+    const administration = {
+      evaluateIdentityAdminAuthority: vi.fn(async () => ({
+        allowed: true as const,
+        revision: "revision-1",
+        policyVersion: "policy-1",
+      })),
+    } as unknown as SsoCutoverAccountAdminPort;
+    const app = authenticatedApp({
+      identity: { removeFederatedLink } as unknown as SsoCutoverIdentityPort,
+      administration,
+    });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/api/accounts/workspace-1/members/member-1/federated-link",
+      payload: {
+        rowId: "link-1",
+        providerId: "workforce",
+        subject: "subject-1",
+        principalId: "attacker-selected-principal",
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+    const removal = removeFederatedLink.mock.calls[0]?.[0];
+    expect(removal?.principalId).toBe("member-1");
+    expect(removal?.audit.targetPrincipalId).toBe("member-1");
+    await app.close();
+  });
+
   it.each([
     {
       name: "email correction",
