@@ -1287,7 +1287,7 @@ describe("request/connection timeouts (slowloris guard for the direct-exposure d
   });
 });
 
-function registerCrudCreationTests(): void {
+function createCrudCreationTests(): void {
   it("creates every entity type and reads them back via /api/state", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -1343,7 +1343,7 @@ function registerCrudCreationTests(): void {
   });
 }
 
-function registerCrudMutationTests(): void {
+function createCrudMutationTests(): void {
   it("PATCH updates fields; DELETE removes a non-lifecycle row", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -1378,7 +1378,7 @@ function registerCrudMutationTests(): void {
   });
 }
 
-function registerCrudResourceMutationTests(): void {
+function createCrudResourceMutationTests(): void {
   it("PATCH is a partial merge: omitted fields keep their stored value", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -1412,7 +1412,7 @@ function registerCrudResourceMutationTests(): void {
   });
 }
 
-function registerCrudScopingTests(): void {
+function createCrudScopingTests(): void {
   it("refuses to re-home an existing row to another account (accountId is immutable)", async () => {
     const { app } = freshApp();
     await scaffold(app); // c1 in a1
@@ -1468,7 +1468,7 @@ function registerCrudScopingTests(): void {
   });
 }
 
-function registerCrudPersistenceTests(): void {
+function createCrudPersistenceTests(): void {
   it("preserves the immutable createdAt on update (a PUT cannot rewrite it)", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -1505,7 +1505,7 @@ function registerCrudPersistenceTests(): void {
   });
 }
 
-function registerCrudUpsertTests(): void {
+function createCrudUpsertTests(): void {
   it("PUT upserts idempotently: first call creates, second overwrites (no conflict)", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -1551,12 +1551,12 @@ function registerCrudUpsertTests(): void {
 }
 
 describe("CRUD round-trip", () => {
-  registerCrudCreationTests();
-  registerCrudMutationTests();
-  registerCrudResourceMutationTests();
-  registerCrudScopingTests();
-  registerCrudPersistenceTests();
-  registerCrudUpsertTests();
+  createCrudCreationTests();
+  createCrudMutationTests();
+  createCrudResourceMutationTests();
+  createCrudScopingTests();
+  createCrudPersistenceTests();
+  createCrudUpsertTests();
 });
 
 describe("generic lifecycle deletion guard", () => {
@@ -1731,7 +1731,7 @@ const rejectForbiddenAllocation = async (fixture: Awaited<ReturnType<typeof seed
   });
 };
 
-function registerAttributedAllocationReconciliationTest() {
+function createAttributedAllocationReconciliationTest() {
   it("reconciles attributed allocations after repeatable activity kind changes", async () => {
     const allocationFirst = await seedAttributedActivity();
     await reconcileAllocationFirst(allocationFirst);
@@ -1747,7 +1747,7 @@ function registerAttributedAllocationReconciliationTest() {
   });
 }
 
-function registerAtFlipTimeClearingTest() {
+function createAtFlipTimeClearingTest() {
   it("keeps at-flip-time clearing after an activity flips back before a dependent write", async () => {
     const fixture = await seedAttributedActivity("placeholder");
     const before = await readValidatedState(fixture.app);
@@ -1787,7 +1787,7 @@ function registerAtFlipTimeClearingTest() {
   });
 }
 
-function registerCorruptAttributionValidationTest() {
+function createCorruptAttributionValidationTest() {
   it("validates an activity edit against corrupt attribution before clearing it", async () => {
     const fixture = await seedAttributedActivity("placeholder");
     fixture.db.prepare("UPDATE resources SET projectId = 'p2' WHERE id = 'ph'").run();
@@ -1807,7 +1807,7 @@ function registerCorruptAttributionValidationTest() {
   });
 }
 
-function registerDirectActivityPutClearingTest() {
+function createDirectActivityPutClearingTest() {
   it("keeps direct activity PUT attribution clearing behavior", async () => {
     const fixture = await seedAttributedActivity();
     const before = await readValidatedState(fixture.app);
@@ -1836,7 +1836,7 @@ function registerDirectActivityPutClearingTest() {
   });
 }
 
-function registerDirectActivityPatchClearingTest() {
+function createDirectActivityPatchClearingTest() {
   it("keeps direct activity PATCH attribution clearing behavior", async () => {
     const fixture = await seedAttributedActivity();
     const allocationBefore = await readStateAllocation(fixture.app, "allocation");
@@ -1861,7 +1861,7 @@ function registerDirectActivityPatchClearingTest() {
   });
 }
 
-function registerLegacyAttributionRepairTest() {
+function createLegacyAttributionRepairTest() {
   it("repairs legacy attribution when a batch re-PUTs an already ineligible activity", async () => {
     const fixture = freshApp();
     await post(fixture.app, "accounts", account("a1"));
@@ -1907,7 +1907,7 @@ function registerLegacyAttributionRepairTest() {
   });
 }
 
-function registerCoalescedKindFlipValidationTest() {
+function createCoalescedKindFlipValidationTest() {
   it("keeps projection validation consistent for a coalesced activity kind flip and placeholder rebind", async () => {
     const fixture = freshApp();
     await post(fixture.app, "accounts", account("a1"));
@@ -1953,7 +1953,7 @@ function registerCoalescedKindFlipValidationTest() {
   });
 }
 
-function registerClearingBeforeArchiveTest() {
+function createClearingBeforeArchiveTest() {
   it("clears and echoes allocation attribution before a later lifecycle archive in the same batch", async () => {
     const fixture = freshApp();
     await post(fixture.app, "accounts", account("a1"));
@@ -2001,7 +2001,7 @@ function registerClearingBeforeArchiveTest() {
   });
 }
 
-function registerClosureWriteTest() {
+function createClosureWriteTest() {
   it("writes closures directly and in a batch, and rejects resource references", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -2032,7 +2032,7 @@ function registerClosureWriteTest() {
   });
 }
 
-function registerMissingTimeOffResourceTest() {
+function createMissingTimeOffResourceTest() {
   it("rejects an omitted time-off resourceId through direct and batch writes", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -2047,7 +2047,7 @@ function registerMissingTimeOffResourceTest() {
   });
 }
 
-function registerLifecycleDeletePreScanTest() {
+function createLifecycleDeletePreScanTest() {
   it("rejects a lifecycle DELETE before executing any batch operation", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -2077,7 +2077,7 @@ function registerLifecycleDeletePreScanTest() {
   });
 }
 
-function registerAtomicRollbackTest() {
+function createAtomicRollbackTest() {
   it("rolls the WHOLE batch back if any op fails (atomic)", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -2098,7 +2098,7 @@ function registerAtomicRollbackTest() {
   });
 }
 
-function registerRepeatedAllocationRollbackTest() {
+function createRepeatedAllocationRollbackTest() {
   it("rolls back valid repeated allocations when one generated sibling is invalid", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -2121,7 +2121,7 @@ function registerRepeatedAllocationRollbackTest() {
   });
 }
 
-function registerPlaceholderRebindRollbackTest() {
+function createPlaceholderRebindRollbackTest() {
   it("rolls back earlier operations when a placeholder rebind would invalidate existing work", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -2152,7 +2152,7 @@ function registerPlaceholderRebindRollbackTest() {
   });
 }
 
-function registerCrossAccountDeleteRollbackTest() {
+function createCrossAccountDeleteRollbackTest() {
   it("refuses a cross-account delete inside a batch and rolls back", async () => {
     const { app } = freshApp();
     await scaffold(app); // c1 in a1
@@ -2163,7 +2163,7 @@ function registerCrossAccountDeleteRollbackTest() {
   });
 }
 
-function registerMissingDeleteAccountTest() {
+function createMissingDeleteAccountTest() {
   it("rejects a scoped delete op that omits accountId", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -2173,7 +2173,7 @@ function registerMissingDeleteAccountTest() {
   });
 }
 
-function registerInvalidBatchOperationTest() {
+function createInvalidBatchOperationTest() {
   it("rejects an unknown table / bad op shape", async () => {
     const { app } = freshApp();
     expect((await batch(app, [{ method: "PUT", table: "widgets", id: "x", row: { id: "x" } }])).statusCode).toBe(400);
@@ -2192,7 +2192,7 @@ function registerInvalidBatchOperationTest() {
   });
 }
 
-function registerNullBatchOperationTest() {
+function createNullBatchOperationTest() {
   it("rejects a null operation as a validation error instead of throwing a 500", async () => {
     const { app } = freshApp();
     const res = await call(app, {
@@ -2206,24 +2206,24 @@ function registerNullBatchOperationTest() {
 }
 
 describe("batch sync (/api/batch — transactional, ordered)", () => {
-  registerAttributedAllocationReconciliationTest();
-  registerAtFlipTimeClearingTest();
-  registerCorruptAttributionValidationTest();
-  registerDirectActivityPutClearingTest();
-  registerDirectActivityPatchClearingTest();
-  registerLegacyAttributionRepairTest();
-  registerCoalescedKindFlipValidationTest();
-  registerClearingBeforeArchiveTest();
-  registerClosureWriteTest();
-  registerMissingTimeOffResourceTest();
-  registerLifecycleDeletePreScanTest();
-  registerAtomicRollbackTest();
-  registerRepeatedAllocationRollbackTest();
-  registerPlaceholderRebindRollbackTest();
-  registerCrossAccountDeleteRollbackTest();
-  registerMissingDeleteAccountTest();
-  registerInvalidBatchOperationTest();
-  registerNullBatchOperationTest();
+  createAttributedAllocationReconciliationTest();
+  createAtFlipTimeClearingTest();
+  createCorruptAttributionValidationTest();
+  createDirectActivityPutClearingTest();
+  createDirectActivityPatchClearingTest();
+  createLegacyAttributionRepairTest();
+  createCoalescedKindFlipValidationTest();
+  createClearingBeforeArchiveTest();
+  createClosureWriteTest();
+  createMissingTimeOffResourceTest();
+  createLifecycleDeletePreScanTest();
+  createAtomicRollbackTest();
+  createRepeatedAllocationRollbackTest();
+  createPlaceholderRebindRollbackTest();
+  createCrossAccountDeleteRollbackTest();
+  createMissingDeleteAccountTest();
+  createInvalidBatchOperationTest();
+  createNullBatchOperationTest();
 });
 
 describe("batch pre-scan validation", () => {
@@ -2271,7 +2271,7 @@ describe("batch pre-scan validation", () => {
   });
 });
 
-function registerRequiredWriteValidationTests(): void {
+function createRequiredWriteValidationTests(): void {
   it("rejects a null time-off resource", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -2300,7 +2300,7 @@ function registerRequiredWriteValidationTests(): void {
   });
 }
 
-function registerParentWriteValidationTests(): void {
+function createParentWriteValidationTests(): void {
   it("rejects missing required project and phase parents at the shared boundary", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -2355,7 +2355,7 @@ function registerParentWriteValidationTests(): void {
   });
 }
 
-function registerAllocationRangeOrderValidationTest(): void {
+function createAllocationRangeOrderValidationTest(): void {
   it("rejects a reversed allocation date range", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -2378,7 +2378,7 @@ function registerAllocationRangeOrderValidationTest(): void {
   });
 }
 
-function registerSchedulingSpanValidationTest(): void {
+function createSchedulingSpanValidationTest(): void {
   it("accepts the maximum scheduling span and rejects longer allocation and time-off writes", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -2436,7 +2436,7 @@ function registerSchedulingSpanValidationTest(): void {
   });
 }
 
-function registerPlaceholderWriteValidationTests(): void {
+function createPlaceholderWriteValidationTests(): void {
   it("rejects a placeholder assigned outside its bound project", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -2473,7 +2473,7 @@ function registerPlaceholderWriteValidationTests(): void {
   });
 }
 
-function registerAllocationReferenceValidationTests(): void {
+function createAllocationReferenceValidationTests(): void {
   it("rejects an allocation referencing a missing resource/activity", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -2509,7 +2509,7 @@ function registerAllocationReferenceValidationTests(): void {
   });
 }
 
-function registerExternalResourceWriteValidationTests(): void {
+function createExternalResourceWriteValidationTests(): void {
   it("rejects a non-zero allocation load on an external / 3rd-party resource (no capacity)", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -2553,7 +2553,7 @@ function registerExternalResourceWriteValidationTests(): void {
   });
 }
 
-function registerExternalResourceConversionRejectionTests(): void {
+function createExternalResourceConversionRejectionTests(): void {
   // Flipping a resource to external while it still owns loaded work / time-off would orphan those
   // dependents (the scheduler hides external capacity + time-off). The server rejects the flip on
   // BOTH the full-row PUT and the partial PATCH merge — same shared assert as the store.
@@ -2596,7 +2596,7 @@ function registerExternalResourceConversionRejectionTests(): void {
   });
 }
 
-function registerExternalResourceConversionAcceptanceTests(): void {
+function createExternalResourceConversionAcceptanceTests(): void {
   it("accepts flipping a resource to external when it has NO disallowed dependents (zero-load allocation is fine)", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -2626,18 +2626,18 @@ function registerExternalResourceConversionAcceptanceTests(): void {
 }
 
 describe("validation (shared domain-core) rejects bad writes with 400", () => {
-  registerRequiredWriteValidationTests();
-  registerParentWriteValidationTests();
-  registerAllocationRangeOrderValidationTest();
-  registerSchedulingSpanValidationTest();
-  registerPlaceholderWriteValidationTests();
-  registerAllocationReferenceValidationTests();
-  registerExternalResourceWriteValidationTests();
-  registerExternalResourceConversionRejectionTests();
-  registerExternalResourceConversionAcceptanceTests();
+  createRequiredWriteValidationTests();
+  createParentWriteValidationTests();
+  createAllocationRangeOrderValidationTest();
+  createSchedulingSpanValidationTest();
+  createPlaceholderWriteValidationTests();
+  createAllocationReferenceValidationTests();
+  createExternalResourceWriteValidationTests();
+  createExternalResourceConversionRejectionTests();
+  createExternalResourceConversionAcceptanceTests();
 });
 
-function registerInternalClientCreationRejectionTests(): void {
+function createInternalClientCreationRejectionTests(): void {
   it("rejects replacing the generated Internal client id", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -2674,7 +2674,7 @@ function registerInternalClientCreationRejectionTests(): void {
   });
 }
 
-function registerInternalClientMutationRejectionTests(): void {
+function createInternalClientMutationRejectionTests(): void {
   it("rejects generic updates to the generated builtin client", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -2715,7 +2715,7 @@ function registerInternalClientMutationRejectionTests(): void {
   });
 }
 
-function registerInternalClientSingletonAcceptanceTests(): void {
+function createInternalClientSingletonAcceptanceTests(): void {
   it("accepts the canonical same-batch duplicate of a freshly generated Internal client", async () => {
     const auditEntries: AuditEntry[] = [];
     const { app } = freshApp(true, {
@@ -2782,9 +2782,9 @@ function registerInternalClientSingletonAcceptanceTests(): void {
 }
 
 describe("built-in Internal client is a per-account singleton on direct writes", () => {
-  registerInternalClientCreationRejectionTests();
-  registerInternalClientMutationRejectionTests();
-  registerInternalClientSingletonAcceptanceTests();
+  createInternalClientCreationRejectionTests();
+  createInternalClientMutationRejectionTests();
+  createInternalClientSingletonAcceptanceTests();
 });
 
 async function testBoundedImportSaturation(): Promise<void> {
@@ -3169,7 +3169,7 @@ describe("import", () => {
   it("rejects a malformed present schema version without replacing account data", testRejectsMalformedImportVersion);
 });
 
-function registerAcceptedAndChangedBatchOperationsTest() {
+function createAcceptedAndChangedBatchOperationsTest() {
   it("distinguishes accepted batch operations from state-changing operations", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -3201,7 +3201,7 @@ function registerAcceptedAndChangedBatchOperationsTest() {
   });
 }
 
-function registerSameBatchRearchiveTest() {
+function createSameBatchRearchiveTest() {
   it("excludes a same-batch re-archive of an already-archived row from changed", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -3219,7 +3219,7 @@ function registerSameBatchRearchiveTest() {
   });
 }
 
-function registerScopedProjectionMaterializationTest() {
+function createScopedProjectionMaterializationTest() {
   it("does not materialize unrelated tables for empty/single-account batches or import", async () => {
     const { db, raw, fullTableSelects } = dbTrackingFullTableSelects();
     const app = createApp(db, {
@@ -3277,12 +3277,12 @@ function registerScopedProjectionMaterializationTest() {
 }
 
 describe("tenant-scoped mutation projections", () => {
-  registerAcceptedAndChangedBatchOperationsTest();
-  registerSameBatchRearchiveTest();
-  registerScopedProjectionMaterializationTest();
+  createAcceptedAndChangedBatchOperationsTest();
+  createSameBatchRearchiveTest();
+  createScopedProjectionMaterializationTest();
 });
 
-function registerOversizedPayloadGuardTest() {
+function createOversizedPayloadGuardTest() {
   it("rejects an oversized payload with 413", async () => {
     const { app } = freshApp();
     const huge = '{"id":"' + "a".repeat(6 * 1024 * 1024) + '"}';
@@ -3297,7 +3297,7 @@ function registerOversizedPayloadGuardTest() {
 }
 
 describe("guards", () => {
-  registerOversizedPayloadGuardTest();
+  createOversizedPayloadGuardTest();
   it("reset is 403 unless allowed, then wipes + re-seeds", async () => {
     const locked = createApp(openDb(":memory:"), { allowReset: false });
     expect(
@@ -3364,7 +3364,7 @@ describe("guards", () => {
   });
 });
 
-function registerDirectWriteColourAndResourceSanitizationTests(): void {
+function createDirectWriteColourAndResourceSanitizationTests(): void {
   it("stores a validated account colour without surrounding whitespace", async () => {
     const { app } = freshApp();
     expect((await post(app, "accounts", { ...account("a1"), color: "  #aAbBcC  " })).statusCode).toBe(201);
@@ -3429,7 +3429,7 @@ function registerDirectWriteColourAndResourceSanitizationTests(): void {
   });
 }
 
-function registerDirectWriteAllocationValueSanitizationTest(): void {
+function createDirectWriteAllocationValueSanitizationTest(): void {
   it("repairs a bad allocation status / hours on PUT", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -3455,7 +3455,7 @@ function registerDirectWriteAllocationValueSanitizationTest(): void {
   });
 }
 
-function registerDirectWriteAllocationSeriesSanitizationTest(): void {
+function createDirectWriteAllocationSeriesSanitizationTest(): void {
   it("sanitizes repeat-series identity on create and preserves membership on every edit shape", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -3510,7 +3510,7 @@ function registerDirectWriteAllocationSeriesSanitizationTest(): void {
   });
 }
 
-function registerDirectWriteAccountSchedulingSanitizationTests(): void {
+function createDirectWriteAccountSchedulingSanitizationTests(): void {
   it("drops a junk account schedulingMode on a direct write but keeps a valid one", async () => {
     const { app } = freshApp();
     // A hand-crafted account write with a junk schedulingMode the scheduler can't handle.
@@ -3552,10 +3552,10 @@ function registerDirectWriteAccountSchedulingSanitizationTests(): void {
 }
 
 describe("value-level sanitization on direct writes (server is the integrity boundary)", () => {
-  registerDirectWriteColourAndResourceSanitizationTests();
-  registerDirectWriteAllocationValueSanitizationTest();
-  registerDirectWriteAllocationSeriesSanitizationTest();
-  registerDirectWriteAccountSchedulingSanitizationTests();
+  createDirectWriteColourAndResourceSanitizationTests();
+  createDirectWriteAllocationValueSanitizationTest();
+  createDirectWriteAllocationSeriesSanitizationTest();
+  createDirectWriteAccountSchedulingSanitizationTests();
 });
 
 describe("scheduling-mode fields round-trip through the DB", () => {
@@ -3601,7 +3601,7 @@ async function seedFrozen(app: FastifyInstance) {
   expect((await post(app, "accounts", { ...account("a1"), ...FROZEN })).statusCode).toBe(201);
 }
 
-function registerFrozenFieldPatchTests(): void {
+function createFrozenFieldPatchTests(): void {
   it("PATCH changing weekStartsOn → 409", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
@@ -3627,7 +3627,7 @@ function registerFrozenFieldPatchTests(): void {
   });
 }
 
-function registerFrozenFieldPutTests(): void {
+function createFrozenFieldPutTests(): void {
   it("PUT resending the row with a CHANGED frozen field → 409", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
@@ -3671,7 +3671,7 @@ function registerFrozenFieldPutTests(): void {
   });
 }
 
-function registerFrozenFieldInitializationTest(): void {
+function createFrozenFieldInitializationTest(): void {
   it("lets a minimal /api/orgs account set each missing frozen field once", async () => {
     const { app } = freshApp();
     expect(
@@ -3709,7 +3709,7 @@ function registerFrozenFieldInitializationTest(): void {
   });
 }
 
-function registerFrozenFieldSanitizationTest(): void {
+function createFrozenFieldSanitizationTest(): void {
   it("treats sanitiser-dropped frozen values as no-ops across PUT, PATCH and batch", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
@@ -3767,7 +3767,7 @@ function registerFrozenFieldSanitizationTest(): void {
   });
 }
 
-function registerFrozenFieldPreferenceAndBatchTests(): void {
+function createFrozenFieldPreferenceAndBatchTests(): void {
   it("PATCH mutable account preferences, including engagement grouping", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
@@ -3802,14 +3802,14 @@ function registerFrozenFieldPreferenceAndBatchTests(): void {
 }
 
 describe("account frozen fields (P1.14): language / weekStartsOn / timezone", () => {
-  registerFrozenFieldPatchTests();
-  registerFrozenFieldPutTests();
-  registerFrozenFieldInitializationTest();
-  registerFrozenFieldSanitizationTest();
-  registerFrozenFieldPreferenceAndBatchTests();
+  createFrozenFieldPatchTests();
+  createFrozenFieldPutTests();
+  createFrozenFieldInitializationTest();
+  createFrozenFieldSanitizationTest();
+  createFrozenFieldPreferenceAndBatchTests();
 });
 
-function registerErrorStatusMappingTest() {
+function createErrorStatusMappingTest() {
   it("maps validation + constraint errors to 400 and unexpected errors to 500", () => {
     expect(resolveErrorStatus(new ValidationError("bad ref"))).toBe(400);
     expect(
@@ -3843,7 +3843,7 @@ function registerErrorStatusMappingTest() {
 }
 
 describe("error status mapping (statusFor)", () => {
-  registerErrorStatusMappingTest();
+  createErrorStatusMappingTest();
   // PINNING TEST: these trigger real node:sqlite violations so the classifier stays tied to the
   // runtime's structured error metadata for each supported row-data constraint family.
   describe("pins node:sqlite constraint metadata on real violations", () => {
@@ -3945,7 +3945,7 @@ describe("global error redaction", () => {
   });
 });
 
-function registerCorsOriginConfigurationTests() {
+function createCorsOriginConfigurationTests() {
   it("defaults FAIL-CLOSED to the localhost allow-list (not a wildcard)", async () => {
     const { app } = freshApp();
     // A local dev origin is reflected (it's on the default allow-list)…
@@ -4000,7 +4000,7 @@ function registerCorsOriginConfigurationTests() {
   });
 }
 
-function registerCorsReflectionTests() {
+function createCorsReflectionTests() {
   it("reflects an allowed origin and omits the header for a disallowed one", async () => {
     const app = createApp(openDb(":memory:"), {
       corsOrigin: "http://good.test,http://also.test",
@@ -4020,7 +4020,7 @@ function registerCorsReflectionTests() {
   });
 }
 
-function registerCorsCredentialAndRequestGateTests() {
+function createCorsCredentialAndRequestGateTests() {
   it("pairs Allow-Credentials with every reflected explicit origin (P3.4)", async () => {
     // The client sends credentials: 'include' on every request; a credentialed
     // cross-origin response without this header is refused by the browser.
@@ -4081,7 +4081,7 @@ function registerCorsCredentialAndRequestGateTests() {
   });
 }
 
-function registerCorsSameOriginTests() {
+function createCorsSameOriginTests() {
   it("keeps non-browser clients and allowed same-origin writes working", async () => {
     const { app } = freshApp();
     expect((await call(app, { method: "POST", url: "/api/test/reset" })).statusCode).toBe(200);
@@ -4138,7 +4138,7 @@ function registerCorsSameOriginTests() {
   });
 }
 
-function registerCorsCrossSiteAndTlsTests() {
+function createCorsCrossSiteAndTlsTests() {
   it("lets a cross-site write through when its Origin is on the credentialed allow-list (Fetch Metadata notwithstanding)", async () => {
     // FIX: an Origin EXACTLY on the CORS allow-list is the operator's explicit cross-site contract,
     // so it must pass the gate even when the browser labels the request Sec-Fetch-Site: cross-site
@@ -4180,7 +4180,7 @@ function registerCorsCrossSiteAndTlsTests() {
   });
 }
 
-function registerCorsTlsTerminationTests() {
+function createCorsTlsTerminationTests() {
   it("treats a TLS-terminated https Origin as same-origin when only the scheme differs from http req.protocol", async () => {
     // FIX: with no Fetch Metadata and forwarded-proto NOT trusted, the standard TLS-termination
     // deploy has the browser-set Origin claim https:// while req.protocol sees http (cleartext hop
@@ -4220,7 +4220,7 @@ function registerCorsTlsTerminationTests() {
   });
 }
 
-function registerCorsMalformedHostAndHeaderTests() {
+function createCorsMalformedHostAndHeaderTests() {
   it("returns a clean 403 (not a 500) when a broken proxy sends a malformed Host header", async () => {
     // REGRESSION: the same-origin check reconstructs `${protocol}://${host}` from the Host header, an
     // untrusted, proxy-influenced string. A broken proxy (or a forged request) can send a Host that
@@ -4280,13 +4280,13 @@ function registerCorsMalformedHostAndHeaderTests() {
 }
 
 describe("CORS allow-list", () => {
-  registerCorsOriginConfigurationTests();
-  registerCorsReflectionTests();
-  registerCorsCredentialAndRequestGateTests();
-  registerCorsSameOriginTests();
-  registerCorsCrossSiteAndTlsTests();
-  registerCorsTlsTerminationTests();
-  registerCorsMalformedHostAndHeaderTests();
+  createCorsOriginConfigurationTests();
+  createCorsReflectionTests();
+  createCorsCredentialAndRequestGateTests();
+  createCorsSameOriginTests();
+  createCorsCrossSiteAndTlsTests();
+  createCorsTlsTerminationTests();
+  createCorsMalformedHostAndHeaderTests();
 });
 
 describe("sensitive response caching", () => {
