@@ -423,6 +423,30 @@ interface ImportSummary {
   skipped: number;
 }
 
+interface BatchRevisionSnapshot {
+  createdAt: string;
+  id: string;
+  rewrite?: true;
+  table: string;
+  updatedAt: string;
+}
+
+interface BatchArchiveSnapshot {
+  archived: boolean;
+  id: string;
+  table: string;
+}
+
+interface BatchReceipt {
+  applied: number;
+  archives: BatchArchiveSnapshot[];
+  auditWarning: boolean;
+  changed: number;
+  ok: boolean;
+  revisions: BatchRevisionSnapshot[];
+  superseded?: boolean;
+}
+
 interface ClientSnapshot {
   accountId: string;
   archivedAt?: string;
@@ -475,6 +499,12 @@ function readOptionalString(value: Record<string, unknown>, key: string, context
 
 function readOptionalBoolean(value: Record<string, unknown>, key: string, context: string): boolean | undefined {
   if (!(key in value)) return undefined;
+  const field = value[key];
+  if (typeof field !== "boolean") throw new Error(`Expected ${context} ${key} to be boolean.`);
+  return field;
+}
+
+function readRequiredBoolean(value: Record<string, unknown>, key: string, context: string): boolean {
   const field = value[key];
   if (typeof field !== "boolean") throw new Error(`Expected ${context} ${key} to be boolean.`);
   return field;
@@ -1026,6 +1056,52 @@ function readBatchSuperseded(response: LightMyRequestResponse): boolean | undefi
     throw new Error("Expected a present batch superseded field to be boolean.");
   }
   return value.superseded;
+}
+
+function readBatchReceipt(response: LightMyRequestResponse): BatchReceipt {
+  const value: unknown = response.json();
+  if (!isUnknownRecord(value)) throw new Error("Expected the batch response to be an object.");
+  requireModeledKeys(
+    value,
+    ["applied", "archives", "auditWarning", "changed", "ok", "revisions", "superseded"],
+    "batch response",
+  );
+  const revisions = readStateArray(value, "revisions").map((revision) => {
+    if (!isUnknownRecord(revision)) throw new Error("Expected every batch revision to be an object.");
+    requireModeledKeys(revision, ["createdAt", "id", "rewrite", "table", "updatedAt"], "batch revision");
+    const rewrite = revision.rewrite;
+    if (rewrite !== undefined && rewrite !== true) {
+      throw new Error("Expected a present batch revision rewrite field to be true.");
+    }
+    const snapshot: BatchRevisionSnapshot = {
+      createdAt: readRequiredString(revision, "createdAt", "batch revision"),
+      id: readRequiredString(revision, "id", "batch revision"),
+      table: readRequiredString(revision, "table", "batch revision"),
+      updatedAt: readRequiredString(revision, "updatedAt", "batch revision"),
+    };
+    if (rewrite === true) snapshot.rewrite = true;
+    return snapshot;
+  });
+  const archives = readStateArray(value, "archives").map((archive) => {
+    if (!isUnknownRecord(archive)) throw new Error("Expected every batch archive to be an object.");
+    requireModeledKeys(archive, ["archived", "id", "table"], "batch archive");
+    return {
+      archived: readRequiredBoolean(archive, "archived", "batch archive"),
+      id: readRequiredString(archive, "id", "batch archive"),
+      table: readRequiredString(archive, "table", "batch archive"),
+    };
+  });
+  const receipt: BatchReceipt = {
+    applied: readRequiredNumber(value, "applied", "batch response"),
+    archives,
+    auditWarning: readRequiredBoolean(value, "auditWarning", "batch response"),
+    changed: readRequiredNumber(value, "changed", "batch response"),
+    ok: readRequiredBoolean(value, "ok", "batch response"),
+    revisions,
+  };
+  const superseded = readOptionalBoolean(value, "superseded", "batch response");
+  if (superseded !== undefined) receipt.superseded = superseded;
+  return receipt;
 }
 
 function readProjectId(rows: ProjectBinding[], id: string): string | undefined {
@@ -2893,8 +2969,8 @@ describe("tenant-scoped mutation projections", () => {
     ]);
 
     expect(result.statusCode).toBe(200);
-    expect(result.json()).toMatchObject({ ok: true, applied: 3, changed: 1 });
-    expect(result.json().revisions).toHaveLength(1);
+    expect(readBatchReceipt(result)).toMatchObject({ ok: true, applied: 3, changed: 1 });
+    expect(readBatchReceipt(result).revisions).toHaveLength(1);
   });
 
   it("excludes a same-batch re-archive of an already-archived row from changed", async () => {
@@ -4103,7 +4179,7 @@ describe("optimistic concurrency (default-on)", () => {
       },
     ]);
     expect(res.statusCode).toBe(200);
-    expect(res.json().revisions).toEqual([
+    expect(readBatchReceipt(res).revisions).toEqual([
       expect.objectContaining({
         table: "clients",
         id: "c1",
