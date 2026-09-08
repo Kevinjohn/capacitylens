@@ -1564,16 +1564,18 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(listed.statusCode).toBe(200);
     const { sessions } = listed.json() as { sessions: Array<{ id: string; current: boolean }> };
     expect(sessions).toHaveLength(1);
-    expect(sessions[0]).toMatchObject({ current: true });
-    expect(sessions[0]!.id).not.toBe(raw.id);
-    expect(sessions[0]!.id).toBe(buildApplicationSessionHandle("capacitylens", raw.token));
+    const session = sessions[0];
+    if (session === undefined) throw new Error("Expected the current session to be listed.");
+    expect(session).toMatchObject({ current: true });
+    expect(session.id).not.toBe(raw.id);
+    expect(session.id).toBe(buildApplicationSessionHandle("capacitylens", raw.token));
     expect(JSON.stringify(sessions)).not.toContain(raw.token);
     expect(db.prepare(`SELECT 1 FROM session WHERE id = 'stale-session-row'`).get()).toBeUndefined();
     expect(db.prepare(`SELECT 1 FROM account_session_assurance WHERE sessionId = ?`).get(staleHandle)).toBeUndefined();
 
     const revoked = await call(app, {
       method: "DELETE",
-      url: `/api/account/sessions/${sessions[0]!.id}`,
+      url: `/api/account/sessions/${session.id}`,
       headers: {
         cookie,
         "idempotency-key": "session-idempotency-0001",
