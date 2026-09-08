@@ -36,14 +36,19 @@ type ProvisionWorkspaceFailureInput = Pick<
   Parameters<LocalAccountFlows["provisionWorkspace"]>[0],
   "actor" | "workspaceId" | "command"
 >;
+type ProvisionWorkspaceTransactionInput<T> = Pick<
+  ProvisionWorkspaceInput<T>,
+  "actor" | "workspaceId" | "joinedAt" | "command" | "multiWorkspace" | "bootstrapAuthorized" | "provisionProductData"
+>;
 type UpdateProvisioningFailureInput = {
   provisioning: ProvisionWorkspaceFailureInput;
   scope: Parameters<typeof beginCommand>[0]["scope"];
   error: unknown;
 };
 type EraseWorkspaceInput = Parameters<LocalAccountFlows["eraseWorkspace"]>[0];
+type EraseWorkspaceFailureInput = Pick<EraseWorkspaceInput, "actor" | "workspaceId" | "command">;
 type UpdateErasureFailureInput = {
-  erasure: EraseWorkspaceInput;
+  erasure: EraseWorkspaceFailureInput;
   scope: Parameters<typeof beginCommand>[0]["scope"];
   error: unknown;
 };
@@ -192,7 +197,7 @@ function updateProvisioningFailure(
 
 function provisionWorkspaceInTransaction<T>(
   dependencies: ProvisioningTransactionDependencies,
-  input: ProvisionWorkspaceInput<T>,
+  input: ProvisionWorkspaceTransactionInput<T>,
   scope: Parameters<typeof beginCommand>[0]["scope"],
 ) {
   const { db, administration, audit } = dependencies;
