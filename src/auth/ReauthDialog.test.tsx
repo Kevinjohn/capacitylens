@@ -71,18 +71,18 @@ afterEach(() => {
 
 const user: AuthUser = { id: "u1", email: "owner@acme.test" };
 
-describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
-  async function enterSecondFactor() {
-    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-    render(<Harness user={user} />);
-    const outcome = requestReauth();
-    await screen.findByRole("heading", { name: "Confirm it's you" });
-    fireEvent.change(screen.getByTestId("reauth-password"), { target: { value: "correct horse" } });
-    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
-    await screen.findByTestId("reauth-2fa-code");
-    return { outcome };
-  }
+async function enterSecondFactor() {
+  signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
+  render(<Harness user={user} />);
+  const outcome = requestReauth();
+  await screen.findByRole("heading", { name: "Confirm it's you" });
+  fireEvent.change(screen.getByTestId("reauth-password"), { target: { value: "correct horse" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+  await screen.findByTestId("reauth-2fa-code");
+  return { outcome };
+}
 
+describe("ReauthDialog password step-up", () => {
   it("a pending re-auth request triggers the dialog", async () => {
     render(<Harness user={user} />);
     expect(screen.getByText("no-dialog")).toBeInTheDocument();
@@ -137,7 +137,9 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     await expect(outcome).resolves.toEqual({ kind: "authenticated" });
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Confirm it's you" })).toBeNull());
   });
+});
 
+describe("ReauthDialog password rejection", () => {
   it("a wrong password surfaces the error INSIDE the dialog and leaves it open", async () => {
     signInEmail.mockResolvedValue({ data: null, error: { message: "Invalid email or password." } });
     render(<Harness user={user} />);
@@ -158,7 +160,9 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     expect(screen.getByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
     expect(isReauthPending()).toBe(true);
   });
+});
 
+describe("ReauthDialog password failures", () => {
   it("fails locally when password re-auth has no user email", async () => {
     render(<Harness user={null} />);
     void requestReauth();
@@ -183,7 +187,9 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
     expect(screen.getByRole("button", { name: "Confirm" })).toBeEnabled();
   });
+});
 
+describe("ReauthDialog second-factor step-up", () => {
   it("associates a rejected second factor with its authentication-code input", async () => {
     signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
     verifyTotp.mockResolvedValue({ data: null, error: { message: "Authentication code is incorrect." } });
@@ -226,7 +232,9 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
 
     await waitFor(() => expect(verifyTotp).toHaveBeenCalledTimes(1));
   });
+});
 
+describe("ReauthDialog recovery-code step-up", () => {
   it("uses a recovery code for in-place step-up without trusting the browser", async () => {
     signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
     verifyBackupCode.mockResolvedValue({ data: { status: true }, error: null });
@@ -249,7 +257,9 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     expect(verifyTotp).not.toHaveBeenCalled();
     expect(screen.queryByRole("heading", { name: "Confirm it's you" })).not.toBeInTheDocument();
   });
+});
 
+describe("ReauthDialog provider step-up", () => {
   it("preserves the product route and supplies a marked OIDC failure return", async () => {
     signInOauth2.mockResolvedValue({ data: {}, error: null });
     window.history.replaceState({}, "", "/team?tab=access");
@@ -300,7 +310,9 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     );
     expect(signInEmail).not.toHaveBeenCalled();
   });
+});
 
+describe("ReauthDialog social-provider step-up", () => {
   it("preserves the product route and supplies a marked social-provider failure return", async () => {
     signInSocial.mockResolvedValue({ data: {}, error: null });
     window.history.replaceState({}, "", "/team?tab=access");
@@ -324,7 +336,9 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
       }),
     );
   });
+});
 
+describe("ReauthDialog provider failures", () => {
   it.each([
     [{ message: "Provider refused the request." }, "Provider refused the request."],
     [{}, m.reauth_failed()],
@@ -375,7 +389,9 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     expect(screen.getAllByRole("button")).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
   });
+});
 
+describe("ReauthDialog dismissal guards", () => {
   it("guards SSO modal dismissal while busy and cancels once idle", async () => {
     signInOauth2.mockImplementation(() => new Promise(() => {}));
     render(

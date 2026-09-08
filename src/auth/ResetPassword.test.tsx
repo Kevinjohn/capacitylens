@@ -15,6 +15,28 @@ vi.mock("../data/apiConfig", () => ({
   isServerConfigured: apiConfigMock.isServerConfigured,
 }));
 
+function renderForm(path = "/reset-password/single-use-token", route = "/reset-password/:token") {
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path={route} element={<ResetPassword />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+function submitPasswords(password: string, confirmation = password) {
+  fireEvent.change(screen.getByTestId("reset-new-password"), { target: { value: password } });
+  fireEvent.change(screen.getByTestId("reset-confirm-password"), { target: { value: confirmation } });
+  fireEvent.click(screen.getByTestId("reset-submit"));
+}
+
+afterEach(() => {
+  apiConfigMock.isServerConfigured.mockReturnValue(true);
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
 // Pins the library-shape sniff in messageForFailure (DEFENSIVE-CODING.md §2: a sniff of a library's
 // message/body shape must be test-pinned). Better Auth's redeem endpoint answers a 400 with a typed
 // `{ code }`; this test locks the mapping from each recognised code — and every unrecognised shape —
@@ -57,32 +79,6 @@ describe("ResetPassword — messageForFailure (Better Auth 400 body → surfaced
 });
 
 describe("ResetPassword — one-shot request outcomes", () => {
-  afterEach(() => {
-    apiConfigMock.isServerConfigured.mockReturnValue(true);
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-  });
-
-  function renderForm(path = "/reset-password/single-use-token", route = "/reset-password/:token") {
-    render(
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route path={route} element={<ResetPassword />} />
-        </Routes>
-      </MemoryRouter>,
-    );
-  }
-
-  function submitPasswords(password: string, confirmation = password) {
-    fireEvent.change(screen.getByTestId("reset-new-password"), {
-      target: { value: password },
-    });
-    fireEvent.change(screen.getByTestId("reset-confirm-password"), {
-      target: { value: confirmation },
-    });
-    fireEvent.click(screen.getByTestId("reset-submit"));
-  }
-
   it("rejects submission when the route token is missing without fetching", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -122,7 +118,9 @@ describe("ResetPassword — one-shot request outcomes", () => {
     expect(await screen.findByText(m.reset_err_mismatch())).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
+});
 
+describe("ResetPassword — terminal request outcomes", () => {
   it("renders the terminal success state after a successful reset", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 200 })));
     renderForm();

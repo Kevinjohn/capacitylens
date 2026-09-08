@@ -95,7 +95,9 @@ describe("MasqueradeController", () => {
     expect(useStore.getState().masquerade).toMatchObject({ kind: "starting", state });
     expect(resume).not.toHaveBeenCalled();
   });
+});
 
+describe("MasqueradeController transitions", () => {
   it("reports an account switch requested while the start request is still in flight", async () => {
     let resolveStart!: (value: MasqueradeState) => void;
     const startResponse = new Promise<MasqueradeState>((resolve) => {
@@ -134,7 +136,9 @@ describe("MasqueradeController", () => {
     expect(useStore.getState().masquerade.kind).toBe("starting");
     expect(resume).not.toHaveBeenCalled();
   });
+});
 
+describe("MasqueradeController cross-tab reconciliation", () => {
   it("adopts a newer cross-tab masquerade returned after DELETE", async () => {
     const newer = { ...state, targetUserId: "u-editor", targetName: "Dick Grayson", token: "token-2" };
     const { controller, resume } = harness({
@@ -189,7 +193,9 @@ describe("MasqueradeController", () => {
     expect(useStore.getState().masquerade.kind).toBe("ending");
     expect(resume).not.toHaveBeenCalled();
   });
+});
 
+describe("MasqueradeController shared-session reconciliation", () => {
   it("restores the real projection when another tab has ended the shared session masquerade", async () => {
     const { controller, dependencies, resume } = harness();
     controller.adoptStatus({ active: true, ...state });

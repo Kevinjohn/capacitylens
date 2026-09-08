@@ -93,7 +93,7 @@ export function AppEntryGate({
     );
   }
 
-  if (hasActiveAccount && !introSeen) {
+  if (!introSeen) {
     return (
       <Suspense fallback={<LoadingBoundary />}>
         <FocusableStage>

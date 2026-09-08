@@ -17,14 +17,14 @@ const SESSION: SessionView = {
   current: false,
 };
 
-describe("browser session client", () => {
-  beforeEach(() => {
-    mocks.apiFetch.mockReset();
-  });
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+beforeEach(() => {
+  mocks.apiFetch.mockReset();
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
+describe("browser session client responses", () => {
   it("loads valid sessions through apiFetch with credentials included", async () => {
     const sessions = [SESSION, { ...SESSION, id: "new-current-session", current: true }];
     mocks.apiFetch.mockResolvedValue(jsonResponse({ sessions }));
@@ -68,7 +68,9 @@ describe("browser session client", () => {
     mocks.apiFetch.mockResolvedValue(new Response("not JSON"));
     expect(await readSessions()).toEqual({ kind: "failed" });
   });
+});
 
+describe("browser session client validation", () => {
   it.each([null, [], "sessions", 42, true, {}, { sessions: null }, { sessions: {} }])(
     "returns failed for a malformed envelope: %j",
     async (body) => {
