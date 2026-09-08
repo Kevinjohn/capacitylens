@@ -133,7 +133,6 @@ export function SecuritySection() {
 
   useEffect(() => {
     // The state changes happen only after the external session request settles.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSessions();
     return () => {
       sessionLoadGeneration.current += 1;
