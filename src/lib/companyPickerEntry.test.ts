@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { consumeCompanyPickerForReload, markCompanyPickerForNextReload } from "./companyPickerEntry";
 
 afterEach(() => {

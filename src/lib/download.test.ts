@@ -1,4 +1,4 @@
-import { it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { downloadTextFile } from "./download";
 
 afterEach(() => {

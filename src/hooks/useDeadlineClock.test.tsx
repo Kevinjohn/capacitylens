@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useDeadlineClock } from "./useDeadlineClock";
 
 // Timer behaviour, on fake timers so "just after the deadline" is exact rather than flaky. The

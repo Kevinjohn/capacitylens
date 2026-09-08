@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { useExclusiveAction } from "./useExclusiveAction";
 
 // The load-bearing property is the SAME-RENDER one: the ref must already refuse a second action
