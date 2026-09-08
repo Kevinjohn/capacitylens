@@ -954,17 +954,6 @@
       "count": 2
     }
   },
-  "src/components/accounts/AccountPicker.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
-    }
-  },
   "src/components/accounts/DeleteCompanyDialog.test.tsx": {
     "max-lines-per-function": {
       "count": 2
@@ -1107,11 +1096,6 @@
   "src/components/invites/externalSignIn.test.ts": {
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "src/components/invites/invitePreviewActions.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3
     }
   },
   "src/components/invites/inviteSignInActions.ts": {
