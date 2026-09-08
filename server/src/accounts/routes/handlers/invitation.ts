@@ -55,7 +55,7 @@ function parseInvitationExpiry(
   return { value: new Date(parsed).toISOString() };
 }
 
-function parseCreateInvitationInput({
+function parseCreateInvitationAuthorizationInput({
   req,
   authMode,
   isKnownRole,
@@ -66,7 +66,7 @@ function parseCreateInvitationInput({
   isKnownRole: AccountRouteContext["isKnownRole"];
   createValidationFailure: AccountRouteContext["validationFailed"];
 }): ParseResult<
-  { accountId: string; role: Role; preauthEmail: string | null; expiresAt: string | null },
+  { accountId: string; role: Role; preauthEmail: string | null; requestedExpiry: unknown },
   AccountContractError
 > {
   const body = (req.body ?? {}) as {
@@ -86,14 +86,12 @@ function parseCreateInvitationInput({
     return { failure: createValidationFailure("SSO-only onboarding requires an email-preauthorized invitation.") };
   }
 
-  const expiryResult = parseInvitationExpiry(body.expiresAt, createValidationFailure);
-  if ("failure" in expiryResult) return { failure: expiryResult.failure };
   return {
     value: {
       accountId: body.accountId,
       role: body.role,
       preauthEmail: emailResult.value,
-      expiresAt: expiryResult.value,
+      requestedExpiry: body.expiresAt,
     },
   };
 }
@@ -128,11 +126,13 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
     auditUnlessReplayed,
   } = context;
 
-  const input = parseCreateInvitationInput({ req, authMode, isKnownRole, createValidationFailure });
+  const input = parseCreateInvitationAuthorizationInput({ req, authMode, isKnownRole, createValidationFailure });
   if ("failure" in input) return accountFail(reply, input.failure);
   const { value } = input;
   // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
   if (!authorize({ req, reply, accountId: value.accountId, action: "manageInvites" })) return;
+  const expiryResult = parseInvitationExpiry(value.requestedExpiry, createValidationFailure);
+  if ("failure" in expiryResult) return accountFail(reply, expiryResult.failure);
   try {
     const { actor, user } = requireAuthenticatedPrincipal(req);
     const invite = await accountAdminPort.createInvitation({
@@ -141,7 +141,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
       role: value.role,
       preauthorizedEmail: value.preauthEmail,
       // Null is canonical across retries; the port chooses the bounded default only on first execution.
-      expiresAt: value.expiresAt,
+      expiresAt: expiryResult.value,
       command: accountCommand(req),
     });
     auditUnlessReplayed({
