@@ -1,21 +1,125 @@
 import type { Db } from "../db";
 
+interface TableColumn {
+  [key: string]: string | number;
+  name: string;
+  notnull: number;
+  pk: number;
+  type: string;
+}
+
+interface ExpectedColumn {
+  notNull: boolean;
+  primaryKey: number;
+}
+
+interface ExpectedIndex {
+  unique: boolean;
+  columns: string[];
+  descending?: string[];
+  partial?: boolean;
+}
+
 /** Physical uniqueness backstop for the exactly-one-active-Owner product rule. The partial index
  * permits any number of non-owner memberships while allowing at most one active Owner per account;
  * the post-migration assertion below independently rejects a member-bearing account with no Owner. */
 export const SINGLE_OWNER_INDEX = "idx_account_members_single_active_owner";
 
+function collectColumnProblems(
+  table: string,
+  expected: Record<string, ExpectedColumn>,
+  columns: TableColumn[],
+): string[] {
+  const problems: string[] = [];
+  const live = new Map(columns.map((column) => [column.name, column]));
+  for (const column of columns) {
+    if (!Object.hasOwn(expected, column.name)) problems.push(`unexpected ${table}.${column.name}`);
+  }
+  for (const [name, definition] of Object.entries(expected)) {
+    const column = live.get(name);
+    if (!column) {
+      problems.push(`missing ${table}.${name}`);
+      continue;
+    }
+    if ((column.notnull === 1) !== definition.notNull) {
+      problems.push(
+        `${table}.${name} is ${column.notnull === 1 ? "NOT NULL" : "nullable"} (expected ${definition.notNull ? "NOT NULL" : "nullable"})`,
+      );
+    }
+    if (column.type.toUpperCase() !== "TEXT") {
+      problems.push(`${table}.${name} declared type is ${column.type || "(empty)"} (expected TEXT)`);
+    }
+  }
+  const actualPrimaryKey = columns
+    .filter((column) => column.pk > 0)
+    .sort((left, right) => left.pk - right.pk)
+    .map((column) => column.name);
+  const expectedPrimaryKey = Object.entries(expected)
+    .filter(([, definition]) => definition.primaryKey > 0)
+    .sort((left, right) => left[1].primaryKey - right[1].primaryKey)
+    .map(([name]) => name);
+  if (actualPrimaryKey.join(",") !== expectedPrimaryKey.join(",")) {
+    problems.push(
+      `${table} primary-key mismatch: got (${actualPrimaryKey.join(", ")}), expected (${expectedPrimaryKey.join(", ")})`,
+    );
+  }
+  return problems;
+}
+
+function collectIndexProblems(db: Db, table: string, expected: Record<string, ExpectedIndex>): string[] {
+  const problems: string[] = [];
+  const live = new Map(
+    (
+      db.prepare(`PRAGMA index_list(${table})`).all() as Array<{
+        name: string;
+        unique: number;
+        origin: string;
+        partial: number;
+      }>
+    ).map((index) => [index.name, index]),
+  );
+  for (const [name, definition] of Object.entries(expected)) {
+    const index = live.get(name);
+    if (!index) {
+      problems.push(`missing index ${name}`);
+      continue;
+    }
+    if (
+      (index.unique === 1) !== definition.unique ||
+      index.origin !== "c" ||
+      (index.partial === 1) !== (definition.partial ?? false)
+    ) {
+      problems.push(`index ${name} metadata mismatch`);
+    }
+    const keys = (
+      db.prepare(`PRAGMA index_xinfo("${name}")`).all() as Array<{
+        name: string | null;
+        desc: number;
+        coll: string;
+        key: number;
+      }>
+    ).filter((column) => column.key === 1);
+    if (
+      keys.length !== definition.columns.length ||
+      keys.some(
+        (column, position) =>
+          column.name !== definition.columns[position] ||
+          (column.desc === 1) !== (definition.descending?.includes(column.name) === true) ||
+          column.coll !== "BINARY",
+      )
+    ) {
+      problems.push(`index ${name} does not cover exactly ${table}(${definition.columns.join(", ")})`);
+    }
+  }
+  return problems;
+}
+
 /** Verify the app-owned control plane after migration. These tables deliberately sit outside
  * AppData/TABLES, so schema.ts cannot cover them; without this companion assertion a missed future
  * control-table migration would otherwise surface only when an account or invite route is used. */
 export function assertControlTablesCurrent(db: Db): void {
-  const accountMemberColumns = db.prepare("PRAGMA table_info(account_members)").all() as Array<{
-    name: string;
-    notnull: number;
-    pk: number;
-    type: string;
-  }>;
-  const expectedColumns: Record<string, Record<string, { notNull: boolean; primaryKey: number }>> = {
+  const accountMemberColumns = db.prepare("PRAGMA table_info(account_members)").all() as TableColumn[];
+  const expectedColumns: Record<string, Record<string, ExpectedColumn>> = {
     account_members: {
       accountId: { notNull: true, primaryKey: 1 },
       userId: { notNull: true, primaryKey: 2 },
@@ -44,49 +148,11 @@ export function assertControlTablesCurrent(db: Db): void {
     const columns =
       table === "account_members"
         ? accountMemberColumns
-        : (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
-            name: string;
-            notnull: number;
-            pk: number;
-            type: string;
-          }>);
-    const live = new Map(columns.map((column) => [column.name, column]));
-    for (const column of columns) {
-      if (!Object.hasOwn(expected, column.name)) problems.push(`unexpected ${table}.${column.name}`);
-    }
-    for (const [name, definition] of Object.entries(expected)) {
-      if (!live.has(name)) problems.push(`missing ${table}.${name}`);
-      else {
-        const column = live.get(name)!;
-        if ((column.notnull === 1) !== definition.notNull) {
-          problems.push(
-            `${table}.${name} is ${column.notnull === 1 ? "NOT NULL" : "nullable"} (expected ${definition.notNull ? "NOT NULL" : "nullable"})`,
-          );
-        }
-        if (column.type.toUpperCase() !== "TEXT") {
-          problems.push(`${table}.${name} declared type is ${column.type || "(empty)"} (expected TEXT)`);
-        }
-      }
-    }
-    const actualPrimaryKey = columns
-      .filter((column) => column.pk > 0)
-      .sort((left, right) => left.pk - right.pk)
-      .map((column) => column.name);
-    const expectedPrimaryKey = Object.entries(expected)
-      .filter(([, definition]) => definition.primaryKey > 0)
-      .sort((left, right) => left[1].primaryKey - right[1].primaryKey)
-      .map(([name]) => name);
-    if (actualPrimaryKey.join(",") !== expectedPrimaryKey.join(",")) {
-      problems.push(
-        `${table} primary-key mismatch: got (${actualPrimaryKey.join(", ")}), expected (${expectedPrimaryKey.join(", ")})`,
-      );
-    }
+        : (db.prepare(`PRAGMA table_info(${table})`).all() as TableColumn[]);
+    problems.push(...collectColumnProblems(table, expected, columns));
   }
 
-  const expectedIndexes: Record<
-    string,
-    Record<string, { unique: boolean; columns: string[]; descending?: string[]; partial?: boolean }>
-  > = {
+  const expectedIndexes: Record<string, Record<string, ExpectedIndex>> = {
     account_members: {
       idx_account_members_userId: { unique: false, columns: ["userId"] },
       idx_account_members_accountId: { unique: false, columns: ["accountId"] },
@@ -104,48 +170,7 @@ export function assertControlTablesCurrent(db: Db): void {
     },
   };
   for (const [table, expected] of Object.entries(expectedIndexes)) {
-    const live = new Map(
-      (
-        db.prepare(`PRAGMA index_list(${table})`).all() as Array<{
-          name: string;
-          unique: number;
-          origin: string;
-          partial: number;
-        }>
-      ).map((index) => [index.name, index]),
-    );
-    for (const [name, definition] of Object.entries(expected)) {
-      if (!live.has(name)) problems.push(`missing index ${name}`);
-      else {
-        const index = live.get(name)!;
-        if (
-          (index.unique === 1) !== definition.unique ||
-          index.origin !== "c" ||
-          (index.partial === 1) !== (definition.partial ?? false)
-        ) {
-          problems.push(`index ${name} metadata mismatch`);
-        }
-        const keys = (
-          db.prepare(`PRAGMA index_xinfo("${name}")`).all() as Array<{
-            name: string | null;
-            desc: number;
-            coll: string;
-            key: number;
-          }>
-        ).filter((column) => column.key === 1);
-        if (
-          keys.length !== definition.columns.length ||
-          keys.some(
-            (column, index) =>
-              column.name !== definition.columns[index] ||
-              (column.desc === 1) !== (definition.descending?.includes(column.name ?? "") ?? false) ||
-              column.coll !== "BINARY",
-          )
-        ) {
-          problems.push(`index ${name} does not cover exactly ${table}(${definition.columns.join(", ")})`);
-        }
-      }
-    }
+    problems.push(...collectIndexProblems(db, table, expected));
   }
 
   if (problems.length > 0) {
