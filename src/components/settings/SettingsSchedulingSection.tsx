@@ -177,15 +177,7 @@ function InternalVisibilitySection({
   );
 }
 
-function SchedulingVisibilitySections({
-  canEdit,
-  placeholdersEnabled,
-  externalEnabled,
-  showInternalProjects,
-  showInternalActivities,
-  inlineActivityCreateEnabled,
-  updateSetting,
-}: Pick<
+type SchedulingFeatureSectionProps = Pick<
   SettingsSchedulingSectionProps,
   | "canEdit"
   | "placeholdersEnabled"
@@ -194,7 +186,17 @@ function SchedulingVisibilitySections({
   | "showInternalActivities"
   | "inlineActivityCreateEnabled"
   | "updateSetting"
->) {
+>;
+
+function SchedulingFeatureSections({
+  canEdit,
+  placeholdersEnabled,
+  externalEnabled,
+  showInternalProjects,
+  showInternalActivities,
+  inlineActivityCreateEnabled,
+  updateSetting,
+}: SchedulingFeatureSectionProps) {
   const externalHelp = (
     <>
       <span className="block">{externalExplainer()}</span>
@@ -281,7 +283,7 @@ export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps)
         internalColourMode={props.internalColourMode}
         updateSetting={props.updateSetting}
       />
-      <SchedulingVisibilitySections
+      <SchedulingFeatureSections
         canEdit={props.canEdit}
         placeholdersEnabled={props.placeholdersEnabled}
         externalEnabled={props.externalEnabled}
