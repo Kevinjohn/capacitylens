@@ -129,11 +129,11 @@ export function createCapacitySource({
     effectiveWeek,
   }: ResourceCapacitySourceInput): CapacitySource => {
     if (isExternalResource(resource)) return createUntrackedCapacitySource();
-    // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
-    return createTrackedCapacitySource({ resource, allocations, resourceTimeOff, effectiveWeek }, context);
     // Bucket this resource's load and time off by the days they cover, ONCE, so each of the
     // ~150 timeline days hands capacity.ts only the rows that actually touch that day instead
     // of making it rescan every allocation (and every time-off row) per day.
+    // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
+    return createTrackedCapacitySource({ resource, allocations, resourceTimeOff, effectiveWeek }, context);
   };
 
   return { capacitySourceFor: createResourceCapacitySource, visDays: visibleDays, overDays };
