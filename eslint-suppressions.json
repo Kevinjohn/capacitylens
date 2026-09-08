@@ -404,14 +404,6 @@
       "count": 2
     }
   },
-  "server/src/accounts/identityPort/sessions.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "server/src/accounts/identityPort/verificationState.ts": {
     "complexity": {
       "count": 1
@@ -425,11 +417,6 @@
   "server/src/accounts/routes/handlers/credentialAdmin.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 4
-    }
-  },
-  "server/src/accounts/routes/handlers/memberAdmin.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 11
     }
   },
   "server/src/accounts/routes/handlers/session.ts": {
@@ -486,14 +473,6 @@
       "count": 1
     }
   },
-  "server/src/accounts/ssoCutoverRoutes.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "server/src/accounts/state/commandLedgerWrites.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 2
@@ -530,9 +509,6 @@
     }
   },
   "server/src/app.authz.test.ts": {
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 5
-    },
     "max-lines-per-function": {
       "count": 5
     }
@@ -673,17 +649,6 @@
       "count": 2
     }
   },
-  "server/src/auditOutbox.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 8
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "server/src/auditOutbox.ts": {
     "complexity": {
       "count": 1
@@ -800,23 +765,6 @@
     },
     "max-lines-per-function": {
       "count": 2
-    }
-  },
-  "server/src/authConfig/sessionActivity.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-depth": {
-      "count": 5
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
     }
   },
   "server/src/authConfig/strictOidcAddressPolicy.ts": {
@@ -2515,7 +2463,7 @@
   },
   "src/components/scheduler/schedulerModel.test.ts": {
     "max-lines-per-function": {
-      "count": 11
+      "count": 10
     }
   },
   "src/components/scheduler/schedulerModel.ts": {
@@ -3213,17 +3161,9 @@
       "count": 1
     }
   },
-  "src/store/internalClient.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 11
-    }
-  },
   "src/store/multitenancy.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 9
-    },
     "max-lines-per-function": {
-      "count": 2
+      "count": 1
     }
   },
   "src/store/selectors.extra.test.ts": {
