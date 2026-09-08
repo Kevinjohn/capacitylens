@@ -139,9 +139,9 @@ function useViewportGeometry({
 
 interface ViewportAlignmentInput {
   scrollRef: RefObject<HTMLDivElement | null>;
-  didScroll: MutableRefObject<boolean>;
-  scrollRaf: MutableRefObject<number>;
-  snapTimer: MutableRefObject<number>;
+  didScrollRef: MutableRefObject<boolean>;
+  scrollRafRef: MutableRefObject<number>;
+  snapTimerRef: MutableRefObject<number>;
   geometry: ReturnType<typeof buildColumnGeometry>;
   days: ISODate[];
   ui: SchedulerUI;
@@ -150,7 +150,9 @@ interface ViewportAlignmentInput {
 }
 
 function useViewportAlignment(input: ViewportAlignmentInput) {
-  const { scrollRef, didScroll, scrollRaf, snapTimer, geometry, days, ui, calendarWeekStartsOn, timelineWidth } = input;
+  const { scrollRef, didScrollRef, scrollRafRef, snapTimerRef } = input;
+  const { geometry, days, ui } = input;
+  const { calendarWeekStartsOn, timelineWidth } = input;
   const focusX = geometry.xForDateInGeom(ui.focusDate);
   const focusXRef = useRef(focusX);
   const previousScrollLeftRef = useRef<number | null>(null);
@@ -162,10 +164,10 @@ function useViewportAlignment(input: ViewportAlignmentInput) {
   const previousZoomRef = useRef(ui.zoom);
   const previousRecenterRef = useRef(ui.recenterToken);
   useLayoutEffect(() => {
-    if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current);
-    scrollRaf.current = 0;
-    clearTimeout(snapTimer.current);
-    snapTimer.current = 0;
+    if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current);
+    scrollRafRef.current = 0;
+    clearTimeout(snapTimerRef.current);
+    snapTimerRef.current = 0;
     const previousGeom = previousGeometryRef.current;
     const previousDays = previousDaysRef.current;
     const previousZoom = previousZoomRef.current;
@@ -175,19 +177,29 @@ function useViewportAlignment(input: ViewportAlignmentInput) {
     previousZoomRef.current = ui.zoom;
     previousRecenterRef.current = ui.recenterToken;
     const element = scrollRef.current;
-    if (!element || !didScroll.current || previousGeom === geometry || previousGeom.totalWidth <= 0) return;
+    if (!element || !didScrollRef.current || previousGeom === geometry || previousGeom.totalWidth <= 0) return;
     if (ui.recenterToken !== previousRecenter) return;
     const leftDate = resolveLeftEdgeDate(previousGeom, days, element.scrollLeft);
     if (leftDate === undefined) return;
     const navigationChanged = ui.zoom !== previousZoom || days !== previousDays;
     const targetDate = navigationChanged ? startOfWeekISO(leftDate, calendarWeekStartsOn) : leftDate;
     setScrollLeft(element, Math.max(0, geometry.xForDateInGeom(targetDate)));
-  }, [geometry, days, ui.zoom, ui.recenterToken, calendarWeekStartsOn, didScroll, scrollRaf, scrollRef, snapTimer]);
+  }, [
+    geometry,
+    days,
+    ui.zoom,
+    ui.recenterToken,
+    calendarWeekStartsOn,
+    didScrollRef,
+    scrollRafRef,
+    scrollRef,
+    snapTimerRef,
+  ]);
   useEffect(() => {
-    if (didScroll.current || !scrollRef.current || timelineWidth === 0) return;
+    if (didScrollRef.current || !scrollRef.current || timelineWidth === 0) return;
     setScrollLeft(scrollRef.current, focusXRef.current);
-    didScroll.current = true;
-  }, [timelineWidth, didScroll, scrollRef]);
+    didScrollRef.current = true;
+  }, [timelineWidth, didScrollRef, scrollRef]);
   useLayoutEffect(() => {
     if (ui.recenterToken === 0 || !scrollRef.current) return;
     setScrollLeft(scrollRef.current, focusXRef.current);
@@ -197,8 +209,8 @@ function useViewportAlignment(input: ViewportAlignmentInput) {
 
 interface ViewportScrollingInput {
   scrollRef: RefObject<HTMLDivElement | null>;
-  scrollRaf: MutableRefObject<number>;
-  snapTimer: MutableRefObject<number>;
+  scrollRafRef: MutableRefObject<number>;
+  snapTimerRef: MutableRefObject<number>;
   previousScrollLeftRef: MutableRefObject<number | null>;
   geometry: ReturnType<typeof buildColumnGeometry>;
   days: ISODate[];
@@ -210,13 +222,13 @@ interface ViewportScrollingInput {
 }
 
 function useSettledScrollState(input: ViewportScrollingInput) {
-  const { scrollRef, scrollRaf, snapTimer, geometry, setScrollTop, setLeftEdgeIndex } = input;
+  const { scrollRef, scrollRafRef, snapTimerRef, geometry, setScrollTop, setLeftEdgeIndex } = input;
   useEffect(
     () => () => {
-      if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current);
-      clearTimeout(snapTimer.current);
+      if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current);
+      clearTimeout(snapTimerRef.current);
     },
-    [scrollRaf, snapTimer],
+    [scrollRafRef, snapTimerRef],
   );
   const dragging = useStore((state) => state.draggingAllocationId !== null);
   useEffect(() => {
@@ -238,8 +250,8 @@ function useVisibleStartDate(input: ViewportScrollingInput) {
 function useViewportScrolling(input: ViewportScrollingInput) {
   const {
     scrollRef,
-    scrollRaf,
-    snapTimer,
+    scrollRafRef,
+    snapTimerRef,
     previousScrollLeftRef,
     geometry,
     days,
@@ -251,9 +263,9 @@ function useViewportScrolling(input: ViewportScrollingInput) {
   const onScroll = useCallback(() => {
     const current = scrollRef.current;
     if (current) publishScrollLeft(current);
-    if (scrollRaf.current) return;
-    scrollRaf.current = requestAnimationFrame(() => {
-      scrollRaf.current = 0;
+    if (scrollRafRef.current) return;
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = 0;
       const element = scrollRef.current;
       if (!element) return;
       setScrollTop(element.scrollTop);
@@ -262,8 +274,8 @@ function useViewportScrolling(input: ViewportScrollingInput) {
       if (useStore.getState().draggingAllocationId !== null || !horizontalChanged) return;
       setLeftEdgeIndex(geometry.indexAtScroll(element.scrollLeft));
       if (!snapToWeekStart) return;
-      clearTimeout(snapTimer.current);
-      snapTimer.current = window.setTimeout(() => {
+      clearTimeout(snapTimerRef.current);
+      snapTimerRef.current = window.setTimeout(() => {
         const node = scrollRef.current;
         if (!node || useStore.getState().draggingAllocationId !== null) return;
         const target = resolveWeekStartSnapTarget({
@@ -281,11 +293,11 @@ function useViewportScrolling(input: ViewportScrollingInput) {
     snapToWeekStart,
     calendarWeekStartsOn,
     previousScrollLeftRef,
-    scrollRaf,
+    scrollRafRef,
     scrollRef,
     setLeftEdgeIndex,
     setScrollTop,
-    snapTimer,
+    snapTimerRef,
   ]);
   useSettledScrollState(input);
   const readVisibleStartDate = useVisibleStartDate(input);
@@ -317,9 +329,9 @@ export function useSchedulerViewport({
 }: SchedulerViewportOptions) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
-  const didScroll = useRef(false);
-  const scrollRaf = useRef(0);
-  const snapTimer = useRef(0);
+  const didScrollRef = useRef(false);
+  const scrollRafRef = useRef(0);
+  const snapTimerRef = useRef(0);
   const stickyHeaderHeight = useStickyHeaderHeight(headerRef);
   const { timelineWidth, timelineHeight, rootFontSizePx } = useTimelineMeasurements(scrollRef);
   const [scrollTop, setScrollTop] = useState(0);
@@ -334,9 +346,9 @@ export function useSchedulerViewport({
 
   const { onScroll, readVisibleStartDate } = useViewportProtocol({
     scrollRef,
-    didScroll,
-    scrollRaf,
-    snapTimer,
+    didScrollRef,
+    scrollRafRef,
+    snapTimerRef,
     geometry,
     days,
     ui,

@@ -271,19 +271,19 @@ function buildAdvisoryInput({
 }
 
 function useRepeatProjection(input: Parameters<typeof buildRepeatProjection>[0]) {
-  const cache = useRef<{ input: typeof input; result: ReturnType<typeof buildRepeatProjection> } | null>(null);
-  if (!cache.current || !hasSameRepeatProjectionInput(cache.current.input, input)) {
-    cache.current = { input, result: buildRepeatProjection(input) };
+  const cacheRef = useRef<{ input: typeof input; result: ReturnType<typeof buildRepeatProjection> } | null>(null);
+  if (!cacheRef.current || !hasSameRepeatProjectionInput(cacheRef.current.input, input)) {
+    cacheRef.current = { input, result: buildRepeatProjection(input) };
   }
-  return cache.current.result;
+  return cacheRef.current.result;
 }
 
 function useAllocationAdvisory(input: Parameters<typeof buildAllocationAdvisory>[0]) {
-  const cache = useRef<{ input: typeof input; result: ReturnType<typeof buildAllocationAdvisory> } | null>(null);
-  if (!cache.current || !hasSameAdvisoryInput(cache.current.input, input)) {
-    cache.current = { input, result: buildAllocationAdvisory(input) };
+  const cacheRef = useRef<{ input: typeof input; result: ReturnType<typeof buildAllocationAdvisory> } | null>(null);
+  if (!cacheRef.current || !hasSameAdvisoryInput(cacheRef.current.input, input)) {
+    cacheRef.current = { input, result: buildAllocationAdvisory(input) };
   }
-  return cache.current.result;
+  return cacheRef.current.result;
 }
 
 function hasSameRepeatProjectionInput(
