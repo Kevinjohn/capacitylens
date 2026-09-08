@@ -38,9 +38,22 @@ beforeEach(() => {
   useStore.getState().setDirtyForm(false);
 });
 
+function getRequiredElement<T extends HTMLElement>(root: ParentNode, selector: string): T {
+  const element = root.querySelector<T>(selector);
+  if (!element) {
+    throw new Error(`Expected ${selector} to match an element`);
+  }
+  return element;
+}
+
 // ─── Button ────────────────────────────────────────────────────────────────
 
 describe("Button", () => {
+  registerButtonAppearanceTests();
+  registerButtonFeedbackTests();
+});
+
+function registerButtonAppearanceTests() {
   it("renders children", () => {
     render(<Button>Click me</Button>);
     expect(screen.getByRole("button", { name: "Click me" })).toBeInTheDocument();
@@ -103,7 +116,9 @@ describe("Button", () => {
       expect(screen.getByRole("button", { name: variant })).toHaveClass("enabled:active:scale-95");
     },
   );
+}
 
+function registerButtonFeedbackTests() {
   it("keeps link-styled actions out of the button press treatment", () => {
     render(<Button variant="link">Learn more</Button>);
 
@@ -127,7 +142,7 @@ describe("Button", () => {
     expect(button).toHaveClass("enabled:active:scale-95", "disabled:pointer-events-none");
     expect(button).not.toHaveClass("active:scale-95");
   });
-});
+}
 
 describe("FormActions", () => {
   it("renders the standard actions and supports a submit-label override", async () => {
@@ -246,6 +261,17 @@ describe("Switch", () => {
 // ─── Modal ─────────────────────────────────────────────────────────────────
 
 describe("Modal", () => {
+  registerModalPresentationTests();
+  registerModalDismissalTests();
+  registerModalDirtyStateTests();
+  registerModalControlDirtyTests();
+  registerModalControlNoOpTests();
+  registerModalControlRenderingTests();
+  registerModalControlMixedValueTests();
+  registerModalFooterTests();
+});
+
+function registerModalPresentationTests() {
   it("renders with the given title as dialog label", () => {
     render(
       <Modal title="My Modal" onClose={vi.fn()}>
@@ -276,7 +302,9 @@ describe("Modal", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledOnce();
   });
+}
 
+function registerModalDismissalTests() {
   it("closes when the backdrop is clicked", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
@@ -285,7 +313,7 @@ describe("Modal", () => {
         <p>Inner</p>
       </Modal>,
     );
-    const backdrop = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!;
+    const backdrop = getRequiredElement<HTMLElement>(document, '[data-slot="dialog-overlay"]');
     await user.click(backdrop);
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -301,7 +329,7 @@ describe("Modal", () => {
       </Modal>,
     );
 
-    const backdrop = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!;
+    const backdrop = getRequiredElement<HTMLElement>(document, '[data-slot="dialog-overlay"]');
     fireEvent.pointerDown(backdrop, { pointerType: "mouse", ...pointer });
 
     expect(onClose).not.toHaveBeenCalled();
@@ -318,7 +346,9 @@ describe("Modal", () => {
     await user.click(screen.getByText("Inner"));
     expect(onClose).not.toHaveBeenCalled();
   });
+}
 
+function registerModalDirtyStateTests() {
   it("refuses an accidental backdrop/Escape dismissal once a field is edited", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
@@ -329,7 +359,7 @@ describe("Modal", () => {
     );
     // Edit a field → dialog is dirty.
     fireEvent.input(screen.getByLabelText("field"), { target: { value: "x" } });
-    const backdrop = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!;
+    const backdrop = getRequiredElement<HTMLElement>(document, '[data-slot="dialog-overlay"]');
     await user.click(backdrop);
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).not.toHaveBeenCalled();
@@ -363,7 +393,9 @@ describe("Modal", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).not.toHaveBeenCalled();
   });
+}
 
+function registerModalControlDirtyTests() {
   it("keeps one editor globally dirty while a clean overlapping Modal mounts and unmounts", () => {
     const modals = (showCleanOverlay: boolean) => (
       <>
@@ -395,7 +427,9 @@ describe("Modal", () => {
     unmount();
     expect(useStore.getState().dirtyForm).toBe(false);
   });
+}
 
+function registerModalControlNoOpTests() {
   it("treats clicking an aria-pressed toggle (e.g. WeekdayPicker) as a dirty edit", () => {
     const onClose = vi.fn();
     render(
@@ -432,7 +466,9 @@ describe("Modal", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledOnce();
   });
+}
 
+function registerModalControlRenderingTests() {
   it("renders the default gapped intent through the shared radio-group primitive", () => {
     render(
       <SegmentedControl
@@ -476,7 +512,9 @@ describe("Modal", () => {
     expect(screen.getAllByRole("radio")).toHaveLength(3);
     expect(screen.getByRole("radio", { name: "First" })).toHaveAttribute("data-state", "on");
   });
+}
 
+function registerModalControlMixedValueTests() {
   it("round-trips numeric and string values that have the same display text", () => {
     const onChange = vi.fn();
     render(
@@ -510,7 +548,9 @@ describe("Modal", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledOnce();
   });
+}
 
+function registerModalFooterTests() {
   it("renders optional footer", () => {
     render(
       <Modal title="Footer Modal" onClose={vi.fn()} footer={<span>Footer content</span>}>
@@ -554,7 +594,7 @@ describe("Modal", () => {
     expect(document.activeElement).toBe(trigger); // focus returns to the opener
     trigger.remove();
   });
-});
+}
 
 // ─── ConfirmDialog ─────────────────────────────────────────────────────────
 
@@ -829,13 +869,20 @@ describe("DateField", () => {
 
 // ─── SelectField ───────────────────────────────────────────────────────────
 
-describe("SelectField", () => {
-  const options = [
-    { value: "a", label: "Option A" },
-    { value: "b", label: "Option B" },
-    { value: "c", label: "Option C" },
-  ];
+const selectFieldOptions = [
+  { value: "a", label: "Option A" },
+  { value: "b", label: "Option B" },
+  { value: "c", label: "Option C" },
+];
 
+describe("SelectField", () => {
+  registerSelectFieldBasics(selectFieldOptions);
+  registerSelectFieldGrouping();
+  registerSelectFieldValueEdges();
+  registerSelectFieldFallbackTests(selectFieldOptions);
+});
+
+function registerSelectFieldBasics(options: typeof selectFieldOptions) {
   it("renders all options", () => {
     render(<SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />);
     const select = screen.getByLabelText("Pick one");
@@ -884,7 +931,9 @@ describe("SelectField", () => {
     expect(screen.getAllByRole("option")).toHaveLength(2);
     expect(baseElement.querySelector('[data-slot="select-separator"]')).toHaveAttribute("aria-hidden", "true");
   });
+}
 
+function registerSelectFieldGrouping() {
   it("renders contiguous options in accessible labelled groups", () => {
     render(
       <SelectField
@@ -936,7 +985,9 @@ describe("SelectField", () => {
     expect(within(group).getByRole("option", { name: "Design" })).toBeInTheDocument();
     expect(screen.getAllByRole("group")).toHaveLength(1);
   });
+}
 
+function registerSelectFieldValueEdges() {
   it("round-trips empty and sentinel-shaped option values without collision", () => {
     const onChange = vi.fn();
     const { rerender } = render(
@@ -971,7 +1022,9 @@ describe("SelectField", () => {
     fireEvent.click(screen.getByRole("option", { name: "None" }));
     expect(onChange).toHaveBeenLastCalledWith("");
   });
+}
 
+function registerSelectFieldFallbackTests(options: typeof selectFieldOptions) {
   it("marks a changed selection dirty inside a Modal", () => {
     const onClose = vi.fn();
     render(
@@ -1016,15 +1069,20 @@ describe("SelectField", () => {
     render(<SelectField label="Locked" value="a" onChange={vi.fn()} options={options} disabled />);
     expect(screen.getByLabelText("Locked")).toBeDisabled();
   });
-});
+}
 
 // ─── ColorField ────────────────────────────────────────────────────────────
 
-describe("ColorField", () => {
-  // Two real members of SWATCHES: a blue (also the default client colour) and a red.
-  const BLUE = "#2d75da";
-  const RED = "#e02727";
+const colorFieldBlue = "#2d75da";
+const colorFieldRed = "#e02727";
 
+describe("ColorField", () => {
+  registerColorFieldBasicTests(colorFieldBlue, colorFieldRed);
+  registerColorFieldInteractionTests(colorFieldBlue, colorFieldRed);
+  registerColorFieldModalTests(colorFieldBlue, colorFieldRed);
+});
+
+function registerColorFieldBasicTests(BLUE: string, RED: string) {
   it("renders a trigger labelled with the current value and no swatches until opened", () => {
     render(<ColorField label="Brand colour" value={BLUE} onChange={vi.fn()} />);
     expect(screen.getByRole("button", { name: `Brand colour (${resolveColorName(BLUE)})` })).toBeInTheDocument();
@@ -1075,7 +1133,9 @@ describe("ColorField", () => {
     // Picking closes the popup.
     expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
+}
 
+function registerColorFieldInteractionTests(BLUE: string, RED: string) {
   it("exposes the swatches as one single-select radio group", async () => {
     const user = userEvent.setup();
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />);
@@ -1130,7 +1190,9 @@ describe("ColorField", () => {
     expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
+}
 
+function registerColorFieldModalTests(BLUE: string, RED: string) {
   it("dismisses only the popup, not the surrounding Modal, on a backdrop click", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
@@ -1141,7 +1203,7 @@ describe("ColorField", () => {
     );
     await user.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
     expect(screen.getByRole("radio", { name: resolveColorName(RED) })).toBeInTheDocument();
-    const backdrop = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!;
+    const backdrop = getRequiredElement<HTMLElement>(document, '[data-slot="dialog-overlay"]');
     await user.click(backdrop);
     expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument(); // popup closed
     expect(onClose).not.toHaveBeenCalled(); // modal stayed open
@@ -1165,25 +1227,30 @@ describe("ColorField", () => {
     expect(onSiblingDown).toHaveBeenCalledTimes(1); // not swallowed
     expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument(); // popup closed
   });
-});
+}
 
 // ─── WorkingDayPicker ──────────────────────────────────────────────────────
 
-describe("WorkingDayPicker", () => {
-  const renderPicker = (onChange = vi.fn(), invalid = false) =>
-    render(
-      <WorkingDayPicker
-        label="Working days"
-        workingDays={[1, 2, 3, 4, 5]}
-        halfDays={[3]}
-        onChange={onChange}
-        invalid={invalid}
-        describedById="err-1"
-      />,
-    );
+const renderWorkingDayPicker = (onChange = vi.fn(), invalid = false) =>
+  render(
+    <WorkingDayPicker
+      label="Working days"
+      workingDays={[1, 2, 3, 4, 5]}
+      halfDays={[3]}
+      onChange={onChange}
+      invalid={invalid}
+      describedById="err-1"
+    />,
+  );
 
+describe("WorkingDayPicker", () => {
+  registerWorkingDayPickerLayoutTests();
+  registerWorkingDayPickerStateTests();
+});
+
+function registerWorkingDayPickerLayoutTests() {
   it("renders a full-width Monday–Sunday grid with the three choice headings written once", () => {
-    renderPicker();
+    renderWorkingDayPicker();
     expect(screen.getByRole("columnheader", { name: "Weekday" })).toBeInTheDocument();
     for (const option of ["Full day", "Half day", "Not working"]) {
       expect(screen.getByRole("columnheader", { name: option })).toBeVisible();
@@ -1203,7 +1270,7 @@ describe("WorkingDayPicker", () => {
   });
 
   it("keeps long availability and weekday labels on one line for horizontal overflow", () => {
-    renderPicker();
+    renderWorkingDayPicker();
     for (const header of screen.getAllByRole("columnheader").slice(1)) {
       expect(header).toHaveClass("whitespace-nowrap");
     }
@@ -1211,9 +1278,11 @@ describe("WorkingDayPicker", () => {
       expect(screen.getByRole("rowheader", { name: day })).toHaveClass("whitespace-nowrap");
     }
   });
+}
 
+function registerWorkingDayPickerStateTests() {
   it("selects full, half and non-working choices from the persisted subsets", () => {
-    renderPicker();
+    renderWorkingDayPicker();
     const monday = screen.getByRole("row", { name: /Monday/ });
     const wednesday = screen.getByRole("row", { name: /Wednesday/ });
     const saturday = screen.getByRole("row", { name: /Saturday/ });
@@ -1225,7 +1294,7 @@ describe("WorkingDayPicker", () => {
   it("moves a weekday between mutually exclusive choices", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    renderPicker(onChange);
+    renderWorkingDayPicker(onChange);
     await user.click(
       within(screen.getByRole("row", { name: /Saturday/ })).getByRole("radio", { name: "Saturday Half day" }),
     );
@@ -1233,19 +1302,19 @@ describe("WorkingDayPicker", () => {
   });
 
   it("does NOT set aria-invalid/aria-describedby on the fieldset when valid", () => {
-    const { container } = renderPicker();
-    const fieldset = container.querySelector("fieldset")!;
+    const { container } = renderWorkingDayPicker();
+    const fieldset = getRequiredElement<HTMLFieldSetElement>(container, "fieldset");
     expect(fieldset).not.toHaveAttribute("aria-invalid");
     expect(fieldset).not.toHaveAttribute("aria-describedby");
   });
 
   it("marks the GROUP errored (aria-invalid + aria-describedby) when invalid, mirroring sibling fields (WCAG 3.3.1)", () => {
-    const { container } = renderPicker(vi.fn(), true);
-    const fieldset = container.querySelector("fieldset")!;
+    const { container } = renderWorkingDayPicker(vi.fn(), true);
+    const fieldset = getRequiredElement<HTMLFieldSetElement>(container, "fieldset");
     expect(fieldset).toHaveAttribute("aria-invalid", "true");
     expect(fieldset).toHaveAttribute("aria-describedby", "err-1");
   });
-});
+}
 
 // ─── ColorSwatch ───────────────────────────────────────────────────────────
 
@@ -1261,6 +1330,11 @@ describe("ColorSwatch", () => {
 // ─── Avatar ────────────────────────────────────────────────────────────────
 
 describe("Avatar", () => {
+  registerAvatarInitialTests();
+  registerAvatarImageTests();
+});
+
+function registerAvatarInitialTests() {
   it("shows two-initial monogram from a full name", () => {
     const { container } = render(<Avatar name="Alice Smith" color="#111" />);
     expect(container.firstChild).toHaveTextContent("AS");
@@ -1302,7 +1376,9 @@ describe("Avatar", () => {
     expect(container.querySelector("img")).toBeNull();
     expect(container.firstChild).toHaveTextContent("AS");
   });
+}
 
+function registerAvatarImageTests() {
   it("keeps the initials fallback while an imageUrl is still loading", () => {
     // jsdom never resolves the Radix image load, so the primitive stays on its fallback — the
     // signed-in user sees initials (never an empty circle) until the photo resolves.
@@ -1335,4 +1411,4 @@ describe("Avatar", () => {
       vi.unstubAllGlobals();
     }
   });
-});
+}
