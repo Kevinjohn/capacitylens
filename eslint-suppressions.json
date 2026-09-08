@@ -806,14 +806,6 @@
       "count": 1
     }
   },
-  "src/auth/AuthProvider.test.tsx": {
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "src/auth/AuthProvider.tsx": {
     "complexity": {
       "count": 1
