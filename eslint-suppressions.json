@@ -303,11 +303,6 @@
       "count": 3
     }
   },
-  "server/src/accounts/flows/workspaceLifecycle.ts": {
-    "max-lines-per-function": {
-      "count": 5
-    }
-  },
   "server/src/accounts/identityPort/credentials.ts": {
     "max-lines-per-function": {
       "count": 2
