@@ -81,6 +81,18 @@ const barFor = (allocation: Allocation): BarLayout => ({
   external: false,
 });
 
+function getStoredAllocation(allocationId: Allocation["id"]): Allocation {
+  const allocation = useStore.getState().data.allocations.find((candidate) => candidate.id === allocationId);
+  if (!allocation) throw new Error(`Expected allocation ${allocationId} to remain in the store.`);
+  return allocation;
+}
+
+function getSrAnnouncement() {
+  const announcement = useStore.getState().srAnnouncement;
+  if (!announcement) throw new Error("Expected the allocation edit to produce a screen-reader announcement.");
+  return announcement;
+}
+
 const laneRect = (top: number, bottom: number): DOMRect =>
   ({
     left: 0,
@@ -218,12 +230,12 @@ describe("AllocationBar interactions", () => {
       // popover handler must defer so the drag aborts without committing (mirrors the pointercancel
       // abort). If it were swallowed here the drag would never cancel.
       fireEvent.keyDown(bar, { key: "Escape" });
-      expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.startDate).toBe("2026-06-01");
+      expect(getStoredAllocation(a.id).startDate).toBe("2026-06-01");
       expect(useStore.getState().draggingAllocationId).toBeNull();
 
       // Listeners were torn down: a stray later pointerup must not commit a stale move.
       document.dispatchEvent(new MouseEvent("pointerup", { clientX: 300, bubbles: true }));
-      expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.startDate).toBe("2026-06-01");
+      expect(getStoredAllocation(a.id).startDate).toBe("2026-06-01");
     });
 
     it("lets Escape PROPAGATE to ancestor handlers when the popover is closed", () => {
@@ -265,13 +277,13 @@ describe("AllocationBar interactions", () => {
     );
 
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
-    let moved = useStore.getState().data.allocations.find((x) => x.id === a.id)!;
+    let moved = getStoredAllocation(a.id);
     expect([moved.startDate, moved.endDate]).toEqual(["2026-06-02", "2026-06-04"]);
 
     // Reflect the new dates in the bar prop (as the grid would re-render), then resize the end.
     rerender(<AllocationBar bar={barFor(moved)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", shiftKey: true });
-    moved = useStore.getState().data.allocations.find((x) => x.id === a.id)!;
+    moved = getStoredAllocation(a.id);
     expect([moved.startDate, moved.endDate]).toEqual(["2026-06-02", "2026-06-05"]); // end extended, start fixed
   });
 
@@ -344,7 +356,7 @@ describe("AllocationBar interactions", () => {
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, bubbles: true })); // +48px ≈ +1 day
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, bubbles: true }));
 
-    const moved = useStore.getState().data.allocations.find((x) => x.id === a.id)!;
+    const moved = getStoredAllocation(a.id);
     expect(moved.startDate).toBe("2026-06-02");
     expect(moved.endDate).toBe("2026-06-04");
   });
@@ -383,7 +395,7 @@ describe("AllocationBar interactions", () => {
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 50, bubbles: true }));
 
     expect(onEdit).toHaveBeenCalled();
-    const unchanged = useStore.getState().data.allocations.find((x) => x.id === a.id)!;
+    const unchanged = getStoredAllocation(a.id);
     expect(unchanged.startDate).toBe("2026-06-01");
   });
 
@@ -432,7 +444,7 @@ describe("AllocationBar interactions", () => {
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, clientY: 125, bubbles: true }));
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, clientY: 125, bubbles: true }));
 
-    const alloc = useStore.getState().data.allocations.find((x) => x.id === a.id)!;
+    const alloc = getStoredAllocation(a.id);
     expect(alloc).toMatchObject({
       resourceId: person.id,
       startDate: "2026-06-01",
@@ -486,7 +498,7 @@ describe("AllocationBar interactions", () => {
     expect(screen.getByTestId("lane-src").hasAttribute("data-droptarget")).toBe(false);
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 55, clientY: 125, bubbles: true }));
 
-    expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.resourceId).toBe(r2.id);
+    expect(getStoredAllocation(a.id).resourceId).toBe(r2.id);
     expect(screen.getByTestId("lane-dst").hasAttribute("data-droptarget")).toBe(false); // cleared on commit
   });
 
@@ -807,9 +819,7 @@ describe("AllocationBar interactions", () => {
         document.dispatchEvent(new MouseEvent("pointerup", { clientX: 55, clientY: 225, bubbles: true }));
 
         expect(cancelFrame).toHaveBeenCalledWith(47);
-        expect(useStore.getState().data.allocations.find((allocation) => allocation.id === a.id)!.resourceId).toBe(
-          r2.id,
-        );
+        expect(getStoredAllocation(a.id).resourceId).toBe(r2.id);
       } finally {
         requestFrame.mockRestore();
         cancelFrame.mockRestore();
@@ -826,7 +836,7 @@ describe("AllocationBar interactions", () => {
       render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
       fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", shiftKey: true });
-      const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!;
+      const after = getStoredAllocation(a.id);
       // Span grows 3 → 4 working days; the 24h of work (8×3) now spreads over 4 → 6h/day.
       expect(after.endDate).toBe("2026-06-04");
       expect(after.hoursPerDay).toBe(6);
@@ -838,7 +848,7 @@ describe("AllocationBar interactions", () => {
       render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
       fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
-      const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!;
+      const after = getStoredAllocation(a.id);
       expect(after.hoursPerDay).toBe(8);
     });
 
@@ -851,7 +861,7 @@ describe("AllocationBar interactions", () => {
       document.dispatchEvent(new MouseEvent("pointermove", { clientX: 192, bubbles: true })); // +48px ≈ +1 day
       document.dispatchEvent(new MouseEvent("pointerup", { clientX: 192, bubbles: true }));
 
-      const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!;
+      const after = getStoredAllocation(a.id);
       expect(after.endDate).toBe("2026-06-04");
       expect(after.hoursPerDay).toBe(6);
     });
@@ -877,7 +887,7 @@ describe("AllocationBar interactions", () => {
 
       // Shift+ArrowLeft resizes the END edge inward by a day → span 2 → 1 working day.
       fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowLeft", shiftKey: true });
-      const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!;
+      const after = getStoredAllocation(a.id);
       expect(after.endDate).toBe("2026-06-01"); // collapsed to a single day
       expect(after.hoursPerDay).toBe(24); // clamped at the cap
       const notice = useStore.getState().notice;
@@ -896,7 +906,7 @@ describe("AllocationBar interactions", () => {
       // so this proves the resize itself doesn't RAISE a cap notice — order-independently.
 
       fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", shiftKey: true });
-      const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!;
+      const after = getStoredAllocation(a.id);
       expect(after.hoursPerDay).toBe(6); // rescaled, in range
       // No clamp → no cap notice at all here (a keyboard nudge only raises a toast on a clamp), proving
       // the persistent 'warning' treatment is scoped to the truncation case and didn't leak onto every
@@ -931,7 +941,7 @@ describe("AllocationBar interactions", () => {
       document.dispatchEvent(new MouseEvent("pointermove", { clientX: 48, bubbles: true }));
       document.dispatchEvent(new MouseEvent("pointerup", { clientX: 48, bubbles: true }));
 
-      const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!;
+      const after = getStoredAllocation(a.id);
       expect(after.endDate).toBe("2026-06-01"); // collapsed to a single day
       expect(after.hoursPerDay).toBe(24); // clamped at the cap
       const notice = useStore.getState().notice;
@@ -962,7 +972,7 @@ describe("AllocationBar interactions", () => {
       render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
       fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", shiftKey: true });
-      const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!;
+      const after = getStoredAllocation(a.id);
       expect(after.endDate).toBe("2026-06-04");
       expect(after.hoursPerDay).toBe(8);
     });
@@ -1015,18 +1025,18 @@ describe("AllocationBar interactions", () => {
 
       // ArrowRight: B 06-01..06-02 → 06-02..06-03, overlapping A on Wed → 1 over day.
       fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
-      let moved = useStore.getState().data.allocations.find((x) => x.id === b.id)!;
+      let moved = getStoredAllocation(b.id);
       expect([moved.startDate, moved.endDate]).toEqual(["2026-06-02", "2026-06-03"]);
-      const over = useStore.getState().srAnnouncement!;
+      const over = getSrAnnouncement();
       expect(over.text).toBe("Ty now over capacity on 1 day.");
 
       // ArrowLeft: back to 06-01..06-02, overlap gone → announce no conflicts (and a NEW seq so an
       // identical message would still re-announce — the seq must strictly rise).
       rerender(<AllocationBar bar={barFor(moved)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
       fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowLeft" });
-      moved = useStore.getState().data.allocations.find((x) => x.id === b.id)!;
+      moved = getStoredAllocation(b.id);
       expect([moved.startDate, moved.endDate]).toEqual(["2026-06-01", "2026-06-02"]);
-      const clear = useStore.getState().srAnnouncement!;
+      const clear = getSrAnnouncement();
       expect(clear.text).toBe("Ty: no capacity conflicts.");
       expect(clear.seq).toBeGreaterThan(over.seq);
     });
@@ -1079,10 +1089,10 @@ describe("AllocationBar interactions", () => {
         <AllocationBar bar={barFor(b)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
       );
       fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
-      const moved = useStore.getState().data.allocations.find((x) => x.id === b.id)!;
+      const moved = getStoredAllocation(b.id);
       expect([moved.startDate, moved.endDate]).toEqual(["2026-09-02", "2026-09-02"]); // the conflict really happened…
       // …but it's off-window, so the announcement counts ZERO over-days — matching the rendered row.
-      expect(useStore.getState().srAnnouncement!.text).toBe("Ty: no capacity conflicts.");
+      expect(getSrAnnouncement().text).toBe("Ty: no capacity conflicts.");
 
       // Sanity: widen the window to include September and the SAME edit now speaks the over-day,
       // proving the divergence was purely the window clamp (the over-marker signal is unchanged).
@@ -1091,14 +1101,14 @@ describe("AllocationBar interactions", () => {
       fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowLeft" }); // 09-02 → 09-01, no overlap
       rerender(
         <AllocationBar
-          bar={barFor(useStore.getState().data.allocations.find((x) => x.id === b.id)!)}
+          bar={barFor(getStoredAllocation(b.id))}
           geom={GEOM}
           indexAtClientX={indexAtClientX}
           onEdit={vi.fn()}
         />,
       );
       fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" }); // back onto 09-02 → over again
-      expect(useStore.getState().srAnnouncement!.text).toBe("Ty now over capacity on 1 day.");
+      expect(getSrAnnouncement().text).toBe("Ty now over capacity on 1 day.");
     });
 
     it("does NOT announce on a pointer drag (sighted feedback — would be noise)", () => {
@@ -1110,7 +1120,7 @@ describe("AllocationBar interactions", () => {
       document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, bubbles: true }));
       document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, bubbles: true }));
 
-      expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.startDate).toBe("2026-06-02"); // moved
+      expect(getStoredAllocation(a.id).startDate).toBe("2026-06-02"); // moved
       expect(useStore.getState().srAnnouncement).toBeNull(); // but the live region stayed silent
     });
   });
@@ -1217,7 +1227,7 @@ describe("AllocationBar interactions", () => {
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 72, clientY: 125, bubbles: true })); // +1 day, drop on dst
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 72, clientY: 125, bubbles: true }));
 
-    const moved = useStore.getState().data.allocations.find((x) => x.id === a.id)!;
+    const moved = getStoredAllocation(a.id);
     expect(moved.resourceId).toBe(dst.id);
     // The raw +1 shift lands on Sat 06-06. Under the TARGET's Mon–Fri week both the leading edge
     // and this one-working-day span snap to Mon 06-08 (the source's seven-day week would keep Sat).
@@ -1270,10 +1280,10 @@ describe("AllocationBar interactions", () => {
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 120, bubbles: true })); // start dragging
     document.dispatchEvent(new Event("pointercancel")); // browser steals the gesture (e.g. to scroll)
 
-    expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.startDate).toBe("2026-06-01");
+    expect(getStoredAllocation(a.id).startDate).toBe("2026-06-01");
 
     // Listeners were torn down: a stray later pointerup must not commit a stale move.
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 300, bubbles: true }));
-    expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.startDate).toBe("2026-06-01");
+    expect(getStoredAllocation(a.id).startDate).toBe("2026-06-01");
   });
 });
