@@ -655,10 +655,7 @@ function recordingAccountSwitchAdapter() {
   return { adapter: new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch), wire };
 }
 
-describe("account-switch orchestrator (P1.13, server mode)", () => {
-  // The §5 correctness core at the persist layer: a tenant switch hydrates THAT account's slice and
-  // re-seeds the adapter's diff snapshot atomically, with NO spurious save of the loaded slice.
-
+function registerAccountTransitionTests() {
   it("lets the account-transition owner await the subscriber's exact hydration, including null", async () => {
     let resolveLoad!: (data: AppData) => void;
     const load = new Promise<AppData>((resolve) => {
@@ -712,7 +709,9 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
 
     await expect(switching).resolves.toEqual({ kind: "unattached" });
   });
+}
 
+function registerAccountHydrationTest() {
   it("loads the picked account slice into the store and does NOT push it back as a save", async () => {
     const a2Slice = {
       ...emptyAppData(),
@@ -753,7 +752,9 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     expect(saveAll).not.toHaveBeenCalled();
     detach();
   });
+}
 
+function registerAccountPostHydrationWriteTest() {
   it("a genuine edit AFTER a switch still saves (the guard only suppresses the slice load)", async () => {
     const a2Slice = {
       ...emptyAppData(),
@@ -783,7 +784,9 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     expect(saveAll).toHaveBeenCalledTimes(1);
     detach();
   });
+}
 
+function registerPendingAccountSwitchTest() {
   it("FLUSHES (does not drop) account A's pending debounced edits before loading B's slice", async () => {
     // Regression guard for the data-loss edge (P1.13): a user edits account A and switches to B
     // WITHIN the debounce window. The orchestrator used to clearTimeout + pending=null, silently
@@ -836,7 +839,9 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     expect(useStore.getState().activeAccountId).toBe("b1");
     detach();
   });
+}
 
+function registerMidSwitchRebaseTest() {
   it("rebases an edit landing while a switch load is in flight onto the newly active account", async () => {
     const { aSlice, bSlice } = accountSwitchSlices();
     let releaseB: (() => void) | null = null;
@@ -888,7 +893,9 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     expect(saved.clients.every((c) => c.accountId === "b1")).toBe(true);
     detach();
   });
+}
 
+function registerDemoAccountSwitchTest() {
   it("is INERT in the demo build — a switch does NOT call loadAll(accountId)", async () => {
     const loadAll = vi.fn(async () => emptyAppData());
     const saveAll = vi.fn().mockResolvedValue(undefined);
@@ -909,6 +916,17 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     expect(loadAll).not.toHaveBeenCalled();
     detach();
   });
+}
+
+describe("account-switch orchestrator (P1.13, server mode)", () => {
+  // The §5 correctness core at the persist layer: a tenant switch hydrates THAT account's slice and
+  // re-seeds the adapter's diff snapshot atomically, with NO spurious save of the loaded slice.
+  registerAccountTransitionTests();
+  registerAccountHydrationTest();
+  registerAccountPostHydrationWriteTest();
+  registerPendingAccountSwitchTest();
+  registerMidSwitchRebaseTest();
+  registerDemoAccountSwitchTest();
 });
 
 function makeLocalTwoAccounts() {
