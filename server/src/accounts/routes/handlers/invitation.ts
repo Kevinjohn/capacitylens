@@ -75,13 +75,14 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   }
   // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
   if (!authorize({ req, reply, accountId: body.accountId, action: "manageInvites" })) return;
+  const requestedExpiry = body.expiresAt;
   let expiresAt: string | null;
-  if (body.expiresAt === undefined) {
+  if (requestedExpiry === undefined) {
     // Null is canonical across retries. The account-administration port chooses the standard
     // bounded expiry only on first execution, so an idempotent retry cannot drift with wall time.
     expiresAt = null;
   } else {
-    const parsed = typeof body.expiresAt === "string" ? parseStrictIsoInstant(body.expiresAt) : null;
+    const parsed = typeof requestedExpiry === "string" ? parseStrictIsoInstant(requestedExpiry) : null;
     if (parsed === null) {
       return accountFail(reply, createValidationFailure("expiresAt must be a valid ISO-8601 timestamp."));
     }
