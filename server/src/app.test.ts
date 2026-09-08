@@ -3040,7 +3040,7 @@ describe("import", () => {
   });
 });
 
-describe("tenant-scoped mutation projections", () => {
+function registerAcceptedAndChangedBatchOperationsTest() {
   it("distinguishes accepted batch operations from state-changing operations", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -3070,7 +3070,9 @@ describe("tenant-scoped mutation projections", () => {
     expect(readBatchReceipt(result)).toMatchObject({ ok: true, applied: 3, changed: 1 });
     expect(readBatchReceipt(result).revisions).toHaveLength(1);
   });
+}
 
+function registerSameBatchRearchiveTest() {
   it("excludes a same-batch re-archive of an already-archived row from changed", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -3086,7 +3088,9 @@ describe("tenant-scoped mutation projections", () => {
     // audit record is nulled out — `changed` must reflect only the first.
     expect(result.json()).toMatchObject({ ok: true, applied: 2, changed: 1 });
   });
+}
 
+function registerScopedProjectionMaterializationTest() {
   it("does not materialize unrelated tables for empty/single-account batches or import", async () => {
     const { db, raw, fullTableSelects } = dbTrackingFullTableSelects();
     const app = createApp(db, {
@@ -3141,6 +3145,12 @@ describe("tenant-scoped mutation projections", () => {
     await app.close();
     raw.close();
   });
+}
+
+describe("tenant-scoped mutation projections", () => {
+  registerAcceptedAndChangedBatchOperationsTest();
+  registerSameBatchRearchiveTest();
+  registerScopedProjectionMaterializationTest();
 });
 
 function registerOversizedPayloadGuardTest() {
