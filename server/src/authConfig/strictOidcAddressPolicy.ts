@@ -19,13 +19,21 @@ function isPrivateOrReservedIPv4(address: string): boolean {
   if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
   const [a, b] = parts;
   if (a === undefined || b === undefined) return true;
-  if (a === 0 || a === 10 || a === 127) return true;
-  if (a === 169 && b === 254) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  if (a === 100 && b >= 64 && b <= 127) return true;
-  if (a >= 224) return true; // 224/4 multicast, 240/4 reserved, 255.255.255.255 broadcast
-  return false;
+  return isPrivateOrReservedIpv4Prefix(a, b);
+}
+
+function isPrivateOrReservedIpv4Prefix(first: number, second: number): boolean {
+  const reservedRanges = [
+    (): boolean => first === 0,
+    (): boolean => first === 10,
+    (): boolean => first === 127,
+    (): boolean => first === 169 && second === 254,
+    (): boolean => first === 172 && second >= 16 && second <= 31,
+    (): boolean => first === 192 && second === 168,
+    (): boolean => first === 100 && second >= 64 && second <= 127,
+    (): boolean => first >= 224, // 224/4 multicast, 240/4 reserved, 255.255.255.255 broadcast
+  ];
+  return reservedRanges.some((isReserved) => isReserved());
 }
 
 /** Expand an IPv6 literal to its 16 octets, honouring `::` compression and a dotted-quad tail
@@ -33,43 +41,49 @@ function isPrivateOrReservedIPv4(address: string): boolean {
  * callers fail closed. Spelling — hex vs dotted, compressed vs full — cannot change the octets, which
  * is the whole point: `::ffff:7f00:1` and `::ffff:127.0.0.1` must classify identically. */
 function parseIpv6Bytes(address: string): number[] | null {
-  let text = address.toLowerCase();
-  const dotted = text.match(/^(.*:)(\d+\.\d+\.\d+\.\d+)$/); // fold a trailing IPv4 quad into two hextets
-  if (dotted) {
-    const dottedQuad = dotted[2];
-    const prefix = dotted[1];
-    if (dottedQuad === undefined || prefix === undefined) return null;
-    const quad = dottedQuad.split(".").map(Number);
-    if (quad.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return null;
-    const [first, second, third, fourth] = quad;
-    if (first === undefined || second === undefined || third === undefined || fourth === undefined) return null;
-    const hi = ((first << 8) | second).toString(16);
-    const lo = ((third << 8) | fourth).toString(16);
-    text = `${prefix}${hi}:${lo}`;
-  }
+  const text = normalizeIpv6DottedQuad(address.toLowerCase());
+  if (text === null) return null;
   const halves = text.split("::");
   if (halves.length > 2) return null; // at most one `::`
-  const toOctets = (part: string): number[] | null => {
-    if (part === "") return [];
-    const octets: number[] = [];
-    for (const group of part.split(":")) {
-      if (!/^[0-9a-f]{1,4}$/.test(group)) return null;
-      const value = parseInt(group, 16);
-      octets.push((value >> 8) & 0xff, value & 0xff);
-    }
-    return octets;
-  };
   const firstHalf = halves[0];
   if (firstHalf === undefined) return null;
-  const head = toOctets(firstHalf);
+  const head = parseIpv6Half(firstHalf);
   const secondHalf = halves[1];
-  const tail = secondHalf === undefined ? [] : toOctets(secondHalf);
+  const tail = secondHalf === undefined ? [] : parseIpv6Half(secondHalf);
   if (head === null || tail === null) return null;
   if (halves.length === 2) {
     const fill = 16 - head.length - tail.length;
     return fill < 0 ? null : [...head, ...new Array<number>(fill).fill(0), ...tail];
   }
   return head.length === 16 ? head : null;
+}
+
+function normalizeIpv6DottedQuad(address: string): string | null {
+  let text = address;
+  const dotted = text.match(/^(.*:)(\d+\.\d+\.\d+\.\d+)$/); // fold a trailing IPv4 quad into two hextets
+  if (!dotted) return text;
+  const dottedQuad = dotted[2];
+  const prefix = dotted[1];
+  if (dottedQuad === undefined || prefix === undefined) return null;
+  const quad = dottedQuad.split(".").map(Number);
+  if (quad.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return null;
+  const [first, second, third, fourth] = quad;
+  if (first === undefined || second === undefined || third === undefined || fourth === undefined) return null;
+  const hi = ((first << 8) | second).toString(16);
+  const lo = ((third << 8) | fourth).toString(16);
+  text = `${prefix}${hi}:${lo}`;
+  return text;
+}
+
+function parseIpv6Half(part: string): number[] | null {
+  if (part === "") return [];
+  const octets: number[] = [];
+  for (const group of part.split(":")) {
+    if (!/^[0-9a-f]{1,4}$/.test(group)) return null;
+    const value = parseInt(group, 16);
+    octets.push((value >> 8) & 0xff, value & 0xff);
+  }
+  return octets;
 }
 
 /** True when a resolved address belongs to a non-globally-routable range and so must not receive a
@@ -79,31 +93,40 @@ function parseIpv6Bytes(address: string): number[] | null {
 function isPrivateOrReservedIPv6(address: string): boolean {
   const bytes = parseIpv6Bytes(address);
   if (!bytes) return true; // unparseable → fail closed
-  const [b0, b1, b2, b3, , , , , , , b10, b11] = bytes;
-  if (
-    b0 === undefined ||
-    b1 === undefined ||
-    b2 === undefined ||
-    b3 === undefined ||
-    b10 === undefined ||
-    b11 === undefined
-  )
-    return true;
-  const isEmbeddedIpv4PrivateOrReserved = (offset: number): boolean =>
-    isPrivateOrReservedIPv4(bytes.slice(offset, offset + 4).join("."));
-  const hasZeroPrefix = (count: number): boolean => bytes.slice(0, count).every((octet) => octet === 0);
+  if (hasZeroPrefix(bytes, 15)) return true; // ::/120 covers unspecified (::) and loopback (::1)
+  const embeddedIpv4Offset = readEmbeddedIpv4Offset(bytes);
+  if (embeddedIpv4Offset !== undefined) return isEmbeddedIpv4PrivateOrReserved(bytes, embeddedIpv4Offset);
+  return isNonGlobalIpv6(bytes);
+}
 
-  if (hasZeroPrefix(15)) return true; // ::/120 covers unspecified (::) and loopback (::1)
-  if (hasZeroPrefix(10) && b10 === 0xff && b11 === 0xff) return isEmbeddedIpv4PrivateOrReserved(12); // ::ffff:0:0/96 mapped
-  if (hasZeroPrefix(12)) return isEmbeddedIpv4PrivateOrReserved(12); // ::/96 deprecated IPv4-compatible
-  if (b0 === 0x00 && b1 === 0x64 && b2 === 0xff && b3 === 0x9b && hasZeroPrefix(12))
-    return isEmbeddedIpv4PrivateOrReserved(12); // 64:ff9b::/96 NAT64
-  if (b0 === 0x20 && b1 === 0x02) return isEmbeddedIpv4PrivateOrReserved(2); // 2002::/16 6to4 embeds v4 at octets 2-5
-  if ((b0 & 0xfe) === 0xfc) return true; // fc00::/7 unique local
-  if (b0 === 0xfe && (b1 & 0xc0) === 0x80) return true; // fe80::/10 link-local
-  if (b0 === 0xff) return true; // ff00::/8 multicast
-  if (b0 === 0x20 && b1 === 0x01 && b2 === 0x0d && b3 === 0xb8) return true; // 2001:db8::/32 docs
-  return (b0 & 0xe0) !== 0x20; // only global unicast 2000::/3 is routable; everything else fails closed
+function readEmbeddedIpv4Offset(bytes: number[]): number | undefined {
+  const [b0, b1, b2, b3, , , , , , , b10, b11] = bytes;
+  if (hasZeroPrefix(bytes, 10) && b10 === 0xff && b11 === 0xff) return 12; // ::ffff:0:0/96 mapped
+  if (hasZeroPrefix(bytes, 12)) return 12; // ::/96 deprecated IPv4-compatible
+  if (b0 === 0x00 && b1 === 0x64 && b2 === 0xff && b3 === 0x9b && hasZeroPrefix(bytes, 12)) return 12; // 64:ff9b::/96 NAT64
+  if (b0 === 0x20 && b1 === 0x02) return 2; // 2002::/16 6to4 embeds v4 at octets 2-5
+  return undefined;
+}
+
+function isNonGlobalIpv6(bytes: number[]): boolean {
+  const [b0, b1, b2, b3] = bytes;
+  if (b0 === undefined || b1 === undefined || b2 === undefined || b3 === undefined) return true;
+  const reservedRanges = [
+    (): boolean => (b0 & 0xfe) === 0xfc, // fc00::/7 unique local
+    (): boolean => b0 === 0xfe && (b1 & 0xc0) === 0x80, // fe80::/10 link-local
+    (): boolean => b0 === 0xff, // ff00::/8 multicast
+    (): boolean => b0 === 0x20 && b1 === 0x01 && b2 === 0x0d && b3 === 0xb8, // 2001:db8::/32 docs
+    (): boolean => (b0 & 0xe0) !== 0x20, // only global unicast 2000::/3 is routable; everything else fails closed
+  ];
+  return reservedRanges.some((isReserved) => isReserved());
+}
+
+function isEmbeddedIpv4PrivateOrReserved(bytes: number[], offset: number): boolean {
+  return isPrivateOrReservedIPv4(bytes.slice(offset, offset + 4).join("."));
+}
+
+function hasZeroPrefix(bytes: number[], count: number): boolean {
+  return bytes.slice(0, count).every((octet) => octet === 0);
 }
 
 /** True when a resolved address belongs to a non-globally-routable range and so must not receive a
