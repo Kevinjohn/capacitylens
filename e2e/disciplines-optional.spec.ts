@@ -10,7 +10,6 @@ async function moveDianaToSupplementary(page: Page) {
   await selectShadOption(page.getByLabel("Engagement"), { label: "Supplementary" });
   await page.getByRole("button", { name: "Save" }).click();
   await page.getByRole("link", { name: "Settings" }).click();
-  await page.getByRole("switch", { name: "Show external resources" }).click();
 }
 
 async function restoreDisciplines(page: Page) {
@@ -19,22 +18,6 @@ async function restoreDisciplines(page: Page) {
   await expect(page.getByRole("link", { name: "Disciplines" })).toBeVisible();
   await page.getByRole("link", { name: "Schedule" }).click();
   await expect(page.getByTestId("discipline-group").first()).toBeVisible();
-}
-
-async function scrollSchedulerToBottom(page: Page) {
-  const grid = page.getByTestId("scheduler-grid");
-  await grid.evaluate((el) => {
-    const element = el as HTMLElement;
-    element.scrollTop = element.scrollHeight;
-    element.dispatchEvent(new Event("scroll", { bubbles: true }));
-  });
-  // Dispatch the native event, then wait for the scheduler's scroll frame and following paint.
-  await grid.evaluate(
-    () =>
-      new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-      }),
-  );
 }
 
 // The account-level "Use disciplines" toggle (Settings → Disciplines). Off should hide
@@ -47,7 +30,9 @@ test("turning disciplines off hides every surface; turning it back on restores t
   await moveDianaToSupplementary(page);
 
   // Enable External (default off) so its final band is present; it's an independent account pref.
-  await page.getByRole("switch", { name: "Show external resources" }).click();
+  const showExternal = page.getByRole("switch", { name: "Show external resources" });
+  await showExternal.click();
+  await expect(showExternal).toHaveAttribute("aria-checked", "true");
 
   // On by default for the seed: the nav link is present and the switch reads on.
   await expect(page.getByRole("link", { name: "Disciplines" })).toBeVisible();
@@ -89,8 +74,10 @@ test("turning disciplines off hides every surface; turning it back on restores t
   await expect(studioToggle).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toContainText(/utilisation/i);
 
-  // Scroll to the bottom so the virtualised External band is rendered before asserting.
-  await scrollSchedulerToBottom(page);
+  // The External band is the last item; scroll to the bottom so it enters the virtualised window.
+  await page.getByTestId("scheduler-grid").evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
   await expect(page.getByTestId("discipline-group").filter({ hasText: "External / 3rd party" })).toBeVisible();
   await expect(page.getByLabel("Filter by discipline")).toHaveCount(0);
 
