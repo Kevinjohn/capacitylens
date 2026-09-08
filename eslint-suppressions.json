@@ -453,7 +453,7 @@
   },
   "server/src/app.test.ts": {
     "max-lines-per-function": {
-      "count": 11
+      "count": 10
     }
   },
   "server/src/audit.test.ts": {
@@ -798,17 +798,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "server/src/routes/batchRoutes.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
     }
   },
   "server/src/routes/lifecycleRoutes.ts": {
@@ -1219,20 +1208,6 @@
   },
   "src/auth/apiFetchReauth.ts": {
     "complexity": {
-      "count": 1
-    }
-  },
-  "src/auth/fetchAuthStatus.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-depth": {
-      "count": 2
-    },
-    "max-lines-per-function": {
       "count": 1
     }
   },
@@ -1785,11 +1760,6 @@
       "count": 1
     }
   },
-  "src/components/scheduler/schedulerModel.test.ts": {
-    "max-lines-per-function": {
-      "count": 6
-    }
-  },
   "src/components/scheduler/schedulerModel.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
@@ -1991,17 +1961,6 @@
       "count": 1
     }
   },
-  "src/components/settings/SsoReadinessPanel.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
-    },
-    "no-nested-ternary": {
-      "count": 2
-    }
-  },
   "src/components/settings/createMemberAccessReconciliation.ts": {
     "complexity": {
       "count": 2
@@ -2065,17 +2024,6 @@
   "src/components/team/TeamAccessView.test.tsx": {
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "src/components/team/TeamAccessView.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 3
     }
   },
   "src/components/timeoff/ClosureForm.tsx": {
@@ -2417,11 +2365,6 @@
   "src/store/multitenancy.test.ts": {
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "src/store/selectors.extra.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 4
     }
   },
   "src/store/selectors.test.ts": {
