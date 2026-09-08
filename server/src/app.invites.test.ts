@@ -538,7 +538,7 @@ describe("GET /api/invites/:token/preview", () => {
   });
 });
 
-describe("POST /api/invites/:token/accept (P1.9 accept)", () => {
+function registerInviteConsumptionTests(): void {
   it("a signed-in user accepts a valid editor invite -> 200, role bound, token consumed", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
@@ -590,7 +590,9 @@ describe("POST /api/invites/:token/accept (P1.9 accept)", () => {
     expect(readInvite(db, token).usedAt).toBe(usedAtAfterFirst);
     expect(getMemberRole(db, "a1", b.userId)).toBe("viewer");
   });
+}
 
+function registerInviteExpiryTests(): void {
   it("consumes an invite without changing an existing sole-owner membership", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
@@ -633,7 +635,9 @@ describe("POST /api/invites/:token/accept (P1.9 accept)", () => {
     expect(getMemberRole(db, "a1", b.userId)).toBeNull();
     expect(readInvite(db, "expired-token-xyz").usedAt).toBeNull(); // not consumed
   });
+}
 
+function registerUnavailableInviteTests(): void {
   it.each([
     ["at or just after expiry", new Date().toISOString()],
     ["a corrupt expiry", "not-a-date"],
@@ -664,6 +668,12 @@ describe("POST /api/invites/:token/accept (P1.9 accept)", () => {
     const res = await acceptReq(app, "no-such-token", { cookie: b.cookie });
     expect(res.statusCode).toBe(404);
   });
+}
+
+describe("POST /api/invites/:token/accept (P1.9 accept)", () => {
+  registerInviteConsumptionTests();
+  registerInviteExpiryTests();
+  registerUnavailableInviteTests();
 });
 
 async function createClosedSignupInviteContext() {
