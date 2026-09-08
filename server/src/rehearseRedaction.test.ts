@@ -2,6 +2,14 @@ import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
 import { anonymise } from "../scripts/rehearse/anonymise";
 
+function requireSqlRow(row: Record<string, unknown> | undefined): Record<string, unknown> {
+  expect(row).toBeDefined();
+  if (row === undefined) {
+    throw new Error("Expected query to return a row");
+  }
+  return row;
+}
+
 describe("migration rehearsal redaction", () => {
   it("preserves federated identity joins while scrubbing ceremonies, observations and orphan identifiers", () => {
     const db = new DatabaseSync(":memory:");
@@ -35,9 +43,9 @@ describe("migration rehearsal redaction", () => {
 
       anonymise(db);
 
-      const principal = db.prepare("SELECT id FROM user").get()!;
-      const provider = db.prepare("SELECT providerId FROM account_federated_provider_bindings").get()!;
-      const account = db.prepare("SELECT * FROM account").get()!;
+      const principal = requireSqlRow(db.prepare("SELECT id FROM user").get());
+      const provider = requireSqlRow(db.prepare("SELECT providerId FROM account_federated_provider_bindings").get());
+      const account = requireSqlRow(db.prepare("SELECT * FROM account").get());
       expect(principal.id).not.toBe("source-principal");
       expect(provider.providerId).not.toBe("source-provider");
       expect(account).toMatchObject({ userId: principal.id, providerId: provider.providerId });
@@ -70,7 +78,7 @@ describe("migration rehearsal redaction", () => {
         auditedAt: null,
       });
       expect(observations[1]).toMatchObject({ verifiedAt: "2026-02-01", auditedAt: "2026-02-02" });
-      const cutover = db.prepare("SELECT * FROM capacitylens_sso_cutover_state").get()!;
+      const cutover = requireSqlRow(db.prepare("SELECT * FROM capacitylens_sso_cutover_state").get());
       expect(cutover.activatedAt).toBe("2026-03-01");
       // Every source identifier, including unresolved references, must disappear from retained rows.
       expect(JSON.stringify({ ceremonies, observations, cutover })).not.toContain("source-");
@@ -109,8 +117,8 @@ describe("migration rehearsal redaction", () => {
       anonymise(db);
 
       expect(verifiedLinks.get()).toEqual({ count: 0 });
-      const account = db.prepare("SELECT * FROM account").get()!;
-      const observation = db.prepare("SELECT * FROM capacitylens_federated_link_observations").get()!;
+      const account = requireSqlRow(db.prepare("SELECT * FROM account").get());
+      const observation = requireSqlRow(db.prepare("SELECT * FROM capacitylens_federated_link_observations").get());
       expect(observation).toMatchObject({
         accountRowId: account.id,
         principalId: account.userId,
@@ -186,8 +194,8 @@ describe("migration rehearsal redaction", () => {
       anonymise(db);
 
       expect(verifiedLinks.get()).toEqual({ count: expected });
-      const account = db.prepare("SELECT * FROM account").get()!;
-      const observation = db.prepare("SELECT * FROM capacitylens_federated_link_observations").get()!;
+      const account = requireSqlRow(db.prepare("SELECT * FROM account").get());
+      const observation = requireSqlRow(db.prepare("SELECT * FROM capacitylens_federated_link_observations").get());
       expect(observation.accountRowId).toBe(account.id);
       expect(observation).toMatchObject({ verifiedAt: "2026-01-01", auditedAt: null });
       expect(JSON.stringify({ account, observation })).not.toContain("source-");
@@ -213,8 +221,8 @@ describe("migration rehearsal redaction", () => {
         INSERT INTO account_member_sign_in_tracking VALUES ('source-workspace'), ('source-orphan-workspace');
       `);
       anonymise(db);
-      const workspace = db.prepare("SELECT id FROM accounts").get()!;
-      const principal = db.prepare("SELECT id FROM user").get()!;
+      const workspace = requireSqlRow(db.prepare("SELECT id FROM accounts").get());
+      const principal = requireSqlRow(db.prepare("SELECT id FROM user").get());
       const tracking = db.prepare("SELECT accountId FROM account_member_sign_in_tracking ORDER BY rowid").all();
       expect(tracking).toHaveLength(2);
       expect(tracking[0]).toEqual({ accountId: workspace.id });
@@ -256,11 +264,11 @@ describe("migration rehearsal redaction", () => {
         INSERT INTO closures VALUES ('source-closure', 'source-workspace', 'Wayne Enterprises shutdown', '2026-12-24', '2026-12-31', '2026-01-01', '2026-02-01');
       `);
       anonymise(db);
-      const workspace = db.prepare("SELECT * FROM accounts").get()!;
-      const project = db.prepare("SELECT * FROM projects").get()!;
-      const resource = db.prepare("SELECT * FROM resources").get()!;
-      const allocation = db.prepare("SELECT * FROM allocations").get()!;
-      const closure = db.prepare("SELECT * FROM closures").get()!;
+      const workspace = requireSqlRow(db.prepare("SELECT * FROM accounts").get());
+      const project = requireSqlRow(db.prepare("SELECT * FROM projects").get());
+      const resource = requireSqlRow(db.prepare("SELECT * FROM resources").get());
+      const allocation = requireSqlRow(db.prepare("SELECT * FROM allocations").get());
+      const closure = requireSqlRow(db.prepare("SELECT * FROM closures").get());
       expect(workspace.workingDays).toBe("[1,2,3,4]");
       expect(resource).toMatchObject({
         accountId: workspace.id,
@@ -305,7 +313,7 @@ describe("migration rehearsal redaction", () => {
       const before = db.prepare("SELECT name, sql FROM sqlite_schema WHERE type = 'trigger'").all();
       anonymise(db);
       expect(db.prepare("SELECT name, sql FROM sqlite_schema WHERE type = 'trigger'").all()).toEqual(before);
-      const workspace = db.prepare("SELECT id FROM accounts").get()!;
+      const workspace = requireSqlRow(db.prepare("SELECT id FROM accounts").get());
       expect(db.prepare("SELECT accountId FROM clients").get()).toEqual({ accountId: workspace.id });
       expect(() => db.exec("UPDATE clients SET accountId = 'another-workspace'")).toThrow("accountId is immutable");
     } finally {
