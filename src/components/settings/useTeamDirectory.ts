@@ -65,9 +65,11 @@ function replaceInvites(state: DirectoryState, accountId: string, invites: TeamI
   const snapshot = directorySnapshot(state, accountId);
   if (snapshot === null) return state;
   const nextSnapshot = { ...snapshot, invites };
-  return state.kind === "ready"
-    ? { ...state, snapshot: nextSnapshot }
-    : { ...state, content: { kind: "authorized", snapshot: nextSnapshot } };
+  if (state.kind === "ready") return { ...state, snapshot: nextSnapshot };
+  if (state.kind === "error" && state.content.kind === "authorized") {
+    return { ...state, content: { kind: "authorized", snapshot: nextSnapshot } };
+  }
+  return state;
 }
 
 function failureMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
