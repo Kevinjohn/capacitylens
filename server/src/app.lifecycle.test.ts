@@ -758,7 +758,9 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
     expect(body.code).toBe("invalid_transition");
     expect(body.error).toMatch(/must be archived first/);
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("archive on an already-archived row → 409", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -784,7 +786,9 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
     expect(body.code).toBe("already_inactive");
     expect(body.error).toMatch(/already archived/);
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("unarchive on an ACTIVE row → 409 (nothing to undo)", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -810,7 +814,9 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
     expect(body.code).toBe("invalid_transition");
     expect(body.error).toMatch(/not archived/);
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("purge on a tombstone aged < 30 days → 409", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -834,7 +840,9 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
     expect(res.statusCode).toBe(409);
     expect(readErrorResponseBody(res).error).toMatch(/at least 30 days old/);
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("purge on a NON-tombstone (archived) row → 409", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -858,7 +866,9 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
     expect(res.statusCode).toBe(409);
     expect(readErrorResponseBody(res).error).toMatch(/soft-deleted tombstone/);
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("unarchive on a soft-deleted tombstone → 409 (a tombstone must not resurrect to active)", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -884,7 +894,9 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
     expect(res.statusCode).toBe(409);
     expect(readErrorResponseBody(res).error).toMatch(/not archived/);
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("unarchives and repairs an archived legacy row with a malformed deletion tombstone", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -915,7 +927,9 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       deletedAt: null,
     });
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("delete on a soft-deleted tombstone → 409 (no re-delete; softDelete requires archived)", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -940,7 +954,9 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
     expect(res.statusCode).toBe(409);
     expect(readErrorResponseBody(res).error).toMatch(/must be archived first/);
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("unknown lifecycle entity → 404; missing accountId → 400; missing row → 404", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -1490,7 +1506,6 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     });
     expect(readEntityIds(readResponseBodyRecord(active), "resources")).toContain("r1");
   });
-
   it("PUT cannot set deletedAt on a client (stripped)", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],
@@ -1504,7 +1519,6 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(res.statusCode).toBe(200);
     expect((await rowById({ app, entity: "clients", accountId: "a1", id: "c1" }))?.deletedAt).toBeUndefined();
   });
-
   it("PATCH {builtin:false} on the Internal client → 400 (cannot un-flag the singleton)", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],
@@ -1556,7 +1570,6 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     });
     expect(readEntityIds(readResponseBodyRecord(active), "resources")).not.toContain("r1");
   });
-
   it("rejects a generic PATCH of a soft-deleted client", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],
@@ -1589,7 +1602,6 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     });
     expect(readEntityIds(readResponseBodyRecord(active), "clients")).not.toContain("c1");
   });
-
   it("rejects replacing the generated Internal client with a soft-deleted legacy row", async () => {
     const legacy = client("legacy-internal", "a1");
     const { app } = offAppWith({
@@ -1617,7 +1629,6 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(retainedLegacy?.builtin).toBeUndefined();
     expect(typeof retainedLegacy?.deletedAt).toBe("string");
   });
-
   it("atomically rejects a batch replacement built from an archived legacy row", async () => {
     const legacy = client("legacy-internal", "a1");
     const ordinary = client("ordinary", "a1");
@@ -1658,7 +1669,6 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(typeof retainedLegacy?.archivedAt).toBe("string");
     expect((await rowById({ app, entity: "clients", accountId: "a1", id: ordinary.id }))?.name).toBe(ordinary.name);
   });
-
   it("rejects direct descendant writes beneath archived or transitively deleted ancestors", async () => {
     const { app, db } = offAppWith({
       accounts: [account("a1")],
@@ -1700,7 +1710,6 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       role: "Designer",
     });
   });
-
   it("atomically rejects batch updates beneath an archived ancestor", async () => {
     const { app, db } = offAppWith({
       accounts: [account("a1")],
@@ -1740,7 +1749,6 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(db.prepare(`SELECT name FROM phases WHERE id = 'ph1'`).get()).toEqual({ name: "Phase 1" });
     expect(db.prepare(`SELECT id FROM activities WHERE id = 'act-batch'`).get()).toBeUndefined();
   });
-
   it("PUT and batch-PUT with a body that OMITS the tombstone do not clear an existing one", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],
