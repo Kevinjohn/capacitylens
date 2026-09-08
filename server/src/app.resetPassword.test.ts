@@ -233,7 +233,7 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
       code: "NOT_FOUND",
       retryable: false,
     });
-    expect((unknownTarget.json() as { commandId: string }).commandId).toEqual(expect.any(String));
+    expect(unknownTarget.json<{ commandId: string }>().commandId).toEqual(expect.any(String));
     // No session at all → the requireUser preHandler 401s upstream of the route.
     expect((await mint({ app, accountId: "a1", userId: owner1.userId })).statusCode).toBe(401);
   });
@@ -316,7 +316,7 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
 // DEFENSIVE-CODING.md's test-pin rule, we PIN the library's error-body shape here so a Better Auth
 // upgrade that renamed a code would fail this suite loudly rather than silently degrade the client's
 // messaging. (These are library contracts, not our route's — hence asserted against the redeem path.)
-describe("Better Auth reset-password failure body shape (pinned for the client sniffer)", () => {
+function registerFailureTokenReuse(): void {
   it("token reuse → code INVALID_TOKEN", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
@@ -326,9 +326,9 @@ describe("Better Auth reset-password failure body shape (pinned for the client s
     expect(reuse.statusCode).toBe(400);
     expect((reuse.json() as { code: string }).code).toBe("INVALID_TOKEN");
   });
-});
+}
 
-describe("Better Auth reset-password failure body shape (pinned for the client sniffer)", () => {
+function registerFailureTooShort(): void {
   it("too-short password → code PASSWORD_TOO_SHORT", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
@@ -337,9 +337,9 @@ describe("Better Auth reset-password failure body shape (pinned for the client s
     expect(res.statusCode).toBe(400);
     expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_SHORT");
   });
-});
+}
 
-describe("Better Auth reset-password failure body shape (pinned for the client sniffer)", () => {
+function registerFailureAstralMinimum(): void {
   it("counts astral passwords in Unicode code points at the minimum boundary", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
@@ -348,9 +348,9 @@ describe("Better Auth reset-password failure body shape (pinned for the client s
     expect(res.statusCode).toBe(400);
     expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_SHORT");
   });
-});
+}
 
-describe("Better Auth reset-password failure body shape (pinned for the client sniffer)", () => {
+function registerFailureAstralMaximum(): void {
   it("accepts 128 astral code points even though they occupy 256 UTF-16 code units", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
@@ -373,9 +373,9 @@ describe("Better Auth reset-password failure body shape (pinned for the client s
     expect((await redeem(app, token, password)).statusCode).toBe(200);
     expect((await signIn(app, email, password)).statusCode).toBe(200);
   });
-});
+}
 
-describe("Better Auth reset-password failure body shape (pinned for the client sniffer)", () => {
+function registerFailureTooLong(): void {
   it("129-character password → code PASSWORD_TOO_LONG", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
@@ -384,9 +384,9 @@ describe("Better Auth reset-password failure body shape (pinned for the client s
     expect(res.statusCode).toBe(400);
     expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_LONG");
   });
-});
+}
 
-describe("Better Auth reset-password failure body shape (pinned for the client sniffer)", () => {
+function registerFailureAstralTooLong(): void {
   it("counts astral passwords in Unicode code points at the maximum boundary", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
@@ -394,6 +394,17 @@ describe("Better Auth reset-password failure body shape (pinned for the client s
     const res = await redeem(app, token, "🔐".repeat(129));
     expect(res.statusCode).toBe(400);
     expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_LONG");
+  });
+}
+
+describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
+  describe("Better Auth reset-password failure body shape (pinned for the client sniffer)", () => {
+    registerFailureTokenReuse();
+    registerFailureTooShort();
+    registerFailureAstralMinimum();
+    registerFailureAstralMaximum();
+    registerFailureTooLong();
+    registerFailureAstralTooLong();
   });
 });
 
