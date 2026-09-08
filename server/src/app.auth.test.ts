@@ -281,6 +281,53 @@ async function createSessionManagementFixture() {
   return { app, cookie: cookiesOf(signUp), db, raw, staleHandle };
 }
 
+function createLifecycleRaceFixture(next: string | null) {
+  const raw = openDb(":memory:");
+  raw.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
+  const now = Date.parse("2026-07-31T09:00:00.000Z");
+  const expired = new Date(now - (SESSION_INACTIVITY_TTL_SECONDS + 1) * 1_000).toISOString();
+  const token = "lifecycle-reread";
+  raw.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run(token, expired);
+  const deletions = { count: 0 };
+  const raced = new Proxy(raw, {
+    get(target, property) {
+      if (property === "exec") {
+        return (sql: string) => {
+          if (sql === "BEGIN IMMEDIATE") {
+            // Another connection's update is visible by the time the writer reservation is acquired.
+            if (next === null) target.prepare(`DELETE FROM session WHERE token = ?`).run(token);
+            else target.prepare(`UPDATE session SET updatedAt = ? WHERE token = ?`).run(next, token);
+          }
+          return target.exec(sql);
+        };
+      }
+      if (property === "prepare") {
+        return (sql: string) => {
+          const statement = target.prepare(sql);
+          if (sql === "DELETE FROM session WHERE token = ?") {
+            return new Proxy(statement, {
+              get(statementTarget, statementProperty) {
+                if (statementProperty === "run") {
+                  return (sessionToken: string) => {
+                    deletions.count += 1;
+                    return statementTarget.run(sessionToken);
+                  };
+                }
+                const value = Reflect.get(statementTarget, statementProperty, statementTarget) as unknown;
+                return typeof value === "function" ? value.bind(statementTarget) : value;
+              },
+            });
+          }
+          return statement;
+        };
+      }
+      const value = Reflect.get(target, property, target) as unknown;
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+  return { deletions, expired, now, raced, raw, token };
+}
+
 describe("CAPACITYLENS_AUTH off (default)", () => {
   it("reports the demo identity from /api/auth/me and gates nothing", async () => {
     const app = createApp(openDb(":memory:"));
@@ -1243,49 +1290,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     { caseName: "preparation failure", next: "not-a-timestamp", preparationFails: true },
     { caseName: "a missing transaction reread", next: null, preparationFails: false },
   ])("preserves lifecycle expiry semantics for $caseName", async ({ next, preparationFails }) => {
-    const raw = openDb(":memory:");
-    raw.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
-    const now = Date.parse("2026-07-31T09:00:00.000Z");
-    const expired = new Date(now - (SESSION_INACTIVITY_TTL_SECONDS + 1) * 1_000).toISOString();
-    const token = "lifecycle-reread";
-    raw.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run(token, expired);
-    let deletes = 0;
-    const raced = new Proxy(raw, {
-      get(target, property) {
-        if (property === "exec") {
-          return (sql: string) => {
-            if (sql === "BEGIN IMMEDIATE") {
-              // Another connection's update is visible by the time the writer reservation is acquired.
-              if (next === null) target.prepare(`DELETE FROM session WHERE token = ?`).run(token);
-              else target.prepare(`UPDATE session SET updatedAt = ? WHERE token = ?`).run(next, token);
-            }
-            return target.exec(sql);
-          };
-        }
-        if (property === "prepare") {
-          return (sql: string) => {
-            const statement = target.prepare(sql);
-            if (sql === "DELETE FROM session WHERE token = ?") {
-              return new Proxy(statement, {
-                get(statementTarget, statementProperty) {
-                  if (statementProperty === "run") {
-                    return (sessionToken: string) => {
-                      deletes += 1;
-                      return statementTarget.run(sessionToken);
-                    };
-                  }
-                  const value = Reflect.get(statementTarget, statementProperty, statementTarget) as unknown;
-                  return typeof value === "function" ? value.bind(statementTarget) : value;
-                },
-              });
-            }
-            return statement;
-          };
-        }
-        const value = Reflect.get(target, property, target) as unknown;
-        return typeof value === "function" ? value.bind(target) : value;
-      },
-    });
+    const { deletions, expired, now, raced, raw, token } = createLifecycleRaceFixture(next);
     const failure = new Error("Lifecycle preparation failed.");
     const handles = ["expired-session-handle"];
     const prepare = vi.fn((sessionToken: string, reason: "session_expired") => {
@@ -1308,7 +1313,7 @@ describe("CAPACITYLENS_AUTH password", () => {
         await expect(result).rejects.toBe(failure);
         expect(prepare).toHaveBeenCalledOnce();
         expect(commit).not.toHaveBeenCalled();
-        expect(deletes).toBe(0);
+        expect(deletions.count).toBe(0);
         expect(raw.isTransaction).toBe(false);
         expect(raw.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(token)).toEqual({ updatedAt: next });
       } else if (next === "2026-07-31T09:00:00.000Z") {
@@ -1316,12 +1321,12 @@ describe("CAPACITYLENS_AUTH password", () => {
         expect(session.session.updatedAt.getTime()).toBe(now);
         expect(prepare).not.toHaveBeenCalled();
         expect(commit).not.toHaveBeenCalled();
-        expect(deletes).toBe(0);
+        expect(deletions.count).toBe(0);
         expect(raw.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(token)).toEqual({ updatedAt: next });
       } else {
         await expect(result).resolves.toBeNull();
         expect(prepare).toHaveBeenCalledTimes(next === null ? 0 : 1);
-        expect(deletes).toBe(next === null ? 0 : 1);
+        expect(deletions.count).toBe(next === null ? 0 : 1);
         expect(commit).toHaveBeenCalledExactlyOnceWith(next === null ? [] : handles);
         expect(raw.prepare(`SELECT token FROM session`).all()).toEqual([]);
       }
