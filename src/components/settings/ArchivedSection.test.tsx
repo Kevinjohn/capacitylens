@@ -35,6 +35,16 @@ const resource = (over: Partial<Resource> = {}): Resource => makeResource({ ...s
 const client = (over: Partial<Client> = {}): Client => makeClient({ ...stamped, ...over });
 const project = (over: Partial<Project> = {}): Project => makeProject({ ...stamped, ...over });
 
+type RegistrationDependencies = {
+  config: typeof cfg;
+  seed: typeof seed;
+  resource: typeof resource;
+  client: typeof client;
+  project: typeof project;
+  daysAgo: typeof daysAgo;
+  timestamp: typeof TS;
+};
+
 /** An ISO timestamp `days` ago from now — to seed a tombstone older/younger than the 30-day window. */
 function daysAgo(days: number): string {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -58,6 +68,24 @@ afterEach(() => {
 });
 
 describe("ArchivedSection — demo build (store source)", () => {
+  registerDemoEmptyAndListingTests({ seed, resource, client, project, daysAgo });
+  registerDemoPermissionTest({ seed, resource, client, daysAgo });
+  registerDemoMutationTests({ seed, resource });
+  registerDemoConfirmationTests({ seed, client, timestamp: TS });
+  registerDemoTombstoneDisplayTest({ seed, resource, daysAgo });
+  registerDemoYoungPurgeTest({ seed, client, daysAgo });
+  registerDemoBoundaryTest({ seed, client, timestamp: TS });
+  registerDemoLongBoundaryTest({ seed, client });
+  registerDemoPurgeTest({ seed, client, daysAgo });
+});
+
+function registerDemoEmptyAndListingTests({
+  seed,
+  resource,
+  client,
+  project,
+  daysAgo,
+}: Pick<RegistrationDependencies, "seed" | "resource" | "client" | "project" | "daysAgo">): void {
   it("renders an empty state when nothing is archived or deleted", () => {
     seed({ resources: [resource({})] }); // one ACTIVE resource → not listed
     render(<ArchivedSection />);
@@ -97,7 +125,14 @@ describe("ArchivedSection — demo build (store source)", () => {
     expect(deletedRows).toHaveLength(1);
     expect(screen.getByText("Deleted Project")).toBeInTheDocument();
   });
+}
 
+function registerDemoPermissionTest({
+  seed,
+  resource,
+  client,
+  daysAgo,
+}: Pick<RegistrationDependencies, "seed" | "resource" | "client" | "daysAgo">): void {
   it("hides both destructive lifecycle affordances from a non-purge role", () => {
     seed({
       resources: [resource({ id: "r-arch", name: "Archived Person", archivedAt: TS })],
@@ -125,7 +160,9 @@ describe("ArchivedSection — demo build (store source)", () => {
       }),
     ).not.toBeInTheDocument();
   });
+}
 
+function registerDemoMutationTests({ seed, resource }: Pick<RegistrationDependencies, "seed" | "resource">): void {
   it("Restore dispatches unarchiveEntity (row returns to active)", async () => {
     const user = userEvent.setup();
     seed({
@@ -135,7 +172,8 @@ describe("ArchivedSection — demo build (store source)", () => {
 
     await user.click(screen.getByRole("button", { name: "Restore Archived Person" }));
 
-    const r = useStore.getState().data.resources.find((x) => x.id === "r-arch")!;
+    const r = useStore.getState().data.resources.find((x) => x.id === "r-arch");
+    if (!r) throw new Error("Expected restored resource to remain in the store");
     expect(r.archivedAt).toBeUndefined(); // back to active
   });
 
@@ -151,12 +189,19 @@ describe("ArchivedSection — demo build (store source)", () => {
     const dialog = screen.getByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
-    const r = useStore.getState().data.resources.find((x) => x.id === "r-arch")!;
+    const r = useStore.getState().data.resources.find((x) => x.id === "r-arch");
+    if (!r) throw new Error("Expected soft-deleted resource to remain in the store");
     expect(r.deletedAt).toBeTruthy();
     // The resource name is scrubbed to the obfuscated token on soft-delete.
     expect(r.name).toMatch(/^Removed person #/);
   });
+}
 
+function registerDemoConfirmationTests({
+  seed,
+  client,
+  timestamp,
+}: Pick<RegistrationDependencies, "seed" | "client" | "timestamp">): void {
   it("keeps one quote pair around a private code name in archived confirmation copy", async () => {
     const user = userEvent.setup();
     seed({
@@ -164,7 +209,7 @@ describe("ArchivedSection — demo build (store source)", () => {
         client({
           name: '"Nightwing"',
           isPrivate: true,
-          archivedAt: TS,
+          archivedAt: timestamp,
         }),
       ],
     });
@@ -177,7 +222,13 @@ describe("ArchivedSection — demo build (store source)", () => {
     expect(dialog).toHaveTextContent('Delete "Nightwing"?');
     expect(dialog).not.toHaveTextContent('""Nightwing""');
   });
+}
 
+function registerDemoTombstoneDisplayTest({
+  seed,
+  resource,
+  daysAgo,
+}: Pick<RegistrationDependencies, "seed" | "resource" | "daysAgo">): void {
   // A RENDER test, not an obfuscation proof: that the admin view DISPLAYS a resource tombstone's
   // already-scrubbed name verbatim. (The scrub itself is proven by the soft-delete test above and the
   // store's softDeleteEntity spec — this only seeds an already-obfuscated name and checks it shows.)
@@ -195,7 +246,13 @@ describe("ArchivedSection — demo build (store source)", () => {
     render(<ArchivedSection />);
     expect(screen.getByTestId("deleted-row")).toHaveTextContent(/Removed person #/);
   });
+}
 
+function registerDemoYoungPurgeTest({
+  seed,
+  client,
+  daysAgo,
+}: Pick<RegistrationDependencies, "seed" | "client" | "daysAgo">): void {
   it("DISABLES the purge button for a <30-day tombstone (with the locked hint)", () => {
     seed({
       clients: [
@@ -215,7 +272,13 @@ describe("ArchivedSection — demo build (store source)", () => {
     expect(purgeBtn).toBeDisabled();
     expect(screen.getByText("Can be permanently deleted 30 days after deletion")).toBeInTheDocument();
   });
+}
 
+function registerDemoBoundaryTest({
+  seed,
+  client,
+  timestamp,
+}: Pick<RegistrationDependencies, "seed" | "client" | "timestamp">): void {
   it("enables purge when a mounted tombstone crosses the 30-day boundary", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-01T12:00:00.000Z"));
@@ -224,7 +287,7 @@ describe("ArchivedSection — demo build (store source)", () => {
         client({
           id: "c-boundary",
           name: "Boundary Tombstone",
-          archivedAt: TS,
+          archivedAt: timestamp,
           deletedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000 + 50).toISOString(),
         }),
       ],
@@ -241,7 +304,9 @@ describe("ArchivedSection — demo build (store source)", () => {
     });
     expect(purge).toBeEnabled();
   });
+}
 
+function registerDemoLongBoundaryTest({ seed, client }: Pick<RegistrationDependencies, "seed" | "client">): void {
   // A FRESH tombstone's boundary is the full 30 days out (~2.59e9 ms), past setTimeout's 32-bit
   // ceiling (~24.8 days), so the alarm can only reach it in legs: the first wake is clamped and has to
   // re-arm for the remainder instead of reporting a boundary nothing has crossed. The section's own
@@ -281,7 +346,13 @@ describe("ArchivedSection — demo build (store source)", () => {
     });
     expect(purge).toBeEnabled();
   });
+}
 
+function registerDemoPurgeTest({
+  seed,
+  client,
+  daysAgo,
+}: Pick<RegistrationDependencies, "seed" | "client" | "daysAgo">): void {
   it("ENABLES the purge button for a ≥30-day tombstone and purges on confirm", async () => {
     const user = userEvent.setup();
     seed({
@@ -308,17 +379,31 @@ describe("ArchivedSection — demo build (store source)", () => {
     // The tombstone is physically removed from the store.
     expect(useStore.getState().data.clients.find((c) => c.id === "c-old")).toBeUndefined();
   });
-});
+}
 
 describe("ArchivedSection — server mode self-hide", () => {
+  registerServerRefetchTest({ config: cfg, seed, client, timestamp: TS });
+  registerServerMutationTest({ config: cfg, seed, resource, client, project, daysAgo });
+  registerServerRoleGateTest({ config: cfg, seed, client });
+  registerServerNullRoleTest({ config: cfg, seed, client });
+  registerServerForbiddenTest({ config: cfg });
+  registerServerMalformedBodyTest({ config: cfg });
+});
+
+function registerServerRefetchTest({
+  config,
+  seed,
+  client,
+  timestamp,
+}: Pick<RegistrationDependencies, "config" | "seed" | "client" | "timestamp">): void {
   it("never renders a previous company response during or after a failed account-switch refetch", async () => {
-    cfg.serverOn = true;
+    config.serverOn = true;
     seed({
       clients: [
         client({
           id: "c-old",
           name: "Previous company archive",
-          archivedAt: TS,
+          archivedAt: timestamp,
         }),
       ],
     });
@@ -344,9 +429,18 @@ describe("ArchivedSection — server mode self-hide", () => {
     expect(screen.queryByText("Previous company archive")).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+}
 
+function registerServerMutationTest({
+  config,
+  seed,
+  resource,
+  client,
+  project,
+  daysAgo,
+}: Pick<RegistrationDependencies, "config" | "seed" | "resource" | "client" | "project" | "daysAgo">): void {
   it("locks every lifecycle affordance while a mutation is in flight", async () => {
-    cfg.serverOn = true;
+    config.serverOn = true;
     seed({
       resources: [resource({ id: "r-arch", name: "Archived Person", archivedAt: TS })],
       clients: [client({ id: "c-arch", name: "Archived Client", archivedAt: TS })],
@@ -389,13 +483,19 @@ describe("ArchivedSection — server mode self-hide", () => {
     await waitFor(() => expect(restore).toBeEnabled());
     expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/unarchive"))).toHaveLength(1);
   });
+}
 
+function registerServerRoleGateTest({
+  config,
+  seed,
+  client,
+}: Pick<RegistrationDependencies, "config" | "seed" | "client">): void {
   // The affordance gate is also a REQUEST gate: the ?includeInactive=1 read is the heaviest read in
   // the app and 403s for anyone who can't purge, so a concrete non-purge role must never send it. The
   // null role is the OFF/demo full-access case and MUST still send it — that pair is the regression
   // guard, so both halves are pinned here.
   it("never asks for the inactive slice with a concrete role that cannot purge", async () => {
-    cfg.serverOn = true;
+    config.serverOn = true;
     seed({
       clients: [client({ id: "c-arch", name: "Archived Client", archivedAt: TS })],
     });
@@ -413,9 +513,15 @@ describe("ArchivedSection — server mode self-hide", () => {
     expect(container.querySelector('[data-testid="archived-section"]')).toBeNull();
     expect(screen.queryByText("Archived Client")).not.toBeInTheDocument();
   });
+}
 
+function registerServerNullRoleTest({
+  config,
+  seed,
+  client,
+}: Pick<RegistrationDependencies, "config" | "seed" | "client">): void {
   it("still fetches and renders for a null role (OFF / demo full access)", async () => {
-    cfg.serverOn = true;
+    config.serverOn = true;
     seed({
       clients: [client({ id: "c-arch", name: "Archived Client", archivedAt: TS })],
     });
@@ -437,9 +543,11 @@ describe("ArchivedSection — server mode self-hide", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(requested[0]).toContain("includeInactive=1");
   });
+}
 
+function registerServerForbiddenTest({ config }: Pick<RegistrationDependencies, "config">): void {
   it("renders nothing when the inactive read returns 403", async () => {
-    cfg.serverOn = true; // flip server mode on for THIS test (an active account is already seeded).
+    config.serverOn = true; // flip server mode on for THIS test (an active account is already seeded).
     // Capture the URL the effect requests so we can assert it hit the includeInactive read; the mock
     // always 403s (the non-admin case), which self-hides the section.
     const requested: string[] = [];
@@ -460,13 +568,15 @@ describe("ArchivedSection — server mode self-hide", () => {
     expect(screen.queryByRole("heading", { name: "Archived & deleted" })).not.toBeInTheDocument();
     expect(requested[0]).toContain("includeInactive=1");
   });
+}
 
+function registerServerMalformedBodyTest({ config }: Pick<RegistrationDependencies, "config">): void {
   // The fetched body is untrusted input: a 200 that is NOT a structurally complete slice (proxy
   // error page, wrong-version server) must surface as an ERROR notice, not silently render as an
   // empty archived list the admin would mistake for "nothing archived". The structural gate lives
   // in the shared fetchInactiveSlice (also DeleteCompanyDialog's "Export first" source).
   it("surfaces an error notice (not an empty list) when the inactive read returns a malformed body", async () => {
-    cfg.serverOn = true;
+    config.serverOn = true;
     const fetchMock = vi.fn(
       async () =>
         ({
@@ -487,4 +597,4 @@ describe("ArchivedSection — server mode self-hide", () => {
     expect(screen.queryByTestId("archived-row")).not.toBeInTheDocument();
     expect(screen.queryByTestId("deleted-row")).not.toBeInTheDocument();
   });
-});
+}
