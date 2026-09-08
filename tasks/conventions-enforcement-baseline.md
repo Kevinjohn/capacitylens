@@ -11,12 +11,12 @@ Confirmed defects were handled before freezing this inventory: non-Error product
 | Rule                                           | Declarations |
 | ---------------------------------------------- | -----------: |
 | `@typescript-eslint/no-non-null-assertion`     |          729 |
-| `@typescript-eslint/no-unnecessary-condition`  |          129 |
+| `@typescript-eslint/no-unnecessary-condition`  |          128 |
 | `@typescript-eslint/no-unsafe-argument`        |           30 |
 | `@typescript-eslint/no-unsafe-assignment`      |          223 |
-| `@typescript-eslint/no-unsafe-member-access`   |          469 |
+| `@typescript-eslint/no-unsafe-member-access`   |          468 |
 | `@typescript-eslint/prefer-nullish-coalescing` |           46 |
-| `no-nested-ternary`                            |           95 |
+| `no-nested-ternary`                            |           93 |
 
 ## Declaration inventory
 
@@ -1648,10 +1648,6 @@ Confirmed defects were handled before freezing this inventory: non-Error product
 | `src/hooks/useDragResize.ts:69:53`                                             | `@typescript-eslint/no-unnecessary-condition`  | defensive/dead-branch debt       | Unnecessary conditional, the types have no overlap.                                                                                                                          |
 | `src/hooks/useDragResize.ts:99:42`                                             | `@typescript-eslint/no-unnecessary-condition`  | defensive/dead-branch debt       | Unnecessary optional chain on a non-nullish value.                                                                                                                           |
 | `src/hooks/useDragResize.ts:145:36`                                            | `@typescript-eslint/no-unnecessary-condition`  | defensive/dead-branch debt       | Unnecessary optional chain on a non-nullish value.                                                                                                                           |
-| `src/lib/auditWarning.test.ts:20:42`                                           | `@typescript-eslint/no-unsafe-member-access`   | untyped boundary debt            | Unsafe member access .type on an `any` value.                                                                                                                                |
-| `src/lib/auditWarning.ts:8:27`                                                 | `@typescript-eslint/no-unnecessary-condition`  | defensive/dead-branch debt       | Unnecessary optional chain on a non-nullish value.                                                                                                                           |
-| `src/lib/displayOrder.ts:20:10`                                                | `no-nested-ternary`                            | control-flow readability debt    | Do not nest ternary expressions.                                                                                                                                             |
-| `src/lib/lanePacking.ts:33:12`                                                 | `no-nested-ternary`                            | control-flow readability debt    | Do not nest ternary expressions.                                                                                                                                             |
 | `src/lib/metadata.ts:67:10`                                                    | `@typescript-eslint/no-unnecessary-condition`  | defensive/dead-branch debt       | Unnecessary conditional, value is always truthy.                                                                                                                             |
 | `src/lib/metadata.ts:73:10`                                                    | `@typescript-eslint/no-unnecessary-condition`  | defensive/dead-branch debt       | Unnecessary conditional, value is always truthy.                                                                                                                             |
 | `src/lib/metadata.ts:103:15`                                                   | `@typescript-eslint/prefer-nullish-coalescing` | defaulting-semantics review debt | Prefer using nullish coalescing operator (`??`) instead of a logical or (`\|\|`), as it is a safer operator.                                                                 |
