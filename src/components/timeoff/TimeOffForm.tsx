@@ -17,16 +17,138 @@ import type { ISODate, TimeOff, TimeOffType } from "@capacitylens/shared/types/e
 import { canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
 import { useRole } from "../../auth/permissionContext";
 
-export function TimeOffForm({
-  timeOff,
-  defaults,
-  onClose,
-}: {
+interface TimeOffFormProps {
   timeOff?: TimeOff;
-  /** Prefill for a new entry (e.g. drawn on the timeline). */
   defaults?: { resourceId?: string; startDate?: ISODate; endDate?: ISODate };
   onClose: () => void;
+}
+
+interface TimeOffFieldsProps {
+  resourceId: string;
+  setResourceId: (value: string) => void;
+  resourceOptions: Option[];
+  startDate: ISODate | "";
+  setStartDate: (value: ISODate) => void;
+  endDate: ISODate | "";
+  setEndDate: (value: ISODate) => void;
+  type: TimeOffType;
+  setType: (value: TimeOffType) => void;
+  note: string;
+  setNote: (value: string) => void;
+  canEditNote: boolean;
+  errorField: string | null;
+  errorId: string;
+}
+
+interface TimeOffDraftOptions {
+  timeOff: TimeOff | undefined;
+  defaults: TimeOffFormProps["defaults"];
+  calendarTimeZone: string;
+  canEditNote: boolean;
+}
+
+function resolveDraftValue<T>(stored: T | undefined, fallback: T | undefined, defaultValue: T): T {
+  return stored ?? fallback ?? defaultValue;
+}
+
+function useTimeOffDraft({ timeOff, defaults, calendarTimeZone, canEditNote }: TimeOffDraftOptions) {
+  const today = todayISO(calendarTimeZone);
+  const [resourceId, setResourceId] = useState(resolveDraftValue(timeOff?.resourceId, defaults?.resourceId, ""));
+  const [startDate, setStartDate] = useState(resolveDraftValue(timeOff?.startDate, defaults?.startDate, today));
+  const [endDate, setEndDate] = useState(resolveDraftValue(timeOff?.endDate, defaults?.endDate, today));
+  const [type, setType] = useState<TimeOffType>(timeOff?.type ?? "holiday");
+  const initialNote = canEditNote ? (timeOff?.note ?? "") : "";
+  const [note, setNote] = useState(initialNote);
+  return { resourceId, setResourceId, startDate, setStartDate, endDate, setEndDate, type, setType, note, setNote };
+}
+
+type Fail = ReturnType<typeof useFieldError>["fail"];
+
+function validateTimeOffDraft(options: {
+  resources: ReturnType<typeof useActiveScopedData>["resources"];
+  resourceId: string;
+  startDate: ISODate | "";
+  endDate: ISODate | "";
+  type: TimeOffType;
+  note: string;
+  canEditNote: boolean;
+  fail: Fail;
 }) {
+  const { resources, resourceId, startDate, endDate, type, note, canEditNote, fail } = options;
+  const chosen = resources.find((resource) => resource.id === resourceId);
+  if (!chosen || isExternalResource(chosen)) {
+    fail("resource", m.form_timeoff_err_choose_resource());
+    return null;
+  }
+  if (!startDate || !endDate) {
+    fail("dates", m.form_timeoff_err_dates_required());
+    return null;
+  }
+  if (endDate < startDate) {
+    fail("dates", m.form_timeoff_err_end_before_start());
+    return null;
+  }
+  let cleanNote: string | undefined;
+  if (canEditNote) {
+    const validatedNote = validateText(note, fail, { field: "note", required: false, multiline: true });
+    if (validatedNote === null) return null;
+    cleanNote = validatedNote || undefined;
+  }
+  return { basePatch: { resourceId, startDate, endDate, type }, cleanNote };
+}
+
+function useTimeOffResourceOptions(
+  resources: ReturnType<typeof useActiveScopedData>["resources"],
+  placeholdersEnabled: boolean,
+  resourceId: string,
+): Option[] {
+  const filteredResources = useMemo(
+    () =>
+      resources
+        .filter((resource) => !isExternalResource(resource))
+        .filter((resource) => placeholdersEnabled || resource.kind !== "placeholder" || resource.id === resourceId),
+    [resources, placeholdersEnabled, resourceId],
+  );
+  return filteredResources.map((resource) => ({
+    value: resource.id,
+    label: resolveResourceDisplayName(resource),
+  }));
+}
+
+function saveTimeOff(options: {
+  timeOff: TimeOff | undefined;
+  resources: ReturnType<typeof useActiveScopedData>["resources"];
+  resourceId: string;
+  startDate: ISODate | "";
+  endDate: ISODate | "";
+  type: TimeOffType;
+  note: string;
+  canEditNote: boolean;
+  fail: Fail;
+  add: ReturnType<typeof useStore.getState>["addTimeOff"];
+  update: ReturnType<typeof useStore.getState>["updateTimeOff"];
+  onClose: () => void;
+}) {
+  const { timeOff, add, update, onClose, canEditNote, fail } = options;
+  const draft = validateTimeOffDraft(options);
+  if (!draft) return;
+  const { basePatch, cleanNote } = draft;
+  const patch = canEditNote ? { ...basePatch, note: cleanNote } : basePatch;
+  try {
+    if (timeOff) {
+      if (isStaleEdit(useStore.getState().data.timeOff, timeOff.id, timeOff.updatedAt)) {
+        fail(null, m.form_timeoff_err_changed());
+        return;
+      }
+      update(timeOff.id, patch);
+    } else add({ ...basePatch, ...(cleanNote ? { note: cleanNote } : {}) });
+    onClose();
+  } catch (error) {
+    fail(null, error instanceof Error ? resolveErrorMessage(error) : m.form_timeoff_err_save_failed());
+  }
+}
+
+export function TimeOffForm({ timeOff, defaults, onClose }: TimeOffFormProps) {
   const add = useStore((state) => state.addTimeOff);
   const update = useStore((state) => state.updateTimeOff);
   const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
@@ -36,80 +158,29 @@ export function TimeOffForm({
   // Null is the OFF/demo/no-provider mode, where there is no server field projection to enforce.
   const canEditNote = role === null || canSeeTimeOffNote(role);
 
-  const [resourceId, setResourceId] = useState(timeOff?.resourceId ?? defaults?.resourceId ?? "");
-  const [startDate, setStartDate] = useState(timeOff?.startDate ?? defaults?.startDate ?? todayISO(calendarTimeZone));
-  const [endDate, setEndDate] = useState(timeOff?.endDate ?? defaults?.endDate ?? todayISO(calendarTimeZone));
-  const [type, setType] = useState<TimeOffType>(timeOff?.type ?? "holiday");
-  const [note, setNote] = useState(canEditNote ? (timeOff?.note ?? "") : "");
+  const { resourceId, setResourceId, startDate, setStartDate, endDate, setEndDate, type, setType, note, setNote } =
+    useTimeOffDraft({ timeOff, defaults, calendarTimeZone, canEditNote });
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;
   useFieldErrorFocus(fieldError);
 
-  // External / 3rd parties have no capacity, so time off is meaningless for them — exclude them.
-  // Placeholders are gated behind a per-account pref (default OFF); when off, drop them too —
-  // EXCEPT the entry's currently-selected resource (risk A): keep a hidden placeholder in the
-  // options when it's the one already assigned, so editing shows the correct value in the selector
-  // instead of silently reassigning the time off to someone else on save.
-  // The two filter passes are the only non-trivial cost here; memoised on their actual inputs so
-  // they aren't redone on every keystroke elsewhere in the form (e.g. the note field). The label map
-  // stays OUTSIDE the memo: `resolveResourceDisplayName` resolves a placeholder's name through `m.*()`,
-  // which must keep resolving fresh every render (a stale locale/account switch is otherwise
-  // possible — see validation.ts's "getter, not module-scope const" note), so it's rebuilt un-cached
-  // each render.
-  const filteredResources = useMemo(
-    () =>
-      resources
-        .filter((resource) => !isExternalResource(resource))
-        .filter((resource) => placeholdersEnabled || resource.kind !== "placeholder" || resource.id === resourceId),
-    [resources, placeholdersEnabled, resourceId],
-  );
-  const resourceOptions: Option[] = filteredResources.map((resource) => ({
-    value: resource.id,
-    label: resolveResourceDisplayName(resource),
-  }));
+  const resourceOptions = useTimeOffResourceOptions(resources, placeholdersEnabled, resourceId);
 
-  const submit = () => {
-    // Reject an empty pick AND a resource that isn't a valid time-off target: externals have no
-    // capacity (the picker omits them, but a draw on an external lane could seed one), so guard
-    // the write boundary too rather than persist an orphan time-off the schedule never renders.
-    const chosen = resources.find((resource) => resource.id === resourceId);
-    if (!chosen || isExternalResource(chosen)) {
-      fail("resource", m.form_timeoff_err_choose_resource());
-      return;
-    }
-    if (!startDate || !endDate) {
-      fail("dates", m.form_timeoff_err_dates_required());
-      return;
-    }
-    if (endDate < startDate) {
-      fail("dates", m.form_timeoff_err_end_before_start());
-      return;
-    }
-    const basePatch = { resourceId, startDate, endDate, type };
-    let cleanNote: string | undefined;
-    if (canEditNote) {
-      const validatedNote = validateText(note, fail, {
-        field: "note",
-        required: false,
-        multiline: true,
-      });
-      if (validatedNote === null) return;
-      cleanNote = validatedNote || undefined;
-    }
-    const patch = canEditNote ? { ...basePatch, note: cleanNote } : basePatch;
-    try {
-      if (timeOff) {
-        if (isStaleEdit(useStore.getState().data.timeOff, timeOff.id, timeOff.updatedAt)) {
-          fail(null, m.form_timeoff_err_changed());
-          return;
-        }
-        update(timeOff.id, patch);
-      } else add({ ...basePatch, ...(cleanNote ? { note: cleanNote } : {}) });
-      onClose();
-    } catch (e) {
-      fail(null, e instanceof Error ? resolveErrorMessage(e) : m.form_timeoff_err_save_failed());
-    }
-  };
+  const submit = () =>
+    saveTimeOff({
+      timeOff,
+      resources,
+      resourceId,
+      startDate,
+      endDate,
+      type,
+      note,
+      canEditNote,
+      fail,
+      add,
+      update,
+      onClose,
+    });
 
   return (
     <Modal
@@ -119,6 +190,48 @@ export function TimeOffForm({
       onEdit={clear}
       footer={<FormActions onCancel={onClose} />}
     >
+      <TimeOffFields
+        resourceId={resourceId}
+        setResourceId={setResourceId}
+        resourceOptions={resourceOptions}
+        startDate={startDate}
+        setStartDate={setStartDate}
+        endDate={endDate}
+        setEndDate={setEndDate}
+        type={type}
+        setType={setType}
+        note={note}
+        setNote={setNote}
+        canEditNote={canEditNote}
+        errorField={errorField}
+        errorId={errorId}
+      />
+      <FieldError id={errorId} tabIndex={error && errorField === null ? -1 : undefined}>
+        {error}
+      </FieldError>
+      <RequiredLegend />
+    </Modal>
+  );
+}
+
+function TimeOffFields({
+  resourceId,
+  setResourceId,
+  resourceOptions,
+  startDate,
+  setStartDate,
+  endDate,
+  setEndDate,
+  type,
+  setType,
+  note,
+  setNote,
+  canEditNote,
+  errorField,
+  errorId,
+}: TimeOffFieldsProps) {
+  return (
+    <>
       <SelectField
         label={m.form_timeoff_resource_label()}
         value={resourceId}
@@ -130,25 +243,14 @@ export function TimeOffForm({
         describedById={errorId}
         layout="label-control"
       />
-      {/* The date row deliberately spans the modal instead of using its 25/75 rows, matching allocations. */}
-      <div data-timeoff-date-row className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
-        <DateField
-          label={m.form_timeoff_start_label()}
-          value={startDate}
-          onChange={setStartDate}
-          required
-          invalid={errorField === "dates"}
-          describedById={errorId}
-        />
-        <DateField
-          label={m.form_timeoff_end_label()}
-          value={endDate}
-          onChange={setEndDate}
-          required
-          invalid={errorField === "dates"}
-          describedById={errorId}
-        />
-      </div>
+      <TimeOffDateFields
+        startDate={startDate}
+        setStartDate={setStartDate}
+        endDate={endDate}
+        setEndDate={setEndDate}
+        invalid={errorField === "dates"}
+        errorId={errorId}
+      />
       <SelectField
         label={m.form_timeoff_type_label()}
         value={type}
@@ -167,10 +269,44 @@ export function TimeOffForm({
           layout="label-control"
         />
       )}
-      <FieldError id={errorId} tabIndex={error && errorField === null ? -1 : undefined}>
-        {error}
-      </FieldError>
-      <RequiredLegend />
-    </Modal>
+    </>
+  );
+}
+
+function TimeOffDateFields({
+  startDate,
+  setStartDate,
+  endDate,
+  setEndDate,
+  invalid,
+  errorId,
+}: {
+  startDate: ISODate | "";
+  setStartDate: (value: ISODate) => void;
+  endDate: ISODate | "";
+  setEndDate: (value: ISODate) => void;
+  invalid: boolean;
+  errorId: string;
+}) {
+  return (
+    // The date row deliberately spans the modal instead of using its 25/75 rows, matching allocations.
+    <div data-timeoff-date-row className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+      <DateField
+        label={m.form_timeoff_start_label()}
+        value={startDate}
+        onChange={setStartDate}
+        required
+        invalid={invalid}
+        describedById={errorId}
+      />
+      <DateField
+        label={m.form_timeoff_end_label()}
+        value={endDate}
+        onChange={setEndDate}
+        required
+        invalid={invalid}
+        describedById={errorId}
+      />
+    </div>
   );
 }

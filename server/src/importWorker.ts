@@ -12,15 +12,16 @@ export interface ImportWorkerRequest {
 export type ImportWorkerResult = ReturnType<typeof remapAndValidateImport>;
 
 if (!isMainThread) {
-  if (!parentPort) throw new Error("Import worker started without a parent port.");
-  parentPort.once("message", (request: ImportWorkerRequest) => {
+  const workerPort = parentPort;
+  if (!workerPort) throw new Error("Import worker started without a parent port.");
+  workerPort.once("message", (request: ImportWorkerRequest) => {
     try {
-      parentPort!.postMessage({
+      workerPort.postMessage({
         ok: true,
         result: remapAndValidateImport(request.current, request.accountId, request.incoming, request.now),
       });
     } catch (error) {
-      parentPort!.postMessage({
+      workerPort.postMessage({
         ok: false,
         error:
           error instanceof Error

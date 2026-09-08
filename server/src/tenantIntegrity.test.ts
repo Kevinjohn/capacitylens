@@ -4,6 +4,14 @@ import { openDb } from "./db";
 import { assertTenantRelationshipIntegrityCurrent } from "./tenantIntegrity";
 
 const TS = "2026-01-01T00:00:00.000Z";
+let db: DatabaseSync;
+
+beforeEach(() => {
+  db = openDb(":memory:");
+  seedRelationshipGraph(db);
+});
+
+afterEach(() => db.close());
 
 function seedRelationshipGraph(db: DatabaseSync): void {
   db.exec(`
@@ -45,15 +53,6 @@ function seedRelationshipGraph(db: DatabaseSync): void {
 }
 
 describe("tenant relationship database integrity", () => {
-  let db: DatabaseSync;
-
-  beforeEach(() => {
-    db = openDb(":memory:");
-    seedRelationshipGraph(db);
-  });
-
-  afterEach(() => db.close());
-
   it.each([
     [
       "resources.disciplineId",
@@ -99,7 +98,9 @@ describe("tenant relationship database integrity", () => {
     expect(() => db.exec(sql)).toThrow(`cross-account relationship: ${relationship}`);
     expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   });
+});
 
+describe("tenant account identifier integrity", () => {
   it.each([
     ["clients", "c1"],
     ["disciplines", "d1"],

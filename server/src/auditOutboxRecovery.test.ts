@@ -27,7 +27,14 @@ const record = (): AuditRecord => ({
   changedFields: ["name"],
 });
 
-describe("offline audit outbox recovery", () => {
+function requireInspection(
+  inspection: ReturnType<typeof inspectAuditOutboxHead>,
+): NonNullable<ReturnType<typeof inspectAuditOutboxHead>> {
+  if (!inspection) throw new Error("Expected an inspected audit outbox head.");
+  return inspection;
+}
+
+function createMalformedHeadRecoveryTest(): void {
   it("preserves a malformed head before quarantining it and resumes ordered suffix delivery", () => {
     const db = openDb(":memory:");
     const malformedPayload = '{"action":"update"';
@@ -47,7 +54,7 @@ describe("offline audit outbox recovery", () => {
     };
 
     expect(() => drainAuditOutbox(db, sink)).toThrow(SyntaxError);
-    const inspected = inspectAuditOutboxHead(db);
+    const inspected = requireInspection(inspectAuditOutboxHead(db));
     expect(inspected).toMatchObject({ id: "poison-head", status: "invalid-json" });
 
     const directory = mkdtempSync(join(tmpdir(), "capacitylens-audit-quarantine-"));
@@ -61,16 +68,18 @@ describe("offline audit outbox recovery", () => {
     };
     expect(evidence).toMatchObject({
       format: "capacitylens-audit-outbox-quarantine-v1",
-      row: { id: "poison-head", payload: malformedPayload, payloadSha256: inspected?.payloadSha256 },
+      row: { id: "poison-head", payload: malformedPayload, payloadSha256: inspected.payloadSha256 },
     });
     expect(statSync(evidencePath).mode & 0o777).toBe(0o600);
-    expect(() => writeAuditOutboxEvidence(evidencePath, inspected!)).toThrow();
+    expect(() => writeAuditOutboxEvidence(evidencePath, inspected)).toThrow();
     expect(readPendingAuditCount(db)).toBe(1);
     expect(drainAuditOutbox(db, sink)).toBe(true);
     expect(delivered).toEqual(["valid-suffix"]);
     db.close();
   });
+}
 
+function createRefusalTest(): void {
   it("refuses a changed id and a valid head", () => {
     const db = openDb(":memory:");
     enqueueAudit(db, record(), "valid-head");
@@ -82,7 +91,9 @@ describe("offline audit outbox recovery", () => {
     expect(readPendingAuditCount(db)).toBe(1);
     db.close();
   });
+}
 
+function createInvalidPayloadTest(): void {
   it("distinguishes parseable invalid semantics from invalid JSON", () => {
     const db = openDb(":memory:");
     db.prepare(`INSERT INTO capacitylens_audit_outbox (id, payload, createdAt) VALUES (?, ?, ?)`).run(
@@ -94,4 +105,10 @@ describe("offline audit outbox recovery", () => {
     expect(inspectAuditOutboxHead(db)).toMatchObject({ id: "invalid-semantics", status: "invalid-payload" });
     db.close();
   });
+}
+
+describe("offline audit outbox recovery", () => {
+  createMalformedHeadRecoveryTest();
+  createRefusalTest();
+  createInvalidPayloadTest();
 });

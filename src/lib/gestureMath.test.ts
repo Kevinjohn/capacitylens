@@ -88,10 +88,10 @@ describe("applyGesture: resize-end", () => {
   });
 });
 
-describe("applyGesture: weekend-aware resize", () => {
-  const wd = { workingDays: [1, 2, 3, 4, 5] as Weekday[] }; // Mon–Fri
-  // Reference weekdays in May 2026: 11=Mon, 15=Fri, 16=Sat, 17=Sun, 18=Mon, 22=Fri.
+const wd = { workingDays: [1, 2, 3, 4, 5] as Weekday[] }; // Mon–Fri
+// Reference weekdays in May 2026: 11=Mon, 15=Fri, 16=Sat, 17=Sun, 18=Mon, 22=Fri.
 
+function registerWeekendAwareResizeScenarios(): void {
   it("resize-end dragging into a weekend snaps forward to the next working day", () => {
     const r: DateRange = { startDate: "2026-05-11", endDate: "2026-05-15" }; // Mon–Fri
     // +1 calendar day lands on Sat 05-16; snap forward to Mon 05-18 (no weekend at the edge).
@@ -132,7 +132,9 @@ describe("applyGesture: weekend-aware resize", () => {
     expect(out.endDate).toBe("2026-06-08"); // Monday, NOT the Sunday start
     expect(out.startDate).toBe("2026-06-07");
   });
+}
 
+function registerWeekendAwareResizeEdgeScenarios(): void {
   it("never widens a weekend-only range while pinning an over-dragged edge", () => {
     const range: DateRange = { startDate: "2026-06-06", endDate: "2026-06-07" };
 
@@ -183,4 +185,9 @@ describe("applyGesture: weekend-aware resize", () => {
     const r: DateRange = { startDate: "2026-05-15", endDate: "2026-05-22" };
     expect(applyGesture({ mode: "resize-start", range: r, deltaDays: 1, options: wd }).startDate).toBe("2026-05-18");
   });
+}
+
+describe("applyGesture: weekend-aware resize", () => {
+  registerWeekendAwareResizeScenarios();
+  registerWeekendAwareResizeEdgeScenarios();
 });

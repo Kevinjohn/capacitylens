@@ -126,86 +126,84 @@ describe("SettingsView — section help", () => {
   });
 });
 
-describe("SettingsView — global working days", () => {
-  it("renders one abbreviated heading row above one checkbox row", () => {
-    render(<SettingsView />);
+it("renders one abbreviated heading row above one checkbox row", () => {
+  render(<SettingsView />);
 
-    const table = screen.getByRole("table", { name: "Company working days" });
-    expect(within(table).getAllByRole("row")).toHaveLength(2);
-    expect(
-      within(table)
-        .getAllByRole("columnheader")
-        .map((heading) => heading.textContent),
-    ).toEqual(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
-    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
-      expect(within(table).getByRole("checkbox", { name: day })).toBeInTheDocument();
-    }
-  });
+  const table = screen.getByRole("table", { name: "Company working days" });
+  expect(within(table).getAllByRole("row")).toHaveLength(2);
+  expect(
+    within(table)
+      .getAllByRole("columnheader")
+      .map((heading) => heading.textContent),
+  ).toEqual(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+  for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
+    expect(within(table).getByRole("checkbox", { name: day })).toBeInTheDocument();
+  }
+});
 
-  it("defaults to the first five days and persists checkbox changes", async () => {
-    const user = userEvent.setup();
-    render(<SettingsView />);
+it("defaults to the first five days and persists checkbox changes", async () => {
+  const user = userEvent.setup();
+  render(<SettingsView />);
 
-    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]) {
-      expect(screen.getByRole("checkbox", { name: day })).toBeChecked();
-    }
-    expect(screen.getByRole("checkbox", { name: "Saturday" })).not.toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Sunday" })).not.toBeChecked();
+  for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]) {
+    expect(screen.getByRole("checkbox", { name: day })).toBeChecked();
+  }
+  expect(screen.getByRole("checkbox", { name: "Saturday" })).not.toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "Sunday" })).not.toBeChecked();
 
-    await user.click(screen.getByRole("checkbox", { name: "Friday" }));
-    await user.click(screen.getByRole("checkbox", { name: "Saturday" }));
+  await user.click(screen.getByRole("checkbox", { name: "Friday" }));
+  await user.click(screen.getByRole("checkbox", { name: "Saturday" }));
 
-    expect(useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.workingDays).toEqual(
-      [1, 2, 3, 4, 6],
-    );
-  });
+  expect(useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.workingDays).toEqual([
+    1, 2, 3, 4, 6,
+  ]);
+});
 
-  it("warns that calendar changes reinterpret existing allocations without moving their dates", async () => {
-    const user = userEvent.setup();
-    render(<SettingsView />);
+it("warns that calendar changes reinterpret existing allocations without moving their dates", async () => {
+  const user = userEvent.setup();
+  render(<SettingsView />);
 
-    await user.click(screen.getByRole("button", { name: "About Global working days" }));
+  await user.click(screen.getByRole("button", { name: "About Global working days" }));
 
-    expect(
-      screen.getByText(
-        "New allocations must begin on a company and personal working day. Ignore working days makes the saved allocation use calendar days and allows an existing allocation to move onto recurring non-working days. Time off remains separate.",
-        { exact: false },
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Changing global working days recalculates capacity, utilisation, and conflicts for existing allocations. Allocation dates will not move, but work on newly non-working days no longer counts unless Ignore working days is enabled.",
-      ),
-    ).toBeInTheDocument();
-  });
+  expect(
+    screen.getByText(
+      "New allocations must begin on a company and personal working day. Ignore working days makes the saved allocation use calendar days and allows an existing allocation to move onto recurring non-working days. Time off remains separate.",
+      { exact: false },
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      "Changing global working days recalculates capacity, utilisation, and conflicts for existing allocations. Allocation dates will not move, but work on newly non-working days no longer counts unless Ignore working days is enabled.",
+    ),
+  ).toBeInTheDocument();
+});
 
-  it("reorders from Sunday without changing an explicit saved selection", () => {
-    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 3, 5], weekStartsOn: 0 });
-    render(<SettingsView />);
+it("reorders from Sunday without changing an explicit saved selection", () => {
+  useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 3, 5], weekStartsOn: 0 });
+  render(<SettingsView />);
 
-    expect(screen.getAllByRole("checkbox").map((checkbox) => checkbox.id)).toEqual([
-      "account-working-day-0",
-      "account-working-day-1",
-      "account-working-day-2",
-      "account-working-day-3",
-      "account-working-day-4",
-      "account-working-day-5",
-      "account-working-day-6",
-    ]);
-    expect(screen.getAllByRole("columnheader").map((heading) => heading.textContent)).toEqual([
-      "Sun",
-      "Mon",
-      "Tue",
-      "Wed",
-      "Thu",
-      "Fri",
-      "Sat",
-    ]);
-    expect(screen.getByRole("checkbox", { name: "Monday" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Wednesday" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Friday" })).toBeChecked();
-    expect(useStore.getState().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
-  });
+  expect(screen.getAllByRole("checkbox").map((checkbox) => checkbox.id)).toEqual([
+    "account-working-day-0",
+    "account-working-day-1",
+    "account-working-day-2",
+    "account-working-day-3",
+    "account-working-day-4",
+    "account-working-day-5",
+    "account-working-day-6",
+  ]);
+  expect(screen.getAllByRole("columnheader").map((heading) => heading.textContent)).toEqual([
+    "Sun",
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat",
+  ]);
+  expect(screen.getByRole("checkbox", { name: "Monday" })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "Wednesday" })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "Friday" })).toBeChecked();
+  expect(useStore.getState().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
 });
 
 describe("SettingsView — minimum company working week", () => {
@@ -324,76 +322,71 @@ describe("SettingsView — Import & export card (issue #169)", () => {
   });
 });
 
-describe("SettingsView — Account section (auth)", () => {
-  it("renders no Account section by default (auth off / demo build — today's Settings)", () => {
-    render(<SettingsView />);
-    expect(screen.queryByRole("heading", { name: "Account" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
-  });
+it("renders no Account section by default (auth off / demo build — today's Settings)", () => {
+  render(<SettingsView />);
+  expect(screen.queryByRole("heading", { name: "Account" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+});
 
-  it("shows who is signed in plus Sign out when the server reports an auth mode", async () => {
-    const user = userEvent.setup();
-    const signOut = vi.fn().mockResolvedValue(undefined);
-    render(
-      <AuthContext.Provider
-        value={{
-          authMode: "password",
-          user: { id: "u1", email: "tester@capacitylens.dev" },
-          canCreateAccount: true,
-          multiAccount: true,
-          refreshAuth: async () => {},
-          signOut,
-        }}
-      >
-        <SettingsView />
-      </AuthContext.Provider>,
-    );
-    expect(screen.getByRole("heading", { name: "Account" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "About Account" })).toHaveAttribute("title", "About Account");
-    expect(screen.getByRole("button", { name: "About Offline access" })).toHaveAttribute(
-      "title",
-      "About Offline access",
-    );
-    expect(screen.getByText(/Signed in as tester@capacitylens\.dev/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
-    expect(signOut).toHaveBeenCalled();
-  });
+it("shows who is signed in plus Sign out when the server reports an auth mode", async () => {
+  const user = userEvent.setup();
+  const signOut = vi.fn().mockResolvedValue(undefined);
+  render(
+    <AuthContext.Provider
+      value={{
+        authMode: "password",
+        user: { id: "u1", email: "tester@capacitylens.dev" },
+        canCreateAccount: true,
+        multiAccount: true,
+        refreshAuth: async () => {},
+        signOut,
+      }}
+    >
+      <SettingsView />
+    </AuthContext.Provider>,
+  );
+  expect(screen.getByRole("heading", { name: "Account" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "About Account" })).toHaveAttribute("title", "About Account");
+  expect(screen.getByRole("button", { name: "About Offline access" })).toHaveAttribute("title", "About Offline access");
+  expect(screen.getByText(/Signed in as tester@capacitylens\.dev/)).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Sign out" }));
+  expect(signOut).toHaveBeenCalled();
+});
 
-  it("runs only one offline activation when the switch is triggered twice", async () => {
-    let finishActivation!: () => void;
-    offlineMocks.setEnabled.mockImplementationOnce(
-      () =>
-        new Promise<void>((resolve) => {
-          finishActivation = () => {
-            offlineMocks.enabled = true;
-            resolve();
-          };
-        }),
-    );
-    render(
-      <AuthContext.Provider
-        value={{
-          authMode: "password",
-          user: { id: "u1", email: "tester@capacitylens.dev" },
-          canCreateAccount: true,
-          multiAccount: true,
-          refreshAuth: async () => {},
-          signOut: async () => {},
-        }}
-      >
-        <SettingsView />
-      </AuthContext.Provider>,
-    );
+it("runs only one offline activation when the switch is triggered twice", async () => {
+  let finishActivation!: () => void;
+  offlineMocks.setEnabled.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        finishActivation = () => {
+          offlineMocks.enabled = true;
+          resolve();
+        };
+      }),
+  );
+  render(
+    <AuthContext.Provider
+      value={{
+        authMode: "password",
+        user: { id: "u1", email: "tester@capacitylens.dev" },
+        canCreateAccount: true,
+        multiAccount: true,
+        refreshAuth: async () => {},
+        signOut: async () => {},
+      }}
+    >
+      <SettingsView />
+    </AuthContext.Provider>,
+  );
 
-    const toggle = screen.getByRole("switch", { name: "Make this device available offline" });
-    fireEvent.click(toggle);
-    fireEvent.click(toggle);
+  const toggle = screen.getByRole("switch", { name: "Make this device available offline" });
+  fireEvent.click(toggle);
+  fireEvent.click(toggle);
 
-    expect(offlineMocks.setEnabled).toHaveBeenCalledTimes(1);
-    expect(toggle).toBeDisabled();
-    finishActivation();
-    await waitFor(() => expect(toggle).toBeEnabled());
-  });
+  expect(offlineMocks.setEnabled).toHaveBeenCalledTimes(1);
+  expect(toggle).toBeDisabled();
+  finishActivation();
+  await waitFor(() => expect(toggle).toBeEnabled());
 });
 
 describe("SettingsView — Schedule (minimise weekends)", () => {
@@ -483,109 +476,107 @@ describe("SettingsView — switch target size (WCAG 2.5.8 AA, ≥24px)", () => {
   });
 });
 
-describe("SettingsView — Clear local storage", () => {
-  // The action reboots through lib/reloadPage — the one boundary over `location.reload()` — so the
-  // spy is a module mock rather than a replacement window.location (jsdom's reload is
-  // non-configurable). reloadPage.test.ts covers that the boundary really does reload.
-  const reload = reloadMock.reloadPage;
+// The action reboots through lib/reloadPage — the one boundary over `location.reload()` — so the
+// spy is a module mock rather than a replacement window.location (jsdom's reload is
+// non-configurable). reloadPage.test.ts covers that the boundary really does reload.
+const reload = reloadMock.reloadPage;
 
-  beforeEach(() => {
-    reload.mockClear();
-    localStorage.clear();
-  });
+beforeEach(() => {
+  reload.mockClear();
+  localStorage.clear();
+});
 
-  afterEach(() => {
-    localStorage.clear();
-  });
+afterEach(() => {
+  localStorage.clear();
+});
 
-  const openDeviceData = async (user: ReturnType<typeof userEvent.setup>) => {
-    const disclosure = screen.getByRole("button", { name: "Device data" });
-    expect(disclosure).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByTestId("clear-local-storage")).not.toBeInTheDocument();
-    await user.click(disclosure);
-  };
+const openDeviceData = async (user: ReturnType<typeof userEvent.setup>) => {
+  const disclosure = screen.getByRole("button", { name: "Device data" });
+  expect(disclosure).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByTestId("clear-local-storage")).not.toBeInTheDocument();
+  await user.click(disclosure);
+};
 
-  it("shows a destructive Clear device data button that opens a confirm modal", async () => {
-    const user = userEvent.setup();
-    render(<SettingsView />);
-    await openDeviceData(user);
+it("shows a destructive Clear device data button that opens a confirm modal", async () => {
+  const user = userEvent.setup();
+  render(<SettingsView />);
+  await openDeviceData(user);
 
-    const button = screen.getByTestId("clear-local-storage");
-    expect(button).toHaveTextContent("Clear device data");
-    // No modal until clicked.
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  const button = screen.getByTestId("clear-local-storage");
+  expect(button).toHaveTextContent("Clear device data");
+  // No modal until clicked.
+  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
 
-    await user.click(button);
-    const dialog = screen.getByRole("alertdialog");
-    expect(dialog).toHaveTextContent(/Clear device data\?/i);
-    expect(dialog).toHaveTextContent(/cannot be undone/i);
-  });
+  await user.click(button);
+  const dialog = screen.getByRole("alertdialog");
+  expect(dialog).toHaveTextContent(/Clear device data\?/i);
+  expect(dialog).toHaveTextContent(/cannot be undone/i);
+});
 
-  it("Cancel is a no-op — it neither clears storage nor reloads", async () => {
-    const user = userEvent.setup();
-    localStorage.setItem("capacitylens/offlineRead", "on");
-    localStorage.setItem("capacitylens/theme", "dark");
-    render(<SettingsView />);
-    await openDeviceData(user);
+it("Cancel is a no-op — it neither clears storage nor reloads", async () => {
+  const user = userEvent.setup();
+  localStorage.setItem("capacitylens/offlineRead", "on");
+  localStorage.setItem("capacitylens/theme", "dark");
+  render(<SettingsView />);
+  await openDeviceData(user);
 
-    await user.click(screen.getByTestId("clear-local-storage"));
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+  await user.click(screen.getByTestId("clear-local-storage"));
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(localStorage.getItem("capacitylens/offlineRead")).toBe("on");
-    expect(localStorage.getItem("capacitylens/theme")).toBe("dark");
-    expect(reload).not.toHaveBeenCalled();
-  });
+  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  expect(localStorage.getItem("capacitylens/offlineRead")).toBe("on");
+  expect(localStorage.getItem("capacitylens/theme")).toBe("dark");
+  expect(reload).not.toHaveBeenCalled();
+});
 
-  it("Confirm clears every capacitylens/ key and reloads", async () => {
-    const user = userEvent.setup();
-    localStorage.setItem("capacitylens/offlineRead", "on");
-    localStorage.setItem("capacitylens/theme", "dark");
-    localStorage.setItem("unrelated", "leave-me"); // a sibling tool's key must survive
-    render(<SettingsView />);
-    await openDeviceData(user);
+it("Confirm clears every capacitylens/ key and reloads", async () => {
+  const user = userEvent.setup();
+  localStorage.setItem("capacitylens/offlineRead", "on");
+  localStorage.setItem("capacitylens/theme", "dark");
+  localStorage.setItem("unrelated", "leave-me"); // a sibling tool's key must survive
+  render(<SettingsView />);
+  await openDeviceData(user);
 
-    await user.click(screen.getByTestId("clear-local-storage"));
-    // Scope to the alert dialog — the section button and confirm action share the label.
-    await user.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Clear device data",
+  await user.click(screen.getByTestId("clear-local-storage"));
+  // Scope to the alert dialog — the section button and confirm action share the label.
+  await user.click(
+    within(screen.getByRole("alertdialog")).getByRole("button", {
+      name: "Clear device data",
+    }),
+  );
+
+  expect(localStorage.getItem("capacitylens/offlineRead")).toBeNull();
+  expect(localStorage.getItem("capacitylens/theme")).toBeNull();
+  expect(localStorage.getItem("unrelated")).toBe("leave-me");
+  expect(reload).toHaveBeenCalledTimes(1);
+});
+
+it("locks both confirmation actions while device cleanup is in flight", async () => {
+  let finishCleanup!: () => void;
+  offlineMocks.clearAll.mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        finishCleanup = resolve;
       }),
-    );
+  );
+  const user = userEvent.setup();
+  render(<SettingsView />);
+  await openDeviceData(user);
+  await user.click(screen.getByTestId("clear-local-storage"));
+  const dialog = screen.getByRole("alertdialog");
+  const confirm = within(dialog).getByRole("button", { name: "Clear device data" });
+  const cancel = within(dialog).getByRole("button", { name: "Cancel" });
 
-    expect(localStorage.getItem("capacitylens/offlineRead")).toBeNull();
-    expect(localStorage.getItem("capacitylens/theme")).toBeNull();
-    expect(localStorage.getItem("unrelated")).toBe("leave-me");
-    expect(reload).toHaveBeenCalledTimes(1);
-  });
+  await user.click(confirm);
 
-  it("locks both confirmation actions while device cleanup is in flight", async () => {
-    let finishCleanup!: () => void;
-    offlineMocks.clearAll.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          finishCleanup = resolve;
-        }),
-    );
-    const user = userEvent.setup();
-    render(<SettingsView />);
-    await openDeviceData(user);
-    await user.click(screen.getByTestId("clear-local-storage"));
-    const dialog = screen.getByRole("alertdialog");
-    const confirm = within(dialog).getByRole("button", { name: "Clear device data" });
-    const cancel = within(dialog).getByRole("button", { name: "Cancel" });
+  expect(offlineMocks.clearAll).toHaveBeenCalledTimes(1);
+  expect(confirm).toBeDisabled();
+  expect(cancel).toBeDisabled();
+  fireEvent.click(confirm);
+  expect(offlineMocks.clearAll).toHaveBeenCalledTimes(1);
 
-    await user.click(confirm);
-
-    expect(offlineMocks.clearAll).toHaveBeenCalledTimes(1);
-    expect(confirm).toBeDisabled();
-    expect(cancel).toBeDisabled();
-    fireEvent.click(confirm);
-    expect(offlineMocks.clearAll).toHaveBeenCalledTimes(1);
-
-    finishCleanup();
-    await waitFor(() => expect(reload).toHaveBeenCalledOnce());
-  });
+  finishCleanup();
+  await waitFor(() => expect(reload).toHaveBeenCalledOnce());
 });
 
 describe("SettingsView — account options selected at creation", () => {

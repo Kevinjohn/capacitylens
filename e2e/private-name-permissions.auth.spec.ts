@@ -24,6 +24,114 @@ async function signInAndOpen(page: import("@playwright/test").Page, email: strin
   await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
 }
 
+async function assertPrivateNamesForMember(
+  page: import("@playwright/test").Page,
+  context: import("@playwright/test").BrowserContext,
+  role: "admin" | "editor" | "viewer",
+  email: string,
+) {
+  await context.clearCookies();
+  await signInAndOpen(page, email);
+
+  await page.getByRole("link", { name: "Clients", exact: true }).click();
+  const clientRow = page.getByTestId("client-row").filter({ hasText: '"Nightwing"' });
+  await expect(clientRow).toBeVisible();
+  await expect(page.getByText(REAL_CLIENT, { exact: true })).toHaveCount(0);
+  if (role === "viewer") {
+    await expect(clientRow.getByRole("button", { name: /^Edit / })).toHaveCount(0);
+  } else {
+    await clientRow.getByRole("button", { name: /^Edit / }).click();
+    const dialog = page.getByRole("dialog", { name: "Edit client" });
+    await expect(dialog.getByLabel("Name", { exact: true })).toBeDisabled();
+    await expect(dialog.getByLabel("Name", { exact: true })).toHaveValue('"Nightwing"');
+    await expect(dialog.getByRole("switch", { name: "Use a code name" })).toHaveCount(0);
+    await expect(dialog.getByLabel("Code name", { exact: true })).toHaveCount(0);
+    await expect(dialog.getByText("Only an account owner can change this private name.")).toBeVisible();
+    await expect(dialog.getByText(REAL_CLIENT, { exact: true })).toHaveCount(0);
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+  }
+
+  await page.getByRole("link", { name: "Projects", exact: true }).click();
+  const projectRow = page.getByTestId("project-row").filter({ hasText: '"Aurora"' });
+  await expect(projectRow).toBeVisible();
+  await expect(page.getByText(REAL_PROJECT, { exact: true })).toHaveCount(0);
+  if (role === "viewer") {
+    await expect(projectRow.getByRole("button", { name: /^Edit / })).toHaveCount(0);
+  } else {
+    await projectRow.getByRole("button", { name: /^Edit / }).click();
+    const dialog = page.getByRole("dialog", { name: "Edit project" });
+    await expect(dialog.getByLabel("Name", { exact: true })).toBeDisabled();
+    await expect(dialog.getByLabel("Name", { exact: true })).toHaveValue('"Aurora"');
+    await expect(dialog.getByRole("switch", { name: "Use a code name" })).toHaveCount(0);
+    await expect(dialog.getByLabel("Code name", { exact: true })).toHaveCount(0);
+    await expect(dialog.getByText("Only an account owner can change this private name.")).toBeVisible();
+    await expect(dialog.getByText(REAL_PROJECT, { exact: true })).toHaveCount(0);
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+  }
+}
+
+async function inviteMembers(
+  request: import("@playwright/test").APIRequestContext,
+  accountId: string,
+  ownerCookie: string,
+  members: ReadonlyArray<{
+    role: "admin" | "editor" | "viewer";
+    user: { cookie: string; email: string };
+  }>,
+) {
+  for (const { role, user } of members) {
+    const invitation = await request.post(`${AUTH_API}/api/invites`, {
+      headers: { cookie: ownerCookie },
+      data: { accountId, role },
+    });
+    expect(invitation.status()).toBe(201);
+    const token = (await invitation.json()).token as string;
+    const accepted = await request.post(`${AUTH_API}/api/invites/${token}/accept`, {
+      headers: { cookie: user.cookie },
+    });
+    expect(accepted.status()).toBe(200);
+  }
+}
+
+async function seedPrivateNames(
+  request: import("@playwright/test").APIRequestContext,
+  accountId: string,
+  ownerCookie: string,
+) {
+  const now = new Date().toISOString();
+  const clientId = `privacy-client-${STAMP}`;
+  const projectId = `privacy-project-${STAMP}`;
+  const clientWrite = await request.put(`${AUTH_API}/api/clients/${clientId}`, {
+    headers: { cookie: ownerCookie, "content-type": "application/json" },
+    data: {
+      id: clientId,
+      accountId,
+      name: REAL_CLIENT,
+      color: "#3b82f6",
+      isPrivate: true,
+      codeName: "Nightwing",
+      createdAt: now,
+      updatedAt: now,
+    },
+  });
+  expect(clientWrite.status()).toBe(200);
+  const projectWrite = await request.put(`${AUTH_API}/api/projects/${projectId}`, {
+    headers: { cookie: ownerCookie, "content-type": "application/json" },
+    data: {
+      id: projectId,
+      accountId,
+      clientId,
+      name: REAL_PROJECT,
+      color: "#ec4899",
+      isPrivate: true,
+      codeName: "Aurora",
+      createdAt: now,
+      updatedAt: now,
+    },
+  });
+  expect(projectWrite.status()).toBe(200);
+}
+
 test("non-owners see protected code names without owner controls or real-name leaks", async ({
   page,
   request,
@@ -42,93 +150,10 @@ test("non-owners see protected code names without owner controls or real-name le
   ] as const;
 
   const accountId = await bootstrapOrg(request, owner.cookie, ACCOUNT);
+  await inviteMembers(request, accountId, owner.cookie, members);
+  await seedPrivateNames(request, accountId, owner.cookie);
 
   for (const { role, user } of members) {
-    const invitation = await request.post(`${AUTH_API}/api/invites`, {
-      headers: { cookie: owner.cookie },
-      data: { accountId, role },
-    });
-    expect(invitation.status()).toBe(201);
-    const token = (await invitation.json()).token as string;
-    const accepted = await request.post(`${AUTH_API}/api/invites/${token}/accept`, {
-      headers: { cookie: user.cookie },
-    });
-    expect(accepted.status()).toBe(200);
-  }
-
-  const now = new Date().toISOString();
-  const clientId = `privacy-client-${STAMP}`;
-  const projectId = `privacy-project-${STAMP}`;
-  const clientWrite = await request.put(`${AUTH_API}/api/clients/${clientId}`, {
-    headers: { cookie: owner.cookie, "content-type": "application/json" },
-    data: {
-      id: clientId,
-      accountId,
-      name: REAL_CLIENT,
-      color: "#3b82f6",
-      isPrivate: true,
-      codeName: "Nightwing",
-      createdAt: now,
-      updatedAt: now,
-    },
-  });
-  expect(clientWrite.status()).toBe(200);
-  const projectWrite = await request.put(`${AUTH_API}/api/projects/${projectId}`, {
-    headers: { cookie: owner.cookie, "content-type": "application/json" },
-    data: {
-      id: projectId,
-      accountId,
-      clientId,
-      name: REAL_PROJECT,
-      color: "#ec4899",
-      isPrivate: true,
-      codeName: "Aurora",
-      createdAt: now,
-      updatedAt: now,
-    },
-  });
-  expect(projectWrite.status()).toBe(200);
-
-  for (const { role, user } of members) {
-    await context.clearCookies();
-    await signInAndOpen(page, user.email);
-
-    await page.getByRole("link", { name: "Clients", exact: true }).click();
-    const clientRow = page.getByTestId("client-row").filter({ hasText: '"Nightwing"' });
-    await expect(clientRow).toBeVisible();
-    await expect(page.getByText(REAL_CLIENT, { exact: true })).toHaveCount(0);
-
-    if (role === "viewer") {
-      await expect(clientRow.getByRole("button", { name: /^Edit / })).toHaveCount(0);
-    } else {
-      await clientRow.getByRole("button", { name: /^Edit / }).click();
-      const dialog = page.getByRole("dialog", { name: "Edit client" });
-      await expect(dialog.getByLabel("Name", { exact: true })).toBeDisabled();
-      await expect(dialog.getByLabel("Name", { exact: true })).toHaveValue('"Nightwing"');
-      await expect(dialog.getByRole("switch", { name: "Use a code name" })).toHaveCount(0);
-      await expect(dialog.getByLabel("Code name", { exact: true })).toHaveCount(0);
-      await expect(dialog.getByText("Only an account owner can change this private name.")).toBeVisible();
-      await expect(dialog.getByText(REAL_CLIENT, { exact: true })).toHaveCount(0);
-      await dialog.getByRole("button", { name: "Cancel" }).click();
-    }
-
-    await page.getByRole("link", { name: "Projects", exact: true }).click();
-    const projectRow = page.getByTestId("project-row").filter({ hasText: '"Aurora"' });
-    await expect(projectRow).toBeVisible();
-    await expect(page.getByText(REAL_PROJECT, { exact: true })).toHaveCount(0);
-
-    if (role === "viewer") {
-      await expect(projectRow.getByRole("button", { name: /^Edit / })).toHaveCount(0);
-    } else {
-      await projectRow.getByRole("button", { name: /^Edit / }).click();
-      const dialog = page.getByRole("dialog", { name: "Edit project" });
-      await expect(dialog.getByLabel("Name", { exact: true })).toBeDisabled();
-      await expect(dialog.getByLabel("Name", { exact: true })).toHaveValue('"Aurora"');
-      await expect(dialog.getByRole("switch", { name: "Use a code name" })).toHaveCount(0);
-      await expect(dialog.getByLabel("Code name", { exact: true })).toHaveCount(0);
-      await expect(dialog.getByText("Only an account owner can change this private name.")).toBeVisible();
-      await expect(dialog.getByText(REAL_PROJECT, { exact: true })).toHaveCount(0);
-      await dialog.getByRole("button", { name: "Cancel" }).click();
-    }
+    await assertPrivateNamesForMember(page, context, role, user.email);
   }
 });

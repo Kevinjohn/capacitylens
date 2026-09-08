@@ -5,7 +5,7 @@ import { join } from "node:path";
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import { createApp } from "./app";
-import { openDb, upsertRow } from "./db";
+import { openDb, upsertRow, type Db } from "./db";
 import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
 import {
   createCompositeAuditSink,
@@ -551,22 +551,7 @@ async function assertBatchRecordsAppliedFields() {
   expect(record.changedFields).not.toContain("archivedAt");
 }
 
-async function assertBatchClassifiesUpsertAfterLockWait() {
-  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-lock-test-"));
-  const file = join(dir, "audit.jsonl");
-  const db = openDb(":memory:");
-  const app = createApp(db, {
-    allowReset: true,
-    optimisticConcurrency: false,
-    audit: createFileAuditSink(file, vi.fn()),
-  });
-  await scaffold(app);
-  const lines = () =>
-    readFileSync(file, "utf8")
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => JSON.parse(line) as AuditRecord);
-  const before = lines().length;
+function arrangeConcurrentDisciplineInsert(db: Db): () => boolean {
   const originalWithKeys = KeyedOperationLock.prototype.withKeys;
   let insertedByLockWinner = false;
   vi.spyOn(KeyedOperationLock.prototype, "withKeys").mockImplementation(function (
@@ -589,6 +574,26 @@ async function assertBatchClassifiesUpsertAfterLockWait() {
       return operation();
     });
   });
+  return () => insertedByLockWinner;
+}
+
+async function assertBatchClassifiesUpsertAfterLockWait() {
+  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-lock-test-"));
+  const file = join(dir, "audit.jsonl");
+  const db = openDb(":memory:");
+  const app = createApp(db, {
+    allowReset: true,
+    optimisticConcurrency: false,
+    audit: createFileAuditSink(file, vi.fn()),
+  });
+  await scaffold(app);
+  const lines = () =>
+    readFileSync(file, "utf8")
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as AuditRecord);
+  const before = lines().length;
+  const wasInsertedByLockWinner = arrangeConcurrentDisciplineInsert(db);
 
   const res = await call(app, {
     method: "POST",
@@ -614,7 +619,7 @@ async function assertBatchClassifiesUpsertAfterLockWait() {
   });
 
   expect(res.statusCode).toBe(200);
-  expect(insertedByLockWinner).toBe(true);
+  expect(wasInsertedByLockWinner()).toBe(true);
   expect(
     lines()
       .slice(before)

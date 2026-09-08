@@ -23,15 +23,19 @@ export interface PackResult {
   laneCount: number;
 }
 
+function compareIntervals(a: Interval, b: Interval): number {
+  if (a.startDate !== b.startDate) return a.startDate < b.startDate ? -1 : 1;
+  if (a.endDate !== b.endDate) return a.endDate < b.endDate ? -1 : 1;
+  if (a.id < b.id) return -1;
+  if (a.id > b.id) return 1;
+  return 0;
+}
+
 export function packLanes(items: Interval[]): PackResult {
   if (items.length === 0) return { lanes: [], laneCount: 0 };
 
   // ISO "YYYY-MM-DD" strings sort lexicographically as dates.
-  const sorted = [...items].sort((a, b) => {
-    if (a.startDate !== b.startDate) return a.startDate < b.startDate ? -1 : 1;
-    if (a.endDate !== b.endDate) return a.endDate < b.endDate ? -1 : 1;
-    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-  });
+  const sorted = [...items].sort(compareIntervals);
 
   // Origin = the first valid calendar start (a bad record sorts first but must
   // not become the origin, or it would NaN-poison every other item's day-index).

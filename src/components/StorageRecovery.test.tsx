@@ -22,7 +22,14 @@ describe("resetLocalStorage", () => {
 
     expect(clearOfflineData).toHaveBeenCalledOnce();
     expect(clearLocalStorage).toHaveBeenCalledOnce();
-    expect(clearOfflineData.mock.invocationCallOrder[0]).toBeLessThan(clearLocalStorage.mock.invocationCallOrder[0]!);
+    const offlineCallOrder = clearOfflineData.mock.invocationCallOrder[0];
+    const localCallOrder = clearLocalStorage.mock.invocationCallOrder[0];
+    expect(offlineCallOrder).toBeDefined();
+    expect(localCallOrder).toBeDefined();
+    if (offlineCallOrder === undefined || localCallOrder === undefined) {
+      throw new Error("Expected both storage backends to be cleared");
+    }
+    expect(offlineCallOrder).toBeLessThan(localCallOrder);
     expect(notify).not.toHaveBeenCalled();
     expect(reload).toHaveBeenCalledOnce();
   });
@@ -59,7 +66,9 @@ describe("resetLocalStorage", () => {
 
     expect(reload).toHaveBeenCalledOnce();
   });
+});
 
+describe("resetLocalStorage failures", () => {
   it("reports a partial failure without reloading when only local storage fails", async () => {
     const clearOfflineData = vi.fn().mockResolvedValue(undefined);
     const localStorageError = new Error("localStorage blocked");
@@ -93,7 +102,9 @@ describe("resetLocalStorage", () => {
     expect(clearLocalStorage).toHaveBeenCalledOnce();
     expect(reload).not.toHaveBeenCalled();
   });
+});
 
+describe("resetLocalStorage complete failure", () => {
   it("reports a full failure after both backend attempts fail", async () => {
     const offlineError = new Error("IndexedDB blocked");
     const localStorageError = new Error("localStorage blocked");
@@ -131,7 +142,7 @@ describe("resetLocalStorage", () => {
   });
 });
 
-describe("StorageRecovery", () => {
+describe("StorageRecovery confirmation", () => {
   it("keeps stored bytes untouched until the destructive reset is confirmed", () => {
     const onDownload = vi.fn();
     const onReset = vi.fn();
@@ -159,7 +170,9 @@ describe("StorageRecovery", () => {
 
     await waitFor(() => expect(onReset).toHaveBeenCalledOnce());
   });
+});
 
+describe("StorageRecovery errors", () => {
   it("surfaces a download failure without enabling an implicit reset", () => {
     const onReset = vi.fn();
     render(

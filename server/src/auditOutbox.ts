@@ -173,23 +173,21 @@ function isCascadeCounts(value: unknown): boolean {
   );
 }
 
-export function isAuditEntry(value: unknown): value is AuditEntry {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
-  const row = value as Record<string, unknown>;
-  if (!isStringArray(row.changedFields)) return false;
-  if ("ts" in row) {
-    const productAction = isNonEmptyString(row.action) && PRODUCT_ACTIONS.has(row.action);
-    return (
-      isIsoInstant(row.ts) &&
-      isNonEmptyString(row.userId) &&
-      isNonEmptyString(row.accountId) &&
-      isNonEmptyString(row.entity) &&
-      isNonEmptyString(row.id) &&
-      productAction &&
-      (row.action === "purge" ? isCascadeCounts(row.cascadeCounts) : row.cascadeCounts === undefined)
-    );
-  }
-  const commonAccountFieldsValid =
+function isProductAuditEntry(row: Record<string, unknown>): boolean {
+  const productAction = isNonEmptyString(row.action) && PRODUCT_ACTIONS.has(row.action);
+  return (
+    isIsoInstant(row.ts) &&
+    isNonEmptyString(row.userId) &&
+    isNonEmptyString(row.accountId) &&
+    isNonEmptyString(row.entity) &&
+    isNonEmptyString(row.id) &&
+    productAction &&
+    (row.action === "purge" ? isCascadeCounts(row.cascadeCounts) : row.cascadeCounts === undefined)
+  );
+}
+
+function hasValidAccountAuditFields(row: Record<string, unknown>): boolean {
+  return (
     isNonEmptyString(row.id) &&
     isIsoInstant(row.occurredAt) &&
     isNonEmptyString(row.applicationId) &&
@@ -200,8 +198,11 @@ export function isAuditEntry(value: unknown): value is AuditEntry {
     isNonEmptyString(row.action) &&
     ACCOUNT_ACTIONS.has(row.action) &&
     isNonEmptyString(row.outcome) &&
-    ACCOUNT_OUTCOMES.has(row.outcome);
-  if (!commonAccountFieldsValid) return false;
+    ACCOUNT_OUTCOMES.has(row.outcome)
+  );
+}
+
+function hasValidAccountActionDetails(row: Record<string, unknown>): boolean {
   if (row.action === "identity.masquerade_started") {
     return isIsoInstant(row.expiresAt) && row.reason === undefined;
   }
@@ -209,6 +210,15 @@ export function isAuditEntry(value: unknown): value is AuditEntry {
     return isNonEmptyString(row.reason) && MASQUERADE_END_REASON_SET.has(row.reason) && row.expiresAt === undefined;
   }
   return row.expiresAt === undefined && row.reason === undefined;
+}
+
+export function isAuditEntry(value: unknown): value is AuditEntry {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  if (!isStringArray(row.changedFields)) return false;
+  if ("ts" in row) return isProductAuditEntry(row);
+  if (!hasValidAccountAuditFields(row)) return false;
+  return hasValidAccountActionDetails(row);
 }
 
 /** Enqueue inside the same SQLite transaction as the represented mutation. */

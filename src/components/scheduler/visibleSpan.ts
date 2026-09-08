@@ -34,9 +34,10 @@ export function buildVisibleSpanLabels(start: ISODate, end: ISODate): VisibleSpa
   const span = buildRealizedVisibleSpan(start, end);
   if (span.weekCount !== undefined) {
     const count = span.weekCount;
+    const long =
+      count === 1 ? m.scheduler_visible_weeks_label_one({ count }) : m.scheduler_visible_weeks_label_other({ count });
     return {
-      long:
-        count === 1 ? m.scheduler_visible_weeks_label_one({ count }) : m.scheduler_visible_weeks_label_other({ count }),
+      long,
       compact: m.scheduler_visible_weeks_compact({ count }),
     };
   }
@@ -60,7 +61,8 @@ export function resolveVisibleWindow({ days, leftEdgeIndex, zoom, focusDate }: R
 } {
   const lastIndex = days.length - 1;
   const focusIndex = days.indexOf(focusDate);
-  const rawIndex = leftEdgeIndex >= 0 ? leftEdgeIndex : focusIndex >= 0 ? focusIndex : 0;
+  let rawIndex = leftEdgeIndex;
+  if (rawIndex < 0) rawIndex = Math.max(focusIndex, 0);
   const startIndex = Math.min(Math.max(rawIndex, 0), Math.max(lastIndex, 0));
   const start = days[startIndex] ?? focusDate;
   const endIndex = Math.min(startIndex + zoom * 7 - 1, lastIndex);

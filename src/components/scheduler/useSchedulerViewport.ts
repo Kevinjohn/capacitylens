@@ -1,4 +1,15 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type MutableRefObject,
+  type RefObject,
+  type SetStateAction,
+} from "react";
 import { eachDayISO, startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 import {
@@ -29,6 +40,281 @@ const setScrollLeft = (element: HTMLElement, value: number) => {
   publishScrollLeft(element);
 };
 
+function disconnectResizeObserver(observer: ResizeObserver, timer: number) {
+  clearTimeout(timer);
+  observer.disconnect();
+}
+
+function useTimelineMeasurements(scrollRef: RefObject<HTMLDivElement | null>) {
+  const [timelineWidth, setTimelineWidth] = useState(0);
+  const [timelineHeight, setTimelineHeight] = useState(0);
+  const [rootFontSizePx, setRootFontSizePx] = useState(16);
+  useLayoutEffect(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    let measuredWidth = -1;
+    let measuredHeight = -1;
+    let measuredRootFontSize = -1;
+    const readMeasurements = () => ({
+      width: element.clientWidth,
+      height: element.clientHeight,
+      rootFontSize: parseFloat(getComputedStyle(document.documentElement).fontSize) || 16,
+    });
+    const measure = () => {
+      const { width, height, rootFontSize } = readMeasurements();
+      if (width !== measuredWidth) setTimelineWidth((measuredWidth = width));
+      if (height !== measuredHeight) setTimelineHeight((measuredHeight = height));
+      if (rootFontSize !== measuredRootFontSize) setRootFontSizePx((measuredRootFontSize = rootFontSize));
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    let resizeTimer = 0;
+    const observer = new ResizeObserver(() => {
+      const { width, height, rootFontSize } = readMeasurements();
+      if (width === measuredWidth && height === measuredHeight && rootFontSize === measuredRootFontSize) return;
+      clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(measure, 0);
+    });
+    observer.observe(element);
+    return () => disconnectResizeObserver(observer, resizeTimer);
+  }, [scrollRef]);
+  return { timelineWidth, timelineHeight, rootFontSizePx };
+}
+
+function useStickyHeaderHeight(headerRef: RefObject<HTMLDivElement | null>) {
+  const [height, setHeight] = useState(LAYOUT.headerHeight);
+  useLayoutEffect(() => {
+    const element = headerRef.current;
+    if (!element) return;
+    let measuredHeight = -1;
+    const measure = () => {
+      const nextHeight = element.offsetHeight || LAYOUT.headerHeight;
+      if (nextHeight === measuredHeight) return;
+      measuredHeight = nextHeight;
+      setHeight(nextHeight);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    let resizeTimer = 0;
+    const observer = new ResizeObserver(() => {
+      if ((element.offsetHeight || LAYOUT.headerHeight) === measuredHeight) return;
+      clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(measure, 0);
+    });
+    observer.observe(element);
+    return () => {
+      clearTimeout(resizeTimer);
+      observer.disconnect();
+    };
+  }, [headerRef]);
+  return height;
+}
+
+function useViewportGeometry({
+  ui,
+  minimiseWeekends,
+  timelineWidth,
+  rootFontSizePx,
+}: Pick<SchedulerViewportOptions, "ui" | "minimiseWeekends"> & { timelineWidth: number; rootFontSizePx: number }) {
+  const availableWidth = (timelineWidth || FALLBACK_TIMELINE_WIDTH) - LAYOUT.leftColWidth;
+  const weekendWidth = Math.round(WEEKEND_COLUMN_REM * rootFontSizePx);
+  const uniformFit = resolveColumnFit(availableWidth, ui.zoom);
+  const fit =
+    minimiseWeekends && uniformFit.dayWidth > weekendWidth
+      ? resolveColumnFit(availableWidth, ui.zoom, weekendWidth)
+      : uniformFit;
+  const { start, end } = buildVisibleRange(ui);
+  const days = useMemo(() => eachDayISO(start, end), [start, end]);
+  const geometry = useMemo(
+    () =>
+      buildColumnGeometry(days, fit.dayWidth, {
+        minimiseWeekends,
+        weekendWidth,
+        targetWeekWidth: fit.weekWidth,
+      }),
+    [days, fit.dayWidth, minimiseWeekends, weekendWidth, fit.weekWidth],
+  );
+  return { start, end, days, dayWidth: fit.dayWidth, geometry };
+}
+
+interface ViewportAlignmentInput {
+  scrollRef: RefObject<HTMLDivElement | null>;
+  didScrollRef: MutableRefObject<boolean>;
+  scrollRafRef: MutableRefObject<number>;
+  snapTimerRef: MutableRefObject<number>;
+  geometry: ReturnType<typeof buildColumnGeometry>;
+  days: ISODate[];
+  ui: SchedulerUI;
+  calendarWeekStartsOn: 0 | 1;
+  timelineWidth: number;
+}
+
+function useViewportAlignment(input: ViewportAlignmentInput) {
+  const { scrollRef, didScrollRef, scrollRafRef, snapTimerRef } = input;
+  const { geometry, days, ui } = input;
+  const { calendarWeekStartsOn, timelineWidth } = input;
+  const focusX = geometry.xForDateInGeom(ui.focusDate);
+  const focusXRef = useRef(focusX);
+  const previousScrollLeftRef = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    focusXRef.current = focusX;
+  }, [focusX]);
+  const previousGeometryRef = useRef(geometry);
+  const previousDaysRef = useRef(days);
+  const previousZoomRef = useRef(ui.zoom);
+  const previousRecenterRef = useRef(ui.recenterToken);
+  useLayoutEffect(() => {
+    if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current);
+    scrollRafRef.current = 0;
+    clearTimeout(snapTimerRef.current);
+    snapTimerRef.current = 0;
+    const previousGeom = previousGeometryRef.current;
+    const previousDays = previousDaysRef.current;
+    const previousZoom = previousZoomRef.current;
+    const previousRecenter = previousRecenterRef.current;
+    previousGeometryRef.current = geometry;
+    previousDaysRef.current = days;
+    previousZoomRef.current = ui.zoom;
+    previousRecenterRef.current = ui.recenterToken;
+    const element = scrollRef.current;
+    if (!element || !didScrollRef.current || previousGeom === geometry || previousGeom.totalWidth <= 0) return;
+    if (ui.recenterToken !== previousRecenter) return;
+    const leftDate = resolveLeftEdgeDate(previousGeom, days, element.scrollLeft);
+    if (leftDate === undefined) return;
+    const navigationChanged = ui.zoom !== previousZoom || days !== previousDays;
+    const targetDate = navigationChanged ? startOfWeekISO(leftDate, calendarWeekStartsOn) : leftDate;
+    setScrollLeft(element, Math.max(0, geometry.xForDateInGeom(targetDate)));
+  }, [
+    geometry,
+    days,
+    ui.zoom,
+    ui.recenterToken,
+    calendarWeekStartsOn,
+    didScrollRef,
+    scrollRafRef,
+    scrollRef,
+    snapTimerRef,
+  ]);
+  useEffect(() => {
+    if (didScrollRef.current || !scrollRef.current || timelineWidth === 0) return;
+    setScrollLeft(scrollRef.current, focusXRef.current);
+    didScrollRef.current = true;
+  }, [timelineWidth, didScrollRef, scrollRef]);
+  useLayoutEffect(() => {
+    if (ui.recenterToken === 0 || !scrollRef.current) return;
+    setScrollLeft(scrollRef.current, focusXRef.current);
+  }, [ui.recenterToken, scrollRef]);
+  return previousScrollLeftRef;
+}
+
+interface ViewportScrollingInput {
+  scrollRef: RefObject<HTMLDivElement | null>;
+  scrollRafRef: MutableRefObject<number>;
+  snapTimerRef: MutableRefObject<number>;
+  previousScrollLeftRef: MutableRefObject<number | null>;
+  geometry: ReturnType<typeof buildColumnGeometry>;
+  days: ISODate[];
+  ui: SchedulerUI;
+  snapToWeekStart: boolean;
+  calendarWeekStartsOn: 0 | 1;
+  setScrollTop: Dispatch<SetStateAction<number>>;
+  setLeftEdgeIndex: Dispatch<SetStateAction<number>>;
+}
+
+function useSettledScrollState(input: ViewportScrollingInput) {
+  const { scrollRef, scrollRafRef, snapTimerRef, geometry, setScrollTop, setLeftEdgeIndex } = input;
+  useEffect(
+    () => () => {
+      if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current);
+      clearTimeout(snapTimerRef.current);
+    },
+    [scrollRafRef, snapTimerRef],
+  );
+  const dragging = useStore((state) => state.draggingAllocationId !== null);
+  useEffect(() => {
+    if (!dragging && scrollRef.current) {
+      setScrollTop(scrollRef.current.scrollTop);
+      setLeftEdgeIndex(geometry.indexAtScroll(scrollRef.current.scrollLeft));
+    }
+  }, [dragging, geometry, scrollRef, setLeftEdgeIndex, setScrollTop]);
+}
+
+function useVisibleStartDate(input: ViewportScrollingInput) {
+  const { scrollRef, geometry, days, ui } = input;
+  return useCallback((): ISODate => {
+    const element = scrollRef.current;
+    return (element ? resolveLeftEdgeDate(geometry, days, element.scrollLeft) : days[0]) ?? ui.originDate;
+  }, [geometry, days, ui.originDate, scrollRef]);
+}
+
+function useViewportScrolling(input: ViewportScrollingInput) {
+  const {
+    scrollRef,
+    scrollRafRef,
+    snapTimerRef,
+    previousScrollLeftRef,
+    geometry,
+    days,
+    snapToWeekStart,
+    calendarWeekStartsOn,
+    setScrollTop,
+    setLeftEdgeIndex,
+  } = input;
+  const onScroll = useCallback(() => {
+    const current = scrollRef.current;
+    if (current) publishScrollLeft(current);
+    if (scrollRafRef.current) return;
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = 0;
+      const element = scrollRef.current;
+      if (!element) return;
+      setScrollTop(element.scrollTop);
+      const horizontalChanged = previousScrollLeftRef.current !== element.scrollLeft;
+      previousScrollLeftRef.current = element.scrollLeft;
+      if (useStore.getState().draggingAllocationId !== null || !horizontalChanged) return;
+      setLeftEdgeIndex(geometry.indexAtScroll(element.scrollLeft));
+      if (!snapToWeekStart) return;
+      clearTimeout(snapTimerRef.current);
+      snapTimerRef.current = window.setTimeout(() => {
+        const node = scrollRef.current;
+        if (!node || useStore.getState().draggingAllocationId !== null) return;
+        const target = resolveWeekStartSnapTarget({
+          geom: geometry,
+          days,
+          scrollLeft: node.scrollLeft,
+          weekStartsOn: calendarWeekStartsOn,
+        });
+        if (target !== null) setScrollLeft(node, target);
+      }, WEEK_SNAP_IDLE_MS);
+    });
+  }, [
+    geometry,
+    days,
+    snapToWeekStart,
+    calendarWeekStartsOn,
+    previousScrollLeftRef,
+    scrollRafRef,
+    scrollRef,
+    setLeftEdgeIndex,
+    setScrollTop,
+    snapTimerRef,
+  ]);
+  useSettledScrollState(input);
+  const readVisibleStartDate = useVisibleStartDate(input);
+  return { onScroll, readVisibleStartDate };
+}
+
+interface ViewportProtocolInput extends ViewportAlignmentInput {
+  snapToWeekStart: boolean;
+  setScrollTop: Dispatch<SetStateAction<number>>;
+  setLeftEdgeIndex: Dispatch<SetStateAction<number>>;
+}
+
+function useViewportProtocol(input: ViewportProtocolInput) {
+  const previousScrollLeftRef = useViewportAlignment(input);
+  return useViewportScrolling({ ...input, previousScrollLeftRef });
+}
+
 /**
  * Owns the scheduler's DOM viewport protocol: measurement, column geometry,
  * horizontal date anchoring, vertical scroll state and idle week snapping.
@@ -43,222 +329,35 @@ export function useSchedulerViewport({
 }: SchedulerViewportOptions) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
-  const didScroll = useRef(false);
-  const scrollRaf = useRef(0);
-  const snapTimer = useRef(0);
-  const [stickyHeaderHeight, setStickyHeaderHeight] = useState(LAYOUT.headerHeight);
-  const [timelineWidth, setTimelineWidth] = useState(0);
-  const [timelineHeight, setTimelineHeight] = useState(0);
-  const [rootFontSizePx, setRootFontSizePx] = useState(16);
+  const didScrollRef = useRef(false);
+  const scrollRafRef = useRef(0);
+  const snapTimerRef = useRef(0);
+  const stickyHeaderHeight = useStickyHeaderHeight(headerRef);
+  const { timelineWidth, timelineHeight, rootFontSizePx } = useTimelineMeasurements(scrollRef);
   const [scrollTop, setScrollTop] = useState(0);
   const [leftEdgeIndex, setLeftEdgeIndex] = useState(-1);
 
-  // Measure before paint so remounting the schedule never flashes fallback geometry.
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    let measuredWidth = -1;
-    let measuredHeight = -1;
-    let measuredRootFontSize = -1;
-    const readMeasurements = () => ({
-      width: el.clientWidth,
-      height: el.clientHeight,
-      rootFontSize: parseFloat(getComputedStyle(document.documentElement).fontSize) || 16,
-    });
-    const measure = () => {
-      const { width, height, rootFontSize } = readMeasurements();
-      if (width !== measuredWidth) {
-        measuredWidth = width;
-        setTimelineWidth(width);
-      }
-      if (height !== measuredHeight) {
-        measuredHeight = height;
-        setTimelineHeight(height);
-      }
-      if (rootFontSize !== measuredRootFontSize) {
-        measuredRootFontSize = rootFontSize;
-        setRootFontSizePx(rootFontSize);
-      }
-    };
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    let resizeTimer = 0;
-    const onResize = () => {
-      // ResizeObserver always reports once after observe(), even though the synchronous measure
-      // above already captured that geometry. Firefox can deliver a deferred callback for that
-      // redundant notification while React is replaying layout effects in development Strict
-      // Mode, so do not schedule (or dispatch state for) unchanged dimensions.
-      const { width, height, rootFontSize } = readMeasurements();
-      if (width === measuredWidth && height === measuredHeight && rootFontSize === measuredRootFontSize) return;
-      clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(measure, 0);
-    };
-    const observer = new ResizeObserver(onResize);
-    observer.observe(el);
-    return () => {
-      clearTimeout(resizeTimer);
-      observer.disconnect();
-    };
-  }, []);
+  const { start, end, days, dayWidth, geometry } = useViewportGeometry({
+    ui,
+    minimiseWeekends,
+    timelineWidth,
+    rootFontSizePx,
+  });
 
-  // AllocationBar uses the measured sticky height as its focus-obscuring margin.
-  useLayoutEffect(() => {
-    const el = headerRef.current;
-    if (!el) return;
-    let measuredHeight = -1;
-    const measure = () => {
-      const height = el.offsetHeight || LAYOUT.headerHeight;
-      if (height === measuredHeight) return;
-      measuredHeight = height;
-      setStickyHeaderHeight(height);
-    };
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    let resizeTimer = 0;
-    const onResize = () => {
-      const height = el.offsetHeight || LAYOUT.headerHeight;
-      if (height === measuredHeight) return;
-      clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(measure, 0);
-    };
-    const observer = new ResizeObserver(onResize);
-    observer.observe(el);
-    return () => {
-      clearTimeout(resizeTimer);
-      observer.disconnect();
-    };
-  }, []);
-
-  const availableWidth = (timelineWidth || FALLBACK_TIMELINE_WIDTH) - LAYOUT.leftColWidth;
-  const weekendWidth = Math.round(WEEKEND_COLUMN_REM * rootFontSizePx);
-  const uniformFit = resolveColumnFit(availableWidth, ui.zoom);
-  const fit =
-    minimiseWeekends && uniformFit.dayWidth > weekendWidth
-      ? resolveColumnFit(availableWidth, ui.zoom, weekendWidth)
-      : uniformFit;
-  const dayWidth = fit.dayWidth;
-  const { start, end } = buildVisibleRange(ui);
-  const days = useMemo(() => eachDayISO(start, end), [start, end]);
-  const geometry = useMemo(
-    () =>
-      buildColumnGeometry(days, dayWidth, {
-        minimiseWeekends,
-        weekendWidth,
-        targetWeekWidth: fit.weekWidth,
-      }),
-    [days, dayWidth, minimiseWeekends, weekendWidth, fit.weekWidth],
-  );
-
-  const focusX = geometry.xForDateInGeom(ui.focusDate);
-  const focusXRef = useRef(focusX);
-  const previousScrollLeftRef = useRef<number | null>(null);
-  // Recenter consumes this ref in a later layout effect from the same commit. Update it here,
-  // before that consumer runs, so a simultaneous origin/focus/token change cannot use the prior
-  // geometry's offset. Keeping the ref avoids making ordinary geometry changes trigger recentering.
-  useLayoutEffect(() => {
-    focusXRef.current = focusX;
-  }, [focusX]);
-
-  const previousGeometryRef = useRef(geometry);
-  const previousDaysRef = useRef(days);
-  const previousZoomRef = useRef(ui.zoom);
-  const previousRecenterRef = useRef(ui.recenterToken);
-  useLayoutEffect(() => {
-    if (scrollRaf.current) {
-      cancelAnimationFrame(scrollRaf.current);
-      scrollRaf.current = 0;
-    }
-    clearTimeout(snapTimer.current);
-    snapTimer.current = 0;
-
-    const previousGeom = previousGeometryRef.current;
-    const previousDays = previousDaysRef.current;
-    const previousZoom = previousZoomRef.current;
-    const previousRecenter = previousRecenterRef.current;
-    previousGeometryRef.current = geometry;
-    previousDaysRef.current = days;
-    previousZoomRef.current = ui.zoom;
-    previousRecenterRef.current = ui.recenterToken;
-
-    const el = scrollRef.current;
-    if (!el || !didScroll.current || previousGeom === geometry || previousGeom.totalWidth <= 0) return;
-    if (ui.recenterToken !== previousRecenter) return;
-
-    const leftDate = resolveLeftEdgeDate(previousGeom, days, el.scrollLeft);
-    if (leftDate === undefined) return;
-    const navigationChanged = ui.zoom !== previousZoom || days !== previousDays;
-    const targetDate = navigationChanged ? startOfWeekISO(leftDate, calendarWeekStartsOn) : leftDate;
-    setScrollLeft(el, Math.max(0, geometry.xForDateInGeom(targetDate)));
-  }, [geometry, days, ui.zoom, ui.recenterToken, calendarWeekStartsOn]);
-
-  useEffect(() => {
-    if (didScroll.current || !scrollRef.current || timelineWidth === 0) return;
-    setScrollLeft(scrollRef.current, focusXRef.current);
-    didScroll.current = true;
-  }, [timelineWidth]);
-
-  useLayoutEffect(() => {
-    if (ui.recenterToken === 0 || !scrollRef.current) return;
-    setScrollLeft(scrollRef.current, focusXRef.current);
-  }, [ui.recenterToken]);
-
-  const onScroll = useCallback(() => {
-    const current = scrollRef.current;
-    if (current) publishScrollLeft(current);
-    if (scrollRaf.current) return;
-    scrollRaf.current = requestAnimationFrame(() => {
-      scrollRaf.current = 0;
-      const el = scrollRef.current;
-      if (!el) return;
-      // Vertical windowing follows the viewport during a drag so newly visible rows can become
-      // drop targets. SchedulerGrid separately pins the source row to keep gesture ownership.
-      setScrollTop(el.scrollTop);
-      const horizontalChanged = previousScrollLeftRef.current !== el.scrollLeft;
-      previousScrollLeftRef.current = el.scrollLeft;
-      // Horizontal state and idle snapping remain frozen until the drag ends: changing the date
-      // geometry underneath a pointer gesture would change its meaning mid-flight.
-      if (useStore.getState().draggingAllocationId !== null || !horizontalChanged) return;
-      // indexAtScroll, not indexAt: it owns the HiDPI sub-pixel rounding every scroll-position
-      // read needs (see its doc comment / resolveWeekStartSnapTarget.ts's "SUB-PIXEL ROUNDING" note).
-      setLeftEdgeIndex(geometry.indexAtScroll(el.scrollLeft));
-
-      if (!snapToWeekStart) return;
-      clearTimeout(snapTimer.current);
-      snapTimer.current = window.setTimeout(() => {
-        const node = scrollRef.current;
-        if (!node || useStore.getState().draggingAllocationId !== null) return;
-        const target = resolveWeekStartSnapTarget({
-          geom: geometry,
-          days,
-          scrollLeft: node.scrollLeft,
-          weekStartsOn: calendarWeekStartsOn,
-        });
-        if (target !== null) setScrollLeft(node, target);
-      }, WEEK_SNAP_IDLE_MS);
-    });
-  }, [geometry, days, snapToWeekStart, calendarWeekStartsOn]);
-
-  useEffect(
-    () => () => {
-      if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current);
-      clearTimeout(snapTimer.current);
-    },
-    [],
-  );
-
-  const dragging = useStore((state) => state.draggingAllocationId !== null);
-  useEffect(() => {
-    if (!dragging && scrollRef.current) {
-      setScrollTop(scrollRef.current.scrollTop);
-      setLeftEdgeIndex(geometry.indexAtScroll(scrollRef.current.scrollLeft));
-    }
-  }, [dragging, geometry]);
-
-  const readVisibleStartDate = useCallback((): ISODate => {
-    const el = scrollRef.current;
-    // Unmeasured container (jsdom / before first paint) → the window's first day, as before.
-    return (el ? resolveLeftEdgeDate(geometry, days, el.scrollLeft) : days[0]) ?? ui.originDate;
-  }, [geometry, days, ui.originDate]);
+  const { onScroll, readVisibleStartDate } = useViewportProtocol({
+    scrollRef,
+    didScrollRef,
+    scrollRafRef,
+    snapTimerRef,
+    geometry,
+    days,
+    ui,
+    snapToWeekStart,
+    calendarWeekStartsOn,
+    setScrollTop,
+    setLeftEdgeIndex,
+    timelineWidth,
+  });
 
   return {
     scrollRef,

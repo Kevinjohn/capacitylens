@@ -17,7 +17,7 @@ describe("auditWarning", () => {
       announceAuditWarning();
       expect(listener).toHaveBeenCalledOnce();
       expect(listener.mock.calls[0]?.[0]).toBeInstanceOf(Event);
-      expect(listener.mock.calls[0]?.[0].type).toBe(AUDIT_WARNING_EVENT);
+      expect((listener.mock.calls[0]?.[0] as Event).type).toBe(AUDIT_WARNING_EVENT);
     } finally {
       globalThis.removeEventListener(AUDIT_WARNING_EVENT, listener);
     }

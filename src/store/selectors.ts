@@ -124,8 +124,11 @@ export interface DisciplineGroup {
 /** Canonical scheduler discipline ordering: by sortOrder, then name as a stable tiebreak.
  *  The management list is independently alphabetical because scanning and planning are different
  *  surfaces; keep this ordering on the scheduler path. */
-export const byDisciplineOrder = (a: Discipline, b: Discipline): number =>
-  a.sortOrder - b.sortOrder || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+export const byDisciplineOrder = (a: Discipline, b: Discipline): number => {
+  const orderDifference = a.sortOrder - b.sortOrder;
+  if (orderDifference !== 0 || a.name === b.name) return orderDifference;
+  return a.name < b.name ? -1 : 1;
+};
 
 /** The trailing external / 3rd-party band (neutral, always last), or null when there are none. The
  *  ONE source for the partition so the disciplines-on (here) and disciplines-off (schedulerModel)

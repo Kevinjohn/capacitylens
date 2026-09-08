@@ -11,6 +11,57 @@ import { useStore } from "../../store/useStore";
 import { DateField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
 import { FieldError } from "../ui/field";
 
+type ClosureFormFieldsProps = {
+  name: string;
+  onNameChange: (value: string) => void;
+  startDate: string;
+  onStartDateChange: (value: string) => void;
+  endDate: string;
+  onEndDateChange: (value: string) => void;
+  error: string | null;
+  errorField: string | null;
+  errorId: string;
+};
+
+function ClosureFormFields(props: ClosureFormFieldsProps) {
+  return (
+    <>
+      <TextField
+        label={m.form_closure_name_label()}
+        value={props.name}
+        onChange={props.onNameChange}
+        autoFocus
+        required
+        invalid={props.errorField === "name"}
+        describedById={props.errorId}
+        layout="label-control"
+      />
+      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+        <DateField
+          label={m.form_closure_start_label()}
+          value={props.startDate}
+          onChange={props.onStartDateChange}
+          required
+          invalid={props.errorField === "dates"}
+          describedById={props.errorId}
+        />
+        <DateField
+          label={m.form_closure_end_label()}
+          value={props.endDate}
+          onChange={props.onEndDateChange}
+          required
+          invalid={props.errorField === "dates"}
+          describedById={props.errorId}
+        />
+      </div>
+      <FieldError id={props.errorId} tabIndex={props.error && props.errorField === null ? -1 : undefined}>
+        {props.error}
+      </FieldError>
+      <RequiredLegend />
+    </>
+  );
+}
+
 export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: () => void }) {
   const add = useStore((state) => state.addClosure);
   const update = useStore((state) => state.updateClosure);
@@ -60,38 +111,17 @@ export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: 
       onEdit={clear}
       footer={<FormActions onCancel={onClose} />}
     >
-      <TextField
-        label={m.form_closure_name_label()}
-        value={name}
-        onChange={setName}
-        autoFocus
-        required
-        invalid={errorField === "name"}
-        describedById={errorId}
-        layout="label-control"
+      <ClosureFormFields
+        name={name}
+        onNameChange={setName}
+        startDate={startDate}
+        onStartDateChange={setStartDate}
+        endDate={endDate}
+        onEndDateChange={setEndDate}
+        error={error}
+        errorField={errorField}
+        errorId={errorId}
       />
-      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
-        <DateField
-          label={m.form_closure_start_label()}
-          value={startDate}
-          onChange={setStartDate}
-          required
-          invalid={errorField === "dates"}
-          describedById={errorId}
-        />
-        <DateField
-          label={m.form_closure_end_label()}
-          value={endDate}
-          onChange={setEndDate}
-          required
-          invalid={errorField === "dates"}
-          describedById={errorId}
-        />
-      </div>
-      <FieldError id={errorId} tabIndex={error && errorField === null ? -1 : undefined}>
-        {error}
-      </FieldError>
-      <RequiredLegend />
     </Modal>
   );
 }

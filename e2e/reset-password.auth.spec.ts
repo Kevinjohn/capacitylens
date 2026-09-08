@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect, type APIRequestContext } from "./fixtures";
 import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
@@ -17,88 +17,83 @@ const STAMP = Date.now();
 const OWNER = `reset-owner-${STAMP}@capacitylens.dev`;
 const MEMBER = `reset-member-${STAMP}@capacitylens.dev`;
 
-test.describe("password reset link (SMALLSASS_ACCOUNT_MODE=password)", () => {
-  test("admin mints a reset link in Team & access; the locked-out member sets a new password with it", async ({
-    page,
-    request,
-  }) => {
-    // ---- API setup: owner + org + member B joined as editor (invite consumed via the API). ----
-    // B's sign-up is independent of the owner/org/invite chain below (it only needs its own email),
-    // so start it in parallel rather than after the chain that doesn't feed it.
-    const memberPromise = signUpUser(MEMBER);
-    const ownerCookie = (await signUpUser(OWNER)).cookie;
-    const accountId = await bootstrapOrg(request, ownerCookie, `Reset Studio ${STAMP}`);
-
-    const inviteRes = await request.post(`${API}/api/invites`, {
-      headers: { cookie: ownerCookie },
-      data: { accountId, role: "editor" },
-    });
-    expect(inviteRes.status()).toBe(201);
-    const inviteToken = (await inviteRes.json()).token as string;
-
-    const memberCookie = (await memberPromise).cookie;
-    const joined = await request.post(`${API}/api/invites/${inviteToken}/accept`, {
-      headers: { cookie: memberCookie },
-    });
-    expect(joined.status()).toBe(200);
-
-    // ---- Browser, as the OWNER: mint the reset link from Team & access. ----
-    await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-    await page.getByLabel("Email").fill(OWNER);
-    await page.getByLabel("Password").fill(PASSWORD);
-    await page.getByRole("button", { name: "Sign in" }).click();
-
-    // Pick the freshly-bootstrapped company, dismiss the first-entry intro (the members.auth idiom).
-    await page.getByRole("button", { name: `Reset Studio ${STAMP}`, exact: true }).click();
-    await page.getByTestId("intro-continue").click();
-
-    await page.getByRole("link", { name: "Team & access" }).click();
-    await expect(page.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
-    const memberRow = page.getByTestId("member-row").filter({ hasText: MEMBER });
-    await expect(memberRow).toBeVisible();
-    // #175 moved the per-member actions behind the row's gear menu.
-    await memberRow.getByTestId("member-menu").click();
-    await page.getByTestId("member-reset-password").click();
-    await page
-      .getByRole("alertdialog", { name: "Create password-reset link?" })
-      .getByRole("button", { name: "Reset password" })
-      .click();
-
-    // The write-once reset-link block: shown exactly once, straight from the create response.
-    const linkEl = page.getByTestId("reset-link");
-    await expect(linkEl).toContainText("/reset-password/");
-    const resetLink = (await linkEl.textContent())?.trim() ?? "";
-
-    // ---- Browser, signed OUT (fresh context state via a plain goto after clearing cookies):
-    // the member opens the link WITHOUT a session — the page must render, not the login wall. ----
-    await page.context().clearCookies();
-    await page.goto(resetLink);
-    await expect(page.getByRole("heading", { name: "Reset password" })).toBeVisible();
-    await page.getByTestId("reset-new-password").fill(NEW_PASSWORD);
-    await page.getByTestId("reset-confirm-password").fill(NEW_PASSWORD);
-    await page.getByTestId("reset-submit").click();
-    await expect(page.getByTestId("reset-success")).toBeVisible();
-
-    // "Go to sign in" is a full page load that lands on the login wall; the NEW password works.
-    await page.getByRole("link", { name: "Go to sign in" }).click();
-    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-    await page.getByLabel("Email").fill(MEMBER);
-    await page.getByLabel("Password").fill(NEW_PASSWORD);
-    await page.getByRole("button", { name: "Sign in" }).click();
-    // Signed in with the NEW password: the member lands on their company picker, not the wall.
-    await expect(page.getByRole("button", { name: `Reset Studio ${STAMP}`, exact: true })).toBeVisible();
-
-    // ---- API-layer teeth: the OLD password is dead, and the token was single-use. ----
-    const oldSignIn = await request.post(`${API}/api/auth/sign-in/email`, {
-      data: { email: MEMBER, password: PASSWORD },
-    });
-    expect(oldSignIn.status()).toBe(401);
-
-    const reuseToken = resetLink.split("/reset-password/")[1];
-    const reuse = await request.post(`${API}/api/auth/reset-password`, {
-      data: { newPassword: "attacker-password-789", token: reuseToken },
-    });
-    expect(reuse.status()).toBe(400);
+async function setupResetScenario(request: APIRequestContext) {
+  const memberPromise = signUpUser(MEMBER);
+  const ownerCookie = (await signUpUser(OWNER)).cookie;
+  const accountId = await bootstrapOrg(request, ownerCookie, `Reset Studio ${STAMP}`);
+  const inviteRes = await request.post(`${API}/api/invites`, {
+    headers: { cookie: ownerCookie },
+    data: { accountId, role: "editor" },
   });
+  expect(inviteRes.status()).toBe(201);
+  const inviteToken = (await inviteRes.json()).token as string;
+  const memberCookie = (await memberPromise).cookie;
+  const joined = await request.post(`${API}/api/invites/${inviteToken}/accept`, { headers: { cookie: memberCookie } });
+  expect(joined.status()).toBe(200);
+}
+
+test("admin mints a reset link in Team & access; the locked-out member sets a new password with it", async ({
+  page,
+  request,
+}) => {
+  await setupResetScenario(request);
+
+  // ---- Browser, as the OWNER: mint the reset link from Team & access. ----
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  await page.getByLabel("Email").fill(OWNER);
+  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  // Pick the freshly-bootstrapped company, dismiss the first-entry intro (the members.auth idiom).
+  await page.getByRole("button", { name: `Reset Studio ${STAMP}`, exact: true }).click();
+  await page.getByTestId("intro-continue").click();
+
+  await page.getByRole("link", { name: "Team & access" }).click();
+  await expect(page.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
+  const memberRow = page.getByTestId("member-row").filter({ hasText: MEMBER });
+  await expect(memberRow).toBeVisible();
+  // #175 moved the per-member actions behind the row's gear menu.
+  await memberRow.getByTestId("member-menu").click();
+  await page.getByTestId("member-reset-password").click();
+  await page
+    .getByRole("alertdialog", { name: "Create password-reset link?" })
+    .getByRole("button", { name: "Reset password" })
+    .click();
+
+  // The write-once reset-link block: shown exactly once, straight from the create response.
+  const linkEl = page.getByTestId("reset-link");
+  await expect(linkEl).toContainText("/reset-password/");
+  const resetLink = (await linkEl.textContent())?.trim() ?? "";
+
+  // ---- Browser, signed OUT (fresh context state via a plain goto after clearing cookies):
+  // the member opens the link WITHOUT a session — the page must render, not the login wall. ----
+  await page.context().clearCookies();
+  await page.goto(resetLink);
+  await expect(page.getByRole("heading", { name: "Reset password" })).toBeVisible();
+  await page.getByTestId("reset-new-password").fill(NEW_PASSWORD);
+  await page.getByTestId("reset-confirm-password").fill(NEW_PASSWORD);
+  await page.getByTestId("reset-submit").click();
+  await expect(page.getByTestId("reset-success")).toBeVisible();
+
+  // "Go to sign in" is a full page load that lands on the login wall; the NEW password works.
+  await page.getByRole("link", { name: "Go to sign in" }).click();
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  await page.getByLabel("Email").fill(MEMBER);
+  await page.getByLabel("Password").fill(NEW_PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  // Signed in with the NEW password: the member lands on their company picker, not the wall.
+  await expect(page.getByRole("button", { name: `Reset Studio ${STAMP}`, exact: true })).toBeVisible();
+
+  // ---- API-layer teeth: the OLD password is dead, and the token was single-use. ----
+  const oldSignIn = await request.post(`${API}/api/auth/sign-in/email`, {
+    data: { email: MEMBER, password: PASSWORD },
+  });
+  expect(oldSignIn.status()).toBe(401);
+
+  const reuseToken = resetLink.split("/reset-password/")[1];
+  const reuse = await request.post(`${API}/api/auth/reset-password`, {
+    data: { newPassword: "attacker-password-789", token: reuseToken },
+  });
+  expect(reuse.status()).toBe(400);
 });

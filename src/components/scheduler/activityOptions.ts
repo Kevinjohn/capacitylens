@@ -25,6 +25,18 @@ function resolveGroupOrder(groupKey: Option["groupKey"]): number {
   return groupKey === "all-projects" ? 0 : 1;
 }
 
+function resolveDuplicateContext(
+  activity: Activity,
+  phaseById: ReadonlyMap<string, string>,
+  projectNamesById: ReadonlyMap<string, string>,
+): string {
+  const phaseName = activity.phaseId ? phaseById.get(activity.phaseId) : undefined;
+  if (phaseName !== undefined) return phaseName;
+  if (activity.kind === "internal") return m.form_activity_kind_internal();
+  if (activity.kind === "repeatable") return m.form_activity_kind_repeatable();
+  return projectNamesById.get(activity.projectId ?? "") ?? "Project";
+}
+
 export function sortGroupedOptions(options: readonly Option[]): Option[] {
   return options.toSorted((left, right) => {
     return (
@@ -57,13 +69,7 @@ export function buildActivityOptions({
     if (nameCountsByName.get(activity.name) === 1) {
       return { activity, kind: activity.kind, baseLabel: activity.name };
     }
-    const context =
-      (activity.phaseId ? phaseById.get(activity.phaseId) : undefined) ??
-      (activity.kind === "internal"
-        ? m.form_activity_kind_internal()
-        : activity.kind === "repeatable"
-          ? m.form_activity_kind_repeatable()
-          : (projectNamesById.get(activity.projectId ?? "") ?? "Project"));
+    const context = resolveDuplicateContext(activity, phaseById, projectNamesById);
     return { activity, kind: activity.kind, baseLabel: `${activity.name} / ${context}` };
   });
 

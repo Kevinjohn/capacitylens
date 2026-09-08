@@ -216,7 +216,9 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
     );
     expect(JSON.stringify(events)).not.toContain(TOKEN);
   });
+});
 
+describe("CAPACITYLENS_LOG query redaction", () => {
   it("redacts secret query parameters while preserving ordinary query state", async () => {
     const { lines, stream } = createLogCapture();
     const app = createApp(openDb(":memory:"), { log: true, logStream: stream });

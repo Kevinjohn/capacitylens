@@ -57,7 +57,9 @@ describe("teamAccessClient identity validation", () => {
       });
     },
   );
+});
 
+describe("teamAccessClient directory validation", () => {
   it("defaults absent additive fields and contains unsupported rows", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(accountClient, "listMembers").mockResolvedValue(
@@ -104,7 +106,9 @@ describe("teamAccessClient identity validation", () => {
       expect.objectContaining({ userId: "future-user" }),
     );
   });
+});
 
+describe("teamAccessClient invitation defaults", () => {
   it("defaults an absent invitation preauthorization email and preserves valid peers", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(accountClient, "listInvitations").mockResolvedValue(
@@ -133,7 +137,9 @@ describe("teamAccessClient identity validation", () => {
       value: [{ id: "legacy-invite", preauthEmail: null }],
     });
   });
+});
 
+describe("teamAccessClient invitation validation", () => {
   it.each(["2026-02-30T10:00:00.000Z", "0", "2026-08-27", "2026-08-27T11:00:00.000+01:00"])(
     "rejects a non-canonical invitation timestamp: %s",
     async (expiresAt) => {
@@ -156,7 +162,9 @@ describe("teamAccessClient identity validation", () => {
       await expect(teamAccessClient.listInvitations("account-1")).resolves.toMatchObject({ kind: "invalid" });
     },
   );
+});
 
+describe("teamAccessClient duplicate validation", () => {
   it("rejects duplicate member identities", async () => {
     const member = {
       userId: "user-1",

@@ -13,7 +13,7 @@ import {
   INTERNAL_CLIENT_COLOR,
   INTERNAL_CLIENT_NAME,
 } from "../data/internalClient";
-import { notInAccount } from "./tenancy";
+import { belongsToAccount } from "./tenancy";
 import { obfuscateResource } from "./lifecycle";
 import { isExternalResource, SCOPED_KEYS, scopedTables } from "../types/entities";
 import type {
@@ -275,7 +275,7 @@ function finishImport(input: ImportInput, brought: ImportTables, prepared: Prepa
   let imported = 0;
   for (const key of SCOPED_KEYS) {
     destination[key] = [
-      ...source[key].filter(notInAccount(input.accountId)),
+      ...source[key].filter((scopedEntity) => !belongsToAccount(scopedEntity, input.accountId)),
       ...(brought[key] as unknown as ScopedEntity[]),
     ];
     imported += countable(key, brought[key]);

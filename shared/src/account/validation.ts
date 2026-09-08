@@ -28,6 +28,29 @@ function hasBoundedNameShape(value: unknown): value is string {
   );
 }
 
+function hasPasswordContextWordShape(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    !hasDisallowedChars(value) &&
+    passwordCharacterCount(value) <= MAX_PASSWORD_LENGTH
+  );
+}
+
+function hasBrandingShape(value: unknown): value is BoundApplication["branding"] {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const branding = value as Record<string, unknown>;
+  const passwordContextWords = branding.passwordContextWords;
+  return (
+    hasBoundedNameShape(branding.totpIssuer) &&
+    hasBoundedNameShape(branding.defaultProviderLabel) &&
+    Array.isArray(passwordContextWords) &&
+    passwordContextWords.length > 0 &&
+    passwordContextWords.length <= MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS &&
+    passwordContextWords.every(hasPasswordContextWordShape)
+  );
+}
+
 /** Validate the reconciliation handle for one account command. */
 export function isAccountCommandId(value: unknown): value is string {
   return hasOpaqueCredentialShape(value);
@@ -75,24 +98,7 @@ function inspectBoundApplication(application: unknown): string | null {
   if (!hasBoundedNameShape(candidate.displayName)) {
     return `The account application display name must be 1–${MAX_NAME_LENGTH} characters.`;
   }
-  const branding = candidate.branding;
-  if (
-    typeof branding !== "object" ||
-    branding === null ||
-    Array.isArray(branding) ||
-    !hasBoundedNameShape(branding.totpIssuer) ||
-    !hasBoundedNameShape(branding.defaultProviderLabel) ||
-    !Array.isArray(branding.passwordContextWords) ||
-    branding.passwordContextWords.length === 0 ||
-    branding.passwordContextWords.length > MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS ||
-    Array.from(branding.passwordContextWords).some(
-      (word) =>
-        typeof word !== "string" ||
-        !word.trim() ||
-        hasDisallowedChars(word) ||
-        passwordCharacterCount(word) > MAX_PASSWORD_LENGTH,
-    )
-  ) {
+  if (!hasBrandingShape(candidate.branding)) {
     return `Account branding must define a TOTP issuer and provider label of at most ${MAX_NAME_LENGTH} characters, plus 1–${MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS} non-empty password context words of at most ${MAX_PASSWORD_LENGTH} characters each.`;
   }
   return null;

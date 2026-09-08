@@ -81,7 +81,9 @@ describe("MasqueradeRegistry", () => {
     expect(handles).toEqual(["session-1", "session-2"]);
     expect(registry.listSessionHandlesForUser("user-1")).toEqual(["session-2"]);
   });
+});
 
+describe("MasqueradeRegistry lifecycle cleanup", () => {
   it("retains a prepared end until the surrounding session transaction commits", () => {
     const registry = new MasqueradeRegistry();
     registry.start(record({ expiresAt: "2026-09-01T22:00:00.000Z" }), () => undefined);

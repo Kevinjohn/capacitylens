@@ -118,7 +118,8 @@ describe("P2.7 privacy posture — no analytics/telemetry/email vendor dependenc
   });
 
   it.each(MANIFEST_PATHS)("%s declares no denylisted dependency", (relPath) => {
-    const manifest = manifests.find((m) => m.name === relPath)!;
+    const manifest = manifests.find((m) => m.name === relPath);
+    if (manifest === undefined) throw new Error(`Missing manifest fixture for ${relPath}`);
     for (const dep of manifest.deps) {
       // EXACT-name match only — DENYSET.has, never substring.
       expect(DENYSET.has(dep), `${relPath} declares denylisted dependency "${dep}"`).toBe(false);

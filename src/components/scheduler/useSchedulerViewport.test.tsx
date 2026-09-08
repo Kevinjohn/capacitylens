@@ -38,29 +38,35 @@ function Harness({
   );
 }
 
+function setupViewport() {
+  Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 1200 });
+  Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get: () => 600 });
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    callback(0);
+    return 1;
+  });
+  useStore.setState((state) => ({
+    ui: {
+      ...state.ui,
+      originDate: "2026-06-01",
+      focusDate: "2026-06-01",
+      zoom: 1,
+      rangeDays: 120,
+      collapsedGroups: [],
+    },
+    draggingAllocationId: null,
+  }));
+}
+
+function teardownViewport() {
+  vi.restoreAllMocks();
+  delete (HTMLElement.prototype as unknown as { clientWidth?: number }).clientWidth;
+  delete (HTMLElement.prototype as unknown as { clientHeight?: number }).clientHeight;
+}
+
 describe("useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding", () => {
-  let rafSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 1200 });
-    Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get: () => 600 });
-    // Run the onScroll rAF synchronously so its body executes within the dispatched scroll event
-    // (same trick as SchedulerGrid.test.tsx's snap-to-week-start suite).
-    rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
-      cb(0);
-      return 1;
-    });
-    useStore.setState((st) => ({
-      ui: { ...st.ui, originDate: "2026-06-01", focusDate: "2026-06-01", zoom: 1, rangeDays: 120, collapsedGroups: [] },
-      draggingAllocationId: null,
-    }));
-  });
-
-  afterEach(() => {
-    rafSpy.mockRestore();
-    delete (HTMLElement.prototype as unknown as { clientWidth?: number }).clientWidth;
-    delete (HTMLElement.prototype as unknown as { clientHeight?: number }).clientHeight;
-  });
+  beforeEach(setupViewport);
+  afterEach(teardownViewport);
 
   it("onScroll resolves a scrollLeft fractionally below a column boundary to that column, not the previous one", () => {
     render(<Harness />);
@@ -111,6 +117,11 @@ describe("useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding", () => {
     expect(screen.getByTestId("left-edge-idx").textContent).toBe("3");
     expect(screen.getByTestId("visible-start").textContent).toBe("2026-06-04");
   });
+});
+
+describe("useSchedulerViewport — viewport changes", () => {
+  beforeEach(setupViewport);
+  afterEach(teardownViewport);
 
   it("recenters with the new commit's focus offset after origin and focus change together", () => {
     render(<Harness />);

@@ -588,6 +588,14 @@ describe("listInvitesForAccount", () => {
     expect(listInvitesForAccount(db, "acc-1").map((invitation) => invitation.id)).toEqual(["inv-a", "inv-b", "inv-c"]);
   });
 
+  it("uses code-unit ordering for ids when creation instants tie", () => {
+    const db = freshDb();
+    createInvite(db, invite({ token: "tok-uppercase", id: "inv-Z", createdAt: TS }));
+    createInvite(db, invite({ token: "tok-lowercase", id: "inv-a", createdAt: TS }));
+
+    expect(listInvitesForAccount(db, "acc-1").map((invitation) => invitation.id)).toEqual(["inv-Z", "inv-a"]);
+  });
+
   it("returns an empty array for an account with no invites", () => {
     expect(listInvitesForAccount(freshDb(), "none")).toEqual([]);
   });

@@ -28,6 +28,116 @@ import { createRequestSignal } from "../data/requestTimeout";
 
 type State = { kind: "form" } | { kind: "working" } | { kind: "done" } | { kind: "unknown" } | { kind: "local" }; // the demo build (no server) — password reset is a server-mode feature
 
+interface ResetPasswordViewProps {
+  state: State;
+  password: string;
+  confirm: string;
+  error: string | null;
+  passwordId: string;
+  confirmId: string;
+  errorId: string;
+  setPassword: (value: string) => void;
+  setConfirm: (value: string) => void;
+  submit: (event: FormEvent) => void;
+}
+
+function useResetPasswordTitle() {
+  useEffect(() => {
+    document.title = `${m.reset_title()} · ${APP_NAME}`;
+  }, []);
+}
+
+function validatePasswords(token: string | undefined, password: string, confirm: string) {
+  if (!token) return m.reset_err_missing_token();
+  const lengthFailure = passwordLengthFailure(password);
+  if (lengthFailure === "too-short") return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
+  if (lengthFailure === "too-long") return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
+  if (password !== confirm) return m.reset_err_mismatch();
+  return null;
+}
+
+function ResetPasswordForm(props: ResetPasswordViewProps) {
+  return (
+    <form onSubmit={props.submit} noValidate>
+      <FieldGroup className="gap-3">
+        <Field>
+          <FieldLabel htmlFor={props.passwordId}>{m.reset_new_password()}</FieldLabel>
+          <Input
+            id={props.passwordId}
+            data-testid="reset-new-password"
+            type="password"
+            autoComplete="new-password"
+            value={props.password}
+            onChange={(event) => props.setPassword(event.target.value)}
+            aria-describedby={props.error ? props.errorId : undefined}
+            autoFocus
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={props.confirmId}>{m.reset_confirm_password()}</FieldLabel>
+          <Input
+            id={props.confirmId}
+            data-testid="reset-confirm-password"
+            type="password"
+            autoComplete="new-password"
+            value={props.confirm}
+            onChange={(event) => props.setConfirm(event.target.value)}
+            aria-describedby={props.error ? props.errorId : undefined}
+          />
+        </Field>
+        <FieldError id={props.errorId}>{props.error}</FieldError>
+        <div className="flex justify-end">
+          <Button size="sm" type="submit" data-testid="reset-submit" disabled={props.state.kind === "working"}>
+            {m.reset_submit()}
+          </Button>
+        </div>
+        {props.state.kind === "working" && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {m.reset_working()}
+          </p>
+        )}
+      </FieldGroup>
+    </form>
+  );
+}
+
+function ResetPasswordView(props: ResetPasswordViewProps) {
+  const { state } = props;
+  return (
+    <div className="flex min-h-full items-center justify-center bg-canvas p-6">
+      <main className="w-full max-w-sm">
+        <div className="mb-6 text-center">
+          <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
+          <h1 className="text-lg font-semibold text-ink">{m.reset_title()}</h1>
+          {state.kind !== "done" && state.kind !== "local" && (
+            <p className="text-sm text-muted-foreground">{m.reset_subtitle()}</p>
+          )}
+        </div>
+        <Card className="gap-4 py-4">
+          <CardContent className="px-4">
+            {(state.kind === "form" || state.kind === "working") && <ResetPasswordForm {...props} />}
+            {(state.kind === "done" || state.kind === "unknown") && (
+              <div className="flex flex-col gap-3">
+                <p role="status" data-testid="reset-success" className="text-sm font-medium text-ink">
+                  {state.kind === "done" ? m.reset_success() : m.reset_unknown_outcome()}
+                </p>
+                <div className="flex justify-end">
+                  <Button asChild size="sm">
+                    <a href="/">{m.reset_go_signin()}</a>
+                  </Button>
+                </div>
+              </div>
+            )}
+            {state.kind === "local" && (
+              <p className="text-sm text-muted-foreground">{m.reset_local_mode({ app: APP_NAME })}</p>
+            )}
+          </CardContent>
+        </Card>
+      </main>
+    </div>
+  );
+}
+
 /**
  * Reset-password page for `/reset-password/:token`.
  *
@@ -52,29 +162,13 @@ export function ResetPassword() {
 
   // Per-route document.title (WCAG 2.4.2) — this route renders OUTSIDE AppShell (see router.tsx),
   // so the shell's nav-driven title effect never covers it (the InviteAccept idiom).
-  useEffect(() => {
-    document.title = `${m.reset_title()} · ${APP_NAME}`;
-  }, []);
+  useResetPasswordTitle();
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    // Defensive: the route shape guarantees a token; a hand-mangled URL still gets a clear message.
-    if (!token) {
-      setError(m.reset_err_missing_token());
-      return;
-    }
-    // Pre-checks that save a round trip; the server re-enforces the length on redeem.
-    const lengthFailure = passwordLengthFailure(password);
-    if (lengthFailure === "too-short") {
-      setError(m.reset_err_short({ min: MIN_PASSWORD_LENGTH }));
-      return;
-    }
-    if (lengthFailure === "too-long") {
-      setError(m.reset_err_long({ max: MAX_PASSWORD_LENGTH }));
-      return;
-    }
-    if (password !== confirm) {
-      setError(m.reset_err_mismatch());
+    const validationError = validatePasswords(token, password, confirm);
+    if (validationError) {
+      setError(validationError);
       return;
     }
     setError(null);
@@ -111,79 +205,17 @@ export function ResetPassword() {
   };
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-canvas p-6">
-      <main className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
-          <h1 className="text-lg font-semibold text-ink">{m.reset_title()}</h1>
-          {state.kind !== "done" && state.kind !== "local" && (
-            <p className="text-sm text-muted-foreground">{m.reset_subtitle()}</p>
-          )}
-        </div>
-        <Card className="gap-4 py-4">
-          <CardContent className="px-4">
-            {(state.kind === "form" || state.kind === "working") && (
-              <form onSubmit={(e) => void submit(e)} noValidate>
-                <FieldGroup className="gap-3">
-                  <Field>
-                    <FieldLabel htmlFor={passwordId}>{m.reset_new_password()}</FieldLabel>
-                    <Input
-                      id={passwordId}
-                      data-testid="reset-new-password"
-                      type="password"
-                      autoComplete="new-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      aria-describedby={error ? errorId : undefined}
-                      autoFocus
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor={confirmId}>{m.reset_confirm_password()}</FieldLabel>
-                    <Input
-                      id={confirmId}
-                      data-testid="reset-confirm-password"
-                      type="password"
-                      autoComplete="new-password"
-                      value={confirm}
-                      onChange={(e) => setConfirm(e.target.value)}
-                      aria-describedby={error ? errorId : undefined}
-                    />
-                  </Field>
-                  <FieldError id={errorId}>{error}</FieldError>
-                  <div className="flex justify-end">
-                    <Button size="sm" type="submit" data-testid="reset-submit" disabled={state.kind === "working"}>
-                      {m.reset_submit()}
-                    </Button>
-                  </div>
-                  {state.kind === "working" && (
-                    <p role="status" className="text-sm text-muted-foreground">
-                      {m.reset_working()}
-                    </p>
-                  )}
-                </FieldGroup>
-              </form>
-            )}
-            {(state.kind === "done" || state.kind === "unknown") && (
-              <div className="flex flex-col gap-3">
-                <p role="status" data-testid="reset-success" className="text-sm font-medium text-ink">
-                  {state.kind === "done" ? m.reset_success() : m.reset_unknown_outcome()}
-                </p>
-                <div className="flex justify-end">
-                  {/* A FULL load, deliberately not a router <Link>: there is no session, and a clean
-                    boot is what re-runs AuthProvider's /me check and lands on the login screen. */}
-                  <Button asChild size="sm">
-                    <a href="/">{m.reset_go_signin()}</a>
-                  </Button>
-                </div>
-              </div>
-            )}
-            {state.kind === "local" && (
-              <p className="text-sm text-muted-foreground">{m.reset_local_mode({ app: APP_NAME })}</p>
-            )}
-          </CardContent>
-        </Card>
-      </main>
-    </div>
+    <ResetPasswordView
+      state={state}
+      password={password}
+      confirm={confirm}
+      error={error}
+      passwordId={passwordId}
+      confirmId={confirmId}
+      errorId={errorId}
+      setPassword={setPassword}
+      setConfirm={setConfirm}
+      submit={(event) => void submit(event)}
+    />
   );
 }

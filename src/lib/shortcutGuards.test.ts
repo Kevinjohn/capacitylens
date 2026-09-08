@@ -5,7 +5,7 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-describe("textEntryOwnsShortcut", () => {
+function registerTextEntryShortcutScenarios(): void {
   it("rejects missing targets, generic event targets, and non-element DOM nodes", () => {
     expect(isTextEntryShortcutOwner(null)).toBe(false);
     expect(isTextEntryShortcutOwner(new EventTarget())).toBe(false);
@@ -47,7 +47,9 @@ describe("textEntryOwnsShortcut", () => {
 
     expect(isTextEntryShortcutOwner(child)).toBe(true);
   });
+}
 
+function registerTextEntryBoundaryScenarios(): void {
   it("does not claim a region that explicitly disables content editing", () => {
     const editor = document.createElement("div");
     editor.setAttribute("contenteditable", "false");
@@ -91,6 +93,11 @@ describe("textEntryOwnsShortcut", () => {
 
     expect(isTextEntryShortcutOwner(child)).toBe(true);
   });
+}
+
+describe("textEntryOwnsShortcut", () => {
+  registerTextEntryShortcutScenarios();
+  registerTextEntryBoundaryScenarios();
 });
 
 describe("hasOpenModal", () => {

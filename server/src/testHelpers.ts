@@ -68,7 +68,9 @@ export const call = (app: FastifyInstance, options: InjectOptions): Promise<Ligh
 /** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
 export function readCookies(res: LightMyRequestResponse): string {
   const raw = res.headers["set-cookie"];
-  const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  let list: readonly string[] = [];
+  if (Array.isArray(raw)) list = raw;
+  else if (raw) list = [raw];
   const cookies = new Map<string, string>();
   for (const header of list) {
     const [pair, ...attributes] = String(header).split(";");
@@ -107,5 +109,5 @@ export async function signUp(app: FastifyInstance, email: string): Promise<{ coo
     headers: { cookie },
   });
   expect(me.statusCode).toBe(200);
-  return { cookie, userId: me.json().user.id as string };
+  return { cookie, userId: me.json<{ user: { id: string } }>().user.id };
 }

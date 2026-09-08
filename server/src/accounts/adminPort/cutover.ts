@@ -38,21 +38,16 @@ export function assertAccountControlPlaneCurrent(db: Db): void {
 export function assertAccountControlPlaneSchemaCurrent(db: Db): void {
   assertControlTablesCurrent(db);
 }
-export function createCutover(
-  context: Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa">,
+
+function createCutoverInspection(
+  db: Db,
 ): Pick<
   SsoCutoverAccountAdminPort,
   | "inspectSsoCutoverWorkspaces"
   | "repairOwnerlessWorkspaceInTx"
   | "roleForPrincipalInWorkspace"
   | "workspacePrincipalIds"
-  | "evaluateWorkspaceProvisioningAuthorityInTx"
-  | "provisionOwnerMembershipInTx"
-  | "assertWorkspaceErasureAuthorityInTx"
-  | "eraseWorkspaceAdministrationInTx"
 > {
-  const { db, trustedLocal, requireMfa } = context;
-
   return {
     inspectSsoCutoverWorkspaces(): readonly SsoCutoverWorkspaceFact[] {
       return (
@@ -79,31 +74,17 @@ export function createCutover(
     workspacePrincipalIds(workspaceId) {
       return listMembersForAccount(db, workspaceId).map((row) => row.userId);
     },
-    evaluateWorkspaceProvisioningAuthorityInTx({
-      actor,
-      multiWorkspace,
-      bootstrapAuthorized,
-      projectedWorkspaceCount,
-    }) {
-      const count = Number(
-        (db.prepare(`SELECT COUNT(*) AS count FROM accounts`).get() as { count?: number | bigint } | undefined)
-          ?.count ?? 0,
-      );
-      const effectiveCount = projectedWorkspaceCount ?? count + 1;
-      if (effectiveCount > 1 && !multiWorkspace) {
-        return { allowed: false, reason: "single-workspace-cap" };
-      }
-      if (count === 0 || trustedLocal || bootstrapAuthorized) return { allowed: true };
-      const allowed = [...readActorRolesByWorkspaceId(db, actor.principalId).values()].some((role) =>
-        canAdministerAccount(role, "manage-members"),
-      );
-      if (!allowed) return { allowed: false, reason: "insufficient-authority" };
-      // This arm converts existing account administration into a new Owner grant. Apply the same
-      // step-up boundary as membership and invitation administration after proving the role, so a
-      // lower-privilege caller still receives the ordinary authority refusal.
-      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
-      return { allowed: true };
-    },
+  };
+}
+
+function createCutoverAdministration(
+  context: Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa">,
+): Pick<
+  SsoCutoverAccountAdminPort,
+  "provisionOwnerMembershipInTx" | "assertWorkspaceErasureAuthorityInTx" | "eraseWorkspaceAdministrationInTx"
+> {
+  const { db, trustedLocal, requireMfa } = context;
+  return {
     provisionOwnerMembershipInTx({ workspaceId, principalId, joinedAt }) {
       upsertMember(db, {
         accountId: workspaceId,
@@ -129,6 +110,52 @@ export function createCutover(
         (principalId) =>
           !listMembershipsForUser(db, principalId).some((row) => getRow(db, "accounts", row.accountId) !== null),
       );
+    },
+  };
+}
+
+export function createCutover(
+  context: Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa">,
+): Pick<
+  SsoCutoverAccountAdminPort,
+  | "inspectSsoCutoverWorkspaces"
+  | "repairOwnerlessWorkspaceInTx"
+  | "roleForPrincipalInWorkspace"
+  | "workspacePrincipalIds"
+  | "evaluateWorkspaceProvisioningAuthorityInTx"
+  | "provisionOwnerMembershipInTx"
+  | "assertWorkspaceErasureAuthorityInTx"
+  | "eraseWorkspaceAdministrationInTx"
+> {
+  const { db, trustedLocal, requireMfa } = context;
+
+  return {
+    ...createCutoverInspection(db),
+    ...createCutoverAdministration(context),
+    evaluateWorkspaceProvisioningAuthorityInTx({
+      actor,
+      multiWorkspace,
+      bootstrapAuthorized,
+      projectedWorkspaceCount,
+    }) {
+      const count = Number(
+        (db.prepare(`SELECT COUNT(*) AS count FROM accounts`).get() as { count?: number | bigint } | undefined)
+          ?.count ?? 0,
+      );
+      const effectiveCount = projectedWorkspaceCount ?? count + 1;
+      if (effectiveCount > 1 && !multiWorkspace) {
+        return { allowed: false, reason: "single-workspace-cap" };
+      }
+      if (count === 0 || trustedLocal || bootstrapAuthorized) return { allowed: true };
+      const allowed = [...readActorRolesByWorkspaceId(db, actor.principalId).values()].some((role) =>
+        canAdministerAccount(role, "manage-members"),
+      );
+      if (!allowed) return { allowed: false, reason: "insufficient-authority" };
+      // This arm converts existing account administration into a new Owner grant. Apply the same
+      // step-up boundary as membership and invitation administration after proving the role, so a
+      // lower-privilege caller still receives the ordinary authority refusal.
+      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+      return { allowed: true };
     },
   };
 }

@@ -77,6 +77,12 @@ describe("dateMath", () => {
     // 2024 is a leap year: Feb 28 -> Feb 29 -> Mar 1.
     expect(eachDayISO("2024-02-27", "2024-03-01")).toEqual(["2024-02-27", "2024-02-28", "2024-02-29", "2024-03-01"]);
   });
+});
+
+describe("dateMath range predicates", () => {
+  it("preserves rangesOverlap's public four-argument runtime arity", () => {
+    expect(rangesOverlap.length).toBe(4);
+  });
 
   it("weekdayOf returns 0=Sun … 6=Sat", () => {
     expect(weekdayOf("2026-05-31")).toBe(0); // Sunday
@@ -150,7 +156,9 @@ describe("todayISO", () => {
     expect(() => todayISO(undefined)).not.toThrow();
     expect(todayISO(undefined)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+});
 
+describe("todayISO with a fixed clock", () => {
   describe("with a fixed clock", () => {
     afterEach(() => {
       vi.useRealTimers();
@@ -189,7 +197,9 @@ describe("todayISO", () => {
       expect(todayISO("Pacific/Kiritimati")).not.toBe(todayISO());
     });
   });
+});
 
+describe("todayISO with mocked out-of-range years", () => {
   describe("with a mocked Intl.DateTimeFormat", () => {
     afterEach(() => {
       vi.restoreAllMocks();
@@ -247,7 +257,19 @@ describe("todayISO", () => {
       expect(() => isolated.todayISO("America/New_York")).toThrow(RangeError);
       expect(warnSpy).not.toHaveBeenCalled();
     });
+  });
+});
 
+describe("todayISO formatter caching", () => {
+  describe("with a mocked Intl.DateTimeFormat", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    async function isolatedDateMath() {
+      vi.resetModules();
+      return await import("./dateMath");
+    }
     it("still returns a valid zero-padded ISODate on the normal timezone path", async () => {
       vi.spyOn(Intl, "DateTimeFormat").mockImplementation(function FakeDateTimeFormat() {
         return {
@@ -291,7 +313,9 @@ describe("todayISO", () => {
       expect(zones).toEqual(["America/New_York", "Pacific/Kiritimati"]);
     });
   });
+});
 
+describe("todayISO invalid zones", () => {
   it("warns (not silently) and still returns a valid local date for a malformed IANA zone", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     expect(() => todayISO("Not/AZone")).not.toThrow();
@@ -412,7 +436,9 @@ describe("endDateForWorkingDays", () => {
     expect(endDateForWorkingDays("2026-06-01", 5, [1, 2, 3, 4, 5])).toBe("2026-06-05"); // Fri
     expect(endDateForWorkingDays("2026-06-01", 6, [1, 2, 3, 4, 5])).toBe("2026-06-08"); // next Mon
   });
+});
 
+describe("endDateForWorkingDays edge cases", () => {
   it("skips forward when start is itself a non-working day", () => {
     // 2026-06-06 is a Saturday; the 1st working day at/after it is Mon 2026-06-08.
     expect(endDateForWorkingDays("2026-06-06", 1, [1, 2, 3, 4, 5])).toBe("2026-06-08");

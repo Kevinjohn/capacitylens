@@ -214,6 +214,17 @@ function isExternalIdentityPath(path: string | undefined): boolean {
   return path?.startsWith("/callback/") === true || path?.startsWith("/oauth2/callback/") === true;
 }
 
+function readProviderIdFromExternalContext(context: {
+  path?: string;
+  params?: Record<string, unknown>;
+}): string | undefined {
+  const providerId = context.params?.providerId;
+  if (typeof providerId === "string") return providerId;
+  const id = context.params?.id;
+  if (typeof id === "string") return id;
+  return context.path?.split("/").filter(Boolean).at(-1);
+}
+
 export function parseProviderIdFromExternalContext(
   context:
     | {
@@ -227,8 +238,8 @@ export function parseProviderIdFromExternalContext(
   // Better Auth's database-hook context uses the route template as `path` and carries the concrete
   // provider in params. Older/custom adapters may provide a concrete path instead, so retain that
   // safe fallback while explicitly refusing template placeholders.
-  const parameter = context?.params?.providerId ?? context?.params?.id;
-  const value = typeof parameter === "string" ? parameter : context?.path?.split("/").filter(Boolean).at(-1);
+  if (!context) return null;
+  const value = readProviderIdFromExternalContext(context);
   if (!value || value.startsWith(":")) return null;
   try {
     return decodeURIComponent(value);

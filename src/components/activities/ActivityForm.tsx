@@ -8,7 +8,7 @@ import { isStaleEdit } from "../../lib/isStaleEdit";
 import { m } from "@/i18n";
 import { FormActions, Modal, RequiredLegend, SegmentedField, SelectField, TextField, type Option } from "../common/ui";
 import { FieldError } from "../ui/field";
-import type { Activity, ActivityKind } from "@capacitylens/shared/types/entities";
+import type { Activity, ActivityKind, Client, Project } from "@capacitylens/shared/types/entities";
 import { ACTIVITY_KIND_ORDER } from "./activityKinds";
 
 // Resolved at render (a getter, not a module-scope const) so the labels re-resolve on a locale
@@ -22,76 +22,133 @@ const buildKindOptions = (): { value: ActivityKind; label: string }[] => {
   return ACTIVITY_KIND_ORDER.map((value) => ({ value, label: labels[value] }));
 };
 
+interface ProjectOptionsInput {
+  projects: Project[];
+  clients: Client[];
+  rawProjects?: Project[];
+  rawClients?: Client[];
+  activity?: Activity;
+}
+
+function buildProjectOptions({
+  projects,
+  clients,
+  rawProjects = [],
+  rawClients = [],
+  activity,
+}: ProjectOptionsInput): Option[] {
+  const options = projects.map((project) => {
+    const client = clients.find((candidate) => candidate.id === project.clientId);
+    return { value: project.id, label: client ? `${client.name} / ${project.name}` : project.name };
+  });
+  if (!activity?.projectId || projects.some((project) => project.id === activity.projectId)) return options;
+
+  const rawProject = rawProjects.find((project) => project.id === activity.projectId);
+  const rawClient = rawProject && rawClients.find((client) => client.id === rawProject.clientId);
+  return [
+    ...options,
+    {
+      value: activity.projectId,
+      label: rawProject
+        ? m.list_label_archived({ name: rawClient ? `${rawClient.name} / ${rawProject.name}` : rawProject.name })
+        : m.form_option_current_archived(),
+      disabled: true,
+    },
+  ];
+}
+
+function useActivityFields(activity?: Activity) {
+  const [name, setName] = useState(activity?.name ?? "");
+  const [kind, setKind] = useState<ActivityKind>(activity?.kind ?? "project");
+  const [projectId, setProjectId] = useState(activity?.projectId ?? "");
+  const [phaseId, setPhaseId] = useState(activity?.phaseId ?? "");
+  const changeKind = (next: ActivityKind) => {
+    setKind(next);
+    if (next !== "project") {
+      setProjectId("");
+      setPhaseId("");
+    }
+  };
+  const changeProject = (value: string) => {
+    setProjectId(value);
+    setPhaseId("");
+  };
+  return { name, setName, kind, projectId, phaseId, changeKind, changeProject };
+}
+
+interface ActivityFieldsProps {
+  name: string;
+  setName: (value: string) => void;
+  kind: ActivityKind;
+  changeKind: (kind: ActivityKind) => void;
+  projectId: string;
+  changeProject: (projectId: string) => void;
+  projectOptions: Option[];
+  errorField: string | null;
+  errorId: string;
+  error: string | null;
+}
+
+function ActivityFields(props: ActivityFieldsProps) {
+  return (
+    <>
+      <TextField
+        label={m.form_activity_name_label()}
+        value={props.name}
+        onChange={props.setName}
+        autoFocus
+        required
+        invalid={props.errorField === "name"}
+        describedById={props.errorId}
+        layout="label-control"
+      />
+      <SegmentedField
+        label={m.form_activity_kind_label()}
+        value={props.kind}
+        onChange={props.changeKind}
+        options={buildKindOptions()}
+        ariaLabel={m.form_activity_kind_aria()}
+        geometry="gapped"
+        fullWidth
+        density="compact"
+        layout="label-control"
+      />
+      {props.kind === "project" && (
+        <SelectField
+          label={m.form_activity_project_label()}
+          value={props.projectId}
+          onChange={props.changeProject}
+          options={props.projectOptions}
+          placeholder={m.form_activity_select_project_placeholder()}
+          required
+          invalid={props.errorField === "project"}
+          describedById={props.errorId}
+          layout="label-control"
+        />
+      )}
+      <FieldError id={props.errorId}>{props.error}</FieldError>
+      <RequiredLegend />
+    </>
+  );
+}
+
+function useProjectOptions(activity?: Activity) {
+  const { projects, clients } = useActiveScopedData();
+  const raw = useScopedData();
+  const baseOptions = useMemo(() => buildProjectOptions({ projects, clients }), [projects, clients]);
+  if (!activity?.projectId || projects.some((project) => project.id === activity.projectId)) return baseOptions;
+  return buildProjectOptions({ projects, clients, rawProjects: raw.projects, rawClients: raw.clients, activity });
+}
+
 /** Add (no `activity`) or edit an activity. Pick a kind first: a `project` activity takes a project (and keeps
  *  its phase); `internal`/all-projects (`repeatable`) are project-less, so the project picker is hidden and their
  *  project/phase forced empty. `onClose` fires on save or cancel. */
 export function ActivityForm({ activity, onClose }: { activity?: Activity; onClose: () => void }) {
   const add = useStore((state) => state.addActivity);
   const update = useStore((state) => state.updateActivity);
-  const data = useActiveScopedData();
-  const projects = data.projects;
-  const clients = data.clients;
-  // The RAW scoped slice, for the archived-parent label only (see projectOptions below): the demo
-  // build still holds an archived project in the raw slice (so we can show its name); in server
-  // mode the per-account read strips it, so the label degrades to the generic "(current, archived)".
-  const raw = useScopedData();
-
-  const [name, setName] = useState(activity?.name ?? "");
-  const [kind, setKind] = useState<ActivityKind>(activity?.kind ?? "project");
-  const [projectId, setProjectId] = useState(activity?.projectId ?? "");
-  // Phase UI is hidden for now, but we keep an existing activity's phase so editing an
-  // activity doesn't silently ungroup it; changing the project (or kind) still clears it.
-  const [phaseId, setPhaseId] = useState(activity?.phaseId ?? "");
+  const { name, setName, kind, projectId, phaseId, changeKind, changeProject } = useActivityFields(activity);
   const { error, errorField, errorId, fail } = useFieldError();
-
-  // The projects×clients join is the only non-trivial cost here (O(n·m) — a `.find` per project);
-  // memoised on its actual inputs so it isn't redone on every keystroke elsewhere in the form. The
-  // archived-option append below stays OUTSIDE the memo: its label goes through `m.*()`, which must
-  // keep resolving fresh every render (a stale locale/account switch is otherwise possible — see
-  // validation.ts's "getter, not module-scope const" note), so it's rebuilt un-cached each render.
-  const baseProjectOptions: Option[] = useMemo(
-    () =>
-      projects.map((project) => {
-        const client = clients.find((client) => client.id === project.clientId);
-        return { value: project.id, label: client ? `${client.name} / ${project.name}` : project.name };
-      }),
-    [projects, clients],
-  );
-  // Editing a project-kind activity whose project is ARCHIVED: the active-only options above don't
-  // contain it, so without this the select would silently blank and an unrelated edit (rename)
-  // couldn't round-trip the unchanged projectId. Append the current id as a DISABLED option — it
-  // stays selected/submittable as the current value (the store's unchanged-parent relaxation
-  // accepts it), but can't be picked back once the user chooses an active project.
-  let projectOptions: Option[] = baseProjectOptions;
-  if (activity?.projectId && !projects.some((project) => project.id === activity.projectId)) {
-    const rawProject = raw.projects.find((project) => project.id === activity.projectId);
-    const rawClient = rawProject && raw.clients.find((client) => client.id === rawProject.clientId);
-    projectOptions = [
-      ...baseProjectOptions,
-      {
-        value: activity.projectId,
-        label: rawProject
-          ? m.list_label_archived({ name: rawClient ? `${rawClient.name} / ${rawProject.name}` : rawProject.name })
-          : m.form_option_current_archived(),
-        disabled: true,
-      },
-    ];
-  }
-
-  const changeKind = (next: ActivityKind) => {
-    setKind(next);
-    // Internal/all-projects activities are project-less — drop any project/phase the form held so a
-    // toggle can't submit an incoherent activity (the store would reject it anyway).
-    if (next !== "project") {
-      setProjectId("");
-      setPhaseId("");
-    }
-  };
-
-  const changeProject = (value: string) => {
-    setProjectId(value);
-    setPhaseId("");
-  };
+  const projectOptions = useProjectOptions(activity);
 
   const submit = () => {
     const trimmed = validateName(name, fail);
@@ -134,42 +191,18 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
       onSubmit={submit}
       footer={<FormActions onCancel={onClose} />}
     >
-      <TextField
-        label={m.form_activity_name_label()}
-        value={name}
-        onChange={setName}
-        autoFocus
-        required
-        invalid={errorField === "name"}
-        describedById={errorId}
-        layout="label-control"
+      <ActivityFields
+        name={name}
+        setName={setName}
+        kind={kind}
+        changeKind={changeKind}
+        projectId={projectId}
+        changeProject={changeProject}
+        projectOptions={projectOptions}
+        errorField={errorField}
+        errorId={errorId}
+        error={error}
       />
-      <SegmentedField
-        label={m.form_activity_kind_label()}
-        value={kind}
-        onChange={changeKind}
-        options={buildKindOptions()}
-        ariaLabel={m.form_activity_kind_aria()}
-        geometry="gapped"
-        fullWidth
-        density="compact"
-        layout="label-control"
-      />
-      {kind === "project" && (
-        <SelectField
-          label={m.form_activity_project_label()}
-          value={projectId}
-          onChange={changeProject}
-          options={projectOptions}
-          placeholder={m.form_activity_select_project_placeholder()}
-          required
-          invalid={errorField === "project"}
-          describedById={errorId}
-          layout="label-control"
-        />
-      )}
-      <FieldError id={errorId}>{error}</FieldError>
-      <RequiredLegend />
     </Modal>
   );
 }

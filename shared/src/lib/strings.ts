@@ -56,22 +56,22 @@ export function hasDisallowedChars(value: string, options: { multiline?: boolean
   return DISALLOWED.test(subject);
 }
 
+function stripDisallowedCharacters(value: string): string {
+  let cleaned = "";
+  for (const character of value.normalize("NFC")) {
+    // Newlines and tabs are whitespace, not junk — keep them through the strip pass and
+    // let the normalisation step below decide (→ a space in single-line, preserved in multiline).
+    if (character === "\n" || character === "\t" || !DISALLOWED.test(character)) cleaned += character;
+  }
+  return cleaned;
+}
+
 /** Strip disallowed characters, collapse whitespace runs, trim, and cap length. Used on
  *  the import + server write paths where rejecting isn't an option. Iterates by code
  *  point so surrogate pairs / emoji are dropped as whole characters. */
 export function cleanText(value: string, options: { multiline?: boolean; maxLength?: number } = {}): string {
   const multiline = options.multiline ?? false;
-  let out = "";
-  for (const character of value.normalize("NFC")) {
-    // Newlines and tabs are whitespace, not junk — keep them through the strip pass and
-    // let the normalisation step below decide (→ a space in single-line, preserved in
-    // multiline). Everything else in a disallowed category is dropped.
-    if (character === "\n" || character === "\t") {
-      out += character;
-      continue;
-    }
-    if (!DISALLOWED.test(character)) out += character;
-  }
+  let out = stripDisallowedCharacters(value);
   // Normalise whitespace: collapse horizontal runs to a single space. In multiline keep
   // newlines (but cap blank-line runs); single-line collapses everything to one space.
   out = multiline ? out.replace(/[^\S\n]+/g, " ").replace(/\n{3,}/g, "\n\n") : out.replace(/\s+/g, " ");

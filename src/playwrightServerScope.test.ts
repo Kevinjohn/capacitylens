@@ -10,9 +10,7 @@ describe("Playwright server scope", () => {
       expect(mode.projects).toEqual(
         preset.projects.length > 0 ? preset.projects : ["chromium", "db-backed", "auth-backed"],
       );
-      expect(mode.serverProfile).toBe(
-        preset === E2E_RUN_PRESETS.standard ? "standard" : preset === E2E_RUN_PRESETS.chromiumWebkit ? "vite" : "vite",
-      );
+      expect(mode.serverProfile).toBe(preset === E2E_RUN_PRESETS.standard ? "standard" : "vite");
     },
   );
 

@@ -10,13 +10,15 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // picker flow as onboarding.spec.ts, via helpers.ts's `openNewCompany`) to see it. Dismissal is
 // the device-global `capacitylens/gettingStartedDismissed` pref, mirroring the intro page's flag.
 
-test.describe("getting started checklist", () => {
+function registerSuiteScenario1() {
   test("a seeded (fully set up) company never shows the card", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
     await expect(page.getByTestId("getting-started")).toHaveCount(0);
   });
+}
 
+function registerSuiteScenario2() {
   test("an empty company shows the card; completing a step ticks it off", async ({ page }) => {
     await openNewCompany(page, "Fresh Co");
     const card = page.getByTestId("getting-started");
@@ -59,7 +61,9 @@ test.describe("getting started checklist", () => {
     await expect(card.getByText("Add your first client")).toBeVisible();
     await expect(card.getByRole("link", { name: "Add your first project" })).toBeVisible();
   });
+}
 
+function registerSuiteScenario3() {
   test("the overflowing card scrolls with a pointer wheel at a short viewport", async ({ page }) => {
     // Keep the available panel height below the card's compact WebKit rendering too. At 320px
     // WebKit can fit the same content that overflows in Chromium, so that viewport did not
@@ -77,7 +81,9 @@ test.describe("getting started checklist", () => {
 
     await expect.poll(() => card.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
   });
+}
 
+function registerSuiteScenario4() {
   test('"Show me around" runs the loose orientation tour', async ({ page }) => {
     await openNewCompany(page, "Fresh Co");
     for (const selector of TOUR_ANCHORS) {
@@ -111,7 +117,9 @@ test.describe("getting started checklist", () => {
     await expect(page.getByTestId("getting-started")).toBeVisible();
     await expect(page).toHaveURL(/\/$/);
   });
+}
 
+function registerSuiteScenario5() {
   test("Dismiss hides the card and persists the device-global flag", async ({ page }) => {
     await openNewCompany(page, "Fresh Co");
     await page.getByTestId("getting-started-dismiss").click();
@@ -119,4 +127,12 @@ test.describe("getting started checklist", () => {
     const stored = await page.evaluate(() => localStorage.getItem("capacitylens/gettingStartedDismissed"));
     expect(stored).toBe("on");
   });
+}
+
+test.describe("getting started checklist", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
+  registerSuiteScenario5();
 });

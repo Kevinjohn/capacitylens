@@ -30,9 +30,7 @@ async function pointInBottomHalf(page: Page, lane: Locator, date: string): Promi
   return { x: dayBox.x + dayBox.width / 2, y: laneBox.y + laneBox.height * 0.75 };
 }
 
-test("saved half days tint the lower cell while preserving schedule signals and creation", async ({
-  page,
-}, testInfo) => {
+async function configureHalfDays(page: Page) {
   await openApp(page, "Wayne Enterprises", "/resources");
   const bruce = page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" });
   await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
@@ -40,10 +38,15 @@ test("saved half days tint the lower cell while preserving schedule signals and 
   await editor.getByRole("radio", { name: "Tuesday Half day" }).click();
   await editor.getByRole("radio", { name: "Wednesday Half day" }).click();
   await editor.getByRole("button", { name: "Save" }).click();
-
   await page.getByRole("link", { name: "Schedule", exact: true }).click();
   await setZoom(page, 1);
   await goToSeedWeek(page);
+}
+
+test("saved half days tint the lower cell while preserving schedule signals and creation", async ({
+  page,
+}, testInfo) => {
+  await configureHalfDays(page);
 
   const row = page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" });
   const lane = row.getByTestId("resource-lane");

@@ -3,7 +3,7 @@ import { boundingBoxOrThrow as box, openApp, resetSchedulerScroll, setZoom, show
 
 // Covers US-TBR-01..07 and the toolbar-owned week-snap cases from US-TBR-08; scheduler.spec.ts
 // covers the remaining US-TBR-08 navigation paths.
-test.describe("Toolbar", () => {
+function registerSuiteScenario1() {
   test("zooms the timeline and tracks the active level", async ({ page }) => {
     await openApp(page);
     // #173: the weeks dropdown replaced the 1w..8w segments — the current span is the closed
@@ -19,7 +19,9 @@ test.describe("Toolbar", () => {
     await setZoom(page, 1);
     await expect(weeks).toHaveText("1 week");
   });
+}
 
+function registerSuiteScenario2() {
   test("shows every zoom level when the dropdown opens", async ({ page }) => {
     await openApp(page);
     const weeks = page.getByRole("combobox", { name: "Weeks visible" });
@@ -33,7 +35,9 @@ test.describe("Toolbar", () => {
     expect(firstOptionBox.y).toBeGreaterThanOrEqual(popupBox.y);
     expect(lastOptionBox.y + lastOptionBox.height).toBeLessThanOrEqual(popupBox.y + popupBox.height);
   });
+}
 
+function registerSuiteScenario3() {
   test("pans the window a week with Prev and Next", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -51,7 +55,9 @@ test.describe("Toolbar", () => {
     const b2 = await box(bar);
     expect(b2.x).toBeGreaterThan(b1.x);
   });
+}
 
+function registerSuiteScenario4() {
   test("re-centres on Today after scrolling away", async ({ page }) => {
     await openApp(page);
     const grid = page.getByTestId("scheduler-grid");
@@ -61,17 +67,21 @@ test.describe("Toolbar", () => {
     await page.getByRole("button", { name: "Today", exact: true }).click();
     await expect.poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft)).toBeLessThan(4000);
   });
+}
 
-  // The jump-to-date picker is hidden from the toolbar (#173), so there is nothing to drive here.
-  // Its coverage lives at the two levels that still exercise it: the component
-  // (src/components/scheduler/JumpToDateInput.test.tsx) and the week-start snap it triggers
-  // (goToDate in src/store/useStore.test.ts). This test asserts only that it is gone from the bar.
+// The jump-to-date picker is hidden from the toolbar (#173), so there is nothing to drive here.
+// Its coverage lives at the two levels that still exercise it: the component
+// (src/components/scheduler/JumpToDateInput.test.tsx) and the week-start snap it triggers
+// (goToDate in src/store/useStore.test.ts). This test asserts only that it is gone from the bar.
+function registerSuiteScenario5() {
   test("does not expose the jump-to-date picker", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-toolbar")).toBeVisible();
     await expect(page.getByLabel("Jump to date")).toHaveCount(0);
   });
+}
 
+function registerSuiteScenario6() {
   test("shows and hides the centred filter row from the right-hand toolbar actions", async ({ page }) => {
     await openApp(page);
     const show = page.getByRole("button", { name: "Show filters" });
@@ -96,7 +106,9 @@ test.describe("Toolbar", () => {
     await hide.click();
     await expect(page.getByLabel("Search people")).toHaveCount(0);
   });
+}
 
+function registerSuiteScenario7() {
   test("switches draw mode between Work and Time off", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -136,10 +148,12 @@ test.describe("Toolbar", () => {
       }),
     ).toBe(true);
   });
+}
 
-  // Undo/redo now has BOTH a visible affordance (the toolbar buttons) and the global
-  // ⌘Z / ⌘⇧Z shortcut (handled in AppShell). This test drives the buttons + their
-  // disabled states; the keyboard test below covers the shortcut path + the typing guard.
+// Undo/redo now has BOTH a visible affordance (the toolbar buttons) and the global
+// ⌘Z / ⌘⇧Z shortcut (handled in AppShell). This test drives the buttons + their
+// disabled states; the keyboard test below covers the shortcut path + the typing guard.
+function registerSuiteScenario8() {
   test("undoes and redoes with the toolbar buttons, disabled when the stack is empty", async ({ page }) => {
     await openApp(page);
     const undoBtn = page.getByTestId("undo-button");
@@ -168,7 +182,9 @@ test.describe("Toolbar", () => {
     await redoBtn.click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1);
   });
+}
 
+function registerSuiteScenario9() {
   test("undoes/redoes with the keyboard and ignores the shortcut while typing", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -193,4 +209,16 @@ test.describe("Toolbar", () => {
     await page.keyboard.press("Meta+Shift+z");
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1);
   });
+}
+
+test.describe("Toolbar", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
+  registerSuiteScenario5();
+  registerSuiteScenario6();
+  registerSuiteScenario7();
+  registerSuiteScenario8();
+  registerSuiteScenario9();
 });

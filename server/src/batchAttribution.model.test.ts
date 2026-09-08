@@ -37,6 +37,23 @@ interface ModelState {
   rewrite?: { table: "allocations"; id: string; createdAt: string; updatedAt: string; rewrite: true };
 }
 
+interface BatchResponse {
+  revisions: Array<{ rewrite?: boolean }>;
+}
+
+function isBatchResponse(value: unknown): value is BatchResponse {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const candidate = value as { revisions?: unknown };
+  if (!Array.isArray(candidate.revisions)) return false;
+  return candidate.revisions.every((revision: unknown) => {
+    if (typeof revision !== "object" || revision === null) return false;
+    const record = revision as Record<string, unknown>;
+    return !("rewrite" in record) || typeof record.rewrite === "boolean";
+  });
+}
+
 const META = { createdAt: BASE_REVISION, updatedAt: BASE_REVISION };
 
 const activityRow = (kind: ActivityKind) => ({
@@ -163,10 +180,46 @@ const requestOperation = (operation: ModelOperation) => {
   return { method: "DELETE", table: "allocations", id: ALLOCATION_ID, accountId: ACCOUNT_ID };
 };
 
-describe("POST /api/batch allocation attribution model", () => {
-  let app: FastifyInstance;
-  let db: Db;
+function readReceiptRewrites(response: { statusCode: number; json: () => unknown }): Array<{ rewrite?: boolean }> {
+  if (response.statusCode !== 200) return [];
+  const body = response.json();
+  if (!isBatchResponse(body)) throw new Error("Expected batch response revisions.");
+  return body.revisions.filter((revision) => revision.rewrite === true);
+}
 
+function createSequentialInterpretationTest(): void {
+  it("matches sequential interpretation for every bounded operation sequence", async () => {
+    const failures: string[] = [];
+
+    for (const sequence of enumerateSequences()) {
+      upsertRow(db, "activities", INITIAL_ACTIVITY);
+      upsertRow(db, "allocations", INITIAL_ALLOCATION);
+      const expected = interpret(sequence);
+      const response = await batch(app, sequence.map(requestOperation));
+      const actualActivity = getRow(db, "activities", ACTIVITY_ID);
+      const actualAllocation = getRow(db, "allocations", ALLOCATION_ID);
+      const receiptRewrites = readReceiptRewrites(response);
+
+      try {
+        expect(response.statusCode).toBe(expected.accepted ? 200 : 400);
+        expect(actualActivity).toEqual(expected.state.activity);
+        expect(actualAllocation).toEqual(expected.state.allocation ?? null);
+        expect(receiptRewrites).toEqual(expected.state.rewrite ? [expected.state.rewrite] : []);
+      } catch (error) {
+        failures.push(
+          `${sequence.map((operation) => operation.label).join(" → ")}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    expect(failures).toEqual([]);
+  }, 30_000);
+}
+
+let app: FastifyInstance;
+let db: Db;
+
+describe("POST /api/batch allocation attribution model", () => {
   beforeAll(() => {
     vi.spyOn(Date, "now").mockReturnValue(SERVER_NOW);
     db = openDb(":memory:");
@@ -208,33 +261,5 @@ describe("POST /api/batch allocation attribution model", () => {
     if (db.isOpen) db.close();
   });
 
-  it("matches sequential interpretation for every bounded operation sequence", async () => {
-    const failures: string[] = [];
-
-    for (const sequence of enumerateSequences()) {
-      upsertRow(db, "activities", INITIAL_ACTIVITY);
-      upsertRow(db, "allocations", INITIAL_ALLOCATION);
-      const expected = interpret(sequence);
-      const response = await batch(app, sequence.map(requestOperation));
-      const actualActivity = getRow(db, "activities", ACTIVITY_ID);
-      const actualAllocation = getRow(db, "allocations", ALLOCATION_ID);
-      const receiptRewrites =
-        response.statusCode === 200
-          ? response.json().revisions.filter((revision: { rewrite?: boolean }) => revision.rewrite === true)
-          : [];
-
-      try {
-        expect(response.statusCode).toBe(expected.accepted ? 200 : 400);
-        expect(actualActivity).toEqual(expected.state.activity);
-        expect(actualAllocation).toEqual(expected.state.allocation ?? null);
-        expect(receiptRewrites).toEqual(expected.state.rewrite ? [expected.state.rewrite] : []);
-      } catch (error) {
-        failures.push(
-          `${sequence.map((operation) => operation.label).join(" → ")}: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-    }
-
-    expect(failures).toEqual([]);
-  }, 30_000);
+  createSequentialInterpretationTest();
 });

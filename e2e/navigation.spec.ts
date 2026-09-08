@@ -14,9 +14,9 @@ const deepDestinations = [
   ["/settings", "Settings"],
 ] as const;
 
-test.describe("Navigation & shell", () => {
-  // #216: exercise real document navigations, not React Router transitions. The Vite history
-  // fallback must serve index.html, then the session-only company gate must preserve the URL.
+// #216: exercise real document navigations, not React Router transitions. The Vite history
+// fallback must serve index.html, then the session-only company gate must preserve the URL.
+function registerSuiteScenario1() {
   for (const [path, heading] of deepDestinations) {
     test(`valid deep link ${path} survives a browser reload`, async ({ page }) => {
       await freezeBrowserDate(page);
@@ -47,14 +47,18 @@ test.describe("Navigation & shell", () => {
       await expect(page).toHaveURL(new RegExp(`${path}$`));
     });
   }
+}
 
+function registerSuiteScenario2() {
   test("an unknown extensionless path reaches the application's Not Found screen", async ({ page }) => {
     await openApp(page);
     const unknownResponse = await page.goto("/stale-bookmark-that-does-not-exist");
     expect(unknownResponse?.status()).toBe(200);
     await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
   });
+}
 
+function registerSuiteScenario3() {
   test("sidebar links route to each section", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -88,9 +92,11 @@ test.describe("Navigation & shell", () => {
     await page.getByRole("link", { name: "Schedule" }).click();
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
   });
+}
 
-  // Issues #169/#172. Assert real DOM order and the account block below it — mere presence of the
-  // links passed under the old layout too, so only order proves the move happened.
+// Issues #169/#172. Assert real DOM order and the account block below it — mere presence of the
+// links passed under the old layout too, so only order proves the move happened.
+function registerSuiteScenario4() {
   test("pins Team & access and Settings below the working destinations, above the account block", async ({ page }) => {
     await openApp(page);
 
@@ -119,7 +125,9 @@ test.describe("Navigation & shell", () => {
     await expect(page.getByTestId("export-data")).toBeVisible();
     await expect(page.getByTestId("import-data")).toBeVisible();
   });
+}
 
+function registerSuiteScenario5() {
   test("settings toggles the colour theme", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     // Light is the default preference.
@@ -132,10 +140,12 @@ test.describe("Navigation & shell", () => {
     await page.getByRole("radio", { name: "Light" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   });
+}
 
-  // WCAG 2.4.2 (Page Titled): each route sets a descriptive document.title of "<nav label> · CapacityLens",
-  // derived from the SAME nav labels — so the tab/history/bookmark differs per page rather than the
-  // static "CapacityLens" index.html sets. Assert a couple of routes are distinct AND descriptive.
+// WCAG 2.4.2 (Page Titled): each route sets a descriptive document.title of "<nav label> · CapacityLens",
+// derived from the SAME nav labels — so the tab/history/bookmark differs per page rather than the
+// static "CapacityLens" index.html sets. Assert a couple of routes are distinct AND descriptive.
+function registerSuiteScenario6() {
   test("each route sets a descriptive, distinct document.title", async ({ page }) => {
     await openApp(page);
     // The index route reads as the scheduler's nav label, not the bare brand.
@@ -155,14 +165,18 @@ test.describe("Navigation & shell", () => {
     await expect(page).toHaveTitle("Schedule · CapacityLens");
     await expect(page).not.toHaveTitle("CapacityLens");
   });
+}
 
+function registerSuiteScenario7() {
   test("the active section is marked aria-current", async ({ page }) => {
     await openApp(page);
     await page.getByRole("link", { name: "Resources" }).click();
     await expect(page.getByRole("link", { name: "Resources" })).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("link", { name: "Clients" })).not.toHaveAttribute("aria-current", "page");
   });
+}
 
+function registerSuiteScenario8() {
   test("uses blue identity, green positive actions and red destructive actions", async ({ page }) => {
     await openApp(page);
 
@@ -181,7 +195,9 @@ test.describe("Navigation & shell", () => {
     await page.getByRole("button", { name: "Device data", exact: true }).click();
     await expect(page.getByTestId("clear-local-storage")).toHaveAttribute("data-variant", "danger-soft");
   });
+}
 
+function registerSuiteScenario9() {
   test("renders in dark mode", async ({ page }) => {
     // Dark is now an explicit preference, not OS-driven: seed the stored theme so
     // the pre-paint script in index.html resolves the app to dark.
@@ -191,10 +207,12 @@ test.describe("Navigation & shell", () => {
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
+}
 
-  // The sidebar collapse toggle's hover label is the shadcn Radix Tooltip (ui/tooltip.tsx),
-  // not a native `title`. This runs cross-engine (e2e:browsers → Chromium/WebKit/Firefox) on
-  // purpose: Radix Tooltip's hover behavior was the uncertainty that deferred this pass.
+// The sidebar collapse toggle's hover label is the shadcn Radix Tooltip (ui/tooltip.tsx),
+// not a native `title`. This runs cross-engine (e2e:browsers → Chromium/WebKit/Firefox) on
+// purpose: Radix Tooltip's hover behavior was the uncertainty that deferred this pass.
+function registerSuiteScenario10() {
   test("the collapse toggle reveals its shadcn Tooltip on hover", async ({ page }) => {
     await openApp(page);
     // Desktop default = sidebar open, so the focusable toggle reads "Collapse menu" and
@@ -208,4 +226,17 @@ test.describe("Navigation & shell", () => {
     await toggle.hover();
     await expect(page.getByRole("tooltip", { name: "Collapse menu" })).toBeVisible();
   });
+}
+
+test.describe("Navigation & shell", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
+  registerSuiteScenario5();
+  registerSuiteScenario6();
+  registerSuiteScenario7();
+  registerSuiteScenario8();
+  registerSuiteScenario9();
+  registerSuiteScenario10();
 });

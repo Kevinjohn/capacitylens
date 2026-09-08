@@ -19,56 +19,7 @@ export function createHistorySlice(internals: StoreInternals): StateCreator<Stor
     return {
       past: [],
       future: [],
-      replaceAll: (data) =>
-        set((state) => {
-          const previouslyHadActiveAccount = state.activeAccountId
-            ? state.data.accounts.some((candidate) => candidate.id === state.activeAccountId)
-            : false;
-          const account = state.activeAccountId
-            ? data.accounts.find((candidate) => candidate.id === state.activeAccountId)
-            : undefined;
-          const unchangedActiveSlice = previouslyHadActiveAccount && hasSameEntityRevisions(state.data, data);
-          // A replacement is a publication boundary: never retain an active id that the newly
-          // published slice does not contain. This can happen after membership revocation, a malformed
-          // response, recovery, or a direct store call. Clear the selection in the SAME state write so
-          // observers cannot see the new data under the dead tenant even for one notification, and do
-          // not retain it as the picker's "back" target. requireAccount independently enforces the same
-          // invariant at every scoped mutation boundary.
-          if (state.activeAccountId && !account) {
-            return {
-              data,
-              activeAccountId: null,
-              previousAccountId: null,
-              activeRole: null,
-              activeRoleStatus: "not-applicable",
-              notice: {
-                message: m.notice_company_not_found(),
-                tone: "error" as const,
-              },
-              ...buildClearedSession(),
-              past: [],
-              future: [],
-              // No anchor: a publication is not a navigation, so the week in view is left alone.
-              ui: resetSchedulerView(state.ui),
-            };
-          }
-          // Same-account refreshes reconcile server state in the background and must preserve the
-          // week the user is viewing. Re-anchor only when setActiveAccount had to use its temporary
-          // GMT/Monday fallback because the selected account was absent from the previous slice.
-          if (!account || previouslyHadActiveAccount) {
-            // A no-op server refresh may replace every object identity, but identical ids and
-            // authoritative revisions prove that no row changed. Preserve undo/redo only in that
-            // exact case. Any remote addition, deletion or revision change clears history because a
-            // historical whole-slice snapshot could otherwise resurrect or overwrite remote work.
-            return unchangedActiveSlice ? { data } : { data, past: [], future: [] };
-          }
-          return {
-            data,
-            past: [],
-            future: [],
-            ui: { ...state.ui, ...readCurrentWeekAnchor(data, account.id) },
-          };
-        }),
+      replaceAll: (data) => set((state) => replaceAllState(state, data)),
       // Replace only the active account's slice; other accounts and the account
       // list itself are untouched. Undoable via ⌘Z.
       //
@@ -110,5 +61,55 @@ export function createHistorySlice(internals: StoreInternals): StateCreator<Stor
         });
       }),
     };
+  };
+}
+
+function replaceAllState(state: StoreState, data: StoreState["data"]): Partial<StoreState> {
+  const previouslyHadActiveAccount = state.activeAccountId
+    ? state.data.accounts.some((candidate) => candidate.id === state.activeAccountId)
+    : false;
+  const account = state.activeAccountId
+    ? data.accounts.find((candidate) => candidate.id === state.activeAccountId)
+    : undefined;
+  const unchangedActiveSlice = previouslyHadActiveAccount && hasSameEntityRevisions(state.data, data);
+  // A replacement is a publication boundary: never retain an active id that the newly
+  // published slice does not contain. This can happen after membership revocation, a malformed
+  // response, recovery, or a direct store call. Clear the selection in the SAME state write so
+  // observers cannot see the new data under the dead tenant even for one notification, and do
+  // not retain it as the picker's "back" target. requireAccount independently enforces the same
+  // invariant at every scoped mutation boundary.
+  if (state.activeAccountId && !account) {
+    return {
+      data,
+      activeAccountId: null,
+      previousAccountId: null,
+      activeRole: null,
+      activeRoleStatus: "not-applicable",
+      notice: {
+        message: m.notice_company_not_found(),
+        tone: "error" as const,
+      },
+      ...buildClearedSession(),
+      past: [],
+      future: [],
+      // No anchor: a publication is not a navigation, so the week in view is left alone.
+      ui: resetSchedulerView(state.ui),
+    };
+  }
+  // Same-account refreshes reconcile server state in the background and must preserve the
+  // week the user is viewing. Re-anchor only when setActiveAccount had to use its temporary
+  // GMT/Monday fallback because the selected account was absent from the previous slice.
+  if (!account || previouslyHadActiveAccount) {
+    // A no-op server refresh may replace every object identity, but identical ids and
+    // authoritative revisions prove that no row changed. Preserve undo/redo only in that
+    // exact case. Any remote addition, deletion or revision change clears history because a
+    // historical whole-slice snapshot could otherwise resurrect or overwrite remote work.
+    return unchangedActiveSlice ? { data } : { data, past: [], future: [] };
+  }
+  return {
+    data,
+    past: [],
+    future: [],
+    ui: { ...state.ui, ...readCurrentWeekAnchor(data, account.id) },
   };
 }

@@ -9,17 +9,21 @@ import { resetServer, serverState, stateRows } from "./db-helpers";
 // (there is no localStorage fallback), so a surviving record proves a real server
 // round-trip: UI → store → adapter → PUT/DELETE → SQLite → GET on reload.
 
-test.describe("database-backed persistence", () => {
+function registerSuiteScenario1() {
   test.beforeEach(async ({ request }) => {
     await resetServer(request, true); // wipe + re-seed before each test
   });
+}
 
+function registerSuiteScenario2() {
   test("hydrates the seeded dataset from the server on load", async ({ page }) => {
     await openApp(page); // picks "Wayne Enterprises" from the server-seeded accounts
     // "Bruce Wayne" is part of the server seed; seeing it proves GET /api/state → UI.
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
+}
 
+function registerSuiteScenario3() {
   test("create + reload: a new client round-trips through the DB", async ({ page, request }) => {
     await openApp(page);
     await page.getByRole("link", { name: "Clients" }).click();
@@ -40,7 +44,9 @@ test.describe("database-backed persistence", () => {
     await page.getByRole("link", { name: "Clients" }).click();
     await expect(page.getByText("Persisted DB Co")).toBeVisible();
   });
+}
 
+function registerSuiteScenario4() {
   test("repeat creation persists all allocation PUTs through one atomic client batch", async ({ page, request }) => {
     const before = stateRows(await serverState(request), "allocations");
     const batchBodies: Array<{ ops?: Array<{ method?: string; table?: string; id?: string }> }> = [];
@@ -79,7 +85,9 @@ test.describe("database-backed persistence", () => {
     expect(firstRepeated.seriesId).toEqual(expect.any(String));
     expect(new Set(repeated.map(({ seriesId }) => seriesId)).size).toBe(1);
   });
+}
 
+function registerSuiteScenario5() {
   test("edit + reload: a rename round-trips through the DB", async ({ page, request }) => {
     await openApp(page);
     await page.getByRole("link", { name: "Clients" }).click();
@@ -107,7 +115,9 @@ test.describe("database-backed persistence", () => {
     await expect(page.getByTestId("client-row").filter({ hasText: "Renamed Co" })).toBeVisible();
     await expect(page.getByTestId("client-row").filter({ hasText: "Rename Me Co" })).toHaveCount(0);
   });
+}
 
+function registerSuiteScenario6() {
   test("edit + fresh hydration: engagement and half days survive the server round-trip", async ({ page, request }) => {
     await openApp(page);
     await page.getByRole("link", { name: "Resources" }).click();
@@ -140,12 +150,14 @@ test.describe("database-backed persistence", () => {
     await expect(page.getByLabel("Engagement")).toContainText("Supplementary");
     await expect(page.getByRole("radio", { name: "Tuesday Half day" })).toBeChecked();
   });
+}
 
-  // P2.5b: the per-row destructive action ARCHIVES (server-authoritative — the UI POSTs the dedicated
-  // /api/clients/:id/archive route, then reloads the active slice). An archived client is RETAINED in
-  // the DB (the archive route sets archivedAt; it is NOT a hard delete), but it is HIDDEN from the
-  // active views (useActiveScopedData) and STAYS hidden across a reload — the real server round-trip
-  // this proves: UI archive → POST .../archive → reload → still absent from the active list.
+// P2.5b: the per-row destructive action ARCHIVES (server-authoritative — the UI POSTs the dedicated
+// /api/clients/:id/archive route, then reloads the active slice). An archived client is RETAINED in
+// the DB (the archive route sets archivedAt; it is NOT a hard delete), but it is HIDDEN from the
+// active views (useActiveScopedData) and STAYS hidden across a reload — the real server round-trip
+// this proves: UI archive → POST .../archive → reload → still absent from the active list.
+function registerSuiteScenario7() {
   test("archive + reload: an archived client is retained in the DB but hidden from the active view", async ({
     page,
     request,
@@ -187,4 +199,14 @@ test.describe("database-backed persistence", () => {
     await page.getByRole("link", { name: "Clients" }).click();
     await expect(page.getByTestId("client-row").filter({ hasText: "Doomed Co" })).toHaveCount(0);
   });
+}
+
+test.describe("database-backed persistence", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
+  registerSuiteScenario5();
+  registerSuiteScenario6();
+  registerSuiteScenario7();
 });

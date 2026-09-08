@@ -44,21 +44,26 @@ async function terminateChild(child: ChildProcess): Promise<ChildExit> {
   throw new Error("OIDC harness did not exit after SIGKILL.");
 }
 
+function hasDexStarted(calls: string): boolean {
+  try {
+    return readFileSync(calls, "utf8").startsWith("run ");
+  } catch {
+    // The fake Docker command has not written its first call yet.
+    return false;
+  }
+}
+
 async function waitForDexStart(child: ChildProcess, calls: string): Promise<void> {
   const deadline = Date.now() + CHILD_EXIT_TIMEOUT_MS;
-  let spawnError: Error | null = null;
+  const spawnState: { error?: Error } = {};
   const recordSpawnError = (error: Error) => {
-    spawnError = error;
+    spawnState.error = error;
   };
   child.once("error", recordSpawnError);
   try {
     while (Date.now() < deadline) {
-      if (spawnError) throw new Error("OIDC harness child process failed to spawn.", { cause: spawnError });
-      try {
-        if (readFileSync(calls, "utf8").startsWith("run ")) return;
-      } catch {
-        // The fake Docker command has not written its first call yet.
-      }
+      if (spawnState.error) throw new Error("OIDC harness child process failed to spawn.", { cause: spawnState.error });
+      if (hasDexStarted(calls)) return;
       if (child.exitCode !== null || child.signalCode !== null) {
         throw new Error("OIDC harness exited before starting Dex.");
       }

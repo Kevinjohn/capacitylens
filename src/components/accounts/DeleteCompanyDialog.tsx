@@ -13,6 +13,122 @@ import { Button } from "../ui/button";
 import { SCOPED_KEYS } from "@capacitylens/shared/types/entities";
 import type { AppData, ID } from "@capacitylens/shared/types/entities";
 
+function useCompanyExport(account: { id: ID; name: string }) {
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportEmpty, setExportEmpty] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const fetchCompleteSlice = async (): Promise<AppData> => {
+    try {
+      return await fetchInactiveSlice(account.id);
+    } catch (error) {
+      if (error instanceof InactiveSliceHttpError) {
+        throw new Error(error.serverMessage ?? m.dialog_delete_company_export_fetch_failed({ status: error.status }), {
+          cause: error,
+        });
+      }
+      if (error instanceof InactiveSliceShapeError) {
+        throw new Error(m.dialog_delete_company_export_incomplete(), { cause: error });
+      }
+      throw error;
+    }
+  };
+  const exportFirst = async () => {
+    const slug =
+      account.name
+        .replace(/[^a-z0-9]+/gi, "-")
+        .replace(/^-+|-+$/g, "")
+        .toLowerCase() || "company";
+    setExporting(true);
+    try {
+      const source = isServerConfigured() ? await fetchCompleteSlice() : useStore.getState().data;
+      const scoped = scopeData(source, account.id);
+      const total = SCOPED_KEYS.reduce((itemCount, key) => itemCount + scoped[key].length, 0);
+      if (total === 0) {
+        setExportError(null);
+        setExportEmpty(true);
+        return;
+      }
+      downloadTextFile(`capacitylens-${slug}-${todayISO()}.json`, serializeData(scoped));
+      setExportError(null);
+      setExportEmpty(false);
+    } catch (error) {
+      setExportEmpty(false);
+      setExportError(resolveErrorMessage(error));
+    } finally {
+      setExporting(false);
+    }
+  };
+  return { exportError, exportEmpty, exporting, exportFirst };
+}
+
+function DeleteFooter({
+  busy,
+  exporting,
+  matches,
+  hintId,
+  onCancel,
+  onConfirm,
+}: {
+  busy: boolean;
+  exporting: boolean;
+  matches: boolean;
+  hintId: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={onCancel} disabled={busy}>
+        {m.form_cancel()}
+      </Button>
+      <Button
+        size="sm"
+        variant="danger-soft"
+        disabled={busy || exporting}
+        aria-disabled={!matches || undefined}
+        onClick={() => {
+          if (matches && !busy && !exporting) onConfirm();
+        }}
+        aria-describedby={hintId}
+        className="aria-disabled:opacity-50"
+      >
+        {m.form_delete()}
+      </Button>
+    </>
+  );
+}
+
+function DeleteCompanyMessages({
+  accountName,
+  exportError,
+  exportEmpty,
+}: {
+  accountName: string;
+  exportError: string | null;
+  exportEmpty: boolean;
+}) {
+  return (
+    <>
+      <p className="text-sm text-muted-foreground">
+        {m.dialog_delete_company_body_prefix()}
+        <span className="font-medium text-ink">{accountName}</span>
+        {m.dialog_delete_company_body_suffix()}
+      </p>
+      {exportError && (
+        <p role="alert" className="text-sm font-medium text-danger">
+          {exportError}
+          {m.dialog_delete_company_export_failed_suffix()}
+        </p>
+      )}
+      {exportEmpty && (
+        <p role="alert" className="text-sm font-medium text-danger">
+          {m.dialog_delete_company_export_empty()}
+        </p>
+      )}
+    </>
+  );
+}
+
 // Friction for the one irreversible action in the app. Deleting a company cascade-
 // drops all of its data with no undo, so we (a) offer a one-click export of that
 // company's data first, and (b) require typing the exact name to arm the button.
@@ -50,19 +166,7 @@ export function DeleteCompanyDialog({
   onCancel: () => void;
 }) {
   const [typed, setTyped] = useState("");
-  // Surface a failed "export first" inline: this is the LAST backup before a no-undo cascade delete,
-  // so a silently-failed export (the user thinks they're covered, then deletes) is the worst case.
-  const [exportError, setExportError] = useState<string | null>(null);
-  // Separate from exportError: an all-empty slice is a WARNING ("no file was saved — is that
-  // expected?"), not a failure, and must not carry the error path's "get a backup first" suffix
-  // (backing up an empty company is impossible advice). Mutually exclusive with exportError.
-  const [exportEmpty, setExportEmpty] = useState(false);
-  // True while an export attempt is pending. Disarms BOTH buttons: Delete, so the no-undo cascade
-  // can't race the in-flight backup (deleting mid-fetch would erase the very slice being saved);
-  // Export, so a double-click can't start a second overlapping fetch. Once the attempt settles —
-  // success OR failure — Delete re-arms: export is deliberately optional (the user may already
-  // hold their own backup), so a failed export warns loudly but never locks the dialog.
-  const [exporting, setExporting] = useState(false);
+  const { exportError, exportEmpty, exporting, exportFirst } = useCompanyExport(account);
   const matches = typed.trim().normalize("NFC") === account.name.trim().normalize("NFC");
   // Hint id so the disabled Delete button can point at the type-to-confirm instruction —
   // a screen reader then announces WHY Delete is unavailable, not just that it's disabled.
@@ -75,67 +179,8 @@ export function DeleteCompanyDialog({
   // 403 for a non-admin) or a structurally incomplete body — is re-thrown here with this dialog's
   // user-facing sentence so the export visibly fails inline and can never save a partial/empty
   // backup.
-  const fetchCompleteSlice = async (): Promise<AppData> => {
-    try {
-      return await fetchInactiveSlice(account.id);
-    } catch (e) {
-      // Re-throw with the export-specific i18n sentence (prefer the server's own sentence on a
-      // non-OK response); exportFirst's catch routes the message to the inline error surface.
-      if (e instanceof InactiveSliceHttpError) {
-        throw new Error(e.serverMessage ?? m.dialog_delete_company_export_fetch_failed({ status: e.status }), {
-          cause: e,
-        });
-      }
-      if (e instanceof InactiveSliceShapeError) {
-        throw new Error(m.dialog_delete_company_export_incomplete(), { cause: e });
-      }
-      throw e; // network/parse failure — errorMessage(e) in exportFirst surfaces it verbatim.
-    }
-  };
-
   // Export just this company's slice (same shape as the in-app export, which import
   // re-stamps into whichever account is active).
-  const exportFirst = async () => {
-    const slug =
-      account.name
-        .replace(/[^a-z0-9]+/gi, "-")
-        .replace(/^-+|-+$/g, "")
-        .toLowerCase() || "company";
-    setExporting(true);
-    try {
-      // scopeData narrows both sources identically: the fetched server slice is already
-      // single-account (it just re-filters and blanks `accounts`, matching the demo export shape);
-      // the demo blob genuinely needs the account filter.
-      // Read fresh from the store rather than subscribing: `data` is only needed inside this handler
-      // (the demo-mode branch), never at render time, so a subscription here would re-render the
-      // whole dialog on every store write while it's open for no visible benefit.
-      const scoped = scopeData(
-        isServerConfigured() ? await fetchCompleteSlice() : useStore.getState().data,
-        account.id,
-      );
-      // Zero-record guard: every real slice carries at least the built-in Internal client, so an
-      // all-empty scoped export means the company's data never reached us (or the company is
-      // genuinely empty). Refuse to save a file the user would mistake for a real backup.
-      const total = SCOPED_KEYS.reduce((itemCount, key) => itemCount + scoped[key].length, 0);
-      if (total === 0) {
-        setExportError(null);
-        setExportEmpty(true);
-        return;
-      }
-      downloadTextFile(`capacitylens-${slug}-${todayISO()}.json`, serializeData(scoped));
-      setExportError(null);
-      setExportEmpty(false);
-    } catch (e) {
-      // The backup did NOT save (fetch, serialize or download failed). Make it loud and inline so
-      // the user does NOT proceed to delete believing they have an export they don't. Export and
-      // Delete are separate steps, so they can retry or back out.
-      setExportEmpty(false);
-      setExportError(resolveErrorMessage(e));
-    } finally {
-      setExporting(false);
-    }
-  };
-
   return (
     <Modal
       title={m.dialog_delete_company_title()}
@@ -146,47 +191,22 @@ export function DeleteCompanyDialog({
       // let the unsaved-changes guard refuse Escape/backdrop once the user starts typing.
       guardDirty={false}
       footer={
-        <>
-          <Button size="sm" variant="outline" onClick={onCancel} disabled={busy}>
-            {m.form_cancel()}
-          </Button>
-          <Button
-            size="sm"
-            variant="danger-soft"
-            disabled={busy || exporting}
-            aria-disabled={!matches || undefined}
-            onClick={() => {
-              if (matches && !busy && !exporting) onConfirm();
-            }}
-            aria-describedby={hintId}
-            className="aria-disabled:opacity-50"
-          >
-            {m.form_delete()}
-          </Button>
-        </>
+        <DeleteFooter
+          busy={busy}
+          exporting={exporting}
+          matches={matches}
+          hintId={hintId}
+          onCancel={onCancel}
+          onConfirm={onConfirm}
+        />
       }
     >
-      <p className="text-sm text-muted-foreground">
-        {m.dialog_delete_company_body_prefix()}
-        <span className="font-medium text-ink">{account.name}</span>
-        {m.dialog_delete_company_body_suffix()}
-      </p>
+      <DeleteCompanyMessages accountName={account.name} exportError={exportError} exportEmpty={exportEmpty} />
       <div className="flex justify-start">
         <Button size="sm" variant="outline" disabled={busy || exporting} onClick={() => void exportFirst()}>
           {m.dialog_delete_company_export_first()}
         </Button>
       </div>
-      {exportError && (
-        <p role="alert" className="text-sm font-medium text-danger">
-          {exportError}
-          {m.dialog_delete_company_export_failed_suffix()}
-        </p>
-      )}
-      {exportEmpty && (
-        <p role="alert" className="text-sm font-medium text-danger">
-          {m.dialog_delete_company_export_empty()}
-        </p>
-      )}
       <TextField
         label={m.dialog_delete_company_confirm_label({ name: account.name })}
         value={typed}

@@ -3,7 +3,7 @@ import { openApp, selectShadOption, showScheduleFilters } from "./helpers";
 
 // Covers US-FIL-01..08. Seed has 6 allocations (one tentative: Bruce's Visual Design)
 // and 5 resource rows across Design/Development/Copywriting.
-test.describe("Filters", () => {
+function registerSuiteScenario1() {
   test("orders filter options by their planning hierarchy", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -30,7 +30,9 @@ test.describe("Filters", () => {
       "Workshop",
     ]);
   });
+}
 
+function registerSuiteScenario2() {
   test("searches resources by name and hides non-matching rows", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -39,7 +41,9 @@ test.describe("Filters", () => {
     await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toBeVisible();
     await expect(page.getByTestId("scheduler-row").filter({ hasText: "Clark Kent" })).toHaveCount(0);
   });
+}
 
+function registerSuiteScenario3() {
   test("filters the schedule by discipline", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -49,7 +53,9 @@ test.describe("Filters", () => {
     await expect(page.getByTestId("scheduler-row").filter({ hasText: "Clark Kent" })).toBeVisible();
     await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toHaveCount(0);
   });
+}
 
+function registerSuiteScenario4() {
   test("filters bars to a client", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -64,14 +70,18 @@ test.describe("Filters", () => {
     await page.getByLabel("Show unallocated").check();
     await expect(page.locator('[data-testid="scheduler-row"][data-dimmed]').first()).toBeVisible();
   });
+}
 
+function registerSuiteScenario5() {
   test("filters the schedule to a single project", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
     await selectShadOption(page.getByLabel("Filter by project"), "p-brand");
     await expect(page.getByTestId("allocation-bar")).toHaveCount(1);
   });
+}
 
+function registerSuiteScenario6() {
   test("hides tentative bars while capacity still counts them", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -83,7 +93,9 @@ test.describe("Filters", () => {
     // Capacity is still truthful: Bruce's 3-4 June over-marker remains.
     await expect(page.getByTestId("over-marker").first()).toBeVisible();
   });
+}
 
+function registerSuiteScenario7() {
   test("clears all active filters with the Clear Filters button", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -102,7 +114,9 @@ test.describe("Filters", () => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(all);
     await expect(clear).toBeDisabled();
   });
+}
 
+function registerSuiteScenario8() {
   test("shows the filtered empty state when nothing matches", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -115,7 +129,9 @@ test.describe("Filters", () => {
     await expect(page.getByTestId("scheduler-empty")).toBeHidden();
     await expect(page.getByTestId("allocation-bar").first()).toBeVisible();
   });
+}
 
+function registerSuiteScenario9() {
   test("filters the schedule to an all-projects activity (the activity lens)", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -124,7 +140,9 @@ test.describe("Filters", () => {
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Design" })).toBeVisible();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(1);
   });
+}
 
+function registerSuiteScenario10() {
   test("the activity lens is mutually exclusive with the client / project lens", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -138,4 +156,17 @@ test.describe("Filters", () => {
     await selectShadOption(page.getByLabel("Filter by project"), "p-brand");
     await expect(page.getByLabel("Filter by activity")).toHaveText("All activities");
   });
+}
+
+test.describe("Filters", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
+  registerSuiteScenario5();
+  registerSuiteScenario6();
+  registerSuiteScenario7();
+  registerSuiteScenario8();
+  registerSuiteScenario9();
+  registerSuiteScenario10();
 });

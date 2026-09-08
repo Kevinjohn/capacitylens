@@ -50,7 +50,7 @@ async function openStackedDialog(page: Page, section: string, button: string, ti
   await dialog.getByRole("button", { name: "Cancel" }).click();
 }
 
-test.describe("compact input modal layouts", () => {
+function registerSuiteScenario1() {
   test("uses the Resource form's 25/75 rows across the six management flows", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("switch", { name: "Show external resources" }).click();
@@ -62,7 +62,9 @@ test.describe("compact input modal layouts", () => {
     await openDialog(page, "Activities", "Add activity", "Add activity", 3);
     await openDialog(page, "Time off", "Add time off", "Add time off", 3);
   });
+}
 
+function registerSuiteScenario2() {
   test("stacks and contains every scoped form at 360px", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("switch", { name: "Show external resources" }).click();
@@ -75,7 +77,9 @@ test.describe("compact input modal layouts", () => {
     await openStackedDialog(page, "Activities", "Add activity", "Add activity", 3);
     await openStackedDialog(page, "Time off", "Add time off", "Add time off", 3);
   });
+}
 
+function registerSuiteScenario3() {
   test("wraps a long label, stacks on a narrow screen, and preserves required-error association", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page.getByRole("button", { name: "Add client" }).click();
@@ -118,4 +122,10 @@ test.describe("compact input modal layouts", () => {
     await expect(alert).toContainText(/name is required/i);
     await expect(dialog).toBeVisible();
   });
+}
+
+test.describe("compact input modal layouts", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
 });

@@ -8,10 +8,11 @@ import { Button } from "../ui/button";
 /** The branded "something broke — reload" recovery screen, shared by the top-level
  *  class boundary and the router's errorElement so both render identically. */
 export function ErrorFallback({ message }: { message?: string }) {
+  const displayMessage = message?.trim() ? message : m.boundary_message();
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
       <h1 className="text-xl font-semibold">{m.boundary_title()}</h1>
-      <p className="max-w-md text-sm text-muted-foreground">{message || m.boundary_message()}</p>
+      <p className="max-w-md text-sm text-muted-foreground">{displayMessage}</p>
       <Button onClick={reloadPage}>{m.boundary_reload()}</Button>
     </div>
   );

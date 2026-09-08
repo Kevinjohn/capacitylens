@@ -142,7 +142,9 @@ describe("projectAllocationDates", () => {
       });
     }
   });
+});
 
+describe("projectAllocationDates working spans", () => {
   it.each(["days", "blocks"] as const)("projects %s with the effective working span and preserves load", (mode) => {
     const base = baseDraft({ startDate: "2026-06-01", endDate: "2026-06-03", hoursPerDay: mode === "blocks" ? 0 : 6 });
     const projected = buildRepeatedAllocationDrafts(
@@ -191,7 +193,9 @@ describe("projectAllocationDates", () => {
     );
     expect(weekends[1]).toMatchObject({ startDate: "2026-06-06", endDate: "2026-06-08" });
   });
+});
 
+describe("projectAllocationDates validation", () => {
   it("rejects a mismatched resource, a missing anchor and invalid working-span context", () => {
     expect(() =>
       buildRepeatedAllocationDrafts(
@@ -341,7 +345,7 @@ describe("repeatingAllocationAdvisory", () => {
         resource: fullResource(),
         existingLoad: lateOnly,
         timeOff: [],
-        proposedDrafts: [drafts[0]!],
+        proposedDrafts: drafts.slice(0, 1),
         closures: [],
       }),
     ).toEqual({
@@ -350,7 +354,9 @@ describe("repeatingAllocationAdvisory", () => {
       nonEffectiveStartAllocations: 0,
     });
   });
+});
 
+describe("repeatingAllocationAdvisory load accounting", () => {
   it("does not double-count existing load across the drafts of one batch", () => {
     // Each draft is advised against the existing load ONCE (plus the drafts before it). A bucket
     // that re-added the same allocation per draft would push the later occurrences over.
@@ -408,7 +414,9 @@ describe("repeatingAllocationAdvisory", () => {
       nonEffectiveStartAllocations: 0,
     });
   });
+});
 
+describe("repeatingAllocationAdvisory schedule exceptions", () => {
   it("creates later occurrences on company closures and counts them in the overlap advisory", () => {
     const drafts = buildRepeatedAllocationDrafts(
       baseDraft({ startDate: "2026-06-01", endDate: "2026-06-01" }),
@@ -442,7 +450,9 @@ describe("repeatingAllocationAdvisory", () => {
       nonEffectiveStartAllocations: 0,
     });
   });
+});
 
+describe("repeatingAllocationAdvisory half-day capacity", () => {
   it("uses the fixed four-hour half-day boundary for every repeated occurrence", () => {
     const resource = fullResource({ halfDays: [2] });
     const exactCapacity = baseDraft({ startDate: "2026-06-02", endDate: "2026-06-02", hoursPerDay: 4 });
@@ -475,7 +485,9 @@ describe("repeatingAllocationAdvisory", () => {
       nonEffectiveStartAllocations: 0,
     });
   });
+});
 
+describe("repeatingAllocationAdvisory zero-load and external resources", () => {
   it("keeps zero-load Blocks clean on half days and skips External resources", () => {
     const zeroDraft = baseDraft({ hoursPerDay: 0 });
     expect(
@@ -527,7 +539,9 @@ describe("repeatingAllocationAdvisory", () => {
       nonEffectiveStartAllocations: 2,
     });
   });
+});
 
+describe("repeatingAllocationAdvisory effective starts", () => {
   it("reports zero non-effective starts for a weekly cadence anchored on an effective weekday", () => {
     const resource = fullResource({ workingDays: [1] });
     const starts = generateRepeatingStartDates("2026-06-01", "2026-06-29", resolveRepeatPattern("weekly")).startDates;

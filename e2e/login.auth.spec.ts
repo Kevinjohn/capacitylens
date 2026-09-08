@@ -29,7 +29,7 @@ async function seedUser(request: APIRequestContext, email = EMAIL) {
   if (!res.ok()) expect(res.status()).toBe(422);
 }
 
-test.describe("login screen (SMALLSASS_ACCOUNT_MODE=password)", () => {
+function registerSuiteScenario1() {
   test("unauthenticated visit shows the login screen, not the app — and the API 401s", async ({ page, request }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
@@ -58,7 +58,9 @@ test.describe("login screen (SMALLSASS_ACCOUNT_MODE=password)", () => {
       ),
     ).toEqual([]);
   });
+}
 
+function registerSuiteScenario2() {
   test("signing in reveals the app; signing out from Settings returns to the login screen", async ({
     page,
     request,
@@ -97,7 +99,9 @@ test.describe("login screen (SMALLSASS_ACCOUNT_MODE=password)", () => {
     await page.reload();
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
   });
+}
 
+function registerSuiteScenario3() {
   test("the --create-owner-admin-admin bootstrap credential signs in through the real form", async ({ page }) => {
     // The auth-e2e server boots with CAPACITYLENS_CREATE_ADMIN_ADMIN=1 and a pinned
     // The e2e server pins a policy-compliant bootstrap password on a wiped DB.
@@ -112,7 +116,9 @@ test.describe("login screen (SMALLSASS_ACCOUNT_MODE=password)", () => {
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page.getByRole("heading", { name: "Start planning" })).toBeVisible();
   });
+}
 
+function registerSuiteScenario4() {
   test("a login with NO memberships sees an EMPTY picker (tenant isolation — no cross-tenant leak)", async ({
     page,
     request,
@@ -142,4 +148,11 @@ test.describe("login screen (SMALLSASS_ACCOUNT_MODE=password)", () => {
     // No doomed create affordance: the server would 403 a membership-less org create.
     await expect(page.getByRole("button", { name: "New company" })).toHaveCount(0);
   });
+}
+
+test.describe("login screen (SMALLSASS_ACCOUNT_MODE=password)", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
 });

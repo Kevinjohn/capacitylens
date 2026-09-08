@@ -111,7 +111,10 @@ function integrationHarness(arrivalOrder: ArrivalOrder, initial?: Discipline) {
     db,
     adapter: new serverSyncAdapterConstructor("http://capacitylens.test", fetchImpl),
     waitForFirstBatch: () => vi.waitFor(() => expect(releaseFirst).toBeTypeOf("function")),
-    releaseFirstBatch: () => releaseFirst!(),
+    releaseFirstBatch: () => {
+      if (!releaseFirst) throw new Error("First batch has not reached the server.");
+      releaseFirst();
+    },
   };
 }
 

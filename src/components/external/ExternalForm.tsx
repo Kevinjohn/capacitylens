@@ -11,6 +11,43 @@ import { NEUTRAL_COLOR } from "../../lib/palette";
 import { externalCapacityDefaults } from "@capacitylens/shared/types/entities";
 import type { Resource } from "@capacitylens/shared/types/entities";
 
+type ExternalFormFieldsProps = {
+  name: string;
+  onNameChange: (value: string) => void;
+  role: string;
+  onRoleChange: (value: string) => void;
+  error: string | null;
+  errorField: string | null;
+  errorId: string;
+};
+
+function ExternalFormFields(props: ExternalFormFieldsProps) {
+  return (
+    <>
+      <TextField
+        label={m.form_external_company_label()}
+        value={props.name}
+        onChange={props.onNameChange}
+        required
+        invalid={props.errorField === "name"}
+        describedById={props.errorId}
+        layout="label-control"
+      />
+      <TextField
+        label={m.form_external_descriptor_label()}
+        value={props.role}
+        onChange={props.onRoleChange}
+        placeholder={m.form_external_descriptor_placeholder()}
+        invalid={props.errorField === "role"}
+        describedById={props.errorId}
+        layout="label-control"
+      />
+      <FieldError id={props.errorId}>{props.error}</FieldError>
+      <RequiredLegend />
+    </>
+  );
+}
+
 /**
  * Add/edit an external / 3rd-party party — a trimmed resource form. It captures only a COMPANY
  * name (required) and an optional descriptor. The capacity fields (hours, working days, discipline,
@@ -65,26 +102,15 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
       onSubmit={submit}
       footer={<FormActions onCancel={onClose} />}
     >
-      <TextField
-        label={m.form_external_company_label()}
-        value={name}
-        onChange={setName}
-        required
-        invalid={errorField === "name"}
-        describedById={errorId}
-        layout="label-control"
+      <ExternalFormFields
+        name={name}
+        onNameChange={setName}
+        role={role}
+        onRoleChange={setRole}
+        error={error}
+        errorField={errorField}
+        errorId={errorId}
       />
-      <TextField
-        label={m.form_external_descriptor_label()}
-        value={role}
-        onChange={setRole}
-        placeholder={m.form_external_descriptor_placeholder()}
-        invalid={errorField === "role"}
-        describedById={errorId}
-        layout="label-control"
-      />
-      <FieldError id={errorId}>{error}</FieldError>
-      <RequiredLegend />
     </Modal>
   );
 }

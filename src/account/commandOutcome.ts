@@ -17,7 +17,19 @@ export function hasUnknownAccountCommandOutcome(response: Response): boolean {
 }
 
 function compareCanonicalKeys(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function readResponseBody(response: Response, parsedBody: unknown): Promise<unknown> {
+  if (parsedBody !== undefined) return parsedBody;
+  const readableResponse = typeof response.clone === "function" ? response.clone() : response;
+  return readableResponse.json();
 }
 
 /** Keep unknown-outcome retry ceremonies distinct when one UI operation accepts different
@@ -25,13 +37,11 @@ function compareCanonicalKeys(left: string, right: string): number {
  * reuses the old command, receives IDEMPOTENCY_CONFLICT, clears the only recovery handle, and can
  * then submit a fresh duplicate while the original outcome is still unknown. */
 export async function buildPayloadOperationKey(operation: string, body: unknown): Promise<string> {
-  const canonical =
-    JSON.stringify(body, (_key, value: unknown) => {
-      if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
-      return Object.fromEntries(
-        Object.entries(value as Record<string, unknown>).sort(([left], [right]) => compareCanonicalKeys(left, right)),
-      );
-    }) ?? "null";
+  const serialized: unknown = JSON.stringify(body, (_key, value: unknown) => {
+    if (!isRecord(value)) return value;
+    return Object.fromEntries(Object.entries(value).sort(([left], [right]) => compareCanonicalKeys(left, right)));
+  });
+  const canonical = typeof serialized === "string" ? serialized : "null";
   const bytes = new TextEncoder().encode(canonical);
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
   const fingerprint = [...digest].map((value) => value.toString(16).padStart(2, "0")).join("");
@@ -43,12 +53,9 @@ export async function readUnknownAccountCommandOutcome(response: Response, parse
   if (response.status === 408 || response.status >= 500) return true;
   if (response.status !== 409) return false;
   try {
-    const body: unknown =
-      parsedBody === undefined
-        ? await (typeof response.clone === "function" ? response.clone() : response).json()
-        : parsedBody;
-    if (typeof body !== "object" || body === null || !("code" in body)) return true;
-    const code = (body as { code?: unknown }).code;
+    const body = await readResponseBody(response, parsedBody);
+    if (!isRecord(body)) return true;
+    const code = body.code;
     return typeof code !== "string" || !TERMINAL_COMMAND_CONFLICT_CODES.has(code);
   } catch {
     // Status alone cannot distinguish a terminal rejection from an in-flight command. Retain the

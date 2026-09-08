@@ -9,7 +9,7 @@ import {
   showScheduleFilters,
 } from "./helpers";
 
-test.describe("Feature flows", () => {
+function registerSuiteScenario1() {
   test("filtering by project narrows the schedule to that project", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -23,7 +23,9 @@ test.describe("Feature flows", () => {
     // just the project's work ("Show unallocated" opts the dimmed staffing view in).
     await expect(bars).toHaveCount(1);
   });
+}
 
+function registerSuiteScenario2() {
   test("undo restores a deleted allocation", async ({ page }) => {
     await openApp(page);
     const bars = page.getByTestId("allocation-bar");
@@ -43,7 +45,9 @@ test.describe("Feature flows", () => {
     await page.keyboard.press("Meta+z");
     await expect(bars).toHaveCount(n);
   });
+}
 
+function registerSuiteScenario3() {
   test("booking time off greys the schedule", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -64,7 +68,9 @@ test.describe("Feature flows", () => {
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
     await expect.poll(() => page.getByTestId("timeoff-block").count()).toBeGreaterThan(blocksBefore);
   });
+}
 
+function registerSuiteScenario4() {
   test("clicking a discipline header collapses its rows", async ({ page }, testInfo) => {
     await openApp(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
@@ -75,7 +81,9 @@ test.describe("Feature flows", () => {
       path: testInfo.outputPath("capacitylens_collapsed.png"),
     });
   });
+}
 
+function registerSuiteScenario5() {
   test("dragging an allocation onto another row reassigns it", async ({ page }, testInfo) => {
     await openApp(page);
     // Zoom keeps the left-edge date anchored (the frozen "today"'s Monday), so the
@@ -104,7 +112,9 @@ test.describe("Feature flows", () => {
     // Highlight cleared after drop.
     await expect(clarkLane).not.toHaveAttribute("data-droptarget", "");
   });
+}
 
+function registerSuiteScenario6() {
   test("rejects a vertical reassignment onto a non-working start date unless explicitly ignored", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -151,7 +161,9 @@ test.describe("Feature flows", () => {
 
     await expect(barryLane.getByRole("button", { name: /Brand System.*5 Jun to 5 Jun/ })).toBeVisible();
   });
+}
 
+function registerSuiteScenario7() {
   test("drawing in Time off mode opens a prefilled time-off form", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -178,7 +190,9 @@ test.describe("Feature flows", () => {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("dialog", { name: "Add time off" })).toHaveCount(0);
   });
+}
 
+function registerSuiteScenario8() {
   test("drawing on a placeholder locks the modal to its bound project", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     // Placeholders are hidden by default (per-account pref) — enable them so the lane renders.
@@ -207,4 +221,15 @@ test.describe("Feature flows", () => {
     await project.click();
     await expect(page.getByRole("option", { name: /Metropolis Rebrand/ })).toHaveCount(0);
   });
+}
+
+test.describe("Feature flows", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
+  registerSuiteScenario5();
+  registerSuiteScenario6();
+  registerSuiteScenario7();
+  registerSuiteScenario8();
 });

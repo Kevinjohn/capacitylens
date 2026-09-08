@@ -52,9 +52,9 @@ describe("standing documentation contracts", () => {
 
   it("keeps the literal product name out of the localization catalogue", () => {
     const brand = read("shared/src/brand.ts").match(/export const APP_NAME = "([^"]+)"/)?.[1];
-    expect(brand).toBeTruthy();
+    if (!brand) throw new Error("Expected the shared brand module to export APP_NAME.");
     const messages = Object.values(JSON.parse(read("messages/en.json")) as Record<string, string>);
-    expect(messages.filter((message) => message.includes(brand!))).toEqual([]);
+    expect(messages.filter((message) => message.includes(brand))).toEqual([]);
     expect(messages.filter((message) => message.includes("(s)"))).toEqual([]);
   });
 });

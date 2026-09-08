@@ -4,9 +4,9 @@ import { disableCssMotion, openApp, showScheduleFilters } from "./helpers";
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
-test.describe("Command palette", () => {
-  test.use({ contextOptions: { reducedMotion: "reduce" } });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
+function registerSuiteScenario1() {
   test("opens with Control+K, shows Actions and Pages, closes with Escape", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -45,7 +45,9 @@ test.describe("Command palette", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("command-palette")).not.toBeVisible();
   });
+}
 
+function registerSuiteScenario2() {
   test("toggle: second Control+K closes an open palette", async ({ page }) => {
     await openApp(page);
     await page.keyboard.press("ControlOrMeta+k");
@@ -55,7 +57,9 @@ test.describe("Command palette", () => {
     await page.keyboard.press("ControlOrMeta+k");
     await expect(page.getByTestId("command-palette")).not.toBeVisible();
   });
+}
 
+function registerSuiteScenario3() {
   test("opens from an input field (Ctrl+K fires even while typing)", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -68,7 +72,9 @@ test.describe("Command palette", () => {
     await page.keyboard.press("ControlOrMeta+k");
     await expect(page.getByTestId("command-palette")).toBeVisible();
   });
+}
 
+function registerSuiteScenario4() {
   test("fuzzy-finds a seeded resource and jumps to their lane", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -97,7 +103,9 @@ test.describe("Command palette", () => {
     // Bruce Wayne's lane should be visible (scrolled into view)
     await expect(page.locator('[data-resource-id="r-tyler"]')).toBeVisible();
   });
+}
 
+function registerSuiteScenario5() {
   test("keyboard: type + arrow down + Enter selects and closes", async ({ page }) => {
     await openApp(page);
     await page.keyboard.press("ControlOrMeta+k");
@@ -125,7 +133,9 @@ test.describe("Command palette", () => {
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
     await expect(page.locator('[data-resource-id="r-nike"]')).toBeVisible();
   });
+}
 
+function registerSuiteScenario6() {
   test("navigates to a page via the palette", async ({ page }) => {
     await openApp(page);
     await page.keyboard.press("ControlOrMeta+k");
@@ -141,7 +151,9 @@ test.describe("Command palette", () => {
     // Should navigate to /resources
     await expect(page.getByRole("button", { name: "Add resource" })).toBeVisible();
   });
+}
 
+function registerSuiteScenario7() {
   test("Go to today action navigates to schedule and recenters", async ({ page }) => {
     await openApp(page);
     const grid = page.getByTestId("scheduler-grid");
@@ -159,7 +171,9 @@ test.describe("Command palette", () => {
     await expect(grid).toBeVisible();
     await expect.poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft)).toBeLessThan(4000);
   });
+}
 
+function registerSuiteScenario8() {
   test("client and activity results apply their documented destinations", async ({ page }) => {
     await openApp(page);
 
@@ -175,7 +189,9 @@ test.describe("Command palette", () => {
     await expect(page).toHaveURL(/\/activities#activity=t-brand$/);
     await expect(page.getByText("Brand System", { exact: true })).toBeVisible();
   });
+}
 
+function registerSuiteScenario9() {
   test("Go to date action appears for valid ISO date query", async ({ page }) => {
     await openApp(page);
     await page.keyboard.press("ControlOrMeta+k");
@@ -188,7 +204,9 @@ test.describe("Command palette", () => {
     await expect(page.getByTestId("command-palette")).not.toBeVisible();
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
   });
+}
 
+function registerSuiteScenario10() {
   test("backdrop click closes the palette", async ({ page }) => {
     await openApp(page);
     await page.keyboard.press("ControlOrMeta+k");
@@ -200,7 +218,9 @@ test.describe("Command palette", () => {
 
     await expect(page.getByTestId("command-palette")).not.toBeVisible();
   });
+}
 
+function registerSuiteScenario11() {
   test("dirty-form guard: Ctrl+K while a modal is dirty does not open the palette", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -222,7 +242,9 @@ test.describe("Command palette", () => {
     // The unsaved-changes notice must appear
     await expect(page.getByText("You have unsaved changes — use Cancel or Save to close this dialog.")).toBeVisible();
   });
+}
 
+function registerSuiteScenario12() {
   test("impossible date 2026-02-31 does not show a Go to date option", async ({ page }) => {
     await openApp(page);
     await page.keyboard.press("ControlOrMeta+k");
@@ -233,7 +255,9 @@ test.describe("Command palette", () => {
     // No "Go to date 2026-02-31" option should appear
     await expect(page.getByTestId("command-palette").getByText(/Go to date 2026-02-31/)).not.toBeVisible();
   });
+}
 
+function registerSuiteScenario13() {
   test("palette project selection replaces stale schedule filters", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -266,7 +290,9 @@ test.describe("Command palette", () => {
     );
     await expect(page.getByPlaceholder("Search people…")).toHaveValue("");
   });
+}
 
+function registerSuiteScenario14() {
   test("palette has no serious or critical accessibility violations (light mode)", async ({ page }) => {
     await openApp(page);
     await disableCssMotion(page);
@@ -284,4 +310,21 @@ test.describe("Command palette", () => {
       ),
     ).toEqual([]);
   });
+}
+
+test.describe("Command palette", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
+  registerSuiteScenario5();
+  registerSuiteScenario6();
+  registerSuiteScenario7();
+  registerSuiteScenario8();
+  registerSuiteScenario9();
+  registerSuiteScenario10();
+  registerSuiteScenario11();
+  registerSuiteScenario12();
+  registerSuiteScenario13();
+  registerSuiteScenario14();
 });

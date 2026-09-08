@@ -252,7 +252,8 @@ export class BatchStateProjection implements ValidationDataLookup {
     if (!removed) throw new Error(`Missing indexed ${table} row ${id}.`);
     if (table === "allocations") this.attributionRewrites.delete(id);
     this.removeChildRelationships(table, removed);
-    const last = rows.pop()!;
+    const last = rows.pop();
+    if (!last) throw new Error(`Missing final ${table} row while removing ${id}.`);
     indexes.delete(id);
     if (index < rows.length) {
       rows[index] = last;

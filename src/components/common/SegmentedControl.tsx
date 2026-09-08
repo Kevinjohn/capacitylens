@@ -9,6 +9,28 @@ export type SegmentedGeometry = "gapped" | "connected";
 export type SegmentedSize = "sm" | "md" | "lg";
 export type SegmentedDensity = "default" | "compact";
 
+interface SegmentedControlProps<T> {
+  value: T;
+  onChange: (value: T) => void;
+  options: SegmentedOption<T>[];
+  /** Accessible name for the group; supply this OR `ariaLabelledby`. */
+  ariaLabel?: string;
+  /** Id of an existing visible label, as an alternative to `ariaLabel`. */
+  ariaLabelledby?: string;
+  /** Optional layout classes for the group container. */
+  className?: string;
+  /** Visual relationship between items. `gapped` leaves 2px channels; `connected` uses inset rules. */
+  geometry?: SegmentedGeometry;
+  /** Give every option an equal-width cell across the available track width. */
+  fullWidth?: boolean;
+  /** Track/item scale. Track padding remains 2px at every size. */
+  size?: SegmentedSize;
+  /** Named spacing treatment for labels that need less horizontal room. */
+  density?: SegmentedDensity;
+  /** Disable every segment while preserving the selected value. */
+  disabled?: boolean;
+}
+
 function encodeValue(value: string | number): string {
   return `${typeof value === "number" ? "n" : "s"}:${String(value)}`;
 }
@@ -48,6 +70,22 @@ const connectedItemClass = [
   "data-[state=on]:shadow-none [[data-state=on]+&]:shadow-none",
 ].join(" ");
 
+function getSegmentClass({
+  size,
+  density,
+  geometry,
+  fullWidth,
+}: Pick<Required<SegmentedControlProps<string>>, "size" | "density" | "geometry" | "fullWidth">) {
+  return cn(
+    "min-w-0 shrink-0 rounded-(--segment-radius) border border-transparent leading-none shadow-none",
+    sizeClasses[size].item,
+    density === "compact" && "px-1.5 tracking-tighter",
+    selectedSegmentClass,
+    geometry === "connected" && connectedItemClass,
+    fullWidth && "flex-1 basis-0 min-w-0 justify-center truncate",
+  );
+}
+
 /** Single-select option group backed by ShadCN ToggleGroup. */
 export function SegmentedControl<T extends string | number>({
   value,
@@ -61,31 +99,7 @@ export function SegmentedControl<T extends string | number>({
   size = "md",
   density = "default",
   disabled = false,
-}: {
-  value: T;
-  onChange: (value: T) => void;
-  options: SegmentedOption<T>[];
-  /** Accessible name for the group; supply this OR `ariaLabelledby`. */
-  ariaLabel?: string;
-  /** Id of an existing visible label, as an alternative to `ariaLabel`. */
-  ariaLabelledby?: string;
-  /** Optional layout classes for the group container. */
-  className?: string;
-  /** Visual relationship between items. `gapped` leaves 2px channels; `connected` uses inset rules. */
-  geometry?: SegmentedGeometry;
-  /** Give every option an equal-width cell across the available track width. */
-  fullWidth?: boolean;
-  /** Track/item scale. Track padding remains 2px at every size. */
-  size?: SegmentedSize;
-  /** Named spacing treatment for labels that need less horizontal room. */
-  density?: SegmentedDensity;
-  /**
-   * When true, the group gives every segment the native `disabled` attribute, so the selected value
-   * remains visible but cannot receive sequential focus or change. Used for the frozen week-start
-   * control in Settings. Default false.
-   */
-  disabled?: boolean;
-}) {
+}: SegmentedControlProps<T>) {
   const markDirty = useMarkFormDirty();
   return (
     <ToggleGroup
@@ -120,14 +134,7 @@ export function SegmentedControl<T extends string | number>({
           value={encodeValue(option.value)}
           title={option.title}
           data-form-dirty-managed
-          className={cn(
-            "min-w-0 shrink-0 rounded-(--segment-radius) border border-transparent leading-none shadow-none",
-            sizeClasses[size].item,
-            density === "compact" && "px-1.5 tracking-tighter",
-            selectedSegmentClass,
-            geometry === "connected" && connectedItemClass,
-            fullWidth && "flex-1 basis-0 min-w-0 justify-center truncate",
-          )}
+          className={getSegmentClass({ size, density, geometry, fullWidth })}
         >
           {option.label}
         </ToggleGroupItem>

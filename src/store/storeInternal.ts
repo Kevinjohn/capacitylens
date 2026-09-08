@@ -28,7 +28,7 @@ export * from "./revisions";
 export * from "./history";
 export * from "./storeConstants";
 
-export function createStoreInternals(set: StoreApi<StoreState>["setState"], get: StoreApi<StoreState>["getState"]) {
+function createMutationActions(set: StoreApi<StoreState>["setState"]) {
   // Every data mutation goes through mutate(): it snapshots the previous data
   // onto the undo stack and clears the redo stack.
   //
@@ -49,15 +49,114 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
   const mutateIrreversible = (producer: (data: AppData) => AppData) =>
     set((state) => ({ data: producer(state.data), past: [], future: [] }));
 
-  const applyPatch = <T extends Entity>(row: T, patch: Patch<T>): T => {
-    const next = { ...row, ...patch };
-    for (const [key, value] of Object.entries(patch)) {
-      if (value === undefined) delete (next as Record<string, unknown>)[key];
-    }
-    return next;
+  return { mutate, mutateIrreversible };
+}
+
+const applyPatch = <T extends Entity>(row: T, patch: Patch<T>): T => {
+  const next = { ...row, ...patch };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) delete (next as Record<string, unknown>)[key];
+  }
+  return next;
+};
+
+const updateById = <T extends Entity>(list: T[], id: ID, patch: Patch<T>): T[] =>
+  list.map((row) => (row.id === id ? { ...applyPatch(row, patch), updatedAt: touchAfter(row.updatedAt) } : row));
+
+function createGuardedActions(blockedByViewer: ReturnType<typeof createGuards>["blockedByViewer"]) {
+  const createGuardedAction =
+    <A extends unknown[], R>(action: (...parameters: A) => R, blockedValue?: R) =>
+    (...parameters: A): R =>
+      blockedByViewer() ? (blockedValue as R) : action(...parameters);
+  const createGuardedAddAction =
+    <A extends unknown[], E>(build: (...parameters: A) => E, persist: (built: E, ...args: A) => E) =>
+    (...parameters: A): E => {
+      const built = build(...parameters);
+      return blockedByViewer() ? built : persist(built, ...parameters);
+    };
+  return { createGuardedAction, createGuardedAddAction };
+}
+
+interface OwnedUpdateDependencies {
+  get: StoreApi<StoreState>["getState"];
+  resolveOwnedRow: ReturnType<typeof createGuards>["resolveOwnedRow"];
+  mutate: (producer: (data: AppData) => AppData) => void;
+}
+
+function createOwnedUpdater({ get, resolveOwnedRow, mutate }: OwnedUpdateDependencies) {
+  return <K extends ScopedEntityKey>({ key, id, patch, prepare, cascade }: UpdateOwnedInput<K>): boolean => {
+    const existing = resolveOwnedRow(get().data, key, id);
+    if (!existing) return false;
+    const effective = prepare ? prepare(applyPatch(existing, patch), existing) : patch;
+    mutate((data) => {
+      const rows = updateById(data[key] as Entity[], id, effective as Partial<Entity>);
+      const next = { ...data, [key]: rows };
+      return cascade ? cascade(next, applyPatch(existing, effective), existing) : next;
+    });
+    return true;
   };
-  const updateById = <T extends Entity>(list: T[], id: ID, patch: Patch<T>): T[] =>
-    list.map((row) => (row.id === id ? { ...applyPatch(row, patch), updatedAt: touchAfter(row.updatedAt) } : row));
+}
+
+interface AllocationCreationDependencies {
+  get: StoreApi<StoreState>["getState"];
+  requireAccount: ReturnType<typeof createGuards>["requireAccount"];
+  blockedByViewer: ReturnType<typeof createGuards>["blockedByViewer"];
+  assertAllocation: ReturnType<typeof createGuards>["assertAllocation"];
+  mutate: (producer: (data: AppData) => AppData) => void;
+}
+
+function createAllocationCreator(dependencies: AllocationCreationDependencies) {
+  return (inputs: readonly Draft<Allocation>[]): Allocation[] => {
+    if (inputs.length === 0) throw new Error("At least one allocation is required.");
+    const accountId = dependencies.requireAccount();
+    const allocations = inputs.map((input) => ({
+      ...input,
+      hoursPerDay: clampHoursPerDay(input.hoursPerDay),
+      id: newId(),
+      accountId,
+      ...stamp(),
+    }));
+    if (dependencies.blockedByViewer()) return allocations;
+    const data = dependencies.get().data;
+    for (const allocation of allocations) {
+      dependencies.assertAllocation(
+        data,
+        accountId,
+        allocation.resourceId,
+        allocation.activityId,
+        allocation.hoursPerDay,
+        allocation.projectId,
+      );
+      assertDateRange(allocation.startDate, allocation.endDate);
+    }
+    dependencies.mutate((current) => ({ ...current, allocations: [...current.allocations, ...allocations] }));
+    return allocations;
+  };
+}
+
+function createImportAction(
+  set: StoreApi<StoreState>["setState"],
+  get: StoreApi<StoreState>["getState"],
+  createGuardedAction: ReturnType<typeof createGuardedActions>["createGuardedAction"],
+) {
+  return createGuardedAction(
+    (accountId: ID, incoming: AppData): ImportSummary => {
+      const result = remapAndValidateImport(get().data, accountId, incoming, touch());
+      if (result.imported === 0) return { imported: 0, skipped: result.skipped };
+      set((state) => ({
+        data: result.data,
+        past: [...state.past, state.data].slice(-HISTORY_LIMIT),
+        future: [],
+        ui: { ...resetSchedulerView(state.ui), filters: clearEntityLenses(state.ui.filters) },
+      }));
+      return { imported: result.imported, skipped: result.skipped };
+    },
+    { imported: 0, skipped: 0 },
+  );
+}
+
+export function createStoreInternals(set: StoreApi<StoreState>["setState"], get: StoreApi<StoreState>["getState"]) {
+  const { mutate, mutateIrreversible } = createMutationActions(set);
 
   const {
     requireAccount,
@@ -71,114 +170,10 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
     applySnappedColor,
   } = createGuards(get, set);
 
-  // --- Write-shape wrappers ---------------------------------------------------------------------
-  // Two rules used to be re-stated by hand in every action, so a NEW action could silently get
-  // either one wrong: (1) the viewer gate must run BEFORE any assert, colour repair or persist, and
-  // (2) an update must validate the MERGED row rather than the raw patch. The wrappers below make
-  // both structural; each action then declares only what is specific to it.
-
-  /** Run `action` only when the caller may write; a blocked viewer gets `blockedValue` plus a notice and
-   *  nothing runs. `action` is first so TypeScript infers the return type from it and checks the blocked
-   *  value against it — omit the value entirely for the void actions. */
-  const createGuardedAction =
-    <A extends unknown[], R>(action: (...parameters: A) => R, blockedValue?: R) =>
-    (...parameters: A): R =>
-      blockedByViewer() ? (blockedValue as R) : action(...parameters);
-
-  /** The add* shape. `build` CONSTRUCTS the entity only — it may resolve the active account, but must
-   *  never validate, repair a colour or persist — then the gate runs, then `persist` asserts/repairs/
-   *  commits. So a blocked viewer gets back exactly the row they submitted, never a value we silently
-   *  changed on their behalf, and nothing lands in state. Server 403 is the real backstop. */
-  const createGuardedAddAction =
-    <A extends unknown[], E>(build: (...parameters: A) => E, persist: (built: E, ...args: A) => E) =>
-    (...parameters: A): E => {
-      const built = build(...parameters);
-      return blockedByViewer() ? built : persist(built, ...parameters);
-    };
-
-  /** The update* shape: resolve the owned row (a stale id — e.g. a drag committed after an undo
-   *  removed the row — is a benign no-op returning false), hand `prepare` the MERGED row so
-   *  validation sees exactly what will be committed, then commit the patch `prepare` returns.
-   *  Validating the raw patch instead used to let a note-only edit pass locally while the server —
-   *  which always merges before it validates — rejected the full row, diverging local from synced
-   *  state. `prepare` may also throw (surface, don't swallow) and may repair the patch it returns;
-   *  `cascade` adds dependent table writes to that same mutation/history entry. */
-  const updateOwned = <K extends ScopedEntityKey>({
-    key,
-    id,
-    patch,
-    prepare,
-    cascade,
-  }: UpdateOwnedInput<K>): boolean => {
-    const existing = resolveOwnedRow(get().data, key, id);
-    if (!existing) return false;
-    const effective = prepare ? prepare(applyPatch(existing, patch), existing) : patch;
-    // The table key is generic here, so TS can't narrow data[key] to a single row type; K pins the row
-    // and patch types at every call site above, which is where correctness is actually checked.
-    mutate((data) => {
-      const rows = updateById(data[key] as Entity[], id, effective as Partial<Entity>);
-      const next = { ...data, [key]: rows };
-      return cascade ? cascade(next, applyPatch(existing, effective), existing) : next;
-    });
-    return true;
-  };
-
-  // One shared implementation keeps single and repeated creation behavior identical. Build and
-  // validate every row before mutate() so a bad middle draft cannot publish, persist or enter history.
-  const createAllocations = (inputs: readonly Draft<Allocation>[]): Allocation[] => {
-    if (inputs.length === 0) throw new Error("At least one allocation is required.");
-    const accountId = requireAccount();
-    const allocations = inputs.map((input) => ({
-      ...input,
-      hoursPerDay: clampHoursPerDay(input.hoursPerDay),
-      id: newId(),
-      accountId,
-      ...stamp(),
-    }));
-    // Preserve the existing add* contract: a Viewer receives a constructed return value plus the
-    // visible read-only notice, but no validation or state mutation runs. Hand-gated rather than
-    // wrapped in `createGuardedAction`, whose blocked value is fixed up front: here it is the batch this call
-    // just built, which only exists after the pre-check work above.
-    if (blockedByViewer()) return allocations;
-    const data = get().data;
-    for (const allocation of allocations) {
-      assertAllocation(
-        data,
-        accountId,
-        allocation.resourceId,
-        allocation.activityId,
-        allocation.hoursPerDay,
-        allocation.projectId,
-      );
-      assertDateRange(allocation.startDate, allocation.endDate);
-    }
-    mutate((data) => ({ ...data, allocations: [...data.allocations, ...allocations] }));
-    return allocations;
-  };
-
-  // Replace the active account's slice from an import (see the importData action for the id-remap
-  // rationale). Wrapped in the shared viewer gate, whose zero-effect summary reports honestly that
-  // nothing was imported or skipped.
-  const importSlice = createGuardedAction(
-    (accountId: ID, incoming: AppData): ImportSummary => {
-      const result = remapAndValidateImport(get().data, accountId, incoming, touch());
-      // Refuse a zero-record import rather than wiping the account's existing slice.
-      // Replacing a company's data with nothing is never the intent (delete is the
-      // explicit path for that), and a truncated/empty file otherwise slips past the
-      // shape-only file guard and silently clears the account.
-      if (result.imported === 0) return { imported: 0, skipped: result.skipped };
-      set((state) => ({
-        data: result.data,
-        past: [...state.past, state.data].slice(-HISTORY_LIMIT),
-        future: [],
-        // The incoming rows carry FRESH ids, so the entity lenses can no longer resolve; the search
-        // text and the tentative/unmatched preferences are the user's own and survive.
-        ui: { ...resetSchedulerView(state.ui), filters: clearEntityLenses(state.ui.filters) },
-      }));
-      return { imported: result.imported, skipped: result.skipped };
-    },
-    { imported: 0, skipped: 0 },
-  );
+  const { createGuardedAction, createGuardedAddAction } = createGuardedActions(blockedByViewer);
+  const updateOwned = createOwnedUpdater({ get, resolveOwnedRow, mutate });
+  const createAllocations = createAllocationCreator({ get, requireAccount, blockedByViewer, assertAllocation, mutate });
+  const importSlice = createImportAction(set, get, createGuardedAction);
 
   // clampHoursPerDay (allocations, [0,24]) and clampWorkingHoursPerDay (resources, (0,24])
   // come from the shared core (entities.ts) so the store write boundary and the import

@@ -77,13 +77,14 @@ function stubFetch(response: Partial<Response> & { json?: () => Promise<unknown>
 
 describe("useLifecycleActions — SERVER mode dispatch", () => {
   it("queues an overlapping lifecycle mutation until the first transition settles", async () => {
-    let release: (() => void) | null = null;
+    const pendingRequest: { release?: () => void } = {};
     const fetchMock = vi
       .fn()
       .mockImplementationOnce(
         () =>
           new Promise<Response>((resolve) => {
-            release = () => resolve({ ok: true, status: 200, json: async () => ({}) } as unknown as Response);
+            pendingRequest.release = () =>
+              resolve({ ok: true, status: 200, json: async () => ({}) } as unknown as Response);
           }),
       )
       .mockResolvedValue({ ok: true, status: 200, json: async () => ({}) } as unknown as Response);
@@ -93,7 +94,9 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
     const first = result.current.archive("clients", "c-1");
     const overlapping = result.current.purge("clients", "c-1");
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    release!();
+    expect(pendingRequest.release).toBeDefined();
+    if (pendingRequest.release === undefined) throw new Error("Expected the first lifecycle request to be pending");
+    pendingRequest.release();
     await Promise.all([first, overlapping]);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -102,7 +105,9 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
       "http://api.test/api/clients/c-1/purge",
     ]);
   });
+});
 
+describe("useLifecycleActions — refresh outcomes", () => {
   it.each([
     ["archive", "archive"],
     ["unarchive", "unarchive"],
@@ -118,7 +123,11 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
 
       // The exact route + body + credentials the P2.5a routes expect.
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      const firstCall: unknown = fetchMock.mock.calls[0];
+      if (!Array.isArray(firstCall) || typeof firstCall[0] !== "string" || typeof firstCall[1] !== "object") {
+        throw new Error("Expected fetch to receive a URL and request options");
+      }
+      const [url, init] = firstCall as [string, RequestInit];
       expect(url).toBe(`http://api.test/api/clients/c-1/${verb}`);
       expect(init.method).toBe("POST");
       expect(init.credentials).toBe("include");
@@ -131,7 +140,9 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
       expect(useStore.getState().notice).toBeNull();
     },
   );
+});
 
+describe("useLifecycleActions — orchestrated refresh", () => {
   it("delegates a successful lifecycle reload to the attached persistence orchestrator", async () => {
     refreshControl.outcome = { kind: "reloaded" };
     const onReloaded = vi.fn();
@@ -172,14 +183,11 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
       expect(refreshControl.call).toHaveBeenCalledWith(accountId);
       expect(loadAll).not.toHaveBeenCalled();
       expect(onReloaded).not.toHaveBeenCalled();
-      expect(useStore.getState().notice).toMatchObject({
-        tone: "error",
-        message: expect.stringContaining("saved on the server"),
-      });
-      expect(useStore.getState().notice?.message).toContain(expectedGuidance);
-      expect(useStore.getState().notice?.message).toContain(
-        "Reload this page before archiving, restoring, or deleting another item",
-      );
+      const notice = useStore.getState().notice;
+      expect(notice?.tone).toBe("error");
+      expect(notice?.message).toContain("saved on the server");
+      expect(notice?.message).toContain(expectedGuidance);
+      expect(notice?.message).toContain("Reload this page before archiving, restoring, or deleting another item");
 
       // The first POST is confirmed but the shared store still shows its pre-mutation slice. Even a
       // different route/component instance must not POST again until a full reload rehydrates it.
@@ -192,7 +200,9 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
       expect(useStore.getState().notice?.message).toContain(expectedGuidance);
     },
   );
+});
 
+describe("useLifecycleActions — refresh callback", () => {
   it("does not reconcile or misreport a callback failure after a confirmed mutation and reload", async () => {
     refreshControl.outcome = { kind: "reloaded" };
     const onReloaded = vi.fn(() => {
@@ -232,7 +242,9 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
     // The store data was left untouched (still the seeded single-account slice, no 'c-reloaded').
     expect(useStore.getState().data.clients.some((c) => c.id === "c-reloaded")).toBe(false);
   });
+});
 
+describe("useLifecycleActions — server failures", () => {
   it("a 403 (non-admin purge) surfaces body.error via an error notice and resolves", async () => {
     stubFetch({ ok: false, status: 403, json: async () => ({ error: "You do not have permission to do that." }) });
     const { result } = renderHook(() => useLifecycleActions());
@@ -265,7 +277,9 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
       expect(useStore.getState().notice?.message).toContain(`HTTP ${status}`);
     },
   );
+});
 
+describe("useLifecycleActions — successful response variants", () => {
   it("a 204 purge (no body) is treated as success: reloads without a body-parse error", async () => {
     // A 204 No Content carries no JSON; res.ok is false at 204 in some runtimes, so the hook guards
     // status === 204 explicitly. Prove that path reloads and surfaces no error notice.
@@ -285,7 +299,9 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
     expect(useStore.getState().data.clients.some((c) => c.id === "c-reloaded")).toBe(true);
     expect(useStore.getState().notice).toBeNull(); // no body-parse error surfaced
   });
+});
 
+describe("useLifecycleActions — account switching", () => {
   it("SKIPS the post-mutation reload when the active account changed while the POST was in flight", async () => {
     // The wrong-tenant race (P1): the lifecycle POST resolves AFTER the user switched away from the
     // account the mutation ran in. The mutation committed server-side (it shows on that account's
@@ -319,7 +335,9 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
     expect(loadAll).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
     expect(useStore.getState().notice).toBeNull();
   });
+});
 
+describe("useLifecycleActions — fallback account switching", () => {
   it("discards a bare fallback slice when the active account changes while loadAll is in flight", async () => {
     const otherAccount = makeAccount({ id: "acct-other", name: "Other Co" });
     const original = useStore.getState().data;
@@ -377,7 +395,9 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
       expect(useStore.getState().notice?.message).toContain("Reload before retrying");
     },
   );
+});
 
+describe("useLifecycleActions — stale transport failures", () => {
   it("suppresses a transport reconciliation notice after the user leaves the company", async () => {
     const onReloaded = vi.fn();
     vi.stubGlobal(

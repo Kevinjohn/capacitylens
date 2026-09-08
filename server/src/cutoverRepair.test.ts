@@ -27,7 +27,8 @@ async function database() {
   const path = join(directory, "capacitylens.db");
   const db = openDb(path);
   const configured = createAuthFromEnvironment(db, env);
-  await runAuthMigrations(configured.auth!);
+  if (!configured.auth) throw new Error("Expected auth configuration.");
+  await runAuthMigrations(configured.auth);
   return { path, db };
 }
 
@@ -58,46 +59,51 @@ afterEach(() => {
   directory = null;
 });
 
-describe("stopped-server SSO cutover repair", () => {
+async function prepareDuplicateSubjectState(): Promise<string> {
+  const prepared = await database();
+  insertUser(prepared.db, "wrong-principal", "wrong@example.com");
+  insertUser(prepared.db, "right-principal", "right@example.com");
+  insertAccount({
+    db: prepared.db,
+    id: "wrong-link",
+    providerId: "workforce",
+    subject: "duplicate-subject",
+    principalId: "wrong-principal",
+  });
+  insertAccount({
+    db: prepared.db,
+    id: "wrong-credential",
+    providerId: "credential",
+    subject: "wrong-principal",
+    principalId: "wrong-principal",
+  });
+  prepared.db.prepare(`UPDATE account SET password = ? WHERE id = ?`).run("stored-password-hash", "wrong-credential");
+  // Simulate the pre-v25 race state: v24 had no composite uniqueness backstop.
+  prepared.db.exec(`
+    DROP INDEX idx_account_provider_subject_unique;
+    DROP TRIGGER capacitylens_observe_federated_account;
+    DELETE FROM capacitylens_federated_link_observations;
+    DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
+    PRAGMA user_version = 24;
+  `);
+  insertAccount({
+    db: prepared.db,
+    id: "right-link",
+    providerId: "workforce",
+    subject: "duplicate-subject",
+    principalId: "right-principal",
+  });
+  prepared.db.close();
+  return prepared.path;
+}
+
+function createDuplicateSubjectRepairTest(): void {
   it("removes exactly the named duplicate subject link so v25 can migrate safely", async () => {
-    const prepared = await database();
-    insertUser(prepared.db, "wrong-principal", "wrong@example.com");
-    insertUser(prepared.db, "right-principal", "right@example.com");
-    insertAccount({
-      db: prepared.db,
-      id: "wrong-link",
-      providerId: "workforce",
-      subject: "duplicate-subject",
-      principalId: "wrong-principal",
-    });
-    insertAccount({
-      db: prepared.db,
-      id: "wrong-credential",
-      providerId: "credential",
-      subject: "wrong-principal",
-      principalId: "wrong-principal",
-    });
-    prepared.db.prepare(`UPDATE account SET password = ? WHERE id = ?`).run("stored-password-hash", "wrong-credential");
-    // Simulate the pre-v25 race state: v24 had no composite uniqueness backstop.
-    prepared.db.exec(`
-      DROP INDEX idx_account_provider_subject_unique;
-      DROP TRIGGER capacitylens_observe_federated_account;
-      DELETE FROM capacitylens_federated_link_observations;
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
-      PRAGMA user_version = 24;
-    `);
-    insertAccount({
-      db: prepared.db,
-      id: "right-link",
-      providerId: "workforce",
-      subject: "duplicate-subject",
-      principalId: "right-principal",
-    });
-    prepared.db.close();
+    const path = await prepareDuplicateSubjectState();
 
     await expect(
       repairSsoCutover({
-        databasePath: prepared.path,
+        databasePath: path,
         confirmServerStopped: true,
         operation: {
           kind: "remove-provider-link",
@@ -114,14 +120,16 @@ describe("stopped-server SSO cutover repair", () => {
       subject: "duplicate-subject",
     });
 
-    const verified = openDb(prepared.path);
+    const verified = openDb(path);
     expect(verified.prepare(`SELECT id, userId FROM account WHERE providerId = 'workforce'`).all()).toEqual([
       { id: "right-link", userId: "right-principal" },
     ]);
     expect(verified.prepare(`PRAGMA user_version`).get()).toEqual({ user_version: DB_SCHEMA_VERSION });
     verified.close();
   });
+}
 
+function createCredentialOrphanRepairTest(): void {
   it.each([
     ["credential-only", true],
     ["providerless", false],
@@ -157,7 +165,9 @@ describe("stopped-server SSO cutover repair", () => {
     expect(verified.prepare(`SELECT id FROM capacitylens_audit_outbox`).all()).toHaveLength(1);
     verified.close();
   });
+}
 
+function createAlternativeProviderRepairTest(): void {
   it("removes an exact alternative-provider link", async () => {
     const prepared = await database();
     insertUser(prepared.db, "principal-1", "owner@example.com");
@@ -199,7 +209,9 @@ describe("stopped-server SSO cutover repair", () => {
     ]);
     verified.close();
   });
+}
 
+function createLegacyMultiLinkRepairTest(): void {
   it("repairs one exact row from a legacy multi-link state", async () => {
     const prepared = await database();
     insertUser(prepared.db, "principal-1", "owner@example.com");
@@ -252,7 +264,9 @@ describe("stopped-server SSO cutover repair", () => {
     ]);
     verified.close();
   });
+}
 
+function createOwnerAssignmentRepairTest(): void {
   it("assigns an active member as Owner in an ownerless workspace", async () => {
     const prepared = await database();
     insertUser(prepared.db, "principal-1", "admin@example.com");
@@ -289,7 +303,9 @@ describe("stopped-server SSO cutover repair", () => {
     });
     verified.close();
   });
+}
 
+function createEmptyWorkspaceRepairTest(): void {
   it("erases only a workspace with no active members", async () => {
     const prepared = await database();
     prepared.db
@@ -313,7 +329,9 @@ describe("stopped-server SSO cutover repair", () => {
     ).toEqual([{ action: "workspace.erased" }]);
     verified.close();
   });
+}
 
+function createActiveMembershipRefusalTest(): void {
   it("refuses a credential principal that still belongs to a workspace", async () => {
     const prepared = await database();
     insertUser(prepared.db, "member-principal", "member@example.com");
@@ -343,24 +361,41 @@ describe("stopped-server SSO cutover repair", () => {
       }),
     ).rejects.toThrow(/not a providerless or credential-only principal with zero active workspace memberships/i);
   });
+}
+
+describe("stopped-server SSO cutover repair", () => {
+  createDuplicateSubjectRepairTest();
+  createCredentialOrphanRepairTest();
+  createAlternativeProviderRepairTest();
+  createLegacyMultiLinkRepairTest();
+  createOwnerAssignmentRepairTest();
+  createEmptyWorkspaceRepairTest();
+  createActiveMembershipRefusalTest();
 });
 
 describe("SSO cutover preflight prerequisites", () => {
-  it("refuses when Better Auth still plans schema work", async () => {
-    const prepared = await database();
-    prepared.db.exec(`DROP TABLE verification`);
+  function createPendingSchemaRefusalTest(): void {
+    it("refuses when Better Auth still plans schema work", async () => {
+      const prepared = await database();
+      prepared.db.exec(`DROP TABLE verification`);
 
-    await expect(inspectSsoCutoverPreflight(prepared.db, env)).rejects.toThrow(/Better Auth schema is not current/i);
-    prepared.db.close();
-  });
+      await expect(inspectSsoCutoverPreflight(prepared.db, env)).rejects.toThrow(/Better Auth schema is not current/i);
+      prepared.db.close();
+    });
+  }
 
-  it("refuses when the persisted provider binding disagrees with configuration", async () => {
-    const prepared = await database();
-    prepared.db
-      .prepare(`UPDATE account_federated_provider_bindings SET issuer = ? WHERE providerId = ?`)
-      .run("https://wrong-idp.example", "workforce");
+  function createProviderBindingRefusalTest(): void {
+    it("refuses when the persisted provider binding disagrees with configuration", async () => {
+      const prepared = await database();
+      prepared.db
+        .prepare(`UPDATE account_federated_provider_bindings SET issuer = ? WHERE providerId = ?`)
+        .run("https://wrong-idp.example", "workforce");
 
-    await expect(inspectSsoCutoverPreflight(prepared.db, env)).rejects.toThrow(/provider binding does not match/i);
-    prepared.db.close();
-  });
+      await expect(inspectSsoCutoverPreflight(prepared.db, env)).rejects.toThrow(/provider binding does not match/i);
+      prepared.db.close();
+    });
+  }
+
+  createPendingSchemaRefusalTest();
+  createProviderBindingRefusalTest();
 });

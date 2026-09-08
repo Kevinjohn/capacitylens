@@ -73,7 +73,7 @@ it("uses the injected clock to arm, wake past, and re-arm deadlines", () => {
   expect(result.current).toBe(second + 1);
 });
 
-describe("useDeadlineClock", () => {
+function registerDeadlineClockBasics(): void {
   it("starts at the current time", () => {
     const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(START + 60_000))));
     expect(result.current).toBe(START);
@@ -97,7 +97,9 @@ describe("useDeadlineClock", () => {
     act(() => void vi.advanceTimersByTime(24 * 60 * 60 * 1000));
     expect(result.current).toBe(START);
   });
+}
 
+function registerDeadlineClockRearming(): void {
   it("re-arms on the nearer deadline when one appears", () => {
     const { result, rerender } = renderHook(({ nextAt }: { nextAt: number | null }) => useClockFor(nextAt), {
       initialProps: { nextAt: START + 60_000 },
@@ -146,7 +148,9 @@ describe("useDeadlineClock", () => {
     act(() => void vi.advanceTimersByTime(60_000));
     expect(result.current).toBe(START);
   });
+}
 
+function registerDeadlineClockCleanup(): void {
   it("clamps a deadline beyond setTimeout's 32-bit ceiling instead of overflowing", () => {
     // Passed through raw, this delay overflows and fires IMMEDIATELY (then again on every re-arm).
     const deadline = START + 3 * MAX_TIMEOUT_DELAY;
@@ -173,4 +177,10 @@ describe("useDeadlineClock", () => {
     unmount();
     expect(clearTimeoutSpy).toHaveBeenCalled();
   });
+}
+
+describe("useDeadlineClock", () => {
+  registerDeadlineClockBasics();
+  registerDeadlineClockRearming();
+  registerDeadlineClockCleanup();
 });

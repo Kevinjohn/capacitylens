@@ -40,9 +40,13 @@ export interface WorkspaceReadiness {
   globalIssues: ReadinessIssue[];
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function isReadinessIssue(value: unknown): value is ReadinessIssue {
-  if (!value || typeof value !== "object") return false;
-  const issue = value as Record<string, unknown>;
+  if (!isRecord(value)) return false;
+  const issue = value;
   return (
     typeof issue.message === "string" &&
     isSsoReadinessReason(issue.reason) &&
@@ -54,30 +58,42 @@ function isReadinessIssue(value: unknown): value is ReadinessIssue {
 }
 
 function isReadinessMember(value: unknown): value is ReadinessMember {
-  if (!value || typeof value !== "object") return false;
-  const member = value as Record<string, unknown>;
+  if (!isRecord(value)) return false;
+  const member = value;
   return (
     typeof member.principalId === "string" &&
-    (member.email === null || typeof member.email === "string") &&
-    (member.displayName === null || typeof member.displayName === "string") &&
+    isNullableString(member.email) &&
+    isNullableString(member.displayName) &&
     isAccountRole(member.role) &&
     typeof member.linked === "boolean" &&
     typeof member.blocking === "boolean" &&
     typeof member.critical === "boolean" &&
     isSsoReadinessReason(member.reason) &&
     Array.isArray(member.repairLinks) &&
-    member.repairLinks.every((link) => {
-      if (!link || typeof link !== "object") return false;
-      const coordinate = link as Record<string, unknown>;
-      return (
-        typeof coordinate.rowId === "string" &&
-        coordinate.rowId.length > 0 &&
-        typeof coordinate.providerId === "string" &&
-        coordinate.providerId.length > 0 &&
-        typeof coordinate.subject === "string" &&
-        coordinate.subject.length > 0
-      );
-    })
+    member.repairLinks.every(isReadinessRepairLink)
+  );
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isReadinessRepairLink(value: unknown): value is ReadinessRepairLink {
+  if (!isRecord(value)) return false;
+  return isNonEmptyString(value.rowId) && isNonEmptyString(value.providerId) && isNonEmptyString(value.subject);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function isReadinessProvider(value: unknown): value is WorkspaceReadiness["provider"] {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.label === "string" &&
+    value.kind === "oidc" &&
+    value.experimental === false
   );
 }
 
@@ -90,16 +106,11 @@ export function resolveReadinessMemberLabel(member: ReadinessMember): string {
 
 /** Parse an untrusted readiness response, returning null when any nested contract field is invalid. */
 export function parseWorkspaceReadiness(value: unknown): WorkspaceReadiness | null {
-  if (!value || typeof value !== "object") return null;
-  const body = value as Record<string, unknown>;
-  const provider = body.provider as Record<string, unknown> | null;
+  if (!isRecord(value)) return null;
+  const body = value;
   if (
     typeof body.ready !== "boolean" ||
-    !provider ||
-    typeof provider.id !== "string" ||
-    typeof provider.label !== "string" ||
-    provider.kind !== "oidc" ||
-    provider.experimental !== false ||
+    !isReadinessProvider(body.provider) ||
     !Array.isArray(body.members) ||
     !body.members.every(isReadinessMember) ||
     !Array.isArray(body.issues) ||
@@ -109,5 +120,11 @@ export function parseWorkspaceReadiness(value: unknown): WorkspaceReadiness | nu
   ) {
     return null;
   }
-  return body as unknown as WorkspaceReadiness;
+  return {
+    ready: body.ready,
+    provider: body.provider,
+    members: body.members,
+    issues: body.issues,
+    globalIssues: body.globalIssues,
+  };
 }

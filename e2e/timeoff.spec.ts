@@ -2,7 +2,7 @@ import { test, expect } from "./fixtures";
 import { goToSeedWeek, openApp, resetSchedulerScroll, selectShadOption, setZoom } from "./helpers";
 
 // Covers US-TOF-01..05.
-test.describe("Time off", () => {
+function registerSuiteScenario1() {
   test("books time off and shows it as a labelled block on the schedule", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
     await page.getByRole("button", { name: "Add time off" }).click();
@@ -31,7 +31,9 @@ test.describe("Time off", () => {
     await resetSchedulerScroll(page);
     await expect(page.locator('[data-resource-id="r-nike"]').getByTestId("timeoff-block")).toBeVisible();
   });
+}
 
+function registerSuiteScenario2() {
   test("groups current and future entries by resource and orders groups and dates", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
 
@@ -67,7 +69,9 @@ test.describe("Time off", () => {
       .click();
     await expect(page.getByRole("dialog", { name: "Edit time off" }).getByLabel("Start")).toHaveValue("2026-06-08");
   });
+}
 
+function registerSuiteScenario3() {
   test("keeps the list row terse (start date + day count); the type label stays on the timeline", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
     const row = page
@@ -88,7 +92,9 @@ test.describe("Time off", () => {
     await expect(block).toContainText("Holiday"); // the human label…
     await expect(block).not.toContainText("holiday"); // …not the raw enum
   });
+}
 
+function registerSuiteScenario4() {
   test("edits a time-off entry and the list reflects the change", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
     const row = page
@@ -111,7 +117,9 @@ test.describe("Time off", () => {
     await row.getByRole("button", { name: /^Edit / }).click();
     await expect(page.getByRole("dialog", { name: "Edit time off" }).getByLabel("Type")).toHaveText("Sick");
   });
+}
 
+function registerSuiteScenario5() {
   test("deletes a time-off entry after confirmation and restores it with undo", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
     const bruceGroup = page
@@ -144,4 +152,12 @@ test.describe("Time off", () => {
     await page.getByRole("link", { name: "Time off" }).click();
     await expect(bruceGroup.getByTestId("timeoff-row")).toBeVisible();
   });
+}
+
+test.describe("Time off", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
+  registerSuiteScenario5();
 });

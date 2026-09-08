@@ -17,7 +17,7 @@ async function enableExternal(page: import("@playwright/test").Page): Promise<vo
   await expect(toggle).toHaveAttribute("aria-checked", "true");
 }
 
-test.describe("External / 3rd parties (per-account pref, default off)", () => {
+function registerSuiteScenario1() {
   test("hidden by default: the seeded external is absent from the schedule and the Resources tab", async ({ page }) => {
     await openApp(page);
     // No External band on the schedule, no external lane.
@@ -30,14 +30,18 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await expect(page.getByRole("button", { name: "Add external party" })).toHaveCount(0);
     await expect(page.getByTestId("external-row")).toHaveCount(0);
   });
+}
 
+function registerSuiteScenario2() {
   test("the old /external URL redirects to the Resources tab", async ({ page }) => {
     // External no longer has its own tab — a saved bookmark must not 404; it redirects to /resources.
     await openApp(page, "Wayne Enterprises", "/external");
     await expect(page).toHaveURL(/\/resources$/);
     await expect(page.getByRole("heading", { name: "Resources", exact: true })).toBeVisible();
   });
+}
 
+function registerSuiteScenario3() {
   test("turning it on reveals the External section with help in Resources and the band on the schedule", async ({
     page,
   }) => {
@@ -84,7 +88,9 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
       page.getByTestId("scheduler-row").filter({ hasText: "Kord Industries" }).getByTestId("utilization"),
     ).toHaveCount(0);
   });
+}
 
+function registerSuiteScenario4() {
   test("the choice survives navigation in the current demo session", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("switch", { name: "Show external resources" }).click(); // → on
@@ -92,7 +98,9 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await page.getByRole("link", { name: "Settings" }).click();
     await expect(page.getByRole("switch", { name: "Show external resources" })).toHaveAttribute("aria-checked", "true");
   });
+}
 
+function registerSuiteScenario5() {
   test("adds an external party in the Resources tab External section", async ({ page }) => {
     await openApp(page);
     await enableExternal(page);
@@ -106,7 +114,9 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     // Still not a person row.
     await expect(page.getByTestId("resource-row").filter({ hasText: "Pixel Forge" })).toHaveCount(0);
   });
+}
 
+function registerSuiteScenario6() {
   test('assigns an activity from the row "+": the modal has no Hours field and saves a span-only bar', async ({
     page,
   }) => {
@@ -139,7 +149,9 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await expect(newBar).toBeVisible();
     await expect(newBar).not.toContainText(/\b\d+(?:\.\d+)?h\b/);
   });
+}
 
+function registerSuiteScenario7() {
   test("external parties are excluded from the Time off resource picker", async ({ page }) => {
     // Time off excludes externals unconditionally (no capacity), regardless of the view pref — but
     // enable the pref so the seeded external could otherwise be a candidate.
@@ -153,7 +165,9 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     // Sanity: a real person IS offered.
     await expect(page.getByRole("option", { name: "Bruce Wayne" })).toBeVisible();
   });
+}
 
+function registerSuiteScenario8() {
   test("time-off draw mode is a no-op on an external lane (no orphan time-off)", async ({ page }) => {
     // Enable External first so the lane is visible (default off), then go to the schedule.
     await openApp(page);
@@ -181,9 +195,11 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await expect(page.getByRole("dialog", { name: "Add time off" })).toHaveCount(0);
     await expect(lane.getByTestId("timeoff-block")).toHaveCount(0);
   });
+}
 
-  // P2.5b: the per-row destructive action ARCHIVES (hidden from the active list, fully retained — NOT
-  // a hard delete). Archiving is undoable via the local store.
+// P2.5b: the per-row destructive action ARCHIVES (hidden from the active list, fully retained — NOT
+// a hard delete). Archiving is undoable via the local store.
+function registerSuiteScenario9() {
   test("archiving an external party is undoable", async ({ page }) => {
     await openApp(page);
     await enableExternal(page);
@@ -203,4 +219,16 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await page.keyboard.press("Meta+z");
     await expect(page.getByTestId("external-row").filter({ hasText: "Kord Industries" })).toBeVisible();
   });
+}
+
+test.describe("External / 3rd parties (per-account pref, default off)", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
+  registerSuiteScenario5();
+  registerSuiteScenario6();
+  registerSuiteScenario7();
+  registerSuiteScenario8();
+  registerSuiteScenario9();
 });

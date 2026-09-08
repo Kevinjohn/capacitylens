@@ -5,11 +5,13 @@ import { dismissIntroIfPresent, freezeBrowserDate, openApp } from "./helpers";
 
 const PERSISTENCE_WARNING = "Changes aren’t being saved right now — we’ll keep retrying.";
 
-test.describe("database-backed resilience", () => {
+function registerSuiteScenario1() {
   test.beforeEach(async ({ request }) => {
     await resetServer(request, true);
   });
+}
 
+function registerSuiteScenario2() {
   test("an initial state failure prevents editing and Retry recovers the real server data", async ({ page }) => {
     const stateFailure = await failRequestsUntilReleased(page, "**/api/state", {
       status: 503,
@@ -32,7 +34,9 @@ test.describe("database-backed resilience", () => {
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Can’t reach the server" })).toHaveCount(0);
   });
+}
 
+function registerSuiteScenario3() {
   test("a failed save stays visibly unsaved, retries, and persists exactly once", async ({ page, request }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     const batchFailure = await failRequestsUntilReleased(page, "**/api/batch", {
@@ -64,7 +68,9 @@ test.describe("database-backed resilience", () => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await expect(page.getByTestId("client-row").filter({ hasText: "Retry Recovery Co" })).toHaveCount(1);
   });
+}
 
+function registerSuiteScenario4() {
   test("a stale concurrent edit is rejected, explained, and replaced by server truth", async ({
     page,
     request,
@@ -102,4 +108,11 @@ test.describe("database-backed resilience", () => {
     );
     await secondContext.close();
   });
+}
+
+test.describe("database-backed resilience", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
 });

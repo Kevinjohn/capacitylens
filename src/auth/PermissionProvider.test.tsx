@@ -107,7 +107,9 @@ describe("PermissionProvider authenticated lookup posture", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     view.unmount(); // reset the global offline marker only after this provider stops observing it
   });
+});
 
+describe("PermissionProvider refresh behavior", () => {
   it("keeps role and store pending/viewer after offline clears until a fresh lookup resolves", async () => {
     let resolveRefresh!: (response: Response) => void;
     const refresh = new Promise<Response>((resolve) => {
@@ -171,7 +173,9 @@ describe("PermissionProvider authenticated lookup posture", () => {
     expect(await screen.findByText("resolved:editor:edit")).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBe("editor");
   });
+});
 
+describe("PermissionProvider membership invalidation", () => {
   it("starts the directory read only after status resolves and adopts status before publishing the role", async () => {
     let resolveStatus!: (status: { active: false }) => void;
     permissionMocks.masqueradeStatus.mockImplementationOnce(
@@ -204,11 +208,13 @@ describe("PermissionProvider authenticated lookup posture", () => {
       ([role, status]) => role === "owner" && status === "resolved",
     );
     expect(resolvedRoleCall).toBeGreaterThanOrEqual(0);
-    expect(adoptStatus.mock.invocationCallOrder[0]).toBeLessThan(
-      setActiveRole.mock.invocationCallOrder[resolvedRoleCall]!,
-    );
+    const resolvedRoleInvocationOrder = setActiveRole.mock.invocationCallOrder[resolvedRoleCall];
+    if (resolvedRoleInvocationOrder === undefined) throw new Error("resolved role call was not recorded");
+    expect(adoptStatus.mock.invocationCallOrder[0]).toBeLessThan(resolvedRoleInvocationOrder);
   });
+});
 
+describe("PermissionProvider membership generation", () => {
   it("re-resolves the active role when a membership mutation invalidates its projections", async () => {
     let role = "owner";
     const fetchMock = vi.fn(

@@ -56,7 +56,7 @@ beforeEach(() => {
   });
 });
 
-describe("useDragResize", () => {
+function registerDragResizeScenarios(): void {
   it('(a) pointerDown on the body + pointermove >4px + pointerup calls onCommit with mode "move" and deltaDays=1 for 48px', () => {
     const onCommit = vi.fn();
     const onClick = vi.fn();
@@ -107,7 +107,9 @@ describe("useDragResize", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
     expect(onCommit).not.toHaveBeenCalled();
   });
+}
 
+function registerDragResizeHandleScenario(): void {
   it('(c) pointerDown on data-handle="end" + move + pointerup calls onCommit with mode "resize-end"', () => {
     const onCommit = vi.fn();
     const onClick = vi.fn();
@@ -127,7 +129,9 @@ describe("useDragResize", () => {
     expect(onCommit).toHaveBeenCalledWith("resize-end", 1, expect.objectContaining({ clientX: 48 }));
     expect(onClick).not.toHaveBeenCalled();
   });
+}
 
+function registerDragResizeCancellationScenarios(): void {
   it("(d) a SUB-THRESHOLD pointercancel still calls onCancel so consumers can tear down side effects", () => {
     const onCommit = vi.fn();
     const onClick = vi.fn();
@@ -157,7 +161,9 @@ describe("useDragResize", () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onCommit).not.toHaveBeenCalled();
   });
+}
 
+function registerDragResizeButtonScenarios(): void {
   it("ignores non-primary mouse buttons", () => {
     const onCommit = vi.fn();
     const onClick = vi.fn();
@@ -191,4 +197,11 @@ describe("useDragResize", () => {
     document.dispatchEvent(new PointerEvent("pointerup", { clientX: 96, button: 0, pointerId: 1, bubbles: true }));
     expect(onCommit).toHaveBeenCalledWith("move", 2, expect.objectContaining({ clientX: 96 }));
   });
+}
+
+describe("useDragResize", () => {
+  registerDragResizeScenarios();
+  registerDragResizeHandleScenario();
+  registerDragResizeCancellationScenarios();
+  registerDragResizeButtonScenarios();
 });

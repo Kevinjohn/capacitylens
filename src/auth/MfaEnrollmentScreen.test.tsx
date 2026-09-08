@@ -77,7 +77,9 @@ describe("MfaEnrollmentScreen", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/MFA is enabled.*session could not be confirmed/i);
   });
+});
 
+describe("MfaEnrollmentScreen failures", () => {
   it("keeps the enrollment wall closed and surfaces an authentication failure", async () => {
     enable.mockResolvedValue({ data: null, error: { message: "Current password is incorrect." } });
     const onEnrolled = vi.fn(enrollmentConfirmed);

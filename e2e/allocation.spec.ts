@@ -3,13 +3,15 @@ import { openApp, resetSchedulerScroll, selectShadOption, setZoom, showPlacehold
 
 // Covers US-ALL-01..08. The allocation editor (modal) opened from the row "+" or by
 // clicking a bar. Seed bars live in June 2026 and are visible at 4w with scroll reset.
-test.describe("Allocation editor", () => {
+function registerSuiteScenario1() {
   test.beforeEach(async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
     await resetSchedulerScroll(page);
   });
+}
 
+function registerSuiteScenario2() {
   test("creates an allocation from the row + button (assignee preselected)", async ({ page }) => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     const before = await page.getByTestId("allocation-bar").count();
@@ -24,7 +26,9 @@ test.describe("Allocation editor", () => {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before + 1);
   });
+}
 
+function registerSuiteScenario3() {
   test("separates allocation scopes, sorts choices and uses compact status and note controls", async ({ page }) => {
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
@@ -70,7 +74,9 @@ test.describe("Allocation editor", () => {
     await expect(status.getByRole("radio", { name: "Tentative" })).toBeChecked();
     await expect(dialog.getByLabel("Note")).toHaveJSProperty("tagName", "INPUT");
   });
+}
 
+function registerSuiteScenario4() {
   test("creates and undoes a weekly repeat batch", async ({ page }) => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
@@ -103,7 +109,9 @@ test.describe("Allocation editor", () => {
     await page.keyboard.press("ControlOrMeta+z");
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
   });
+}
 
+function registerSuiteScenario5() {
   test("creates every-three-weeks from direct date input", async ({ page }) => {
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
@@ -119,7 +127,9 @@ test.describe("Allocation editor", () => {
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(11);
   });
+}
 
+function registerSuiteScenario6() {
   test("edits one monthly occurrence, deletes its series tail and restores the tail with one Undo", async ({
     page,
   }) => {
@@ -177,7 +187,9 @@ test.describe("Allocation editor", () => {
     await expect(dialog).toHaveCount(0);
     await expect(page.getByRole("alert")).toHaveCount(0);
   });
+}
 
+function registerSuiteScenario7() {
   test("edits an allocation and reflects the change on the bar", async ({ page }) => {
     await page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" }).click();
     const dialog = page.getByRole("dialog", { name: "Edit allocation" });
@@ -185,7 +197,9 @@ test.describe("Allocation editor", () => {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" })).toContainText("4h");
   });
+}
 
+function registerSuiteScenario8() {
   test("duplicates an allocation from the edit dialog", async ({ page }) => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     const before = await page.getByTestId("allocation-bar").count();
@@ -195,7 +209,9 @@ test.describe("Allocation editor", () => {
     await dialog.getByRole("button", { name: "Duplicate" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before + 1);
   });
+}
 
+function registerSuiteScenario9() {
   test("deletes an allocation from the edit dialog and ⌘Z restores it", async ({ page }) => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     const before = await page.getByTestId("allocation-bar").count();
@@ -238,7 +254,9 @@ test.describe("Allocation editor", () => {
       originalResourceId!,
     );
   });
+}
 
+function registerSuiteScenario10() {
   test("adds a new activity inline and uses it for the allocation", async ({ page }) => {
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
@@ -249,7 +267,9 @@ test.describe("Allocation editor", () => {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Inline Activity" })).toBeVisible();
   });
+}
 
+function registerSuiteScenario11() {
   test("reassigns an allocation to another resource via the dialog", async ({ page }) => {
     await page.getByTestId("allocation-bar").filter({ hasText: "Brand System" }).click();
     await selectShadOption(page.getByRole("dialog", { name: "Edit allocation" }).getByLabel("Assignee"), "r-nike");
@@ -258,7 +278,9 @@ test.describe("Allocation editor", () => {
       page.locator('[data-resource-id="r-nike"]').getByTestId("allocation-bar").filter({ hasText: "Brand System" }),
     ).toBeVisible();
   });
+}
 
+function registerSuiteScenario12() {
   test("snaps the project to a placeholder bound project when chosen", async ({ page }) => {
     // Placeholders are hidden by default (per-account pref) — turn them on in Settings first so
     // the seeded placeholder's lane (and its "+" button) appears in the schedule.
@@ -283,7 +305,9 @@ test.describe("Allocation editor", () => {
     );
     await expect(page.getByRole("option", { name: /Metropolis Rebrand/ })).toHaveCount(0);
   });
+}
 
+function registerSuiteScenario13() {
   test("rejects empty dates and accepts a listed hours option", async ({ page }) => {
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
@@ -301,4 +325,20 @@ test.describe("Allocation editor", () => {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(dialog).toHaveCount(0);
   });
+}
+
+test.describe("Allocation editor", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
+  registerSuiteScenario5();
+  registerSuiteScenario6();
+  registerSuiteScenario7();
+  registerSuiteScenario8();
+  registerSuiteScenario9();
+  registerSuiteScenario10();
+  registerSuiteScenario11();
+  registerSuiteScenario12();
+  registerSuiteScenario13();
 });

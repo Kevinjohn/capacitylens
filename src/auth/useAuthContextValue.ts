@@ -7,6 +7,11 @@ import type { AuthStatusResult } from "./authStatus";
 // the memo's dependency check for a "providers changed" render (a fresh `[]` literal would).
 const EMPTY_PROVIDERS: AuthProviderInfo[] = [];
 
+function authModeForStatus(status: AuthStatusResult) {
+  if (status.kind === "pass" || status.kind === "login") return status.authMode;
+  return "off";
+}
+
 export function useAuthContextValue(
   status: AuthStatusResult,
   refreshAuth: AuthContextValue["refreshAuth"],
@@ -19,7 +24,7 @@ export function useAuthContextValue(
   // the authenticated tree) share this ONE computation — each branch's fields are picked from
   // `status` (or hardcoded, matching exactly what that branch always rendered) here, ABOVE the
   // early returns, so the hook itself is called unconditionally on every render (Rules of Hooks).
-  const contextAuthMode = status.kind === "pass" ? status.authMode : status.kind === "login" ? status.authMode : "off";
+  const contextAuthMode = authModeForStatus(status);
   const contextUser = status.kind === "pass" ? status.user : null;
   const contextProviders = status.kind === "pass" || status.kind === "login" ? status.providers : EMPTY_PROVIDERS;
   const contextCanCreateAccount = status.kind === "pass" ? status.canCreateAccount : false;

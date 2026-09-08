@@ -14,41 +14,46 @@ import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { buildPaletteItems, type PaletteItem } from "./buildPaletteItems";
 
-// ─── Component ────────────────────────────────────────────────────────────────
+function groupPaletteItems(items: PaletteItem[]) {
+  const sections: { title: string; items: PaletteItem[] }[] = [];
+  for (const item of items) {
+    let section = sections.find((candidate) => candidate.title === item.section);
+    if (!section) {
+      section = { title: item.section, items: [] };
+      sections.push(section);
+    }
+    section.items.push(item);
+  }
+  return sections;
+}
 
-export function CommandPalette({ onClose }: { onClose: () => void }) {
+function useActiveDescendant(input: HTMLInputElement | null, list: HTMLDivElement | null) {
+  useLayoutEffect(() => {
+    if (!input || !list) return;
+    const sync = () => {
+      const activeId = list.querySelector<HTMLElement>('[cmdk-item=""][aria-selected="true"]')?.id;
+      if (activeId) input.setAttribute("aria-activedescendant", activeId);
+      else input.removeAttribute("aria-activedescendant");
+    };
+    const observer = new MutationObserver(sync);
+    observer.observe(list, { attributes: true, attributeFilter: ["aria-selected"], childList: true, subtree: true });
+    sync();
+    return () => observer.disconnect();
+  }, [input, list]);
+}
+
+function usePaletteItems(query: string, onClose: () => void) {
   const navigate = useNavigate();
   const goToToday = useStore((state) => state.goToToday);
   const goToDate = useStore((state) => state.goToDate);
   const jumpToResource = useStore((state) => state.jumpToResource);
   const setFilters = useStore((state) => state.setFilters);
   const data = useActiveScopedData();
-  // Scoped `data` has accounts blanked, so read the discipline flag from the full store.
   const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
-  // Per-account view pref (default OFF): when off, placeholders are not offered as jump targets.
   const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
-  // Per-account view pref (default OFF): when off, external / 3rd parties are not offered as
-  // jump targets — their schedule row is hidden, so jumping to it would scroll to nothing.
   const externalEnabled = useStore((state) => hasExternalResourcesEnabled(state.data, state.activeAccountId));
-  // Internal-project results also jump to the schedule, so omit them when their bars are hidden.
-  // Internal ACTIVITIES deliberately remain below: they open the complete management list instead.
   const showInternalProjects = useStore((state) => hasVisibleInternalProjects(state.data, state.activeAccountId));
-
-  const [query, setQuery] = useState("");
-  // cmdk owns highlight/selection by item `value` (we pass each item's id). Controlling it lets us
-  // know which row is active so we can drive the input's `aria-activedescendant` (see below); cmdk
-  // routes its own pointer/keyboard moves through onValueChange back into this state.
-  const [activeValue, setActiveValue] = useState("");
-
-  // Portal-backed cmdk nodes arrive after this component's first commit. Callback-ref state makes
-  // their availability an explicit effect dependency for the active-descendant repair below.
-  const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null);
-  const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
-  // Build the full item list (kept verbatim — capacitylens's own fuzzyFilter drives results, not cmdk's
-  // internal filter, hence `shouldFilter={false}` below). Memoized so the fuzzy filter over ALL data
-  // does NOT re-run on every render: cmdk churns the controlled `value` on each pointer-move (→
-  // re-render), and the active-row change must not re-run the filter. Keyed on the real inputs only.
-  const items: PaletteItem[] = useMemo(
+  return useMemo(
     () =>
       buildPaletteItems({
         query,
@@ -79,17 +84,81 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       onClose,
     ],
   );
+}
+
+function PaletteResults({
+  items,
+  sections,
+  activeValue,
+  setListElement,
+  query,
+}: {
+  items: PaletteItem[];
+  sections: { title: string; items: PaletteItem[] }[];
+  activeValue: string;
+  setListElement: (element: HTMLDivElement | null) => void;
+  query: string;
+}) {
+  return (
+    <CommandList ref={setListElement} label={m.palette_results_label()}>
+      {items.length === 0 && (
+        <div className="px-4 py-6 text-center text-sm text-faint">{m.palette_no_results({ query })}</div>
+      )}
+      {sections.map((section) => (
+        <CommandGroup key={section.title} heading={section.title}>
+          {section.items.map((item) => (
+            <CommandItem
+              key={item.id}
+              value={item.id}
+              onSelect={() => item.onSelect()}
+              data-testid="command-palette-option"
+            >
+              <span className="flex-1 truncate">{item.label}</span>
+              {item.sublabel && (
+                <span
+                  className={cn(
+                    "shrink-0 truncate text-xs",
+                    item.id === activeValue ? "text-muted-foreground" : "text-faint",
+                  )}
+                >
+                  {item.sublabel}
+                </span>
+              )}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      ))}
+    </CommandList>
+  );
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function CommandPalette({ onClose }: { onClose: () => void }) {
+  // Scoped `data` has accounts blanked, so read the discipline flag from the full store.
+  // Per-account view pref (default OFF): when off, placeholders are not offered as jump targets.
+  // Per-account view pref (default OFF): when off, external / 3rd parties are not offered as
+  // jump targets — their schedule row is hidden, so jumping to it would scroll to nothing.
+  // Internal-project results also jump to the schedule, so omit them when their bars are hidden.
+  // Internal ACTIVITIES deliberately remain below: they open the complete management list instead.
+
+  const [query, setQuery] = useState("");
+  // cmdk owns highlight/selection by item `value` (we pass each item's id). Controlling it lets us
+  // know which row is active so we can drive the input's `aria-activedescendant` (see below); cmdk
+  // routes its own pointer/keyboard moves through onValueChange back into this state.
+  const [activeValue, setActiveValue] = useState("");
+
+  // Portal-backed cmdk nodes arrive after this component's first commit. Callback-ref state makes
+  // their availability an explicit effect dependency for the active-descendant repair below.
+  const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null);
+  const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
+  // Build the full item list (kept verbatim — capacitylens's own fuzzyFilter drives results, not cmdk's
+  // internal filter, hence `shouldFilter={false}` below). Memoized so the fuzzy filter over ALL data
+  // does NOT re-run on every render: cmdk churns the controlled `value` on each pointer-move (→
+  // re-render), and the active-row change must not re-run the filter. Keyed on the real inputs only.
+  const items: PaletteItem[] = usePaletteItems(query, onClose);
 
   // Group items by section for rendering (one CommandGroup per section).
-  const sections: { title: string; items: PaletteItem[] }[] = [];
-  for (const item of items) {
-    let section = sections.find((section) => section.title === item.section);
-    if (!section) {
-      section = { title: item.section, items: [] };
-      sections.push(section);
-    }
-    section.items.push(item);
-  }
 
   // Repair the combobox's `aria-activedescendant`. cmdk hardcodes it from its OWN `selectedItemId`,
   // which it fails to populate on the controlled-`value` path (the value-change handler short-circuits
@@ -105,29 +174,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // won't clobber it because cmdk keeps emitting the same `null` (null → null is a no-op diff).
   // Repair only the focused input: it is the element whose active descendant assistive technology
   // reads. Do not mirror this relationship onto the non-focusable listbox.
-  useLayoutEffect(() => {
-    const input = inputElement;
-    const list = listElement;
-    if (!input || !list) return;
-    const syncActiveDescendant = () => {
-      const activeOption = list.querySelector<HTMLElement>('[cmdk-item=""][aria-selected="true"]');
-      const activeId = activeOption?.id ?? null;
-      if (activeId) {
-        input.setAttribute("aria-activedescendant", activeId);
-      } else {
-        input.removeAttribute("aria-activedescendant");
-      }
-    };
-    const observer = new MutationObserver(syncActiveDescendant);
-    observer.observe(list, {
-      attributes: true,
-      attributeFilter: ["aria-selected"],
-      childList: true,
-      subtree: true,
-    });
-    syncActiveDescendant();
-    return () => observer.disconnect();
-  }, [inputElement, listElement]);
+  useActiveDescendant(inputElement, listElement);
 
   return (
     <Dialog
@@ -171,45 +218,13 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
           </div>
 
           {/* Results — cmdk uses its `label` prop (not aria-label) for the listbox's accessible name. */}
-          <CommandList ref={setListElement} label={m.palette_results_label()}>
-            {/* No-results: manual conditional (deterministic with shouldFilter=false) rather than
-                cmdk's CommandEmpty, which keys off its internal filtered-count. */}
-            {items.length === 0 && (
-              <div className="px-4 py-6 text-center text-sm text-faint">{m.palette_no_results({ query })}</div>
-            )}
-            {sections.map((section) => (
-              <CommandGroup key={section.title} heading={section.title}>
-                {section.items.map((item) => (
-                  <CommandItem
-                    key={item.id}
-                    // Unique value per item so identical labels don't collide in cmdk's selection.
-                    value={item.id}
-                    // SINGLE selection path: cmdk's onSelect already fires for BOTH a click and Enter.
-                    // The earlier extra onMouseDown handler ran onSelect a second time (preventDefault on
-                    // mousedown does NOT cancel the following click) — a double-fire masked only by the
-                    // synchronous unmount. Hover-activation is likewise cmdk-native (onPointerMove →
-                    // onValueChange → setActiveValue), so no manual onMouseEnter either.
-                    onSelect={() => item.onSelect()}
-                    data-testid="command-palette-option"
-                  >
-                    <span className="flex-1 truncate">{item.label}</span>
-                    {item.sublabel && (
-                      /* text-muted-foreground on the active brand-soft tint (text-faint fails AA at 4.08:1);
-                         text-muted-foreground clears 4.5:1 on brand-soft in both light and dark. */
-                      <span
-                        className={cn(
-                          "shrink-0 truncate text-xs",
-                          item.id === activeValue ? "text-muted-foreground" : "text-faint",
-                        )}
-                      >
-                        {item.sublabel}
-                      </span>
-                    )}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            ))}
-          </CommandList>
+          <PaletteResults
+            items={items}
+            sections={groupPaletteItems(items)}
+            activeValue={activeValue}
+            setListElement={setListElement}
+            query={query}
+          />
         </Command>
       </DialogContent>
     </Dialog>

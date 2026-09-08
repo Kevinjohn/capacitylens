@@ -7,6 +7,11 @@ import { afterEach, describe, expect, it } from "vitest";
 describe("bundle budget entry selection", () => {
   let directory: string | null = null;
 
+  const requireDirectory = (): string => {
+    if (directory === null) throw new Error("test fixture directory was not created");
+    return directory;
+  };
+
   afterEach(() => {
     if (directory) rmSync(directory, { recursive: true, force: true });
   });
@@ -24,7 +29,7 @@ describe("bundle budget entry selection", () => {
   it("accepts one module entry regardless of attribute order and quote style", () => {
     arrange(`<script src='/assets/app.js' crossorigin type='module'></script>`);
     const result = spawnSync(process.execPath, ["scripts/check-bundle-budget.mjs"], {
-      cwd: directory!,
+      cwd: requireDirectory(),
       encoding: "utf8",
     });
     expect(result.status).toBe(0);
@@ -37,7 +42,7 @@ describe("bundle budget entry selection", () => {
       <script type="module" src="/assets/app.js"></script>
     `);
     const result = spawnSync(process.execPath, ["scripts/check-bundle-budget.mjs"], {
-      cwd: directory!,
+      cwd: requireDirectory(),
       encoding: "utf8",
     });
     expect(result.status).not.toBe(0);

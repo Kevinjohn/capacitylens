@@ -25,6 +25,26 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
  *  the step happens (or plain text + hint when `to` is absent — the assign step happens right
  *  here on the schedule). */
 function StepRow({ done, label, to, hint }: { done: boolean; label: string; to?: string; hint?: string }) {
+  let labelContent = (
+    <span className="text-ink">
+      {label}
+      {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
+    </span>
+  );
+  if (done) {
+    labelContent = (
+      <span className="text-muted-foreground line-through">
+        <span className="sr-only">{m.gs_step_done_sr()}</span>
+        {label}
+      </span>
+    );
+  } else if (to) {
+    labelContent = (
+      <Link to={to} className="text-ink underline-offset-2 hover:text-brand hover:underline">
+        {label}
+      </Link>
+    );
+  }
   return (
     <li className="flex items-start gap-2 text-sm">
       {done ? (
@@ -32,21 +52,7 @@ function StepRow({ done, label, to, hint }: { done: boolean; label: string; to?:
       ) : (
         <span aria-hidden="true" className="mt-1 size-3.5 shrink-0 rounded-full border border-line" />
       )}
-      {done ? (
-        <span className="text-muted-foreground line-through">
-          <span className="sr-only">{m.gs_step_done_sr()}</span>
-          {label}
-        </span>
-      ) : to ? (
-        <Link to={to} className="text-ink underline-offset-2 hover:text-brand hover:underline">
-          {label}
-        </Link>
-      ) : (
-        <span className="text-ink">
-          {label}
-          {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
-        </span>
-      )}
+      {labelContent}
     </li>
   );
 }
@@ -74,9 +80,24 @@ function GettingStartedCard() {
   const activeRole = useRole();
   const data = useActiveScopedData();
   const steps = buildGettingStartedSteps(data);
+  const { tourBusy, showTour } = useTourAction(setNotice);
+
+  if (hasCompletedAllSteps(steps)) return null;
+
+  return (
+    <GettingStartedCardContent
+      activeRole={activeRole}
+      steps={steps}
+      tourBusy={tourBusy}
+      showTour={showTour}
+      dismiss={() => setDismissed(true)}
+    />
+  );
+}
+
+function useTourAction(setNotice: (message: string, tone: "error") => void) {
   const tourInFlight = useRef(false);
   const [tourBusy, setTourBusy] = useState(false);
-
   const showTour = async (): Promise<void> => {
     if (tourInFlight.current) return;
     tourInFlight.current = true;
@@ -91,9 +112,22 @@ function GettingStartedCard() {
       setTourBusy(false);
     }
   };
+  return { tourBusy, showTour };
+}
 
-  if (hasCompletedAllSteps(steps)) return null;
-
+function GettingStartedCardContent({
+  activeRole,
+  steps,
+  tourBusy,
+  showTour,
+  dismiss,
+}: {
+  activeRole: ReturnType<typeof useRole>;
+  steps: ReturnType<typeof buildGettingStartedSteps>;
+  tourBusy: boolean;
+  showTour: () => Promise<void>;
+  dismiss: () => void;
+}) {
   return (
     <Card aria-label={m.gs_title()} data-testid="getting-started" className="getting-started-popover gap-4 py-4">
       <CardHeader className="px-4">
@@ -126,7 +160,7 @@ function GettingStartedCard() {
         >
           {m.gs_show_me_around()}
         </Button>
-        <Button size="sm" variant="outline" onClick={() => setDismissed(true)} data-testid="getting-started-dismiss">
+        <Button size="sm" variant="outline" onClick={dismiss} data-testid="getting-started-dismiss">
           {m.gs_dismiss()}
         </Button>
       </CardFooter>

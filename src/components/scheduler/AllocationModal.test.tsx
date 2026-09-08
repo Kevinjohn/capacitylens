@@ -1506,6 +1506,14 @@ describe("AllocationModal blocks mode", () => {
   registerBlocksFractionalSpanTest();
 });
 
+function resolveScopeActivity(activityKind: AllocationScopeCaseInput["activityKind"], activityName: string) {
+  if (activityKind !== "project") return useStore.getState().addActivity({ name: activityName, kind: activityKind });
+  return required(
+    useStore.getState().data.activities.find((candidate) => candidate.id === "t1"),
+    "Expected the seeded project activity.",
+  );
+}
+
 function registerEditScopeTests() {
   it.each([
     {
@@ -1540,13 +1548,7 @@ function registerEditScopeTests() {
     "reverse-maps and saves an $caseName allocation",
     async ({ activityKind, allocationProjectId, expectedScope, activityName }: AllocationScopeCaseInput) => {
       const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
-      const activity =
-        activityKind === "project"
-          ? required(
-              useStore.getState().data.activities.find((candidate) => candidate.id === "t1"),
-              "Expected the seeded project activity.",
-            )
-          : useStore.getState().addActivity({ name: activityName, kind: activityKind });
+      const activity = resolveScopeActivity(activityKind, activityName);
       const allocation = useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: activity.id,

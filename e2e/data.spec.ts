@@ -116,12 +116,14 @@ const openSchedule = (page: Page) => page.getByRole("link", { name: "Schedule", 
 
 // Covers US-DAT-02..04 and the canonical demo seed. Export round-trip and reset-on-reload
 // are covered in e2e/crud.spec.ts; server persistence lives in persistence.db.spec.ts.
-test.describe("Data import/export", () => {
+function registerSuiteScenario1() {
   test("seeds a demo dataset on first load", async ({ page }) => {
     await openApp(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
+}
 
+function registerSuiteScenario2() {
   test("import shows a confirmation that replaces all data; Cancel keeps the data", async ({ page }) => {
     await openApp(page);
     await importFile(page, "incoming.json", NONEMPTY_CAPACITYLENS);
@@ -142,7 +144,9 @@ test.describe("Data import/export", () => {
     await openSchedule(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
+}
 
+function registerSuiteScenario3() {
   test("confirming an import replaces the dataset and ⌘Z restores it", async ({ page }) => {
     await openApp(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
@@ -174,7 +178,9 @@ test.describe("Data import/export", () => {
     await page.getByRole("link", { name: "Schedule" }).click();
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
+}
 
+function registerSuiteScenario4() {
   test("rejects a non-CapacityLens file with a notice and preserves existing data", async ({ page }) => {
     await openApp(page);
     await importFile(page, "random.json", JSON.stringify({ hello: "world" }));
@@ -186,7 +192,9 @@ test.describe("Data import/export", () => {
     await openSchedule(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible(); // data preserved, no dialog, no wipe
   });
+}
 
+function registerSuiteScenario5() {
   test("rejects an EMPTY CapacityLens file (would silently wipe the account) with a notice", async ({ page }) => {
     await openApp(page);
     await importFile(page, "empty.json", EMPTY_CAPACITYLENS);
@@ -199,56 +207,58 @@ test.describe("Data import/export", () => {
     await openSchedule(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
+}
 
-  const refusalCases: Array<{
-    name: string;
-    fileName: string;
-    body: () => string;
-    message: RegExp;
-  }> = [
-    {
-      name: "invalid JSON",
-      fileName: "truncated.json",
-      body: () => '{ "schemaVersion":',
-      message: /isn't valid JSON/i,
-    },
-    {
-      name: "a damaged non-list table",
-      fileName: "damaged.json",
-      body: () =>
-        JSON.stringify({
-          schemaVersion: EXPORT_SCHEMA_VERSION,
-          data: { clients: {} },
-        }),
-      message: /damaged: a data table is not a list/i,
-    },
-    {
-      name: "too many records",
-      fileName: "too-many.json",
-      body: () =>
-        JSON.stringify({
-          schemaVersion: EXPORT_SCHEMA_VERSION,
-          data: {
-            clients: Array.from({ length: MAX_IMPORT_RECORDS + 1 }, () => ({})),
-          },
-        }),
-      message: /too many records \(200,001\)/i,
-    },
-    {
-      name: "a newer schema version",
-      fileName: "newer.json",
-      body: () =>
-        JSON.stringify({
-          schemaVersion: EXPORT_SCHEMA_VERSION + 1,
-          data: { clients: [{}] },
-        }),
-      message: new RegExp(
-        `Schema version ${EXPORT_SCHEMA_VERSION + 1} is newer than this app supports \\(${EXPORT_SCHEMA_VERSION}\\)`,
-        "i",
-      ),
-    },
-  ];
+const refusalCases: Array<{
+  name: string;
+  fileName: string;
+  body: () => string;
+  message: RegExp;
+}> = [
+  {
+    name: "invalid JSON",
+    fileName: "truncated.json",
+    body: () => '{ "schemaVersion":',
+    message: /isn't valid JSON/i,
+  },
+  {
+    name: "a damaged non-list table",
+    fileName: "damaged.json",
+    body: () =>
+      JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        data: { clients: {} },
+      }),
+    message: /damaged: a data table is not a list/i,
+  },
+  {
+    name: "too many records",
+    fileName: "too-many.json",
+    body: () =>
+      JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        data: {
+          clients: Array.from({ length: MAX_IMPORT_RECORDS + 1 }, () => ({})),
+        },
+      }),
+    message: /too many records \(200,001\)/i,
+  },
+  {
+    name: "a newer schema version",
+    fileName: "newer.json",
+    body: () =>
+      JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION + 1,
+        data: { clients: [{}] },
+      }),
+    message: new RegExp(
+      `Schema version ${EXPORT_SCHEMA_VERSION + 1} is newer than this app supports \\(${EXPORT_SCHEMA_VERSION}\\)`,
+      "i",
+    ),
+  },
+];
 
+function registerSuiteScenario6() {
   for (const refusal of refusalCases) {
     test(`rejects ${refusal.name} with its precise notice and preserves existing data`, async ({ page }) => {
       await openApp(page);
@@ -260,4 +270,13 @@ test.describe("Data import/export", () => {
       await expect(page.getByText("Bruce Wayne")).toBeVisible();
     });
   }
+}
+
+test.describe("Data import/export", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
+  registerSuiteScenario5();
+  registerSuiteScenario6();
 });

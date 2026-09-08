@@ -40,7 +40,9 @@ describe("account administration policy", () => {
     expect(canRemoveMember("owner", "owner")).toBe(false);
     expect(canRemoveMember("admin", "editor")).toBe(true);
   });
+});
 
+describe("cross-workspace account administration policy", () => {
   it("requires identity-administration standing in every target workspace", () => {
     expect(
       canAdministerIdentityAcrossWorkspaces(

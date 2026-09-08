@@ -6,7 +6,7 @@ afterEach(() => {
   window.history.replaceState({}, "", "/");
 });
 
-describe("post-sign-in company-picker entry", () => {
+function registerCompanyPickerEntryScenarios(): void {
   it("preserves router state and consumes its marker exactly once", () => {
     window.history.replaceState({ idx: 4, usr: { from: "login" } }, "", "/clients?view=archived");
 
@@ -53,7 +53,9 @@ describe("post-sign-in company-picker entry", () => {
     expect(window.history.state).toEqual({});
     expect(window.location.href).toBe("http://localhost:3000/settings?section=account");
   });
+}
 
+function registerCompanyPickerEntryFailureScenarios(): void {
   it("does not consume marker-like values that are not exactly true", () => {
     for (const marker of [false, "true", 1, null, { enabled: true }]) {
       const state = { idx: 3, "capacitylens.showCompanyPickerOnReload": marker };
@@ -84,4 +86,9 @@ describe("post-sign-in company-picker entry", () => {
     expect(() => markCompanyPickerForNextReload()).not.toThrow();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("could not be set"), expect.any(DOMException));
   });
+}
+
+describe("post-sign-in company-picker entry", () => {
+  registerCompanyPickerEntryScenarios();
+  registerCompanyPickerEntryFailureScenarios();
 });

@@ -25,7 +25,12 @@ describe("progressive audit outbox draining", () => {
       {
         append: () => true,
         appendMany: (entries) => {
-          delivered.push(...entries.map((entry) => entry.auditId!));
+          delivered.push(
+            ...entries.map((entry) => {
+              if (!entry.auditId) throw new Error("Drained audit entry did not include its delivery id.");
+              return entry.auditId;
+            }),
+          );
           return true;
         },
         degraded: false,

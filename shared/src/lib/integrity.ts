@@ -39,6 +39,22 @@ export function isValidISODate(value: unknown): value is ISODate {
 
 const ISO_TIMESTAMP_RE = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|([+-])(\d{2}):(\d{2}))$/;
 
+interface TimestampOffsetParts {
+  zone: string | undefined;
+  sign: string | undefined;
+  offsetHourText: string | undefined;
+  offsetMinuteText: string | undefined;
+}
+
+function timestampOffsetMinutes({ zone, sign, offsetHourText, offsetMinuteText }: TimestampOffsetParts): number | null {
+  if (zone === undefined) return null;
+  if (zone === "Z") return 0;
+  const offsetHour = Number(offsetHourText);
+  const offsetMinute = Number(offsetMinuteText);
+  if (offsetHour > 23 || offsetMinute > 59) return null;
+  return (sign === "-" ? -1 : 1) * (offsetHour * 60 + offsetMinute);
+}
+
 /**
  * Parse the supported ISO timestamp form without accepting implementation-defined Date.parse
  * shorthand or calendar rollover. UTC and explicit numeric offsets are accepted; seconds are
@@ -57,13 +73,8 @@ export function parseISOTimestamp(value: unknown): number | null {
   const milliseconds = Number((fraction ?? "").padEnd(3, "0") || "0");
   if (hour > 23 || minute > 59 || second > 59) return null;
 
-  let offsetMinutes = 0;
-  if (zone !== "Z") {
-    const offsetHour = Number(offsetHourText);
-    const offsetMinute = Number(offsetMinuteText);
-    if (offsetHour > 23 || offsetMinute > 59) return null;
-    offsetMinutes = (sign === "-" ? -1 : 1) * (offsetHour * 60 + offsetMinute);
-  }
+  const offsetMinutes = timestampOffsetMinutes({ zone, sign, offsetHourText, offsetMinuteText });
+  if (offsetMinutes === null) return null;
 
   const localAsUtc = Date.parse(
     `${date}T${hourText}:${minuteText}:${secondText}.${String(milliseconds).padStart(3, "0")}Z`,

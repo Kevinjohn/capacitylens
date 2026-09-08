@@ -87,6 +87,16 @@ const signedInAuth: AuthContextValue = {
   signOut: async () => {},
 };
 
+type ProviderSignInCall = { fetchOptions?: { signal?: AbortSignal } };
+
+function readProviderSignInCall(input: unknown): ProviderSignInCall | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const fetchOptions = "fetchOptions" in input ? input.fetchOptions : undefined;
+  if (!fetchOptions || typeof fetchOptions !== "object") return {};
+  const signal = "signal" in fetchOptions ? fetchOptions.signal : undefined;
+  return signal instanceof AbortSignal ? { fetchOptions: { signal } } : {};
+}
+
 function renderInvite(auth?: AuthContextValue, strict = false, path = "/invite/secret-token") {
   const content = (
     <MemoryRouter initialEntries={[path]}>
@@ -325,15 +335,16 @@ registerInviteAcceptTest(() =>
       }),
     );
     window.dispatchEvent(new Event("pagehide"));
-    const oauthCall = authClientMock.signInOauth2.mock.calls[0]?.[0];
+    const oauthCall = readProviderSignInCall(authClientMock.signInOauth2.mock.calls[0]?.[0] as unknown);
+    if (!oauthCall) throw new Error("Expected OIDC sign-in call");
     expect(authClientMock.signInOauth2).toHaveBeenCalledWith({
       providerId: "sso",
       callbackURL: window.location.href,
       errorCallbackURL: "http://localhost:3000/?externalSignInError=1",
       disableRedirect: true,
-      fetchOptions: { signal: expect.any(AbortSignal) },
+      fetchOptions: { signal: expect.any(AbortSignal) as unknown as AbortSignal },
     });
-    expect(oauthCall?.fetchOptions?.signal).toBeInstanceOf(AbortSignal);
+    expect(oauthCall.fetchOptions?.signal).toBeInstanceOf(AbortSignal);
     expect(authClientMock.signInEmail).not.toHaveBeenCalled();
   }),
 );
@@ -356,15 +367,16 @@ registerInviteAcceptTest(() =>
       await Promise.resolve();
       await vi.advanceTimersByTimeAsync(EXTERNAL_NAVIGATION_TIMEOUT_MS);
     });
-    const socialCall = authClientMock.signInSocial.mock.calls[0]?.[0];
+    const socialCall = readProviderSignInCall(authClientMock.signInSocial.mock.calls[0]?.[0] as unknown);
+    if (!socialCall) throw new Error("Expected social sign-in call");
     expect(authClientMock.signInSocial).toHaveBeenCalledWith({
       provider: "google",
       callbackURL: window.location.href,
       errorCallbackURL: "http://localhost:3000/?externalSignInError=1",
       disableRedirect: true,
-      fetchOptions: { signal: expect.any(AbortSignal) },
+      fetchOptions: { signal: expect.any(AbortSignal) as unknown as AbortSignal },
     });
-    const socialSignal = socialCall?.fetchOptions?.signal;
+    const socialSignal = socialCall.fetchOptions?.signal;
     expect(socialSignal).toBeInstanceOf(AbortSignal);
     expect(socialSignal?.aborted).toBe(true);
     expect(screen.getByRole("alert")).toHaveTextContent(m.login_failed());

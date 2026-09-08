@@ -24,6 +24,13 @@ interface ReadCapacityGestureAdvisoryInput {
   reconciledHours: number;
 }
 
+function formatCapacityAnnouncement(name: string, overDays: number): string {
+  if (overDays === 0) return m.scheduler_sr_announce_clear({ name });
+  return overDays === 1
+    ? m.scheduler_sr_announce_over_one({ name, count: overDays })
+    : m.scheduler_sr_announce_over_other({ name, count: overDays });
+}
+
 /** Builds the screen-reader status from the same visible-range capacity signal as the grid. */
 export function readCapacityAnnouncement(resourceId: ID): string {
   const { data: storedData, ui, activeAccountId } = useStore.getState();
@@ -63,10 +70,7 @@ export function readCapacityAnnouncement(resourceId: ID): string {
     effectiveWeek: effectiveWeek,
     closures: data.closures,
   }).filter((day) => day.over).length;
-  if (overDays === 0) return m.scheduler_sr_announce_clear({ name });
-  return overDays === 1
-    ? m.scheduler_sr_announce_over_one({ name, count: overDays })
-    : m.scheduler_sr_announce_over_other({ name, count: overDays });
+  return formatCapacityAnnouncement(name, overDays);
 }
 
 export function readCapacityGestureAdvisory({

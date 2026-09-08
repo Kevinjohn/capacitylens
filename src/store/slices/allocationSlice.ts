@@ -1,4 +1,4 @@
-import type { StateCreator } from "zustand";
+import type { StateCreator, StoreApi } from "zustand";
 import { assertDateRange } from "@capacitylens/shared/domain/mutations";
 import { clampHoursPerDay } from "@capacitylens/shared/types/entities";
 import type { Allocation, ID } from "@capacitylens/shared/types/entities";
@@ -19,8 +19,7 @@ export function createAllocationSlice(
   internals: AllocationSliceInternals,
 ): StateCreator<StoreState, [], [], AllocationSlice> {
   return (_set, get) => {
-    const { createGuardedAction, createAllocations, updateOwned, assertAllocation, resolveOwnedRow, mutate } =
-      internals;
+    const { createGuardedAction, createAllocations, updateOwned, assertAllocation } = internals;
     return {
       addAllocation: (input) => {
         const allocation = createAllocations([input])[0];
@@ -68,30 +67,38 @@ export function createAllocationSlice(
           }),
         false,
       ),
-      deleteAllocation: createGuardedAction((id: ID) => {
-        if (!resolveOwnedRow(get().data, "allocations", id)) return;
-        mutate((data) => ({
-          ...data,
-          allocations: data.allocations.filter((allocation) => allocation.id !== id),
-        }));
-      }),
-      deleteAllocationSeriesFrom: createGuardedAction((id: ID) => {
-        const target = resolveOwnedRow(get().data, "allocations", id);
-        if (!target) return;
-        if (!target.seriesId) throw new Error("This allocation is not part of a repeat series.");
-        const { accountId, seriesId, startDate } = target;
-        // One mutation produces one history snapshot and one persistence diff/batch: a single Undo
-        // restores the whole tail, and server mode commits all DELETE operations transactionally.
-        mutate((data) => ({
-          ...data,
-          allocations: data.allocations.filter(
-            (allocation) =>
-              allocation.accountId !== accountId ||
-              allocation.seriesId !== seriesId ||
-              allocation.startDate < startDate,
-          ),
-        }));
-      }),
+      ...createAllocationDeletionActions(internals, get),
     };
+  };
+}
+
+function createAllocationDeletionActions(
+  internals: AllocationSliceInternals,
+  get: StoreApi<StoreState>["getState"],
+): Pick<AllocationSlice, "deleteAllocation" | "deleteAllocationSeriesFrom"> {
+  const { createGuardedAction, resolveOwnedRow, mutate } = internals;
+  return {
+    deleteAllocation: createGuardedAction((id: ID) => {
+      if (!resolveOwnedRow(get().data, "allocations", id)) return;
+      mutate((data) => ({
+        ...data,
+        allocations: data.allocations.filter((allocation) => allocation.id !== id),
+      }));
+    }),
+    deleteAllocationSeriesFrom: createGuardedAction((id: ID) => {
+      const target = resolveOwnedRow(get().data, "allocations", id);
+      if (!target) return;
+      if (!target.seriesId) throw new Error("This allocation is not part of a repeat series.");
+      const { accountId, seriesId, startDate } = target;
+      // One mutation produces one history snapshot and one persistence diff/batch: a single Undo
+      // restores the whole tail, and server mode commits all DELETE operations transactionally.
+      mutate((data) => ({
+        ...data,
+        allocations: data.allocations.filter(
+          (allocation) =>
+            allocation.accountId !== accountId || allocation.seriesId !== seriesId || allocation.startDate < startDate,
+        ),
+      }));
+    }),
   };
 }

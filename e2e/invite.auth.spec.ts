@@ -22,7 +22,7 @@ const OWNER = `owner-${STAMP}@capacitylens.dev`;
 const JOINER = `joiner-${STAMP}@capacitylens.dev`;
 const NEW_JOINER = `new-joiner-${STAMP}@capacitylens.dev`;
 
-test.describe("invite accept (SMALLSASS_ACCOUNT_MODE=password)", () => {
+function registerSuiteScenario1() {
   test("a signed-in user opens a valid invite link and joins; reusing the token is 409", async ({ page, request }) => {
     test.setTimeout(60_000);
     // Owner A: sign up (auto-signed-in → session cookie), bootstrap an org, mint an invite. The
@@ -94,7 +94,9 @@ test.describe("invite accept (SMALLSASS_ACCOUNT_MODE=password)", () => {
     });
     expect(reuse.status()).toBe(409);
   });
+}
 
+function registerSuiteScenario2() {
   test("a new pre-authorized identity signs up and enters the invited company", async ({ page, request }) => {
     test.setTimeout(60_000);
 
@@ -122,4 +124,9 @@ test.describe("invite accept (SMALLSASS_ACCOUNT_MODE=password)", () => {
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
     await expect(page.getByTestId("active-role")).toContainText("Viewer");
   });
+}
+
+test.describe("invite accept (SMALLSASS_ACCOUNT_MODE=password)", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
 });

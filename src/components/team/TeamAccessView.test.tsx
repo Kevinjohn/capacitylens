@@ -48,16 +48,16 @@ function showCapabilities(): void {
   fireEvent.click(screen.getByTestId("capabilities-toggle"));
 }
 
-describe("TeamAccessView", () => {
-  beforeEach(() => {
-    buildMode.demo = false;
-    setOfflineReadState("cleanup", false);
-  });
+beforeEach(() => {
+  buildMode.demo = false;
+  setOfflineReadState("cleanup", false);
+});
 
-  afterEach(() => {
-    setOfflineReadState("cleanup", false);
-  });
+afterEach(() => {
+  setOfflineReadState("cleanup", false);
+});
 
+describe("TeamAccessView access presentation", () => {
   it("labels the demo honestly and says why there is no membership directory", () => {
     buildMode.demo = true;
     renderView(null, "off");
@@ -102,7 +102,9 @@ describe("TeamAccessView", () => {
     expect(screen.getByText(/An Owner or Admin manages invitations/)).toBeInTheDocument();
     expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
   });
+});
 
+describe("TeamAccessView member management", () => {
   it("shows management controls to the single Owner", () => {
     renderView("owner", "password");
     expect(screen.getByTestId("current-access")).toHaveTextContent("single Owner");

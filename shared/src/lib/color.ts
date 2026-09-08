@@ -144,6 +144,29 @@ export function resolveProjectColor(
   return internalColourMode === "grey" && client?.builtin === true ? NEUTRAL_COLOR : project.color;
 }
 
+interface BarAttribution {
+  activity: Activity | undefined;
+  project: Project | undefined;
+  client: Client | undefined;
+}
+
+function resolveBarAttribution(allocation: Allocation, maps: BarColorMaps): BarAttribution {
+  const activity = maps.activities.get(allocation.activityId);
+  const projectId = effectiveProjectId(allocation, activity ?? {});
+  const project = projectId ? maps.projects.get(projectId) : undefined;
+  return {
+    activity,
+    project,
+    client: project ? maps.clients.get(project.clientId) : undefined,
+  };
+}
+
+function hasNeutralBarColor(attribution: BarAttribution, internalColourMode: InternalColourMode): boolean {
+  return (
+    internalColourMode === "grey" && (attribution.activity?.kind === "internal" || attribution.client?.builtin === true)
+  );
+}
+
 /** Resolve an allocation bar colour. External work is always grey. In the default Internal-grey
  * mode, `internal` activities and allocations whose effective project is Internal-owned are also
  * grey; otherwise bars use project → client → resource → neutral fallback order. */
@@ -153,15 +176,11 @@ export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): str
   // overriding the usual project→client colouring so an outsourced bar never looks like one of
   // our own. See DECISIONS.md "external kind": single neutral colour.
   if (resource && isExternalResource(resource)) return NEUTRAL_COLOR;
-  const activity = maps.activities.get(allocation.activityId);
-  const projectId = effectiveProjectId(allocation, activity ?? {});
-  const project = projectId ? maps.projects.get(projectId) : undefined;
-  const client = project ? maps.clients.get(project.clientId) : undefined;
+  const attribution = resolveBarAttribution(allocation, maps);
   const internalColourMode = maps.internalColourMode ?? "grey";
-  if (internalColourMode === "grey" && (activity?.kind === "internal" || client?.builtin === true))
-    return NEUTRAL_COLOR;
-  if (project?.color) return project.color;
-  if (client?.color) return client.color;
+  if (hasNeutralBarColor(attribution, internalColourMode)) return NEUTRAL_COLOR;
+  if (attribution.project?.color) return attribution.project.color;
+  if (attribution.client?.color) return attribution.client.color;
 
   return resource?.color ?? NEUTRAL_COLOR;
 }
@@ -228,6 +247,26 @@ const toHex = (redChannel: number, greenChannel: number, blueChannel: number) =>
   "#" +
   [redChannel, greenChannel, blueChannel].map((value) => channelByte(value).toString(16).padStart(2, "0")).join("");
 
+function contrastForChannels(channels: RgbChannels, inkLuminance: number): number {
+  const luminance =
+    0.2126 * normalizeLinearChannel(channelByte(channels.red)) +
+    0.7152 * normalizeLinearChannel(channelByte(channels.green)) +
+    0.0722 * normalizeLinearChannel(channelByte(channels.blue));
+  return (Math.max(luminance, inkLuminance) + 0.05) / (Math.min(luminance, inkLuminance) + 0.05);
+}
+
+function nudgeChannels(channels: RgbChannels, darken: boolean): void {
+  if (darken) {
+    channels.red *= 0.92;
+    channels.green *= 0.92;
+    channels.blue *= 0.92;
+    return;
+  }
+  channels.red += (255 - channels.red) * 0.12;
+  channels.green += (255 - channels.green) * 0.12;
+  channels.blue += (255 - channels.blue) * 0.12;
+}
+
 /**
  * Bar label legibility: many mid-tone colours give neither white nor dark ink a
  * 4.5:1 ratio (e.g. the default indigo/blue/purple all land ~4.0–4.5). Keep the
@@ -238,35 +277,23 @@ export function ensureBarColors(hex: string): { bg: string; ink: string } {
   const channels = parseRgb(hex);
   const ink = readableTextColor(hex);
   if (!channels) return { bg: NEUTRAL_COLOR, ink: readableTextColor(NEUTRAL_COLOR) };
-  let { red: r, green: g, blue: b } = channels;
+  const nudgedChannels = { ...channels };
   const darken = ink === LIGHT_INK;
   // The ink never changes inside the loop, so linearise it ONCE. Previously each iteration
   // re-formatted the candidate to hex and re-parsed BOTH it and the ink through contrastRatio;
   // now only the settled colour is formatted, after the loop.
   const inkLuminance = calculateRelativeLuminance(ink) ?? 0;
   // Score from the quantised bytes (`channelByte`), i.e. exactly the channels a re-parse of
-  // `toHex(r, g, b)` would yield — so the loop stops on precisely the same iteration as before.
-  const contrastWithInk = () => {
-    const luminance =
-      0.2126 * normalizeLinearChannel(channelByte(r)) +
-      0.7152 * normalizeLinearChannel(channelByte(g)) +
-      0.0722 * normalizeLinearChannel(channelByte(b));
-    return (Math.max(luminance, inkLuminance) + 0.05) / (Math.min(luminance, inkLuminance) + 0.05);
-  };
+  // `toHex(...)` would yield — so the loop stops on precisely the same iteration as before.
   let nudged = false;
-  for (let i = 0; i < 30 && contrastWithInk() < AA_NORMAL; i++) {
-    if (darken) {
-      r *= 0.92;
-      g *= 0.92;
-      b *= 0.92;
-    } else {
-      r += (255 - r) * 0.12;
-      g += (255 - g) * 0.12;
-      b += (255 - b) * 0.12;
-    }
+  for (let i = 0; i < 30 && contrastForChannels(nudgedChannels, inkLuminance) < AA_NORMAL; i++) {
+    nudgeChannels(nudgedChannels, darken);
     nudged = true;
   }
   // An already-legible colour is returned VERBATIM (the caller's casing/whitespace survives),
   // matching the previous `let bg = hex` that only the loop ever overwrote.
-  return { bg: nudged ? toHex(r, g, b) : hex, ink };
+  return {
+    bg: nudged ? toHex(nudgedChannels.red, nudgedChannels.green, nudgedChannels.blue) : hex,
+    ink,
+  };
 }

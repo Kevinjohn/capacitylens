@@ -108,7 +108,9 @@ describe("GettingStarted access step", () => {
     });
     expect(error).toHaveBeenCalledWith("GettingStarted: tour failed to start", failure);
   });
+});
 
+describe("GettingStarted access permissions", () => {
   it("keeps the bounded card pointer-interactive so overflow can wheel or touch scroll", () => {
     expect(indexCss).toMatch(
       /\.getting-started-popover\s*\{[^}]*z-index:\s*var\(--z-index-popover\);[^}]*overflow-y:\s*auto;[^}]*pointer-events:\s*auto;/,

@@ -89,7 +89,10 @@ describe("AllocationBar rendering", () => {
     expect(screen.getByTestId("allocation-popover")).toHaveTextContent("Series through 31 Aug");
     expect(screen.getByTestId("allocation-bar")).toHaveAccessibleName(/series through 31 Aug/i);
   });
+  registerAllocationBarRenderingModeTests();
+});
 
+function registerAllocationBarRenderingModeTests() {
   it("shows just the activity when the bar carries no client/project metadata", () => {
     render(
       <AllocationBar bar={makeBar(makeAllocation())} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
@@ -117,7 +120,7 @@ describe("AllocationBar rendering", () => {
     // The accessible name must not announce a meaningless load either.
     expect(el.getAttribute("aria-label")).not.toMatch(/per day/);
   });
-});
+}
 
 describe("AllocationBar client/project context", () => {
   const barWithContext = (): BarLayout => ({

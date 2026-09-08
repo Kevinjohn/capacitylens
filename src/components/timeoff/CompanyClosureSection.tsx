@@ -13,6 +13,41 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemSeparat
 import { ClosureForm } from "./ClosureForm";
 import { buildClosureList, readCurrentTimeOffWeekStart } from "./timeOffView";
 
+interface ClosureItemsProps {
+  closures: Closure[];
+  onEdit: (closure: Closure) => void;
+  onDelete: (closure: Closure) => void;
+}
+
+function ClosureItems({ closures, onEdit, onDelete }: ClosureItemsProps) {
+  return (
+    <ItemGroup className="rounded-md border bg-card">
+      {closures.map((closure, index) => {
+        const start = formatShortDate(closure.startDate);
+        const end = formatShortDate(closure.endDate);
+        const labelContext = { name: closure.name, start, end };
+        return (
+          <Fragment key={closure.id}>
+            {index > 0 && <ItemSeparator />}
+            <Item size="sm" role="listitem" data-testid="company-closure-row" className="rounded-none">
+              <ItemContent>
+                <ItemTitle>{closure.name}</ItemTitle>
+                <ItemDescription>
+                  {start} – {end}
+                </ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                <EditButton label={m.list_closures_edit_aria(labelContext)} onClick={() => onEdit(closure)} />
+                <DeleteButton label={m.list_closures_delete_aria(labelContext)} onClick={() => onDelete(closure)} />
+              </ItemActions>
+            </Item>
+          </Fragment>
+        );
+      })}
+    </ItemGroup>
+  );
+}
+
 export function CompanyClosureSection() {
   const data = useActiveScopedData();
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
@@ -48,33 +83,7 @@ export function CompanyClosureSection() {
           </EmptyState>
         </div>
       ) : (
-        <ItemGroup className="rounded-md border bg-card">
-          {closures.map((closure, index) => {
-            const start = formatShortDate(closure.startDate);
-            const end = formatShortDate(closure.endDate);
-            const labelContext = { name: closure.name, start, end };
-            return (
-              <Fragment key={closure.id}>
-                {index > 0 && <ItemSeparator />}
-                <Item size="sm" role="listitem" data-testid="company-closure-row" className="rounded-none">
-                  <ItemContent>
-                    <ItemTitle>{closure.name}</ItemTitle>
-                    <ItemDescription>
-                      {start} – {end}
-                    </ItemDescription>
-                  </ItemContent>
-                  <ItemActions>
-                    <EditButton label={m.list_closures_edit_aria(labelContext)} onClick={() => setEditing(closure)} />
-                    <DeleteButton
-                      label={m.list_closures_delete_aria(labelContext)}
-                      onClick={() => setConfirming(closure)}
-                    />
-                  </ItemActions>
-                </Item>
-              </Fragment>
-            );
-          })}
-        </ItemGroup>
+        <ClosureItems closures={closures} onEdit={setEditing} onDelete={setConfirming} />
       )}
 
       {creating && <ClosureForm onClose={() => setCreating(false)} />}

@@ -63,7 +63,9 @@ describe("serve-dist rehearsal boundary", () => {
 
     await upstreamClosed;
   });
+});
 
+describe("serve-dist stalled response boundary", () => {
   it("aborts a stalled mid-body response and releases the upstream socket", async () => {
     let upstreamClosed!: Promise<void>;
     const upstream = await listen((request, response) => {
@@ -121,7 +123,9 @@ describe("serve-dist rehearsal boundary", () => {
     await expect(requestText(broken.port, "/assets/app.js")).resolves.toMatchObject({ status: 500 });
     expect(faultReport).toHaveBeenCalledWith("serve-dist: static file failed", fault);
   });
+});
 
+describe("serve-dist static routing", () => {
   it("serves the SPA shell for extensionless routes while preserving asset and API 404s", async () => {
     const missingError = Object.assign(new Error("missing"), { code: "ENOENT" });
     const openShell = () => {
@@ -173,7 +177,9 @@ describe("serve-dist rehearsal boundary", () => {
       body: '{"error":"Not found"}',
     });
   });
+});
 
+describe("serve-dist stream faults", () => {
   it("surfaces a post-stat stream fault as 500 with its cause", async () => {
     const fault = Object.assign(new Error("storage I/O failed"), { code: "EIO" });
     const report = vi.fn();

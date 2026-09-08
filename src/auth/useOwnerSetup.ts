@@ -6,6 +6,34 @@ import { useState } from "react";
 import { validateText } from "../lib/validation";
 import { authClient } from "./authClient";
 
+function validateOwnerInput({
+  name,
+  email,
+  password,
+  setError,
+}: {
+  name: string;
+  email: string;
+  password: string;
+  setError: (error: string | null) => void;
+}) {
+  const cleanName = validateText(name, (_field, message) => setError(message), {
+    field: "name",
+    requiredMessage: m.identity_err_name(),
+  });
+  const cleanEmail = normalizeAccountEmail(email);
+  if (cleanName === null) return null;
+  if (!isAccountEmail(cleanEmail)) {
+    setError(m.identity_err_email());
+    return null;
+  }
+  if (passwordLengthFailure(password)) {
+    setError(m.identity_err_password({ min: MIN_PASSWORD_LENGTH, max: MAX_PASSWORD_LENGTH }));
+    return null;
+  }
+  return { cleanName, cleanEmail };
+}
+
 export function useOwnerSetup({
   email,
   password,
@@ -29,34 +57,17 @@ export function useOwnerSetup({
   const [setupClosed, setSetupClosed] = useState(false);
   const createOwner = async (e: FormEvent) => {
     e.preventDefault();
-    const cleanName = validateText(name, (_field, message) => setError(message), {
-      field: "name",
-      requiredMessage: m.identity_err_name(),
-    });
-    if (cleanName === null) return;
-    const cleanEmail = normalizeAccountEmail(email);
-    if (!isAccountEmail(cleanEmail)) {
-      setError(m.identity_err_email());
-      return;
-    }
-    if (passwordLengthFailure(password)) {
-      setError(
-        m.identity_err_password({
-          min: MIN_PASSWORD_LENGTH,
-          max: MAX_PASSWORD_LENGTH,
-        }),
-      );
-      return;
-    }
+    const input = validateOwnerInput({ name, email, password, setError });
+    if (!input) return;
     setBusy(true);
     setError(null);
     try {
       // Better Auth auto-signs-in on sign-up, so success proceeds exactly like a sign-in:
       // onSignedIn() reloads and the boot re-check finds the fresh session cookie.
       const { error: failure } = await authClient.signUp.email({
-        email: cleanEmail,
+        email: input.cleanEmail,
         password,
-        name: cleanName,
+        name: input.cleanName,
         fetchOptions: { headers: { "x-capacitylens-setup-token": setupToken } },
       });
       if (failure) {

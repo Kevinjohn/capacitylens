@@ -12,6 +12,53 @@ import { FieldError } from "../ui/field";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import type { Client } from "@capacitylens/shared/types/entities";
 
+function ClientFormFields({
+  name,
+  onNameChange,
+  privateNameFields,
+  color,
+  onColorChange,
+  errorField,
+  errorId,
+  error,
+}: {
+  name: string;
+  onNameChange: (value: string) => void;
+  privateNameFields: ReturnType<typeof usePrivateNameFields>;
+  color: string;
+  onColorChange: (value: string) => void;
+  errorField: string | null;
+  errorId: string;
+  error: string | null;
+}) {
+  return (
+    <>
+      <TextField
+        label={m.form_client_name_label()}
+        value={name}
+        onChange={onNameChange}
+        autoFocus={!privateNameFields.protectedName}
+        required
+        disabled={privateNameFields.protectedName}
+        invalid={errorField === "name"}
+        describedById={errorId}
+        layout="label-control"
+      />
+      <PrivateNameFields fields={privateNameFields} errorField={errorField} errorId={errorId} layout="label-control" />
+      <ColorField
+        label={m.form_client_colour_label()}
+        value={color}
+        onChange={onColorChange}
+        invalid={errorField === "color"}
+        describedById={errorId}
+        layout="label-control"
+      />
+      <FieldError id={errorId}>{error}</FieldError>
+      <RequiredLegend />
+    </>
+  );
+}
+
 /** Add (no `client`) or edit a client: name + preset colour. `onClose` fires on save or cancel. */
 export function ClientForm({ client, onClose }: { client?: Client; onClose: () => void }) {
   const addClient = useStore((state) => state.addClient);
@@ -60,28 +107,16 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
       onSubmit={submit}
       footer={<FormActions onCancel={onClose} />}
     >
-      <TextField
-        label={m.form_client_name_label()}
-        value={name}
-        onChange={setName}
-        autoFocus={!privateNameFields.protectedName}
-        required
-        disabled={privateNameFields.protectedName}
-        invalid={errorField === "name"}
-        describedById={errorId}
-        layout="label-control"
+      <ClientFormFields
+        name={name}
+        onNameChange={setName}
+        privateNameFields={privateNameFields}
+        color={color}
+        onColorChange={setColor}
+        errorField={errorField}
+        errorId={errorId}
+        error={error}
       />
-      <PrivateNameFields fields={privateNameFields} errorField={errorField} errorId={errorId} layout="label-control" />
-      <ColorField
-        label={m.form_client_colour_label()}
-        value={color}
-        onChange={setColor}
-        invalid={errorField === "color"}
-        describedById={errorId}
-        layout="label-control"
-      />
-      <FieldError id={errorId}>{error}</FieldError>
-      <RequiredLegend />
     </Modal>
   );
 }

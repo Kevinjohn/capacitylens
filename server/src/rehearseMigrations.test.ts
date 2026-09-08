@@ -39,13 +39,19 @@ function readVerificationSnapshot(path: string): VerificationSnapshot {
   }
 }
 
+function requireRetainedDirectory(stdout: string): string {
+  const retained = /Anonymised rehearsal artifacts retained at (.+)/.exec(stdout)?.[1]?.trim();
+  if (!retained) throw new Error("Expected the rehearsal to report its retained artifact directory");
+  return retained;
+}
+
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
   }
 });
 
-describe("migration rehearsal", () => {
+describe("migration rehearsal for released databases", () => {
   it("rehearses the newest released v34 password database", () => {
     const directory = mkdtempSync(join(tmpdir(), "capacitylens-rehearsal-v34-test-"));
     temporaryDirectories.push(directory);
@@ -63,7 +69,9 @@ describe("migration rehearsal", () => {
     expect(result.status, result.stderr || result.stdout).toBe(0);
     expect(result.stdout).toContain("Migration rehearsal passed: v34-password.db v34 →");
   });
+});
 
+describe("migration rehearsal schema coverage", () => {
   it("fails closed when a known table gains an unclassified column", () => {
     const directory = mkdtempSync(join(tmpdir(), "capacitylens-rehearsal-columns-test-"));
     temporaryDirectories.push(directory);
@@ -90,7 +98,9 @@ describe("migration rehearsal", () => {
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("anonymiser does not cover column(s): account.futureSecret");
   });
+});
 
+describe("migration rehearsal anonymisation", () => {
   it("preserves anonymised user linkage and observes the v14 verification revocation", () => {
     const directory = mkdtempSync(join(tmpdir(), "capacitylens-rehearsal-test-"));
     temporaryDirectories.push(directory);
@@ -137,13 +147,12 @@ describe("migration rehearsal", () => {
       },
     );
     expect(result.status, result.stderr || result.stdout).toBe(0);
-    const retained = /Anonymised rehearsal artifacts retained at (.+)/.exec(result.stdout)?.[1]?.trim();
-    expect(retained).toBeTruthy();
+    const retained = requireRetainedDirectory(result.stdout);
 
     // Read and close both native handles before asserting. If the observed state is wrong, Vitest
     // can now report the values and terminate instead of waiting for the job-level timeout.
-    const anonymised = readVerificationSnapshot(join(retained!, "anonymised-source.db"));
-    const migrated = readVerificationSnapshot(join(retained!, "happy.db"));
+    const anonymised = readVerificationSnapshot(join(retained, "anonymised-source.db"));
+    const migrated = readVerificationSnapshot(join(retained, "happy.db"));
 
     expect(anonymised.linkedCount).toBe(1);
     expect(anonymised.linkedValue).toMatch(/^rehearsal-user-/);

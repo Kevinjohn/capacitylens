@@ -46,7 +46,9 @@ describe("spawnPnpm", () => {
       rmSync(fixture, { recursive: true, force: true });
     }
   });
+});
 
+describe("spawnPnpmSync", () => {
   it("preserves literal argument boundaries synchronously", () => {
     const fixture = mkdtempSync(join(tmpdir(), "capacitylens-pnpm-sync-"));
     const launcher = join(fixture, process.platform === "win32" ? "pnpm.cmd" : "pnpm");
@@ -70,7 +72,9 @@ describe("spawnPnpm", () => {
       rmSync(fixture, { recursive: true, force: true });
     }
   });
+});
 
+describe("package presets", () => {
   it.each([
     ["dev-demo", ["run", "dev:web"], "VITE_CAPACITYLENS_DEMO"],
     ["webkit", ["exec", "playwright", "test", "--project=webkit"], "CAPACITYLENS_WEBKIT_ONLY"],

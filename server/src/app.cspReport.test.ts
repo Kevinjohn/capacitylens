@@ -4,17 +4,18 @@ import { createApp } from "./app";
 import { openDb } from "./db";
 import { PASSWORD_ENV } from "./testHelpers";
 
-describe("CSP violation reporting", () => {
-  let events: Record<string, unknown>[];
+let events: Record<string, unknown>[];
 
-  beforeEach(() => {
-    events = [];
-  });
+beforeEach(() => {
+  events = [];
+});
 
+function createLegacyReportTest(): void {
   it("accepts a legacy browser report without a session and strips URL paths and queries", async () => {
     const db = openDb(":memory:");
     const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(auth!);
+    if (!auth) throw new Error("Expected auth configuration.");
+    await runAuthMigrations(auth);
     const app = createApp(db, {
       authMode: mode,
       auth,
@@ -57,7 +58,9 @@ describe("CSP violation reporting", () => {
     await app.close();
     db.close();
   });
+}
 
+function createReportingApiTest(): void {
   it("accepts the Reporting API array format and bounds one request to one event", async () => {
     const app = createApp(openDb(":memory:"), { securityLog: (event) => events.push(event) });
     const reports = Array.from({ length: 25 }, () => ({
@@ -78,10 +81,14 @@ describe("CSP violation reporting", () => {
 
     expect(response.statusCode).toBe(204);
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ blockedOrigin: "inline", effectiveDirective: "style-src-elem" });
+    const event = events[0];
+    if (!event) throw new Error("Expected one CSP security event.");
+    expect(event).toMatchObject({ blockedOrigin: "inline", effectiveDirective: "style-src-elem" });
     await app.close();
   });
+}
 
+function createMalformedReportTest(): void {
   it("rejects malformed, oversized and cross-site report submissions", async () => {
     const app = createApp(openDb(":memory:"), { securityLog: (event) => events.push(event) });
     const malformed = await app.inject({
@@ -116,4 +123,10 @@ describe("CSP violation reporting", () => {
     expect(events).toContainEqual(expect.objectContaining({ event: "cross_site_request", outcome: "blocked" }));
     await app.close();
   });
+}
+
+describe("CSP violation reporting", () => {
+  createLegacyReportTest();
+  createReportingApiTest();
+  createMalformedReportTest();
 });

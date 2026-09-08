@@ -10,13 +10,13 @@ import { openApp, selectShadOption, setZoom } from "./helpers";
 // + unavailable-day cells render across the whole timeline DOM (absolutely positioned, both via the
 // SAME `left: geom.x(i)`), so the counts AND `style.left` comparisons below are scroll-independent.
 // The spec drives the modal in the seed's default HOURLY scheduling mode (Start/End + Hours / day).
-test.describe("Weekend over-marker", () => {
-  const clarkLane = (page: Page) => page.locator('[data-resource-id="r-nike"]');
-  const clarkOverMarkers = (page: Page) => clarkLane(page).getByTestId("over-marker");
-  // The inline `left` is the geom column offset — stable identity for "which day" a marker sits on.
-  const leftsOf = (loc: ReturnType<Page["locator"]>) =>
-    loc.evaluateAll((els) => els.map((e) => (e as HTMLElement).style.left));
+const clarkLane = (page: Page) => page.locator('[data-resource-id="r-nike"]');
+const clarkOverMarkers = (page: Page) => clarkLane(page).getByTestId("over-marker");
+// The inline `left` is the geom column offset — stable identity for "which day" a marker sits on.
+const leftsOf = (loc: ReturnType<Page["locator"]>) =>
+  loc.evaluateAll((els) => els.map((e) => (e as HTMLElement).style.left));
 
+function registerSuiteScenario1() {
   test("a spanned weekend is not over; ignored working days and time off are", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 2);
@@ -101,4 +101,8 @@ test.describe("Weekend over-marker", () => {
       expect(newTimeOffLefts).toEqual([timeOffBlockLeft]);
     }).toPass();
   });
+}
+
+test.describe("Weekend over-marker", () => {
+  registerSuiteScenario1();
 });

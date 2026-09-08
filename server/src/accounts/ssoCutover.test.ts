@@ -17,6 +17,13 @@ const workspace: SsoCutoverWorkspaceFact = {
   members: [{ principalId: "owner-1", role: "owner", status: "active" }],
 };
 
+const requiredProviderLink = {
+  rowId: "link-1",
+  principalId: "owner-1",
+  subject: "subject-1",
+  verified: true,
+} as const;
+
 const identity: SsoCutoverIdentityFacts = {
   principals: [
     {
@@ -26,14 +33,7 @@ const identity: SsoCutoverIdentityFacts = {
       providerIds: ["credential", provider.id],
     },
   ],
-  requiredProviderLinks: [
-    {
-      rowId: "link-1",
-      principalId: "owner-1",
-      subject: "subject-1",
-      verified: true,
-    },
-  ],
+  requiredProviderLinks: [requiredProviderLink],
   alternativeProviderLinks: [],
   outstandingResetPrincipalIds: [],
 };
@@ -55,7 +55,7 @@ function evaluate(
   });
 }
 
-describe("SSO cutover readiness", () => {
+function registerMemberReadinessTests(): void {
   it("passes only when every workspace member has one verified required-provider link", () => {
     const result = evaluate();
 
@@ -89,7 +89,7 @@ describe("SSO cutover readiness", () => {
       "unverified_provider_link",
       {
         ...identity,
-        requiredProviderLinks: [{ ...identity.requiredProviderLinks[0]!, verified: false }],
+        requiredProviderLinks: [{ ...requiredProviderLink, verified: false }],
       },
     ],
   ] as const)("names a blocking Owner with reason %s", (reason, changedIdentity) => {
@@ -106,7 +106,9 @@ describe("SSO cutover readiness", () => {
       reason === "principal_missing" ? "owner-1 (owner)" : "owner@example.com (owner)",
     );
   });
+}
 
+function registerWorkspaceReadinessTests(): void {
   it("detects duplicate subjects across principals", () => {
     const result = evaluate({
       identity: {
@@ -150,7 +152,9 @@ describe("SSO cutover readiness", () => {
       expect.arrayContaining(["workspace_has_no_members", "workspace_has_no_owner"]),
     );
   });
+}
 
+function registerCutoverIssueTests(): void {
   it("reports live reset ceremonies without blocking the atomic cutover revocation", () => {
     const result = evaluate({
       identity: { ...identity, outstandingResetPrincipalIds: ["owner-1"] },
@@ -213,7 +217,9 @@ describe("SSO cutover readiness", () => {
     });
     expect(configured.ready).toBe(true);
   });
+}
 
+function registerMemberLinkIssueTests(): void {
   it("reports an unsupported provider link before a missing required-provider link", () => {
     const result = evaluate({
       workspaces: [
@@ -268,7 +274,9 @@ describe("SSO cutover readiness", () => {
     );
     expect(formatSsoCutoverRefusal(result)).toContain("former@example.com");
   });
+}
 
+function registerNonMemberLinkIssueTests(): void {
   it("blocks an unverified strict-provider link owned by a non-member principal", () => {
     const result = evaluate({
       identity: {
@@ -306,7 +314,9 @@ describe("SSO cutover readiness", () => {
     expect(formatSsoCutoverRefusal(result)).toContain("pending@example.com");
     expect(formatSsoCutoverRefusal(result)).toContain("workforce link with subject legacy-subject");
   });
+}
 
+function registerSocialOnlyIssueTest(): void {
   it("blocks a configured-social-only non-member before they can provision an Owner membership", () => {
     const result = evaluate({
       providers: [provider, { id: "github", label: "GitHub", kind: "social", experimental: true }],
@@ -342,4 +352,13 @@ describe("SSO cutover readiness", () => {
     );
     expect(formatSsoCutoverRefusal(result)).toContain("alternative provider(s): github");
   });
+}
+
+describe("SSO cutover readiness", () => {
+  registerMemberReadinessTests();
+  registerWorkspaceReadinessTests();
+  registerCutoverIssueTests();
+  registerMemberLinkIssueTests();
+  registerNonMemberLinkIssueTests();
+  registerSocialOnlyIssueTest();
 });

@@ -57,6 +57,231 @@ function MobileSidebarTrigger() {
   );
 }
 
+function AppShellLoader() {
+  return (
+    <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground" role="status">
+      <Spinner role="presentation" aria-label={undefined} />
+      {m.app_loading()}
+    </div>
+  );
+}
+
+function AppShellToaster({ theme }: { theme: ReturnType<typeof useStore.getState>["theme"] }) {
+  return (
+    <Toaster
+      theme={theme === "system" ? "system" : theme}
+      position="bottom-center"
+      closeButton
+      toastOptions={{ classNames: { error: "toast-error" } }}
+      style={
+        {
+          "--normal-bg": "var(--color-elevated)",
+          "--normal-text": "var(--color-ink)",
+          "--normal-border": "var(--color-line)",
+        } as CSSProperties
+      }
+    />
+  );
+}
+
+type GatedAppProps = {
+  hydrated: boolean;
+  connectionError: ReturnType<typeof useStore.getState>["connectionError"];
+  loadError: ReturnType<typeof useStore.getState>["loadError"];
+  demoAuthActive: boolean;
+  fakeSignedIn: boolean;
+  hasActiveAccount: boolean;
+  introSeen: boolean;
+  onFakeSignIn: () => void;
+  onIntroContinue: () => void;
+  sidebarOpen: boolean;
+  setSidebarOpen: (open: boolean) => void;
+  activeAccount:
+    | ReturnType<typeof useStore.getState>["data"]["accounts"][number]
+    | ReturnType<typeof useStore.getState>["accountSummaries"][number]
+    | undefined;
+  navLinks: typeof LINKS;
+  signOutDemo: () => void;
+  dirtyForm: boolean;
+  paletteOpen: boolean;
+  closePalette: () => void;
+  offline: ReturnType<typeof useOfflineState>;
+  persistError: ReturnType<typeof useStore.getState>["persistError"];
+  masqueradeBanner: ReturnType<typeof buildMasqueradeBannerContent>;
+  navigate: ReturnType<typeof useNavigate>;
+};
+
+function GatedApp({
+  hydrated,
+  connectionError,
+  loadError,
+  demoAuthActive,
+  fakeSignedIn,
+  hasActiveAccount,
+  introSeen,
+  onFakeSignIn,
+  onIntroContinue,
+  sidebarOpen,
+  setSidebarOpen,
+  activeAccount,
+  navLinks,
+  signOutDemo,
+  dirtyForm,
+  paletteOpen,
+  closePalette,
+  offline,
+  persistError,
+  masqueradeBanner,
+  navigate,
+}: GatedAppProps) {
+  return (
+    <AppEntryGate
+      hydrated={hydrated}
+      connectionError={connectionError}
+      loadError={loadError}
+      demoAuthActive={demoAuthActive}
+      fakeSignedIn={fakeSignedIn}
+      hasActiveAccount={hasActiveAccount}
+      introSeen={introSeen}
+      onFakeSignIn={onFakeSignIn}
+      onIntroContinue={onIntroContinue}
+    >
+      <PermissionProvider>
+        <SidebarProvider
+          open={sidebarOpen}
+          onOpenChange={setSidebarOpen}
+          className="h-full min-h-0"
+          style={{ "--sidebar-width": "12rem", "--sidebar-width-icon": "3.5rem" } as CSSProperties}
+        >
+          <GatedSidebar
+            activeAccount={activeAccount}
+            navLinks={navLinks}
+            demoAuthActive={demoAuthActive}
+            signOutDemo={signOutDemo}
+            sidebarOpen={sidebarOpen}
+          />
+          {/* Keep the main surface isolated so this shell remains an orchestration boundary. */}
+          {/* prettier-ignore */}
+          <GatedMain hydrated={hydrated} offline={offline} persistError={persistError} masqueradeBanner={masqueradeBanner} navigate={navigate} />
+          {paletteOpen && !dirtyForm && <CommandPalette onClose={closePalette} />}
+          <RotateHint />
+        </SidebarProvider>
+      </PermissionProvider>
+    </AppEntryGate>
+  );
+}
+
+function GatedSidebar({
+  activeAccount,
+  navLinks,
+  demoAuthActive,
+  signOutDemo,
+  sidebarOpen,
+}: Pick<GatedAppProps, "activeAccount" | "navLinks" | "demoAuthActive" | "signOutDemo" | "sidebarOpen">) {
+  return (
+    <>
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-(--z-index-skip-link) focus:rounded focus:bg-surface focus:px-3 focus:py-2 focus:text-ink focus:shadow focus:ring-2 focus:ring-brand"
+      >
+        {m.nav_skip_to_content()}
+      </a>
+      <AppSidebar
+        activeAccount={activeAccount}
+        adminLinks={ADMIN_LINKS}
+        demoAuthActive={demoAuthActive}
+        navLinks={navLinks}
+        onSignOut={signOutDemo}
+        onSwitchAccount={() => void transitionAccount(null)}
+        open={sidebarOpen}
+      />
+    </>
+  );
+}
+
+function GatedMain({
+  hydrated,
+  offline,
+  persistError,
+  masqueradeBanner,
+  navigate,
+}: Pick<GatedAppProps, "hydrated" | "offline" | "persistError" | "masqueradeBanner" | "navigate">) {
+  const loader = <AppShellLoader />;
+  return (
+    <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto">
+      <div className="border-b border-line p-2 md:hidden">
+        <MobileSidebarTrigger />
+      </div>
+      {masqueradeBanner && <MasqueradeBanner banner={masqueradeBanner} navigate={navigate} />}
+      {offline.readOnly && (
+        <Alert role="status" data-testid="offline-read-only" className="rounded-none border-x-0 border-t-0">
+          <AlertDescription>
+            {m.app_offline_read_only({
+              updated: offline.lastUpdated
+                ? new Date(offline.lastUpdated).toLocaleString()
+                : m.app_offline_unknown_time(),
+            })}
+          </AlertDescription>
+        </Alert>
+      )}
+      {persistError && (
+        <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
+          <AlertDescription>{m.app_persist_error()}</AlertDescription>
+        </Alert>
+      )}
+      {hydrated ? (
+        <Suspense fallback={loader}>
+          <Outlet />
+        </Suspense>
+      ) : (
+        loader
+      )}
+    </main>
+  );
+}
+
+function MasqueradeBanner({
+  banner,
+  navigate,
+}: {
+  banner: Exclude<ReturnType<typeof buildMasqueradeBannerContent>, null>;
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  return (
+    <Alert
+      role="status"
+      data-testid="masquerade-banner"
+      className="rounded-none border-x-0 border-t-0 border-danger bg-danger text-white *:data-[slot=alert-description]:text-white"
+    >
+      <AlertDescription className="flex w-full grid-cols-none flex-row items-center justify-between gap-3">
+        <span>{banner.label}</span>
+        {banner.showControls && (
+          <span className="flex gap-2">
+            {banner.showRetryProjection && (
+              <Button
+                size="sm"
+                variant="outline"
+                className={masqueradeButtonClassName}
+                onClick={() => void masqueradeController.retryProjection()}
+              >
+                {m.app_masquerade_retry()}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className={masqueradeButtonClassName}
+              onClick={() => void masqueradeController.end("explicit", (to) => void navigate(to))}
+            >
+              {banner.endLabel}
+            </Button>
+          </span>
+        )}
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 export function AppShell() {
   const navigate = useNavigate();
   const { paletteOpen, closePalette } = useAppShellController();
@@ -100,147 +325,32 @@ export function AppShell() {
   const sidebarOpen = useStore((state) => state.sidebarOpen);
   const setSidebarOpen = useStore((state) => state.setSidebarOpen);
 
-  const loader = (
-    <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground" role="status">
-      <Spinner role="presentation" aria-label={undefined} />
-      {m.app_loading()}
-    </div>
-  );
-
-  // Keep the global notice host outside AppEntryGate: the controller publishes account-picker,
-  // sign-in and connection notices while the main app body is unavailable. The AA-safe neutral
-  // palette is shared by every tone; errors gain their separate danger accent through the
-  // toast-error class instead of richColors.
-  const toaster = (
-    <Toaster
-      theme={themePreference === "system" ? "system" : themePreference}
-      position="bottom-center"
-      closeButton
-      toastOptions={{ classNames: { error: "toast-error" } }}
-      style={
-        {
-          "--normal-bg": "var(--color-elevated)",
-          "--normal-text": "var(--color-ink)",
-          "--normal-border": "var(--color-line)",
-        } as CSSProperties
-      }
-    />
-  );
-
-  const gatedApp = (
-    <AppEntryGate
-      hydrated={hydrated}
-      connectionError={connectionError}
-      loadError={loadError}
-      demoAuthActive={demoAuthActive}
-      fakeSignedIn={fakeSignedIn}
-      hasActiveAccount={activeAccount !== undefined}
-      introSeen={introSeen}
-      onFakeSignIn={() => setFakeSignedIn(true)}
-      onIntroContinue={() => setIntroSeen(true)}
-    >
-      {/* PermissionProvider resolves permissions only after the entry boundary has selected the app body. */}
-      <PermissionProvider>
-        <SidebarProvider
-          open={sidebarOpen}
-          onOpenChange={setSidebarOpen}
-          className="h-full min-h-0"
-          style={
-            {
-              "--sidebar-width": "12rem",
-              "--sidebar-width-icon": "3.5rem",
-            } as CSSProperties
-          }
-        >
-          {/* Skip past the sidebar nav straight to page content (WCAG 2.4.1). Hidden until focused;
-          targets the <main> landmark (id="main", tabIndex=-1 so it can receive programmatic focus). */}
-          <a
-            href="#main"
-            className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-(--z-index-skip-link) focus:rounded focus:bg-surface focus:px-3 focus:py-2 focus:text-ink focus:shadow focus:ring-2 focus:ring-brand"
-          >
-            {m.nav_skip_to_content()}
-          </a>
-          <AppSidebar
-            activeAccount={activeAccount}
-            adminLinks={ADMIN_LINKS}
-            demoAuthActive={demoAuthActive}
-            navLinks={navLinks}
-            onSignOut={signOutDemo}
-            onSwitchAccount={() => void transitionAccount(null)}
-            open={sidebarOpen}
-          />
-          <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto">
-            <div className="border-b border-line p-2 md:hidden">
-              <MobileSidebarTrigger />
-            </div>
-            {masqueradeBanner && (
-              <Alert
-                role="status"
-                data-testid="masquerade-banner"
-                className="rounded-none border-x-0 border-t-0 border-danger bg-danger text-white *:data-[slot=alert-description]:text-white"
-              >
-                <AlertDescription className="flex w-full grid-cols-none flex-row items-center justify-between gap-3">
-                  <span>{masqueradeBanner.label}</span>
-                  {masqueradeBanner.showControls && (
-                    <span className="flex gap-2">
-                      {masqueradeBanner.showRetryProjection && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={masqueradeButtonClassName}
-                          onClick={() => void masqueradeController.retryProjection()}
-                        >
-                          {m.app_masquerade_retry()}
-                        </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className={masqueradeButtonClassName}
-                        onClick={() => void masqueradeController.end("explicit", (to) => void navigate(to))}
-                      >
-                        {masqueradeBanner.endLabel}
-                      </Button>
-                    </span>
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
-            {offline.readOnly && (
-              <Alert role="status" data-testid="offline-read-only" className="rounded-none border-x-0 border-t-0">
-                <AlertDescription>
-                  {m.app_offline_read_only({
-                    updated: offline.lastUpdated
-                      ? new Date(offline.lastUpdated).toLocaleString()
-                      : m.app_offline_unknown_time(),
-                  })}
-                </AlertDescription>
-              </Alert>
-            )}
-            {persistError && (
-              <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
-                <AlertDescription>{m.app_persist_error()}</AlertDescription>
-              </Alert>
-            )}
-            {hydrated ? (
-              <Suspense fallback={loader}>
-                <Outlet />
-              </Suspense>
-            ) : (
-              loader
-            )}
-          </main>
-          {paletteOpen && !dirtyForm && <CommandPalette onClose={closePalette} />}
-          <RotateHint />
-        </SidebarProvider>
-      </PermissionProvider>
-    </AppEntryGate>
-  );
-
   return (
     <>
-      {toaster}
-      {gatedApp}
+      <AppShellToaster theme={themePreference} />
+      <GatedApp
+        hydrated={hydrated}
+        connectionError={connectionError}
+        loadError={loadError}
+        demoAuthActive={demoAuthActive}
+        fakeSignedIn={fakeSignedIn}
+        hasActiveAccount={activeAccount !== undefined}
+        introSeen={introSeen}
+        onFakeSignIn={() => setFakeSignedIn(true)}
+        onIntroContinue={() => setIntroSeen(true)}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        activeAccount={activeAccount}
+        navLinks={navLinks}
+        signOutDemo={signOutDemo}
+        dirtyForm={dirtyForm}
+        paletteOpen={paletteOpen}
+        closePalette={closePalette}
+        offline={offline}
+        persistError={persistError}
+        masqueradeBanner={masqueradeBanner}
+        navigate={navigate}
+      />
     </>
   );
 }

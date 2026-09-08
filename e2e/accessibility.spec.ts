@@ -2,7 +2,7 @@ import { test, expect } from "./fixtures";
 import { openApp, resetSchedulerScroll, setZoom } from "./helpers";
 
 // Covers US-KBD-01..03, 05. (US-KBD-04 axe lives in e2e/a11y.spec.ts.)
-test.describe("Keyboard & accessibility", () => {
+function registerSuiteScenario1() {
   test("an allocation bar is focusable and Enter opens the editor", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -12,7 +12,9 @@ test.describe("Keyboard & accessibility", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByRole("dialog", { name: "Edit allocation" })).toBeVisible();
   });
+}
 
+function registerSuiteScenario2() {
   test("arrow keys move a focused bar by a day", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -23,7 +25,9 @@ test.describe("Keyboard & accessibility", () => {
     await expect(bar).toHaveAccessibleName(/2 Jun to 5 Jun/);
     await expect(bar).toBeFocused();
   });
+}
 
+function registerSuiteScenario3() {
   test("a modal traps focus, closes on Escape, and restores its trigger", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/resources");
     const trigger = page.getByRole("button", { name: "Add resource" });
@@ -49,7 +53,9 @@ test.describe("Keyboard & accessibility", () => {
     await expect(dialog).toHaveCount(0);
     await expect(trigger).toBeFocused();
   });
+}
 
+function registerSuiteScenario4() {
   test("the scheduler exposes grid roles and an sr-only per-row capacity summary", async ({ page }) => {
     await openApp(page);
     const grid = page.getByRole("grid", { name: "Resource schedule" });
@@ -65,7 +71,9 @@ test.describe("Keyboard & accessibility", () => {
     await expect(lane).toHaveAttribute("aria-colindex", "2");
     await expect(page.getByText(/\d+ allocation/).first()).toBeAttached(); // sr-only summary
   });
+}
 
+function registerSuiteScenario5() {
   test("an invalid field is marked aria-invalid and described by the error", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/resources");
     await page.getByRole("button", { name: "Add resource" }).click();
@@ -95,4 +103,12 @@ test.describe("Keyboard & accessibility", () => {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("resource-row").filter({ hasText: "Accessible resource" })).toBeVisible();
   });
+}
+
+test.describe("Keyboard & accessibility", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
+  registerSuiteScenario5();
 });

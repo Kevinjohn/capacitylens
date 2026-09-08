@@ -2,7 +2,7 @@ import { test, expect } from "./fixtures";
 import { openApp, showScheduleFilters } from "./helpers";
 
 // Covers US-CLI-01..03.
-test.describe("Clients", () => {
+function registerSuiteScenario1() {
   test("adds a client and makes it available as a schedule filter", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page.getByRole("button", { name: "Add client" }).click();
@@ -17,7 +17,9 @@ test.describe("Clients", () => {
     await expect(page.getByRole("option", { name: "Initech" })).toBeVisible();
     await page.keyboard.press("Escape");
   });
+}
 
+function registerSuiteScenario2() {
   test("an owner can add a private client with a code name", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page.getByRole("button", { name: "Add client" }).click();
@@ -37,7 +39,9 @@ test.describe("Clients", () => {
     await expect(page.getByRole("switch", { name: "Use a code name" })).toHaveAttribute("aria-checked", "true");
     await expect(page.getByRole("textbox", { name: "Code name", exact: true })).toHaveValue("Nightwing");
   });
+}
 
+function registerSuiteScenario3() {
   test("rejects emoji / junk characters in a name and blocks the save", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page.getByRole("button", { name: "Add client" }).click();
@@ -51,7 +55,9 @@ test.describe("Clients", () => {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("client-row").filter({ hasText: "Café Crème" })).toBeVisible();
   });
+}
 
+function registerSuiteScenario4() {
   test("edits a client and the rename reflects in project labels", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page
@@ -69,10 +75,12 @@ test.describe("Clients", () => {
     await page.getByLabel("Project").click();
     await expect(page.getByRole("option", { name: /Acme Worldwide \/ Project Watchtower/ })).toBeVisible();
   });
+}
 
-  // P2.5b: the per-row destructive action ARCHIVES (hidden from the active list, fully retained — NOT
-  // a hard cascade-delete). Its projects keep their OWN active status (archiving filters by each row's
-  // own status, it does not cascade), so they stay visible; archiving is undoable via the local store.
+// P2.5b: the per-row destructive action ARCHIVES (hidden from the active list, fully retained — NOT
+// a hard cascade-delete). Its projects keep their OWN active status (archiving filters by each row's
+// own status, it does not cascade), so they stay visible; archiving is undoable via the local store.
+function registerSuiteScenario5() {
   test("archiving a client hides it from the list, restorable with undo", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page
@@ -90,4 +98,12 @@ test.describe("Clients", () => {
     await page.keyboard.press("Meta+z");
     await expect(page.getByTestId("client-row").filter({ hasText: "Queen Consolidated" })).toBeVisible();
   });
+}
+
+test.describe("Clients", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
+  registerSuiteScenario5();
 });

@@ -4,7 +4,9 @@ import { resolveLaneTop, packLanes, resolveRowHeightForLanes, type Interval } fr
 const iv = (id: string, startDate: string, endDate: string): Interval => ({ id, startDate, endDate });
 
 function laneOf(result: ReturnType<typeof packLanes>, id: string): number {
-  return result.lanes.find((l) => l.id === id)!.lane;
+  const lane = result.lanes.find((entry) => entry.id === id);
+  if (!lane) throw new Error(`Missing lane for ${id}`);
+  return lane.lane;
 }
 
 describe("packLanes", () => {
@@ -81,7 +83,9 @@ describe("packLanes", () => {
     expect(laneOf(r, "b")).toBe(0);
     expect(r.laneCount).toBe(0); // both unpositionable -> laneEnds never touched
   });
+});
 
+describe("packLanes — ordering and reuse", () => {
   it("sorts unsorted input by startDate before packing (not insertion order)", () => {
     // p/q/r overlap in a staircase; fed in scrambled order. If the array weren't actually
     // sorted ascending by startDate first, the greedy packer would produce a different
@@ -125,7 +129,9 @@ describe("packLanes", () => {
     expect(laneOf(result, "z")).toBe(2);
     expect(result.laneCount).toBe(3);
   });
+});
 
+describe("packLanes — invalid records and updates", () => {
   it("parks a record with an unparseable endDate without corrupting laneEnds", () => {
     // Only the end is invalid (start is fine), so `s` is finite and `e` is not — this
     // distinguishes the `||` from a mutated `&&` in the unpositionable check.

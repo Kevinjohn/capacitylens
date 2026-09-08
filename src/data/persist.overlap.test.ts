@@ -71,10 +71,15 @@ describe("persistence save/reload/switch overlap", () => {
     expect(useStore.getState().activeAccountId).toBe(secondAccount.id);
     expect(useStore.getState().data.clients).toContainEqual(parked);
     expect(saveAll).toHaveBeenCalledTimes(2);
-    expect(saveAll.mock.calls[1]![0].clients).toContainEqual(parked);
+    const secondSave = saveAll.mock.calls[1];
+    expect(secondSave).toBeDefined();
+    if (secondSave === undefined) throw new Error("Expected the parked edit to be saved");
+    expect(secondSave[0].clients).toContainEqual(parked);
     expect(hasUnsavedPersistenceWrites()).toBe(false);
   });
+});
 
+describe("persistence reconciliation overlap", () => {
   it("keeps a completed switch authoritative when the old reconciliation load later fails", async () => {
     const oldLoad = deferred<AppData>();
     const newLoad = deferred<AppData>();
@@ -108,7 +113,10 @@ describe("persistence save/reload/switch overlap", () => {
     expect(useStore.getState().data.accounts).toEqual(authoritative.accounts);
     const client = useStore.getState().addClient({ name: "Stark Industries", color: "#222222" });
     expect(await flushPendingWrites()).toEqual({ kind: "clean" });
-    expect(saveAll.mock.lastCall![0].clients).toContainEqual(client);
+    const lastSave = saveAll.mock.lastCall;
+    expect(lastSave).toBeDefined();
+    if (lastSave === undefined) throw new Error("Expected the authoritative edit to be saved");
+    expect(lastSave[0].clients).toContainEqual(client);
     expect(hasUnsavedPersistenceWrites()).toBe(false);
   });
 });

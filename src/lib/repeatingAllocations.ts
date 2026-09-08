@@ -79,38 +79,14 @@ export function buildRepeatedAllocationDrafts(
   startDates: readonly ISODate[],
   context: RepeatProjectionContext,
 ): Draft<Allocation>[] {
-  if (context.resource.id !== baseDraft.resourceId) {
-    throw new Error("The repeat projection resource does not match the allocation resource.");
-  }
-  if (startDates.length === 0 || startDates[0] !== baseDraft.startDate) {
-    throw new Error("Repeat projection must begin with the validated allocation draft.");
-  }
-  const external = isExternalResource(context.resource);
-  if (
-    !external &&
-    context.schedulingMode !== "hourly" &&
-    (!Number.isSafeInteger(context.daysOver) || context.daysOver < 1 || context.daysOver > MAX_SPAN_DAYS)
-  ) {
-    throw new RangeError(`Repeat projection daysOver must be a whole number from 1 to ${MAX_SPAN_DAYS}.`);
-  }
-
+  validateRepeatProjection(baseDraft, startDates, context);
   const calendarSpan = daysInclusive(baseDraft.startDate, baseDraft.endDate);
-  if (calendarSpan < 1) throw new RangeError("Repeat projection requires a valid inclusive date range.");
-  const usesCalendarSpan = external || context.schedulingMode === "hourly";
-  if (!usesCalendarSpan && lacksEffectiveWorkingDays(context.effectiveWeek, baseDraft.ignoreWeekends)) {
-    throw new RangeError("Repeat projection requires at least one effective working day.");
-  }
+  const usesCalendarSpan = isExternalResource(context.resource) || context.schedulingMode === "hourly";
   const spanOptions = {
     ...(context.effectiveWeek.kind === "days" ? { workingDays: context.effectiveWeek.days } : {}),
     ...(baseDraft.ignoreWeekends !== undefined ? { ignoreWeekends: baseDraft.ignoreWeekends } : {}),
   };
-  if (!usesCalendarSpan) {
-    for (const generatedStart of startDates) {
-      if (context.daysOver > maxSpanDaysForStart(generatedStart, spanOptions)) {
-        throw new RangeError("A repeated working span extends beyond the supported date range.");
-      }
-    }
-  }
+  validateProjectedSpans({ startDates, daysOver: context.daysOver, spanOptions, usesCalendarSpan });
 
   return startDates.map((generatedStart, index) => {
     if (index === 0) return baseDraft;
@@ -119,6 +95,54 @@ export function buildRepeatedAllocationDrafts(
       : endDateForSpan(generatedStart, context.daysOver, spanOptions);
     return { ...baseDraft, startDate: generatedStart, endDate: projectedEnd };
   });
+}
+
+function validateRepeatProjection(
+  baseDraft: Draft<Allocation>,
+  startDates: readonly ISODate[],
+  context: RepeatProjectionContext,
+): void {
+  if (context.resource.id !== baseDraft.resourceId) {
+    throw new Error("The repeat projection resource does not match the allocation resource.");
+  }
+  if (startDates.length === 0 || startDates[0] !== baseDraft.startDate) {
+    throw new Error("Repeat projection must begin with the validated allocation draft.");
+  }
+  const usesCalendarSpan = isExternalResource(context.resource) || context.schedulingMode === "hourly";
+  if (!usesCalendarSpan && !isValidWorkingSpan(context.daysOver)) {
+    throw new RangeError(`Repeat projection daysOver must be a whole number from 1 to ${MAX_SPAN_DAYS}.`);
+  }
+
+  const calendarSpan = daysInclusive(baseDraft.startDate, baseDraft.endDate);
+  if (calendarSpan < 1) throw new RangeError("Repeat projection requires a valid inclusive date range.");
+  if (!usesCalendarSpan && lacksEffectiveWorkingDays(context.effectiveWeek, baseDraft.ignoreWeekends)) {
+    throw new RangeError("Repeat projection requires at least one effective working day.");
+  }
+}
+
+function isValidWorkingSpan(daysOver: number): boolean {
+  return Number.isSafeInteger(daysOver) && daysOver >= 1 && daysOver <= MAX_SPAN_DAYS;
+}
+
+interface ValidateProjectedSpansInput {
+  startDates: readonly ISODate[];
+  daysOver: number;
+  spanOptions: Parameters<typeof maxSpanDaysForStart>[1];
+  usesCalendarSpan: boolean;
+}
+
+function validateProjectedSpans({
+  startDates,
+  daysOver,
+  spanOptions,
+  usesCalendarSpan,
+}: ValidateProjectedSpansInput): void {
+  if (usesCalendarSpan) return;
+  for (const generatedStart of startDates) {
+    if (daysOver > maxSpanDaysForStart(generatedStart, spanOptions)) {
+      throw new RangeError("A repeated working span extends beyond the supported date range.");
+    }
+  }
 }
 
 /**
@@ -142,19 +166,7 @@ export function buildRepeatingAllocationAdvisory({
   // per draft — which re-bucketed everything already seen, making a k-occurrence repeat O(k²) in
   // day-string work. Hours still land existing-load-first, then draft 0, 1, …, so every per-day sum
   // is bit-identical to the per-draft rebuild (float addition is not associative).
-  const batchWindow = resolveSharedLoadWindow(proposedDrafts);
-  const shared = batchWindow
-    ? {
-        window: batchWindow,
-        load: bucketCapacityLoad({
-          resource: resource,
-          allocations: existingLoad,
-          start: batchWindow.start,
-          end: batchWindow.end,
-          effectiveWeek: effectiveWeek,
-        }),
-      }
-    : null;
+  const shared = createSharedLoad({ resource, existingLoad, proposedDrafts, effectiveWeek, timeOff, closures });
   // Only reachable from an absurd (~100-year) span, where the batch is wider than one
   // materialisable window: keep the original per-draft rebuild rather than trade a slow answer for
   // a thrown range error.
@@ -197,6 +209,26 @@ export function buildRepeatingAllocationAdvisory({
     else rebuiltLoad.push(draft);
   }
   return { overCapacityAllocations, timeOffAllocations, nonEffectiveStartAllocations };
+}
+
+function createSharedLoad({
+  resource,
+  existingLoad,
+  proposedDrafts,
+  effectiveWeek,
+}: BuildRepeatingAllocationAdvisoryInput) {
+  const window = resolveSharedLoadWindow(proposedDrafts);
+  if (!window) return null;
+  return {
+    window,
+    load: bucketCapacityLoad({
+      resource,
+      allocations: existingLoad,
+      start: window.start,
+      end: window.end,
+      effectiveWeek,
+    }),
+  };
 }
 
 /** The one window every draft in the batch falls inside, or `null` when it is too wide to

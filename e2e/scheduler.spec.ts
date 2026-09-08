@@ -103,7 +103,7 @@ async function expectCompactMonthLabelsDoNotOverlap(page: Page) {
   }
 }
 
-test.describe("Scheduler", () => {
+function registerSuiteScenario1() {
   test("shows seeded resources, grouping and capacity cues", async ({ page }) => {
     await openApp(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
@@ -142,7 +142,9 @@ test.describe("Scheduler", () => {
     await expect(page.getByTestId("unavailable-day").first()).toBeVisible();
     await expect(page.getByTestId("utilization").first()).toBeVisible();
   });
+}
 
+function registerSuiteScenario2() {
   test("draws a new allocation on an empty part of a lane", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -168,7 +170,9 @@ test.describe("Scheduler", () => {
 
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before + 1);
   });
+}
 
+function registerSuiteScenario3() {
   test("drags a bar to move it later", async ({ page }, testInfo) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -201,7 +205,9 @@ test.describe("Scheduler", () => {
     expect(hoverX).toBeGreaterThanOrEqual(hint.x);
     expect(hoverX).toBeLessThanOrEqual(hint.x + hint.width);
   });
+}
 
+function registerSuiteScenario4() {
   test("resizes a bar via its end handle", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -222,7 +228,9 @@ test.describe("Scheduler", () => {
     const b1 = await box(bar);
     expect(b1.width).toBeGreaterThan(b0.width + 20);
   });
+}
 
+function registerSuiteScenario5() {
   test("zooming to more weeks shrinks the day columns (same bar gets narrower)", async ({ page }, testInfo) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -245,7 +253,9 @@ test.describe("Scheduler", () => {
     // Same 9-day allocation is physically narrower when more weeks are visible.
     expect(narrow.width).toBeLessThan(wide.width);
   });
+}
 
+function registerSuiteScenario6() {
   test("clicking Today re-centres the timeline after scrolling away", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 800 });
     await openApp(page, "Wayne Enterprises", "/settings");
@@ -293,10 +303,12 @@ test.describe("Scheduler", () => {
     // …AND the left edge lands flush on the focus week's start (Monday), not a coarse pixel target.
     await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
   });
+}
 
-  // This used to jump straight to August through the date picker. That picker is hidden as of
-  // #173, so the same "the header follows the window into another month" behaviour is driven by
-  // the controls that remain: Today, then Next a week at a time.
+// This used to jump straight to August through the date picker. That picker is hidden as of
+// #173, so the same "the header follows the window into another month" behaviour is driven by
+// the controls that remain: Today, then Next a week at a time.
+function registerSuiteScenario7() {
   test("paning forward moves the timeline into the next month", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -309,7 +321,9 @@ test.describe("Scheduler", () => {
     await expect.poll(() => schedulerLeftMonthLabel(page)).toBe("Jul 2026");
     expect(await settledSchedulerLeftDate(page)).toContain("Mon");
   });
+}
 
+function registerSuiteScenario8() {
   test("vertically centres month labels across zoom and density settings", async ({ page }) => {
     await openApp(page);
     await goToSeedWeek(page);
@@ -341,7 +355,9 @@ test.describe("Scheduler", () => {
     });
     expect(await expectMonthLabelsVerticallyCentred(page)).toBeGreaterThan(defaultTierHeight);
   });
+}
 
+function registerSuiteScenario9() {
   test("aligns wide month labels to their first visible day and keeps compact labels separate", async ({ page }) => {
     await openApp(page);
     await goToSeedWeek(page);
@@ -364,7 +380,9 @@ test.describe("Scheduler", () => {
     await setZoom(page, 2);
     await expectWideMonthLabelsAlignedToVisibleStarts(page);
   });
+}
 
+function registerSuiteScenario10() {
   test("shows a detail popover on hover (US-SCH-15)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -374,13 +392,17 @@ test.describe("Scheduler", () => {
     await expect(pop).toBeVisible();
     await expect(pop).toContainText("Metropolis Rebrand"); // project name in the popover
   });
+}
 
+function registerSuiteScenario11() {
   test("shows overall and per-discipline utilisation summaries (US-SCH-14)", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("overall-utilization")).toContainText("%");
     await expect(page.getByTestId("discipline-group").first()).toContainText(/avg utilisation/);
   });
+}
 
+function registerSuiteScenario12() {
   test("the week-range toggle recomputes utilisation over the visible window (US-SCH-14)", async ({ page }) => {
     await openApp(page);
     // Own the visible window explicitly instead of relying on the global frozen clock plus the
@@ -446,7 +468,9 @@ test.describe("Scheduler", () => {
     expect(wk1.bruce).toBeGreaterThan(0);
     expect(wk1.bruce).toBeGreaterThanOrEqual(wk8.bruce);
   });
+}
 
+function registerSuiteScenario13() {
   test("stacks overlapping allocations onto a taller row (US-SCH-08)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -458,12 +482,16 @@ test.describe("Scheduler", () => {
     const clarkRow = await page.getByTestId("scheduler-row").filter({ hasText: "Clark Kent" }).boundingBox();
     expect(bruceRow!.height).toBeGreaterThan(clarkRow!.height); // stacked -> taller
   });
+}
 
+function registerSuiteScenario14() {
   test("marks today with a vertical line when in range (US-SCH-12)", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("today-line").first()).toBeVisible();
   });
+}
 
+function registerSuiteScenario15() {
   test("allocation status and note are visually distinct on the bar (US-SCH-19)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -486,14 +514,16 @@ test.describe("Scheduler", () => {
     await expect(done).toContainText("✓");
     await expect(done).toContainText("•");
   });
+}
 
-  // Feature 1 (ALWAYS on): a zoom click and a Prev/Next pan re-anchor the grid's left edge to the
-  // week start (account weekStartsOn, default Monday) — INDEPENDENT of Feature 2's "Snap to week
-  // start" free-scroll pref. The audit found this test was CONFOUNDED: because F2 defaults ON, the
-  // idle free-scroll snap masked the F1 navigation snap (disabling only F1 still left it green).
-  // So we turn F2 OFF first — now a free nudge to a mid-week day STICKS, and the ONLY thing that can
-  // re-anchor the left edge to a Monday is the navigation branch under test (zoom / Next / Prev).
-  // Frozen clock 2026-06-03 (Wed); week origin Monday 2026-06-01 → the 1w view opens flush on "1Mon".
+// Feature 1 (ALWAYS on): a zoom click and a Prev/Next pan re-anchor the grid's left edge to the
+// week start (account weekStartsOn, default Monday) — INDEPENDENT of Feature 2's "Snap to week
+// start" free-scroll pref. The audit found this test was CONFOUNDED: because F2 defaults ON, the
+// idle free-scroll snap masked the F1 navigation snap (disabling only F1 still left it green).
+// So we turn F2 OFF first — now a free nudge to a mid-week day STICKS, and the ONLY thing that can
+// re-anchor the left edge to a Monday is the navigation branch under test (zoom / Next / Prev).
+// Frozen clock 2026-06-03 (Wed); week origin Monday 2026-06-01 → the 1w view opens flush on "1Mon".
+function registerSuiteScenario16() {
   test("navigation re-anchors the left edge to the week start (with the free-scroll snap OFF)", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 800 });
     await openApp(page, "Wayne Enterprises", "/settings");
@@ -545,4 +575,23 @@ test.describe("Scheduler", () => {
     const afterPrev = dayNum((await probe(page)).leftDate);
     expect(afterPrev).toBeLessThan(afterNext); // moved a week earlier (still a Monday)
   });
+}
+
+test.describe("Scheduler", () => {
+  registerSuiteScenario1();
+  registerSuiteScenario2();
+  registerSuiteScenario3();
+  registerSuiteScenario4();
+  registerSuiteScenario5();
+  registerSuiteScenario6();
+  registerSuiteScenario7();
+  registerSuiteScenario8();
+  registerSuiteScenario9();
+  registerSuiteScenario10();
+  registerSuiteScenario11();
+  registerSuiteScenario12();
+  registerSuiteScenario13();
+  registerSuiteScenario14();
+  registerSuiteScenario15();
+  registerSuiteScenario16();
 });

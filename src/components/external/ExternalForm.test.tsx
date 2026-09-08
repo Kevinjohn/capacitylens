@@ -7,6 +7,7 @@ import { ExternalForm } from "./ExternalForm";
 
 beforeEach(() => resetStoreWithAccount());
 
+// eslint-disable-next-line max-lines-per-function -- integration scenarios intentionally share one fixture lifecycle
 describe("ExternalForm", () => {
   it("rejects a blank company name and associates the error with the field", async () => {
     const user = userEvent.setup();

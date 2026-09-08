@@ -59,7 +59,7 @@ function chromeTokens(theme: Theme) {
   };
 }
 
-describe("chrome depth tokens", () => {
+function registerChromeDepthTokenScenarios(): void {
   it("defines every chrome and scheduler ground in both themes and leaves shadcn surfaces mapped to --c-*", () => {
     for (const name of [
       "chrome-sidebar",
@@ -95,7 +95,9 @@ describe("chrome depth tokens", () => {
     expect(contrastRatio(filterbar, black)).toBeLessThan(contrastRatio(canvas, black));
     expect(contrastRatio(canvasInk, canvas)).toBeGreaterThanOrEqual(4.5);
   });
+}
 
+function registerChromeDepthPairingScenarios(): void {
   it.each(["light", "dark"] as const)("keeps every %s chrome and scheduler ground paired with AA ink", (theme) => {
     const tokens = chromeTokens(theme);
     const pairs = [
@@ -124,6 +126,11 @@ describe("chrome depth tokens", () => {
     expect(bandRule).toMatch(/--outline-hover-background:\s*var\(--chrome-control-hover\)/);
     expect(bandRule).not.toMatch(/(?:background|border)-color:/);
   });
+}
+
+describe("chrome depth tokens", () => {
+  registerChromeDepthTokenScenarios();
+  registerChromeDepthPairingScenarios();
 });
 
 describe("DEFAULT_COLORS bar legibility (WCAG 1.4.3 AA)", () => {

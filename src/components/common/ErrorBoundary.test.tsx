@@ -74,6 +74,14 @@ describe("ErrorFallback", () => {
     expect(screen.getByText("An unexpected error occurred.")).toBeInTheDocument();
   });
 
+  it("shows a default message for empty or whitespace-only errors", () => {
+    const { rerender } = render(<ErrorFallback message="" />);
+    expect(screen.getByText("An unexpected error occurred.")).toBeInTheDocument();
+
+    rerender(<ErrorFallback message="   " />);
+    expect(screen.getByText("An unexpected error occurred.")).toBeInTheDocument();
+  });
+
   it("reloads the application from its sole recovery control", () => {
     // The button reboots through lib/reloadPage — the one boundary over `location.reload()` — so
     // the spy is a module mock rather than a replacement window.location (jsdom's reload is

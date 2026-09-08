@@ -86,24 +86,17 @@ type PersistedFlagKey =
 
 const legacyDirtyFormSource = Symbol("setDirtyForm");
 
-function applyDirtyFormSource(state: StoreState, source: symbol, dirty: boolean) {
-  const dirtyFormSources = new Set(state.dirtyFormSources);
-  if (dirty) dirtyFormSources.add(source);
-  else dirtyFormSources.delete(source);
-  return { dirtyFormSources, dirtyForm: dirtyFormSources.size > 0 };
-}
+const createPersistedFlagSetter = <K extends PersistedFlagKey>(
+  set: Parameters<StateCreator<StoreState, [], [], RuntimeSlice>>[0],
+  key: K,
+  write: (value: boolean) => void,
+) =>
+  function setPersistedFlag(value: boolean): void {
+    write(value);
+    set({ [key]: value } as Pick<StoreState, K>);
+  };
 
-/** Device preferences and transient application/session state. */
-export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> = (set, get) => {
-  // Every device-global preference setter has the same body — write the pref to its own
-  // localStorage key, then publish it — so the shape is declared ONCE here and each setter below
-  // names only its key and its writer. setTheme stays bespoke: it also repaints the DOM.
-  const createPersistedFlagSetter =
-    <K extends PersistedFlagKey>(key: K, write: (value: boolean) => void) =>
-    (value: boolean): void => {
-      write(value);
-      set({ [key]: value } as Pick<StoreState, K>);
-    };
+function readRuntimeInitialState() {
   return {
     hydrated: false,
     persistError: false,
@@ -112,7 +105,7 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     notice: null,
     srAnnouncement: null,
     dirtyForm: false,
-    dirtyFormSources: new Set(),
+    dirtyFormSources: new Set<symbol>(),
     draggingAllocationId: null,
     theme: readStoredTheme(),
     utilizationPrefs: readStoredUtilizationPrefs(),
@@ -125,9 +118,26 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     introSeen: readStoredIntroSeen(),
     gettingStartedDismissed: readStoredGettingStartedDismissed(),
     activeRole: null,
-    activeRoleStatus: "not-applicable",
+    activeRoleStatus: "not-applicable" as const,
     membershipRevision: 0,
-    masquerade: { kind: "inactive" },
+    masquerade: { kind: "inactive" as const },
+  };
+}
+
+function applyDirtyFormSource(state: StoreState, source: symbol, dirty: boolean) {
+  const dirtyFormSources = new Set(state.dirtyFormSources);
+  if (dirty) dirtyFormSources.add(source);
+  else dirtyFormSources.delete(source);
+  return { dirtyFormSources, dirtyForm: dirtyFormSources.size > 0 };
+}
+
+/** Device preferences and transient application/session state. */
+export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> = (set, get) => {
+  // Every device-global preference setter has the same body — write the pref to its own
+  // localStorage key, then publish it — so the shape is declared ONCE here and each setter below
+  // names only its key and its writer. setTheme stays bespoke: it also repaints the DOM.
+  return {
+    ...readRuntimeInitialState(),
 
     setHydrated: (value) => set({ hydrated: value }),
     setPersistError: (value) => set({ persistError: value }),
@@ -162,13 +172,14 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
         writeStoredBarLabelPrefs(next);
         return { barLabelPrefs: next };
       }),
-    setSidebarOpen: createPersistedFlagSetter("sidebarOpen", (open) => writeStoredSidebarOpen({ open })),
-    setMinimiseWeekends: createPersistedFlagSetter("minimiseWeekends", writeStoredMinimiseWeekends),
-    setSnapToWeekStart: createPersistedFlagSetter("snapToWeekStart", writeStoredSnapToWeekStart),
-    setCompactView: createPersistedFlagSetter("compactView", writeStoredCompactView),
-    setFakeSignedIn: createPersistedFlagSetter("fakeSignedIn", writeStoredFakeSignedIn),
-    setIntroSeen: createPersistedFlagSetter("introSeen", writeStoredIntroSeen),
+    setSidebarOpen: createPersistedFlagSetter(set, "sidebarOpen", (open) => writeStoredSidebarOpen({ open })),
+    setMinimiseWeekends: createPersistedFlagSetter(set, "minimiseWeekends", writeStoredMinimiseWeekends),
+    setSnapToWeekStart: createPersistedFlagSetter(set, "snapToWeekStart", writeStoredSnapToWeekStart),
+    setCompactView: createPersistedFlagSetter(set, "compactView", writeStoredCompactView),
+    setFakeSignedIn: createPersistedFlagSetter(set, "fakeSignedIn", writeStoredFakeSignedIn),
+    setIntroSeen: createPersistedFlagSetter(set, "introSeen", writeStoredIntroSeen),
     setGettingStartedDismissed: createPersistedFlagSetter(
+      set,
       "gettingStartedDismissed",
       writeStoredGettingStartedDismissed,
     ),

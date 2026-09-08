@@ -110,7 +110,7 @@ export class BoundedWorkQueue {
           if (waiting.signal && waiting.abort) waiting.signal.removeEventListener("abort", waiting.abort);
           reject(this.createSaturationError("wait_timeout"));
         }, this.options.maxWaitMs);
-        waiting.waitTimer.unref?.();
+        waiting.waitTimer.unref();
       }
       this.waiting.push(waiting);
     });

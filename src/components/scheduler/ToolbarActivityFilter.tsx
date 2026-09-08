@@ -10,6 +10,12 @@ export interface ToolbarActivityFilterProps {
   onChange: (patch: { activityId: string | null; activityKind: "internal" | "repeatable" | null }) => void;
 }
 
+function buildActivityFilterPatch(value: string): Parameters<ToolbarActivityFilterProps["onChange"]>[0] {
+  if (value === "kind:internal") return { activityKind: "internal", activityId: null };
+  if (value === "kind:repeatable") return { activityKind: "repeatable", activityId: null };
+  return { activityId: value === "all" ? null : value, activityKind: null };
+}
+
 export function ToolbarActivityFilter({
   activityId,
   activityKind,
@@ -22,23 +28,7 @@ export function ToolbarActivityFilter({
       // Encoded value: 'all' = all, 'kind:internal'/'kind:repeatable' = a whole group,
       // otherwise a specific activity id. An activityKind selection wins over a stale activityId.
       value={activityKind ? `kind:${activityKind}` : (activityId ?? "all")}
-      onValueChange={(value) => {
-        if (value === "kind:internal")
-          onChange({
-            activityKind: "internal",
-            activityId: null,
-          });
-        else if (value === "kind:repeatable")
-          onChange({
-            activityKind: "repeatable",
-            activityId: null,
-          });
-        else
-          onChange({
-            activityId: value === "all" ? null : value,
-            activityKind: null,
-          });
-      }}
+      onValueChange={(value) => onChange(buildActivityFilterPatch(value))}
     >
       <SelectTrigger size="sm" aria-label={m.scheduler_filter_activity_aria()} className="w-auto">
         <SelectValue />

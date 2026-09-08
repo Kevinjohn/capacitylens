@@ -4,11 +4,23 @@ import { openDb } from "./db";
 import type { AuditSink } from "./audit";
 import { AUDIT_DRAIN_PAGE_SIZE, enqueueAudit } from "./auditOutbox";
 
+interface HealthBody {
+  ok: boolean;
+  db: boolean;
+  audit: "ok" | "degraded" | "recovering";
+  auditPending: number;
+  backup?: { status: "pending" | "ok" | "degraded"; lastSuccessAt: string | null };
+}
+
+function readHealthBody(response: { json: () => unknown }): HealthBody {
+  return response.json() as HealthBody;
+}
+
 // P1.4 (flag CAPACITYLENS_HEALTH_DEEP → opts.healthDeep): ON makes /api/health prove the DB
 // answers a constant SELECT 1; OFF keeps today's unconditional { ok: true } — the exact body
 // Playwright's webServer probe (and anything else pinned to it) depends on.
 
-describe("CAPACITYLENS_HEALTH_DEEP on", () => {
+function createHealthyTest(): void {
   it("reports { ok, db: true, audit: ok } while the DB answers and the audit sink is healthy", async () => {
     // P1.15: deep-health also surfaces the audit sink state. The factory default is a noop sink
     // (never degraded), so a healthy server reports audit:'ok'.
@@ -17,7 +29,9 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ ok: true, db: true, audit: "ok", auditPending: 0 });
   });
+}
 
+function createDegradedTest(): void {
   it("reports audit: degraded (still 200, db: true) when the audit sink has latched degraded", async () => {
     // P3.2: a degraded audit sink is a SOFT signal — the DB still answers, so the server stays
     // healthy (200, db:true); only the `audit` field flips to 'degraded' so an external uptime
@@ -32,7 +46,9 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ ok: true, db: true, audit: "degraded", auditPending: 0 });
   });
+}
 
+function createBacklogTest(): void {
   it("reports a healthy backlog as recovering with its pending row count", async () => {
     const db = openDb(":memory:");
     const app = createApp(db, { healthDeep: true });
@@ -64,7 +80,9 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
     await app.close();
     db.close();
   });
+}
 
+function createBackupTest(): void {
   it("reports configured backup freshness and latched degradation", async () => {
     const backupHealth: { degraded: boolean; lastSuccessAt: string | null } = {
       degraded: false,
@@ -93,12 +111,15 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
     });
 
     backupHealth.degraded = true;
-    expect((await app.inject({ method: "GET", url: "/api/health" })).json().backup).toEqual({
+    const degradedBody = readHealthBody(await app.inject({ method: "GET", url: "/api/health" }));
+    expect(degradedBody.backup).toEqual({
       status: "degraded",
       lastSuccessAt: "2026-07-27T12:00:00.000Z",
     });
   });
+}
 
+function createInternalTlsTest(): void {
   it("surfaces an internal certificate inside the renewal window without failing readiness", async () => {
     const expiresAt = new Date(Date.now() + 29 * 24 * 60 * 60 * 1_000).toISOString();
     const app = createApp(openDb(":memory:"), {
@@ -122,7 +143,9 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
       },
     });
   });
+}
 
+function createDbFailureTest(): void {
   it("returns 503 { ok: false } when the DB read throws", async () => {
     const db = openDb(":memory:");
     const app = createApp(db, { healthDeep: true });
@@ -131,6 +154,15 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
     expect(res.statusCode).toBe(503);
     expect(res.json()).toEqual({ ok: false });
   });
+}
+
+describe("CAPACITYLENS_HEALTH_DEEP on", () => {
+  createHealthyTest();
+  createDegradedTest();
+  createBacklogTest();
+  createBackupTest();
+  createInternalTlsTest();
+  createDbFailureTest();
 });
 
 describe("CAPACITYLENS_HEALTH_DEEP off (default)", () => {

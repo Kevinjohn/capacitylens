@@ -692,9 +692,14 @@ cleanup behavior without changing production scheduling.
       fixed, BO203/BO211 have explicit #647 owners, BO207–BO210 and BO212–BO227 have complete
       stable-ID blocks, and BO228 is accepted with a quoted-rule analysis.
 - [ ] Complete final review and required local gates pass on the accepted tree.
-      The single final E2E run passed 257/257 at clean tested commit `7e9685a3`; no tracked code
-      changed after that run. The app and server gates remain pending only at their shared
-      network-backed `pnpm audit --prod` step.
+      At integrated commit `cda2d81bf73d81d426478f97ea951db380a3afd2`, Node 24.19.0 app and
+      server policy, formatting, typecheck, lint and build phases pass. The app and server audit
+      steps require registry access unavailable in the restricted local environment. Local unit
+      failures are confined to sandbox-blocked localhost listeners and one dependency-mount ESM
+      spy behavior reproduced on the already certified PR #688 tree. The current-head E2E run is
+      still required: this worktree's path beneath `node_modules` prevents Node from loading the
+      TypeScript Playwright configuration. Manually dispatched GitHub `gate.yml` and `e2e.yml`
+      workflows on the published branch are the authoritative remaining integrated certification.
 - [ ] Separate minor release passes necessary GitHub CI and is verified after merge.
 - [ ] Actual finish, residual debt and any unmet criteria recorded.
 

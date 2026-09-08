@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useStore } from "../../store/useStore";
 import { hasDisciplinesEnabled } from "../../store/selectors";
 import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
@@ -19,6 +19,7 @@ import {
 import { FieldError, FieldGroup } from "../ui/field";
 import { buildResourceEngagementOptions } from "../../lib/metadata";
 import { DEFAULT_COLORS } from "../../lib/palette";
+import { useResourceFormState, type ResourceFormState } from "./useResourceFormState";
 import {
   FULL_DAY_HOURS,
   placeholderCapacityDefaults,
@@ -32,53 +33,6 @@ import {
 } from "@capacitylens/shared/types/entities";
 
 type ResourceFormProps = { resource?: Resource; kind?: ResourceKind; onClose: () => void };
-
-function useResourceFormState(resource?: Resource) {
-  const text = buildInitialTextState(resource);
-  const capacity = buildInitialCapacityState(resource);
-  const [name, setName] = useState(text.name);
-  const [role, setRole] = useState(text.role);
-  const [disciplineId, setDisciplineId] = useState(text.disciplineId);
-  const [projectId, setProjectId] = useState(text.projectId);
-  const [engagement, setEngagement] = useState<ResourceEngagement>(capacity.engagement);
-  const [workingDays, setWorkingDays] = useState<Weekday[]>(capacity.workingDays);
-  const [halfDays, setHalfDays] = useState<Weekday[]>(capacity.halfDays);
-  return {
-    name,
-    setName,
-    role,
-    setRole,
-    disciplineId,
-    setDisciplineId,
-    engagement,
-    setEngagement,
-    workingDays,
-    setWorkingDays,
-    halfDays,
-    setHalfDays,
-    projectId,
-    setProjectId,
-  };
-}
-
-function buildInitialTextState(resource?: Resource) {
-  return {
-    name: resource?.name ?? "",
-    role: resource?.role ?? "",
-    disciplineId: resource?.disciplineId ?? "",
-    projectId: resource?.projectId ?? "",
-  };
-}
-
-function buildInitialCapacityState(resource?: Resource) {
-  return {
-    engagement: resource?.engagement ?? "studio",
-    workingDays: resource?.workingDays ?? [1, 2, 3, 4, 5],
-    halfDays: resource?.halfDays ?? [],
-  };
-}
-
-type FormState = ReturnType<typeof useResourceFormState>;
 type ResourceDraft = {
   name: string;
   role: string;
@@ -261,9 +215,9 @@ function createSubmit(input: SubmitInput) {
   };
 }
 
-type ResourceFieldsState = Pick<FormState, "name" | "setName" | "role" | "setRole"> &
-  Pick<FormState, "disciplineId" | "setDisciplineId" | "engagement" | "setEngagement"> &
-  Pick<FormState, "projectId" | "setProjectId">;
+type ResourceFieldsState = Pick<ResourceFormState, "name" | "setName" | "role" | "setRole"> &
+  Pick<ResourceFormState, "disciplineId" | "setDisciplineId" | "engagement" | "setEngagement"> &
+  Pick<ResourceFormState, "projectId" | "setProjectId">;
 
 type ResourceFieldsProps = {
   form: ResourceFieldsState;
@@ -334,6 +288,41 @@ function ResourceFields(props: ResourceFieldsProps) {
   );
 }
 
+type ResourceCapacityFieldsState = Pick<
+  ResourceFormState,
+  "workingDays" | "setWorkingDays" | "halfDays" | "setHalfDays"
+>;
+
+type ResourceCapacityFieldsProps = {
+  form: ResourceCapacityFieldsState;
+  isPlaceholder: boolean;
+  error: string | null;
+  errorField: string | null;
+  errorId: string;
+};
+
+function ResourceCapacityFields({ form, isPlaceholder, error, errorField, errorId }: ResourceCapacityFieldsProps) {
+  return (
+    <>
+      {!isPlaceholder && (
+        <WorkingDayPicker
+          label={m.form_resource_working_days_label()}
+          workingDays={form.workingDays}
+          halfDays={form.halfDays}
+          onChange={(workingDays, halfDays) => {
+            form.setWorkingDays(workingDays);
+            form.setHalfDays(halfDays);
+          }}
+          invalid={errorField === "workingDays"}
+          describedById={errorId}
+        />
+      )}
+      <FieldError id={errorId}>{error}</FieldError>
+      <RequiredLegend />
+    </>
+  );
+}
+
 /** Add or edit a person or placeholder while preserving kind-specific capacity semantics. */
 export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceFormProps) {
   const add = useStore((state) => state.addResource);
@@ -379,21 +368,13 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
         errorField={errorField}
         errorId={errorId}
       />
-      {!isPlaceholder && (
-        <WorkingDayPicker
-          label={m.form_resource_working_days_label()}
-          workingDays={form.workingDays}
-          halfDays={form.halfDays}
-          onChange={(workingDays, halfDays) => {
-            form.setWorkingDays(workingDays);
-            form.setHalfDays(halfDays);
-          }}
-          invalid={errorField === "workingDays"}
-          describedById={errorId}
-        />
-      )}
-      <FieldError id={errorId}>{error}</FieldError>
-      <RequiredLegend />
+      <ResourceCapacityFields
+        form={form}
+        isPlaceholder={isPlaceholder}
+        error={error}
+        errorField={errorField}
+        errorId={errorId}
+      />
     </Modal>
   );
 }

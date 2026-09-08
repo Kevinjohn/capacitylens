@@ -89,7 +89,9 @@ describe("volumePreservingHoursClamped", () => {
       }),
     ).toEqual({ hours: 24, clamped: true });
   });
+});
 
+describe("volumePreservingHoursClamped edge cases", () => {
   it("reports clamped=false for an in-range resize (no truncation)", () => {
     // span 4 → span 2 doubles to 12h/day, well under the cap
     expect(
@@ -216,6 +218,10 @@ describe("computeGesture", () => {
     expect(hours).toBe(12);
     expect(clamped).toBe(false); // in range, no truncation
   });
+});
+
+describe("computeGesture rescaling guards", () => {
+  const current = range("2026-06-01", "2026-06-04");
 
   it("does NOT rescale hours when not in days mode (hourly/blocks)", () => {
     const { hours, clamped } = resolveGesture({
