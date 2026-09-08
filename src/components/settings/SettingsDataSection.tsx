@@ -7,7 +7,61 @@ import { Button } from "../ui/button";
 import { SettingsSection } from "./SettingsSection";
 
 import type { useLocalDataActions } from "./useLocalDataActions";
-// eslint-disable-next-line max-lines-per-function -- device-data actions share confirmation state
+
+function OfflineDataSection({
+  offlineEnabled,
+  offlineBusy,
+  offlineState,
+  toggleOffline,
+}: {
+  offlineEnabled: boolean;
+  offlineBusy: boolean;
+  offlineState: ReturnType<typeof useOfflineState>;
+  toggleOffline: ReturnType<typeof useLocalDataActions>["toggleOffline"];
+}) {
+  return (
+    <SettingsSection title={m.settings_offline_heading()} help={m.settings_offline_description()}>
+      <SwitchField
+        label={m.settings_offline_toggle()}
+        checked={offlineEnabled}
+        // The handler derives the next value itself (it also has to cache/roll back for it).
+        onChange={() => toggleOffline()}
+        disabled={offlineBusy}
+      />
+      {offlineEnabled && offlineState.cacheWriteFailed && (
+        <p role="status" className="text-sm text-danger">
+          {m.settings_offline_write_failed()}
+        </p>
+      )}
+    </SettingsSection>
+  );
+}
+
+function DeviceDataSection({
+  setConfirmingClear,
+}: {
+  setConfirmingClear: ReturnType<typeof useLocalDataActions>["setConfirmingClear"];
+}) {
+  return (
+    <SettingsSection
+      title={m.settings_device_data_heading()}
+      help={m.settings_clear_desc_server({ app: APP_NAME })}
+      danger
+      collapsible
+      defaultOpen={false}
+    >
+      <Button
+        size="sm"
+        variant="danger-soft"
+        data-testid="clear-local-storage"
+        onClick={() => setConfirmingClear(true)}
+      >
+        {m.settings_clear_storage_button()}
+      </Button>
+    </SettingsSection>
+  );
+}
+
 export function SettingsDataSection({
   serverMode,
   authMode,
@@ -36,40 +90,17 @@ export function SettingsDataSection({
   return (
     <>
       {serverMode && authMode !== "off" && user && (
-        <SettingsSection title={m.settings_offline_heading()} help={m.settings_offline_description()}>
-          <SwitchField
-            label={m.settings_offline_toggle()}
-            checked={offlineEnabled}
-            // The handler derives the next value itself (it also has to cache/roll back for it).
-            onChange={() => toggleOffline()}
-            disabled={offlineBusy}
-          />
-          {offlineEnabled && offlineState.cacheWriteFailed && (
-            <p role="status" className="text-sm text-danger">
-              {m.settings_offline_write_failed()}
-            </p>
-          )}
-        </SettingsSection>
+        <OfflineDataSection
+          offlineEnabled={offlineEnabled}
+          offlineBusy={offlineBusy}
+          offlineState={offlineState}
+          toggleOffline={toggleOffline}
+        />
       )}
 
       {/* Device data is limited to the opt-in offline snapshot and preferences. Scheduling data is
             server-owned or temporary demo memory, so this action never deletes company data. */}
-      <SettingsSection
-        title={m.settings_device_data_heading()}
-        help={m.settings_clear_desc_server({ app: APP_NAME })}
-        danger
-        collapsible
-        defaultOpen={false}
-      >
-        <Button
-          size="sm"
-          variant="danger-soft"
-          data-testid="clear-local-storage"
-          onClick={() => setConfirmingClear(true)}
-        >
-          {m.settings_clear_storage_button()}
-        </Button>
-      </SettingsSection>
+      <DeviceDataSection setConfirmingClear={setConfirmingClear} />
 
       {confirmingClear && (
         <ConfirmDialog
