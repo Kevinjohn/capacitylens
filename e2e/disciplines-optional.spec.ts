@@ -88,7 +88,6 @@ test("turning disciplines off hides every surface; turning it back on restores t
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       }),
   );
-  // External remains the final headed band (the seeded Kord Industries makes it present here).
   await expect(page.getByTestId("discipline-group").filter({ hasText: "External / 3rd party" })).toBeVisible();
   await expect(page.getByLabel("Filter by discipline")).toHaveCount(0);
 
