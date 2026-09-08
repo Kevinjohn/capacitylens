@@ -2159,13 +2159,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
   });
 });
 
-describe("batch reconciliation (authoritative reload)", () => {
-  // A 409 from /api/batch (optimistic concurrency) is NOT transient: retrying the same stale diff
-  // 409s forever, and abortIfSaveFailed blocks the focus refresh that could break the loop — a
-  // self-sustaining error wedge. The persist layer must instead resolve by RELOADING the active
-  // slice (server wins, the local conflicting edit is deliberately discarded), surface the banner
-  // via onError, and clear it via the follow-up clean save's onSuccess.
-
+function registerConflictReconciliationTest() {
   it("a 409 conflict RELOADS the slice (no abort), does NOT arm the stale-diff retry, and the banner clears", async () => {
     vi.useFakeTimers();
     try {
@@ -2202,7 +2196,9 @@ describe("batch reconciliation (authoritative reload)", () => {
       vi.useRealTimers();
     }
   });
+}
 
+function registerUncertainReceiptTest() {
   it("an uncertain 2xx receipt reloads before another write and never retries the prior diff", async () => {
     vi.useFakeTimers();
     try {
@@ -2230,7 +2226,9 @@ describe("batch reconciliation (authoritative reload)", () => {
       vi.useRealTimers();
     }
   });
+}
 
+function registerValidationReconciliationTest() {
   it("a 400 validation rejection reloads server truth and never retries the rejected diff", async () => {
     vi.useFakeTimers();
     try {
@@ -2266,7 +2264,9 @@ describe("batch reconciliation (authoritative reload)", () => {
       vi.useRealTimers();
     }
   });
+}
 
+function registerFailedReconciliationRecoveryTests() {
   it.each([
     ["conflict", () => new BatchConflictError("stale write")],
     ["uncertain receipt", () => new BatchCommitUncertainError("incomplete revisions")],
@@ -2309,7 +2309,9 @@ describe("batch reconciliation (authoritative reload)", () => {
       vi.useRealTimers();
     }
   });
+}
 
+function registerRecursiveConflictTest() {
   it("a conflict DURING the resolution does not recurse — ONE reload, banner stays up", async () => {
     // The re-entry guard: the resolution's follow-up save can itself 409 (other pending edits also
     // stale). That must NOT trigger a second resolution reload (an unbounded reload↔save loop) —
@@ -2348,7 +2350,9 @@ describe("batch reconciliation (authoritative reload)", () => {
       vi.useRealTimers();
     }
   });
+}
 
+function registerConflictReloadEditTest() {
   it("an edit made during the conflict reload is rebased without restoring the original conflicted edit", async () => {
     // The reload window race: the 409 triggers refreshActive, and the user edits again while
     // loadAll is on the wire. The server slice is AUTHORITATIVE (server-wins): keeping the local
@@ -2396,7 +2400,9 @@ describe("batch reconciliation (authoritative reload)", () => {
     expect(postReload.every((payload) => !payload.clients.some((c) => c.name === "Conflicted"))).toBe(true);
     detach();
   });
+}
 
+function registerTransientFailureTest() {
   it("a NON-conflict failure keeps the existing backoff retry (regression pin) — no conflict reload", async () => {
     vi.useFakeTimers();
     try {
@@ -2424,7 +2430,9 @@ describe("batch reconciliation (authoritative reload)", () => {
       vi.useRealTimers();
     }
   });
+}
 
+function registerTerminalBatchFailureTest() {
   it("an over-limit failure (BatchTooLargeError) is TERMINAL — no backoff retry, banner via onError", async () => {
     // Unlike a transient failure (the regression pin above), an over-limit diff would throw on EVERY
     // backoff attempt (the atomic batch refuses to split it), so persist.ts must STOP retrying — no
@@ -2479,6 +2487,22 @@ describe("batch reconciliation (authoritative reload)", () => {
       vi.useRealTimers();
     }
   });
+}
+
+describe("batch reconciliation (authoritative reload)", () => {
+  // A 409 from /api/batch (optimistic concurrency) is NOT transient: retrying the same stale diff
+  // 409s forever, and abortIfSaveFailed blocks the focus refresh that could break the loop — a
+  // self-sustaining error wedge. The persist layer must instead resolve by RELOADING the active
+  // slice (server wins, the local conflicting edit is deliberately discarded), surface the banner
+  // via onError, and clear it via the follow-up clean save's onSuccess.
+  registerConflictReconciliationTest();
+  registerUncertainReceiptTest();
+  registerValidationReconciliationTest();
+  registerFailedReconciliationRecoveryTests();
+  registerRecursiveConflictTest();
+  registerConflictReloadEditTest();
+  registerTransientFailureTest();
+  registerTerminalBatchFailureTest();
 });
 
 function registerBootstrapSeedingTests() {
