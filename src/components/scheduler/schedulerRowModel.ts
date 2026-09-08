@@ -13,7 +13,7 @@ import {
   type TimeOff,
 } from "@capacitylens/shared/types/entities";
 import { isCreationStartBlockedForEffectiveWeek } from "./creationAvailability";
-import { hasRenderableDateRange } from "./schedulerModelIndexing";
+import { hasRenderableDateRange, reportInvalidScheduleDateRangeOnce } from "./schedulerModelIndexing";
 import type { createAllocationFilters } from "./schedulerModelFilters";
 import type { createCapacitySource } from "./schedulerRowCapacity";
 import type { BarLayout, DayState, RowModel, SchedulerModelOptions, TimeOffBlock } from "./schedulerModelTypes";
@@ -49,6 +49,11 @@ export function createRowBuilder({
   },
   capacitySource: { capacitySourceFor, visDays: visibleDays, overDays },
 }: CreateRowBuilderInput) {
+  const includeRenderableDateRange = (row: { id: string; startDate: ISODate; endDate: ISODate }): boolean => {
+    const renderable = hasRenderableDateRange(row);
+    if (!renderable) reportInvalidScheduleDateRangeOnce(row);
+    return renderable;
+  };
   const timelineStart = days[0];
   const timelineEnd = days[days.length - 1];
   const hasTimelineIntersection = (row: { startDate: ISODate; endDate: ISODate }) =>
@@ -68,7 +73,7 @@ export function createRowBuilder({
   return function buildRow(resource: Resource): RowModel {
     // This resource's data, pre-grouped above; capacity then scans only its own
     // allocations/time-off, not the whole dataset per day (was O(res×days×allocs)).
-    const allAllocations = (allocationsByResource.get(resource.id) ?? []).filter(hasRenderableDateRange);
+    const allAllocations = (allocationsByResource.get(resource.id) ?? []).filter(includeRenderableDateRange);
     const resourceTimeOff = timeOffByResource.get(resource.id) ?? [];
     const isExternal = isExternalResource(resource);
     // Resolve the company/personal intersection once for the whole row. Capacity, creation
@@ -118,24 +123,24 @@ export function createRowBuilder({
     let conflictDayCount = 0;
     let partialCapacityDayCount = 0;
     for (const date of days) {
-      const dayCapacity = capacity.capacityOnDay(date);
+      const dayCapacity = capacity.getCapacityOnDay(date);
       // Company-closed dates still receive the shared unavailable tint on EVERY row, starved
       // or not, because allocation creation is blocked there for everyone. The per-date
       // bucket keeps this O(coverage) instead of rescanning the full row list each day.
       const creationBlocked = isCreationStartBlockedForEffectiveWeek({
         resource,
         date,
-        timeOff: capacity.timeOffOn(date),
+        timeOff: capacity.listTimeOffOn(date),
         effectiveWeek,
         closures: data.closures,
       });
       const unavailable = (capacity.tracked && dayCapacity.available === 0) || creationBlocked;
       const partialCapacity = capacity.tracked && !unavailable && isHalfDay(resource, weekdayOf(date));
-      const hasTimeOff = capacity.timeOffCountOn(date) > 0;
+      const hasTimeOff = capacity.getTimeOffCountOn(date) > 0;
       // Blocks carry placement but zero hourly load. Their date-range overlap with time
       // off is therefore an explicit conflict signal rather than fabricated capacity.
       // Hours/Days retain their existing working-day-aware `cap.over` semantics.
-      const timeOffConflict = hasTimeOff && (blocksMode ? capacity.allocationCountOn(date) > 0 : dayCapacity.over);
+      const timeOffConflict = hasTimeOff && (blocksMode ? capacity.getAllocationCountOn(date) > 0 : dayCapacity.over);
       if (dayCapacity.over || timeOffConflict) conflictDayCount++;
       if (partialCapacity) partialCapacityDayCount++;
       dayStates.push({
@@ -157,8 +162,8 @@ export function createRowBuilder({
     // days in its denominator; overSoon follows the strict per-day allocated > available rule, so
     // a time-off day or an opted-in weekend can trip it while a merely-spanned weekend still cannot
     // (weekend-aware allocated hours are zero). Starved rows answer 0 / never over.
-    const utilization = capacity.utilizationOver(visibleDays);
-    const overSoon = capacity.overOn(overDays);
+    const utilization = capacity.resolveUtilizationOver(visibleDays);
+    const overSoon = capacity.isOverOn(overDays);
     return {
       resource,
       rowHeight: resolveRowHeightForLanes(laneCount, laneLayout),

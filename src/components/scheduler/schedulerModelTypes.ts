@@ -161,12 +161,12 @@ export interface SchedulerModelOptions {
 export interface CapacitySource {
   tracked: boolean;
   /** The row's applicable personal time off covering one date. */
-  timeOffOn: (date: ISODate) => TimeOff[];
-  capacityOnDay: (date: ISODate) => DayCapacity;
-  allocationCountOn: (date: ISODate) => number;
-  timeOffCountOn: (date: ISODate) => number;
-  utilizationOver: (dates: ISODate[]) => number;
-  overOn: (dates: ISODate[]) => boolean;
+  listTimeOffOn: (date: ISODate) => TimeOff[];
+  getCapacityOnDay: (date: ISODate) => DayCapacity;
+  getAllocationCountOn: (date: ISODate) => number;
+  getTimeOffCountOn: (date: ISODate) => number;
+  resolveUtilizationOver: (dates: ISODate[]) => number;
+  isOverOn: (dates: ISODate[]) => boolean;
 }
 export interface SchedulerResourceGroup extends DisciplineGroup {
   key: string;

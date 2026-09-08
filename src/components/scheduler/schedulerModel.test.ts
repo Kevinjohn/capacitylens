@@ -12,6 +12,7 @@ import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData, ISODate, Resource, Weekday } from "@capacitylens/shared/types/entities";
 import { isCreationStartBlocked } from "./creationAvailability";
+import { hasRenderableDateRange } from "./schedulerModelIndexing";
 import { makeActivity, makeAllocation, makeClient, makeProject, makeResource, requireValue } from "../../test/fixtures";
 
 interface CapacityForWindowOfTestInput {
@@ -915,6 +916,8 @@ function registerBuildSchedulerModelTest23() {
     };
     d.timeOff.push(corruptTimeOff);
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(hasRenderableDateRange(corrupt)).toBe(false);
+    expect(error).not.toHaveBeenCalled();
     const buildCorrupt = () =>
       buildSchedulerModel({
         data: d,

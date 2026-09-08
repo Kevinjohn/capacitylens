@@ -23,6 +23,7 @@ import {
   bucketByCoveredDate,
   groupByResourceId,
   hasRenderableDateRange,
+  reportInvalidScheduleDateRangeOnce,
   NO_ALLOCATIONS,
   NO_TIME_OFF,
   NO_CLOSURES,
@@ -50,6 +51,12 @@ export type {
   SchedulerModelOptions,
 } from "./schedulerModelTypes";
 
+function includeRenderableDateRange<T extends { id: string; startDate: ISODate; endDate: ISODate }>(row: T): boolean {
+  const renderable = hasRenderableDateRange(row);
+  if (!renderable) reportInvalidScheduleDateRangeOnce(row);
+  return renderable;
+}
+
 // Pure view-model builder for the scheduler: turns the dataset + window + filters
 // into positioned bars, per-day capacity states, time-off blocks and utilisation,
 // grouped by discipline. No React — independently unit-testable.
@@ -69,9 +76,9 @@ export function applyVisibleUtilization({
   blocksMode = false,
 }: ApplyVisibleUtilizationInput): GroupModel[] {
   const days = eachDayISO(start, end);
-  const allocations = groupByResourceId(data.allocations, { include: hasRenderableDateRange });
-  const personalTimeOff = groupByResourceId(data.timeOff, { include: hasRenderableDateRange });
-  const closuresByDate = bucketByCoveredDate(data.closures.filter(hasRenderableDateRange), days);
+  const allocations = groupByResourceId(data.allocations, { include: includeRenderableDateRange });
+  const personalTimeOff = groupByResourceId(data.timeOff, { include: includeRenderableDateRange });
+  const closuresByDate = bucketByCoveredDate(data.closures.filter(includeRenderableDateRange), days);
   return model.map((group) => {
     let changed = false;
     const rows = group.rows.map((row) => {
@@ -157,8 +164,8 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
       }
     },
   });
-  const personalTimeOff = data.timeOff.filter(hasRenderableDateRange);
-  const closures = data.closures.filter(hasRenderableDateRange);
+  const personalTimeOff = data.timeOff.filter(includeRenderableDateRange);
+  const closures = data.closures.filter(includeRenderableDateRange);
   const timeOffByResource = groupByResourceId(personalTimeOff);
 
   const capacitySource = createCapacitySource({ days, visibleWindow, overSoonWindow, closures, blocksMode });
