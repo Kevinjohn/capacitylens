@@ -2715,7 +2715,7 @@ describe("bootstrap", () => {
   registerBootstrapFailureTests();
 });
 
-describe("persistence coordinator fault-injection branches", () => {
+function registerSignedOutReconciliationTest() {
   it("owns a reconciliation failure after sign-out without starting a reload", async () => {
     let rejectSave!: (error: Error) => void;
     const saveAll = vi.fn(
@@ -2744,7 +2744,9 @@ describe("persistence coordinator fault-injection branches", () => {
     await expect(flushPendingWrites()).resolves.toEqual({ kind: "blocked" });
     detach();
   });
+}
 
+function registerSupersededAccountLoadTest() {
   it("discards a superseded non-null account load without running the sign-out rebase", async () => {
     const a1 = {
       ...emptyAppData(),
@@ -2783,7 +2785,9 @@ describe("persistence coordinator fault-injection branches", () => {
     expect(readPersistenceDiagnosticsSnapshot().reloadsSuperseded).toBeGreaterThan(0);
     detach();
   });
+}
 
+function registerRetryDisposalTests() {
   it("retries the current store data when an older failure lands after the latest snapshot was acknowledged", async () => {
     let rejectFirst!: (error: Error) => void;
     const first = new Promise<void>((_resolve, reject) => {
@@ -2828,7 +2832,9 @@ describe("persistence coordinator fault-injection branches", () => {
       vi.useRealTimers();
     }
   });
+}
 
+function registerSuspendedRetryOwnershipTests() {
   it("does not replay an armed retry while an external suspension is active", async () => {
     vi.useFakeTimers();
     try {
@@ -2881,7 +2887,9 @@ describe("persistence coordinator fault-injection branches", () => {
       expect(onSuccess).not.toHaveBeenCalled();
     },
   );
+}
 
+function registerNestedSuspensionTests() {
   it("makes resume idempotent and keeps a nested external suspension active until its final owner resumes", async () => {
     const saveAll = vi.fn().mockResolvedValue(undefined);
     const detach = attachPersistence({
@@ -2930,7 +2938,9 @@ describe("persistence coordinator fault-injection branches", () => {
     await expect(refreshing).resolves.toEqual({ kind: "skipped" });
     expect(onError).not.toHaveBeenCalled();
   });
+}
 
+function registerConcurrentFocusTests() {
   it("collapses concurrent focus refreshes behind one in-flight load", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     const initial = a2Slice();
@@ -2978,7 +2988,9 @@ describe("persistence coordinator fault-injection branches", () => {
     detach();
     now.mockRestore();
   });
+}
 
+function registerCoordinatorFlushTests() {
   it("waits for an in-flight-only flush round and reports quiescence after it settles", async () => {
     let resolveSave!: () => void;
     const saveAll = vi.fn(
@@ -3015,7 +3027,9 @@ describe("persistence coordinator fault-injection branches", () => {
     await expect(flushPendingWrites()).resolves.toEqual({ kind: "blocked" });
     detach();
   });
+}
 
+function registerTeardownReconciliationTests() {
   it("routes a teardown reconciliation failure to an authoritative reload instead of backoff", async () => {
     vi.useFakeTimers();
     try {
@@ -3067,4 +3081,15 @@ describe("persistence coordinator fault-injection branches", () => {
     expect(saveAll).toHaveBeenCalledOnce();
     detach();
   });
+}
+
+describe("persistence coordinator fault-injection branches", () => {
+  registerSignedOutReconciliationTest();
+  registerSupersededAccountLoadTest();
+  registerRetryDisposalTests();
+  registerSuspendedRetryOwnershipTests();
+  registerNestedSuspensionTests();
+  registerConcurrentFocusTests();
+  registerCoordinatorFlushTests();
+  registerTeardownReconciliationTests();
 });
