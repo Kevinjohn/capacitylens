@@ -41,7 +41,7 @@ function isPrivateOrReservedIpv4Prefix(first: number, second: number): boolean {
  * callers fail closed. Spelling — hex vs dotted, compressed vs full — cannot change the octets, which
  * is the whole point: `::ffff:7f00:1` and `::ffff:127.0.0.1` must classify identically. */
 function parseIpv6Bytes(address: string): number[] | null {
-  const text = normalizeIpv6DottedQuad(address.toLowerCase());
+  const text = parseIpv6DottedQuad(address.toLowerCase());
   if (text === null) return null;
   const halves = text.split("::");
   if (halves.length > 2) return null; // at most one `::`
@@ -58,7 +58,7 @@ function parseIpv6Bytes(address: string): number[] | null {
   return head.length === 16 ? head : null;
 }
 
-function normalizeIpv6DottedQuad(address: string): string | null {
+function parseIpv6DottedQuad(address: string): string | null {
   let text = address;
   const dotted = text.match(/^(.*:)(\d+\.\d+\.\d+\.\d+)$/); // fold a trailing IPv4 quad into two hextets
   if (!dotted) return text;
@@ -94,12 +94,12 @@ function isPrivateOrReservedIPv6(address: string): boolean {
   const bytes = parseIpv6Bytes(address);
   if (!bytes) return true; // unparseable → fail closed
   if (hasZeroPrefix(bytes, 15)) return true; // ::/120 covers unspecified (::) and loopback (::1)
-  const embeddedIpv4Offset = readEmbeddedIpv4Offset(bytes);
+  const embeddedIpv4Offset = resolveEmbeddedIpv4Offset(bytes);
   if (embeddedIpv4Offset !== undefined) return isEmbeddedIpv4PrivateOrReserved(bytes, embeddedIpv4Offset);
   return isNonGlobalIpv6(bytes);
 }
 
-function readEmbeddedIpv4Offset(bytes: number[]): number | undefined {
+function resolveEmbeddedIpv4Offset(bytes: number[]): number | undefined {
   const [b0, b1, b2, b3, , , , , , , b10, b11] = bytes;
   if (hasZeroPrefix(bytes, 10) && b10 === 0xff && b11 === 0xff) return 12; // ::ffff:0:0/96 mapped
   if (hasZeroPrefix(bytes, 12)) return 12; // ::/96 deprecated IPv4-compatible
