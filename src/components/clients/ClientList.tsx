@@ -26,7 +26,37 @@ function buildClientArchiveMessage(data: AppData, client: Client): string {
   return projects + phases + allocations > 0 ? `${base} ${buildClientArchiveImpactCopy(impact)}` : base;
 }
 
-// eslint-disable-next-line max-lines-per-function -- list and confirmation state must remain coordinated
+interface ClientItemsProps {
+  clients: Client[];
+  onEdit: (client: Client) => void;
+  onArchive: (client: Client) => void;
+}
+
+function ClientItems({ clients, onEdit, onArchive }: ClientItemsProps) {
+  return (
+    <ItemGroup className="rounded-md border bg-card">
+      {clients.map((client, index) => (
+        <Fragment key={client.id}>
+          {index > 0 && <ItemSeparator />}
+          <Item size="sm" role="listitem" data-testid="client-row" className="rounded-none">
+            <ItemContent className="flex-row items-center gap-2">
+              <ColorSwatch color={client.color} />
+              {client.name}
+            </ItemContent>
+            <ItemActions>
+              <EditButton label={m.list_edit_aria({ name: client.name })} onClick={() => onEdit(client)} />
+              <DeleteButton
+                label={m.list_clients_archive_aria({ name: client.name })}
+                onClick={() => onArchive(client)}
+              />
+            </ItemActions>
+          </Item>
+        </Fragment>
+      ))}
+    </ItemGroup>
+  );
+}
+
 export function ClientList() {
   // The built-in Internal client is a behind-the-scenes data anchor (project-less internal/all-projects
   // activities bucket under it; it can own real projects), NOT a user-managed client — so it is HIDDEN
@@ -60,26 +90,7 @@ export function ClientList() {
           {m.list_clients_empty()}
         </EmptyState>
       ) : (
-        <ItemGroup className="rounded-md border bg-card">
-          {clients.map((client, index) => (
-            <Fragment key={client.id}>
-              {index > 0 && <ItemSeparator />}
-              <Item size="sm" role="listitem" data-testid="client-row" className="rounded-none">
-                <ItemContent className="flex-row items-center gap-2">
-                  <ColorSwatch color={client.color} />
-                  {client.name}
-                </ItemContent>
-                <ItemActions>
-                  <EditButton label={m.list_edit_aria({ name: client.name })} onClick={() => setEditing(client)} />
-                  <DeleteButton
-                    label={m.list_clients_archive_aria({ name: client.name })}
-                    onClick={() => setConfirming(client)}
-                  />
-                </ItemActions>
-              </Item>
-            </Fragment>
-          ))}
-        </ItemGroup>
+        <ClientItems clients={clients} onEdit={setEditing} onArchive={setConfirming} />
       )}
 
       {creating && <ClientForm onClose={() => setCreating(false)} />}
