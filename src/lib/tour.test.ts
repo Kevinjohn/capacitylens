@@ -35,29 +35,33 @@ function getDriverConfig(): Config {
   return config;
 }
 
+function unexpectedDriverCall(): never {
+  throw new Error("unexpected driver call");
+}
+
 function createDriverStub(drive: () => void, destroy: () => void): Driver {
   return {
-    isActive: vi.fn(),
-    refresh: vi.fn(),
+    isActive: unexpectedDriverCall,
+    refresh: unexpectedDriverCall,
     drive,
-    setConfig: vi.fn(),
-    setSteps: vi.fn(),
-    getConfig: vi.fn(),
-    getState: vi.fn(),
-    getActiveIndex: vi.fn(),
-    isFirstStep: vi.fn(),
-    isLastStep: vi.fn(),
-    getActiveStep: vi.fn(),
-    getActiveElement: vi.fn(),
-    getPreviousElement: vi.fn(),
-    getPreviousStep: vi.fn(),
-    getNextStep: vi.fn(),
-    moveNext: vi.fn(),
-    movePrevious: vi.fn(),
-    moveTo: vi.fn(),
-    hasNextStep: vi.fn(),
-    hasPreviousStep: vi.fn(),
-    highlight: vi.fn(),
+    setConfig: unexpectedDriverCall,
+    setSteps: unexpectedDriverCall,
+    getConfig: unexpectedDriverCall,
+    getState: unexpectedDriverCall,
+    getActiveIndex: unexpectedDriverCall,
+    isFirstStep: unexpectedDriverCall,
+    isLastStep: unexpectedDriverCall,
+    getActiveStep: unexpectedDriverCall,
+    getActiveElement: unexpectedDriverCall,
+    getPreviousElement: unexpectedDriverCall,
+    getPreviousStep: unexpectedDriverCall,
+    getNextStep: unexpectedDriverCall,
+    moveNext: unexpectedDriverCall,
+    movePrevious: unexpectedDriverCall,
+    moveTo: unexpectedDriverCall,
+    hasNextStep: unexpectedDriverCall,
+    hasPreviousStep: unexpectedDriverCall,
+    highlight: unexpectedDriverCall,
     destroy,
   };
 }
