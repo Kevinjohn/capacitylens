@@ -143,7 +143,7 @@ describe("password verification backpressure", () => {
   });
 });
 
-describe("federated link observation reconciliation", () => {
+const registerFederatedSchemaTests = () => {
   it("rejects a reserved observation trigger whose body does not match the v25 definition", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -198,7 +198,9 @@ describe("federated link observation reconciliation", () => {
       assertStrictOidcEmailAdmission(db, "workforce", { sub: "new-subject", emailVerified: true }),
     ).not.toThrow();
   });
+};
 
+const registerFederatedAuditTests = () => {
   it("admits a direct OIDC identity as verified on SSO-only restart and emits one stable audit", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
@@ -259,7 +261,9 @@ describe("federated link observation reconciliation", () => {
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
     expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox`).all()).toEqual([{ id: "identity-link:link-1" }]);
   });
+};
 
+const registerFederatedReconciliationTests = () => {
   it("keeps an interrupted zero-row ceremony until expiry and then removes it", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
@@ -309,7 +313,9 @@ describe("federated link observation reconciliation", () => {
 
     expect(immediateTransactions).toBe(0);
   });
+};
 
+const registerFederatedCeremonyConflictTests = () => {
   it("supersedes an abandoned link ceremony when the same principal begins again", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
@@ -349,7 +355,9 @@ describe("federated link observation reconciliation", () => {
     ).toEqual([{ id: "replacement" }]);
     expect(db.prepare(`SELECT id FROM verification`).all()).toEqual([]);
   });
+};
 
+const registerFederatedSubjectConflictTests = () => {
   it("preserves one observed row when an interrupted callback attempts a second subject", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
@@ -392,6 +400,14 @@ describe("federated link observation reconciliation", () => {
     ]);
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
+};
+
+describe("federated link observation reconciliation", () => {
+  registerFederatedSchemaTests();
+  registerFederatedAuditTests();
+  registerFederatedReconciliationTests();
+  registerFederatedCeremonyConflictTests();
+  registerFederatedSubjectConflictTests();
 });
 
 describe("startup configuration before database migration", () => {
