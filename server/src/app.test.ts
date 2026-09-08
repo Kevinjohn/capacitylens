@@ -3264,7 +3264,7 @@ describe("guards", () => {
   });
 });
 
-describe("value-level sanitization on direct writes (server is the integrity boundary)", () => {
+function registerDirectWriteColourAndResourceSanitizationTests(): void {
   it("stores a validated account colour without surrounding whitespace", async () => {
     const { app } = freshApp();
     expect((await post(app, "accounts", { ...account("a1"), color: "  #aAbBcC  " })).statusCode).toBe(201);
@@ -3327,7 +3327,9 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     expect(r.halfDays).toEqual([]);
     expect(r.color).toBe("#5c34d4");
   });
+}
 
+function registerDirectWriteAllocationValueSanitizationTest(): void {
   it("repairs a bad allocation status / hours on PUT", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -3351,7 +3353,9 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     // (Only a missing / NaN value falls back to a full 8h day.)
     expect(a.hoursPerDay).toBe(0);
   });
+}
 
+function registerDirectWriteAllocationSeriesSanitizationTest(): void {
   it("sanitizes repeat-series identity on create and preserves membership on every edit shape", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -3404,7 +3408,9 @@ describe("value-level sanitization on direct writes (server is the integrity bou
       "seriesId",
     );
   });
+}
 
+function registerDirectWriteAccountSchedulingSanitizationTests(): void {
   it("drops a junk account schedulingMode on a direct write but keeps a valid one", async () => {
     const { app } = freshApp();
     // A hand-crafted account write with a junk schedulingMode the scheduler can't handle.
@@ -3443,6 +3449,13 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     expect((await patch({ app, entity: "accounts", id: "a1", payload: { workingDays: [] } })).statusCode).toBe(200);
     expect((await readStateAccount(app)).workingDays).toEqual([0, 1, 2, 3, 4]);
   });
+}
+
+describe("value-level sanitization on direct writes (server is the integrity boundary)", () => {
+  registerDirectWriteColourAndResourceSanitizationTests();
+  registerDirectWriteAllocationValueSanitizationTest();
+  registerDirectWriteAllocationSeriesSanitizationTest();
+  registerDirectWriteAccountSchedulingSanitizationTests();
 });
 
 describe("scheduling-mode fields round-trip through the DB", () => {
