@@ -1,114 +1,142 @@
 import { isBrowserSyncSessionId } from "@capacitylens/shared/account/validation";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { type SyncOrder } from "../../syncOrdering";
+import type { SyncOrder } from "../../syncOrdering";
 import { checkEntityWriteBody } from "../../writePipeline";
+import type { WriteRejection } from "../../writePipeline";
 import { isKnownTable, isLifecycleEntity, isScopedTable } from "../routeShared";
 
-import { MAX_BATCH_OPS, type BatchOp, type ParsedBatchRequest } from "./types";
+import { MAX_BATCH_OPS } from "./types";
+import type { BatchOp, ParsedBatchRequest } from "./types";
 
+type BatchOperationResult = { kind: "accepted"; op: BatchOp } | { kind: "rejected"; rejection: WriteRejection };
+type SyncOrderResult = { kind: "accepted"; syncOrder: SyncOrder | null } | { kind: "rejected" };
+
+function reject(error: string): BatchOperationResult {
+  return { kind: "rejected", rejection: { status: 400, error } };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseSyncOrder(headers: FastifyRequest["headers"]): SyncOrderResult {
+  const sessionId = headers["x-capacitylens-sync-session"];
+  const rawSequence = headers["x-capacitylens-sync-sequence"];
+  if (sessionId === undefined && rawSequence === undefined) return { kind: "accepted", syncOrder: null };
+  const sequence = typeof rawSequence === "string" && /^[1-9]\d{0,15}$/.test(rawSequence) ? Number(rawSequence) : NaN;
+  if (!isBrowserSyncSessionId(sessionId) || !Number.isSafeInteger(sequence)) return { kind: "rejected" };
+  return { kind: "accepted", syncOrder: { sessionId, sequence } };
+}
+
+function resolveOrderedRevisionRejection(
+  updatedAt: unknown,
+  method: BatchOp["method"],
+  syncOrder: SyncOrder | null,
+): WriteRejection | null {
+  if (syncOrder === null || typeof updatedAt === "string") return null;
+  return { status: 400, error: `An ordered ${method} op needs a string updatedAt revision.` };
+}
+
+function parsePutOperation(rawOp: Record<string, unknown>, syncOrder: SyncOrder | null): BatchOperationResult {
+  const { table, id, row } = rawOp;
+  if (typeof table !== "string" || !isKnownTable(table) || typeof id !== "string") {
+    return reject("Each op needs a known table and string id.");
+  }
+  const rejection = checkEntityWriteBody({
+    verb: "replace",
+    entity: table,
+    body: row,
+    urlId: id,
+    scoped: isScopedTable(table),
+  });
+  if (rejection) return { kind: "rejected", rejection };
+  if (!isRecord(row)) return reject("A request body is required.");
+  const revisionRejection = resolveOrderedRevisionRejection(row.updatedAt, "PUT", syncOrder);
+  if (revisionRejection) return { kind: "rejected", rejection: revisionRejection };
+  return { kind: "accepted", op: { method: "PUT", table, id, row } };
+}
+
+function parseDeleteOperation(rawOp: Record<string, unknown>, syncOrder: SyncOrder | null): BatchOperationResult {
+  const { table, id, accountId, updatedAt } = rawOp;
+  if (typeof table !== "string" || !isKnownTable(table) || typeof id !== "string") {
+    return reject("Each op needs a known table and string id.");
+  }
+  if (isLifecycleEntity(table)) return reject("Use the dedicated lifecycle endpoints for lifecycle entities.");
+  if (table === "accounts") return reject("Use the dedicated company deletion endpoint.");
+  if (isScopedTable(table) && typeof accountId !== "string") {
+    return reject("A scoped DELETE op needs a string accountId.");
+  }
+  const revisionRejection = resolveOrderedRevisionRejection(updatedAt, "DELETE", syncOrder);
+  if (revisionRejection) return { kind: "rejected", rejection: revisionRejection };
+  return {
+    kind: "accepted",
+    op: {
+      method: "DELETE",
+      table,
+      id,
+      ...(typeof accountId === "string" ? { accountId } : {}),
+      ...(typeof updatedAt === "string" ? { updatedAt } : {}),
+    },
+  };
+}
+
+function parseArchiveOperation(rawOp: Record<string, unknown>, syncOrder: SyncOrder | null): BatchOperationResult {
+  const { table, id, accountId, updatedAt } = rawOp;
+  if (typeof table !== "string" || !isKnownTable(table) || typeof id !== "string") {
+    return reject("Each op needs a known table and string id.");
+  }
+  if (!isLifecycleEntity(table)) return reject("ARCHIVE is supported only for lifecycle entities.");
+  if (typeof accountId !== "string") return reject("An ARCHIVE op needs a string accountId.");
+  const revisionRejection = resolveOrderedRevisionRejection(updatedAt, "ARCHIVE", syncOrder);
+  if (revisionRejection) return { kind: "rejected", rejection: revisionRejection };
+  return {
+    kind: "accepted",
+    op: {
+      method: "ARCHIVE",
+      table,
+      id,
+      accountId,
+      ...(typeof updatedAt === "string" ? { updatedAt } : {}),
+    },
+  };
+}
+
+function parseBatchOperation(rawOp: unknown, syncOrder: SyncOrder | null): BatchOperationResult {
+  if (!isRecord(rawOp)) {
+    return reject("Each op must be an object.");
+  }
+  if (rawOp.method === "PUT") return parsePutOperation(rawOp, syncOrder);
+  if (rawOp.method === "DELETE") return parseDeleteOperation(rawOp, syncOrder);
+  if (rawOp.method === "ARCHIVE") return parseArchiveOperation(rawOp, syncOrder);
+  return reject(`Unknown op method: ${String(rawOp.method)}`);
+}
+
+function sendRejection(reply: FastifyReply, rejection: WriteRejection): null {
+  reply.code(rejection.status).send({ error: rejection.error });
+  return null;
+}
+
+/** Parse and validate one atomic batch request before authorization or transaction work begins. */
 export function parseBatchRequest(req: FastifyRequest, reply: FastifyReply): ParsedBatchRequest | null {
-  const body = req.body as { ops?: unknown };
-  if (!body || !Array.isArray(body.ops)) {
-    reply.code(400).send({ error: "ops array is required" });
-    return null;
+  const body = req.body;
+  if (body === null || typeof body !== "object" || !("ops" in body) || !Array.isArray(body.ops)) {
+    return sendRejection(reply, { status: 400, error: "ops array is required" });
   }
-  const ops = body.ops as BatchOp[];
-  const rawSyncSession = req.headers["x-capacitylens-sync-session"];
-  const rawSyncSequence = req.headers["x-capacitylens-sync-sequence"];
-  let syncOrder: SyncOrder | null = null;
-  if (rawSyncSession !== undefined || rawSyncSequence !== undefined) {
-    const sequence =
-      typeof rawSyncSequence === "string" && /^[1-9]\d{0,15}$/.test(rawSyncSequence)
-        ? Number(rawSyncSequence)
-        : Number.NaN;
-    if (!isBrowserSyncSessionId(rawSyncSession) || !Number.isSafeInteger(sequence)) {
-      reply.code(400).send({ error: "Invalid browser sync ordering headers." });
-      return null;
-    }
-    syncOrder = { sessionId: rawSyncSession, sequence };
+  const syncOrderResult = parseSyncOrder(req.headers);
+  if (syncOrderResult.kind === "rejected") {
+    return sendRejection(reply, { status: 400, error: "Invalid browser sync ordering headers." });
   }
-  // Ordered-op updatedAt guard shared by the PUT/DELETE/ARCHIVE branches of the pre-scan below —
-  // a no-op unless this request carries sync ordering headers (closes over syncOrder above).
-  const requireOrderedUpdatedAt = (value: unknown, verbLabel: string): { status: number; error: string } | null =>
-    syncOrder && typeof value !== "string"
-      ? { status: 400, error: `An ordered ${verbLabel} op needs a string updatedAt revision.` }
-      : null;
-  // MAX_BATCH_OPS (see its doc comment) bounds the per-operation multiplier; the initial
-  // projection read still scales once with each affected account's slice.
-  // Rejected before the pre-scan and transaction, so an over-cap batch does no per-op work.
-  if (ops.length > MAX_BATCH_OPS) {
-    reply.code(400).send({
+  if (body.ops.length > MAX_BATCH_OPS) {
+    return sendRejection(reply, {
+      status: 400,
       error: `A batch may contain at most ${MAX_BATCH_OPS} operations.`,
     });
-    return null;
   }
-  for (const rawOp of ops as unknown[]) {
-    if (!rawOp || typeof rawOp !== "object" || Array.isArray(rawOp)) {
-      reply.code(400).send({ error: "Each op must be an object." });
-      return null;
-    }
-    const op = rawOp as Partial<BatchOp>;
-    if (op.method !== "PUT" && op.method !== "DELETE" && op.method !== "ARCHIVE") {
-      reply.code(400).send({ error: `Unknown op method: ${String(op.method)}` });
-      return null;
-    }
-    if (typeof op.table !== "string" || !isKnownTable(op.table) || typeof op.id !== "string") {
-      reply.code(400).send({ error: "Each op needs a known table and string id." });
-      return null;
-    }
-    if (op.method === "PUT") {
-      const rejection = checkEntityWriteBody({
-        verb: "replace",
-        entity: op.table,
-        body: op.row,
-        urlId: op.id,
-        scoped: isScopedTable(op.table),
-      });
-      if (rejection) {
-        reply.code(rejection.status).send({ error: rejection.error });
-        return null;
-      }
-      const row = op.row as Record<string, unknown>;
-      const orderedRejection = requireOrderedUpdatedAt(row.updatedAt, "PUT");
-      if (orderedRejection) {
-        reply.code(orderedRejection.status).send({ error: orderedRejection.error });
-        return null;
-      }
-    } else if (op.method === "DELETE") {
-      if (isLifecycleEntity(op.table)) {
-        reply.code(400).send({
-          error: "Use the dedicated lifecycle endpoints for lifecycle entities.",
-        });
-        return null;
-      }
-      if (op.table === "accounts") {
-        reply.code(400).send({ error: "Use the dedicated company deletion endpoint." });
-        return null;
-      }
-      if (isScopedTable(op.table) && typeof op.accountId !== "string") {
-        reply.code(400).send({ error: "A scoped DELETE op needs a string accountId." });
-        return null;
-      }
-      const orderedRejection = requireOrderedUpdatedAt(op.updatedAt, "DELETE");
-      if (orderedRejection) {
-        reply.code(orderedRejection.status).send({ error: orderedRejection.error });
-        return null;
-      }
-    } else {
-      if (!isLifecycleEntity(op.table)) {
-        reply.code(400).send({ error: "ARCHIVE is supported only for lifecycle entities." });
-        return null;
-      }
-      if (typeof op.accountId !== "string") {
-        reply.code(400).send({ error: "An ARCHIVE op needs a string accountId." });
-        return null;
-      }
-      const orderedRejection = requireOrderedUpdatedAt(op.updatedAt, "ARCHIVE");
-      if (orderedRejection) {
-        reply.code(orderedRejection.status).send({ error: orderedRejection.error });
-        return null;
-      }
-    }
+  const ops: BatchOp[] = [];
+  for (const rawOp of body.ops) {
+    const result = parseBatchOperation(rawOp, syncOrderResult.syncOrder);
+    if (result.kind === "rejected") return sendRejection(reply, result.rejection);
+    ops.push(result.op);
   }
-  return { ops, syncOrder };
+  return { ops, syncOrder: syncOrderResult.syncOrder };
 }
