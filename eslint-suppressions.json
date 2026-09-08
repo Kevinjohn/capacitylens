@@ -294,11 +294,6 @@
       "count": 4
     }
   },
-  "server/src/accounts/conformance/accountFlows.conformance.test.ts": {
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
   "server/src/accounts/conformance/architecture.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 2
@@ -587,13 +582,10 @@
   },
   "server/src/app.auth.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
-      "count": 46
+      "count": 44
     },
     "@typescript-eslint/no-unsafe-assignment": {
       "count": 2
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 7
     },
     "max-lines-per-function": {
       "count": 9
@@ -607,7 +599,7 @@
       "count": 5
     },
     "max-lines-per-function": {
-      "count": 6
+      "count": 5
     }
   },
   "server/src/app.cspReport.test.ts": {
@@ -660,11 +652,8 @@
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
     },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 2
-    },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 12
+      "count": 7
     },
     "max-lines-per-function": {
       "count": 7
@@ -753,10 +742,10 @@
       "count": 17
     },
     "@typescript-eslint/no-unsafe-assignment": {
-      "count": 92
+      "count": 86
     },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 176
+      "count": 144
     },
     "max-lines-per-function": {
       "count": 15
@@ -838,14 +827,8 @@
     }
   },
   "server/src/auth.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 4
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 7
-    },
     "max-lines-per-function": {
-      "count": 5
+      "count": 3
     }
   },
   "server/src/auth.ts": {
@@ -3123,7 +3106,7 @@
   },
   "src/data/ServerSyncAdapter.test.ts": {
     "max-lines-per-function": {
-      "count": 9
+      "count": 3
     }
   },
   "src/data/ServerSyncAdapter.ts": {
@@ -3180,11 +3163,8 @@
     }
   },
   "src/data/persist.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 13
-    },
     "max-lines-per-function": {
-      "count": 14
+      "count": 10
     }
   },
   "src/data/persistence/attachPersistence.ts": {
