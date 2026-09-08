@@ -267,10 +267,8 @@ describe("CAPACITYLENS_AUTH off (default)", () => {
       payload: { name: "Studio" },
     });
     expect(res.statusCode).toBe(400);
-    expect(res.json()).toMatchObject({
-      code: "VALIDATION_FAILED",
-      error: expect.stringMatching(/independently generated.*unguessable/i),
-    });
+    expect(parseErrorCode(res)).toBe("VALIDATION_FAILED");
+    expect(parseErrorMessage(res)).toMatch(/independently generated.*unguessable/i);
   });
 
   it("generates independent command and idempotency identities for compatibility callers", async () => {
