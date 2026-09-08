@@ -1,20 +1,52 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createApp, createRequestLoggerOptions } from "./app";
 import { openDb } from "./db";
-import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
+import { createAuthFromEnvironment, runAuthMigrations, type AccountMode, type Auth } from "./auth";
 import { call, PASSWORD_ENV, signUp } from "./testHelpers";
+import type { Db } from "./db";
 
 // P1.3 (flag CAPACITYLENS_LOG → opts.log): ON gives structured per-request JSON via Fastify's
 // bundled pino and routes the 500-path error through the request logger; OFF is byte-for-
 // byte today's behaviour (no request logs, bare console.error on 500s). The logStream
 // seam exists only so these tests can read the JSON lines instead of stdout.
 
-function capture() {
+function capture(): { lines: string[]; stream: { write(msg: string): void } } {
   const lines: string[] = [];
   return { lines, stream: { write: (msg: string) => void lines.push(msg) } };
 }
 
+function requireAuth(auth: Auth | null): Auth {
+  if (!auth) throw new Error("Password auth fixture was not created.");
+  return auth;
+}
+
+async function createPasswordAuth(db: Db): Promise<{ mode: AccountMode; auth: Auth }> {
+  const result = createAuthFromEnvironment(db, PASSWORD_ENV);
+  const auth = requireAuth(result.auth);
+  await runAuthMigrations(auth);
+  return { mode: result.mode, auth };
+}
+
+async function assertInviteTokenUrlIsRedacted(operation: "preview" | "signup"): Promise<void> {
+  const { lines, stream } = capture();
+  const app = createApp(openDb(":memory:"), {
+    log: true,
+    logStream: stream,
+  });
+  const token = `SENTINEL_${operation.toUpperCase()}_INVITE_TOKEN`;
+  await app.inject({
+    method: operation === "preview" ? "GET" : "POST",
+    url: `/api/invites/${token}/${operation}`,
+    ...(operation === "signup" ? { payload: {} } : {}),
+  });
+  const out = lines.join("");
+  expect(out).toContain(`"url":"/api/invites/[redacted]/${operation}"`);
+  expect(out).not.toContain(token);
+}
+
 afterEach(() => vi.restoreAllMocks());
+
+const inviteOperations = ["preview", "signup"] as const;
 
 describe("CAPACITYLENS_LOG on", () => {
   it("emits method/path/status request-completion JSON lines", async () => {
@@ -72,9 +104,8 @@ describe("server error containment", () => {
     "distinguishes an auth backend failure from no session on %s",
     async (url) => {
       const db = openDb(":memory:");
-      const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-      await runAuthMigrations(auth!);
-      vi.spyOn(auth!.api, "getSession").mockRejectedValue(new Error("identity backend unavailable"));
+      const { mode, auth } = await createPasswordAuth(db);
+      vi.spyOn(auth.api, "getSession").mockRejectedValue(new Error("identity backend unavailable"));
       const app = createApp(db, { authMode: mode, auth });
 
       const response = await call(app, { method: "GET", url });
@@ -134,27 +165,13 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
     expect(out).not.toContain(TOKEN); // the live token never reaches the log
   });
 
-  it.each(["preview", "signup"])("also redacts the token from the %s URL", async (operation) => {
-    const { lines, stream } = capture();
-    const app = createApp(openDb(":memory:"), {
-      log: true,
-      logStream: stream,
-    });
-    const TOKEN = `SENTINEL_${operation.toUpperCase()}_INVITE_TOKEN`;
-    await app.inject({
-      method: operation === "preview" ? "GET" : "POST",
-      url: `/api/invites/${TOKEN}/${operation}`,
-      ...(operation === "signup" ? { payload: {} } : {}),
-    });
-    const out = lines.join("");
-    expect(out).toContain(`"url":"/api/invites/[redacted]/${operation}"`);
-    expect(out).not.toContain(TOKEN);
+  it.each(inviteOperations)("also redacts the token from the %s URL", async (operation) => {
+    await assertInviteTokenUrlIsRedacted(operation);
   });
 
   it("also redacts token paths in structured security events", async () => {
     const db = openDb(":memory:");
-    const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(auth!);
+    const { mode, auth } = await createPasswordAuth(db);
     const events: Array<Record<string, unknown>> = [];
     const app = createApp(db, {
       authMode: mode,
@@ -208,8 +225,7 @@ describe("security-event client identity", () => {
     [false, "127.0.0.1"],
   ])("uses the forwarded client only when proxy headers are trusted (%s)", async (trustProxyHeaders, expectedIp) => {
     const db = openDb(":memory:");
-    const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(auth!);
+    const { mode, auth } = await createPasswordAuth(db);
     const events: Array<Record<string, unknown>> = [];
     const app = createApp(db, {
       authMode: mode,
@@ -258,8 +274,7 @@ describe("CAPACITYLENS_LOG off (default)", () => {
 describe("authentication security events", () => {
   it("attributes verified sign-in and sign-out sessions without trusting failed credentials", async () => {
     const db = openDb(":memory:");
-    const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(auth!);
+    const { mode, auth } = await createPasswordAuth(db);
     const events: Array<Record<string, unknown>> = [];
     const app = createApp(db, {
       authMode: mode,
