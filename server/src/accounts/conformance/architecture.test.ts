@@ -47,7 +47,7 @@ function internalImports(file: string, include: (edge: DependencyEdge, target: s
   for (const edge of parseDependencies(readFileSync(file, "utf8"), file)) {
     const resolved = resolveDependency(edge.specifier, file, repositoryRoot);
     if (resolved.classification === "unresolved" || resolved.classification === "nonliteral") {
-      const target = edge.specifier === null ? edge.expression : edge.specifier;
+      const target = edge.specifier ?? edge.expression;
       throw new Error(`${relative(repositoryRoot, file)}:${edge.line}: ${resolved.classification} import ${target}`);
     }
     if (resolved.classification === "internal" && include(edge, resolved.path)) dependencies.add(resolved.path);
@@ -104,6 +104,13 @@ function isControlTable(file: string): boolean {
   );
 }
 
+function isBetterAuthOwner(file: string): boolean {
+  return (
+    [resolve(serverRoot, "auth.ts"), resolve(serverRoot, "strictOidc.ts")].includes(file) ||
+    file.startsWith(resolve(serverRoot, "authConfig") + sep)
+  );
+}
+
 interface IsRowMapperTypeInput {
   file: string;
   kind: DependencyEdge["kind"];
@@ -139,8 +146,10 @@ function dependencyPath({
   const queue: string[][] = [[start]];
   const visited = new Set<string>();
   while (queue.length > 0) {
-    const path = queue.shift()!;
-    const current = path.at(-1)!;
+    const path = queue.shift();
+    if (!path) continue;
+    const current = path.at(-1);
+    if (!current) continue;
     if (visited.has(current)) continue;
     visited.add(current);
     if (current !== start && (forbidden.has(current) || forbiddenPrefixes.some((prefix) => current.startsWith(prefix))))
@@ -176,7 +185,9 @@ describe("account-boundary architecture", () => {
       expect(source, file).not.toContain("timeOff");
     }
   });
+});
 
+describe("account-boundary architecture", () => {
   it("keeps coordinator persistence behind transaction and command-ledger seams", () => {
     for (const file of coordinatorPaths) {
       const source = read(file);
@@ -235,7 +246,9 @@ describe("account-boundary architecture", () => {
     const path = dependencyPath({ start, forbidden: new Set([target]) });
     expect(path?.map((file) => relative(serverRoot, file))).toEqual(expected);
   });
+});
 
+describe("account-boundary architecture", () => {
   it("single-sources account-administration thresholds behind the account policy seam", () => {
     const productPolicy = read("../../shared/src/domain/access.ts");
     const accountPolicy = readFileSync(resolve(sharedAccountRoot, "policy.ts"), "utf8");
@@ -250,9 +263,10 @@ describe("account-boundary architecture", () => {
     expect(accountPolicy).toMatch(/['"]transfer-ownership['"]:\s*['"]owner['"]/);
     expect(accountPolicy).toMatch(/['"]erase-workspace['"]:\s*['"]owner['"]/);
   });
+});
 
+describe("account-boundary architecture", () => {
   it("makes account and identity storage ownership deny-by-default across production source", () => {
-    const production = sourceFiles(serverRoot);
     // Raw identity SQL belongs to the vendor lifecycle and concrete identity-port implementations.
     // A newly added sibling is denied until its specific storage responsibility is reviewed here.
     const identitySqlOwners = new Set([
@@ -301,7 +315,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/adminPort/membership.ts"),
     ]);
 
-    for (const file of production) {
+    for (const file of sourceFiles(serverRoot)) {
       const source = readFileSync(file, "utf8");
       if (!identitySqlOwners.has(file)) expect(source, relative(serverRoot, file)).not.toMatch(identitySql);
       if (!accountSqlOwners.has(file)) expect(source, relative(serverRoot, file)).not.toMatch(accountSql);
@@ -314,15 +328,14 @@ describe("account-boundary architecture", () => {
       }
       // `authConfig/` holds the named builders that assemble authFromEnv's Better Auth options; it
       // is the same ownership zone as auth.ts, split into files, not a new consumer of the library.
-      const betterAuthOwner =
-        [resolve(serverRoot, "auth.ts"), resolve(serverRoot, "strictOidc.ts")].includes(file) ||
-        file.startsWith(resolve(serverRoot, "authConfig") + sep);
-      if (!betterAuthOwner) {
+      if (!isBetterAuthOwner(file)) {
         expect(importSpecifiers(file).filter(isAuthVendor), relative(serverRoot, file)).toEqual([]);
       }
     }
   });
+});
 
+describe("account-boundary architecture", () => {
   it("prevents product routes from reaching identity or membership storage directly", () => {
     for (const file of appBoundaryFiles) {
       const source = read(file);
@@ -440,6 +453,11 @@ describe("scanner calibration", () => {
     ).toBe(false);
     expect(isOwnershipTypeBoundary({ file: "consumer.ts", kind: "type", target: db })).toBe(false);
   });
+});
+
+describe("scanner calibration", () => {
+  const fixtureRoot = mkdtempSync(resolve(tmpdir(), "architecture-scanner-"));
+  afterAll(() => rmSync(fixtureRoot, { recursive: true, force: true }));
 
   it.each(adapterTypeDebt)("keeps the T15 type-debt edge %s -> %s (%s) exact and non-growing", (from, to, name) => {
     const file = resolve(serverRoot, from),
@@ -476,6 +494,18 @@ describe("scanner calibration", () => {
       isRowMapperType({ file: resolve(fixtureRoot, "new-mapper.ts"), kind: "type", target, names: ["AccountMember"] }),
     ).toBe(false);
   });
+});
+
+describe("scanner calibration", () => {
+  const fixtureRoot = mkdtempSync(resolve(tmpdir(), "architecture-scanner-"));
+  afterAll(() => rmSync(fixtureRoot, { recursive: true, force: true }));
+
+  function fixture(name: string, source: string): string {
+    const file = resolve(fixtureRoot, name);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, source);
+    return file;
+  }
 
   it("reports dependencies inside a forbidden directory prefix", () => {
     const a = fixture("a.ts", 'import { value } from "./zone/b.ts";');
@@ -505,6 +535,18 @@ describe("scanner calibration", () => {
     expect(sourceFiles(fixtureRoot)).toContain(sibling);
     expect(readFileSync(sibling, "utf8")).toMatch(accountSql);
   });
+});
+
+describe("scanner calibration", () => {
+  const fixtureRoot = mkdtempSync(resolve(tmpdir(), "architecture-scanner-"));
+  afterAll(() => rmSync(fixtureRoot, { recursive: true, force: true }));
+
+  function fixture(name: string, source: string): string {
+    const file = resolve(fixtureRoot, name);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, source);
+    return file;
+  }
 
   it.each([
     'import type { T } from "./helper";',
