@@ -128,6 +128,37 @@ async function manageAdminMembers(
   await expect(page.getByTestId("invite-link")).toHaveCount(0);
 }
 
+async function transferOwner(
+  ownerContext: BrowserContext,
+  ownerPage: Page,
+  request: APIRequestContext,
+  owner: { cookie: string; userId: string },
+  editor: { userId: string },
+  accountId: string,
+) {
+  await expect(ownerPage.getByTestId("member-make-owner")).toHaveCount(0);
+  const transfer = await request.post(`${API}/api/accounts/${accountId}/transfer-ownership`, {
+    headers: { cookie: owner.cookie },
+    data: { toUserId: editor.userId },
+  });
+  expect(transfer.status()).toBe(200);
+  await ownerPage.reload();
+  await expect(ownerPage).toHaveURL(/\/team$/);
+  await expect(ownerPage.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
+  await expect(ownerPage.getByTestId("active-role")).toContainText("Admin");
+  await expect
+    .poll(async () => {
+      const res = await request.get(`${API}/api/accounts/${accountId}/members`, { headers: { cookie: owner.cookie } });
+      const members = (await res.json()).members as Array<{ userId: string; role: string }>;
+      return [
+        members.find((member) => member.userId === editor.userId)?.role,
+        members.find((member) => member.userId === owner.userId)?.role,
+      ];
+    })
+    .toEqual(["owner", "admin"]);
+  await ownerContext.close();
+}
+
 async function manageOwnerMembers(
   newObservedContext: (options?: { reducedMotion?: "reduce" }) => Promise<BrowserContext>,
   request: APIRequestContext,
@@ -177,27 +208,7 @@ async function manageOwnerMembers(
   await ownerPage.getByRole("alertdialog").getByRole("button", { name: "Restore access" }).click();
   await expect(ownerTarget).not.toContainText("Disabled");
   await expect(ownerPage.getByTestId("members-inactive-toggle")).toHaveCount(0);
-  await expect(ownerPage.getByTestId("member-make-owner")).toHaveCount(0);
-  const transfer = await request.post(`${API}/api/accounts/${accountId}/transfer-ownership`, {
-    headers: { cookie: owner.cookie },
-    data: { toUserId: editor.userId },
-  });
-  expect(transfer.status()).toBe(200);
-  await ownerPage.reload();
-  await expect(ownerPage).toHaveURL(/\/team$/);
-  await expect(ownerPage.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
-  await expect(ownerPage.getByTestId("active-role")).toContainText("Admin");
-  await expect
-    .poll(async () => {
-      const res = await request.get(`${API}/api/accounts/${accountId}/members`, { headers: { cookie: owner.cookie } });
-      const members = (await res.json()).members as Array<{ userId: string; role: string }>;
-      return [
-        members.find((member) => member.userId === editor.userId)?.role,
-        members.find((member) => member.userId === owner.userId)?.role,
-      ];
-    })
-    .toEqual(["owner", "admin"]);
-  await ownerContext.close();
+  await transferOwner(ownerContext, ownerPage, request, owner, editor, accountId);
 }
 
 test("admin manages members but not owner-only ops; ownership changes only by transfer; no cross-tenant leak", async ({

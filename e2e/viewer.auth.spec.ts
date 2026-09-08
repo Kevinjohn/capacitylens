@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect, type APIRequestContext } from "./fixtures";
 import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser as signUp } from "./auth-helpers";
 import { dismissIntroIfPresent } from "./helpers";
 
@@ -34,20 +34,27 @@ async function signInAndOpen(page: import("@playwright/test").Page, email: strin
   await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
 }
 
-test("a viewer sees no edit affordances; an editor does; a direct viewer write is 403", async ({
-  page,
-  request,
-  context,
-}) => {
-  // ── API setup: owner A bootstraps an org, invites V (viewer) + E (editor); both accept. ────────
+async function assertViewerWriteRejected(request: APIRequestContext, accountId: string, cookie: string) {
+  const newClientId = `new-client-${STAMP}`;
+  const directWrite = await request.put(`${API}/api/clients/${newClientId}`, {
+    headers: { cookie, "content-type": "application/json" },
+    data: {
+      id: newClientId,
+      accountId,
+      name: "Should be rejected",
+      color: "#3b82f6",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+  });
+  expect(directWrite.status()).toBe(403);
+}
+
+async function seedViewerScenario(request: APIRequestContext) {
   const owner = await signUp(OWNER);
   const viewer = await signUp(VIEWER);
   const editor = await signUp(EDITOR);
-
   const accountId = await bootstrapOrg(request, owner.cookie, `Viewer Studio ${STAMP}`);
-
-  // Seed real rows before exercising Viewer affordances. Empty-state assertions can pass even if
-  // row actions or ResourceLane.onDraw accidentally become editable.
   const seededAt = new Date().toISOString();
   const clientId = `viewer-client-${STAMP}`;
   const clientWrite = await request.put(`${API}/api/clients/${clientId}`, {
@@ -62,7 +69,6 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
     },
   });
   expect(clientWrite.status()).toBe(200);
-
   const resourceId = `viewer-resource-${STAMP}`;
   const resourceWrite = await request.put(`${API}/api/resources/${resourceId}`, {
     headers: { cookie: owner.cookie, "content-type": "application/json" },
@@ -82,7 +88,6 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
     },
   });
   expect(resourceWrite.status()).toBe(200);
-
   for (const [who, role] of [
     [viewer, "viewer"],
     [editor, "editor"],
@@ -93,29 +98,19 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
     });
     expect(inv.status()).toBe(201);
     const token = (await inv.json()).token as string;
-    const accept = await request.post(`${API}/api/invites/${token}/accept`, {
-      headers: { cookie: who.cookie },
-    });
+    const accept = await request.post(`${API}/api/invites/${token}/accept`, { headers: { cookie: who.cookie } });
     expect(accept.status()).toBe(200);
   }
+  await assertViewerWriteRejected(request, accountId, viewer.cookie);
+  return { resourceId };
+}
 
-  // ── API backstop: a direct scheduling write as the VIEWER is 403 (the true boundary). ──────────
-  // The client gating below is UX + defense-in-depth; THIS is what actually enforces read-only. The
-  // entity write verb is PUT /api/:entity/:id with accountId in the body (the P1.5 write gate keys
-  // off it): the write tier is editor+, so a viewer is forbidden before any row is touched.
-  const newClientId = `new-client-${STAMP}`;
-  const directWrite = await request.put(`${API}/api/clients/${newClientId}`, {
-    headers: { cookie: viewer.cookie, "content-type": "application/json" },
-    data: {
-      id: newClientId,
-      accountId,
-      name: "Should be rejected",
-      color: "#3b82f6",
-      createdAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-01T00:00:00.000Z",
-    },
-  });
-  expect(directWrite.status()).toBe(403);
+test("a viewer sees no edit affordances; an editor does; a direct viewer write is 403", async ({
+  page,
+  request,
+  context,
+}) => {
+  const { resourceId } = await seedViewerScenario(request);
 
   // ── Browser as VIEWER: the read-only UI. ───────────────────────────────────────────────────────
   await signInAndOpen(page, VIEWER, `Viewer Studio ${STAMP}`);
