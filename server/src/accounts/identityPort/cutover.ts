@@ -25,25 +25,37 @@ interface CutoverInventory {
 
 interface ReadCutoverInventoryOptions {
   applicationId: string;
-  context: CutoverContext;
+  accountSessionAssuranceTableExists: IdentityPortContext["accountSessionAssuranceTableExists"];
+  clock(): number;
   db: Db;
+  sessionTableExists: IdentityPortContext["sessionTableExists"];
+  userTableExists: IdentityPortContext["userTableExists"];
+  verificationTableExists: IdentityPortContext["verificationTableExists"];
 }
 
-function readCutoverInventory({ applicationId, context, db }: ReadCutoverInventoryOptions): CutoverInventory {
-  const sessionRows = context.sessionTableExists(db)
+function readCutoverInventory({
+  applicationId,
+  accountSessionAssuranceTableExists,
+  clock,
+  db,
+  sessionTableExists,
+  userTableExists,
+  verificationTableExists,
+}: ReadCutoverInventoryOptions): CutoverInventory {
+  const sessionRows = sessionTableExists(db)
     ? (db.prepare(`SELECT token, userId FROM session`).all() as Array<{ token: string; userId: string }>)
     : [];
-  const verificationRows = context.verificationTableExists(db)
+  const verificationRows = verificationTableExists(db)
     ? (db.prepare(`SELECT value, expiresAt FROM verification`).all() as Array<{
         value: string;
         expiresAt: string | number;
       }>)
     : [];
-  const principals = context.userTableExists(db)
+  const principals = userTableExists(db)
     ? (db.prepare(`SELECT id FROM user`).all() as Array<{ id: string }>).map(({ id }) => id)
     : [];
   const principalIds = new Set(principals);
-  const now = Date.now();
+  const now = clock();
   const activeCutoverCeremonies = verificationRows.filter(({ value, expiresAt }) => {
     const expiry = parseTimestampMilliseconds(expiresAt);
     return principalIds.has(value) && (expiry === null || expiry > now);
@@ -51,7 +63,7 @@ function readCutoverInventory({ applicationId, context, db }: ReadCutoverInvento
   const activated =
     db.prepare(`SELECT 1 FROM capacitylens_sso_cutover_state WHERE applicationId = ?`).get(applicationId) !== undefined;
   const assuranceBySession = new Map(
-    context.accountSessionAssuranceTableExists(db)
+    accountSessionAssuranceTableExists(db)
       ? (
           db.prepare(`SELECT sessionId, assurance FROM account_session_assurance`).all() as Array<{
             sessionId: string;
@@ -76,28 +88,31 @@ function readCutoverInventory({ applicationId, context, db }: ReadCutoverInvento
 
 interface RevokeCutoverSessionsOptions {
   applicationId: string;
-  context: CutoverContext;
   db: Db;
-  lifecycle?: MasqueradeSessionLifecycle | undefined;
+  lifecycle: MasqueradeSessionLifecycle | undefined;
   principalIds: readonly string[];
+  revokePrincipalSessionsInTx: IdentityPortContext["revokePrincipalSessionsInTx"];
 }
 
 function revokeCutoverSessions({
   applicationId,
-  context,
   db,
   lifecycle,
   principalIds,
+  revokePrincipalSessionsInTx,
 }: RevokeCutoverSessionsOptions): readonly string[] {
   const masqueradeHandles: string[] = [];
   for (const principalId of principalIds) {
-    masqueradeHandles.push(...context.revokePrincipalSessionsInTx({ db, applicationId, principalId, lifecycle }));
+    masqueradeHandles.push(...revokePrincipalSessionsInTx({ db, applicationId, principalId, lifecycle }));
   }
   return masqueradeHandles;
 }
 
-function clearCutoverCeremonies(context: CutoverContext, db: Db): void {
-  if (context.verificationTableExists(db)) db.prepare(`DELETE FROM verification`).run();
+function ensureCutoverCeremoniesCleared(
+  db: Db,
+  verificationTableExists: IdentityPortContext["verificationTableExists"],
+): void {
+  if (verificationTableExists(db)) db.prepare(`DELETE FROM verification`).run();
   db.prepare(`DELETE FROM account_session_assurance`).run();
   db.prepare(`DELETE FROM capacitylens_federated_link_ceremonies`).run();
 }
@@ -108,7 +123,7 @@ interface RecordCutoverAuditOptions {
   occurredAt: string;
 }
 
-function recordCutoverActivation({ applicationId, db, occurredAt }: RecordCutoverAuditOptions): void {
+function createCutoverActivation({ applicationId, db, occurredAt }: RecordCutoverAuditOptions): void {
   db.prepare(`INSERT INTO capacitylens_sso_cutover_state (applicationId, activatedAt) VALUES (?, ?)`).run(
     applicationId,
     occurredAt,
@@ -132,7 +147,7 @@ function recordCutoverActivation({ applicationId, db, occurredAt }: RecordCutove
   );
 }
 
-function recordCutoverSessionRevocation({ applicationId, db, occurredAt }: RecordCutoverAuditOptions): void {
+function createCutoverSessionRevocationAudit({ applicationId, db, occurredAt }: RecordCutoverAuditOptions): void {
   const revocationAuditId = `sso-cutover-sessions:${occurredAt}`;
   enqueueAudit(
     db,
@@ -152,40 +167,66 @@ function recordCutoverSessionRevocation({ applicationId, db, occurredAt }: Recor
   );
 }
 
-interface ExecuteCutoverOptions {
+interface ApplyCutoverInTransactionOptions {
+  accountSessionAssuranceTableExists: IdentityPortContext["accountSessionAssuranceTableExists"];
+  applicationId: string;
   assertReady(): void;
-  context: CutoverContext;
+  clock(): number;
+  db: Db;
+  lifecycle: MasqueradeSessionLifecycle | undefined;
+  revokePrincipalSessionsInTx: IdentityPortContext["revokePrincipalSessionsInTx"];
+  sessionTableExists: IdentityPortContext["sessionTableExists"];
+  userTableExists: IdentityPortContext["userTableExists"];
+  verificationTableExists: IdentityPortContext["verificationTableExists"];
 }
 
-interface ExecuteCutoverResult {
+interface ApplyCutoverInTransactionResult {
   ceremonies: number;
   masqueradeHandles: readonly string[];
   sessions: number;
 }
 
-function executeCutover({ assertReady, context }: ExecuteCutoverOptions): ExecuteCutoverResult {
-  const { applicationId, db, masqueradeSessions } = context.input;
+function applyCutoverInTransaction({
+  accountSessionAssuranceTableExists,
+  applicationId,
+  assertReady,
+  clock,
+  db,
+  lifecycle,
+  revokePrincipalSessionsInTx,
+  sessionTableExists,
+  userTableExists,
+  verificationTableExists,
+}: ApplyCutoverInTransactionOptions): ApplyCutoverInTransactionResult {
   return tx(
     db,
     () => {
       // Take the writer reservation before the final readiness read. Otherwise another process
       // could admit a blocker or create a password session between preflight and revocation.
       assertReady();
-      const inventory = readCutoverInventory({ applicationId, context, db });
+      const inventory = readCutoverInventory({
+        accountSessionAssuranceTableExists,
+        applicationId,
+        clock,
+        db,
+        sessionTableExists,
+        userTableExists,
+        verificationTableExists,
+      });
       if (!inventory.requiresCutover) {
         return { ceremonies: 0, masqueradeHandles: [], sessions: 0 };
       }
       const masqueradeHandles = revokeCutoverSessions({
         applicationId,
-        context,
         db,
-        lifecycle: masqueradeSessions,
+        lifecycle,
         principalIds: inventory.principals,
+        revokePrincipalSessionsInTx,
       });
-      clearCutoverCeremonies(context, db);
-      const occurredAt = new Date().toISOString();
-      if (!inventory.activated) recordCutoverActivation({ applicationId, db, occurredAt });
-      if (inventory.sessions > 0) recordCutoverSessionRevocation({ applicationId, db, occurredAt });
+      ensureCutoverCeremoniesCleared(db, verificationTableExists);
+      const occurredAt = new Date(clock()).toISOString();
+      if (!inventory.activated) createCutoverActivation({ applicationId, db, occurredAt });
+      if (inventory.sessions > 0) createCutoverSessionRevocationAudit({ applicationId, db, occurredAt });
       return {
         ceremonies: inventory.ceremonies,
         masqueradeHandles,
@@ -196,11 +237,33 @@ function executeCutover({ assertReady, context }: ExecuteCutoverOptions): Execut
   );
 }
 
-export function createCutover(context: CutoverContext): Pick<SsoCutoverIdentityPort, "revokeAllForSsoCutover"> {
+export function createCutover(
+  context: CutoverContext,
+  clock: () => number = Date.now,
+): Pick<SsoCutoverIdentityPort, "revokeAllForSsoCutover"> {
+  const {
+    accountSessionAssuranceTableExists,
+    input: { applicationId, db, masqueradeSessions },
+    revokePrincipalSessionsInTx,
+    sessionTableExists,
+    userTableExists,
+    verificationTableExists,
+  } = context;
   return {
     async revokeAllForSsoCutover(assertReady) {
-      const { ceremonies, masqueradeHandles, sessions } = executeCutover({ assertReady, context });
-      context.input.masqueradeSessions?.commit(masqueradeHandles);
+      const { ceremonies, masqueradeHandles, sessions } = applyCutoverInTransaction({
+        accountSessionAssuranceTableExists,
+        applicationId,
+        assertReady,
+        clock,
+        db,
+        lifecycle: masqueradeSessions,
+        revokePrincipalSessionsInTx,
+        sessionTableExists,
+        userTableExists,
+        verificationTableExists,
+      });
+      masqueradeSessions?.commit(masqueradeHandles);
       return { sessions, ceremonies };
     },
   };
