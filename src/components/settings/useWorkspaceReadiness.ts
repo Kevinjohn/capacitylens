@@ -28,37 +28,21 @@ interface WorkspaceReadinessDependencies extends Pick<
 type WorkspaceReadinessState =
   { kind: "loading" } | { kind: "ready"; readiness: WorkspaceReadiness } | { kind: "error" };
 
-export function useWorkspaceReadiness({
+function useReadinessState({
   activeAccountId,
+  readinessApplies,
+  readinessRevision,
   strictProviderId,
-  directory,
-  offlineReadOnly,
-  members,
-  refreshDirectory,
-  requestAccountId,
-  withMemberAction,
-  fail,
-  setNotice,
-}: WorkspaceReadinessDependencies) {
+}: {
+  activeAccountId: string | null;
+  readinessApplies: boolean;
+  readinessRevision: number;
+  strictProviderId: string | null;
+}) {
   const [readinessState, setReadinessState] = useState<WorkspaceReadinessState>({ kind: "loading" });
-  const [readinessRevision, setReadinessRevision] = useState(0);
-  const [emailRepair, setEmailRepair] = useState<{ member: ReadinessMember; email: string } | null>(null);
-  const [unlinkRepair, setUnlinkRepair] = useState<{
-    member: ReadinessMember;
-    link: ReadinessRepairLink;
-  } | null>(null);
-  /** Ask the readiness effect below for a fresh read. Every write that can move a membership, an
-   *  email or a federated link can move the cutover projection derived from them. */
-  const bumpReadiness = () => setReadinessRevision((value) => value + 1);
-  // Does the SSO readiness panel apply at all? The section must be authorized (`shown`), the deploy
-  // must actually have a strict OIDC provider to be ready FOR, and a cached offline session must not
-  // be asking the server questions it cannot answer.
-  const readinessApplies = directory.kind === "ready" && !offlineReadOnly && strictProviderId !== null;
   useEffect(() => {
-    if (!readinessApplies || !activeAccountId) {
-      return;
-    }
-    let cancelled = false;
+    if (!readinessApplies || !activeAccountId) return;
+    const effect = { active: true };
     void (async () => {
       try {
         const response = await accountClient.getSsoReadiness(activeAccountId);
@@ -67,24 +51,37 @@ export function useWorkspaceReadiness({
         if (!response.ok || !parsed || parsed.provider.id !== strictProviderId) {
           throw new Error("Invalid SSO readiness response.");
         }
-        if (!cancelled) {
-          setReadinessState({ kind: "ready", readiness: parsed });
-        }
+        if (effect.active) setReadinessState({ kind: "ready", readiness: parsed });
       } catch (cause) {
         console.error("MembersSection: SSO readiness failed", cause);
-        if (!cancelled) {
-          setReadinessState({ kind: "error" });
-        }
+        if (effect.active) setReadinessState({ kind: "error" });
       }
     })();
     return () => {
-      cancelled = true;
+      effect.active = false;
     };
   }, [activeAccountId, readinessApplies, readinessRevision, strictProviderId]);
-  const correctSsoEmail = async () => {
+  return readinessState;
+}
+
+function createCorrectSsoEmail({
+  emailRepair,
+  members,
+  requestAccountId,
+  withMemberAction,
+  fail,
+  setNotice,
+  setEmailRepair,
+  refreshDirectory,
+}: Pick<
+  WorkspaceReadinessDependencies,
+  "members" | "requestAccountId" | "withMemberAction" | "fail" | "setNotice" | "refreshDirectory"
+> & {
+  emailRepair: { member: ReadinessMember; email: string } | null;
+  setEmailRepair: (repair: null) => void;
+}) {
+  return async () => {
     if (!emailRepair) return;
-    // Same ordering as the inline sequence: an absent active account is raised before the draft
-    // address is validated.
     requestAccountId();
     const email = emailRepair.email.trim().toLowerCase();
     if (!isAccountEmail(email)) {
@@ -103,19 +100,26 @@ export function useWorkspaceReadiness({
         );
         setEmailRepair(null);
         setNotice(m.settings_sso_correct_email_done());
-        if (changedSelf) {
-          window.location.reload();
-          return;
-        }
-        refreshDirectory();
+        if (changedSelf) window.location.reload();
+        else refreshDirectory();
       } catch (cause) {
         console.error("MembersSection: SSO email correction failed", cause);
         fail("sso-email", m.settings_sso_correct_email_error());
       }
     });
   };
+}
 
-  const removeIncorrectSsoLink = (member: ReadinessMember, link: ReadinessRepairLink) =>
+function createRemoveIncorrectSsoLink({
+  members,
+  withMemberAction,
+  fail,
+  setNotice,
+  bumpReadiness,
+}: Pick<WorkspaceReadinessDependencies, "members" | "withMemberAction" | "fail" | "setNotice"> & {
+  bumpReadiness: () => void;
+}) {
+  return (member: ReadinessMember, link: ReadinessRepairLink) =>
     withMemberAction(`sso-unlink:${member.principalId}`, async (accountId) => {
       try {
         const response = await accountClient.removeFederatedLink(accountId, member.principalId, link);
@@ -125,16 +129,63 @@ export function useWorkspaceReadiness({
         }
         const changedSelf = members?.some((candidate) => candidate.userId === member.principalId && candidate.isSelf);
         setNotice(m.settings_sso_remove_link_done());
-        if (changedSelf) {
-          window.location.reload();
-          return;
-        }
-        bumpReadiness();
+        if (changedSelf) window.location.reload();
+        else bumpReadiness();
       } catch (cause) {
         console.error("MembersSection: SSO link removal failed", cause);
         fail(null, m.settings_sso_remove_link_error());
       }
     });
+}
+
+export function useWorkspaceReadiness({
+  activeAccountId,
+  strictProviderId,
+  directory,
+  offlineReadOnly,
+  members,
+  refreshDirectory,
+  requestAccountId,
+  withMemberAction,
+  fail,
+  setNotice,
+}: WorkspaceReadinessDependencies) {
+  const [readinessRevision, setReadinessRevision] = useState(0);
+  const [emailRepair, setEmailRepair] = useState<{ member: ReadinessMember; email: string } | null>(null);
+  const [unlinkRepair, setUnlinkRepair] = useState<{
+    member: ReadinessMember;
+    link: ReadinessRepairLink;
+  } | null>(null);
+  /** Ask the readiness effect below for a fresh read. Every write that can move a membership, an
+   *  email or a federated link can move the cutover projection derived from them. */
+  const bumpReadiness = () => setReadinessRevision((value) => value + 1);
+  // Does the SSO readiness panel apply at all? The section must be authorized (`shown`), the deploy
+  // must actually have a strict OIDC provider to be ready FOR, and a cached offline session must not
+  // be asking the server questions it cannot answer.
+  const readinessApplies = directory.kind === "ready" && !offlineReadOnly && strictProviderId !== null;
+  const readinessState = useReadinessState({
+    activeAccountId,
+    readinessApplies,
+    readinessRevision,
+    strictProviderId,
+  });
+  const correctSsoEmail = createCorrectSsoEmail({
+    emailRepair,
+    members,
+    requestAccountId,
+    withMemberAction,
+    fail,
+    setNotice,
+    setEmailRepair,
+    refreshDirectory,
+  });
+  const removeIncorrectSsoLink = createRemoveIncorrectSsoLink({
+    members,
+    withMemberAction,
+    fail,
+    setNotice,
+    bumpReadiness,
+  });
 
   return {
     readinessApplies,

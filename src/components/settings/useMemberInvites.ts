@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import { isAccountEmail } from "@capacitylens/shared/account/validation";
@@ -16,16 +16,170 @@ interface MemberInviteDependencies extends MemberActionDependencies {
   reconcileUnknownMutation: ReturnType<typeof createMemberAccessReconciliation>["reconcileUnknownMutation"];
 }
 
+interface MintedInviteLink {
+  inviteId: string | null;
+  link: string;
+}
+
+interface InviteMutationDependencies extends MemberInviteDependencies {
+  invitationPreauthorizedEmail: string;
+  inviteRole: InvitationRole;
+  setInvitationPreauthorizedEmail: Dispatch<SetStateAction<string>>;
+  setMintedLink: Dispatch<SetStateAction<MintedInviteLink | null>>;
+}
+
+function resolveInviteEmail(
+  authMode: MemberInviteDependencies["authMode"],
+  email: string,
+  fail: MemberInviteDependencies["fail"],
+) {
+  const trimmed = email.trim();
+  if (authMode === "sso" && trimmed.length === 0) {
+    fail("invite", m.settings_sso_invite_email_required());
+    return null;
+  }
+  if (trimmed.length > 0 && !isAccountEmail(trimmed)) {
+    fail("invite", m.identity_err_email());
+    return null;
+  }
+  return trimmed;
+}
+
+function resolveInviteMutationError(message: string, error: unknown) {
+  return m.settings_members_error_detail({ message, error: resolveErrorMessage(error) });
+}
+
+function createSubmitInvite({
+  authMode,
+  clear,
+  requestAccountId,
+  isActiveAccount,
+  withMemberAction,
+  fail,
+  setNotice,
+  reloadInvites,
+  reconcileUnknownMutation,
+  invitationPreauthorizedEmail,
+  inviteRole,
+  setInvitationPreauthorizedEmail,
+  setMintedLink,
+}: InviteMutationDependencies) {
+  return async () => {
+    clear();
+    requestAccountId();
+    const trimmed = resolveInviteEmail(authMode, invitationPreauthorizedEmail, fail);
+    if (trimmed === null) return;
+    await withMemberAction("invite:create", async (accountId) => {
+      setMintedLink(null);
+      try {
+        const result = await teamAccessClient.createInvitation({
+          accountId,
+          role: inviteRole,
+          ...(trimmed ? { preauthEmail: trimmed } : {}),
+        });
+        if (!isActiveAccount(accountId)) return;
+        if (result.kind !== "ok") {
+          if (result.kind === "unknown") {
+            await reconcileUnknownMutation(m.settings_members_unknown_invite_creation());
+            return;
+          }
+          if (result.kind === "invalid") {
+            const message = m.settings_members_unknown_invite_value_lost();
+            await reconcileUnknownMutation(message);
+            fail(null, message);
+            return;
+          }
+          fail("invite", result.message ?? m.settings_members_err_create_invite({ status: result.status }));
+          return;
+        }
+        setMintedLink({
+          inviteId: result.value.id ?? null,
+          link: `${window.location.origin}/invite/${encodeURIComponent(result.value.token)}`,
+        });
+        setInvitationPreauthorizedEmail("");
+        clear();
+        setNotice(m.settings_members_invite_created());
+        void reloadInvites();
+      } catch (e) {
+        await reconcileUnknownMutation(resolveInviteMutationError(m.settings_members_unknown_invite_creation(), e));
+      }
+    });
+  };
+}
+
+function createRevokeInvite({
+  withMemberAction,
+  isActiveAccount,
+  fail,
+  setNotice,
+  reloadInvites,
+  reconcileUnknownMutation,
+  setMintedLink,
+}: Pick<
+  InviteMutationDependencies,
+  | "withMemberAction"
+  | "isActiveAccount"
+  | "fail"
+  | "setNotice"
+  | "reloadInvites"
+  | "reconcileUnknownMutation"
+  | "setMintedLink"
+>) {
+  return (id: string) =>
+    withMemberAction(`invite:revoke:${id}`, async (accountId) => {
+      try {
+        const result = await teamAccessClient.revokeInvitation(accountId, id);
+        if (!isActiveAccount(accountId)) return;
+        if (result.kind !== "ok") {
+          if (result.kind === "unknown") {
+            await reconcileUnknownMutation(m.settings_members_unknown_invite_revocation());
+            return;
+          }
+          fail(null, resolveRejectionMessage(result, m.settings_members_err_revoke_invite({ status: result.status })));
+          return;
+        }
+        setNotice(m.settings_members_invite_revoked());
+        setMintedLink((current) => (current?.inviteId === id ? null : current));
+        void reloadInvites();
+      } catch (e) {
+        await reconcileUnknownMutation(
+          m.settings_members_error_detail({
+            message: m.settings_members_unknown_invite_revocation(),
+            error: resolveErrorMessage(e),
+          }),
+        );
+      }
+    });
+}
+
+function createCopyLink({
+  requestAccountId,
+  isActiveAccount,
+  setNotice,
+}: Pick<MemberInviteDependencies, "requestAccountId" | "isActiveAccount" | "setNotice">) {
+  return (link: string, copiedNotice: string) => {
+    const accountId = requestAccountId();
+    const publishNotice = (message: string, tone?: "error") => {
+      if (isActiveAccount(accountId)) setNotice(message, tone);
+    };
+    void (async () => {
+      try {
+        await navigator.clipboard.writeText(link);
+        publishNotice(copiedNotice);
+      } catch {
+        publishNotice(m.settings_members_copy_failed(), "error");
+      }
+    })();
+  };
+}
+
 /** Establish link reconciliation before directory reads, then bind actions to directory outputs. */
 export function useMemberInvites() {
   const [inviteRole, setInviteRole] = useState<InvitationRole>("editor");
   const [invitationPreauthorizedEmail, setInvitationPreauthorizedEmail] = useState("");
   // The freshly-minted link, shown ONCE after a successful create (the token is write-once). Keep
   // its non-secret invite id so a revoke or authoritative list refresh can clear a now-dead link.
-  const [mintedLink, setMintedLink] = useState<{
-    inviteId: string | null;
-    link: string;
-  } | null>(null);
+  const [mintedLink, setMintedLink] = useState<MintedInviteLink | null>(null);
   const reconcileMintedInvite = useCallback((nextInvites: TeamInvitation[]) => {
     setMintedLink((current) =>
       current?.inviteId && !nextInvites.some((invite) => invite.id === current.inviteId && invite.usedAt === null)
@@ -45,115 +199,24 @@ export function useMemberInvites() {
     reloadInvites,
     reconcileUnknownMutation,
   }: MemberInviteDependencies) => {
-    const submitInvite = async () => {
-      clear();
-      // Ordering, preserved from the inline sequence this envelope replaced: an absent active account
-      // is raised BEFORE the draft is validated — with no company open there is nothing to invite
-      // anyone to, whatever the form says.
-      requestAccountId();
-      const trimmed = invitationPreauthorizedEmail.trim();
-      if (authMode === "sso" && trimmed.length === 0) {
-        fail("invite", m.settings_sso_invite_email_required());
-        return;
-      }
-      if (trimmed.length > 0 && !isAccountEmail(trimmed)) {
-        fail("invite", m.identity_err_email());
-        return;
-      }
-      await withMemberAction("invite:create", async (accountId) => {
-        setMintedLink(null);
-        try {
-          const result = await teamAccessClient.createInvitation({
-            accountId,
-            role: inviteRole,
-            ...(trimmed ? { preauthEmail: trimmed } : {}),
-          });
-          if (!isActiveAccount(accountId)) return;
-          if (result.kind !== "ok") {
-            if (result.kind === "unknown") {
-              await reconcileUnknownMutation(m.settings_members_unknown_invite_creation());
-              return;
-            }
-            if (result.kind === "invalid") {
-              const message = m.settings_members_unknown_invite_value_lost();
-              await reconcileUnknownMutation(message);
-              fail(null, message);
-              return;
-            }
-            fail("invite", result.message ?? m.settings_members_err_create_invite({ status: result.status }));
-            return;
-          }
-          const body = result.value;
-          // The token is write-once: build + show the link straight from this response and never again.
-          setMintedLink({
-            inviteId: body.id ?? null,
-            link: `${window.location.origin}/invite/${encodeURIComponent(body.token)}`,
-          });
-          setInvitationPreauthorizedEmail("");
-          clear();
-          setNotice(m.settings_members_invite_created());
-          // Invites only: creating one cannot have changed the member list, and re-reading it would
-          // re-ask an authorization question this write did not answer.
-          void reloadInvites();
-        } catch (e) {
-          await reconcileUnknownMutation(
-            m.settings_members_error_detail({
-              message: m.settings_members_unknown_invite_creation(),
-              error: resolveErrorMessage(e),
-            }),
-          );
-        }
-      });
+    const dependencies = {
+      authMode,
+      clear,
+      requestAccountId,
+      isActiveAccount,
+      withMemberAction,
+      fail,
+      setNotice,
+      reloadInvites,
+      reconcileUnknownMutation,
+      invitationPreauthorizedEmail,
+      inviteRole,
+      setInvitationPreauthorizedEmail,
+      setMintedLink,
     };
-
-    const revokeInvite = (id: string) =>
-      withMemberAction(`invite:revoke:${id}`, async (accountId) => {
-        try {
-          const result = await teamAccessClient.revokeInvitation(accountId, id);
-          if (!isActiveAccount(accountId)) return;
-          if (result.kind !== "ok") {
-            if (result.kind === "unknown") {
-              await reconcileUnknownMutation(m.settings_members_unknown_invite_revocation());
-              return;
-            }
-            fail(
-              null,
-              resolveRejectionMessage(result, m.settings_members_err_revoke_invite({ status: result.status })),
-            );
-            return;
-          }
-          setNotice(m.settings_members_invite_revoked());
-          setMintedLink((current) => (current?.inviteId === id ? null : current));
-          void reloadInvites(); // Invites only — see submitInvite.
-        } catch (e) {
-          await reconcileUnknownMutation(
-            m.settings_members_error_detail({
-              message: m.settings_members_unknown_invite_revocation(),
-              error: resolveErrorMessage(e),
-            }),
-          );
-        }
-      });
-
-    const copyLink = (link: string, copiedNotice: string) => {
-      const accountId = requestAccountId();
-      const publishNotice = (message: string, tone?: "error") => {
-        if (isActiveAccount(accountId)) setNotice(message, tone);
-      };
-      // navigator.clipboard is undefined in insecure contexts (plain-HTTP self-hosts, some
-      // WebViews). An optional chain there would short-circuit past BOTH .then callbacks —
-      // a click that silently does nothing (the swallow DEFENSIVE-CODING.md forbids). Surface
-      // the same failure notice instead; its wording already tells the user the manual fallback.
-      if (!navigator.clipboard) {
-        publishNotice(m.settings_members_copy_failed(), "error");
-        return;
-      }
-      void navigator.clipboard.writeText(link).then(
-        () => publishNotice(copiedNotice),
-        () => publishNotice(m.settings_members_copy_failed(), "error"),
-      );
-    };
-
+    const submitInvite = createSubmitInvite(dependencies);
+    const revokeInvite = createRevokeInvite(dependencies);
+    const copyLink = createCopyLink(dependencies);
     return { submitInvite, revokeInvite, copyLink };
   };
   return {
