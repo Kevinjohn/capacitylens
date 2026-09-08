@@ -19,7 +19,7 @@ interface WorkspaceReadinessDependencies extends Pick<
 > {
   activeAccountId: string | null;
   strictProviderId: string | null;
-  gate: ReturnType<typeof useTeamDirectory>["gate"];
+  directory: ReturnType<typeof useTeamDirectory>["directory"];
   offlineReadOnly: boolean;
   members: TeamMember[] | null;
   refreshDirectory: () => void;
@@ -28,7 +28,7 @@ interface WorkspaceReadinessDependencies extends Pick<
 export function useWorkspaceReadiness({
   activeAccountId,
   strictProviderId,
-  gate,
+  directory,
   offlineReadOnly,
   members,
   refreshDirectory,
@@ -51,7 +51,7 @@ export function useWorkspaceReadiness({
   // Does the SSO readiness panel apply at all? The section must be authorized (`shown`), the deploy
   // must actually have a strict OIDC provider to be ready FOR, and a cached offline session must not
   // be asking the server questions it cannot answer.
-  const readinessApplies = gate === "shown" && !offlineReadOnly && strictProviderId !== null;
+  const readinessApplies = directory.kind === "ready" && !offlineReadOnly && strictProviderId !== null;
   useEffect(() => {
     if (!readinessApplies || !activeAccountId) {
       return;

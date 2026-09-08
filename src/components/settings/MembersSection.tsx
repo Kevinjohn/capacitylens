@@ -43,8 +43,8 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   // Privileged controls stay fail-closed until the current account's members read authorizes this
   // section. A 403 remains hidden, and a switch cannot briefly expose the next account's form while
   // its authorization request is still pending.
-  if (orchestration.gate === "loading" || orchestration.gate === "hidden") return null;
-  if (orchestration.gate === "error") {
+  if (orchestration.directory.kind === "loading" || orchestration.directory.kind === "hidden") return null;
+  if (orchestration.directory.kind === "error") {
     return (
       <Card data-testid="members-section">
         <CardHeader>
@@ -61,6 +61,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
       </Card>
     );
   }
+  const { members, signInTrackingEnabled, invites } = orchestration.directory.snapshot;
 
   // Wrapped in an overflow container so a narrow viewport scrolls the TABLE, never the page.
   const renderMembersTable = (rows: TeamMember[], testId: string) => (
@@ -74,7 +75,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
             <th scope="col" className="py-2 pr-3 font-medium">
               {m.settings_member_col_email()}
             </th>
-            {orchestration.signInTrackingEnabled && (
+            {signInTrackingEnabled && (
               <th scope="col" className="py-2 pr-3 font-medium">
                 {m.settings_member_col_sign_in_confirmed()}
               </th>
@@ -93,7 +94,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
               key={member.userId}
               member={member}
               myRole={orchestration.myRole}
-              signInTrackingEnabled={orchestration.signInTrackingEnabled}
+              signInTrackingEnabled={signInTrackingEnabled}
               busy={orchestration.busyAction !== null}
               openMenuFor={orchestration.openMenuFor}
               setOpenMenuFor={orchestration.setOpenMenuFor}
@@ -155,7 +156,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
               <Switch
                 id="member-sign-in-tracking"
                 data-testid="member-sign-in-tracking"
-                checked={orchestration.signInTrackingEnabled}
+                checked={signInTrackingEnabled}
                 disabled={orchestration.busyAction !== null}
                 onCheckedChange={(next) => void orchestration.changeSignInTracking({ next: next })}
               />
@@ -164,7 +165,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           {/* The role stays visible beneath the member's name without consuming a column. The
               optional coarse sign-in confirmation contains no date; edit and settings remain two
               separate columns pushed to the right, in that order. */}
-          {orchestration.members && orchestration.members.length === 0 ? (
+          {members.length === 0 ? (
             <p className="py-2 text-sm text-muted-foreground">{m.settings_members_empty()}</p>
           ) : orchestration.activeMembers ? (
             renderMembersTable(orchestration.activeMembers, "members-table")
@@ -239,7 +240,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           mintedLink={orchestration.mintedLink}
           copyLink={orchestration.copyLink}
           submitInvite={orchestration.submitInvite}
-          invites={orchestration.invites}
+          invites={invites}
           renderedAt={orchestration.renderedAt}
           revokeInvite={orchestration.revokeInvite}
           roleOptions={orchestration.roleOptions}

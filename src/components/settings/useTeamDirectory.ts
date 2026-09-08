@@ -11,11 +11,6 @@ import {
 } from "../../account/teamAccessClient";
 import type { FieldError } from "../../hooks/useFieldError";
 
-// Frozen module-scope empties for the "this account has not loaded yet" projections below. A fresh
-// `[]` per render is a NEW identity every time, which re-runs any consumer effect that lists the
-// list in its dependencies — the invite-expiry alarm in MembersSection is exactly that shape.
-const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
-
 interface TeamDirectoryOptions {
   enabled: boolean;
   activeAccountId: string | null;
@@ -24,13 +19,21 @@ interface TeamDirectoryOptions {
   onInvitesLoaded?: (invites: TeamInvitation[]) => void;
 }
 
-interface DirectoryState {
-  accountId: string | null;
-  members: TeamMember[] | null;
+interface DirectorySnapshot {
+  members: TeamMember[];
   invites: TeamInvitation[];
   signInTrackingEnabled: boolean;
-  gate: "loading" | "shown" | "hidden" | "error";
 }
+
+type DirectoryState =
+  | { kind: "hidden"; accountId: string | null }
+  | { kind: "loading"; accountId: string | null }
+  | { kind: "ready"; accountId: string; snapshot: DirectorySnapshot }
+  | {
+      kind: "error";
+      accountId: string;
+      content: { kind: "authorized"; snapshot: DirectorySnapshot } | { kind: "unavailable" };
+    };
 
 type SetDirectory = Dispatch<SetStateAction<DirectoryState>>;
 
@@ -43,8 +46,28 @@ interface DirectoryLoad {
   onInvitesLoaded: TeamDirectoryOptions["onInvitesLoaded"];
 }
 
-function emptyDirectory(accountId: string | null, gate: DirectoryState["gate"]): DirectoryState {
-  return { accountId, members: null, invites: [], signInTrackingEnabled: false, gate };
+function directorySnapshot(state: DirectoryState, accountId: string): DirectorySnapshot | null {
+  if (state.accountId !== accountId) return null;
+  if (state.kind === "ready") return state.snapshot;
+  return state.kind === "error" && state.content.kind === "authorized" ? state.content.snapshot : null;
+}
+
+function errorDirectory(state: DirectoryState, accountId: string): DirectoryState {
+  const snapshot = directorySnapshot(state, accountId);
+  return {
+    kind: "error",
+    accountId,
+    content: snapshot === null ? { kind: "unavailable" } : { kind: "authorized", snapshot },
+  };
+}
+
+function replaceInvites(state: DirectoryState, accountId: string, invites: TeamInvitation[]): DirectoryState {
+  const snapshot = directorySnapshot(state, accountId);
+  if (snapshot === null) return state;
+  const nextSnapshot = { ...snapshot, invites };
+  return state.kind === "ready"
+    ? { ...state, snapshot: nextSnapshot }
+    : { ...state, content: { kind: "authorized", snapshot: nextSnapshot } };
 }
 
 function failureMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
@@ -62,30 +85,32 @@ async function loadMembers({
   if (result.kind === "rejected" && result.status === 403) {
     if (!current()) return false;
     if (hadAuthorizedDirectory) {
-      setDirectory((previous) => ({ ...previous, gate: "error" }));
+      setDirectory((previous) => errorDirectory(previous, accountId));
       fail(null, m.settings_members_err_access_changed());
     } else {
-      setDirectory(emptyDirectory(accountId, "hidden"));
+      setDirectory({ kind: "hidden", accountId });
     }
     return false;
   }
   if (result.kind === "invalid") throw new Error("The server returned an invalid members response.");
   if (result.kind !== "ok") {
     if (!current()) return false;
-    setDirectory(emptyDirectory(accountId, "error"));
+    setDirectory((previous) => errorDirectory(previous, accountId));
     fail(null, failureMessage(result, m.settings_members_err_load({ status: result.status })));
     return false;
   }
   if (!current()) return false;
   setDirectory((previous) => ({
+    kind: "ready",
     accountId,
-    members: result.value.members,
-    signInTrackingEnabled: result.value.signInTrackingEnabled,
-    // Preserve the last authoritative invitation list while a same-account refresh is in
-    // flight. On an account switch, the old list is both hidden by the account key below and
-    // discarded here before this account's separately-authorized invite read completes.
-    invites: previous.accountId === accountId ? previous.invites : [],
-    gate: "shown",
+    snapshot: {
+      members: result.value.members,
+      signInTrackingEnabled: result.value.signInTrackingEnabled,
+      // Preserve the last authoritative invitation list while a same-account refresh is in
+      // flight. On an account switch, the old list is discarded before this account's
+      // separately-authorized invite read completes.
+      invites: directorySnapshot(previous, accountId)?.invites ?? [],
+    },
   }));
   return true;
 }
@@ -111,17 +136,19 @@ async function loadDirectory(load: DirectoryLoad): Promise<void> {
     if (!membersLoaded) return;
     const invites = await loadInvitations(load.accountId, load.current, load.fail);
     if (invites === null || !load.current()) return;
-    load.setDirectory((previous) => (previous.accountId === load.accountId ? { ...previous, invites } : previous));
+    load.setDirectory((previous) => replaceInvites(previous, load.accountId, invites));
     load.onInvitesLoaded?.(invites);
   } catch (error) {
     if (!load.current()) return;
-    if (!membersLoaded) load.setDirectory(emptyDirectory(load.accountId, "error"));
+    if (!membersLoaded) {
+      load.setDirectory((previous) => errorDirectory(previous, load.accountId));
+    }
     load.fail(null, m.settings_err_server({ error: resolveErrorMessage(error) }));
   }
 }
 
 function useDirectoryRead({ enabled, activeAccountId, offlineReadOnly, fail, onInvitesLoaded }: TeamDirectoryOptions) {
-  const [directory, setDirectory] = useState<DirectoryState>(emptyDirectory(null, "loading"));
+  const [directory, setDirectory] = useState<DirectoryState>({ kind: "loading", accountId: null });
   // The ONE fact the load effect needs about the directory it is replacing: which account (if any)
   // already has an AUTHORIZED members list on screen, so a later 403 for that same account reads as
   // "your access changed" rather than silently hiding a section the caller was just using. Held in a
@@ -133,7 +160,9 @@ function useDirectoryRead({ enabled, activeAccountId, offlineReadOnly, fail, onI
 
   useEffect(() => {
     authorizedAccountRef.current =
-      directory.members !== null && directory.gate !== "hidden" ? directory.accountId : null;
+      directory.kind === "ready" || (directory.kind === "error" && directory.content.kind === "authorized")
+        ? directory.accountId
+        : null;
   }, [directory]);
   useEffect(() => {
     if (!enabled || !activeAccountId || offlineReadOnly) return;
@@ -182,7 +211,7 @@ function useInviteReload(
     try {
       const invites = await loadInvitations(accountId, current, fail);
       if (invites === null || !current()) return;
-      setDirectory((previous) => (previous.accountId === accountId ? { ...previous, invites } : previous));
+      setDirectory((previous) => replaceInvites(previous, accountId, invites));
       onInvitesLoaded?.(invites);
     } catch (error) {
       if (current()) fail(null, m.settings_err_server({ error: resolveErrorMessage(error) }));
@@ -213,24 +242,25 @@ export function useTeamDirectory(options: TeamDirectoryOptions) {
   const reloadInvites = useInviteReload(options, requestGeneration, setDirectory);
   const { busyAction, beginAction, endAction } = useActionState();
   const currentAccountLoaded = directory.accountId === activeAccountId;
-  const replaceDirectory = useCallback(
+  const replaceAuthorizedDirectory = useCallback(
     (next: TeamDirectory, invites: TeamInvitation[]) => {
-      setDirectory((previous) => ({
-        ...previous,
-        members: next.members,
-        signInTrackingEnabled: next.signInTrackingEnabled,
-        invites,
-      }));
+      setDirectory((previous) => {
+        if (previous.kind !== "ready" && previous.kind !== "error") return previous;
+        const snapshot = { members: next.members, signInTrackingEnabled: next.signInTrackingEnabled, invites };
+        return previous.kind === "ready"
+          ? { ...previous, snapshot }
+          : { ...previous, content: { kind: "authorized", snapshot } };
+      });
     },
     [setDirectory],
   );
 
   return {
-    members: currentAccountLoaded ? directory.members : null,
-    invites: currentAccountLoaded ? directory.invites : NO_INVITES,
-    signInTrackingEnabled: currentAccountLoaded ? directory.signInTrackingEnabled : false,
-    gate: currentAccountLoaded ? directory.gate : "loading",
-    replaceDirectory,
+    directory:
+      currentAccountLoaded && directory.accountId !== null
+        ? directory
+        : ({ kind: "loading", accountId: activeAccountId } satisfies DirectoryState),
+    replaceAuthorizedDirectory,
     reload,
     reloadInvites,
     busyAction,

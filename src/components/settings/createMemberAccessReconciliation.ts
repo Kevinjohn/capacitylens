@@ -23,7 +23,7 @@ interface MemberAccessDependencies extends Pick<
   refreshAuth: () => Promise<void>;
   closeActiveAccount: () => void;
   bumpReadiness: () => void;
-  replaceDirectory: ReturnType<typeof useTeamDirectory>["replaceDirectory"];
+  replaceAuthorizedDirectory: ReturnType<typeof useTeamDirectory>["replaceAuthorizedDirectory"];
   reconcileMintedInvite: ReturnType<typeof useMemberInvites>["reconcileMintedInvite"];
 }
 
@@ -37,7 +37,7 @@ export function createMemberAccessReconciliation({
   fail,
   setNotice,
   bumpReadiness,
-  replaceDirectory,
+  replaceAuthorizedDirectory,
   reconcileMintedInvite,
 }: MemberAccessDependencies) {
   /** Re-resolve every caller-owned projection after a possible self-role mutation. The role badge
@@ -103,7 +103,7 @@ export function createMemberAccessReconciliation({
         throw new Error(m.settings_members_err_authoritative_reload());
       }
       const nextInvites = inviteResult.value;
-      replaceDirectory(memberResult.value, nextInvites);
+      replaceAuthorizedDirectory(memberResult.value, nextInvites);
       bumpReadiness();
       reconcileMintedInvite(nextInvites);
       setNotice(m.settings_members_reconcile_directory({ message }), "warning");

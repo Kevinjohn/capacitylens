@@ -17,6 +17,20 @@ import { startMasquerade } from "../../auth/accountTransition";
 import { STATUS_FOR_ACTION, type MemberConfirmation, type MemberConfirmationAction } from "./memberConfirmationCopy";
 import { buildMemberDirectoryPresentation } from "./buildMemberDirectoryPresentation";
 
+const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
+
+function selectAuthorizedDirectory(directory: ReturnType<typeof useTeamDirectory>["directory"]) {
+  switch (directory.kind) {
+    case "ready":
+      return directory.snapshot;
+    case "error":
+      return directory.content.kind === "authorized" ? directory.content.snapshot : null;
+    case "hidden":
+    case "loading":
+      return null;
+  }
+}
+
 function pickNextInviteDeadline(invites: TeamInvitation[], clock: number): number | null {
   const nextExpiry = invites
     .filter((invite) => invite.usedAt === null)
@@ -63,24 +77,17 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   const [inactiveOpen, setInactiveOpen] = useState(false);
   const { reconcileMintedInvite, createActions, ...inviteState } = useMemberInvites();
   const enabled = authMode !== "off" && isServerConfigured();
-  const {
-    members,
-    invites,
-    signInTrackingEnabled,
-    replaceDirectory,
-    gate,
-    reload,
-    reloadInvites,
-    busyAction,
-    beginAction,
-    endAction,
-  } = useTeamDirectory({
-    enabled,
-    activeAccountId,
-    offlineReadOnly: offline.readOnly,
-    fail,
-    onInvitesLoaded: reconcileMintedInvite,
-  });
+  const { directory, replaceAuthorizedDirectory, reload, reloadInvites, busyAction, beginAction, endAction } =
+    useTeamDirectory({
+      enabled,
+      activeAccountId,
+      offlineReadOnly: offline.readOnly,
+      fail,
+      onInvitesLoaded: reconcileMintedInvite,
+    });
+  const authorizedDirectory = selectAuthorizedDirectory(directory);
+  const members = authorizedDirectory?.members ?? null;
+  const invites = authorizedDirectory?.invites ?? NO_INVITES;
   const assertActiveAccountId = (): string => {
     if (!activeAccountId) throw new Error(m.settings_members_err_no_active_account());
     return activeAccountId;
@@ -148,7 +155,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   const { bumpReadiness, ...readinessState } = useWorkspaceReadiness({
     activeAccountId,
     strictProviderId,
-    gate,
+    directory,
     offlineReadOnly: offline.readOnly,
     members,
     refreshDirectory: () => refreshDirectory(),
@@ -167,7 +174,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     closeActiveAccount,
     ...actionDependencies,
     bumpReadiness,
-    replaceDirectory,
+    replaceAuthorizedDirectory,
     reconcileMintedInvite,
   });
   const actions = createMemberMutations({
@@ -226,7 +233,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   return {
     authMode,
     enabled,
-    gate,
+    directory,
     error,
     errorField,
     errorId,
@@ -235,13 +242,11 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     ...readinessState,
     members,
     ...presentation,
-    signInTrackingEnabled,
     changeSignInTracking: actions.changeSignInTracking,
     busyAction,
     resetLink,
     ...inviteState,
     ...inviteActions,
-    invites,
     renderedAt,
     roleEdit,
     setRoleEdit,

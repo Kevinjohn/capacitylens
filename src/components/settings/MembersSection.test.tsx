@@ -413,6 +413,33 @@ describe("MembersSection — self-gate", () => {
   registerSelfGateDisplayTests();
 });
 
+describe("MembersSection — directory error retention", () => {
+  it("retains authorization across a transient member refresh failure", async () => {
+    const members = [{ userId: "me", role: "owner", isSelf: true }] as const;
+    let memberReads = 0;
+    const fetchMock = mockApi([...members], {
+      "GET /members": () => {
+        memberReads += 1;
+        if (memberReads === 2) return jsonResponse({ error: "Unavailable" }, 503);
+        if (memberReads === 3) return jsonResponse({ error: "Forbidden" }, 403);
+        return jsonResponse({ signInTrackingEnabled: false, members: members.map((member) => rawMember(member)) });
+      },
+      "PUT /member-sign-in-tracking": () => jsonResponse({ enabled: true }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderSection();
+    expect(await screen.findByTestId("member-row")).toHaveTextContent("me@x.io");
+    await user.click(screen.getByTestId("member-sign-in-tracking"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Unavailable");
+
+    await user.click(screen.getByRole("button", { name: m.settings_members_retry() }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_members_err_access_changed());
+    expect(memberReads).toBe(3);
+  });
+});
+
 function registerSelfGateDisplayTests(): void {
   it("renders nothing when authMode is off", () => {
     vi.stubGlobal("fetch", mockApi([]));
