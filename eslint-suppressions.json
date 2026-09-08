@@ -505,11 +505,6 @@
       "count": 1
     }
   },
-  "server/src/authConfig/captureContexts.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 4
-    }
-  },
   "server/src/authConfig/captureContexts.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 3
