@@ -360,6 +360,7 @@ interface TimeOffSnapshot {
   createdAt: string;
   endDate: string;
   id: string;
+  note?: string;
   resourceId: string;
   startDate: string;
   type: string;
@@ -625,10 +626,11 @@ function readTimeOffSnapshots(rows: unknown[]): TimeOffSnapshot[] {
     if (!isUnknownRecord(row)) throw new Error("Expected every time-off row to be an object.");
     requireModeledKeys(
       row,
-      ["accountId", "createdAt", "endDate", "id", "resourceId", "startDate", "type", "updatedAt"],
+      ["accountId", "createdAt", "endDate", "id", "note", "resourceId", "startDate", "type", "updatedAt"],
       "time-off row",
     );
-    return {
+    const note = readOptionalString(row, "note", "time-off row");
+    const snapshot: TimeOffSnapshot = {
       accountId: readRequiredString(row, "accountId", "time-off row"),
       createdAt: readRequiredString(row, "createdAt", "time-off row"),
       endDate: readRequiredString(row, "endDate", "time-off row"),
@@ -638,6 +640,8 @@ function readTimeOffSnapshots(rows: unknown[]): TimeOffSnapshot[] {
       type: readRequiredString(row, "type", "time-off row"),
       updatedAt: readRequiredString(row, "updatedAt", "time-off row"),
     };
+    if (note !== undefined) snapshot.note = note;
+    return snapshot;
   });
 }
 
