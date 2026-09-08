@@ -2243,14 +2243,14 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
   });
 });
 
-describe("AllocationModal inline activity creation pref", () => {
-  const addPerson = () => {
-    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    return first(useStore.getState().data.resources).id;
-  };
+function addInlineActivityTestPerson() {
+  useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
+  return first(useStore.getState().data.resources).id;
+}
 
+function registerInlineActivityEnabledTests() {
   it('renders the inline "Add activity" input + button by default (pref absent → enabled)', () => {
-    const resourceId = addPerson();
+    const resourceId = addInlineActivityTestPerson();
     render(
       <AllocationModal
         kind="create"
@@ -2264,7 +2264,7 @@ describe("AllocationModal inline activity creation pref", () => {
 
   it("places an inline-created project activity in the project-specific group", async () => {
     useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
-    const resourceId = addPerson();
+    const resourceId = addInlineActivityTestPerson();
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -2289,9 +2289,11 @@ describe("AllocationModal inline activity creation pref", () => {
       }),
     ).toBeInTheDocument();
   });
+}
 
+function registerInlineActivityUnavailableTests() {
   it('hides the inline "Add activity" input + button when inlineActivityCreateEnabled is false — the Activity picker still works', () => {
-    const resourceId = addPerson();
+    const resourceId = addInlineActivityTestPerson();
     useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: false });
     render(
       <AllocationModal
@@ -2308,7 +2310,7 @@ describe("AllocationModal inline activity creation pref", () => {
   });
 
   it("removes inline activity creation when an open editor modal is downgraded to viewer", async () => {
-    const resourceId = addPerson();
+    const resourceId = addInlineActivityTestPerson();
     const user = userEvent.setup();
     const view = render(
       <PermissionContext.Provider value={{ role: "editor" }}>
@@ -2335,6 +2337,11 @@ describe("AllocationModal inline activity creation pref", () => {
     expect(screen.queryByRole("button", { name: "Add activity" })).not.toBeInTheDocument();
     expect(useStore.getState().data.activities).toHaveLength(2);
   });
+}
+
+describe("AllocationModal inline activity creation pref", () => {
+  registerInlineActivityEnabledTests();
+  registerInlineActivityUnavailableTests();
 });
 
 describe("AllocationModal Enter key submission", () => {
