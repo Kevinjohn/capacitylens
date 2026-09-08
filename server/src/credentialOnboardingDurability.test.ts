@@ -32,7 +32,7 @@ function createPasswordAuth(db: Db): Auth {
   return auth;
 }
 
-function createCrashDatabase(boundary: "after-user" | "after-correlation-commit"): string {
+function createCrashDatabasePath(boundary: "after-user" | "after-correlation-commit"): string {
   const directory = mkdtempSync(join(tmpdir(), `capacitylens-credential-${boundary}-`));
   temporaryDirectories.push(directory);
   const dbPath = join(directory, "capacitylens.db");
@@ -52,20 +52,17 @@ function readQuickCheck(db: Db): string {
   return row.quick_check;
 }
 
-function readPrincipalIds(db: Db): string[] {
+function readPrincipalIds(db: Db): Array<{ id: string }> {
   return db
     .prepare(`SELECT id FROM user`)
     .all()
     .map((row) => {
       if (typeof row.id !== "string") throw new Error("Expected a credential principal id.");
-      return row.id;
+      return { id: row.id };
     });
 }
 
-// Two of these cases spawn a full tsx child process with a 30 s budget of its own; the per-test
-// budget must cover that spawn, not vitest's 5 s limit, which the shared CI runner already brushes
-// against on a slow run.
-describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
+function registerCorrelationRollbackTest(): void {
   it("rolls back both credential rows when command correlation fails", async () => {
     const db = openDb(":memory:");
     const auth = createPasswordAuth(db);
@@ -103,9 +100,11 @@ describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
     ).toMatchObject({ status: "pending", targetPrincipalId: null });
     db.close();
   });
+}
 
+function registerCrashRecoveryTests(): void {
   it("rolls back a user when the process exits before its credential link is inserted", () => {
-    const db = openDb(createCrashDatabase("after-user"));
+    const db = openDb(createCrashDatabasePath("after-user"));
     expect(db.prepare(`SELECT id FROM user`).all()).toEqual([]);
     expect(db.prepare(`SELECT id FROM account`).all()).toEqual([]);
     expect(readQuickCheck(db)).toBe("ok");
@@ -113,7 +112,7 @@ describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
   });
 
   it("recovers the exact principal coordinate when the process exits after identity commit", () => {
-    const db = openDb(createCrashDatabase("after-correlation-commit"));
+    const db = openDb(createCrashDatabasePath("after-correlation-commit"));
     const users = readPrincipalIds(db);
     expect(users).toHaveLength(1);
     const user = users[0];
@@ -136,4 +135,12 @@ describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
     expect(readQuickCheck(db)).toBe("ok");
     db.close();
   });
+}
+
+// Two of these cases spawn a full tsx child process with a 30 s budget of its own; the per-test
+// budget must cover that spawn, not vitest's 5 s limit, which the shared CI runner already brushes
+// against on a slow run.
+describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
+  registerCorrelationRollbackTest();
+  registerCrashRecoveryTests();
 });
