@@ -113,7 +113,7 @@ function readLifecycleRequest(req: FastifyRequest, reply: FastifyReply): Lifecyc
   return { entity: req.params.entity, id: req.params.id, accountId: req.body.accountId };
 }
 
-function requireUserId(req: FastifyRequest): string {
+function assertUserId(req: FastifyRequest): string {
   if (!req.user) throw new Error("Expected user context on an authorized lifecycle route.");
   return req.user.id;
 }
@@ -126,13 +126,13 @@ function isResourceRow(row: LifecycleRow): row is Extract<LifecycleRow, { kind: 
   return "kind" in row;
 }
 
-function obfuscateDeletedRow(entity: LifecycleEntityKey, row: LifecycleRow): LifecycleRow {
+function applyDeletedRowObfuscation(entity: LifecycleEntityKey, row: LifecycleRow): LifecycleRow {
   if (entity !== "resources") return row;
   if (!isResourceRow(row)) throw new Error("Expected the resource lifecycle store to return a resource row.");
   return obfuscateResource(row);
 }
 
-interface CommitTransitionInput {
+interface ApplyTransitionMutationInput {
   dependencies: LifecycleRouteDependencies;
   req: FastifyRequest;
   reply: FastifyReply;
@@ -140,17 +140,17 @@ interface CommitTransitionInput {
   spec: TransitionSpec;
 }
 
-function commitTransition({
+function applyTransitionMutation({
   dependencies,
   req,
   reply,
   request,
   spec,
-}: CommitTransitionInput): Record<string, unknown> | undefined {
+}: ApplyTransitionMutationInput): Record<string, unknown> | undefined {
   const { accountId, entity, id } = request;
   const auditRecord: AuditRecord = {
     ts: new Date().toISOString(),
-    userId: requireUserId(req),
+    userId: assertUserId(req),
     accountId,
     action: spec.auditAction,
     entity,
@@ -188,20 +188,25 @@ function commitTransition({
   return response;
 }
 
-interface HandleTransitionInput {
+interface ApplyTransitionRequestInput {
   dependencies: LifecycleRouteDependencies;
   req: FastifyRequest;
   reply: FastifyReply;
   spec: TransitionSpec;
 }
 
-function handleTransition({ dependencies, req, reply, spec }: HandleTransitionInput): FastifyReply | undefined {
+function applyTransitionRequest({
+  dependencies,
+  req,
+  reply,
+  spec,
+}: ApplyTransitionRequestInput): FastifyReply | undefined {
   const request = readLifecycleRequest(req, reply);
   if (!request) return reply;
   if (!dependencies.authorize({ req, reply, accountId: request.accountId, action: spec.permission })) return;
 
   try {
-    const response = commitTransition({ dependencies, req, reply, request, spec });
+    const response = applyTransitionMutation({ dependencies, req, reply, request, spec });
     if (spec.successStatus === 204) return reply.code(204).send();
     if (response === undefined) throw new Error("Lifecycle write completed without a response.");
     return reply.code(200).send(response);
@@ -216,7 +221,7 @@ function registerTransition(
   dependencies: LifecycleRouteDependencies,
   spec: TransitionSpec,
 ): void {
-  app.post(`/api/:entity/:id/${spec.path}`, (req, reply) => handleTransition({ dependencies, req, reply, spec }));
+  app.post(`/api/:entity/:id/${spec.path}`, (req, reply) => applyTransitionRequest({ dependencies, req, reply, spec }));
 }
 
 /** Dedicated plugin-style registration for all tombstone lifecycle routes. */
@@ -253,7 +258,7 @@ export function registerLifecycleRoutes(app: FastifyInstance, dependencies: Life
       const now = createServerRevision(row.updatedAt);
       const tombstone = softDelete(row, now);
       const deleted = { ...tombstone, updatedAt: tombstone.deletedAt ?? now };
-      const next = obfuscateDeletedRow(entity, deleted);
+      const next = applyDeletedRowObfuscation(entity, deleted);
       return {
         kind: "write",
         next,
