@@ -9,8 +9,7 @@ type NavigationOutcome = { kind: "navigation" };
 type TimeoutOutcome = { kind: "timeout" };
 type RequestOutcome = { kind: "result"; result: ExternalSignInResult } | { kind: "error"; error: unknown };
 type ExternalRedirectOutcome =
-  | { kind: "failure"; message: string | null | undefined }
-  | { kind: "redirect"; url: string };
+  { kind: "failure"; message: string | null | undefined } | { kind: "redirect"; url: string };
 
 function parseExternalRedirectUrl(value: string | null | undefined): string | null {
   if (value === undefined || value === null || value === "") return null;
