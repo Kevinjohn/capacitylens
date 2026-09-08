@@ -1603,47 +1603,47 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     return fixture;
   };
 
-  it("reconciles attributed allocations after repeatable activity kind changes", async () => {
-    const allocationFirst = await seedAttributedActivity();
-    const allocationFirstBefore = await readValidatedState(allocationFirst.app);
-    const allocationFirstActivity = readActivity(allocationFirstBefore.activities, "repeatable");
-    const allocationFirstAllocation = readAllocation(allocationFirstBefore.allocations, "allocation");
-    expect(allocationFirstActivity.id).toBe("repeatable");
-    expect(allocationFirstAllocation.id).toBe("allocation");
-    const allocationFirstResponse = await orderedBatch({
-      app: allocationFirst.app,
+  const reconcileAllocationFirst = async (fixture: Awaited<ReturnType<typeof seedAttributedActivity>>) => {
+    const before = await readValidatedState(fixture.app);
+    const currentActivity = readActivity(before.activities, "repeatable");
+    const currentAllocation = readAllocation(before.allocations, "allocation");
+    expect(currentActivity.id).toBe("repeatable");
+    expect(currentAllocation.id).toBe("allocation");
+    const response = await orderedBatch({
+      app: fixture.app,
       sessionId: "browser-session-kind-change-0001",
       sequence: 1,
       ops: [
-        { method: "PUT", table: "allocations", id: "allocation", row: allocationFirstAllocation },
+        { method: "PUT", table: "allocations", id: "allocation", row: currentAllocation },
         {
           method: "PUT",
           table: "activities",
           id: "repeatable",
-          row: { ...allocationFirstActivity, kind: "project", projectId: "p1" },
+          row: { ...currentActivity, kind: "project", projectId: "p1" },
         },
       ],
     });
-    expect(allocationFirstResponse.statusCode).toBe(200);
-    const allocationFirstState = await readValidatedState(allocationFirst.app);
-    const rewrittenAllocation = readAllocation(allocationFirstState.allocations, "allocation");
+    expect(response.statusCode).toBe(200);
+    const state = await readValidatedState(fixture.app);
+    const rewrittenAllocation = readAllocation(state.allocations, "allocation");
     expect(rewrittenAllocation).not.toHaveProperty("projectId");
-    expect(readBatchReceipt(allocationFirstResponse).revisions).toContainEqual({
+    expect(readBatchReceipt(response).revisions).toContainEqual({
       table: "allocations",
       id: "allocation",
       createdAt: rewrittenAllocation.createdAt,
       updatedAt: rewrittenAllocation.updatedAt,
       rewrite: true,
     });
+  };
 
-    const explicit = await seedAttributedActivity();
-    const explicitBefore = await readValidatedState(explicit.app);
-    const explicitActivity = readActivity(explicitBefore.activities, "repeatable");
-    const explicitAllocation = readAllocation(explicitBefore.allocations, "allocation");
-    const clearedAllocation = { ...explicitAllocation };
+  const reconcileExplicitClearedAllocation = async (fixture: Awaited<ReturnType<typeof seedAttributedActivity>>) => {
+    const before = await readValidatedState(fixture.app);
+    const currentActivity = readActivity(before.activities, "repeatable");
+    const currentAllocation = readAllocation(before.allocations, "allocation");
+    const clearedAllocation = { ...currentAllocation };
     delete clearedAllocation.projectId;
-    const explicitResponse = await orderedBatch({
-      app: explicit.app,
+    const response = await orderedBatch({
+      app: fixture.app,
       sessionId: "browser-session-kind-change-0002",
       sequence: 1,
       ops: [
@@ -1651,19 +1651,20 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
           method: "PUT",
           table: "activities",
           id: "repeatable",
-          row: { ...explicitActivity, kind: "project", projectId: "p1" },
+          row: { ...currentActivity, kind: "project", projectId: "p1" },
         },
         { method: "PUT", table: "allocations", id: "allocation", row: clearedAllocation },
       ],
     });
-    expect(explicitResponse.statusCode).toBe(200);
-    expect(await readStateAllocation(explicit.app, "allocation")).not.toHaveProperty("projectId");
+    expect(response.statusCode).toBe(200);
+    expect(await readStateAllocation(fixture.app, "allocation")).not.toHaveProperty("projectId");
+  };
 
-    const implicit = await seedAttributedActivity();
-    const implicitBefore = await readValidatedState(implicit.app);
-    const implicitActivity = readActivity(implicitBefore.activities, "repeatable");
-    const implicitResponse = await orderedBatch({
-      app: implicit.app,
+  const reconcileImplicitRewrite = async (fixture: Awaited<ReturnType<typeof seedAttributedActivity>>) => {
+    const before = await readValidatedState(fixture.app);
+    const currentActivity = readActivity(before.activities, "repeatable");
+    const response = await orderedBatch({
+      app: fixture.app,
       sessionId: "browser-session-kind-change-0003",
       sequence: 1,
       ops: [
@@ -1671,27 +1672,28 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
           method: "PUT",
           table: "activities",
           id: "repeatable",
-          row: { ...implicitActivity, kind: "project", projectId: "p1" },
+          row: { ...currentActivity, kind: "project", projectId: "p1" },
         },
       ],
     });
-    expect(implicitResponse.statusCode).toBe(200);
-    const implicitAllocation = await readStateAllocation(implicit.app, "allocation");
-    expect(implicitAllocation).not.toHaveProperty("projectId");
-    expect(readBatchReceipt(implicitResponse).revisions).toContainEqual({
+    expect(response.statusCode).toBe(200);
+    const currentAllocation = await readStateAllocation(fixture.app, "allocation");
+    expect(currentAllocation).not.toHaveProperty("projectId");
+    expect(readBatchReceipt(response).revisions).toContainEqual({
       table: "allocations",
       id: "allocation",
-      createdAt: implicitAllocation.createdAt,
-      updatedAt: implicitAllocation.updatedAt,
+      createdAt: currentAllocation.createdAt,
+      updatedAt: currentAllocation.updatedAt,
       rewrite: true,
     });
+  };
 
-    const forbidden = await seedAttributedActivity();
-    const forbiddenBefore = await readValidatedState(forbidden.app);
-    const forbiddenActivity = readActivity(forbiddenBefore.activities, "repeatable");
-    const forbiddenAllocation = readAllocation(forbiddenBefore.allocations, "allocation");
-    const forbiddenResponse = await orderedBatch({
-      app: forbidden.app,
+  const rejectForbiddenAllocation = async (fixture: Awaited<ReturnType<typeof seedAttributedActivity>>) => {
+    const before = await readValidatedState(fixture.app);
+    const currentActivity = readActivity(before.activities, "repeatable");
+    const currentAllocation = readAllocation(before.allocations, "allocation");
+    const response = await orderedBatch({
+      app: fixture.app,
       sessionId: "browser-session-kind-change-0004",
       sequence: 1,
       ops: [
@@ -1699,16 +1701,30 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
           method: "PUT",
           table: "activities",
           id: "repeatable",
-          row: { ...forbiddenActivity, kind: "project", projectId: "p1" },
+          row: { ...currentActivity, kind: "project", projectId: "p1" },
         },
-        { method: "PUT", table: "allocations", id: "allocation", row: forbiddenAllocation },
+        { method: "PUT", table: "allocations", id: "allocation", row: currentAllocation },
       ],
     });
-    expect(forbiddenResponse.statusCode).toBe(400);
-    expect(forbiddenResponse.json()).toMatchObject({ code: "allocation_project_forbidden" });
-    expect(readActivity((await readValidatedState(forbidden.app)).activities, "repeatable")).toMatchObject({
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "allocation_project_forbidden" });
+    expect(readActivity((await readValidatedState(fixture.app)).activities, "repeatable")).toMatchObject({
       kind: "repeatable",
     });
+  };
+
+  it("reconciles attributed allocations after repeatable activity kind changes", async () => {
+    const allocationFirst = await seedAttributedActivity();
+    await reconcileAllocationFirst(allocationFirst);
+
+    const explicit = await seedAttributedActivity();
+    await reconcileExplicitClearedAllocation(explicit);
+
+    const implicit = await seedAttributedActivity();
+    await reconcileImplicitRewrite(implicit);
+
+    const forbidden = await seedAttributedActivity();
+    await rejectForbiddenAllocation(forbidden);
   });
 
   it("keeps at-flip-time clearing after an activity flips back before a dependent write", async () => {
