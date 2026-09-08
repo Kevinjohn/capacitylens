@@ -868,7 +868,7 @@ describe("exactly-one-Owner protection", () => {
   registerDuplicateOwnerProtectionTest();
 });
 
-describe("DELETE /api/accounts/:id/members/:userId — revoke gate", () => {
+function registerAdminMemberRemovalTest(): void {
   it("admin cannot remove an owner → 403; admin removes an editor → 204", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -905,7 +905,9 @@ describe("DELETE /api/accounts/:id/members/:userId — revoke gate", () => {
     ).toBe(204);
     expect(getMemberRole(db, "a1", ed.userId)).toBeNull();
   });
+}
 
+function registerLimitedMemberRemovalTest(): void {
   it("editor/viewer cannot remove anyone → 403", async () => {
     for (const role of ["editor", "viewer"] as const) {
       const { app, db } = await appWithAuth();
@@ -931,6 +933,11 @@ describe("DELETE /api/accounts/:id/members/:userId — revoke gate", () => {
       ).toBe(403);
     }
   });
+}
+
+describe("DELETE /api/accounts/:id/members/:userId — revoke gate", () => {
+  registerAdminMemberRemovalTest();
+  registerLimitedMemberRemovalTest();
 });
 
 describe("GET /api/accounts/:id/invites — list omits the token", () => {
