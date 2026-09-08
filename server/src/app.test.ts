@@ -529,6 +529,12 @@ function readActivitySnapshots(rows: unknown[]): ActivitySnapshot[] {
   });
 }
 
+function readFirstActivity(activities: ActivitySnapshot[]): ActivitySnapshot {
+  const activityRow = activities[0];
+  if (!activityRow) throw new Error("Expected the state response to contain an activity.");
+  return activityRow;
+}
+
 function readResourceSnapshot(source: Record<string, unknown>, binding: ProjectBinding): ResourceSnapshot {
   requireModeledKeys(
     source,
@@ -4831,7 +4837,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     const { app } = freshApp();
     await seedFixtureDeps(app);
     expect((await post(app, "activities", FIXTURE_ACTIVITY)).statusCode).toBe(201);
-    expectFixture((await state(app)).activities[0], FIXTURE_ACTIVITY);
+    expectFixture(readFirstActivity((await readValidatedState(app)).activities), FIXTURE_ACTIVITY);
   });
 
   it("internal + repeatable activities round-trip with kind and no projectId/phaseId", async () => {
@@ -4874,6 +4880,6 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     await seedFixtureDeps(app);
     await post(app, "resources", FIXTURE_RESOURCE);
     expect((await post(app, "timeOff", FIXTURE_TIMEOFF)).statusCode).toBe(201);
-    expectFixture((await state(app)).timeOff[0], FIXTURE_TIMEOFF);
+    expectFixture(readOnlyTimeOff((await readValidatedState(app)).timeOff), FIXTURE_TIMEOFF);
   });
 });
