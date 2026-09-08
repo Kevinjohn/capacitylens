@@ -119,9 +119,8 @@ export function isWithin(date: ISODate, start: ISODate, end: ISODate): boolean {
  *  overlaps — which is what every caller (timeline intersection, keyboard-nudge visibility)
  *  means by "still on screen". Same zero-padded lexicographic compare as `isWithin`, for the
  *  same reason: exact, and no parseISO on a hot path. */
-export function rangesOverlap(
-  ...[aStart, aEnd, bStart, bEnd]: [aStart: ISODate, aEnd: ISODate, bStart: ISODate, bEnd: ISODate]
-): boolean {
+// eslint-disable-next-line max-params -- Public API preserves four-argument call shape and runtime arity.
+export function rangesOverlap(aStart: ISODate, aEnd: ISODate, bStart: ISODate, bEnd: ISODate): boolean {
   return aEnd >= bStart && aStart <= bEnd;
 }
 

@@ -80,6 +80,10 @@ describe("dateMath", () => {
 });
 
 describe("dateMath range predicates", () => {
+  it("preserves rangesOverlap's public four-argument runtime arity", () => {
+    expect(rangesOverlap.length).toBe(4);
+  });
+
   it("weekdayOf returns 0=Sun … 6=Sat", () => {
     expect(weekdayOf("2026-05-31")).toBe(0); // Sunday
     expect(weekdayOf("2026-06-01")).toBe(1); // Monday

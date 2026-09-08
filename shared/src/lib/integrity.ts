@@ -39,14 +39,14 @@ export function isValidISODate(value: unknown): value is ISODate {
 
 const ISO_TIMESTAMP_RE = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|([+-])(\d{2}):(\d{2}))$/;
 
-function timestampOffsetMinutes(
-  ...[zone, sign, offsetHourText, offsetMinuteText]: [
-    zone: string | undefined,
-    sign: string | undefined,
-    offsetHourText: string | undefined,
-    offsetMinuteText: string | undefined,
-  ]
-): number | null {
+interface TimestampOffsetParts {
+  zone: string | undefined;
+  sign: string | undefined;
+  offsetHourText: string | undefined;
+  offsetMinuteText: string | undefined;
+}
+
+function timestampOffsetMinutes({ zone, sign, offsetHourText, offsetMinuteText }: TimestampOffsetParts): number | null {
   if (zone === undefined) return null;
   if (zone === "Z") return 0;
   const offsetHour = Number(offsetHourText);
@@ -73,7 +73,7 @@ export function parseISOTimestamp(value: unknown): number | null {
   const milliseconds = Number((fraction ?? "").padEnd(3, "0") || "0");
   if (hour > 23 || minute > 59 || second > 59) return null;
 
-  const offsetMinutes = timestampOffsetMinutes(zone, sign, offsetHourText, offsetMinuteText);
+  const offsetMinutes = timestampOffsetMinutes({ zone, sign, offsetHourText, offsetMinuteText });
   if (offsetMinutes === null) return null;
 
   const localAsUtc = Date.parse(
