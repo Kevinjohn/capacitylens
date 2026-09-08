@@ -329,6 +329,43 @@ function dropAllocationProjectAttribution(db: DatabaseSync): void {
   `);
 }
 
+function prepareV14ResetCeremonyFixture(path: string): void {
+  const db = openDb(path);
+  insertRow(db, "accounts", {
+    id: "a1",
+    name: "Studio",
+    color: "#e02727",
+    createdAt: TS,
+    updatedAt: TS,
+  });
+  upsertMember(db, {
+    accountId: "a1",
+    userId: "kept-owner",
+    role: "owner",
+    status: "active",
+    createdAt: TS,
+  });
+  upsertMember(db, {
+    accountId: "a1",
+    userId: "demoted-admin",
+    role: "admin",
+    status: "active",
+    createdAt: TS,
+  });
+  db.exec(`CREATE TABLE verification (id TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+  db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run("demoted-reset", "demoted-admin");
+  db.exec(`ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement`);
+  db.exec(`ALTER TABLE accounts DROP COLUMN workingDays`);
+  db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
+  db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
+  db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
+  dropAllocationProjectAttribution(db);
+  db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
+  db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 14`);
+  db.exec(`PRAGMA user_version = 13`);
+  db.close();
+}
+
 describe("schema migration of an existing on-disk DB", () => {
   it("pins synchronous FULL even when the connection inherited a weaker setting", () => {
     const copied = copyFixture("v16-off.db");
@@ -572,44 +609,11 @@ describe("schema migration of an existing on-disk DB", () => {
     };
     cleanup();
     try {
-      const db = openDb(path); // fresh DB: already at the current version (v14 is a no-op here)
-      insertRow(db, "accounts", {
-        id: "a1",
-        name: "Studio",
-        color: "#e02727",
-        createdAt: TS,
-        updatedAt: TS,
-      });
-      upsertMember(db, {
-        accountId: "a1",
-        userId: "kept-owner",
-        role: "owner",
-        status: "active",
-        createdAt: TS,
-      });
-      upsertMember(db, {
-        accountId: "a1",
-        userId: "demoted-admin",
-        role: "admin",
-        status: "active",
-        createdAt: TS,
-      });
       // Better Auth normally creates `verification` when password auth first runs; mirror that shape
       // (as controlTables.test.ts does) AFTER the membership writes, so upsertMember's own
       // privilege-change revocation cannot be what removes the token — only v14 can.
-      db.exec(`CREATE TABLE verification (id TEXT PRIMARY KEY, value TEXT NOT NULL)`);
-      db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run("demoted-reset", "demoted-admin");
       // Roll the ledger back to "just before v14" so the next openDb() re-runs ONLY the v14 migration.
-      db.exec(`ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement`);
-      db.exec(`ALTER TABLE accounts DROP COLUMN workingDays`);
-      db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
-      db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
-      db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
-      dropAllocationProjectAttribution(db);
-      db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
-      db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 14`);
-      db.exec(`PRAGMA user_version = 13`);
-      db.close();
+      prepareV14ResetCeremonyFixture(path);
 
       const upgraded = openDb(path);
       expect(upgraded.prepare(`SELECT id FROM verification`).all()).toEqual([]);
