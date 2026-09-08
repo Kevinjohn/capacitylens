@@ -3003,7 +3003,7 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     });
 
     expect(response.statusCode).toBe(201);
-    expect((await state(app)).resources[0].color).toBe("#eb7272");
+    expect(readFirstResource((await readValidatedState(app)).resources).color).toBe("#eb7272");
   });
 
   it("repairs junk fields and missing legacy halfDays/engagement values on POST", async () => {
@@ -3022,7 +3022,7 @@ describe("value-level sanitization on direct writes (server is the integrity bou
       ...meta(),
     });
     expect(res.statusCode).toBe(201);
-    const r = (await state(app)).resources[0] as Record<string, unknown>;
+    const r = readFirstResource((await readValidatedState(app)).resources);
     expect(r.kind).toBe("person");
     expect(r.employmentType).toBe("permanent");
     expect(r.engagement).toBe("studio");
@@ -3048,7 +3048,7 @@ describe("value-level sanitization on direct writes (server is the integrity bou
       }),
     });
     expect(res.statusCode).toBe(200);
-    const a = (await state(app)).allocations[0] as Record<string, unknown>;
+    const a = readFirstAllocation((await readValidatedState(app)).allocations);
     expect(a.status).toBe("confirmed");
     // A finite out-of-range value clamps to the [0,24] FLOOR (0), matching the shared
     // store clamp — import + store now use one clampHoursPerDay, so they can't diverge.
@@ -3067,9 +3067,9 @@ describe("value-level sanitization on direct writes (server is the integrity bou
         })
       ).statusCode,
     ).toBe(201);
-    expect(
-      (await state(app)).allocations.find((row: Record<string, unknown>) => row.id === "al-series")?.seriesId,
-    ).toBe("weekly-series");
+    expect((await readValidatedState(app)).allocations.find((row) => row.id === "al-series")?.seriesId).toBe(
+      "weekly-series",
+    );
 
     expect(
       (
@@ -3084,17 +3084,17 @@ describe("value-level sanitization on direct writes (server is the integrity bou
         })
       ).statusCode,
     ).toBe(200);
-    expect(
-      (await state(app)).allocations.find((row: Record<string, unknown>) => row.id === "al-series")?.seriesId,
-    ).toBe("weekly-series");
+    expect((await readValidatedState(app)).allocations.find((row) => row.id === "al-series")?.seriesId).toBe(
+      "weekly-series",
+    );
 
     expect(
       (await patch({ app, entity: "allocations", id: "al-series", payload: { seriesId: "another-series" } }))
         .statusCode,
     ).toBe(200);
-    expect(
-      (await state(app)).allocations.find((row: Record<string, unknown>) => row.id === "al-series")?.seriesId,
-    ).toBe("weekly-series");
+    expect((await readValidatedState(app)).allocations.find((row) => row.id === "al-series")?.seriesId).toBe(
+      "weekly-series",
+    );
 
     expect(
       (
@@ -3104,9 +3104,9 @@ describe("value-level sanitization on direct writes (server is the integrity bou
         })
       ).statusCode,
     ).toBe(201);
-    expect(
-      (await state(app)).allocations.find((row: Record<string, unknown>) => row.id === "al-blank-series"),
-    ).not.toHaveProperty("seriesId");
+    expect((await readValidatedState(app)).allocations.find((row) => row.id === "al-blank-series")).not.toHaveProperty(
+      "seriesId",
+    );
   });
 
   it("drops a junk account schedulingMode on a direct write but keeps a valid one", async () => {
