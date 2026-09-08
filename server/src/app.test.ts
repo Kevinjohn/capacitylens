@@ -2554,7 +2554,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
   });
 });
 
-describe("built-in Internal client is a per-account singleton on direct writes", () => {
+function registerInternalClientCreationRejectionTests(): void {
   it("rejects replacing the generated Internal client id", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -2589,7 +2589,9 @@ describe("built-in Internal client is a per-account singleton on direct writes",
     expect(dup.statusCode).toBe(400);
     expect(readErrorResponse(dup).error).toMatch(/built-in|Internal/i);
   });
+}
 
+function registerInternalClientMutationRejectionTests(): void {
   it("rejects generic updates to the generated builtin client", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -2628,7 +2630,9 @@ describe("built-in Internal client is a per-account singleton on direct writes",
     expect((await readValidatedState(app)).accounts).toEqual([]);
     expect((await readValidatedState(app)).clients).toEqual([]);
   });
+}
 
+function registerInternalClientSingletonAcceptanceTests(): void {
   it("accepts the canonical same-batch duplicate of a freshly generated Internal client", async () => {
     const auditEntries: AuditEntry[] = [];
     const { app } = freshApp(true, {
@@ -2692,6 +2696,12 @@ describe("built-in Internal client is a per-account singleton on direct writes",
     const clients = readAllStateClients(await call(app, { method: "GET", url: "/api/state" }));
     expect(clients.filter((clientRow) => clientRow.builtin)).toHaveLength(2);
   });
+}
+
+describe("built-in Internal client is a per-account singleton on direct writes", () => {
+  registerInternalClientCreationRejectionTests();
+  registerInternalClientMutationRejectionTests();
+  registerInternalClientSingletonAcceptanceTests();
 });
 
 describe("import", () => {
