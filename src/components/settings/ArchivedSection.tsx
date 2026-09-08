@@ -71,6 +71,15 @@ function resolveConfirmationName(row: Row): string {
   return (row.raw as Client | Project).isPrivate === true ? nameForQuotedContext(row.name) : row.name;
 }
 
+function pickNextPurgeDeadline(deleted: Row[], clock: number): number | null {
+  return deleted.reduce<number | null>((nearest, row) => {
+    const deletedAt = row.raw.deletedAt ? Date.parse(row.raw.deletedAt) : Number.NaN;
+    if (!Number.isFinite(deletedAt)) return nearest;
+    const candidate = deletedAt + PURGE_MIN_AGE_DAYS * 24 * 60 * 60 * 1000;
+    if (candidate <= clock) return nearest;
+    return nearest === null || candidate < nearest ? candidate : nearest;
+  }, null);
+}
 const TYPE_LABEL: Record<LifecycleEntity, () => string> = {
   resources: () => m.settings_archived_type_resources(),
   clients: () => m.settings_archived_type_clients(),
@@ -258,20 +267,11 @@ export function ArchivedSection({
     if (status === "archived") archived.push(row);
     else if (status === "deleted") deleted.push(row);
   }
-  // The alarm that re-renders this section just after the nearest tombstone's 30-day grace elapses,
-  // so a mounted row un-disables itself at the boundary instead of on the next unrelated render.
-  // The picker is asked with the clock the hook is about to return, and filters against THAT (not a
-  // fresh `Date.now()`): dropping the deadlines this clock has already passed is what lets the alarm
-  // work down a queue of tombstones — each wake retires the boundary just crossed and arms the next.
-  const purgeClock = useDeadlineClock((clock) =>
-    deleted.reduce<number | null>((nearest, row) => {
-      const deletedAt = row.raw.deletedAt ? Date.parse(row.raw.deletedAt) : Number.NaN;
-      if (!Number.isFinite(deletedAt)) return nearest;
-      const candidate = deletedAt + PURGE_MIN_AGE_DAYS * 24 * 60 * 60 * 1000;
-      if (candidate <= clock) return nearest;
-      return nearest === null || candidate < nearest ? candidate : nearest;
-    }, null),
-  );
+  // Re-render just after each tombstone's grace period, then arm the next deadline.
+  const purgeClock = useDeadlineClock({
+    pickNextDeadline: (clock) => pickNextPurgeDeadline(deleted, clock),
+    readNow: Date.now,
+  });
 
   // Server mode and a concrete role that can't purge — nothing was fetched, so there is nothing to show.
   if (!sectionEnabled) return null;

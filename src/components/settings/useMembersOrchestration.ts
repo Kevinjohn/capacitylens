@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
-import type { TeamMember as Member } from "../../account/teamAccessClient";
+import type { TeamInvitation, TeamMember as Member } from "../../account/teamAccessClient";
 import { resolveStrictOidcProvider, useAuth } from "../../auth/authContext";
 import { isServerConfigured } from "../../data/apiConfig";
 import { useOfflineState } from "../../data/useOfflineState";
@@ -16,6 +16,15 @@ import { createMemberMutations } from "./createMemberMutations";
 import { startMasquerade } from "../../auth/accountTransition";
 import { STATUS_FOR_ACTION, type MemberConfirmation, type MemberConfirmationAction } from "./memberConfirmationCopy";
 import { buildMemberDirectoryPresentation } from "./buildMemberDirectoryPresentation";
+
+function pickNextInviteDeadline(invites: TeamInvitation[], clock: number): number | null {
+  const nextExpiry = invites
+    .filter((invite) => invite.usedAt === null)
+    .map((invite) => Date.parse(invite.expiresAt))
+    .filter((expiry) => Number.isFinite(expiry) && expiry > clock)
+    .reduce((nearest, expiry) => Math.min(nearest, expiry), Number.POSITIVE_INFINITY);
+  return Number.isFinite(nextExpiry) ? nextExpiry : null;
+}
 
 export function useMembersOrchestration(activeAccountId: string | null) {
   const { authMode, providers, refreshAuth } = useAuth();
@@ -125,13 +134,9 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   // An outstanding invite row flips to "expired" on a wall-clock boundary nothing else re-renders,
   // so the section keeps an alarm on the nearest expiry STILL AHEAD of the clock it renders with —
   // which is why the clock is the picker's argument rather than a `Date.now()` read of its own.
-  const renderedAt = useDeadlineClock((clock) => {
-    const nextExpiry = invites
-      .filter((invite) => invite.usedAt === null)
-      .map((invite) => Date.parse(invite.expiresAt))
-      .filter((expiry) => Number.isFinite(expiry) && expiry > clock)
-      .reduce((nearest, expiry) => Math.min(nearest, expiry), Number.POSITIVE_INFINITY);
-    return Number.isFinite(nextExpiry) ? nextExpiry : null;
+  const renderedAt = useDeadlineClock({
+    pickNextDeadline: (clock) => pickNextInviteDeadline(invites, clock),
+    readNow: Date.now,
   });
   const actionDependencies = {
     requestAccountId: assertActiveAccountId,
