@@ -711,17 +711,6 @@
       "count": 2
     }
   },
-  "server/src/validate.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
-    }
-  },
   "server/src/workQueue.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
