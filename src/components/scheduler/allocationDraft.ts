@@ -81,11 +81,7 @@ function validateCountField(
   return true;
 }
 
-/** Every rule the visible allocation draft must satisfy before it may be written, in the order the
- *  user should hear about them. Reports the FIRST problem and returns whether the draft is persistable.
- *  Save and Duplicate both run this so Duplicate cannot persist a shape Save would reject. */
-export function validateAllocationDraft(input: AllocationDraftValidationInput, fail: Fail): boolean {
-  const { startDate, endDate, isBlocks, isDays, isExternal, effHoursPerDay: effectiveHoursPerDay } = input;
+function validateSelections(input: AllocationDraftValidationInput, fail: Fail): boolean {
   if (!input.resourceId) {
     fail("resource", m.form_allocation_err_choose_resource());
     return false;
@@ -94,74 +90,106 @@ export function validateAllocationDraft(input: AllocationDraftValidationInput, f
     fail("activity", m.form_allocation_err_choose_activity());
     return false;
   }
-  if (input.usesTypedDateRange) {
-    // External and hourly allocations both use the raw Start/End inputs. Validate this once so
-    // neither mode can persist a range the advisory deliberately refuses to enumerate.
-    if (!startDate || !endDate) {
-      fail("dates", m.form_allocation_err_dates_required());
-      return false;
-    }
-    if (endDate < startDate) {
-      fail("dates", m.form_allocation_err_end_before_start());
-      return false;
-    }
-    if (input.typedDateSpanTooLong) {
-      fail("dates", m.form_allocation_err_date_span_range({ max: MAX_SPAN_DAYS.toLocaleString("en-GB") }));
-      return false;
-    }
+  return true;
+}
+
+function validateTypedDateRange(input: AllocationDraftValidationInput, fail: Fail): boolean {
+  if (!input.usesTypedDateRange) return true;
+  if (!input.startDate || !input.endDate) {
+    fail("dates", m.form_allocation_err_dates_required());
+    return false;
   }
-  if (isBlocks || isDays) {
-    // Blocks and days derive their end date from the SAME (start, days-over) pair, so they reject
-    // it identically. Days then adds its own work-volume field on top.
+  if (input.endDate < input.startDate) {
+    fail("dates", m.form_allocation_err_end_before_start());
+    return false;
+  }
+  if (input.typedDateSpanTooLong) {
+    fail("dates", m.form_allocation_err_date_span_range({ max: MAX_SPAN_DAYS.toLocaleString("en-GB") }));
+    return false;
+  }
+  return true;
+}
+
+function validateModeFields(input: AllocationDraftValidationInput, fail: Fail): boolean {
+  if (input.isBlocks || input.isDays) {
     if (!validateCountField(input, fail)) return false;
-    if (isDays && !(input.daysOfWork > 0)) {
+    if (input.isDays && !(input.daysOfWork > 0)) {
       fail("daysOfWork", m.form_allocation_err_days_of_work_gt_zero());
       return false;
     }
-  } else if (!isExternal) {
-    if (!(input.hoursPerDay > 0)) {
-      fail("hours", m.form_allocation_err_hours_gt_zero());
-      return false;
-    }
+    return true;
   }
-  const { repeat } = input;
-  if (repeat) {
-    if (!repeat.until || !isValidISODate(repeat.until)) {
-      fail("repeatUntil", m.form_allocation_err_repeat_until_required());
-      return false;
-    }
-    if (repeat.until < repeat.today) {
-      fail("repeatUntil", m.form_allocation_err_repeat_until_past());
-      return false;
-    }
-    if (repeat.until < startDate) {
-      fail("repeatUntil", m.form_allocation_err_repeat_until_before_start());
-      return false;
-    }
-    if (!repeat.maximum) {
-      fail("repeatUntil", m.form_allocation_err_repeat_date_domain());
-      return false;
-    }
-    if (repeat.until > repeat.maximum) {
-      fail("repeatUntil", m.form_allocation_err_repeat_until_after_max({ max: formatShortDate(repeat.maximum) }));
-      return false;
-    }
-    try {
-      generateRepeatingStartDates(startDate, repeat.until, resolveRepeatPattern(repeat.selection));
-    } catch (error) {
-      if (error instanceof RepeatingDateError) {
-        fail(
-          "repeatUntil",
-          error.code === "no-repeat"
-            ? m.form_allocation_err_repeat_until_no_occurrence()
-            : m.form_allocation_err_repeat_date_domain(),
-        );
-        return false;
-      }
-      fail(null, error instanceof Error ? resolveErrorMessage(error) : m.form_allocation_err_save_failed());
-      return false;
-    }
+  if (!input.isExternal && !(input.hoursPerDay > 0)) {
+    fail("hours", m.form_allocation_err_hours_gt_zero());
+    return false;
   }
+  return true;
+}
+
+function validateRepeat(input: AllocationDraftValidationInput, fail: Fail): boolean {
+  const { repeat, startDate } = input;
+  if (!repeat) return true;
+  if (!repeat.until || !isValidISODate(repeat.until)) {
+    fail("repeatUntil", m.form_allocation_err_repeat_until_required());
+    return false;
+  }
+  if (repeat.until < repeat.today) {
+    fail("repeatUntil", m.form_allocation_err_repeat_until_past());
+    return false;
+  }
+  if (repeat.until < startDate) {
+    fail("repeatUntil", m.form_allocation_err_repeat_until_before_start());
+    return false;
+  }
+  if (!repeat.maximum) {
+    fail("repeatUntil", m.form_allocation_err_repeat_date_domain());
+    return false;
+  }
+  if (repeat.until > repeat.maximum) {
+    fail("repeatUntil", m.form_allocation_err_repeat_until_after_max({ max: formatShortDate(repeat.maximum) }));
+    return false;
+  }
+  try {
+    generateRepeatingStartDates(startDate, repeat.until, resolveRepeatPattern(repeat.selection));
+    return true;
+  } catch (error) {
+    if (error instanceof RepeatingDateError) {
+      const message =
+        error.code === "no-repeat"
+          ? m.form_allocation_err_repeat_until_no_occurrence()
+          : m.form_allocation_err_repeat_date_domain();
+      fail("repeatUntil", message);
+      return false;
+    }
+    fail(null, error instanceof Error ? resolveErrorMessage(error) : m.form_allocation_err_save_failed());
+    return false;
+  }
+}
+
+function validateEffectiveHours(input: AllocationDraftValidationInput, fail: Fail): boolean {
+  const { effHoursPerDay: hoursPerDay, isBlocks, isDays, isExternal } = input;
+  if (isExternal || isBlocks) return true;
+  if (Number.isFinite(hoursPerDay) && hoursPerDay > 0 && hoursPerDay <= MAX_HOURS_PER_DAY) return true;
+  if (isDays) {
+    fail("daysOfWork", m.form_allocation_err_days_over_max({ max: MAX_HOURS_PER_DAY }));
+  } else {
+    fail("hours", m.form_allocation_err_hours_over_max({ max: MAX_HOURS_PER_DAY }));
+  }
+  return false;
+}
+
+/** Every rule the visible allocation draft must satisfy before it may be written, in the order the
+ *  user should hear about them. Reports the FIRST problem and returns whether the draft is persistable.
+ *  Save and Duplicate both run this so Duplicate cannot persist a shape Save would reject. */
+export function validateAllocationDraft(input: AllocationDraftValidationInput, fail: Fail): boolean {
+  if (!validateSelections(input, fail)) return false;
+  // External and hourly allocations both use the raw Start/End inputs. Validate this once so
+  // neither mode can persist a range the advisory deliberately refuses to enumerate.
+  if (!validateTypedDateRange(input, fail)) return false;
+  // Blocks and days derive their end date from the same (start, days-over) pair. Days then adds
+  // its own work-volume field on top.
+  if (!validateModeFields(input, fail)) return false;
+  if (!validateRepeat(input, fail)) return false;
   // Single anti-silent-clamp guard for every load-carrying mode (days + hourly; external is a
   // 0-load span and blocks derive a safe block load, so both are excluded). The store clamps an
   // allocation's load into [0, MAX_HOURS_PER_DAY] AND collapses a non-finite value to 0 — so a
@@ -169,20 +197,7 @@ export function validateAllocationDraft(input: AllocationDraftValidationInput, f
   // cap (an Enter-submit before the field's on-blur clamp) would SILENTLY save the wrong volume.
   // Require a finite load in (0, MAX_HOURS_PER_DAY] instead, so the preview ("…h/day") is exactly
   // what saves, failing to the field the user can act on in each mode.
-  if (
-    !isExternal &&
-    !isBlocks &&
-    !(Number.isFinite(effectiveHoursPerDay) && effectiveHoursPerDay > 0 && effectiveHoursPerDay <= MAX_HOURS_PER_DAY)
-  ) {
-    fail(
-      isDays ? "daysOfWork" : "hours",
-      isDays
-        ? m.form_allocation_err_days_over_max({ max: MAX_HOURS_PER_DAY })
-        : m.form_allocation_err_hours_over_max({ max: MAX_HOURS_PER_DAY }),
-    );
-    return false;
-  }
-  return true;
+  return validateEffectiveHours(input, fail);
 }
 
 export interface EndDateInput {

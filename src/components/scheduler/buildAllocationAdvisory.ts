@@ -11,23 +11,7 @@ import { buildRepeatingAllocationAdvisory } from "../../lib/repeatingAllocations
 import type { AllocationModalSnapshot } from "./allocationModalSnapshot";
 import { buildRepeatProjection } from "./buildRepeatProjection";
 
-export function buildAllocationAdvisory({
-  attributedProjectId,
-  create,
-  editId,
-  effEndDate: effectiveEndDate,
-  effHoursPerDay: effectiveHoursPerDay,
-  ignoreWeekends,
-  isBlocks,
-  isExternal,
-  repeat,
-  repeatProjection,
-  resourceId,
-  selectedResource,
-  selectedEffectiveWeek,
-  startDate,
-  data,
-}: Pick<
+type AdvisoryInput = Pick<
   AllocationModalSnapshot,
   | "attributedProjectId"
   | "create"
@@ -45,22 +29,75 @@ export function buildAllocationAdvisory({
 > & {
   data: Pick<AllocationModalSnapshot["data"], "allocations" | "closures" | "timeOff">;
   repeatProjection: ReturnType<typeof buildRepeatProjection>;
-}) {
+};
+
+function canBuildAdvisory(input: AdvisoryInput) {
+  const { effEndDate: endDate, isExternal, selectedResource, selectedEffectiveWeek, startDate } = input;
+  if (isExternal || !selectedResource || selectedEffectiveWeek === undefined || !startDate || !endDate) return false;
+  const span = daysInclusive(startDate, endDate);
+  return span >= 1 && span <= MAX_SPAN_DAYS;
+}
+
+function buildRepeatAdvisory(input: AdvisoryInput, existingLoad: AdvisoryInput["data"]["allocations"]) {
+  const { data, repeatProjection, resourceId, selectedEffectiveWeek, selectedResource } = input;
+  if (!repeatProjection || !selectedResource || selectedEffectiveWeek === undefined) return null;
+  const resourceTimeOff = listTimeOffApplyingTo(resourceId, data.timeOff);
+  const { overCapacityAllocations, timeOffAllocations, nonEffectiveStartAllocations } =
+    buildRepeatingAllocationAdvisory({
+      resource: selectedResource,
+      existingLoad,
+      timeOff: resourceTimeOff,
+      proposedDrafts: repeatProjection.drafts,
+      effectiveWeek: selectedEffectiveWeek,
+      closures: data.closures,
+    });
+  return (
+    formatCapacityAdvisory(
+      { overDays: overCapacityAllocations, timeOffDays: timeOffAllocations, nonEffectiveStartAllocations },
+      "repeat",
+    ) || null
+  );
+}
+
+function buildSingleAdvisory(input: AdvisoryInput, otherAllocations: AdvisoryInput["data"]["allocations"]) {
+  const {
+    attributedProjectId,
+    data,
+    effEndDate: endDate,
+    effHoursPerDay: hoursPerDay,
+    ignoreWeekends,
+    resourceId,
+    selectedEffectiveWeek,
+    selectedResource,
+    startDate,
+  } = input;
+  if (!selectedResource || selectedEffectiveWeek === undefined) return null;
+  return (
+    formatCapacityAdvisory(
+      buildCapacityAdvisory({
+        resource: selectedResource,
+        proposal: {
+          resourceId,
+          startDate,
+          endDate,
+          hoursPerDay,
+          ignoreWeekends,
+          ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
+        },
+        otherAllocations,
+        timeOff: listTimeOffApplyingTo(resourceId, data.timeOff),
+        effectiveWeek: selectedEffectiveWeek,
+        closures: data.closures,
+      }),
+      "form",
+    ) || null
+  );
+}
+
+export function buildAllocationAdvisory(input: AdvisoryInput) {
+  const { create, data, editId, isBlocks, repeat, resourceId } = input;
   // External parties have no capacity — never show an over-capacity / time-off advisory.
-  if (isExternal) return null;
-  // A malformed/reversed span and a range beyond the form's finite work bound get no advisory.
-  // This check is O(1) and runs before buildCapacityAdvisory can materialise one ISO string per day.
-  const span = startDate && effectiveEndDate ? daysInclusive(startDate, effectiveEndDate) : 0;
-  if (
-    !selectedResource ||
-    selectedEffectiveWeek === undefined ||
-    !startDate ||
-    !effectiveEndDate ||
-    span < 1 ||
-    span > MAX_SPAN_DAYS
-  ) {
-    return null;
-  }
+  if (!canBuildAdvisory(input)) return null;
   // Project the existing load through the account's scheduling mode BEFORE counting it: in blocks
   // mode a bar carries placement but no hourly load, so an account that switched to blocks with
   // legacy hourly allocations must not be advised "over capacity" here while the grid's markers
@@ -72,49 +109,10 @@ export function buildAllocationAdvisory({
     ),
     blocksMode: isBlocks,
   });
-  const resourceTimeOff = listTimeOffApplyingTo(resourceId, data.timeOff);
   if (create && repeat !== "none") {
-    if (!repeatProjection) return null;
     // The repeat variant counts whole OCCURRENCES rather than days; the two tallies otherwise read
     // and render identically, so they share the one advisory sentence builder.
-    const { overCapacityAllocations, timeOffAllocations, nonEffectiveStartAllocations } =
-      buildRepeatingAllocationAdvisory({
-        resource: selectedResource,
-        existingLoad: others,
-        timeOff: resourceTimeOff,
-        proposedDrafts: repeatProjection.drafts,
-        effectiveWeek: selectedEffectiveWeek,
-        closures: data.closures,
-      });
-    return (
-      formatCapacityAdvisory(
-        {
-          overDays: overCapacityAllocations,
-          timeOffDays: timeOffAllocations,
-          nonEffectiveStartAllocations,
-        },
-        "repeat",
-      ) || null
-    );
+    return buildRepeatAdvisory(input, others);
   }
-  return (
-    formatCapacityAdvisory(
-      buildCapacityAdvisory({
-        resource: selectedResource,
-        proposal: {
-          resourceId,
-          startDate,
-          endDate: effectiveEndDate,
-          hoursPerDay: effectiveHoursPerDay,
-          ignoreWeekends,
-          ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
-        },
-        otherAllocations: others,
-        timeOff: resourceTimeOff,
-        effectiveWeek: selectedEffectiveWeek,
-        closures: data.closures,
-      }),
-      "form",
-    ) || null
-  );
+  return buildSingleAdvisory(input, others);
 }
