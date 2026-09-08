@@ -605,7 +605,7 @@ describe("migrate activity renames", () => {
   });
 });
 
-describe("migrate mixed activity renames", () => {
+describe("migrate mixed activity renames", () =>
   it("merges a mixed v4 rename state without losing legacy-only work or modern conflicts", () => {
     const out = migrate({
       schemaVersion: 4,
@@ -665,8 +665,7 @@ describe("migrate mixed activity renames", () => {
     expect(out.allocations[0]).toMatchObject({ activityId: "legacy-only" });
     expect(out.allocations[1]).toMatchObject({ activityId: "modern-only" });
     expect(out.allocations.every((allocation) => !("taskId" in allocation))).toBe(true);
-  });
-});
+  }));
 
 describe("migrate legacy task table", () => {
   it("treats a bare (versionless) legacy `tasks` blob as pre-v5 and renames it", () => {

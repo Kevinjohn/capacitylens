@@ -36,6 +36,10 @@ function isUnknownArray(value: unknown): value is unknown[] {
   return Array.isArray(value);
 }
 
+function countRecords(value: unknown): number {
+  return isUnknownArray(value) ? value.length : 0;
+}
+
 export function parseData(json: string): AppData {
   let raw: unknown;
   try {
@@ -80,10 +84,7 @@ export function parseData(json: string): AppData {
   // (remapAndValidateImport) later counts only the SCOPED_KEYS it actually brings into the active
   // account, so its "imported N" can be smaller than this total by exactly the accounts array.
   // The two counts answer different questions on purpose; don't "reconcile" them into one.
-  const total = Object.values(data).reduce(
-    (recordCount, rows) => recordCount + (Array.isArray(rows) ? rows.length : 0),
-    0,
-  );
+  const total = Object.values(data).reduce<number>((recordCount, rows) => recordCount + countRecords(rows), 0);
   if (total > MAX_IMPORT_RECORDS) {
     throw new Error(`This file has too many records (${total.toLocaleString()}).`);
   }
