@@ -75,7 +75,7 @@ function assertUsableOrg(db: Db, accountId: string, userId: string): void {
   expect(getMemberRole(db, accountId, userId)).toBe("owner");
 }
 
-describe("POST /api/orgs (P1.8) — auth-on", () => {
+function registerAuthOnDurabilityTests(): void {
   it("assigns a unique durable audit delivery id to every company creation", async () => {
     const audit: AuditSink = { append: () => false, degraded: true };
     const { app, db } = await appWithAuth({ multiAccount: true, audit });
@@ -125,7 +125,9 @@ describe("POST /api/orgs (P1.8) — auth-on", () => {
     expect(readState(db).accounts).toHaveLength(1);
     assertUsableOrg(db, readStringField(first, "id"), userId);
   });
+}
 
+function registerAuthOnBootstrapTests(): void {
   it("serializes concurrent first-company creates and rechecks the cap under the account lock", async () => {
     const { app, db } = await appWithAuth();
     const { cookie } = await signUp(app, "concurrent-founder@capacitylens.dev");
@@ -173,7 +175,9 @@ describe("POST /api/orgs (P1.8) — auth-on", () => {
     expect(second.statusCode, second.body).toBe(201);
     assertUsableOrg(db, readStringField(second, "id"), userId);
   });
+}
 
+function registerAuthOnMembershipTests(): void {
   it("existing-account stranger DENIED: no owner/admin membership -> 403 and the account is NOT created", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db); // an account already exists
@@ -232,7 +236,9 @@ describe("POST /api/orgs (P1.8) — auth-on", () => {
     expect(readState(db).accounts.map((existing) => existing.id)).toEqual(["a1"]);
     expect(getMemberRole(db, "a1", userId)).toBe("owner");
   });
+}
 
+function registerAuthOnRestrictionTests(): void {
   it("a viewer/editor of an existing account is DENIED (below admin tier)", async () => {
     for (const role of ["viewer", "editor"] as const) {
       const { app, db } = await appWithAuth();
@@ -278,6 +284,13 @@ describe("POST /api/orgs (P1.8) — auth-on", () => {
     expect(acc.color).toMatch(/^#[0-9a-fA-F]{6}$/); // junk colour repaired to a valid hex
     assertUsableOrg(db, id, userId);
   });
+}
+
+describe("POST /api/orgs (P1.8) — auth-on", () => {
+  registerAuthOnDurabilityTests();
+  registerAuthOnBootstrapTests();
+  registerAuthOnMembershipTests();
+  registerAuthOnRestrictionTests();
 });
 
 describe("POST /api/orgs (P1.8) — bootstrap token", () => {
