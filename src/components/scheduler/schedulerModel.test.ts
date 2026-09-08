@@ -987,73 +987,73 @@ function registerBuildSchedulerModelTest26() {
   });
 }
 
-describe("buildSchedulerModel", () => {
-  function withPlaceholder(): AppData {
-    const d = dataset();
-    d.resources.push(
-      makeResource({
-        id: "ph",
-        accountId: "acct-test",
-        kind: "placeholder",
-        role: "Designer",
-        disciplineId: "d-design",
-        color: "#9",
-        projectId: "p1",
-      }),
-    );
-    d.allocations.push({
-      id: "a-ph",
+function buildPlaceholderData(): AppData {
+  const d = dataset();
+  d.resources.push(
+    makeResource({
+      id: "ph",
+      accountId: "acct-test",
+      kind: "placeholder",
+      role: "Designer",
+      disciplineId: "d-design",
+      color: "#9",
+      projectId: "p1",
+    }),
+  );
+  d.allocations.push({
+    id: "a-ph",
+    accountId: "acct-test",
+    createdAt: "t",
+    updatedAt: "t",
+    resourceId: "ph",
+    activityId: "t1",
+    startDate: "2026-06-01",
+    endDate: "2026-06-05",
+    hoursPerDay: 8,
+    status: "confirmed",
+  });
+  return d;
+}
+
+function buildLensActivitiesData(): AppData {
+  const d = dataset();
+  d.activities.push(
+    { id: "t-int", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Admin", kind: "internal" },
+    { id: "t-rep", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Design", kind: "repeatable" },
+  );
+  d.allocations.push(
+    {
+      id: "a-int",
       accountId: "acct-test",
       createdAt: "t",
       updatedAt: "t",
-      resourceId: "ph",
-      activityId: "t1",
-      startDate: "2026-06-01",
+      resourceId: "r1",
+      activityId: "t-int",
+      startDate: "2026-06-05",
       endDate: "2026-06-05",
       hoursPerDay: 8,
       status: "confirmed",
-    });
-    return d;
-  }
+    },
+    {
+      id: "a-rep",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: "r2",
+      activityId: "t-rep",
+      startDate: "2026-06-05",
+      endDate: "2026-06-05",
+      hoursPerDay: 8,
+      status: "confirmed",
+    },
+  );
+  return d;
+}
 
-  function withLensActivities(): AppData {
-    const d = dataset();
-    d.activities.push(
-      { id: "t-int", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Admin", kind: "internal" },
-      { id: "t-rep", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Design", kind: "repeatable" },
-    );
-    d.allocations.push(
-      {
-        id: "a-int",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r1",
-        activityId: "t-int",
-        startDate: "2026-06-05",
-        endDate: "2026-06-05",
-        hoursPerDay: 8,
-        status: "confirmed",
-      },
-      {
-        id: "a-rep",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r2",
-        activityId: "t-rep",
-        startDate: "2026-06-05",
-        endDate: "2026-06-05",
-        hoursPerDay: 8,
-        status: "confirmed",
-      },
-    );
-    return d;
-  }
-
+function registerBuildSchedulerModelTests() {
   const buildLens = (filters = buildEmptyFilters()) =>
     buildSchedulerModel({
-      data: withLensActivities(),
+      data: buildLensActivitiesData(),
       geom,
       days,
       visibleWindow: { start, end },
@@ -1071,11 +1071,11 @@ describe("buildSchedulerModel", () => {
   // dataset() + a placeholder in Design with an overbooking allocation, to prove the per-account
   // placeholdersEnabled flag hides the row AND drops its load from utilisation when off.
 
-  registerBuildSchedulerModelTest4(withPlaceholder);
+  registerBuildSchedulerModelTest4(buildPlaceholderData);
 
-  registerBuildSchedulerModelTest5(withPlaceholder);
+  registerBuildSchedulerModelTest5(buildPlaceholderData);
 
-  registerBuildSchedulerModelTest6(withPlaceholder);
+  registerBuildSchedulerModelTest6(buildPlaceholderData);
 
   registerBuildSchedulerModelTest7();
 
@@ -1119,7 +1119,9 @@ describe("buildSchedulerModel", () => {
   registerBuildSchedulerModelTest25();
 
   registerBuildSchedulerModelTest26();
-});
+}
+
+describe("buildSchedulerModel", registerBuildSchedulerModelTests);
 
 // Visible-window utilisation: the displayed % is computed over [visStart, visEnd] and so must change
 // EXACTLY with the 1/2/4/8-week range toggle. The fixture below books a different density each week so
@@ -1184,57 +1186,51 @@ function registerMovedSchedulerTests11387(buildBoundaryModel: (id: string, alloc
     expect(afterModel.flatMap((g) => g.rows)[0]?.utilization).toBe(0);
   });
 }
-describe("displayed utilisation % over the visible window (1/2/4/8 weeks)", () => {
+function buildVisibleWindowDensityData(): AppData {
+  return {
+    ...emptyAppData(),
+    clients: [makeClient({ accountId: "acct-test", name: "Acme", color: "#1" })],
+    projects: [makeProject({ accountId: "acct-test", name: "P1", color: "#2" })],
+    activities: [makeActivity({ accountId: "acct-test", name: "T1" })],
+    resources: [makeResource({ id: "r1", accountId: "acct-test", name: "Dana", role: "Designer", color: "#4" })],
+    allocations: [
+      // Week 1 (06-01..06-07): 8h/day Mon–Fri → 40/40 = 100%.
+      makeAllocation({
+        id: "w1",
+        accountId: "acct-test",
+        startDate: "2026-06-01",
+        endDate: "2026-06-05",
+        hoursPerDay: 8,
+      }),
+      // Week 2 (06-08..06-14): 4h/day Mon–Fri → 20/40 = 50%.
+      makeAllocation({
+        id: "w2",
+        accountId: "acct-test",
+        startDate: "2026-06-08",
+        endDate: "2026-06-12",
+        hoursPerDay: 4,
+      }),
+      // Weeks 3–4 (06-15..06-26): 2h/day Mon–Fri → 10/40 each.
+      makeAllocation({
+        id: "w34",
+        accountId: "acct-test",
+        startDate: "2026-06-15",
+        endDate: "2026-06-26",
+        hoursPerDay: 2,
+      }),
+      // Weeks 5–8 (06-29..07-26): unbooked → 0%.
+    ],
+    timeOff: [],
+  };
+}
+
+function registerVisibleWindowUtilisationTests() {
   const winStart = "2026-06-01";
-
   const winDays = eachDayISO("2026-06-01", "2026-07-26");
-
-  const winGeom = buildColumnGeometry(winDays, 48, {
-    minimiseWeekends: false,
-    weekendWidth: 22,
-  });
-
-  function densityData(): AppData {
-    return {
-      ...emptyAppData(),
-      clients: [makeClient({ accountId: "acct-test", name: "Acme", color: "#1" })],
-      projects: [makeProject({ accountId: "acct-test", name: "P1", color: "#2" })],
-      activities: [makeActivity({ accountId: "acct-test", name: "T1" })],
-      resources: [makeResource({ id: "r1", accountId: "acct-test", name: "Dana", role: "Designer", color: "#4" })],
-      allocations: [
-        // Week 1 (06-01..06-07): 8h/day Mon–Fri → 40/40 = 100%.
-        makeAllocation({
-          id: "w1",
-          accountId: "acct-test",
-          startDate: "2026-06-01",
-          endDate: "2026-06-05",
-          hoursPerDay: 8,
-        }),
-        // Week 2 (06-08..06-14): 4h/day Mon–Fri → 20/40 = 50%.
-        makeAllocation({
-          id: "w2",
-          accountId: "acct-test",
-          startDate: "2026-06-08",
-          endDate: "2026-06-12",
-          hoursPerDay: 4,
-        }),
-        // Weeks 3–4 (06-15..06-26): 2h/day Mon–Fri → 10/40 each.
-        makeAllocation({
-          id: "w34",
-          accountId: "acct-test",
-          startDate: "2026-06-15",
-          endDate: "2026-06-26",
-          hoursPerDay: 2,
-        }),
-        // Weeks 5–8 (06-29..07-26): unbooked → 0%.
-      ],
-      timeOff: [],
-    };
-  }
-
+  const winGeom = buildColumnGeometry(winDays, 48, { minimiseWeekends: false, weekendWidth: 22 });
   const utilOver = (visEnd: string): number => {
     const model = buildSchedulerModel({
-      data: densityData(),
+      data: buildVisibleWindowDensityData(),
       geom: winGeom,
       days: winDays,
       visibleWindow: { start: winStart, end: visEnd },
@@ -1255,7 +1251,7 @@ describe("displayed utilisation % over the visible window (1/2/4/8 weeks)", () =
   const buildBoundaryModel = (id: string, allocationDate: ISODate) =>
     buildSchedulerModel({
       data: {
-        ...densityData(),
+        ...buildVisibleWindowDensityData(),
         allocations: [
           makeAllocation({
             id,
@@ -1292,7 +1288,9 @@ describe("displayed utilisation % over the visible window (1/2/4/8 weeks)", () =
   registerMovedSchedulerTests11386(utilOver);
 
   registerMovedSchedulerTests11387(buildBoundaryModel);
-});
+}
+
+describe("displayed utilisation % over the visible window (1/2/4/8 weeks)", registerVisibleWindowUtilisationTests);
 
 function registerMovedSchedulerTests12741(
   buildExt: (
@@ -1820,50 +1818,50 @@ function registerMovedSchedulerTests16016(
     expect(barIds(buildPrefs(false, false)).length).toBeLessThan(barIds(buildPrefs(true, true)).length);
   });
 }
-describe("internal-work bar-only hide prefs (showInternalProjects / showInternalActivities)", () => {
-  function withInternalAndRepeatable(): AppData {
-    const d = withInternal();
-    d.activities.push({
-      id: "tRep",
+function buildInternalAndRepeatableData(): AppData {
+  const d = withInternal();
+  d.activities.push({
+    id: "tRep",
+    accountId: "acct-test",
+    createdAt: "t",
+    updatedAt: "t",
+    name: "Design",
+    kind: "repeatable",
+  });
+  d.allocations.push(
+    {
+      id: "aRep",
       accountId: "acct-test",
       createdAt: "t",
       updatedAt: "t",
-      name: "Design",
-      kind: "repeatable",
-    });
-    d.allocations.push(
-      {
-        id: "aRep",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r1",
-        activityId: "tRep",
-        startDate: "2026-06-05",
-        endDate: "2026-06-05",
-        hoursPerDay: 4,
-        status: "confirmed",
-      },
-      {
-        id: "aRepAttributedInternal",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r1",
-        activityId: "tRep",
-        projectId: "pInt",
-        startDate: "2026-06-05",
-        endDate: "2026-06-05",
-        hoursPerDay: 2,
-        status: "confirmed",
-      },
-    );
-    return d;
-  }
+      resourceId: "r1",
+      activityId: "tRep",
+      startDate: "2026-06-05",
+      endDate: "2026-06-05",
+      hoursPerDay: 4,
+      status: "confirmed",
+    },
+    {
+      id: "aRepAttributedInternal",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: "r1",
+      activityId: "tRep",
+      projectId: "pInt",
+      startDate: "2026-06-05",
+      endDate: "2026-06-05",
+      hoursPerDay: 2,
+      status: "confirmed",
+    },
+  );
+  return d;
+}
 
+function registerInternalWorkPreferenceTests() {
   const buildPrefs = (showInternalProjects: boolean, showInternalActivities: boolean) =>
     buildSchedulerModel({
-      data: withInternalAndRepeatable(),
+      data: buildInternalAndRepeatableData(),
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
@@ -1896,10 +1894,15 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
 
   registerMovedSchedulerTests16014(buildPrefs);
 
-  registerMovedSchedulerTests16015(withInternalAndRepeatable);
+  registerMovedSchedulerTests16015(buildInternalAndRepeatableData);
 
   registerMovedSchedulerTests16016(buildPrefs, r1Util);
-});
+}
+
+describe(
+  "internal-work bar-only hide prefs (showInternalProjects / showInternalActivities)",
+  registerInternalWorkPreferenceTests,
+);
 
 // Pan invariant — the load-bearing reason a Back/Forward pan keeps the visible-window utilisation
 // correct WITHOUT any layout measurement. `panDays(+7)` shifts the origin date by a week while
@@ -2031,58 +2034,58 @@ function registerMovedSchedulerTests17942(buildActive: (data: AppData) => GroupM
     expect(barIdsAll).not.toContain("a-orphan");
   });
 }
-describe("buildSchedulerModel(activeOnly(data), …) — non-active resources vanish (P2.4)", () => {
-  function withNonActive(): AppData {
-    const d = dataset();
-    d.disciplines.push(
-      {
-        id: "d-ops",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Ops",
-        sortOrder: 2,
-      },
-      {
-        id: "d-qa",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "QA",
-        sortOrder: 3,
-      },
-    );
-    d.resources.push(
-      // archived (archivedAt set) — must NOT render.
-      makeResource({
-        id: "r-arch",
-        accountId: "acct-test",
-        archivedAt: "2026-05-01T00:00:00.000Z",
-        name: "Archived Ann",
-        role: "Ops",
-        disciplineId: "d-ops",
-        color: "#6",
-      }),
-      // soft-deleted (deletedAt set) — must NOT render.
-      makeResource({
-        id: "r-del",
-        accountId: "acct-test",
-        archivedAt: "2026-05-01T00:00:00.000Z",
-        deletedAt: "2026-05-20T00:00:00.000Z",
-        name: "Deleted Del",
-        role: "QA",
-        disciplineId: "d-qa",
-        color: "#7",
-      }),
-    );
-    // A booking on each non-active resource — the lane and its bars must drop together.
-    d.allocations.push(
-      makeAllocation({ id: "a-arch", accountId: "acct-test", resourceId: "r-arch" }),
-      makeAllocation({ id: "a-del", accountId: "acct-test", resourceId: "r-del" }),
-    );
-    return d;
-  }
+function buildNonActiveResourceData(): AppData {
+  const d = dataset();
+  d.disciplines.push(
+    {
+      id: "d-ops",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "Ops",
+      sortOrder: 2,
+    },
+    {
+      id: "d-qa",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "QA",
+      sortOrder: 3,
+    },
+  );
+  d.resources.push(
+    // archived (archivedAt set) — must NOT render.
+    makeResource({
+      id: "r-arch",
+      accountId: "acct-test",
+      archivedAt: "2026-05-01T00:00:00.000Z",
+      name: "Archived Ann",
+      role: "Ops",
+      disciplineId: "d-ops",
+      color: "#6",
+    }),
+    // soft-deleted (deletedAt set) — must NOT render.
+    makeResource({
+      id: "r-del",
+      accountId: "acct-test",
+      archivedAt: "2026-05-01T00:00:00.000Z",
+      deletedAt: "2026-05-20T00:00:00.000Z",
+      name: "Deleted Del",
+      role: "QA",
+      disciplineId: "d-qa",
+      color: "#7",
+    }),
+  );
+  // A booking on each non-active resource — the lane and its bars must drop together.
+  d.allocations.push(
+    makeAllocation({ id: "a-arch", accountId: "acct-test", resourceId: "r-arch" }),
+    makeAllocation({ id: "a-del", accountId: "acct-test", resourceId: "r-del" }),
+  );
+  return d;
+}
 
+function registerActiveOnlySchedulerTests() {
   const buildActive = (d: AppData) =>
     buildSchedulerModel({
       data: activeOnly(d),
@@ -2101,10 +2104,15 @@ describe("buildSchedulerModel(activeOnly(data), …) — non-active resources va
   // dataset() has active people r1 (Design) + r2 (Development). Add an archived person and a
   // soft-deleted person, each in their OWN discipline so a dropped lane also empties its band.
 
-  registerMovedSchedulerTests17941(withNonActive, buildActive);
+  registerMovedSchedulerTests17941(buildNonActiveResourceData, buildActive);
 
   registerMovedSchedulerTests17942(buildActive);
-});
+}
+
+describe(
+  "buildSchedulerModel(activeOnly(data), …) — non-active resources vanish (P2.4)",
+  registerActiveOnlySchedulerTests,
+);
 
 function buildBlockTimeOffRows() {
   const d = dataset();
@@ -3235,74 +3243,26 @@ function registerMovedSchedulerTests201026({
     assertBucketComparisonSummary(rows);
   });
 }
-describe("buildSchedulerModel — mutation-testing gap-fill", () => {
-  function buildDanglingActivityData() {
-    const d = dataset();
-    d.allocations.push({
-      id: "a-ghost2",
-      accountId: "acct-test",
-      createdAt: "t",
-      updatedAt: "t",
-      resourceId: "r1",
-      activityId: "ghost-activity-2",
-      startDate: "2026-06-05",
-      endDate: "2026-06-05",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
-    return d;
-  }
+function buildDanglingActivityData() {
+  const d = dataset();
+  d.allocations.push({
+    id: "a-ghost2",
+    accountId: "acct-test",
+    createdAt: "t",
+    updatedAt: "t",
+    resourceId: "r1",
+    activityId: "ghost-activity-2",
+    startDate: "2026-06-05",
+    endDate: "2026-06-05",
+    hoursPerDay: 8,
+    status: "confirmed",
+  });
+  return d;
+}
 
-  function assertDanglingActivityFiltersDoNotThrow(d: AppData) {
-    expect(() =>
-      buildSchedulerModel({
-        data: d,
-        geom: geom,
-        days: days,
-        visibleWindow: { start: start, end: end },
-        overSoonWindow: { start: start, end: end },
-        filters: { ...buildEmptyFilters(), projectId: "p1" },
-        preferences: {
-          disciplinesEnabled: true,
-          placeholdersEnabled: true,
-          externalEnabled: true,
-        },
-      }),
-    ).not.toThrow();
-    expect(() =>
-      buildSchedulerModel({
-        data: d,
-        geom: geom,
-        days: days,
-        visibleWindow: { start: start, end: end },
-        overSoonWindow: { start: start, end: end },
-        filters: { ...buildEmptyFilters(), clientId: "c1" },
-        preferences: {
-          disciplinesEnabled: true,
-          placeholdersEnabled: true,
-          externalEnabled: true,
-        },
-      }),
-    ).not.toThrow();
-    expect(() =>
-      buildSchedulerModel({
-        data: d,
-        geom: geom,
-        days: days,
-        visibleWindow: { start: start, end: end },
-        overSoonWindow: { start: start, end: end },
-        filters: { ...buildEmptyFilters(), activityKind: "internal" },
-        preferences: {
-          disciplinesEnabled: true,
-          placeholdersEnabled: true,
-          externalEnabled: true,
-        },
-      }),
-    ).not.toThrow();
-  }
-
-  function buildDanglingActivityModel(d: AppData) {
-    const model = buildSchedulerModel({
+function assertDanglingActivityFiltersDoNotThrow(d: AppData) {
+  expect(() =>
+    buildSchedulerModel({
       data: d,
       geom: geom,
       days: days,
@@ -3314,273 +3274,402 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         placeholdersEnabled: true,
         externalEnabled: true,
       },
-    });
-    return model;
-  }
-
-  function buildBucketComparisonData(alloc: (input: AllocationTestInput) => Allocation) {
-    const d = dataset();
-    d.allocations = [
-      // Spans the whole timeline (starts before it, ends after it) — bucketing must clip, not drop.
-      alloc({
-        id: "b1",
-        resourceId: "r1",
-        startDate: "2026-05-20",
-        endDate: "2026-06-20",
-        hoursPerDay: 2.1,
-      }),
-      // Overlaps b1 on working days; three fractional sums land on the same days.
-      alloc({
-        id: "b2",
-        resourceId: "r1",
-        startDate: "2026-06-02",
-        endDate: "2026-06-04",
-        hoursPerDay: 3.3,
-      }),
-      alloc({
-        id: "b3",
-        resourceId: "r1",
-        startDate: "2026-06-03",
-        endDate: "2026-06-03",
-        hoursPerDay: 2.7,
-      }),
-      // Weekend-aware (default): merely spans Sat/Sun 06-06/06-07, so it does no work there.
-      alloc({
-        id: "b4",
-        resourceId: "r1",
-        startDate: "2026-06-04",
-        endDate: "2026-06-07",
-        hoursPerDay: 8,
-      }),
-      // Opts into weekends: 0 capacity there, so it must still read as over on Sat/Sun.
-      {
-        ...alloc({
-          id: "b5",
-          resourceId: "r2",
-          startDate: "2026-06-05",
-          endDate: "2026-06-07",
-          hoursPerDay: 4,
-        }),
-        ignoreWeekends: true,
-      },
-      alloc({
-        id: "b6",
-        resourceId: "r2",
-        startDate: "2026-06-01",
-        endDate: "2026-06-03",
-        hoursPerDay: 8,
-      }),
-    ];
-    addBucketComparisonClosure(d);
-    addBucketComparisonTimeOff(d);
-    return d;
-  }
-
-  function addBucketComparisonClosure(d: AppData) {
-    d.closures = [
-      {
-        id: "company-to",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Company shutdown",
-        startDate: "2026-06-03",
-        endDate: "2026-06-03",
-      },
-    ];
-  }
-
-  function addBucketComparisonTimeOff(d: AppData) {
-    d.timeOff = [
-      {
-        id: "to1",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r1",
-        startDate: "2026-06-03",
-        endDate: "2026-06-04",
-        type: "holiday",
-      },
-      // Starts before the timeline and ends inside it — the other clipping direction.
-      {
-        id: "to2",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r2",
-        startDate: "2026-05-28",
-        endDate: "2026-06-02",
-        type: "sick",
-      },
-    ];
-  }
-
-  function buildBucketComparisonModel(d: AppData, visStart: ISODate, visEnd: ISODate) {
-    const model = buildSchedulerModel({
+    }),
+  ).not.toThrow();
+  expect(() =>
+    buildSchedulerModel({
       data: d,
       geom: geom,
       days: days,
-      visibleWindow: { start: visStart, end: visEnd },
+      visibleWindow: { start: start, end: end },
       overSoonWindow: { start: start, end: end },
-      filters: buildEmptyFilters(),
+      filters: { ...buildEmptyFilters(), clientId: "c1" },
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
         externalEnabled: true,
       },
-    });
-    return model;
-  }
+    }),
+  ).not.toThrow();
+  expect(() =>
+    buildSchedulerModel({
+      data: d,
+      geom: geom,
+      days: days,
+      visibleWindow: { start: start, end: end },
+      overSoonWindow: { start: start, end: end },
+      filters: { ...buildEmptyFilters(), activityKind: "internal" },
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+      },
+    }),
+  ).not.toThrow();
+}
 
-  function assertBucketComparisonResource({
-    resourceId,
-    d,
-    rows,
-    visStart,
-    visEnd,
-  }: {
-    resourceId: string;
-    d: AppData;
-    rows: ReturnType<typeof buildSchedulerModel>[number]["rows"];
-    visStart: ISODate;
-    visEnd: ISODate;
-  }) {
-    const resource = requireValue(
-      d.resources.find((r) => r.id === resourceId),
-      `${resourceId} resource`,
-    );
-    const allocs = d.allocations.filter((a) => a.resourceId === resourceId);
-    const off = d.timeOff.filter((t) => t.resourceId === resourceId);
-    const row = requireValue(
-      rows.find((r) => r.resource.id === resourceId),
-      `${resourceId} scheduler row`,
-    );
-    const firstDay = requireValue(days[0], "first timeline day");
-    const lastDay = requireValue(days[days.length - 1], "last timeline day");
-    const naiveTimeline = capacityForWindowOf({
-      resource,
-      allocations: allocs,
-      timeOff: off,
-      windowStart: firstDay,
-      windowEnd: lastDay,
-      accountWorkingDays: DEFAULT_ACCOUNT_WORKING_DAYS,
-      closures: d.closures,
-    });
-    assertBucketComparisonDayStates({ row, naiveTimeline, resource, off, closures: d.closures });
-    expect(row.utilization).toBe(
-      utilizationOf({
-        resource,
-        allocations: allocs,
-        timeOff: off,
-        windowStart: visStart,
-        windowEnd: visEnd,
-        accountWorkingDays: DEFAULT_ACCOUNT_WORKING_DAYS,
-        closures: d.closures,
+function buildDanglingActivityModel(d: AppData) {
+  const model = buildSchedulerModel({
+    data: d,
+    geom: geom,
+    days: days,
+    visibleWindow: { start: start, end: end },
+    overSoonWindow: { start: start, end: end },
+    filters: { ...buildEmptyFilters(), projectId: "p1" },
+    preferences: {
+      disciplinesEnabled: true,
+      placeholdersEnabled: true,
+      externalEnabled: true,
+    },
+  });
+  return model;
+}
+
+function buildBucketComparisonData(alloc: (input: AllocationTestInput) => Allocation) {
+  const d = dataset();
+  d.allocations = [
+    // Spans the whole timeline (starts before it, ends after it) — bucketing must clip, not drop.
+    alloc({
+      id: "b1",
+      resourceId: "r1",
+      startDate: "2026-05-20",
+      endDate: "2026-06-20",
+      hoursPerDay: 2.1,
+    }),
+    // Overlaps b1 on working days; three fractional sums land on the same days.
+    alloc({
+      id: "b2",
+      resourceId: "r1",
+      startDate: "2026-06-02",
+      endDate: "2026-06-04",
+      hoursPerDay: 3.3,
+    }),
+    alloc({
+      id: "b3",
+      resourceId: "r1",
+      startDate: "2026-06-03",
+      endDate: "2026-06-03",
+      hoursPerDay: 2.7,
+    }),
+    // Weekend-aware (default): merely spans Sat/Sun 06-06/06-07, so it does no work there.
+    alloc({
+      id: "b4",
+      resourceId: "r1",
+      startDate: "2026-06-04",
+      endDate: "2026-06-07",
+      hoursPerDay: 8,
+    }),
+    // Opts into weekends: 0 capacity there, so it must still read as over on Sat/Sun.
+    {
+      ...alloc({
+        id: "b5",
+        resourceId: "r2",
+        startDate: "2026-06-05",
+        endDate: "2026-06-07",
+        hoursPerDay: 4,
       }),
-    );
-    expect(row.overSoon).toBe(
-      capacityForWindowOf({
-        resource,
-        allocations: allocs,
-        timeOff: off,
-        windowStart: start,
-        windowEnd: end,
-        accountWorkingDays: DEFAULT_ACCOUNT_WORKING_DAYS,
-        closures: d.closures,
-      }).some((c) => c.over),
-    );
-  }
+      ignoreWeekends: true,
+    },
+    alloc({
+      id: "b6",
+      resourceId: "r2",
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      hoursPerDay: 8,
+    }),
+  ];
+  addBucketComparisonClosure(d);
+  addBucketComparisonTimeOff(d);
+  return d;
+}
 
-  function assertBucketComparisonDayStates({
-    row,
-    naiveTimeline,
-    resource,
-    off,
-    closures,
-  }: {
-    row: ReturnType<typeof buildSchedulerModel>[number]["rows"][number];
-    naiveTimeline: ReturnType<typeof capacityForWindowOf>;
-    resource: Resource;
-    off: AppData["timeOff"];
-    closures: AppData["closures"];
-  }) {
-    expect(row.dayStates).toEqual(
-      naiveTimeline.map((c, index) => {
-        const date = requireValue(days[index], `timeline day ${index}`);
-        const creationBlocked = isCreationStartBlocked({
-          resource,
-          date,
-          timeOff: off,
-          accountWorkingDays: [1, 2, 3, 4, 5],
-          closures: closures,
-        });
-        const hasTimeOff = [...off, ...closures].some((entry) => entry.startDate <= date && entry.endDate >= date);
-        return {
-          over: c.over,
-          timeOffConflict: c.over && hasTimeOff,
-          unavailable: c.available === 0 || creationBlocked,
-          partialCapacity: c.available > 0 && !creationBlocked && resource.halfDays.includes(weekdayOf(date)),
-          creationBlocked,
-          hasTimeOff,
-        };
-      }),
-    );
-  }
-
-  function assertBucketComparisonSummary(rows: ReturnType<typeof buildSchedulerModel>[number]["rows"]) {
-    const r1 = requireValue(
-      rows.find((r) => r.resource.id === "r1"),
-      "r1 scheduler row",
-    );
-    expect(r1.dayStates.some((s) => s.over)).toBe(true);
-    expect(r1.dayStates.some((s) => s.unavailable)).toBe(true);
-    expect(r1.conflictDayCount).toBe(r1.dayStates.filter((s) => s.over || s.timeOffConflict).length);
-    expect(r1.partialCapacityDayCount).toBe(r1.dayStates.filter((s) => s.partialCapacity).length);
-  }
-
-  function alloc({ id, resourceId, startDate, endDate, hoursPerDay }: AllocationTestInput): Allocation {
-    return {
-      id,
+function addBucketComparisonClosure(d: AppData) {
+  d.closures = [
+    {
+      id: "company-to",
       accountId: "acct-test",
       createdAt: "t",
       updatedAt: "t",
-      resourceId,
-      activityId: "t1",
-      startDate,
-      endDate,
-      hoursPerDay,
-      status: "confirmed",
-    };
-  }
+      name: "Company shutdown",
+      startDate: "2026-06-03",
+      endDate: "2026-06-03",
+    },
+  ];
+}
 
-  function withThirdResource(): AppData {
-    const data = dataset();
-    data.resources.push(
-      makeResource({
-        id: "r3",
-        accountId: "acct-test",
-        name: "QA Quinn",
-        role: "QA",
-        disciplineId: "d-dev",
-        workingHoursPerDay: 6,
-        color: "#6",
-      }),
-    );
-    data.allocations.push(
-      makeAllocation({
-        id: "a5",
-        accountId: "acct-test",
-        resourceId: "r3",
-        activityId: "t2",
-        startDate: "2026-06-01",
-        endDate: "2026-06-05",
-        hoursPerDay: 3,
-      }),
-    );
-    return data;
-  }
+function addBucketComparisonTimeOff(d: AppData) {
+  d.timeOff = [
+    {
+      id: "to1",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: "r1",
+      startDate: "2026-06-03",
+      endDate: "2026-06-04",
+      type: "holiday",
+    },
+    // Starts before the timeline and ends inside it — the other clipping direction.
+    {
+      id: "to2",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: "r2",
+      startDate: "2026-05-28",
+      endDate: "2026-06-02",
+      type: "sick",
+    },
+  ];
+}
 
+function buildBucketComparisonModel(d: AppData, visStart: ISODate, visEnd: ISODate) {
+  const model = buildSchedulerModel({
+    data: d,
+    geom: geom,
+    days: days,
+    visibleWindow: { start: visStart, end: visEnd },
+    overSoonWindow: { start: start, end: end },
+    filters: buildEmptyFilters(),
+    preferences: {
+      disciplinesEnabled: true,
+      placeholdersEnabled: true,
+      externalEnabled: true,
+    },
+  });
+  return model;
+}
+
+function assertBucketComparisonResource({
+  resourceId,
+  d,
+  rows,
+  visStart,
+  visEnd,
+}: {
+  resourceId: string;
+  d: AppData;
+  rows: ReturnType<typeof buildSchedulerModel>[number]["rows"];
+  visStart: ISODate;
+  visEnd: ISODate;
+}) {
+  const resource = requireValue(
+    d.resources.find((r) => r.id === resourceId),
+    `${resourceId} resource`,
+  );
+  const allocs = d.allocations.filter((a) => a.resourceId === resourceId);
+  const off = d.timeOff.filter((t) => t.resourceId === resourceId);
+  const row = requireValue(
+    rows.find((r) => r.resource.id === resourceId),
+    `${resourceId} scheduler row`,
+  );
+  const firstDay = requireValue(days[0], "first timeline day");
+  const lastDay = requireValue(days[days.length - 1], "last timeline day");
+  const naiveTimeline = capacityForWindowOf({
+    resource,
+    allocations: allocs,
+    timeOff: off,
+    windowStart: firstDay,
+    windowEnd: lastDay,
+    accountWorkingDays: DEFAULT_ACCOUNT_WORKING_DAYS,
+    closures: d.closures,
+  });
+  assertBucketComparisonDayStates({ row, naiveTimeline, resource, off, closures: d.closures });
+  expect(row.utilization).toBe(
+    utilizationOf({
+      resource,
+      allocations: allocs,
+      timeOff: off,
+      windowStart: visStart,
+      windowEnd: visEnd,
+      accountWorkingDays: DEFAULT_ACCOUNT_WORKING_DAYS,
+      closures: d.closures,
+    }),
+  );
+  expect(row.overSoon).toBe(
+    capacityForWindowOf({
+      resource,
+      allocations: allocs,
+      timeOff: off,
+      windowStart: start,
+      windowEnd: end,
+      accountWorkingDays: DEFAULT_ACCOUNT_WORKING_DAYS,
+      closures: d.closures,
+    }).some((c) => c.over),
+  );
+}
+
+function assertBucketComparisonDayStates({
+  row,
+  naiveTimeline,
+  resource,
+  off,
+  closures,
+}: {
+  row: ReturnType<typeof buildSchedulerModel>[number]["rows"][number];
+  naiveTimeline: ReturnType<typeof capacityForWindowOf>;
+  resource: Resource;
+  off: AppData["timeOff"];
+  closures: AppData["closures"];
+}) {
+  expect(row.dayStates).toEqual(
+    naiveTimeline.map((c, index) => {
+      const date = requireValue(days[index], `timeline day ${index}`);
+      const creationBlocked = isCreationStartBlocked({
+        resource,
+        date,
+        timeOff: off,
+        accountWorkingDays: [1, 2, 3, 4, 5],
+        closures: closures,
+      });
+      const hasTimeOff = [...off, ...closures].some((entry) => entry.startDate <= date && entry.endDate >= date);
+      return {
+        over: c.over,
+        timeOffConflict: c.over && hasTimeOff,
+        unavailable: c.available === 0 || creationBlocked,
+        partialCapacity: c.available > 0 && !creationBlocked && resource.halfDays.includes(weekdayOf(date)),
+        creationBlocked,
+        hasTimeOff,
+      };
+    }),
+  );
+}
+
+function assertBucketComparisonSummary(rows: ReturnType<typeof buildSchedulerModel>[number]["rows"]) {
+  const r1 = requireValue(
+    rows.find((r) => r.resource.id === "r1"),
+    "r1 scheduler row",
+  );
+  expect(r1.dayStates.some((s) => s.over)).toBe(true);
+  expect(r1.dayStates.some((s) => s.unavailable)).toBe(true);
+  expect(r1.conflictDayCount).toBe(r1.dayStates.filter((s) => s.over || s.timeOffConflict).length);
+  expect(r1.partialCapacityDayCount).toBe(r1.dayStates.filter((s) => s.partialCapacity).length);
+}
+
+function alloc({ id, resourceId, startDate, endDate, hoursPerDay }: AllocationTestInput): Allocation {
+  return {
+    id,
+    accountId: "acct-test",
+    createdAt: "t",
+    updatedAt: "t",
+    resourceId,
+    activityId: "t1",
+    startDate,
+    endDate,
+    hoursPerDay,
+    status: "confirmed",
+  };
+}
+
+function withThirdResource(): AppData {
+  const data = dataset();
+  data.resources.push(
+    makeResource({
+      id: "r3",
+      accountId: "acct-test",
+      name: "QA Quinn",
+      role: "QA",
+      disciplineId: "d-dev",
+      workingHoursPerDay: 6,
+      color: "#6",
+    }),
+  );
+  data.allocations.push(
+    makeAllocation({
+      id: "a5",
+      accountId: "acct-test",
+      resourceId: "r3",
+      activityId: "t2",
+      startDate: "2026-06-01",
+      endDate: "2026-06-05",
+      hoursPerDay: 3,
+    }),
+  );
+  return data;
+}
+
+function buildCompanyClosureData(): AppData {
+  const d = withExternal();
+  d.resources.push(
+    makeResource({
+      id: "placeholder-1",
+      accountId: "acct-test",
+      kind: "placeholder",
+      name: "Design placeholder",
+      role: "Designer",
+      disciplineId: "d-design",
+    }),
+  );
+  d.allocations.push({
+    id: "ignored-r2-saturday",
+    accountId: "acct-test",
+    createdAt: "t",
+    updatedAt: "t",
+    resourceId: "r2",
+    activityId: "t2",
+    startDate: "2026-06-06",
+    endDate: "2026-06-06",
+    hoursPerDay: 4,
+    status: "confirmed",
+    ignoreWeekends: true,
+  });
+  d.closures.push(
+    {
+      id: "company-wednesday",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "Company shutdown",
+      startDate: "2026-06-03",
+      endDate: "2026-06-03",
+    },
+    {
+      id: "company-saturday",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "Weekend shutdown",
+      startDate: "2026-06-06",
+      endDate: "2026-06-06",
+    },
+  );
+  d.timeOff.push({
+    id: "personal-r1-wednesday",
+    accountId: "acct-test",
+    createdAt: "t",
+    updatedAt: "t",
+    resourceId: "r1",
+    startDate: "2026-06-03",
+    endDate: "2026-06-03",
+    type: "holiday",
+  });
+  return d;
+}
+
+function buildCompanyClosureModel(blocksMode = false) {
+  return buildSchedulerModel({
+    data: buildCompanyClosureData(),
+    geom,
+    days,
+    visibleWindow: { start, end },
+    overSoonWindow: { start, end },
+    filters: buildEmptyFilters(),
+    preferences: {
+      disciplinesEnabled: true,
+      placeholdersEnabled: true,
+      externalEnabled: true,
+      blocksMode,
+    },
+  });
+}
+
+function registerCompanyClosureTests() {
+  registerMovedSchedulerTests23811(buildCompanyClosureData, buildCompanyClosureModel);
+  registerMovedSchedulerTests23812(buildCompanyClosureModel);
+  registerMovedSchedulerTests23813(buildCompanyClosureModel);
+}
+
+function registerMutationTestingGapFillTests() {
   registerMovedSchedulerTests20101();
 
   registerMovedSchedulerTests20102();
@@ -3601,87 +3690,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
 
   registerMovedSchedulerTests201010();
 
-  describe("company closures", () => {
-    const companyData = (): AppData => {
-      const d = withExternal();
-      d.resources.push(
-        makeResource({
-          id: "placeholder-1",
-          accountId: "acct-test",
-          kind: "placeholder",
-          name: "Design placeholder",
-          role: "Designer",
-          disciplineId: "d-design",
-        }),
-      );
-      d.allocations.push({
-        id: "ignored-r2-saturday",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r2",
-        activityId: "t2",
-        startDate: "2026-06-06",
-        endDate: "2026-06-06",
-        hoursPerDay: 4,
-        status: "confirmed",
-        ignoreWeekends: true,
-      });
-      d.closures.push(
-        {
-          id: "company-wednesday",
-          accountId: "acct-test",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Company shutdown",
-          startDate: "2026-06-03",
-          endDate: "2026-06-03",
-        },
-        {
-          id: "company-saturday",
-          accountId: "acct-test",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Weekend shutdown",
-          startDate: "2026-06-06",
-          endDate: "2026-06-06",
-        },
-      );
-      d.timeOff.push({
-        id: "personal-r1-wednesday",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r1",
-        startDate: "2026-06-03",
-        endDate: "2026-06-03",
-        type: "holiday",
-      });
-      return d;
-    };
-
-    const buildCompany = (blocksMode = false) =>
-      buildSchedulerModel({
-        data: companyData(),
-        geom,
-        days,
-        visibleWindow: { start, end },
-        overSoonWindow: { start, end },
-        filters: buildEmptyFilters(),
-        preferences: {
-          disciplinesEnabled: true,
-          placeholdersEnabled: true,
-          externalEnabled: true,
-          blocksMode,
-        },
-      });
-
-    registerMovedSchedulerTests23811(companyData, buildCompany);
-
-    registerMovedSchedulerTests23812(buildCompany);
-
-    registerMovedSchedulerTests23813(buildCompany);
-  });
+  describe("company closures", registerCompanyClosureTests);
 
   registerMovedSchedulerTests201011();
 
@@ -3740,4 +3749,6 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
     assertBucketComparisonResource,
     assertBucketComparisonSummary,
   });
-});
+}
+
+describe("buildSchedulerModel — mutation-testing gap-fill", registerMutationTestingGapFillTests);
