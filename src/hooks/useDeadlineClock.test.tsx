@@ -48,6 +48,27 @@ it("reads deadline-clock dependencies from the named input", () => {
   expect(pickNextDeadline).toHaveBeenCalledWith(START);
 });
 
+it("uses the injected clock to arm, wake past, and re-arm deadlines", () => {
+  const initial = START + 1_000_000;
+  const first = initial + 60_000;
+  const second = first + 60_000;
+  let now = initial;
+  const readNow = () => now;
+  const pickNextDeadline = nextOf(first, second);
+
+  expect(Date.now()).toBe(START);
+  const { result } = renderHook(() => useDeadlineClock({ pickNextDeadline, readNow }));
+  expect(result.current).toBe(initial);
+
+  now = first + 1;
+  act(() => void vi.advanceTimersByTime(60_001));
+  expect(result.current).toBe(first + 1);
+
+  now = second + 1;
+  act(() => void vi.advanceTimersByTime(60_000));
+  expect(result.current).toBe(second + 1);
+});
+
 describe("useDeadlineClock", () => {
   it("starts at the current time", () => {
     const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(START + 60_000))));
