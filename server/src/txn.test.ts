@@ -106,8 +106,7 @@ describe("synchronous transaction boundary", () => {
         () => {
           throw original;
         },
-        "deferred",
-        report,
+        { reportRollbackFailure: report },
       ),
     ).toThrow(original);
     expect(report).toHaveBeenCalledWith({ scope: "transaction", error: rollback });
@@ -130,9 +129,10 @@ describe("synchronous transaction boundary", () => {
         () => {
           throw original;
         },
-        "deferred",
-        () => {
-          throw new Error("reporter failed");
+        {
+          reportRollbackFailure: () => {
+            throw new Error("reporter failed");
+          },
         },
       ),
     ).toThrow(original);
