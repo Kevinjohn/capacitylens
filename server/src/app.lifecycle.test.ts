@@ -1449,6 +1449,29 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
   });
 });
 
+const offAppWith = (data: Partial<Record<string, unknown[]>>): { app: FastifyInstance; db: Db } => {
+  const db = openDb(":memory:");
+  const app = createApp(db, { optimisticConcurrency: false });
+  insertAll(db, { ...emptyAppData(), ...data } as unknown as AppData);
+  return { app, db };
+};
+
+interface RowByIdInput {
+  app: FastifyInstance;
+  entity: "resources" | "clients";
+  accountId: string;
+  id: string;
+}
+
+const rowById = async ({ app, entity, accountId, id }: RowByIdInput) => {
+  const res = await readInactive(app, accountId); // includeInactive so a (wrongly) tombstoned row still shows
+  expect(res.statusCode).toBe(200);
+  const body = readResponseBodyRecord(res);
+  const rows = body[entity];
+  if (!Array.isArray(rows)) throw new Error(`Expected lifecycle state ${entity} rows.`);
+  return rows.find((row): row is Record<string, unknown> => isUnknownRecord(row) && row.id === id);
+};
+
 describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   // Two integrity guards keeping the GENERIC write path (POST/PUT/PATCH/batch) from bypassing the
   // dedicated lifecycle routes: (1) sanitizeWrite PINS archivedAt/deletedAt to the stored row, so a
@@ -1458,29 +1481,6 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
   // row — there is no un-delete route anywhere), and (2) validateWrite refuses to convert the built-in
   // Internal client back to a regular one. OFF mode is used (authorize is a no-op there), so these prove
   // the SANITIZE/VALIDATE layer itself, independent of the auth gate.
-
-  const offAppWith = (data: Partial<Record<string, unknown[]>>): { app: FastifyInstance; db: Db } => {
-    const db = openDb(":memory:");
-    const app = createApp(db, { optimisticConcurrency: false });
-    insertAll(db, { ...emptyAppData(), ...data } as unknown as AppData);
-    return { app, db };
-  };
-
-  interface RowByIdInput {
-    app: FastifyInstance;
-    entity: "resources" | "clients";
-    accountId: string;
-    id: string;
-  }
-
-  const rowById = async ({ app, entity, accountId, id }: RowByIdInput) => {
-    const res = await readInactive(app, accountId); // includeInactive so a (wrongly) tombstoned row still shows
-    expect(res.statusCode).toBe(200);
-    const body = readResponseBodyRecord(res);
-    const rows = body[entity];
-    if (!Array.isArray(rows)) throw new Error(`Expected lifecycle state ${entity} rows.`);
-    return rows.find((row): row is Record<string, unknown> => isUnknownRecord(row) && row.id === id);
-  };
 
   it("PATCH cannot set deletedAt/archivedAt on a resource (stripped; row stays active)", async () => {
     const { app } = offAppWith({
@@ -1506,6 +1506,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     });
     expect(readEntityIds(readResponseBodyRecord(active), "resources")).toContain("r1");
   });
+});
+
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("PUT cannot set deletedAt on a client (stripped)", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],
@@ -1519,6 +1522,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(res.statusCode).toBe(200);
     expect((await rowById({ app, entity: "clients", accountId: "a1", id: "c1" }))?.deletedAt).toBeUndefined();
   });
+});
+
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("PATCH {builtin:false} on the Internal client → 400 (cannot un-flag the singleton)", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],
@@ -1544,6 +1550,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
   // The OTHER direction of the pin (regression: the strip used to be blind, so an unrelated edit on a
   // tombstoned row NULLed the tombstone and resurrected the row). archive/delete set the tombstone via
   // the dedicated route; a subsequent generic edit must leave it intact.
+});
+
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("PATCH of an unrelated field on an ARCHIVED resource preserves the tombstone (no resurrection)", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],
@@ -1570,6 +1579,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     });
     expect(readEntityIds(readResponseBodyRecord(active), "resources")).not.toContain("r1");
   });
+});
+
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("rejects a generic PATCH of a soft-deleted client", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],
@@ -1602,6 +1614,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     });
     expect(readEntityIds(readResponseBodyRecord(active), "clients")).not.toContain("c1");
   });
+});
+
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("rejects replacing the generated Internal client with a soft-deleted legacy row", async () => {
     const legacy = client("legacy-internal", "a1");
     const { app } = offAppWith({
@@ -1629,6 +1644,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(retainedLegacy?.builtin).toBeUndefined();
     expect(typeof retainedLegacy?.deletedAt).toBe("string");
   });
+});
+
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("atomically rejects a batch replacement built from an archived legacy row", async () => {
     const legacy = client("legacy-internal", "a1");
     const ordinary = client("ordinary", "a1");
@@ -1669,6 +1687,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(typeof retainedLegacy?.archivedAt).toBe("string");
     expect((await rowById({ app, entity: "clients", accountId: "a1", id: ordinary.id }))?.name).toBe(ordinary.name);
   });
+});
+
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("rejects direct descendant writes beneath archived or transitively deleted ancestors", async () => {
     const { app, db } = offAppWith({
       accounts: [account("a1")],
@@ -1710,6 +1731,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       role: "Designer",
     });
   });
+});
+
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("atomically rejects batch updates beneath an archived ancestor", async () => {
     const { app, db } = offAppWith({
       accounts: [account("a1")],
@@ -1749,6 +1773,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(db.prepare(`SELECT name FROM phases WHERE id = 'ph1'`).get()).toEqual({ name: "Phase 1" });
     expect(db.prepare(`SELECT id FROM activities WHERE id = 'act-batch'`).get()).toBeUndefined();
   });
+});
+
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("PUT and batch-PUT with a body that OMITS the tombstone do not clear an existing one", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],
