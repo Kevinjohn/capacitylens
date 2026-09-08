@@ -7,6 +7,14 @@ import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
 import { parseStrictIsoInstant } from "../isoInstant";
 import type { AccountRouteContext } from "../createReplyHelpers";
 
+function createAuthenticationRequiredError() {
+  return new AccountContractError({
+    code: "AUTHENTICATION_REQUIRED",
+    message: "Sign in to continue.",
+    retryable: false,
+  });
+}
+
 export async function createInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     authMode,
@@ -132,6 +140,8 @@ export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply,
   } = context;
 
   const { token } = req.params as { token: string };
+  const { accountActor: actor, user } = req;
+  if (!actor || !user) return accountFail(reply, createAuthenticationRequiredError());
   try {
     if (
       authMode === "sso" &&
@@ -150,17 +160,17 @@ export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply,
       authMode === "off"
         ? await accountAdminPort.claimInvitationForPrincipal({
             token,
-            principalId: req.accountActor!.principalId,
-            principalEmail: req.user!.email,
+            principalId: actor.principalId,
+            principalEmail: user.email,
             emailVerified: true,
             passwordMode: false,
             command: accountCommand(req),
           })
         : await accountAdminPort.acceptInvitation({
-            actor: req.accountActor!,
+            actor,
             token,
-            principalEmail: req.user!.email,
-            emailVerified: req.user!.emailVerified,
+            principalEmail: user.email,
+            emailVerified: user.emailVerified,
             command: accountCommand(req),
           });
     const now = new Date().toISOString();
@@ -169,11 +179,11 @@ export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply,
       result: accepted,
       record: {
         ts: now,
-        userId: req.user!.id,
+        userId: user.id,
         accountId: accepted.workspaceId,
         action: "inviteAccept",
         entity: "membership",
-        id: req.user!.id,
+        id: user.id,
         changedFields: ["role"],
       },
     });
