@@ -365,7 +365,7 @@ it("guards navigation while a persistence write is still unacknowledged", () => 
   detachPersistence();
 });
 
-function registerAppShellNavigationLinksTest1(): void {
+function registerSkipLinkLayerTest(): void {
   it("places the focused skip link on its dedicated accessibility layer", () => {
     renderAppShell();
 
@@ -373,7 +373,7 @@ function registerAppShellNavigationLinksTest1(): void {
   });
 }
 
-function registerAppShellNavigationLinksTest2(): void {
+function registerTrailingSlashTitleTest(): void {
   it("keeps a descriptive title on an accepted trailing-slash route", async () => {
     renderAppShell(["/resources/"]);
 
@@ -381,7 +381,7 @@ function registerAppShellNavigationLinksTest2(): void {
   });
 }
 
-function registerAppShellNavigationLinksTest3(): void {
+function registerLocaleChangeNavigationTest(): void {
   it("resolves navigation labels again after the account locale changes", async () => {
     let secondLocale = false;
     vi.spyOn(m, "nav_resources").mockImplementation(
@@ -402,7 +402,7 @@ function registerAppShellNavigationLinksTest3(): void {
   });
 }
 
-function registerAppShellNavigationLinksTest4(): void {
+function registerLoadingAccountLocaleTest(): void {
   it("preserves the last locale while a selected company's slice is still loading", async () => {
     const currentAccount = makeAccount({ language: "en" });
     const destinationAccount = makeAccount({ id: "acct-other", name: "Other Co" });
@@ -426,7 +426,7 @@ function registerAppShellNavigationLinksTest4(): void {
   });
 }
 
-function registerAppShellNavigationLinksTest5(): void {
+function registerOfflineSnapshotLabelTest(): void {
   it("labels a cached snapshot as Offline and view only instead of Demo access", () => {
     setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
     renderAppShell();
@@ -437,7 +437,7 @@ function registerAppShellNavigationLinksTest5(): void {
   });
 }
 
-function registerAppShellNavigationLinksTest6(): void {
+function registerExpectedNavigationLinksTest(): void {
   it("renders all expected nav links", () => {
     renderAppShell();
 
@@ -453,14 +453,14 @@ function registerAppShellNavigationLinksTest6(): void {
   });
 }
 
-function registerAppShellNavigationLinksTest7(): void {
+function registerNavigationBrandNameTest(): void {
   it("renders the CapacityLens brand name in the nav", () => {
     renderAppShell();
     expect(screen.getByText("CapacityLens")).toBeInTheDocument();
   });
 }
 
-function registerAppShellNavigationLinksTest8(): void {
+function registerImportExportAbsenceTest(): void {
   it("does NOT render the import/export tools in the sidebar", () => {
     renderAppShell();
 
@@ -470,7 +470,7 @@ function registerAppShellNavigationLinksTest8(): void {
   });
 }
 
-function registerAppShellNavigationLinksTest9(): void {
+function registerSidebarSignOutTest(): void {
   it("offers an avatar'd sign-out below Switch company", () => {
     renderAppShell();
 
@@ -485,7 +485,7 @@ function registerAppShellNavigationLinksTest9(): void {
   });
 }
 
-function registerAppShellNavigationLinksTest10(): void {
+function registerPinnedNavigationOrderTest(): void {
   it("pins Team & access and Settings, in that order, after every other destination", () => {
     renderAppShell();
 
@@ -507,7 +507,7 @@ function registerAppShellNavigationLinksTest10(): void {
   });
 }
 
-function registerAppShellNavigationLinksTest11(): void {
+function registerNavigationRoutesTest(): void {
   it("nav links point to correct routes", () => {
     renderAppShell();
 
@@ -523,7 +523,7 @@ function registerAppShellNavigationLinksTest11(): void {
   });
 }
 
-function registerAppShellSidebarCollapseTest1(): void {
+function registerDefaultSidebarStateTest(): void {
   it("defaults open (jsdom has no matchMedia → large-screen default): links + collapse toggle", () => {
     renderAppShell();
 
@@ -533,7 +533,7 @@ function registerAppShellSidebarCollapseTest1(): void {
   });
 }
 
-function registerAppShellSidebarCollapseTest2(): void {
+function registerMobileSidebarTriggerTest(): void {
   it("reports the mobile sheet state and next action from the top-bar trigger", () => {
     vi.stubGlobal(
       "matchMedia",
@@ -564,7 +564,7 @@ function registerAppShellSidebarCollapseTest2(): void {
   });
 }
 
-function registerAppShellSidebarCollapseTest3(): void {
+function registerPersistedSidebarCollapseTest(): void {
   it("collapsing keeps the navigation links usable and persists the choice", () => {
     renderAppShell();
 
@@ -583,7 +583,7 @@ function registerAppShellSidebarCollapseTest3(): void {
   });
 }
 
-function registerAppShellSidebarCollapseTest4(): void {
+function registerCollapsedNavigationLinksTest(): void {
   it("collapsed destinations remain real links instead of reopening the menu", () => {
     renderAppShell();
     act(() => {
@@ -596,7 +596,7 @@ function registerAppShellSidebarCollapseTest4(): void {
   });
 }
 
-function registerAppShellSidebarCollapseTest5(): void {
+function registerNavigationLinkIconsTest(): void {
   it("nav links carry icons without changing their accessible names", () => {
     renderAppShell();
     const link = screen.getByRole("link", { name: "Projects" });
@@ -605,7 +605,7 @@ function registerAppShellSidebarCollapseTest5(): void {
   });
 }
 
-function registerAppShellSidebarCollapseTest6(): void {
+function registerSidebarKeyboardShortcutTest(): void {
   it("toggles with Cmd/Ctrl+B and prevents the browser shortcut outside guarded contexts", () => {
     renderAppShell();
     const event = new KeyboardEvent("keydown", { key: "b", metaKey: true, bubbles: true, cancelable: true });
@@ -619,7 +619,7 @@ function registerAppShellSidebarCollapseTest6(): void {
   });
 }
 
-function registerAppShellSidebarCollapseTest7(): void {
+function registerEditableControlShortcutTest(): void {
   it.each([
     ["input", "input"],
     ["textarea", "textarea"],
@@ -645,7 +645,7 @@ function registerAppShellSidebarCollapseTest7(): void {
   });
 }
 
-function registerAppShellSidebarCollapseTest8(): void {
+function registerComposingShortcutTest(): void {
   it("ignores Cmd/Ctrl+B during IME composition", () => {
     renderAppShell();
     const event = new KeyboardEvent("keydown", {
@@ -665,7 +665,7 @@ function registerAppShellSidebarCollapseTest8(): void {
   });
 }
 
-function registerAppShellSidebarCollapseTest9(): void {
+function registerModalShortcutTest(): void {
   it("ignores Cmd/Ctrl+B while a modal is open", () => {
     renderAppShell();
     const modal = document.createElement("div");
@@ -688,7 +688,7 @@ function registerAppShellSidebarCollapseTest9(): void {
   });
 }
 
-function registerAppShellCommandPaletteDirtyFormGuardTest1(): void {
+function registerDirtyFormPaletteGuardTest(): void {
   it("Ctrl+K with dirtyForm=true shows the unsaved-changes notice and does NOT open the palette", async () => {
     useStore.getState().setHydrated(true);
     renderAppShell();
@@ -710,7 +710,7 @@ function registerAppShellCommandPaletteDirtyFormGuardTest1(): void {
   });
 }
 
-function registerAppShellCommandPaletteDirtyFormGuardTest2(): void {
+function registerCleanFormPaletteShortcutTest(): void {
   it("Ctrl+K with dirtyForm=false opens the palette", () => {
     useStore.getState().setHydrated(true);
     renderAppShell();
@@ -726,7 +726,7 @@ function registerAppShellCommandPaletteDirtyFormGuardTest2(): void {
   });
 }
 
-function registerAppShellCommandPaletteDirtyFormGuardTest3(): void {
+function registerModalPaletteShortcutTest(): void {
   it("leaves Cmd/Ctrl+K to an existing modal", () => {
     renderAppShell();
     const modal = document.createElement("div");
@@ -747,7 +747,7 @@ function registerAppShellCommandPaletteDirtyFormGuardTest3(): void {
   });
 }
 
-function registerAppShellCommandPaletteDirtyFormGuardTest4(): void {
+function registerComposingPaletteShortcutTest(): void {
   it("ignores Cmd/Ctrl+K during IME composition", () => {
     renderAppShell();
     const event = new KeyboardEvent("keydown", { key: "k", metaKey: true, isComposing: true, cancelable: true });
@@ -759,7 +759,7 @@ function registerAppShellCommandPaletteDirtyFormGuardTest4(): void {
   });
 }
 
-function registerAppShellCommandPaletteDirtyFormGuardTest5(): void {
+function registerRepeatedPaletteShortcutTest(): void {
   it("keeps the palette open when the Ctrl+K keydown repeats", () => {
     renderAppShell();
 
@@ -772,7 +772,7 @@ function registerAppShellCommandPaletteDirtyFormGuardTest5(): void {
   });
 }
 
-function registerAppShellCommandPaletteDirtyFormGuardTest6(): void {
+function registerPaletteToggleShortcutTest(): void {
   it("closes the open palette with a second Ctrl+K", () => {
     renderAppShell();
 
@@ -788,7 +788,7 @@ function registerAppShellCommandPaletteDirtyFormGuardTest6(): void {
   });
 }
 
-function registerAppShellCommandPaletteDirtyFormGuardTest7(): void {
+function registerLaterModalPaletteShortcutTest(): void {
   it("leaves Ctrl+K to a later modal even while the palette is open", () => {
     renderAppShell();
     act(() => {
@@ -814,7 +814,7 @@ function registerAppShellCommandPaletteDirtyFormGuardTest7(): void {
   });
 }
 
-function registerAppShellTransientNoticeTest1(): void {
+function registerInfoNoticeDismissalTest(): void {
   it("renders a Sonner toast for an info store notice and clears it on dismiss", async () => {
     renderAppShell();
     expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument();
@@ -838,7 +838,7 @@ function registerAppShellTransientNoticeTest1(): void {
   });
 }
 
-function registerAppShellTransientNoticeTest2(): void {
+function registerPersistentErrorNoticeTest(): void {
   it("keeps an ERROR notice on screen past the 4s info window (no auto-dismiss), unlike info", async () => {
     // Drive Sonner's auto-close timer with FAKE timers so we can genuinely advance past the
     // 4000ms info window deterministically (a real 4s wait is too slow + flaky). `findBy*`
@@ -896,7 +896,7 @@ function registerAppShellTransientNoticeTest2(): void {
   });
 }
 
-function registerAppShellTransientNoticeTest3(): void {
+function registerPersistentWarningNoticeTest(): void {
   it("keeps a WARNING notice on screen past the 4s info window, on the NEUTRAL surface (WCAG 2.2.1)", async () => {
     // The 'warning' tone (e.g. the clamped-hours/data-truncation advisory) must inherit the
     // persistent (duration: Infinity) treatment like an error — a fixed 4s timer on the sole signal
@@ -939,7 +939,7 @@ function registerAppShellTransientNoticeTest3(): void {
   });
 }
 
-function registerAppShellTransientNoticeTest4(): void {
+function registerNoticeReplacementRaceTest(): void {
   it("rapidly replacing notice A with B leaves B intact (no stale-clear race)", async () => {
     // REGRESSION for the Phase-5 stale-clear race: rapidly swapping notice A→B (e.g. two drags
     // in quick succession) must NOT let A's deferred programmatic dismiss wipe B. When the bridge
@@ -995,17 +995,17 @@ function registerAppShellTransientNoticeTest4(): void {
 }
 
 describe("AppShell navigation links", () => {
-  registerAppShellNavigationLinksTest1();
-  registerAppShellNavigationLinksTest2();
-  registerAppShellNavigationLinksTest3();
-  registerAppShellNavigationLinksTest4();
-  registerAppShellNavigationLinksTest5();
-  registerAppShellNavigationLinksTest6();
-  registerAppShellNavigationLinksTest7();
-  registerAppShellNavigationLinksTest8();
-  registerAppShellNavigationLinksTest9();
-  registerAppShellNavigationLinksTest10();
-  registerAppShellNavigationLinksTest11();
+  registerSkipLinkLayerTest();
+  registerTrailingSlashTitleTest();
+  registerLocaleChangeNavigationTest();
+  registerLoadingAccountLocaleTest();
+  registerOfflineSnapshotLabelTest();
+  registerExpectedNavigationLinksTest();
+  registerNavigationBrandNameTest();
+  registerImportExportAbsenceTest();
+  registerSidebarSignOutTest();
+  registerPinnedNavigationOrderTest();
+  registerNavigationRoutesTest();
 });
 
 describe("AppShell sidebar collapse", () => {
@@ -1017,15 +1017,15 @@ describe("AppShell sidebar collapse", () => {
     localStorage.removeItem("capacitylens/sidebar");
   });
 
-  registerAppShellSidebarCollapseTest1();
-  registerAppShellSidebarCollapseTest2();
-  registerAppShellSidebarCollapseTest3();
-  registerAppShellSidebarCollapseTest4();
-  registerAppShellSidebarCollapseTest5();
-  registerAppShellSidebarCollapseTest6();
-  registerAppShellSidebarCollapseTest7();
-  registerAppShellSidebarCollapseTest8();
-  registerAppShellSidebarCollapseTest9();
+  registerDefaultSidebarStateTest();
+  registerMobileSidebarTriggerTest();
+  registerPersistedSidebarCollapseTest();
+  registerCollapsedNavigationLinksTest();
+  registerNavigationLinkIconsTest();
+  registerSidebarKeyboardShortcutTest();
+  registerEditableControlShortcutTest();
+  registerComposingShortcutTest();
+  registerModalShortcutTest();
 });
 
 describe("AppShell hydration gate", () => {
@@ -1141,13 +1141,13 @@ describe("AppShell undo/redo keyboard", () => {
 });
 
 describe("AppShell command palette dirty-form guard", () => {
-  registerAppShellCommandPaletteDirtyFormGuardTest1();
-  registerAppShellCommandPaletteDirtyFormGuardTest2();
-  registerAppShellCommandPaletteDirtyFormGuardTest3();
-  registerAppShellCommandPaletteDirtyFormGuardTest4();
-  registerAppShellCommandPaletteDirtyFormGuardTest5();
-  registerAppShellCommandPaletteDirtyFormGuardTest6();
-  registerAppShellCommandPaletteDirtyFormGuardTest7();
+  registerDirtyFormPaletteGuardTest();
+  registerCleanFormPaletteShortcutTest();
+  registerModalPaletteShortcutTest();
+  registerComposingPaletteShortcutTest();
+  registerRepeatedPaletteShortcutTest();
+  registerPaletteToggleShortcutTest();
+  registerLaterModalPaletteShortcutTest();
 });
 
 describe("AppShell transient notice", () => {
@@ -1158,10 +1158,10 @@ describe("AppShell transient notice", () => {
   // toast" button — so these assertions match Sonner's DOM, while the behavioural intent
   // (info appears + auto-dismisses, error persists + is dismissible, store stays in sync)
   // is preserved.
-  registerAppShellTransientNoticeTest1();
-  registerAppShellTransientNoticeTest2();
-  registerAppShellTransientNoticeTest3();
-  registerAppShellTransientNoticeTest4();
+  registerInfoNoticeDismissalTest();
+  registerPersistentErrorNoticeTest();
+  registerPersistentWarningNoticeTest();
+  registerNoticeReplacementRaceTest();
 });
 
 describe("AppShell fake sign-in gate (cosmetic demo)", () => {
