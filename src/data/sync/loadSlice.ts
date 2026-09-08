@@ -66,6 +66,9 @@ function parseLoadedState(json: unknown, accountId: string | undefined): LoadedS
 }
 
 async function applyLiveLoadEffects({ state, saveAll, loaded, myGen, accountId }: LiveLoadEffects): Promise<void> {
+  // Keep the generation guard first, then seed the repairBase snapshot and await its durable repair
+  // before exposing the load as online. Cache only a complete scoped payload after that sequence;
+  // otherwise a superseded or desynchronised load could publish cross-account state.
   if (myGen !== state.loadGen) return;
   seedSnapshot(state, loaded.repairBase, accountId);
   if (diffOps(loaded.repairBase, loaded.data).length > 0) await saveAll(loaded.data);
