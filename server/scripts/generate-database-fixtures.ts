@@ -9,7 +9,7 @@ type FixtureTarget = {
   target: string;
 };
 
-function openFixtureDatabase(target: string, targetVersion: number): ReturnType<typeof openDb> {
+function createFixtureDatabase(target: string, targetVersion: number): ReturnType<typeof openDb> {
   if (targetVersion === DB_SCHEMA_VERSION) return openDb(target);
 
   const connection = openDbConnection(target);
@@ -26,7 +26,7 @@ function openFixtureDatabase(target: string, targetVersion: number): ReturnType<
   return connection;
 }
 
-async function addPasswordAuthSchema(db: ReturnType<typeof openDb>): Promise<void> {
+async function ensurePasswordAuthSchema(db: ReturnType<typeof openDb>): Promise<void> {
   // Keep the deterministic fixture credential obvious at runtime without storing a
   // credential-shaped assignment in source; full-history scanning correctly treats a
   // literal bound to this configuration key as suspicious.
@@ -42,7 +42,7 @@ async function addPasswordAuthSchema(db: ReturnType<typeof openDb>): Promise<voi
   assertFederatedIdentitySchemaCurrent(db);
 }
 
-function checkFixture(db: ReturnType<typeof openDb>, mode: FixtureTarget["mode"]): void {
+function assertFixtureIntegrity(db: ReturnType<typeof openDb>, mode: FixtureTarget["mode"]): void {
   const quickCheck = db.prepare(`PRAGMA quick_check`).all() as Array<{ quick_check: string }>;
   if (quickCheck.length !== 1 || quickCheck[0]?.quick_check !== "ok") {
     throw new Error(`${mode} fixture failed quick_check: ${JSON.stringify(quickCheck)}`);
@@ -51,19 +51,19 @@ function checkFixture(db: ReturnType<typeof openDb>, mode: FixtureTarget["mode"]
   if (foreignKeys.length > 0) throw new Error(`${mode} fixture failed foreign_key_check.`);
 }
 
-async function generateFixture({ mode, source, target }: FixtureTarget, targetVersion: number): Promise<void> {
+async function createDatabaseFixture({ mode, source, target }: FixtureTarget, targetVersion: number): Promise<void> {
   copyFileSync(source, target);
-  const db = openFixtureDatabase(target, targetVersion);
+  const db = createFixtureDatabase(target, targetVersion);
   try {
-    if (mode === "password") await addPasswordAuthSchema(db);
-    checkFixture(db, mode);
+    if (mode === "password") await ensurePasswordAuthSchema(db);
+    assertFixtureIntegrity(db, mode);
     db.exec(`PRAGMA journal_mode = DELETE; VACUUM;`);
   } finally {
     db.close();
   }
 }
 
-async function main(): Promise<void> {
+async function createDatabaseFixtures(): Promise<void> {
   const [sourceValue, targetValue] = process.argv.slice(2);
   const sourceVersion = Number(sourceValue);
   const targetVersion = Number(targetValue);
@@ -91,7 +91,7 @@ async function main(): Promise<void> {
     if (existsSync(target)) throw new Error(`Refusing to overwrite committed fixture: ${target}`);
   }
 
-  for (const target of targets) await generateFixture(target, targetVersion);
+  for (const target of targets) await createDatabaseFixture(target, targetVersion);
 }
 
-await main();
+await createDatabaseFixtures();
