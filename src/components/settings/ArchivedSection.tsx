@@ -62,8 +62,7 @@ const TYPE_LABEL: Record<LifecycleEntity, () => string> = {
 };
 type Confirmation = { kind: "delete" | "purge"; row: Row };
 type LifecycleActions = ReturnType<typeof useLifecycleActions>;
-interface ArchivedRowActionsProps {
-  row: Row;
+interface ArchivedActionContext {
   mayPurge: boolean;
   lifecycleBusy: boolean;
   actions: LifecycleActions;
@@ -71,14 +70,15 @@ interface ArchivedRowActionsProps {
   locked(): boolean;
   setConfirming(value: Confirmation | null): void;
 }
+interface ArchivedRowActionsProps {
+  row: Row;
+  context: ArchivedActionContext;
+}
 interface DeletedRowActionsProps {
   row: Row;
-  mayPurge: boolean;
-  lifecycleBusy: boolean;
+  context: ArchivedActionContext;
   purgeClock: number;
   hintBaseId: string;
-  locked(): boolean;
-  setConfirming(value: Confirmation | null): void;
 }
 interface LifecycleConfirmationProps {
   confirming: Confirmation;
@@ -93,23 +93,6 @@ interface ArchivedRowsDataProps {
   localData: AppData;
   setNotice(message: string, kind: "error"): void;
 }
-function resolveRenderedRows({
-  server,
-  serverRows,
-  activeAccountId,
-  reloadKey,
-  localData,
-}: {
-  server: boolean;
-  serverRows: { accountId: string; reloadKey: number; rows: Row[] } | null;
-  activeAccountId: string | null;
-  reloadKey: number;
-  localData: AppData;
-}): Row[] {
-  if (!server) return listInactiveRows(localData);
-  if (serverRows?.accountId !== activeAccountId || serverRows.reloadKey !== reloadKey) return [];
-  return serverRows.rows;
-}
 function partitionRows(rows: Row[]): { archived: Row[]; deleted: Row[] } {
   const archived: Row[] = [];
   const deleted: Row[] = [];
@@ -120,36 +103,28 @@ function partitionRows(rows: Row[]): { archived: Row[]; deleted: Row[] } {
   }
   return { archived, deleted };
 }
-function ArchivedRowActions({
-  row,
-  mayPurge,
-  lifecycleBusy,
-  actions,
-  runLifecycle,
-  locked,
-  setConfirming,
-}: ArchivedRowActionsProps) {
+function ArchivedRowActions({ row, context }: ArchivedRowActionsProps) {
   return (
     <ItemActions>
       <Button
         size="sm"
         variant="outline"
         data-testid="archived-restore"
-        disabled={lifecycleBusy}
+        disabled={context.lifecycleBusy}
         aria-label={m.settings_archived_restore_aria({ name: row.name })}
-        onClick={() => runLifecycle(() => actions.unarchive(row.entity, row.id))}
+        onClick={() => context.runLifecycle(() => context.actions.unarchive(row.entity, row.id))}
       >
         {m.settings_archived_restore()}
       </Button>
-      {mayPurge && (
+      {context.mayPurge && (
         <Button
           size="sm"
           variant="danger-soft"
           data-testid="archived-delete"
-          disabled={lifecycleBusy}
+          disabled={context.lifecycleBusy}
           aria-label={m.settings_archived_delete_aria({ name: row.name })}
           onClick={() => {
-            if (!locked()) setConfirming({ kind: "delete", row: row });
+            if (!context.locked()) context.setConfirming({ kind: "delete", row: row });
           }}
         >
           {m.settings_archived_delete()}
@@ -158,16 +133,8 @@ function ArchivedRowActions({
     </ItemActions>
   );
 }
-function DeletedRowActions({
-  row,
-  mayPurge,
-  lifecycleBusy,
-  purgeClock,
-  hintBaseId,
-  locked,
-  setConfirming,
-}: DeletedRowActionsProps) {
-  if (!mayPurge) return null;
+function DeletedRowActions({ row, context, purgeClock, hintBaseId }: DeletedRowActionsProps) {
+  if (!context.mayPurge) return null;
   const purgeable = canPurge(row.raw, new Date(purgeClock).toISOString());
   const hintId = `${hintBaseId}-${row.entity}-${row.id}`;
   return (
@@ -181,11 +148,11 @@ function DeletedRowActions({
         size="sm"
         variant="danger-soft"
         data-testid="archived-purge"
-        disabled={lifecycleBusy || !purgeable}
+        disabled={context.lifecycleBusy || !purgeable}
         aria-label={m.settings_archived_purge_aria({ name: row.name })}
         aria-describedby={!purgeable ? hintId : undefined}
         onClick={() => {
-          if (!locked()) setConfirming({ kind: "purge", row: row });
+          if (!context.locked()) context.setConfirming({ kind: "purge", row: row });
         }}
       >
         {m.settings_archived_purge()}
@@ -288,38 +255,22 @@ function useArchivedRowsData({ server, mayPurge, activeAccountId, localData, set
       controller.abort();
     };
   }, [server, mayPurge, activeAccountId, reloadKey, setNotice]);
-  const rows = useMemo(
-    () => resolveRenderedRows({ server, serverRows, activeAccountId, reloadKey, localData }),
-    [server, serverRows, activeAccountId, reloadKey, localData],
-  );
+  const rows = useMemo(() => {
+    if (!server) return listInactiveRows(localData);
+    if (serverRows?.accountId !== activeAccountId || serverRows.reloadKey !== reloadKey) return [];
+    return serverRows.rows;
+  }, [server, serverRows, activeAccountId, reloadKey, localData]);
   return { gate, reload, rows };
 }
 interface ArchivedGroupsProps {
   rows: Row[];
   archived: Row[];
   deleted: Row[];
-  mayPurge: boolean;
-  lifecycleBusy: boolean;
-  actions: LifecycleActions;
-  runLifecycle(action: () => Promise<void>): void;
-  locked(): boolean;
-  setConfirming(value: Confirmation | null): void;
+  context: ArchivedActionContext;
   purgeClock: number;
   hintBaseId: string;
 }
-function ArchivedGroups({
-  rows,
-  archived,
-  deleted,
-  mayPurge,
-  lifecycleBusy,
-  actions,
-  runLifecycle,
-  locked,
-  setConfirming,
-  purgeClock,
-  hintBaseId,
-}: ArchivedGroupsProps) {
+function ArchivedGroups({ rows, archived, deleted, context, purgeClock, hintBaseId }: ArchivedGroupsProps) {
   return (
     <>
       {rows.length === 0 && <p className="py-2 text-sm text-muted-foreground">{m.settings_archived_empty()}</p>}
@@ -327,32 +278,14 @@ function ArchivedGroups({
         heading={m.settings_archived_group_archived()}
         rows={archived}
         rowTestId="archived-row"
-        rowActions={(row) => (
-          <ArchivedRowActions
-            row={row}
-            mayPurge={mayPurge}
-            lifecycleBusy={lifecycleBusy}
-            actions={actions}
-            runLifecycle={runLifecycle}
-            locked={locked}
-            setConfirming={setConfirming}
-          />
-        )}
+        rowActions={(row) => <ArchivedRowActions row={row} context={context} />}
       />
       <LifecycleGroup
         heading={m.settings_archived_group_deleted()}
         rows={deleted}
         rowTestId="deleted-row"
         rowActions={(row) => (
-          <DeletedRowActions
-            row={row}
-            mayPurge={mayPurge}
-            lifecycleBusy={lifecycleBusy}
-            purgeClock={purgeClock}
-            hintBaseId={hintBaseId}
-            locked={locked}
-            setConfirming={setConfirming}
-          />
+          <DeletedRowActions row={row} context={context} purgeClock={purgeClock} hintBaseId={hintBaseId} />
         )}
       />
     </>
@@ -379,6 +312,7 @@ export function ArchivedSection({ collapsible = false, defaultOpen = true }: Arc
     (action: () => Promise<void>) => run(action, (error: unknown) => setNotice(resolveErrorMessage(error), "error")),
     [run, setNotice],
   );
+  const actionContext = { mayPurge, lifecycleBusy, actions, runLifecycle, locked, setConfirming };
   const { archived, deleted } = partitionRows(rows);
   const purgeClock = useDeadlineClock({
     pickNextDeadline: (clock) => pickNextPurgeDeadline(deleted, clock),
@@ -400,12 +334,7 @@ export function ArchivedSection({ collapsible = false, defaultOpen = true }: Arc
           rows={rows}
           archived={archived}
           deleted={deleted}
-          mayPurge={mayPurge}
-          lifecycleBusy={lifecycleBusy}
-          actions={actions}
-          runLifecycle={runLifecycle}
-          locked={locked}
-          setConfirming={setConfirming}
+          context={actionContext}
           purgeClock={purgeClock}
           hintBaseId={hintBaseId}
         />
