@@ -1,12 +1,15 @@
-import type { ResolveIncomingSessionInput } from "./appSessionResolution";
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
 import type { ApplicationSession } from "@capacitylens/shared/account/types";
 import { can } from "@capacitylens/shared/domain/access";
-import { isAccountCreateCapped, countAccounts } from "./accountEntityRoutes";
-import { countUsers, DEMO_USER, type Auth, type AccountMode, type SessionUser } from "../auth";
-import type { MasqueradeRegistry } from "../MasqueradeRegistry";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
+
+import { countUsers, DEMO_USER } from "../auth";
+import type { AccountMode, Auth, SessionUser } from "../auth";
+import type { MasqueradeRegistry } from "../MasqueradeRegistry";
+import { countAccounts, isAccountCreateCapped } from "./accountEntityRoutes";
+import type { ResolveIncomingSessionInput } from "./appSessionResolution";
 
 type SessionResolutionResult =
   | { kind: "absent_or_invalid" }
@@ -127,6 +130,7 @@ async function canUserCreateAccount({
   );
 }
 
+/** Capabilities required to expose the identity endpoint or the Better Auth proxy seam. */
 export interface AuthProxyRouteDependencies {
   section: "identity" | "proxy";
   authMode: AccountMode;
@@ -143,160 +147,194 @@ export interface AuthProxyRouteDependencies {
   logOn: boolean;
 }
 
-export function registerAuthProxyRoutes(app: FastifyInstance, dependencies: AuthProxyRouteDependencies): void {
-  const {
+interface IdentityRouteDependencies {
+  accountAdminPort: AccountAdminPort;
+  auth: Auth | null;
+  authMode: AccountMode;
+  db: Parameters<typeof countAccounts>[0];
+  masquerades: MasqueradeRegistry;
+  multiAccount: boolean;
+  requireMfa: boolean;
+  resolveIncomingSession: (input: ResolveIncomingSessionInput) => Promise<SessionResolutionResult>;
+  sessionSatisfiesRequiredMfa: (session: ApplicationSession) => boolean;
+  sessionUserFromApplicationSession: (session: ApplicationSession) => SessionUser;
+}
+
+interface ProxyRouteDependencies {
+  auth: Auth | null;
+  authMode: AccountMode;
+  logOn: boolean;
+  masquerades: MasqueradeRegistry;
+  resolveIncomingSession: (input: ResolveIncomingSessionInput) => Promise<SessionResolutionResult>;
+  toWebHeaders: (raw: FastifyRequest["headers"]) => Headers;
+}
+
+interface CanAuthenticatedUserCreateAccountInput {
+  dependencies: IdentityRouteDependencies;
+  session: ApplicationSession;
+  userId: string;
+  capAllows: boolean;
+}
+
+async function canAuthenticatedUserCreateAccount({
+  dependencies,
+  session,
+  userId,
+  capAllows,
+}: CanAuthenticatedUserCreateAccountInput): Promise<boolean> {
+  const { accountAdminPort, auth, authMode, db, masquerades } = dependencies;
+  // The capability mirrors POST /api/orgs: masquerades and untrusted SSO sessions fail closed,
+  // then both the account cap and workspace authority must allow creation.
+  const trustedSsoSession =
+    authMode !== "sso" || (session.assurance === "federated" && session.providerId === auth?.strictProvider?.id);
+  if (masquerades.lookup(session.id) !== undefined || !capAllows || !trustedSsoSession) return false;
+  return canUserCreateAccount({
+    administration: accountAdminPort,
     authMode,
-    auth,
-    db,
+    userId,
+    count: countAccounts(db),
+  });
+}
+
+async function readAuthenticatedIdentity(
+  dependencies: IdentityRouteDependencies,
+  session: ApplicationSession,
+  capAllows: boolean,
+) {
+  const { auth, authMode, multiAccount, requireMfa } = dependencies;
+  const user = dependencies.sessionUserFromApplicationSession(session);
+  const canCreateAccount = await canAuthenticatedUserCreateAccount({
+    dependencies,
+    session,
+    userId: user.id,
+    capAllows,
+  });
+  return {
+    authMode,
+    user,
+    mfaRequired: authMode === "password" && requireMfa && !dependencies.sessionSatisfiesRequiredMfa(session),
+    reauthMethod: session.assurance === "federated" ? "provider" : "password",
+    reauthProviderId: session.providerId ?? null,
+    providers: auth?.providers ?? [],
     multiAccount,
-    requireMfa,
-    accountAdminPort,
-    masquerades,
-    resolveIncomingSession,
-    sessionUserFromApplicationSession,
-    sessionSatisfiesRequiredMfa,
-    toWebHeaders,
-    logOn,
-  } = dependencies;
+    canCreateAccount,
+  };
+}
 
-  if (dependencies.section === "identity") {
-    // Thin identity route — exists in EVERY mode so the client never forks on a
-    // flag: { authMode, user }. 'off' reports the demo identity unconditionally; other
-    // modes report the Better Auth session user, or 401 (with authMode, so the login
-    // screen knows which form to show) when there is no session.
-    app.get("/api/auth/me", async (req, reply) => {
-      // Company-creation capability flags: the client's create-company entry point uses these to
-      // hide/disable itself instead of discovering the answer via a failed POST. `canCreateAccount`
-      // mirrors POST /api/orgs' full gate — (cap allows) AND userMayCreateAccount, the SAME shared
-      // predicate the route enforces — never the cap alone (that told editors/membership-less users
-      // "yes" and let them walk into a guaranteed 403). Recomputed PER REQUEST (account counts and
-      // memberships change) — never cached — and carried on BOTH success shapes (off + authed) so
-      // neither mode forks the client. The 401/503 shapes below are deliberately unchanged (no
-      // account facts for a caller who isn't authenticated / whose session state is unknown) — an
-      // anon caller on an auth-on instance is never told it can create.
-      // The cap arm (WHETHER a new company may exist at all) — POST /api/orgs' GATE 0.
-      const capAllows = !isAccountCreateCapped({ db, multiAccount });
-      if (authMode === "off") {
-        // OFF mode: userMayCreateAccount is trivially true (its authMode arm), so the cap decides.
-        return {
-          authMode,
-          user: DEMO_USER,
-          providers: [],
-          multiAccount,
-          canCreateAccount: capAllows,
-        };
-      }
-      const resolution = await resolveIncomingSession({ req, force: true });
-      if (resolution.kind === "absent_or_invalid") {
-        // First-run signal: password mode + an EMPTY user table means the setup-token-guarded
-        // bootstrap is available (the live gate in auth.ts), so the login screen offers
-        // "Create the owner account" instead of a dead-end sign-in. "The user count is zero" is
-        // NOT tenant data — the 401 shape still deliberately excludes account facts (the
-        // capability flags stay off this branch); it reveals no setup secret or account data.
-        const needsSetup = authMode === "password" && countUsers(db) === 0;
-        return reply.code(401).send({
-          authMode,
-          providers: auth?.providers ?? [],
-          error: "Sign in to continue.",
-          ...(needsSetup ? { needsSetup: true } : {}),
-        });
-      }
-      if (resolution.kind === "backend_failure") {
-        req.log.error(resolution.error);
-        return reply.code(503).send({ authMode, error: "Sign-in is temporarily unavailable." });
-      }
-      try {
-        const session = resolution.session;
-        const user = sessionUserFromApplicationSession(session);
-        const masquerading = masquerades.lookup(session.id) !== undefined;
-        return {
-          authMode,
-          user,
-          mfaRequired: authMode === "password" && requireMfa && !sessionSatisfiesRequiredMfa(session),
-          reauthMethod: session.assurance === "federated" ? "provider" : "password",
-          reauthProviderId: session.providerId ?? null,
-          providers: auth?.providers ?? [],
-          multiAccount,
-          canCreateAccount:
-            !masquerading &&
-            capAllows &&
-            (authMode !== "sso" ||
-              (session.assurance === "federated" && session.providerId === auth?.strictProvider?.id)) &&
-            (await canUserCreateAccount({
-              administration: accountAdminPort,
-              authMode,
-              userId: user.id,
-              count: countAccounts(db),
-            })),
-        };
-      } catch (e) {
-        // The auth backend failed — NOT "no session". Surface a 503 with a clear, DISTINCT message
-        // (the client can tell "temporarily unavailable" from a 401 "bad/again credentials") rather
-        // than letting it fall through to the generic 500 redaction.
-        req.log.error(e);
-        return reply.code(503).send({ authMode, error: "Sign-in is temporarily unavailable." });
-      }
-    });
-    return;
+async function sendIdentity(req: FastifyRequest, reply: FastifyReply, dependencies: IdentityRouteDependencies) {
+  const { auth, authMode, db, multiAccount, resolveIncomingSession } = dependencies;
+  const capAllows = !isAccountCreateCapped({ db, multiAccount });
+  if (authMode === "off") {
+    return { authMode, user: DEMO_USER, providers: [], multiAccount, canCreateAccount: capAllows };
   }
-
-  // Better Auth's own endpoints (sign-up/sign-in/sign-out/session/OAuth callbacks),
-  // mounted ONLY when auth is on — in 'off' mode this route does not exist (the OFF
-  // guarantee: zero new attack surface). The static /api/auth/me above outranks this
-  // wildcard in Fastify's router. Translation layer: Fastify req → web Request,
-  // web Response → Fastify reply (set-cookie kept as separate headers; content-length
-  // recomputed by Fastify).
-  if (authMode !== "off" && auth) {
-    app.route({
-      method: ["GET", "POST"],
-      url: "/api/auth/*",
-      handler: async (req, reply) => {
-        const url = parseAuthenticationRequestUrl(req);
-        if (!url) return reply.code(400).send({ error: "Invalid request authority." });
-        const authPath = new URL(url).pathname.slice("/api/auth".length);
-        if (!isBetterAuthProxyRouteAllowed(authMode, req.method, authPath)) {
-          return reply.code(404).send({ error: "Not found." });
-        }
-        if (
-          req.method === "POST" &&
-          authPath !== "/sign-out" &&
-          req.session !== null &&
-          masquerades.lookup(req.session.id)
-        ) {
-          return reply.code(403).send({
-            error: "Masquerade is read-only.",
-            code: MASQUERADE_ERROR_CODES.readOnly,
-          });
-        }
-        const requestHeaders = toWebHeaders(req.headers);
-        if (requestHeaders.has("cookie") || requestHeaders.has("authorization")) {
-          const incoming = await resolveIncomingSession({ req });
-          req.authenticationUserId = incoming.kind === "verified" ? incoming.session.principal.id : null;
-        }
-        const response = await auth.handler(
-          new Request(url, {
-            method: req.method,
-            headers: requestHeaders,
-            ...(req.body === undefined || req.body === null ? {} : { body: JSON.stringify(req.body) }),
-          }),
-        );
-        reply.status(response.status);
-        response.headers.forEach((value, key) => {
-          if (key === "set-cookie" || key === "content-length" || key === "transfer-encoding") return;
-          reply.header(key, value);
-        });
-        const cookies = response.headers.getSetCookie();
-        if (cookies.length > 0) reply.header("set-cookie", cookies);
-        if (req.authenticationUserId === null && response.status < 400 && cookies.length > 0) {
-          req.authenticationUserId = await resolveAuthenticationUserId({
-            auth,
-            headers: withResponseCookies(requestHeaders, cookies),
-            req,
-            logOn,
-          });
-        }
-        return reply.send(response.body ? Buffer.from(await response.arrayBuffer()) : null);
-      },
+  const resolution = await resolveIncomingSession({ req, force: true });
+  if (resolution.kind === "absent_or_invalid") {
+    // Zero users is only a bootstrap-availability signal; no tenant facts enter the 401 response.
+    const needsSetup = authMode === "password" && countUsers(db) === 0;
+    return reply.code(401).send({
+      authMode,
+      providers: auth?.providers ?? [],
+      error: "Sign in to continue.",
+      ...(needsSetup ? { needsSetup: true } : {}),
     });
   }
+  if (resolution.kind === "backend_failure") {
+    req.log.error(resolution.error);
+    return reply.code(503).send({ authMode, error: "Sign-in is temporarily unavailable." });
+  }
+  try {
+    return await readAuthenticatedIdentity(dependencies, resolution.session, capAllows);
+  } catch (error) {
+    // Backend failure is distinct from an absent session and must retain its 503 surface.
+    req.log.error(error);
+    return reply.code(503).send({ authMode, error: "Sign-in is temporarily unavailable." });
+  }
+}
+
+function registerIdentityRoute(app: FastifyInstance, dependencies: IdentityRouteDependencies): void {
+  app.get("/api/auth/me", (req, reply) => sendIdentity(req, reply, dependencies));
+}
+
+function isMasqueradeWrite(req: FastifyRequest, authPath: string, masquerades: MasqueradeRegistry): boolean {
+  return (
+    req.method === "POST" &&
+    authPath !== "/sign-out" &&
+    req.session !== null &&
+    masquerades.lookup(req.session.id) !== undefined
+  );
+}
+
+async function sendProxyResponse(reply: FastifyReply, response: Response, cookies: readonly string[]) {
+  reply.status(response.status);
+  response.headers.forEach((value, key) => {
+    if (key === "set-cookie" || key === "content-length" || key === "transfer-encoding") return;
+    reply.header(key, value);
+  });
+  if (cookies.length > 0) reply.header("set-cookie", cookies);
+  const body = response.body ? Buffer.from(await response.arrayBuffer()) : null;
+  return reply.send(body);
+}
+
+function hasAuthenticationCredentials(headers: Headers): boolean {
+  return headers.has("cookie") || headers.has("authorization");
+}
+
+function shouldResolveIssuedSession(req: FastifyRequest, response: Response, cookies: readonly string[]): boolean {
+  return req.authenticationUserId === null && response.status < 400 && cookies.length > 0;
+}
+
+async function forwardAuthenticationRequest(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  dependencies: ProxyRouteDependencies,
+) {
+  const { auth, authMode, logOn, masquerades, resolveIncomingSession, toWebHeaders } = dependencies;
+  if (authMode === "off" || !auth) return reply.code(404).send({ error: "Not found." });
+  const url = parseAuthenticationRequestUrl(req);
+  if (!url) return reply.code(400).send({ error: "Invalid request authority." });
+  const authPath = url.pathname.slice("/api/auth".length);
+  if (!isBetterAuthProxyRouteAllowed(authMode, req.method, authPath)) {
+    return reply.code(404).send({ error: "Not found." });
+  }
+  if (isMasqueradeWrite(req, authPath, masquerades)) {
+    return reply.code(403).send({ error: "Masquerade is read-only.", code: MASQUERADE_ERROR_CODES.readOnly });
+  }
+  const requestHeaders = toWebHeaders(req.headers);
+  if (hasAuthenticationCredentials(requestHeaders)) {
+    const incoming = await resolveIncomingSession({ req });
+    req.authenticationUserId = incoming.kind === "verified" ? incoming.session.principal.id : null;
+  }
+  const response = await auth.handler(
+    new Request(url, {
+      method: req.method,
+      headers: requestHeaders,
+      ...(req.body === undefined || req.body === null ? {} : { body: JSON.stringify(req.body) }),
+    }),
+  );
+  const cookies = response.headers.getSetCookie();
+  if (shouldResolveIssuedSession(req, response, cookies)) {
+    req.authenticationUserId = await resolveAuthenticationUserId({
+      auth,
+      headers: withResponseCookies(requestHeaders, cookies),
+      req,
+      logOn,
+    });
+  }
+  return sendProxyResponse(reply, response, cookies);
+}
+
+function registerProxyRoute(app: FastifyInstance, dependencies: ProxyRouteDependencies): void {
+  // Off mode mounts no vendor wildcard, preserving its zero-additional-auth-surface guarantee.
+  if (dependencies.authMode === "off" || !dependencies.auth) return;
+  app.route({
+    method: ["GET", "POST"],
+    url: "/api/auth/*",
+    handler: (req, reply) => forwardAuthenticationRequest(req, reply, dependencies),
+  });
+}
+
+/** Register either the identity endpoint or the closed Better Auth proxy seam. */
+export function registerAuthProxyRoutes(app: FastifyInstance, dependencies: AuthProxyRouteDependencies): void {
+  if (dependencies.section === "identity") registerIdentityRoute(app, dependencies);
+  else registerProxyRoute(app, dependencies);
 }
