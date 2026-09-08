@@ -1583,13 +1583,7 @@ describe("flushPendingWrites (the import seam)", () => {
   });
 });
 
-describe("suspendServerWrites (the import write-suspension seam)", () => {
-  // The server-mode import suspends writes across its POST + re-hydrate: flushPendingWrites only
-  // proves cleanliness at one INSTANT, so an edit made while the POST is pending must be PARKED —
-  // sending it would either land just before the import (silently wiped) or be flushed by the
-  // post-import reload against the pre-import snapshot (stale rows upserted into the imported
-  // slice — remapped ids insert cleanly, no 409 stops them).
-
+function registerSuspendedRetryTest() {
   it("parks an already armed retry until the suspension resumes", async () => {
     vi.useFakeTimers();
     try {
@@ -1620,7 +1614,9 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
       vi.useRealTimers();
     }
   });
+}
 
+function registerSuspendedVisibilityTests() {
   it("keeps a hidden-tab visibility flush parked until an external suspension resumes", async () => {
     vi.useFakeTimers();
     const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
@@ -1664,7 +1660,9 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     resume();
     detach();
   });
+}
 
+function registerSuspendedEditTests() {
   it("parks an edit made while suspended (nothing sent) and re-schedules it on resume when no reload ran", async () => {
     const { adapter, saveAll } = recordingAdapter(a2Slice());
     const detach = await attachActiveA2({ adapter: adapter }); // immediate saves
@@ -1709,7 +1707,9 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     expect(onSuccess).toHaveBeenCalled();
     detach();
   });
+}
 
+function registerSuspendedReloadOutcomeTests() {
   it("resume({dropParkedEdits}) DROPS the parked edit + surfaces it — the import COMMITTED but its re-hydrate failed", async () => {
     // The committed-but-not-reloaded edge: the slice was replaced server-side but the snapshot was
     // never reseeded, so re-saving the parked edit would diff its stale pre-import tree against
@@ -1762,7 +1762,9 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     expect(onError).not.toHaveBeenCalled();
     detach();
   });
+}
 
+function registerFailedSuspendedLoadTest() {
   it("a FAILED load re-schedules an edit parked during it — nothing strands unsaved until the next reload", async () => {
     // Pre-fix, a parked edit survived a loadAll throw with no timer, no retry, and
     // failedSinceSuccess=false — the online/visible re-attempts declined it and it sat unsaved
@@ -1794,7 +1796,9 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     expect((saveAll.mock.calls[0]?.[0] as AppData).clients.some((c) => c.name === "Mid-failed-reload")).toBe(true);
     detach();
   });
+}
 
+function registerSuspendedReloadUnloadTest() {
   it("unload flush still keepalive-pushes an edit parked by a RELOAD suspension — WITHOUT consuming it", async () => {
     // The snapshot is still the pre-reload one until loadAll resolves, so the keepalive diff is
     // self-vs-self and safe — declining (as the external-import guard does) would silently lose
@@ -1832,7 +1836,9 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     expect(onError).not.toHaveBeenCalled();
     detach();
   });
+}
 
+function registerSuspendedKeepaliveFailureTest() {
   it("a failed keepalive during the pre-load window is followed by a normal rebased save", async () => {
     // Pre-fix, the hidden-tab flush CONSUMED `pending` before dataAtLoad was snapshotted; when the
     // swallowed keepalive then failed and the page survived, every signal at (c) read clean and
@@ -1871,7 +1877,9 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "keepalive dropped" }));
     detach();
   });
+}
 
+function registerSupersededReloadEditTest() {
   it("a reload superseded by sign-out rebases and saves only the parked edit against the fresh seed", async () => {
     // The null-switch arm bumps the token but loads nothing, so the superseded load's reseed of
     // the adapter snapshot stands. Re-scheduling the whole parked tree would emit DELETEs for rows
@@ -1924,7 +1932,9 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     expect(onError).not.toHaveBeenCalled();
     detach();
   });
+}
 
+function registerSuspensionBoundaryTests() {
   it("pairs the hidden store with a fresh seed when sign-out supersedes a reload without an edit", async () => {
     let release: (() => void) | null = null;
     let hold = false;
@@ -1981,6 +1991,23 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
   it("is a no-op (with a no-op resume) when no orchestrator is attached", () => {
     expect(() => suspendServerWrites()()).not.toThrow();
   });
+}
+
+describe("suspendServerWrites (the import write-suspension seam)", () => {
+  // The server-mode import suspends writes across its POST + re-hydrate: flushPendingWrites only
+  // proves cleanliness at one INSTANT, so an edit made while the POST is pending must be PARKED —
+  // sending it would either land just before the import (silently wiped) or be flushed by the
+  // post-import reload against the pre-import snapshot (stale rows upserted into the imported
+  // slice — remapped ids insert cleanly, no 409 stops them).
+  registerSuspendedRetryTest();
+  registerSuspendedVisibilityTests();
+  registerSuspendedEditTests();
+  registerSuspendedReloadOutcomeTests();
+  registerFailedSuspendedLoadTest();
+  registerSuspendedReloadUnloadTest();
+  registerSuspendedKeepaliveFailureTest();
+  registerSupersededReloadEditTest();
+  registerSuspensionBoundaryTests();
 });
 
 describe("mid-reload edits are rebased onto the fresh server slice", () => {
