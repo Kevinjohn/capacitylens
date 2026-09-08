@@ -367,6 +367,27 @@ interface TimeOffSnapshot {
   updatedAt: string;
 }
 
+interface AccountSnapshot {
+  color: string;
+  createdAt: string;
+  disciplinesEnabled?: boolean;
+  externalEnabled?: boolean;
+  groupResourcesByEngagement?: boolean;
+  id: string;
+  inlineActivityCreateEnabled?: boolean;
+  internalColourMode?: string;
+  language?: string;
+  name: string;
+  placeholdersEnabled?: boolean;
+  schedulingMode?: string;
+  showInternalActivities?: boolean;
+  showInternalProjects?: boolean;
+  timezone?: string;
+  updatedAt: string;
+  weekStartsOn?: number;
+  workingDays?: number[];
+}
+
 interface ClientSnapshot {
   accountId: string;
   color: string;
@@ -379,7 +400,7 @@ interface ClientSnapshot {
 type ClientResponse = ClientSnapshot;
 
 interface ValidatedStateResponse {
-  accounts: unknown[];
+  accounts: AccountSnapshot[];
   activities: ProjectBinding[];
   allocations: AllocationSnapshot[];
   clients: ClientSnapshot[];
@@ -419,12 +440,22 @@ function readOptionalBoolean(value: Record<string, unknown>, key: string, contex
   return field;
 }
 
+function readOptionalNumber(value: Record<string, unknown>, key: string, context: string): number | undefined {
+  if (!(key in value)) return undefined;
+  return readRequiredNumber(value, key, context);
+}
+
 function readNumberArray(value: Record<string, unknown>, key: string, context: string): number[] {
   const field = value[key];
   if (!Array.isArray(field) || !field.every((item): item is number => typeof item === "number")) {
     throw new Error(`Expected ${context} ${key} to contain numbers.`);
   }
   return field;
+}
+
+function readOptionalNumberArray(value: Record<string, unknown>, key: string, context: string): number[] | undefined {
+  if (!(key in value)) return undefined;
+  return readNumberArray(value, key, context);
 }
 
 function requireModeledKeys(value: Record<string, unknown>, keys: readonly string[], context: string): void {
@@ -601,6 +632,88 @@ function readFirstProject(projects: ProjectSnapshot[]): ProjectSnapshot {
   return projectRow;
 }
 
+function addAccountDisplayOptions(snapshot: AccountSnapshot, row: Record<string, unknown>): void {
+  const disciplinesEnabled = readOptionalBoolean(row, "disciplinesEnabled", "account row");
+  const externalEnabled = readOptionalBoolean(row, "externalEnabled", "account row");
+  const groupResourcesByEngagement = readOptionalBoolean(row, "groupResourcesByEngagement", "account row");
+  const placeholdersEnabled = readOptionalBoolean(row, "placeholdersEnabled", "account row");
+  if (disciplinesEnabled !== undefined) snapshot.disciplinesEnabled = disciplinesEnabled;
+  if (externalEnabled !== undefined) snapshot.externalEnabled = externalEnabled;
+  if (groupResourcesByEngagement !== undefined) snapshot.groupResourcesByEngagement = groupResourcesByEngagement;
+  if (placeholdersEnabled !== undefined) snapshot.placeholdersEnabled = placeholdersEnabled;
+}
+
+function addAccountWorkflowOptions(snapshot: AccountSnapshot, row: Record<string, unknown>): void {
+  const inlineActivityCreateEnabled = readOptionalBoolean(row, "inlineActivityCreateEnabled", "account row");
+  const showInternalActivities = readOptionalBoolean(row, "showInternalActivities", "account row");
+  const showInternalProjects = readOptionalBoolean(row, "showInternalProjects", "account row");
+  if (inlineActivityCreateEnabled !== undefined) snapshot.inlineActivityCreateEnabled = inlineActivityCreateEnabled;
+  if (showInternalActivities !== undefined) snapshot.showInternalActivities = showInternalActivities;
+  if (showInternalProjects !== undefined) snapshot.showInternalProjects = showInternalProjects;
+}
+
+function readAccountSnapshot(row: Record<string, unknown>): AccountSnapshot {
+  requireModeledKeys(
+    row,
+    [
+      "color",
+      "createdAt",
+      "disciplinesEnabled",
+      "externalEnabled",
+      "groupResourcesByEngagement",
+      "id",
+      "inlineActivityCreateEnabled",
+      "internalColourMode",
+      "language",
+      "name",
+      "placeholdersEnabled",
+      "schedulingMode",
+      "showInternalActivities",
+      "showInternalProjects",
+      "timezone",
+      "updatedAt",
+      "weekStartsOn",
+      "workingDays",
+    ],
+    "account row",
+  );
+  const internalColourMode = readOptionalString(row, "internalColourMode", "account row");
+  const language = readOptionalString(row, "language", "account row");
+  const schedulingMode = readOptionalString(row, "schedulingMode", "account row");
+  const timezone = readOptionalString(row, "timezone", "account row");
+  const weekStartsOn = readOptionalNumber(row, "weekStartsOn", "account row");
+  const workingDays = readOptionalNumberArray(row, "workingDays", "account row");
+  const snapshot: AccountSnapshot = {
+    color: readRequiredString(row, "color", "account row"),
+    createdAt: readRequiredString(row, "createdAt", "account row"),
+    id: readRequiredString(row, "id", "account row"),
+    name: readRequiredString(row, "name", "account row"),
+    updatedAt: readRequiredString(row, "updatedAt", "account row"),
+  };
+  if (internalColourMode !== undefined) snapshot.internalColourMode = internalColourMode;
+  if (language !== undefined) snapshot.language = language;
+  if (schedulingMode !== undefined) snapshot.schedulingMode = schedulingMode;
+  if (timezone !== undefined) snapshot.timezone = timezone;
+  if (weekStartsOn !== undefined) snapshot.weekStartsOn = weekStartsOn;
+  if (workingDays !== undefined) snapshot.workingDays = workingDays;
+  addAccountDisplayOptions(snapshot, row);
+  addAccountWorkflowOptions(snapshot, row);
+  return snapshot;
+}
+
+function readAccountSnapshots(rows: unknown[]): AccountSnapshot[] {
+  return rows.map((row) => {
+    if (!isUnknownRecord(row)) throw new Error("Expected every account row to be an object.");
+    return readAccountSnapshot(row);
+  });
+}
+
+function readFirstAccount(accounts: AccountSnapshot[]): AccountSnapshot {
+  const accountRow = accounts[0];
+  if (!accountRow) throw new Error("Expected the state response to contain an account.");
+  return accountRow;
+}
+
 function readClosureSnapshots(rows: unknown[]): ClosureSnapshot[] {
   return rows.map((row) => {
     if (!isUnknownRecord(row)) throw new Error("Expected every closure row to be an object.");
@@ -759,7 +872,7 @@ function readValidatedStateValue(value: unknown): ValidatedStateResponse {
     throw new Error("Expected the state response to be an object.");
   }
   return {
-    accounts: readStateArray(value, "accounts"),
+    accounts: readAccountSnapshots(readStateArray(value, "accounts")),
     activities: readProjectBindings(readStateArray(value, "activities"), "activity"),
     allocations: readAllocationSnapshots(readStateArray(value, "allocations")),
     clients: readClientSnapshots(readStateArray(value, "clients")),
@@ -791,6 +904,10 @@ async function readValidatedState(app: FastifyInstance): Promise<ValidatedStateR
 
 async function readStateClients(app: FastifyInstance): Promise<ClientSnapshot[]> {
   return (await readValidatedState(app)).clients;
+}
+
+async function readStateAccount(app: FastifyInstance): Promise<AccountSnapshot> {
+  return readFirstAccount((await readValidatedState(app)).accounts);
 }
 
 /** Seed a minimal account → client → project → activity → person chain. */
@@ -2896,32 +3013,32 @@ describe("value-level sanitization on direct writes (server is the integrity bou
         })
       ).statusCode,
     ).toBe(201);
-    expect((await state(app)).accounts[0].schedulingMode).toBeUndefined(); // junk dropped → 'hourly'
+    expect((await readStateAccount(app)).schedulingMode).toBeUndefined(); // junk dropped → 'hourly'
     // A valid mode persists unchanged.
     await patch({ app, entity: "accounts", id: "a1", payload: { schedulingMode: "blocks" } });
-    expect((await state(app)).accounts[0].schedulingMode).toBe("blocks");
+    expect((await readStateAccount(app)).schedulingMode).toBe("blocks");
   });
 
   it("defaults, repairs and persists account working-day selections", async () => {
     const { app } = freshApp();
     expect((await post(app, "accounts", { ...account("a1"), weekStartsOn: 0 })).statusCode).toBe(201);
-    expect((await state(app)).accounts[0].workingDays).toEqual([0, 1, 2, 3, 4]);
+    expect((await readStateAccount(app)).workingDays).toEqual([0, 1, 2, 3, 4]);
 
     expect((await patch({ app, entity: "accounts", id: "a1", payload: { workingDays: [1, 3, 5] } })).statusCode).toBe(
       200,
     );
-    expect((await state(app)).accounts[0].workingDays).toEqual([1, 3, 5]);
+    expect((await readStateAccount(app)).workingDays).toEqual([1, 3, 5]);
 
     // A pre-v31 full-replacement client does not know this field. Omission preserves the
     // configured selection instead of resetting it to the week-start default.
     expect((await put({ app, entity: "accounts", id: "a1", payload: account("a1") })).statusCode).toBe(200);
-    expect((await state(app)).accounts[0].workingDays).toEqual([1, 3, 5]);
+    expect((await readStateAccount(app)).workingDays).toEqual([1, 3, 5]);
 
     expect((await patch({ app, entity: "accounts", id: "a1", payload: { workingDays: [1, 9] } })).statusCode).toBe(200);
-    expect((await state(app)).accounts[0].workingDays).toEqual([0, 1, 2, 3, 4]);
+    expect((await readStateAccount(app)).workingDays).toEqual([0, 1, 2, 3, 4]);
 
     expect((await patch({ app, entity: "accounts", id: "a1", payload: { workingDays: [] } })).statusCode).toBe(200);
-    expect((await state(app)).accounts[0].workingDays).toEqual([0, 1, 2, 3, 4]);
+    expect((await readStateAccount(app)).workingDays).toEqual([0, 1, 2, 3, 4]);
   });
 });
 
