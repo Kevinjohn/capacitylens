@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb, insertAll, type Db } from "./db";
 import { upsertMember } from "./controlTables";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { PASSWORD_ENV, call, signUp } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
-import type { AuditSink } from "./audit";
+import type { AuditRecord, AuditSink } from "./audit";
 
 // P1.4 endpoint coverage: GET /api/accounts + the new ?accountId= form of GET /api/state, in both
 // OFF (trusted-local, no gate) and auth-on (membership-existence guard) postures. The no-arg
@@ -29,11 +29,46 @@ const project = (id: string, accountId: string, clientId: string) => ({
 
 /** Two accounts, each with a client + project, seeded directly via insertAll (parent-first). */
 function seedTwo(db: Db): void {
-  const d = emptyAppData() as unknown as Record<string, unknown[]>;
-  d.accounts = [account("a1"), account("a2")];
-  d.clients = [client("c1", "a1"), client("c2", "a2")];
-  d.projects = [project("p1", "a1", "c1"), project("p2", "a2", "c2")];
-  insertAll(db, d as unknown as AppData);
+  const data: AppData = {
+    ...emptyAppData(),
+    accounts: [account("a1"), account("a2")],
+    clients: [client("c1", "a1"), client("c2", "a2")],
+    projects: [project("p1", "a1", "c1"), project("p2", "a2", "c2")],
+  };
+  insertAll(db, data);
+}
+
+interface StateIds {
+  accountIds: string[];
+  clientIds: string[];
+  projectIds: string[];
+}
+
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function readIds(value: Record<string, unknown>, key: string): string[] {
+  const rows = value[key];
+  if (!Array.isArray(rows)) throw new Error(`Expected ${key} to be an array.`);
+  return rows.map((row: unknown) => {
+    if (!isUnknownRecord(row) || typeof row.id !== "string") {
+      throw new Error(`Expected every ${key} row to have a string id.`);
+    }
+    return row.id;
+  });
+}
+
+function readStateIds(response: LightMyRequestResponse): StateIds {
+  const value: unknown = JSON.parse(response.payload);
+  if (!isUnknownRecord(value)) {
+    throw new Error("Expected state response to be an object.");
+  }
+  return {
+    accountIds: readIds(value, "accounts"),
+    clientIds: readIds(value, "clients"),
+    projectIds: readIds(value, "projects"),
+  };
 }
 
 describe("OFF mode — GET /api/accounts + GET /api/state?accountId=", () => {
@@ -56,24 +91,24 @@ describe("OFF mode — GET /api/accounts + GET /api/state?accountId=", () => {
     seedTwo(db);
     const app = createApp(db);
 
-    const s1 = (await call(app, { method: "GET", url: "/api/state?accountId=a1" })).json();
-    expect(s1.accounts.map((a: { id: string }) => a.id)).toEqual(["a1"]);
-    expect(s1.clients.map((c: { id: string }) => c.id)).toEqual(["c1"]);
-    expect(s1.projects.map((p: { id: string }) => p.id)).toEqual(["p1"]);
+    const s1 = readStateIds(await call(app, { method: "GET", url: "/api/state?accountId=a1" }));
+    expect(s1.accountIds).toEqual(["a1"]);
+    expect(s1.clientIds).toEqual(["c1"]);
+    expect(s1.projectIds).toEqual(["p1"]);
 
-    const s2 = (await call(app, { method: "GET", url: "/api/state?accountId=a2" })).json();
-    expect(s2.accounts.map((a: { id: string }) => a.id)).toEqual(["a2"]);
-    expect(s2.clients.map((c: { id: string }) => c.id)).toEqual(["c2"]);
+    const s2 = readStateIds(await call(app, { method: "GET", url: "/api/state?accountId=a2" }));
+    expect(s2.accountIds).toEqual(["a2"]);
+    expect(s2.clientIds).toEqual(["c2"]);
   });
 
   it("no-arg GET /api/state STILL returns the WHOLE tree (backward-compat)", async () => {
     const db = openDb(":memory:");
     seedTwo(db);
     const app = createApp(db);
-    const whole = (await call(app, { method: "GET", url: "/api/state" })).json();
-    expect(whole.accounts.map((a: { id: string }) => a.id).sort()).toEqual(["a1", "a2"]);
-    expect(whole.clients).toHaveLength(2);
-    expect(whole.projects).toHaveLength(2);
+    const whole = readStateIds(await call(app, { method: "GET", url: "/api/state" }));
+    expect(whole.accountIds.sort()).toEqual(["a1", "a2"]);
+    expect(whole.clientIds).toHaveLength(2);
+    expect(whole.projectIds).toHaveLength(2);
   });
 
   it("rejects an empty ?accountId= with 400", async () => {
@@ -89,7 +124,8 @@ describe("OFF mode — GET /api/accounts + GET /api/state?accountId=", () => {
 async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  await runAuthMigrations(auth!);
+  if (!auth) throw new Error("Expected password mode to create an auth instance.");
+  await runAuthMigrations(auth);
   return { app: createApp(db, { authMode: mode, auth }), db };
 }
 
@@ -105,7 +141,7 @@ describe("auth-on (password) — membership-existence guard", () => {
     // Their account → 200 slice scoped to a1.
     const ok = await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie } });
     expect(ok.statusCode).toBe(200);
-    expect(ok.json().accounts.map((a: { id: string }) => a.id)).toEqual(["a1"]);
+    expect(readStateIds(ok).accountIds).toEqual(["a1"]);
 
     // A non-member account → 403 BEFORE any data leaves the DB.
     const denied = await call(app, { method: "GET", url: "/api/state?accountId=a2", headers: { cookie } });
@@ -164,10 +200,10 @@ describe("audit attribution for account mutations", () => {
   it("attributes account-mutation audit records to the mutated account id, never a caller-supplied value", async () => {
     const db = openDb(":memory:");
     seedTwo(db);
-    const captured: Array<Record<string, unknown>> = [];
+    const captured: AuditRecord[] = [];
     const capturingSink: AuditSink = {
       append: (record) => {
-        captured.push(record as unknown as Record<string, unknown>);
+        if ("accountId" in record) captured.push(record);
         return true;
       },
       degraded: false,
