@@ -1050,12 +1050,6 @@ function readClientResponse(response: LightMyRequestResponse): ClientResponse {
   return readClientResponseValue(response.json());
 }
 
-function readUpdatedAtResponse(response: LightMyRequestResponse): string {
-  const value: unknown = response.json();
-  if (!isUnknownRecord(value)) throw new Error("Expected the entity response to be an object.");
-  return readRequiredString(value, "updatedAt", "entity response");
-}
-
 interface ConflictResponse {
   error: string;
   current: ClientResponse;
