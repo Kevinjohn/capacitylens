@@ -103,120 +103,143 @@ function registerSuiteScenario1() {
   });
 }
 
+async function assertCreateFields(dialog: Locator) {
+  for (const control of [
+    dialog.getByRole("combobox", { name: "Project" }),
+    dialog.getByRole("combobox", { name: "Activity" }),
+    dialog.getByRole("combobox", { name: "Repeat" }),
+    dialog.getByRole("radiogroup", { name: "Status" }),
+    dialog.getByLabel("Note"),
+    dialog.getByRole("checkbox", { name: "Ignore working days" }),
+  ]) {
+    await expectLabelControl(control);
+  }
+  await expectFullWidthSchedulingRow(dialog, [
+    dialog.getByLabel("Start Date"),
+    dialog.getByLabel(/^End/),
+    dialog.getByLabel("Hours / day"),
+  ]);
+  await expectInControlColumn(dialog.getByRole("textbox", { name: "New activity name" }));
+}
+
+async function assertStatusAlignment(dialog: Locator) {
+  const status = dialog.getByRole("radiogroup", { name: "Status" });
+  const statusBox = await status.boundingBox();
+  const segments = await status.getByRole("radio").all();
+  const segmentBoxes = await Promise.all(segments.map((segment) => segment.boundingBox()));
+  const noteBox = await dialog.getByLabel("Note").boundingBox();
+  expect(statusBox).not.toBeNull();
+  expect(noteBox).not.toBeNull();
+  expect(segmentBoxes.every((box) => box !== null)).toBe(true);
+  const segmentWidths = segmentBoxes.map((box) => box!.width);
+  expect(Math.max(...segmentWidths) - Math.min(...segmentWidths)).toBeLessThanOrEqual(1);
+  expect(Math.abs(statusBox!.width - noteBox!.width)).toBeLessThanOrEqual(1);
+}
+
+async function chooseWeeklyActivity(dialog: Locator) {
+  await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
+  await selectShadOption(dialog.getByRole("combobox", { name: "Activity" }), "t-wires");
+  await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "weekly");
+  await expectLabelControl(dialog.getByLabel("Repeat until"));
+  await expectInControlColumn(dialog.getByText(/Creates \d+ linked allocations/));
+}
+
+async function assertNarrowCreateLayout(page: Page, dialog: Locator, testInfo: TestInfo) {
+  await dialog.getByLabel("Start Date").fill("");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  const error = dialog.getByRole("alert");
+  const errorId = await error.getAttribute("id");
+  expect(errorId).toBeTruthy();
+  await expect(dialog.getByLabel("Start Date")).toHaveAttribute("aria-describedby", errorId!);
+  await expect(dialog.getByLabel("Start Date")).toBeFocused();
+
+  await dismissLandscapeHint(page);
+  const projectField = dialog
+    .getByRole("combobox", { name: "Project" })
+    .locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
+  const fieldBox = await projectField.boundingBox();
+  const labelBox = await projectField.locator(":scope > :first-child").boundingBox();
+  const controlBox = await dialog.getByRole("combobox", { name: "Project" }).boundingBox();
+  expect(fieldBox).not.toBeNull();
+  expect(labelBox).not.toBeNull();
+  expect(controlBox).not.toBeNull();
+  expect(controlBox!.y).toBeGreaterThanOrEqual(labelBox!.y + labelBox!.height);
+  expect(Math.abs(controlBox!.x - fieldBox!.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(controlBox!.width - fieldBox!.width)).toBeLessThanOrEqual(1);
+
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
+  await page.screenshot({ path: testInfo.outputPath("issue_306_allocation_create_narrow.png") });
+}
+
 function registerSuiteScenario2() {
   test("aligns create, repeat, status and error controls, then stacks without narrow overflow", async ({
     page,
   }, testInfo: TestInfo) => {
     const dialog = await openCreate(page, "Clark Kent");
-    for (const control of [
-      dialog.getByRole("combobox", { name: "Project" }),
-      dialog.getByRole("combobox", { name: "Activity" }),
-      dialog.getByRole("combobox", { name: "Repeat" }),
-      dialog.getByRole("radiogroup", { name: "Status" }),
-      dialog.getByLabel("Note"),
-      dialog.getByRole("checkbox", { name: "Ignore working days" }),
-    ]) {
-      await expectLabelControl(control);
-    }
-    await expectFullWidthSchedulingRow(dialog, [
-      dialog.getByLabel("Start Date"),
-      dialog.getByLabel(/^End/),
-      dialog.getByLabel("Hours / day"),
-    ]);
-    await expectInControlColumn(dialog.getByRole("textbox", { name: "New activity name" }));
-
-    const status = dialog.getByRole("radiogroup", { name: "Status" });
-    const statusBox = await status.boundingBox();
-    const segments = await status.getByRole("radio").all();
-    const segmentBoxes = await Promise.all(segments.map((segment) => segment.boundingBox()));
-    const noteBox = await dialog.getByLabel("Note").boundingBox();
-    expect(statusBox).not.toBeNull();
-    expect(noteBox).not.toBeNull();
-    expect(segmentBoxes.every((box) => box !== null)).toBe(true);
-    const segmentWidths = segmentBoxes.map((box) => box!.width);
-    expect(Math.max(...segmentWidths) - Math.min(...segmentWidths)).toBeLessThanOrEqual(1);
-    expect(Math.abs(statusBox!.width - noteBox!.width)).toBeLessThanOrEqual(1);
-
-    await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
-    await selectShadOption(dialog.getByRole("combobox", { name: "Activity" }), "t-wires");
-    await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "weekly");
-    await expectLabelControl(dialog.getByLabel("Repeat until"));
-    await expectInControlColumn(dialog.getByText(/Creates \d+ linked allocations/));
+    await assertCreateFields(dialog);
+    await assertStatusAlignment(dialog);
+    await chooseWeeklyActivity(dialog);
     await page.screenshot({ path: testInfo.outputPath("issue_306_allocation_create_desktop.png") });
-
-    await dialog.getByLabel("Start Date").fill("");
-    await dialog.getByRole("button", { name: "Save" }).click();
-    const error = dialog.getByRole("alert");
-    const errorId = await error.getAttribute("id");
-    expect(errorId).toBeTruthy();
-    await expect(dialog.getByLabel("Start Date")).toHaveAttribute("aria-describedby", errorId!);
-    await expect(dialog.getByLabel("Start Date")).toBeFocused();
-
-    await dismissLandscapeHint(page);
-    const projectField = dialog
-      .getByRole("combobox", { name: "Project" })
-      .locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
-    const fieldBox = await projectField.boundingBox();
-    const labelBox = await projectField.locator(":scope > :first-child").boundingBox();
-    const controlBox = await dialog.getByRole("combobox", { name: "Project" }).boundingBox();
-    expect(fieldBox).not.toBeNull();
-    expect(labelBox).not.toBeNull();
-    expect(controlBox).not.toBeNull();
-    expect(controlBox!.y).toBeGreaterThanOrEqual(labelBox!.y + labelBox!.height);
-    expect(Math.abs(controlBox!.x - fieldBox!.x)).toBeLessThanOrEqual(1);
-    expect(Math.abs(controlBox!.width - fieldBox!.width)).toBeLessThanOrEqual(1);
-
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
-    await page.screenshot({ path: testInfo.outputPath("issue_306_allocation_create_narrow.png") });
+    await assertNarrowCreateLayout(page, dialog, testInfo);
   });
+}
+
+async function assertEditSchedulingRow(page: Page, testInfo: TestInfo) {
+  await page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "Edit allocation" });
+  await expectLabelControl(dialog.getByRole("combobox", { name: "Assignee" }));
+  await expectFullWidthSchedulingRow(dialog, [
+    dialog.getByLabel("Start Date"),
+    dialog.getByLabel(/^End/),
+    dialog.getByLabel("Hours / day"),
+  ]);
+  await expect(dialog.getByRole("combobox", { name: "Repeat" })).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath("issue_306_allocation_edit_desktop.png") });
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+}
+
+async function assertDaysAndBlocks(page: Page) {
+  await chooseSchedulingMode(page, "Days");
+  let dialog = await openCreate(page, "Clark Kent");
+  await expectFullWidthSchedulingRow(
+    dialog,
+    ["Start Date", "Days of work", "Days over"].map((label) => dialog.getByLabel(label, { exact: true })),
+  );
+  await expect(dialog.getByText(/^Ends /).locator("xpath=ancestor::*[@data-allocation-span-row][1]")).toBeAttached();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+
+  await chooseSchedulingMode(page, "Blocks");
+  dialog = await openCreate(page, "Clark Kent");
+  await expectFullWidthSchedulingRow(dialog, [dialog.getByLabel("Start Date"), dialog.getByLabel("Days over")]);
+  await expect(dialog.getByText(/^Ends /).locator("xpath=ancestor::*[@data-allocation-span-row][1]")).toBeAttached();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+}
+
+async function assertExternalVariants(page: Page, testInfo: TestInfo) {
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  await page.getByRole("switch", { name: "Show external resources" }).click();
+  await showPlaceholders(page);
+  await page.getByRole("link", { name: "Schedule", exact: true }).click();
+  await setZoom(page, 4);
+
+  let dialog = await openCreate(page, "Kord Industries");
+  await expectFullWidthSchedulingRow(dialog, [dialog.getByLabel("Start Date"), dialog.getByLabel(/^End/)]);
+  await expect(dialog.getByRole("checkbox", { name: "Ignore working days" })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+
+  dialog = await openCreate(page, "Placeholder");
+  await expectInControlColumn(dialog.getByText("Placeholder — locked to its bound project."));
+  await expect(dialog.getByLabel("Project", { exact: true })).toBeEnabled();
+  await page.screenshot({ path: testInfo.outputPath("issue_306_allocation_placeholder.png") });
 }
 
 function registerSuiteScenario3() {
   test("uses the full-width scheduling row for edit, Days, Blocks and External variants", async ({
     page,
   }, testInfo: TestInfo) => {
-    await page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" }).first().click();
-    let dialog = page.getByRole("dialog", { name: "Edit allocation" });
-    await expectLabelControl(dialog.getByRole("combobox", { name: "Assignee" }));
-    await expectFullWidthSchedulingRow(dialog, [
-      dialog.getByLabel("Start Date"),
-      dialog.getByLabel(/^End/),
-      dialog.getByLabel("Hours / day"),
-    ]);
-    await expect(dialog.getByRole("combobox", { name: "Repeat" })).toHaveCount(0);
-    await page.screenshot({ path: testInfo.outputPath("issue_306_allocation_edit_desktop.png") });
-    await dialog.getByRole("button", { name: "Cancel" }).click();
-
-    await chooseSchedulingMode(page, "Days");
-    dialog = await openCreate(page, "Clark Kent");
-    await expectFullWidthSchedulingRow(
-      dialog,
-      ["Start Date", "Days of work", "Days over"].map((label) => dialog.getByLabel(label, { exact: true })),
-    );
-    await expect(dialog.getByText(/^Ends /).locator("xpath=ancestor::*[@data-allocation-span-row][1]")).toBeAttached();
-    await dialog.getByRole("button", { name: "Cancel" }).click();
-
-    await chooseSchedulingMode(page, "Blocks");
-    dialog = await openCreate(page, "Clark Kent");
-    await expectFullWidthSchedulingRow(dialog, [dialog.getByLabel("Start Date"), dialog.getByLabel("Days over")]);
-    await expect(dialog.getByText(/^Ends /).locator("xpath=ancestor::*[@data-allocation-span-row][1]")).toBeAttached();
-    await dialog.getByRole("button", { name: "Cancel" }).click();
-
-    await page.getByRole("link", { name: "Settings", exact: true }).click();
-    await page.getByRole("switch", { name: "Show external resources" }).click();
-    await showPlaceholders(page);
-    await page.getByRole("link", { name: "Schedule", exact: true }).click();
-    await setZoom(page, 4);
-
-    dialog = await openCreate(page, "Kord Industries");
-    await expectFullWidthSchedulingRow(dialog, [dialog.getByLabel("Start Date"), dialog.getByLabel(/^End/)]);
-    await expect(dialog.getByRole("checkbox", { name: "Ignore working days" })).toHaveCount(0);
-    await dialog.getByRole("button", { name: "Cancel" }).click();
-
-    dialog = await openCreate(page, "Placeholder");
-    await expectInControlColumn(dialog.getByText("Placeholder — locked to its bound project."));
-    await expect(dialog.getByLabel("Project", { exact: true })).toBeEnabled();
-    await page.screenshot({ path: testInfo.outputPath("issue_306_allocation_placeholder.png") });
+    await assertEditSchedulingRow(page, testInfo);
+    await assertDaysAndBlocks(page);
+    await assertExternalVariants(page, testInfo);
   });
 }
 

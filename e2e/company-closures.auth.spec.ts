@@ -89,10 +89,7 @@ async function seedClosureAccount(request: APIRequestContext) {
   return { accountId, editorCookie: editor.cookie };
 }
 
-test("an editor creates, sees, edits and deletes a literal company closure band", async ({ page, request }) => {
-  const { accountId, editorCookie } = await seedClosureAccount(request);
-
-  await signInAsEditor(page);
+async function createClosure(page: Page, request: APIRequestContext, accountId: string, editorCookie: string) {
   await page.getByRole("link", { name: "Time off" }).click();
   await expect(page.getByTestId("company-closures-empty")).toBeVisible();
   await page.getByRole("button", { name: "Add closure" }).click();
@@ -101,7 +98,6 @@ test("an editor creates, sees, edits and deletes a literal company closure band"
   await create.getByLabel("Start").fill("2026-06-05");
   await create.getByLabel("End").fill("2026-06-08");
   await create.getByRole("button", { name: "Save" }).click();
-
   const closureRow = page.getByTestId("company-closure-row");
   await expect(closureRow).toContainText("Long weekend");
   await expect(closureRow).toContainText("Fri 5th Jun – Mon 8th Jun");
@@ -117,17 +113,18 @@ test("an editor creates, sees, edits and deletes a literal company closure band"
       return closureId;
     })
     .not.toBe("");
+  return closureId;
+}
 
+async function assertClosureBand(page: Page) {
   await page.getByRole("link", { name: "Schedule" }).click();
   await setZoom(page, 1);
   await goToSeedWeek(page);
-
   const band = page.getByTestId("scheduler-closure-band");
   await expect(band).toHaveCount(1);
   await expect(band).toContainText("Long weekend");
   await expect(band).toHaveAttribute("data-start-date", "2026-06-05");
   await expect(band).toHaveAttribute("data-end-date", "2026-06-08");
-
   const literalSpanWidth = await page.getByTestId("scheduler-day-tier").evaluate((tier) =>
     ["2026-06-05", "2026-06-06", "2026-06-07", "2026-06-08"].reduce((width, date) => {
       const day = tier.querySelector<HTMLElement>(`[data-date="${date}"]`);
@@ -137,13 +134,14 @@ test("an editor creates, sees, edits and deletes a literal company closure band"
   expect(await band.evaluate((element) => Number.parseFloat((element as HTMLElement).style.width))).toBe(
     literalSpanWidth,
   );
-
   const externalRow = page.getByTestId("scheduler-row").filter({ hasText: "Kord Industries" });
   await expect(externalRow).toBeVisible();
   const [bandBox, externalBox] = await Promise.all([band.boundingBox(), externalRow.boundingBox()]);
   if (!bandBox || !externalBox) throw new Error("closure band or external row was not laid out");
   expect(bandBox.y + bandBox.height).toBeLessThanOrEqual(externalBox.y);
+}
 
+async function editClosure(page: Page) {
   await page.getByRole("link", { name: "Time off" }).click();
   await page.getByRole("button", { name: /Edit Long weekend closure/ }).click();
   const edit = page.getByRole("dialog", { name: "Edit closure" });
@@ -151,7 +149,15 @@ test("an editor creates, sees, edits and deletes a literal company closure band"
   await edit.getByLabel("End").fill("2026-06-09");
   await edit.getByRole("button", { name: "Save" }).click();
   await expect(page.getByTestId("company-closure-row")).toContainText("Studio shutdown");
+}
 
+async function assertEditedAndDeletedClosure(
+  page: Page,
+  request: APIRequestContext,
+  accountId: string,
+  editorCookie: string,
+  closureId: string,
+) {
   await page.getByRole("link", { name: "Schedule" }).click();
   await setZoom(page, 1);
   await goToSeedWeek(page);
@@ -176,4 +182,14 @@ test("an editor creates, sees, edits and deletes a literal company closure band"
   await setZoom(page, 1);
   await goToSeedWeek(page);
   await expect(page.getByTestId("scheduler-closure-band")).toHaveCount(0);
+}
+
+test("an editor creates, sees, edits and deletes a literal company closure band", async ({ page, request }) => {
+  const { accountId, editorCookie } = await seedClosureAccount(request);
+
+  await signInAsEditor(page);
+  const closureId = await createClosure(page, request, accountId, editorCookie);
+  await assertClosureBand(page);
+  await editClosure(page);
+  await assertEditedAndDeletedClosure(page, request, accountId, editorCookie, closureId);
 });

@@ -70,6 +70,68 @@ async function assertPrivateNamesForMember(
   }
 }
 
+async function inviteMembers(
+  request: import("@playwright/test").APIRequestContext,
+  accountId: string,
+  ownerCookie: string,
+  members: ReadonlyArray<{
+    role: "admin" | "editor" | "viewer";
+    user: { cookie: string; email: string };
+  }>,
+) {
+  for (const { role, user } of members) {
+    const invitation = await request.post(`${AUTH_API}/api/invites`, {
+      headers: { cookie: ownerCookie },
+      data: { accountId, role },
+    });
+    expect(invitation.status()).toBe(201);
+    const token = (await invitation.json()).token as string;
+    const accepted = await request.post(`${AUTH_API}/api/invites/${token}/accept`, {
+      headers: { cookie: user.cookie },
+    });
+    expect(accepted.status()).toBe(200);
+  }
+}
+
+async function seedPrivateNames(
+  request: import("@playwright/test").APIRequestContext,
+  accountId: string,
+  ownerCookie: string,
+) {
+  const now = new Date().toISOString();
+  const clientId = `privacy-client-${STAMP}`;
+  const projectId = `privacy-project-${STAMP}`;
+  const clientWrite = await request.put(`${AUTH_API}/api/clients/${clientId}`, {
+    headers: { cookie: ownerCookie, "content-type": "application/json" },
+    data: {
+      id: clientId,
+      accountId,
+      name: REAL_CLIENT,
+      color: "#3b82f6",
+      isPrivate: true,
+      codeName: "Nightwing",
+      createdAt: now,
+      updatedAt: now,
+    },
+  });
+  expect(clientWrite.status()).toBe(200);
+  const projectWrite = await request.put(`${AUTH_API}/api/projects/${projectId}`, {
+    headers: { cookie: ownerCookie, "content-type": "application/json" },
+    data: {
+      id: projectId,
+      accountId,
+      clientId,
+      name: REAL_PROJECT,
+      color: "#ec4899",
+      isPrivate: true,
+      codeName: "Aurora",
+      createdAt: now,
+      updatedAt: now,
+    },
+  });
+  expect(projectWrite.status()).toBe(200);
+}
+
 test("non-owners see protected code names without owner controls or real-name leaks", async ({
   page,
   request,
@@ -88,52 +150,8 @@ test("non-owners see protected code names without owner controls or real-name le
   ] as const;
 
   const accountId = await bootstrapOrg(request, owner.cookie, ACCOUNT);
-
-  for (const { role, user } of members) {
-    const invitation = await request.post(`${AUTH_API}/api/invites`, {
-      headers: { cookie: owner.cookie },
-      data: { accountId, role },
-    });
-    expect(invitation.status()).toBe(201);
-    const token = (await invitation.json()).token as string;
-    const accepted = await request.post(`${AUTH_API}/api/invites/${token}/accept`, {
-      headers: { cookie: user.cookie },
-    });
-    expect(accepted.status()).toBe(200);
-  }
-
-  const now = new Date().toISOString();
-  const clientId = `privacy-client-${STAMP}`;
-  const projectId = `privacy-project-${STAMP}`;
-  const clientWrite = await request.put(`${AUTH_API}/api/clients/${clientId}`, {
-    headers: { cookie: owner.cookie, "content-type": "application/json" },
-    data: {
-      id: clientId,
-      accountId,
-      name: REAL_CLIENT,
-      color: "#3b82f6",
-      isPrivate: true,
-      codeName: "Nightwing",
-      createdAt: now,
-      updatedAt: now,
-    },
-  });
-  expect(clientWrite.status()).toBe(200);
-  const projectWrite = await request.put(`${AUTH_API}/api/projects/${projectId}`, {
-    headers: { cookie: owner.cookie, "content-type": "application/json" },
-    data: {
-      id: projectId,
-      accountId,
-      clientId,
-      name: REAL_PROJECT,
-      color: "#ec4899",
-      isPrivate: true,
-      codeName: "Aurora",
-      createdAt: now,
-      updatedAt: now,
-    },
-  });
-  expect(projectWrite.status()).toBe(200);
+  await inviteMembers(request, accountId, owner.cookie, members);
+  await seedPrivateNames(request, accountId, owner.cookie);
 
   for (const { role, user } of members) {
     await assertPrivateNamesForMember(page, context, role, user.email);

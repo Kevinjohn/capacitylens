@@ -1,19 +1,4 @@
 {
-  "e2e/allocation-modal-layout.spec.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "e2e/company-closures.auth.spec.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "e2e/private-name-permissions.auth.spec.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "server/src/auth.ts": {
     "complexity": {
       "count": 1
