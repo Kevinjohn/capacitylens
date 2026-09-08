@@ -156,9 +156,9 @@ function useModalController({
   onClose,
 }: {
   guardDirty: boolean;
-  controlledDirty?: boolean;
-  onDirtyChange?: (dirty: boolean) => void;
-  onEdit?: () => void;
+  controlledDirty: boolean | undefined;
+  onDirtyChange: ((dirty: boolean) => void) | undefined;
+  onEdit: (() => void) | undefined;
   onClose: () => void;
 }) {
   const setNotice = useStore((state) => state.setNotice);
@@ -212,9 +212,9 @@ function ModalSurface({
 }: {
   title: ReactNode;
   requestClose: () => void;
-  onSubmit?: () => void;
+  onSubmit: (() => void) | undefined;
   children: ReactNode;
-  footer?: ReactNode;
+  footer: ReactNode | undefined;
   markDirty: () => void;
 }) {
   return (
@@ -259,9 +259,9 @@ function ModalForm({
   footer,
   children,
 }: {
-  onSubmit?: () => void;
+  onSubmit: (() => void) | undefined;
   markDirty: () => void;
-  footer?: ReactNode;
+  footer: ReactNode | undefined;
   children: ReactNode;
 }) {
   return (

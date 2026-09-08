@@ -99,7 +99,7 @@ function resolveProjectClientOptions({
   baseOptions: Option[];
   clients: ReturnType<typeof useActiveScopedData>["clients"];
   rawClients: ReturnType<typeof useScopedData>["clients"];
-  project?: Project;
+  project: Project | undefined;
 }): Option[] {
   if (!project || clients.some((client) => client.id === project.clientId)) return baseOptions;
   const raw = rawClients.find((client) => client.id === project.clientId);
@@ -124,7 +124,7 @@ function useProjectSubmit({
   update,
   onClose,
 }: {
-  project?: Project;
+  project: Project | undefined;
   name: string;
   clientId: string;
   color: string;
@@ -169,7 +169,7 @@ function saveProject({
   add,
   update,
 }: {
-  project?: Project;
+  project: Project | undefined;
   trimmed: string;
   clientId: string;
   color: string;
@@ -208,7 +208,7 @@ function ProjectFormFields({
   setName: (value: string) => void;
   protectedName: boolean;
   errorField: string | null;
-  errorId: string | undefined;
+  errorId: string;
   privateNameFields: ReturnType<typeof usePrivateNameFields>;
   clientId: string;
   setClientId: (value: string) => void;
@@ -216,7 +216,7 @@ function ProjectFormFields({
   showColourPicker: boolean;
   color: string;
   setColor: (value: string) => void;
-  error: string | undefined;
+  error: string | null;
 }) {
   return (
     <>
@@ -258,7 +258,7 @@ function ProjectClientField({
   setClientId: (value: string) => void;
   clientOptions: Option[];
   errorField: string | null;
-  errorId: string | undefined;
+  errorId: string;
 }) {
   return (
     <SelectField
@@ -287,7 +287,7 @@ function ProjectNameFields({
   setName: (value: string) => void;
   protectedName: boolean;
   errorField: string | null;
-  errorId: string | undefined;
+  errorId: string;
   privateNameFields: ReturnType<typeof usePrivateNameFields>;
 }) {
   return (
@@ -320,8 +320,8 @@ function ProjectFormDetails({
   color: string;
   setColor: (value: string) => void;
   errorField: string | null;
-  errorId: string | undefined;
-  error: string | undefined;
+  errorId: string;
+  error: string | null;
 }) {
   return (
     <>

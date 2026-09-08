@@ -113,8 +113,8 @@ function SidebarProvider({
   return (
     <SidebarProviderShell
       contextValue={contextValue}
-      className={className}
-      style={style}
+      {...(className === undefined ? {} : { className })}
+      {...(style === undefined ? {} : { style })}
       props={props}
     >
       {children}
@@ -218,8 +218,8 @@ function Sidebar({
     return (
       <MobileSidebar
         side={side}
-        className={className}
-        style={style}
+        {...(className === undefined ? {} : { className })}
+        {...(style === undefined ? {} : { style })}
         openMobile={openMobile}
         setOpenMobile={setOpenMobile}
         props={props}
@@ -235,8 +235,8 @@ function Sidebar({
       variant={variant}
       collapsible={collapsible}
       state={state}
-      className={className}
-      style={style}
+      {...(className === undefined ? {} : { className })}
+      {...(style === undefined ? {} : { style })}
       props={props}
     >
       {children}

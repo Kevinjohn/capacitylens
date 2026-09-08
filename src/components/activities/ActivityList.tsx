@@ -202,7 +202,7 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
   const renderRow = (activity: Activity) => (
     <ActivityRow
       activity={activity}
-      selectedActivityId={selectedActivityId}
+      {...(selectedActivityId === undefined ? {} : { selectedActivityId })}
       selectedRowRef={selectedRowRef}
       onEdit={setEditing}
       onDelete={setConfirming}

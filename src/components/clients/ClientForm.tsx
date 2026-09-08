@@ -22,8 +22,8 @@ function ClientFormFields({
   color: string;
   onColorChange: (value: string) => void;
   errorField: string | null;
-  errorId: string | undefined;
-  error: string | undefined;
+  errorId: string;
+  error: string | null;
 }) {
   return (
     <>
