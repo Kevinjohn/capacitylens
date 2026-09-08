@@ -69,7 +69,8 @@ async function createAccount(req: FastifyRequest, reply: FastifyReply, dependenc
     bootstrapAuthorized: false,
     canonicalProductPayload: buildCanonicalAccountProductPayload(row),
     provisionProductData: () => {
-      // Validate and mint the account's singleton Internal client in the provisioning transaction.
+      // Validate only on first execution so a committed replay is unaffected by the account now
+      // existing or the cap later filling. Account, Internal client and audit commit together.
       assertValidWrite({ state: scopedState, table: "accounts", row });
       insertRow(db, "accounts", row);
       insertRow(db, "clients", { ...buildInternalClient(id, createdAt) });
@@ -83,7 +84,7 @@ async function createAccount(req: FastifyRequest, reply: FastifyReply, dependenc
 
 function createPostHandler(dependencies: AccountEntityRouteDependencies) {
   return async (req: FastifyRequest, reply: FastifyReply) => {
-    // Authenticated account creation stays on POST /api/orgs, which also creates membership.
+    // Keep the shape guard outside try so malformed bodies remain caller-fault 400s, not 500s.
     const bodyCheck = checkEntityWriteBody({
       verb: "create",
       entity: "accounts",
@@ -92,6 +93,7 @@ function createPostHandler(dependencies: AccountEntityRouteDependencies) {
       scoped: false,
     });
     if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
+    // Authenticated creation stays on POST /api/orgs; OFF creation remains cap-bounded by the flow.
     if (dependencies.authMode !== "off") {
       return reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE });
     }
@@ -109,7 +111,8 @@ function createDeleteHandler(dependencies: AccountEntityRouteDependencies) {
     const { id } = req.params;
     try {
       const targetExisted = Boolean(getRow(db, "accounts", id));
-      // A completed receipt may replay after erasure removed the caller's live membership.
+      // Only an exact completed receipt may replay after erasure removed live membership;
+      // malformed, pending and unrelated commands continue through owner authorization.
       const replay = replayCommand(req);
       if (replay) {
         const replayed = await flows.replayWorkspaceErasure({
@@ -119,6 +122,7 @@ function createDeleteHandler(dependencies: AccountEntityRouteDependencies) {
         });
         if (replayed) return reply.code(204).send();
       }
+      // Total tenant erasure is owner-only and the flow coordinates its transactional cascade.
       if (!authorize({ req, reply, accountId: id, action: "deleteAccount" })) return;
       // Preserve trusted-local idempotency without exposing authenticated account existence.
       if (!targetExisted && authMode === "off") return reply.code(204).send();
@@ -126,6 +130,7 @@ function createDeleteHandler(dependencies: AccountEntityRouteDependencies) {
       const auditRecord: AuditRecord = {
         ts: new Date().toISOString(),
         userId: user.id,
+        // Attribute erasure to the URL account itself, never caller-supplied tenant data.
         accountId: id,
         action: "delete",
         entity: "accounts",
