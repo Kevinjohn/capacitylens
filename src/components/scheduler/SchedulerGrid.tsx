@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { SlidersHorizontal, Users } from "lucide-react";
 import { m } from "@/i18n";
 import { useStore } from "../../store/useStore";
+import type { SchedulerUI } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
 import { resolveSharedScopedData } from "../../store/useScopedData";
 import { listAccountWorkingDays } from "../../store/selectors";
@@ -32,29 +33,102 @@ const TimeOffForm = lazy(() =>
   })),
 );
 
-export function SchedulerGrid() {
-  const navigate = useNavigate();
-  const preferences = useSchedulerGridPreferences();
-  const {
-    data,
-    accountPrefs: { calendarWeekStartsOn },
-    ui,
-    utilizationPrefs: utilizationPreferences,
-    minimiseWeekends,
-    snapToWeekStart,
-  } = preferences;
-  // Viewer read-only (P1.12): when the active account's role is a viewer, the grid is display-only —
-  // no row "+" create, no lane draw-to-create, no bar edit/drag/resize (the bar gating lives in
-  // AllocationBar; the draw/create gating is the conditional onDraw/onEdit + the hidden "+" below).
-  // null/owner/admin/editor (incl. OFF/local) → fully editable, byte-identical to today. The server
-  // 403 backstops a write regardless; this is the UX read-only surface.
-  const canEdit = useCanEdit();
-  const toggleGroup = useStore((state) => state.toggleGroup);
-  const clearFilters = useStore((state) => state.clearFilters);
-  // WCAG 4.1.3: the latest screen-reader capacity announcement, set by AllocationBar after a
-  // KEYBOARD-committed move/resize. Rendered ONCE below in a polite aria-live region. It changes
-  // only on a keyboard edit (not a scroll/zoom/modal/render), so subscribing here adds no hot-path
-  // re-render; pointer drags never set it, so they stay silent for screen readers (sighted feedback).
+function SchedulerModal({ modal, close }: { modal: ModalState; close: () => void }) {
+  if (modal.kind === "edit") {
+    return <AllocationModal kind="edit" allocationId={modal.allocationId} onClose={close} />;
+  }
+  if (modal.kind === "timeoff") {
+    return (
+      <TimeOffForm
+        defaults={{ resourceId: modal.resourceId, startDate: modal.startDate, endDate: modal.endDate }}
+        onClose={close}
+      />
+    );
+  }
+  return (
+    <AllocationModal
+      kind="create"
+      create={{ resourceId: modal.resourceId, startDate: modal.startDate, endDate: modal.endDate }}
+      onClose={close}
+    />
+  );
+}
+
+function SchedulerEmptyRow({
+  filtersActive,
+  timelineWidth,
+  clearFilters,
+  navigateToResources,
+}: {
+  filtersActive: boolean;
+  timelineWidth: number;
+  clearFilters: () => void;
+  navigateToResources: () => void;
+}) {
+  const emptyState = filtersActive ? (
+    <EmptyState
+      icon={SlidersHorizontal}
+      description={m.scheduler_empty_filtered_desc()}
+      action={{ label: m.scheduler_empty_clear_filters(), onClick: clearFilters }}
+    >
+      {m.scheduler_empty_filtered_title()}
+    </EmptyState>
+  ) : (
+    <EmptyState
+      icon={Users}
+      description={m.scheduler_empty_desc()}
+      action={{ label: m.scheduler_empty_go_resources(), onClick: navigateToResources }}
+    >
+      {m.scheduler_empty_title()}
+    </EmptyState>
+  );
+  return (
+    <div
+      role="row"
+      aria-rowindex={2}
+      data-testid="scheduler-empty"
+      className="sticky left-0 z-[1] flex min-h-0 flex-1 items-center justify-center p-8"
+      style={{ width: timelineWidth || LAYOUT.leftColWidth }}
+    >
+      <div role="gridcell" aria-colindex={1} aria-colspan={2} className="flex items-center justify-center">
+        {emptyState}
+      </div>
+    </div>
+  );
+}
+
+function openDrawModal({
+  resourceId,
+  startDate,
+  endDate,
+  setModal,
+}: {
+  resourceId: ID;
+  startDate: ISODate;
+  endDate: ISODate;
+  setModal: (modal: ModalState) => void;
+}) {
+  const state = useStore.getState();
+  const drawMode = state.ui.drawMode;
+  const resource = state.data.resources.find((candidate) => candidate.id === resourceId);
+  if (!resource) return;
+  const scopedData = resolveSharedScopedData(state.data, state.activeAccountId);
+  if (
+    isCreationStartBlocked({
+      resource,
+      date: startDate,
+      timeOff: scopedData.timeOff,
+      accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
+      closures: drawMode === "timeoff" ? [] : scopedData.closures,
+    })
+  ) {
+    return;
+  }
+  if (drawMode === "timeoff" && isExternalResource(resource)) return;
+  setModal({ kind: drawMode === "timeoff" ? "timeoff" : "create", resourceId, startDate, endDate });
+}
+
+function useSchedulerInteractions(ui: Pick<SchedulerUI, "drawMode">) {
   const screenReaderAnnouncement = useStore((state) => state.srAnnouncement);
   const announceStatus = useStore((state) => state.announceCapacity);
   const [modal, setModal] = useState<ModalState | null>(null);
@@ -66,241 +140,186 @@ export function SchedulerGrid() {
       ui.drawMode === "timeoff" ? m.scheduler_sr_timeoff_mode_enabled() : m.scheduler_sr_work_mode_enabled(),
     );
   }, [announceStatus, ui.drawMode]);
+  const editAllocation = useCallback((allocationId: ID) => setModal({ kind: "edit", allocationId }), []);
+  const createFromDraw = useCallback(
+    (resourceId: ID, startDate: ISODate, endDate: ISODate) =>
+      openDrawModal({ resourceId, startDate, endDate, setModal }),
+    [],
+  );
+  return { screenReaderAnnouncement, modal, setModal, editAllocation, createFromDraw };
+}
 
-  const viewport = useSchedulerViewport({ ui, minimiseWeekends, snapToWeekStart, calendarWeekStartsOn });
-  const {
-    scrollRef,
+function useGridVirtualization(
+  preferences: ReturnType<typeof useSchedulerGridPreferences>,
+  viewport: ReturnType<typeof useSchedulerViewport>,
+  gridModel: ReturnType<typeof useSchedulerGridModel>,
+) {
+  return useSchedulerGridVirtualization({
+    model: gridModel.model,
+    ui: preferences.ui,
+    density: gridModel.density,
+    data: preferences.data,
+    viewport,
+  });
+}
+
+type GridViewProps = {
+  preferences: ReturnType<typeof useSchedulerGridPreferences>;
+  gridModel: ReturnType<typeof useSchedulerGridModel>;
+  virtualization: ReturnType<typeof useSchedulerGridVirtualization>;
+  headerRef: ReturnType<typeof useSchedulerViewport>["headerRef"];
+  timelineWidth: number;
+  days: ReturnType<typeof useSchedulerViewport>["days"];
+  geom: ReturnType<typeof useSchedulerViewport>["geom"];
+  visibleStartDate: ReturnType<typeof useSchedulerViewport>["visibleStartDate"];
+  canEdit: boolean;
+  toggleGroup: ReturnType<typeof useStore.getState>["toggleGroup"];
+  clearFilters: ReturnType<typeof useStore.getState>["clearFilters"];
+  navigateToResources: () => void;
+  interactions: ReturnType<typeof useSchedulerInteractions>;
+};
+
+function SchedulerModalBoundary({ interactions }: Pick<GridViewProps, "interactions">) {
+  if (!interactions.modal) return null;
+  return (
+    <Suspense fallback={null}>
+      <SchedulerModal modal={interactions.modal} close={() => interactions.setModal(null)} />
+    </Suspense>
+  );
+}
+
+function SchedulerGridContents(props: GridViewProps) {
+  const { preferences, gridModel, virtualization, interactions } = props;
+  const { headerRef, timelineWidth, days, geom, visibleStartDate } = props;
+  const { canEdit, toggleGroup, clearFilters, navigateToResources } = props;
+  const { ui, utilizationPrefs, accountPrefs } = preferences;
+  const { model, density, today, todayX, visibleWeeksLabel, visibleSpanCompact, overallUtil, filtersActive } =
+    gridModel;
+  return (
+    <>
+      <SchedulerGridHeader
+        headerRef={headerRef}
+        utilizationPrefs={utilizationPrefs}
+        visibleWeeksLabel={visibleWeeksLabel}
+        visibleSpanCompact={visibleSpanCompact}
+        overallUtil={overallUtil}
+        days={days}
+        geom={geom}
+        ui={ui}
+        calendarWeekStartsOn={accountPrefs.calendarWeekStartsOn}
+        today={today}
+      />
+      {model.length === 0 && (
+        <SchedulerEmptyRow
+          filtersActive={filtersActive}
+          timelineWidth={timelineWidth}
+          clearFilters={clearFilters}
+          navigateToResources={navigateToResources}
+        />
+      )}
+      <SchedulerGridRows
+        {...virtualization}
+        ui={ui}
+        density={density}
+        toggleGroup={toggleGroup}
+        geom={geom}
+        utilizationPrefs={utilizationPrefs}
+        visibleWeeksLabel={visibleWeeksLabel}
+        canEdit={canEdit}
+        visibleStartDate={visibleStartDate}
+        setModal={interactions.setModal}
+        days={days}
+        todayX={todayX}
+        calendarWeekStartsOn={accountPrefs.calendarWeekStartsOn}
+        handleEdit={interactions.editAllocation}
+        handleDraw={interactions.createFromDraw}
+      />
+      <SchedulerModalBoundary interactions={interactions} />
+    </>
+  );
+}
+
+function SchedulerGridFooter({
+  virtualization,
+  screenReaderAnnouncement,
+}: Pick<GridViewProps, "virtualization"> & {
+  screenReaderAnnouncement: ReturnType<typeof useSchedulerInteractions>["screenReaderAnnouncement"];
+}) {
+  return (
+    <>
+      {virtualization.visibleClosures.length > 0 && (
+        <div className="sr-only">
+          {virtualization.visibleClosures.map((closure) => (
+            <span key={closure.id}>
+              {m.scheduler_closure_aria({ name: closure.name, start: closure.startDate, end: closure.endDate })}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-testid="scheduler-live-region">
+        {screenReaderAnnouncement && <span key={screenReaderAnnouncement.seq}>{screenReaderAnnouncement.text}</span>}
+      </div>
+    </>
+  );
+}
+
+export function SchedulerGrid() {
+  const navigate = useNavigate();
+  const preferences = useSchedulerGridPreferences();
+  const canEdit = useCanEdit();
+  const toggleGroup = useStore((state) => state.toggleGroup);
+  const clearFilters = useStore((state) => state.clearFilters);
+  const { accountPrefs, ui, minimiseWeekends, snapToWeekStart } = preferences;
+  const interactions = useSchedulerInteractions(ui);
+  const viewport = useSchedulerViewport({
+    ui,
+    minimiseWeekends,
+    snapToWeekStart,
+    calendarWeekStartsOn: accountPrefs.calendarWeekStartsOn,
+  });
+  const gridModel = useSchedulerGridModel(preferences, viewport);
+  const { scrollRef, headerRef, stickyHeaderHeight, timelineWidth, days, geom, onScroll, visibleStartDate } = viewport;
+  const virtualization = useGridVirtualization(preferences, viewport, gridModel);
+
+  const contents = {
+    preferences,
+    gridModel,
+    virtualization,
     headerRef,
-    stickyHeaderHeight,
     timelineWidth,
     days,
-    geom: geometry,
-    onScroll,
+    geom,
     visibleStartDate,
-  } = viewport;
-  const { model, density, today, todayX, visibleWeeksLabel, visibleSpanCompact, overallUtil, filtersActive } =
-    useSchedulerGridModel(preferences, viewport);
-  const virtualization = useSchedulerGridVirtualization({ model, ui, density, data, viewport });
-  const { items, visibleClosures } = virtualization;
-
-  // Stable callbacks so the memoised ResourceLane can skip re-rendering on
-  // grid-level UI changes (e.g. opening a modal). setModal is referentially stable.
-  const editAllocation = useCallback((allocationId: ID) => setModal({ kind: "edit", allocationId }), []);
-  const createFromDraw = useCallback((resourceId: ID, startDate: ISODate, endDate: ISODate) => {
-    // Read the draw mode LIVE (getState) when the gesture FIRES, not via a closure over
-    // ui.drawMode. That's load-bearing: closing over ui.drawMode would give createFromDraw a fresh
-    // reference on every toggle, which `onDraw` hands to every ResourceLane — failing their
-    // React.memo and re-rendering every lane (and its bars) on a mode toggle. The mode that
-    // matters is the one live at pointerup, which is exactly what getState() returns here, so
-    // an EMPTY dep array keeps this callback referentially stable across a toggle. Time off is
-    // meaningless for externals (no capacity), so a draw on their lane is a no-op rather than
-    // opening a time-off form seeded with a resource the picker itself excludes.
-    const state = useStore.getState();
-    const drawMode = state.ui.drawMode;
-    const resource = state.data.resources.find((candidate) => candidate.id === resourceId);
-    if (!resource) return;
-    const scopedData = resolveSharedScopedData(state.data, state.activeAccountId);
-    // The SAME gate the model paints `creationBlocked` with, so a lane can never accept a draw on a
-    // day it drew as unavailable. It scopes time off to the resource itself, so no pre-filter here.
-    // EXCEPT in time-off draw mode: a closure must not swallow the gesture — sick
-    // leave can legitimately start inside a closure, and the Add time off form accepts the
-    // identical entry. Personal overlaps and non-working days still gate the draw.
-    const gateTimeOff = scopedData.timeOff;
-    if (
-      isCreationStartBlocked({
-        resource,
-        date: startDate,
-        timeOff: gateTimeOff,
-        accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
-        closures: drawMode === "timeoff" ? [] : scopedData.closures,
-      })
-    ) {
-      return;
-    }
-    if (drawMode === "timeoff") {
-      if (isExternalResource(resource)) return;
-    }
-    setModal({
-      kind: drawMode === "timeoff" ? "timeoff" : "create",
-      resourceId,
-      startDate,
-      endDate,
-    });
-  }, []);
-
+    canEdit,
+    toggleGroup,
+    clearFilters,
+    navigateToResources: () => void navigate("/resources"),
+    interactions,
+  };
   return (
-    // A SINGLE shared TooltipProvider for the whole grid: every AllocationBar's popover is a
-    // provider-less TooltipRoot, so the provider machinery is paid once here instead of per bar
-    // across the virtualised grid (the same hoist pattern as ui/sidebar.tsx).
     <TooltipProvider>
-      {/* h-full passthrough wrapper: holds the scrolling role="grid" plus its sibling live region.
-        The grid must own ONLY row/rowgroup children (WCAG aria-required-children), so the polite
-        status region lives HERE, a sibling of the grid — not inside it. It's sr-only (position:
-        absolute, zero layout), so this wrapper adds no visual change and the grid's h-full still
-        resolves against the same definite height it did before. */}
       <div className="h-full">
         <div
           ref={scrollRef}
-          /* overscroll-x-contain: hitting the timeline's left edge must NOT chain into the
-           page — on macOS that overscroll is the browser's back-swipe, which nukes the app. */
           className="relative flex h-full flex-col overflow-auto overscroll-x-contain bg-scheduler-canvas"
           data-testid="scheduler-grid"
-          /* Draw mode changes CSS here and inert on ResourceLane's BarsLayer. Stable lane/bar
-             props keep the memoised children from re-rendering; drawModeRerender.test pins this. */
           data-draw-mode={ui.drawMode}
           role="grid"
           aria-label={m.scheduler_grid_aria()}
-          // Two-column grid (WCAG 1.3.1): col 1 = the sticky left resource/utilisation column
-          // (every row's rowheader / the header's columnheader), col 2 = the timeline lane
-          // (the gridcell / the DateHeader columnheader). aria-colcount declares that structure so
-          // the grid honestly exposes the columns it implies; every left cell carries aria-colindex=1
-          // and every right cell aria-colindex=2 below. (Keyboard nav is on the bars — role="button",
-          // not the cells — so these indices are pure structure, not a focus model.)
           aria-colcount={2}
-          aria-rowcount={items.length + 1 + (model.length === 0 ? 1 : 0)}
+          aria-rowcount={virtualization.items.length + 1 + (gridModel.model.length === 0 ? 1 : 0)}
           onScroll={onScroll}
-          // Publish the measured sticky-header height so each AllocationBar's scroll-margin-top reserves
-          // the REAL chrome on focus (WCAG 2.4.11), tracking the two-tier header's actual rendered height
-          // (zoom/font-size dependent) instead of the LAYOUT.headerHeight floor. Cast: a CSS custom
-          // property isn't in React's CSSProperties type.
           style={{
             ["--sched-sticky-top" as string]: `${stickyHeaderHeight}px`,
-            // DateHeader aligns wide-view month labels to the VISIBLE part of their month.
-            // The scroll offset is updated imperatively by useSchedulerViewport so horizontal
-            // scrolling moves only a CSS variable instead of re-rendering the scheduler per pixel.
             ["--sched-visible-width" as string]: `${Math.max(0, timelineWidth - LAYOUT.leftColWidth)}px`,
           }}
         >
-          <SchedulerGridHeader
-            headerRef={headerRef}
-            utilizationPrefs={utilizationPreferences}
-            visibleWeeksLabel={visibleWeeksLabel}
-            visibleSpanCompact={visibleSpanCompact}
-            overallUtil={overallUtil}
-            days={days}
-            geom={geometry}
-            ui={ui}
-            calendarWeekStartsOn={calendarWeekStartsOn}
-            today={today}
-          />
-
-          {model.length === 0 && (
-            // Empty body, below the still-rendered toolbar + date header, centring the shared EmptyState
-            // (the same icon/heading/subtext/CTA pattern the entity lists use). The grid scrolls
-            // horizontally (its header is min-w-max), so this must be sticky left-0 + bounded to the
-            // measured viewport width (timelineWidth) or the centred card drifts off-screen with the
-            // scroll — and it must be a DIRECT child of the overflow-auto grid for sticky to pin (nested
-            // inside the wide row it did not). role=grid > row > gridcell keeps the a11y tree valid.
-            <div
-              role="row"
-              aria-rowindex={2}
-              data-testid="scheduler-empty"
-              className="sticky left-0 z-[1] flex min-h-0 flex-1 items-center justify-center p-8"
-              style={{ width: timelineWidth || LAYOUT.leftColWidth }}
-            >
-              <div role="gridcell" aria-colindex={1} aria-colspan={2} className="flex items-center justify-center">
-                {filtersActive ? (
-                  // Heading text is pinned EXACTLY by filters.spec.ts + US-FIL-07. The Clear-filters CTA
-                  // is also the keyboard-focusable element that keeps the (scrollable) grid axe-clean when
-                  // empty — without a focusable child, axe flags scrollable-region-focusable.
-                  <EmptyState
-                    icon={SlidersHorizontal}
-                    description={m.scheduler_empty_filtered_desc()}
-                    action={{
-                      label: m.scheduler_empty_clear_filters(),
-                      onClick: () => clearFilters(),
-                    }}
-                  >
-                    {m.scheduler_empty_filtered_title()}
-                  </EmptyState>
-                ) : (
-                  <EmptyState
-                    icon={Users}
-                    description={m.scheduler_empty_desc()}
-                    action={{
-                      label: m.scheduler_empty_go_resources(),
-                      onClick: () => void navigate("/resources"),
-                    }}
-                  >
-                    {m.scheduler_empty_title()}
-                  </EmptyState>
-                )}
-              </div>
-            </div>
-          )}
-
-          <SchedulerGridRows
-            {...virtualization}
-            ui={ui}
-            density={density}
-            toggleGroup={toggleGroup}
-            geom={geometry}
-            utilizationPrefs={utilizationPreferences}
-            visibleWeeksLabel={visibleWeeksLabel}
-            canEdit={canEdit}
-            visibleStartDate={visibleStartDate}
-            setModal={setModal}
-            days={days}
-            todayX={todayX}
-            calendarWeekStartsOn={calendarWeekStartsOn}
-            handleEdit={editAllocation}
-            handleDraw={createFromDraw}
-          />
-
-          {modal && (
-            <Suspense fallback={null}>
-              {modal.kind === "edit" ? (
-                <AllocationModal kind="edit" allocationId={modal.allocationId} onClose={() => setModal(null)} />
-              ) : modal.kind === "timeoff" ? (
-                <TimeOffForm
-                  defaults={{
-                    resourceId: modal.resourceId,
-                    startDate: modal.startDate,
-                    endDate: modal.endDate,
-                  }}
-                  onClose={() => setModal(null)}
-                />
-              ) : (
-                <AllocationModal
-                  kind="create"
-                  create={{
-                    resourceId: modal.resourceId,
-                    startDate: modal.startDate,
-                    endDate: modal.endDate,
-                  }}
-                  onClose={() => setModal(null)}
-                />
-              )}
-            </Suspense>
-          )}
+          <SchedulerGridContents {...contents} />
         </div>
-
-        {visibleClosures.length > 0 && (
-          <div className="sr-only">
-            {visibleClosures.map((closure) => (
-              <span key={closure.id}>
-                {m.scheduler_closure_aria({
-                  name: closure.name,
-                  start: closure.startDate,
-                  end: closure.endDate,
-                })}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* WCAG 4.1.3: one always-mounted polite status region, outside the grid's row-only tree.
-            Keyboard edits announce capacity; pointer drags remain silent. Keying on seq lets an
-            identical message announce again without moving focus from the allocation bar. */}
-        <div
-          className="sr-only"
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          data-testid="scheduler-live-region"
-        >
-          {screenReaderAnnouncement && <span key={screenReaderAnnouncement.seq}>{screenReaderAnnouncement.text}</span>}
-        </div>
+        <SchedulerGridFooter
+          virtualization={virtualization}
+          screenReaderAnnouncement={interactions.screenReaderAnnouncement}
+        />
       </div>
     </TooltipProvider>
   );
