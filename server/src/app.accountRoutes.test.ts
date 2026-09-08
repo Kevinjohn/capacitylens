@@ -58,7 +58,7 @@ describe("dedicated /api/accounts routes — route precedence", () => {
       payload: { accountId: "a1" } as NonNullable<InjectOptions["payload"]>,
     });
     expect(res.statusCode).toBe(404);
-    expect(res.json().error).toBe("Unknown entity: accounts");
+    expect(res.json<{ error: string }>().error).toBe("Unknown entity: accounts");
   });
 
   it("does not shadow the account administration routes registered under the same prefix", async () => {
@@ -93,7 +93,7 @@ describe("dedicated /api/accounts routes — no scoped-entity fallback", () => {
     // Contrast: the generic scoped route still demands the owning account.
     const scoped = await call(app, { method: "DELETE", url: "/api/disciplines/d1" });
     expect(scoped.statusCode).toBe(400);
-    expect(scoped.json().error).toBe("accountId is required to delete a scoped record.");
+    expect(scoped.json<{ error: string }>().error).toBe("accountId is required to delete a scoped record.");
   });
 
   it("PATCH /api/accounts/:id enforces the frozen-field guard on the dedicated route", async () => {
@@ -123,7 +123,7 @@ describe("dedicated /api/accounts routes — no scoped-entity fallback", () => {
       payload: { weekStartsOn: 0 } as NonNullable<InjectOptions["payload"]>,
     });
     expect(frozen.statusCode).toBe(409);
-    expect(frozen.json().error).toContain("cannot be changed");
+    expect(frozen.json<{ error: string }>().error).toContain("cannot be changed");
 
     // A non-frozen field on the same route still applies.
     const renamed = await call(app, {
@@ -132,7 +132,7 @@ describe("dedicated /api/accounts routes — no scoped-entity fallback", () => {
       payload: { name: "Renamed" } as NonNullable<InjectOptions["payload"]>,
     });
     expect(renamed.statusCode).toBe(200);
-    expect(renamed.json().name).toBe("Renamed");
+    expect(renamed.json<{ name: string }>().name).toBe("Renamed");
   });
 
   it("PATCH /api/accounts/:id 404s an absent company rather than creating one", async () => {
