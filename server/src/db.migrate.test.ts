@@ -390,6 +390,21 @@ function prepareV16AccountViewPreferencesFixture(path: string): void {
   db.close();
 }
 
+function rollBackCurrentDatabaseToV25(db: DatabaseSync): void {
+  db.exec(`
+    DROP TABLE account_member_sign_in_tracking;
+    ALTER TABLE account_members DROP COLUMN signInConfirmed;
+    ALTER TABLE allocations DROP COLUMN seriesId;
+    ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement;
+    ALTER TABLE accounts DROP COLUMN workingDays;
+    ALTER TABLE resources DROP COLUMN engagement;
+    ALTER TABLE resources DROP COLUMN halfDays;
+    ALTER TABLE resources DROP COLUMN isFavourite;
+    DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 26;
+    PRAGMA user_version = 25;
+  `);
+}
+
 describe("schema migration of an existing on-disk DB", () => {
   it("pins synchronous FULL even when the connection inherited a weaker setting", () => {
     const copied = copyFixture("v16-off.db");
@@ -2220,18 +2235,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
   it("v26 through v33 add sign-in confirmation, resource fields, account preferences, series identity and company time off", () => {
     const db = openDb(":memory:");
-    db.exec(`
-      DROP TABLE account_member_sign_in_tracking;
-      ALTER TABLE account_members DROP COLUMN signInConfirmed;
-      ALTER TABLE allocations DROP COLUMN seriesId;
-      ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement;
-      ALTER TABLE accounts DROP COLUMN workingDays;
-      ALTER TABLE resources DROP COLUMN engagement;
-      ALTER TABLE resources DROP COLUMN halfDays;
-      ALTER TABLE resources DROP COLUMN isFavourite;
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 26;
-      PRAGMA user_version = 25;
-    `);
+    rollBackCurrentDatabaseToV25(db);
 
     expect(planDatabaseMigrations(db).migrations).toEqual([
       V26_MIGRATION,
