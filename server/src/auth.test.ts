@@ -410,12 +410,7 @@ describe("federated link observation reconciliation", () => {
   registerFederatedSubjectConflictTests();
 });
 
-describe("startup configuration before database migration", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-  });
-
+const registerStartupControlTests = () => {
   it("can resolve auth options without DDL, then maintains controls after app migration", () => {
     const db = new DatabaseSync(":memory:", { enableForeignKeyConstraints: false });
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV, { deferDatabaseSetup: true });
@@ -456,7 +451,9 @@ describe("startup configuration before database migration", () => {
       db.close();
     },
   );
+};
 
+const registerStartupConfigurationRefusalTests = () => {
   it("leaves a bare database untouched when provider configuration is invalid", () => {
     const db = new DatabaseSync(":memory:", { enableForeignKeyConstraints: false });
     expect(() =>
@@ -519,7 +516,9 @@ describe("startup configuration before database migration", () => {
       ).toThrow(/must be an origin/);
     }
   });
+};
 
+const registerStartupDiscoverySuccessTest = () => {
   it("issuer-validates discovery before the browser reaches its authorization endpoint", async () => {
     const discoveryUrl = "https://idp.example/.well-known/openid-configuration";
     vi.stubGlobal(
@@ -555,7 +554,9 @@ describe("startup configuration before database migration", () => {
     );
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
+};
 
+const registerStartupDiscoveryFailureTest = () => {
   it("fails closed before redirect when discovery does not match the pinned issuer", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal(
@@ -589,7 +590,9 @@ describe("startup configuration before database migration", () => {
     );
     expect(response.headers.get("location")).not.toContain("attacker.example");
   });
+};
 
+const registerStartupMigrationPlanningTest = () => {
   it("plans both the app-owned control migration and Better Auth DDL before executing either", async () => {
     const db = openDb(":memory:");
     for (const { index } of TENANT_ENTITY_ACCOUNT_INDEXES_V21) db.exec(`DROP INDEX ${index}`);
@@ -633,6 +636,19 @@ describe("startup configuration before database migration", () => {
     await expect(planAuthSchemaMigrations(auth)).resolves.toEqual({ pending: false, tables: [] });
     db.close();
   });
+};
+
+describe("startup configuration before database migration", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  registerStartupControlTests();
+  registerStartupConfigurationRefusalTests();
+  registerStartupDiscoverySuccessTest();
+  registerStartupDiscoveryFailureTest();
+  registerStartupMigrationPlanningTest();
 });
 
 describe("first-owner database-hook races", () => {
