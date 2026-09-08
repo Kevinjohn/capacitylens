@@ -11,6 +11,7 @@ import {
   mintPasswordResetToken,
   planAuthSchemaMigrations,
   revokeResetTokensForUser,
+  type Auth,
 } from "./auth";
 import { assertAccountControlPlaneCurrent, listSoleOwnerAccountIds } from "./accounts/sqliteAccountAdminPort";
 import { assertAuditOutboxCurrent, enqueueAudit } from "./auditOutbox";
@@ -34,6 +35,114 @@ export interface OwnerRecoveryInput {
   env?: Record<string, string | undefined>;
 }
 
+interface RecoveryContext {
+  email: string;
+  env: Record<string, string | undefined> & { BETTER_AUTH_URL: string };
+}
+
+function validateRecoveryInput(input: OwnerRecoveryInput): RecoveryContext {
+  if (!input.confirmServerStopped) {
+    throw new Error(
+      "Refusing without --confirm-server-stopped. Stop the CapacityLens server first; the exclusive " +
+        "database lock enforces this, but the flag records operator intent.",
+    );
+  }
+  if (input.databasePath === ":memory:" || !existsSync(input.databasePath)) {
+    throw new Error("The recovery database must be an existing on-disk CapacityLens database.");
+  }
+  const email = normalizeAccountEmail(input.email);
+  if (!isAccountEmail(email)) throw new Error("The target email is not a valid account address.");
+
+  const { env } = resolveAccountEnvironment({ ...(input.env ?? process.env) });
+  if (env.CAPACITYLENS_AUTH !== "password") {
+    throw new Error(
+      "SMALLSASS_ACCOUNT_MODE must be password: sso installations have no local credential to reset " +
+        "and off installations have no credential model.",
+    );
+  }
+  if (!env.BETTER_AUTH_URL) {
+    throw new Error("SMALLSASS_ACCOUNT_PUBLIC_URL must be set; the reset link cannot be built without it.");
+  }
+  return { email, env: env as RecoveryContext["env"] };
+}
+
+function assertRecoverySchemasCurrent(db: Db): void {
+  const migrationPlan = planDatabaseMigrations(db);
+  if (migrationPlan.migrations.length > 0) {
+    throw new Error(
+      `Database schema v${migrationPlan.fromVersion} is not current (expected v${migrationPlan.toVersion}); ` +
+        "start this release normally to complete its backed-up migration before recovery.",
+    );
+  }
+  assertAccountControlPlaneCurrent(db);
+  assertAuditOutboxCurrent(db);
+}
+
+async function requireCurrentAuth(db: Db, env: Record<string, string | undefined>): Promise<Auth> {
+  // The Auth instance uses the exclusively locked connection; a second connection would deadlock.
+  const { auth } = createAuthFromEnvironment(db, env, { deferDatabaseSetup: true });
+  if (!auth) throw new Error("Better Auth did not initialize for password mode.");
+  const authPlan = await planAuthSchemaMigrations(auth);
+  if (authPlan.pending) {
+    throw new Error(
+      `Better Auth schema is not current (pending table change(s): ${authPlan.tables.join(", ")}); ` +
+        "start this release normally before recovery.",
+    );
+  }
+  return auth;
+}
+
+function requireSoleOwner(db: Db, email: string): { userId: string; accountIds: string[] } {
+  const matches = listUserIdsByEmail(db, email, 2);
+  if (matches.length !== 1) {
+    throw new Error(
+      matches.length === 0
+        ? "No identity matches that address."
+        : "More than one identity matches that address; recovery requires an unambiguous target.",
+    );
+  }
+  const userId = matches[0];
+  if (!userId) throw new Error("No identity matches that address.");
+  const accountIds = listSoleOwnerAccountIds(db, userId);
+  if (accountIds.length === 0) {
+    throw new Error(
+      "That identity is not the sole active Owner of any workspace; use the in-product " +
+        "admin-issued reset instead.",
+    );
+  }
+  return { userId, accountIds };
+}
+
+interface RecordRecoveryInput {
+  db: Db;
+  context: RecoveryContext;
+  target: { userId: string; accountIds: string[] };
+  token: string;
+}
+
+function recordRecovery({ db, context, target, token }: RecordRecoveryInput): OwnerRecoveryResult {
+  const applicationId = DEFAULT_ACCOUNT_APPLICATION.applicationId;
+  const ceremonyId = createHash("sha256").update(`${applicationId}-reset-ceremony\0`).update(token).digest("base64url");
+  const link = `${new URL(context.env.BETTER_AUTH_URL).origin}/reset-password/${encodeURIComponent(token)}`;
+  const expiresAt = new Date(Date.now() + RESET_LINK_TTL_SECONDS * 1000).toISOString();
+  const event: AccountAuditEvent = {
+    id: randomUUID(),
+    occurredAt: new Date().toISOString(),
+    applicationId,
+    workspaceId: null,
+    // No in-product actor exists for this ceremony — that absence is the auditable fact.
+    actorPrincipalId: null,
+    targetPrincipalId: target.userId,
+    commandId: null,
+    action: "identity.owner_recovery_issued",
+    outcome: "success",
+    // The digest, never the token: the audit trail must not itself be a credential.
+    changedFields: ["credential", `ceremony:${ceremonyId}`],
+  };
+  const auditId = enqueueAudit(db, event, event.id);
+  return { ...target, email: context.email, ceremonyId, link, expiresAt, auditId };
+}
+
 /**
  * Operator recovery for the one credential state no in-product actor can repair: the sole active
  * Owner's lost password. `canAdministerIdentity` bars every non-Owner from administering an Owner,
@@ -45,116 +154,28 @@ export interface OwnerRecoveryInput {
  * Family ruling and full guard rationale: to-my-siblings/_sole-owner-recovery-playbook-2026-08-05.md.
  */
 export async function resetOwnerPassword(input: OwnerRecoveryInput): Promise<OwnerRecoveryResult> {
-  if (!input.confirmServerStopped) {
-    throw new Error(
-      "Refusing without --confirm-server-stopped. Stop the CapacityLens server first; the exclusive " +
-        "database lock enforces this, but the flag records operator intent.",
-    );
-  }
-  if (input.databasePath === ":memory:" || !existsSync(input.databasePath)) {
-    throw new Error("The recovery database must be an existing on-disk CapacityLens database.");
-  }
-
-  const email = normalizeAccountEmail(input.email);
-  if (!isAccountEmail(email)) {
-    throw new Error("The target email is not a valid account address.");
-  }
-
   // Resolve the canonical family configuration exactly the way server startup does, so refusals
   // name canonical keys and the compatibility aliases keep working.
-  const { env } = resolveAccountEnvironment({ ...(input.env ?? process.env) });
-  if (env.CAPACITYLENS_AUTH !== "password") {
-    throw new Error(
-      "SMALLSASS_ACCOUNT_MODE must be password: sso installations have no local credential to reset " +
-        "and off installations have no credential model.",
-    );
-  }
-  if (!env.BETTER_AUTH_URL) {
-    throw new Error("SMALLSASS_ACCOUNT_PUBLIC_URL must be set; the reset link cannot be built without it.");
-  }
+  const context = validateRecoveryInput(input);
 
   // Not openDb(): a stale database must refuse below rather than silently migrate outside the
   // production pre-migration backup ceremony.
   const db = openDbConnection(input.databasePath);
   try {
     acquireExclusiveDatabaseLock(db);
-
-    const migrationPlan = planDatabaseMigrations(db);
-    if (migrationPlan.migrations.length > 0) {
-      throw new Error(
-        `Database schema v${migrationPlan.fromVersion} is not current (expected v${migrationPlan.toVersion}); ` +
-          "start this release normally to complete its backed-up migration before recovery.",
-      );
-    }
-    assertAccountControlPlaneCurrent(db);
-    assertAuditOutboxCurrent(db);
-
-    // The Auth instance rides the tool's exclusively-locked connection; a second connection would
-    // deadlock against our own interlock. deferDatabaseSetup: this tool performs no schema or
-    // provider-binding writes.
-    const { auth } = createAuthFromEnvironment(db, env, { deferDatabaseSetup: true });
-    if (!auth) throw new Error("Better Auth did not initialize for password mode.");
-    const authPlan = await planAuthSchemaMigrations(auth);
-    if (authPlan.pending) {
-      throw new Error(
-        `Better Auth schema is not current (pending table change(s): ${authPlan.tables.join(", ")}); ` +
-          "start this release normally before recovery.",
-      );
-    }
-
-    const matches = listUserIdsByEmail(db, email, 2);
-    if (matches.length !== 1) {
-      throw new Error(
-        matches.length === 0
-          ? "No identity matches that address."
-          : "More than one identity matches that address; recovery requires an unambiguous target.",
-      );
-    }
-    const userId = matches[0];
-    if (!userId) throw new Error("No identity matches that address.");
-
-    // Authority condition: only the state no in-product actor can recover. Anyone else has an
-    // in-product reset path, and this tool must not become a general backdoor.
-    const ownedAccountIds = listSoleOwnerAccountIds(db, userId);
-    if (ownedAccountIds.length === 0) {
-      throw new Error(
-        "That identity is not the sole active Owner of any workspace; use the in-product " +
-          "admin-issued reset instead.",
-      );
-    }
-
-    const token = await mintPasswordResetToken(auth, email);
+    assertRecoverySchemasCurrent(db);
+    const auth = await requireCurrentAuth(db, context.env);
+    const target = requireSoleOwner(db, context.email);
+    const token = await mintPasswordResetToken(auth, context.email);
     if (token === null) {
       throw new Error("Better Auth matched no credential identity for that address.");
     }
 
     // Everything after the mint fails closed: a token we cannot audit or deliver must not survive.
     try {
-      const applicationId = DEFAULT_ACCOUNT_APPLICATION.applicationId;
-      const ceremonyId = createHash("sha256")
-        .update(`${applicationId}-reset-ceremony\0`)
-        .update(token)
-        .digest("base64url");
-      const link = `${new URL(env.BETTER_AUTH_URL).origin}/reset-password/${encodeURIComponent(token)}`;
-      const expiresAt = new Date(Date.now() + RESET_LINK_TTL_SECONDS * 1000).toISOString();
-      const event: AccountAuditEvent = {
-        id: randomUUID(),
-        occurredAt: new Date().toISOString(),
-        applicationId,
-        workspaceId: null,
-        // No in-product actor exists for this ceremony — that absence is the auditable fact.
-        actorPrincipalId: null,
-        targetPrincipalId: userId,
-        commandId: null,
-        action: "identity.owner_recovery_issued",
-        outcome: "success",
-        // The digest, never the token: the audit trail must not itself be a credential.
-        changedFields: ["credential", `ceremony:${ceremonyId}`],
-      };
-      const auditId = enqueueAudit(db, event, event.id);
-      return { email, userId, accountIds: ownedAccountIds, ceremonyId, link, expiresAt, auditId };
+      return recordRecovery({ db, context, target, token });
     } catch (cause) {
-      revokeResetTokensForUser(db, userId);
+      revokeResetTokensForUser(db, target.userId);
       throw new Error("Recovery failed after minting; the reset ceremony has been revoked.", { cause });
     }
   } finally {
