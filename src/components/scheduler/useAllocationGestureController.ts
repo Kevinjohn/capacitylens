@@ -384,10 +384,14 @@ export function useAllocationGestureController(options: ControllerOptions, runti
       commitPointerGesture(options, runtime, { mode, deltaDays, pointer });
     },
   });
-  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const beginPointerGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!armPointerGesture(event)) return;
     runtime.lanesRef.current = readLaneSnapshots();
     runtime.startGeometryWatch();
   };
-  return { preview, onPointerDown, nudge: (mode: DragMode, delta: number) => nudgeAllocation(options, mode, delta) };
+  return {
+    preview,
+    onPointerDown: beginPointerGesture,
+    nudge: (mode: DragMode, delta: number) => nudgeAllocation(options, mode, delta),
+  };
 }
