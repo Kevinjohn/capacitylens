@@ -1423,17 +1423,6 @@
       "count": 1
     }
   },
-  "src/components/settings/ArchivedSection.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
-    }
-  },
   "src/components/settings/InviteMemberPanel.tsx": {
     "max-lines-per-function": {
       "count": 1
@@ -1444,28 +1433,6 @@
   },
   "src/components/settings/MemberConfirmations.tsx": {
     "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/components/settings/MemberRow.tsx": {
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/components/settings/MembersSection.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
       "count": 1
     }
   },
