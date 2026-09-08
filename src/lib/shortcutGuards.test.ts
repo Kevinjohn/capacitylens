@@ -47,7 +47,9 @@ function registerTextEntryShortcutScenarios(): void {
 
     expect(isTextEntryShortcutOwner(child)).toBe(true);
   });
+}
 
+function registerTextEntryBoundaryScenarios(): void {
   it("does not claim a region that explicitly disables content editing", () => {
     const editor = document.createElement("div");
     editor.setAttribute("contenteditable", "false");
@@ -95,6 +97,7 @@ function registerTextEntryShortcutScenarios(): void {
 
 describe("textEntryOwnsShortcut", () => {
   registerTextEntryShortcutScenarios();
+  registerTextEntryBoundaryScenarios();
 });
 
 describe("hasOpenModal", () => {

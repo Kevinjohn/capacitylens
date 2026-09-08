@@ -53,7 +53,9 @@ function registerCompanyPickerEntryScenarios(): void {
     expect(window.history.state).toEqual({});
     expect(window.location.href).toBe("http://localhost:3000/settings?section=account");
   });
+}
 
+function registerCompanyPickerEntryFailureScenarios(): void {
   it("does not consume marker-like values that are not exactly true", () => {
     for (const marker of [false, "true", 1, null, { enabled: true }]) {
       const state = { idx: 3, "capacitylens.showCompanyPickerOnReload": marker };
@@ -88,4 +90,5 @@ function registerCompanyPickerEntryScenarios(): void {
 
 describe("post-sign-in company-picker entry", () => {
   registerCompanyPickerEntryScenarios();
+  registerCompanyPickerEntryFailureScenarios();
 });

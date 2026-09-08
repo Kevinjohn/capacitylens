@@ -57,7 +57,9 @@ function registerDownloadScenarios(): void {
     expect(document.querySelector('a[download="out.json"]')).toBeNull();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:abc");
   });
+}
 
+function registerDownloadEventPropagationScenario(): void {
   it("does not mistake stopped propagation for cancellation when the default remains allowed", async () => {
     vi.stubGlobal("URL", {
       ...URL,
@@ -77,7 +79,9 @@ function registerDownloadScenarios(): void {
     }
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
+}
 
+function registerDownloadPropagationScenarios(): void {
   it("defaults the MIME type to application/json when none is given", async () => {
     const blobSpy = vi.spyOn(globalThis, "Blob");
     vi.stubGlobal("URL", {
@@ -114,7 +118,9 @@ function registerDownloadScenarios(): void {
     expect(clickSpy).toHaveBeenCalledOnce();
     await new Promise((r) => setTimeout(r, 0)); // let the deferred cleanup remove the anchor
   });
+}
 
+function registerDownloadFailureScenarios(): void {
   it("throws a caller-facing error and cleans up when the click fails", () => {
     const revokeObjectURL = vi.fn();
     vi.stubGlobal("URL", {
@@ -170,7 +176,9 @@ function registerDownloadScenarios(): void {
       expect((e as Error).cause).toBe(original);
     }
   });
+}
 
+function registerDownloadCleanupFailureScenarios(): void {
   it("preserves the canonical start failure when catch-path cleanup also fails", () => {
     const original = new Error("click blocked");
     const cleanupFailure = new Error("revoke failed");
@@ -223,4 +231,8 @@ function registerDownloadScenarios(): void {
 
 describe("downloadTextFile", () => {
   registerDownloadScenarios();
+  registerDownloadEventPropagationScenario();
+  registerDownloadPropagationScenarios();
+  registerDownloadFailureScenarios();
+  registerDownloadCleanupFailureScenarios();
 });

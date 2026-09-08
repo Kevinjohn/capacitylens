@@ -132,7 +132,9 @@ function registerWeekendAwareResizeScenarios(): void {
     expect(out.endDate).toBe("2026-06-08"); // Monday, NOT the Sunday start
     expect(out.startDate).toBe("2026-06-07");
   });
+}
 
+function registerWeekendAwareResizeEdgeScenarios(): void {
   it("never widens a weekend-only range while pinning an over-dragged edge", () => {
     const range: DateRange = { startDate: "2026-06-06", endDate: "2026-06-07" };
 
@@ -187,4 +189,5 @@ function registerWeekendAwareResizeScenarios(): void {
 
 describe("applyGesture: weekend-aware resize", () => {
   registerWeekendAwareResizeScenarios();
+  registerWeekendAwareResizeEdgeScenarios();
 });

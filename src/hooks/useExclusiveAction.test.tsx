@@ -38,7 +38,9 @@ function registerExclusiveActionScenarios(): void {
 
     expect(result.current.busy).toBe(true);
   });
+}
 
+function registerExclusiveActionConcurrencyScenarios(): void {
   it("discards a second action started while one is in flight", async () => {
     const pending = deferred();
     const second = vi.fn(() => Promise.resolve());
@@ -77,7 +79,9 @@ function registerExclusiveActionScenarios(): void {
     await act(async () => result.current.run(next, vi.fn()));
     expect(next).toHaveBeenCalledTimes(1);
   });
+}
 
+function registerExclusiveActionErrorScenarios(): void {
   it("surfaces a rejection to onError and still reopens the gate", async () => {
     const pending = deferred();
     const onError = vi.fn();
@@ -95,7 +99,9 @@ function registerExclusiveActionScenarios(): void {
     expect(result.current.busy).toBe(false);
     expect(result.current.locked()).toBe(false);
   });
+}
 
+function registerExclusiveActionThrowScenarios(): void {
   it("surfaces a synchronous action throw and still reopens the gate", async () => {
     const onError = vi.fn();
     const failure = new Error("the action threw before returning a promise");
@@ -148,4 +154,7 @@ function registerExclusiveActionScenarios(): void {
 
 describe("useExclusiveAction", () => {
   registerExclusiveActionScenarios();
+  registerExclusiveActionConcurrencyScenarios();
+  registerExclusiveActionErrorScenarios();
+  registerExclusiveActionThrowScenarios();
 });

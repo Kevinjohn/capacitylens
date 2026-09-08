@@ -95,7 +95,9 @@ function registerChromeDepthTokenScenarios(): void {
     expect(contrastRatio(filterbar, black)).toBeLessThan(contrastRatio(canvas, black));
     expect(contrastRatio(canvasInk, canvas)).toBeGreaterThanOrEqual(4.5);
   });
+}
 
+function registerChromeDepthPairingScenarios(): void {
   it.each(["light", "dark"] as const)("keeps every %s chrome and scheduler ground paired with AA ink", (theme) => {
     const tokens = chromeTokens(theme);
     const pairs = [
@@ -128,6 +130,7 @@ function registerChromeDepthTokenScenarios(): void {
 
 describe("chrome depth tokens", () => {
   registerChromeDepthTokenScenarios();
+  registerChromeDepthPairingScenarios();
 });
 
 describe("DEFAULT_COLORS bar legibility (WCAG 1.4.3 AA)", () => {
