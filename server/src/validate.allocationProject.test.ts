@@ -114,10 +114,16 @@ describe("server allocation project attribution", () => {
     insertAll(db, data);
 
     upsertRow(db, "activities", { ...data.activities[0], kind: "internal", updatedAt: "2026-01-02T00:00:00.000Z" });
-    expect(readState(db).allocations[0]).toHaveProperty("projectId", "p1");
-    clearAllocationAttributionForActivities(db, new Set([data.activities[0]!.id]));
-    expect(readState(db).allocations[0]).not.toHaveProperty("projectId");
-    expect(Date.parse(readState(db).allocations[0]!.updatedAt)).toBeGreaterThan(Date.parse(TS));
+    const activity = data.activities[0];
+    if (!activity) throw new Error("Expected the repeatable activity.");
+    const before = readState(db).allocations[0];
+    if (!before) throw new Error("Expected the stored allocation.");
+    expect(before).toHaveProperty("projectId", "p1");
+    clearAllocationAttributionForActivities(db, new Set([activity.id]));
+    const after = readState(db).allocations[0];
+    if (!after) throw new Error("Expected the cleared allocation.");
+    expect(after).not.toHaveProperty("projectId");
+    expect(Date.parse(after.updatedAt)).toBeGreaterThan(Date.parse(TS));
     db.close();
   });
 });

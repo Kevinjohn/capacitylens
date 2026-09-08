@@ -286,7 +286,7 @@ describe("GET /api/accounts/:id/members — gate", () => {
   registerMemberGateResetCapabilityTest();
 });
 
-describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
+function createAnonymousRevocationTest(): void {
   it("requires a session for session revocation and ownership transfer", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -302,7 +302,9 @@ describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
       ).statusCode,
     ).toBe(401);
   });
+}
 
+function createOwnerRevocationTest(): void {
   it("lets an owner terminate a member session and invalidates that cookie immediately", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -351,7 +353,9 @@ describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
       ).statusCode,
     ).toBe(401);
   });
+}
 
+function createCrossAccountRevocationTest(): void {
   it("refuses cross-account authority and leaves the target session intact", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -401,7 +405,9 @@ describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
       ).statusCode,
     ).toBe(200);
   });
+}
 
+function createStaleSessionRevocationTest(): void {
   it("requires a fresh sign-in before a privileged session-termination action", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -456,6 +462,13 @@ describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
       ).statusCode,
     ).toBe(200);
   });
+}
+
+describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
+  createAnonymousRevocationTest();
+  createOwnerRevocationTest();
+  createCrossAccountRevocationTest();
+  createStaleSessionRevocationTest();
 });
 
 // ── Step-up freshness gate: fail CLOSED on a missing session timestamp ─────────────────────────
@@ -500,7 +513,7 @@ function timestamplessAuth(userId: string): Auth {
   };
 }
 
-describe("step-up freshness gate — missing sessionCreatedAt fails closed", () => {
+function createMissingTimestampRejectionTest(): void {
   it("403s a gated (above-write) action with SESSION_NOT_FRESH when the session has no timestamp", async () => {
     const db = openDb(":memory:");
     seedTwo(db);
@@ -530,7 +543,9 @@ describe("step-up freshness gate — missing sessionCreatedAt fails closed", () 
     // The membership itself is intact — only the freshness gate refused, not authorization.
     expect(getMemberRole(db, "a1", "undated-target")).toBe("editor");
   });
+}
 
+function createMissingTimestampReadWriteTest(): void {
   it("read and write actions are unaffected — the freshness gate covers only above-write actions", async () => {
     const db = openDb(":memory:");
     seedTwo(db);
@@ -562,6 +577,11 @@ describe("step-up freshness gate — missing sessionCreatedAt fails closed", () 
     });
     expect(put.statusCode).toBe(200);
   });
+}
+
+describe("step-up freshness gate — missing sessionCreatedAt fails closed", () => {
+  createMissingTimestampRejectionTest();
+  createMissingTimestampReadWriteTest();
 });
 
 function registerAdminRoleChangeTest(): void {
@@ -1320,7 +1340,8 @@ const patchStatusReq = ({ app, accountId, userId, status, headers = {} }: PatchS
 const storedStatus = (db: Db, accountId: string, userId: string): string | undefined =>
   (
     db.prepare(`SELECT status FROM account_members WHERE accountId = ? AND userId = ?`).get(accountId, userId) as
-      { status: string } | undefined
+      | { status: string }
+      | undefined
   )?.status;
 
 interface SignInDirectory {
