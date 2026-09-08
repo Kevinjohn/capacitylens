@@ -719,7 +719,7 @@ async function createClosedSignupInviteContext() {
   return { app, db, token: readResponseString(created, "token") };
 }
 
-describe("POST /api/invites/:token/signup — password invite onboarding", () => {
+function registerInviteSignupRefusalTests(): void {
   it("rejects invalid email, empty name, short password, and unsupported auth mode", async () => {
     const { app } = await appWithAuth();
     const base = {
@@ -770,7 +770,9 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
 
     expect(commandCount()).toEqual(before);
   });
+}
 
+function registerInviteSignupAcceptanceTest(): void {
   it("creates, binds, and signs in a genuinely new preauthorized user while public signup is closed", async () => {
     const { app, db, token } = await createClosedSignupInviteContext();
 
@@ -824,6 +826,11 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
     expect(getMemberRole(db, "a1", readString(meUser.id, "response body.user.id"))).toBe("editor");
     expect((await acceptReq(app, token, { cookie: readCookies(signedIn) })).statusCode).toBe(409);
   });
+}
+
+describe("POST /api/invites/:token/signup — password invite onboarding", () => {
+  registerInviteSignupRefusalTests();
+  registerInviteSignupAcceptanceTest();
 });
 
 describe("invites — OFF mode (trusted-local)", () => {
