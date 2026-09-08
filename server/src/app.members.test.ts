@@ -1357,6 +1357,7 @@ async function assertSignInTrackingDefaults({
 async function enableAndConfirmMemberSignIn({
   app,
   ownerCookie,
+  ownerId,
   editorId,
   editorEmail,
 }: SignInScenarioInput): Promise<void> {
@@ -1370,6 +1371,7 @@ async function enableAndConfirmMemberSignIn({
   expect(enabled.json()).toEqual({ enabled: true });
   let directory = await readSignInDirectory(app, ownerCookie);
   expect(directory.signInTrackingEnabled).toBe(true);
+  expect(directory.members.find((member) => member.userId === ownerId)?.signInConfirmed).toBe(true);
   expect(directory.members.find((member) => member.userId === editorId)?.signInConfirmed).toBe(false);
 
   const signedIn = await call(app, {
