@@ -79,7 +79,7 @@ test("turning disciplines off hides every surface; turning it back on restores t
   await grid.evaluate((el) => {
     (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight;
   });
-  // Firefox delivers the scroll event before the next paint; wait for the scheduler's scroll
+  // The browser delivers the scroll event before the next paint; wait for the scheduler's scroll
   // frame and the following paint so virtualization has observed the browser's bottom position.
   await grid.evaluate(
     () =>
