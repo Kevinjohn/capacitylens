@@ -1,6 +1,13 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AccountRouteContext } from "../createReplyHelpers";
 
+function assertAuthenticatedRequestContext(req: FastifyRequest) {
+  const actor = req.accountActor;
+  const user = req.user;
+  if (!actor || !user) throw new Error("Expected authenticated context on a credential administration route.");
+  return { actor, userId: user.id };
+}
+
 export async function resetPassword(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     authMode,
@@ -28,8 +35,9 @@ export async function resetPassword(req: FastifyRequest, reply: FastifyReply, co
     const command = accountCommand(req);
     const targetMembership = await requireMembership({ reply, accountId, userId, command });
     if (!targetMembership) return;
+    const { actor, userId: actorUserId } = assertAuthenticatedRequestContext(req);
     const ceremony = await accountFlows.issuePasswordReset({
-      actor: req.accountActor!,
+      actor,
       targetPrincipalId: userId,
       command,
     });
@@ -38,7 +46,7 @@ export async function resetPassword(req: FastifyRequest, reply: FastifyReply, co
       result: ceremony,
       record: {
         ts: new Date().toISOString(),
-        userId: req.user!.id,
+        userId: actorUserId,
         accountId,
         action: "passwordResetIssue",
         entity: "identity",
@@ -76,8 +84,9 @@ export async function revokeMemberSessions(req: FastifyRequest, reply: FastifyRe
     const command = accountCommand(req);
     const targetMembership = await requireMembership({ reply, accountId, userId, command });
     if (!targetMembership) return;
+    const { actor, userId: actorUserId } = assertAuthenticatedRequestContext(req);
     const revoked = await accountFlows.revokeMemberSessions({
-      actor: req.accountActor!,
+      actor,
       targetPrincipalId: userId,
       command,
     });
@@ -86,7 +95,7 @@ export async function revokeMemberSessions(req: FastifyRequest, reply: FastifyRe
       result: revoked,
       record: {
         ts: new Date().toISOString(),
-        userId: req.user!.id,
+        userId: actorUserId,
         accountId,
         action: "sessionsRevoke",
         entity: "identity",
