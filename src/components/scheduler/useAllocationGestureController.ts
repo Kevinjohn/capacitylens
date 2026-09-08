@@ -361,8 +361,7 @@ function startPointerGesture(runtime: GestureRuntime) {
 export function useAllocationGestureController(options: ControllerOptions, runtime: GestureRuntime) {
   const { bar, indexAtClientX, onEdit } = options;
   const [preview, setPreview] = useState<GesturePreview | null>(null);
-  // Store writes are read at call time: action identities do not change, and every handler already
-  // needs live state for the data it commits against.
+  // Read store actions at call time because handlers commit against live state.
   const setDragging = (id: ID | null) => useStore.getState().setDraggingAllocation(id);
   const { onPointerDown: armPointerGesture } = useDragResize({
     indexAtClientX,
