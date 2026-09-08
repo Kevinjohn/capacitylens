@@ -62,12 +62,15 @@ function parseSecureProviderUrl(
   if (url.username || url.password) {
     throw new ErrorType(`${resolveAccountConfigKey(key)} must not contain URL credentials.`);
   }
-  // Validate through URL but preserve the trimmed issuer verbatim: URL#toString() can add a slash
-  // and change the exact OIDC identity namespace.
+  // Issuer identifiers are exact strings in OIDC. URL#toString() adds a trailing slash to a bare
+  // origin, which would turn a correct configured `https://idp.example` issuer into a different
+  // identity namespace and reject otherwise matching discovery metadata. Validate through URL,
+  // but preserve the operator's trimmed value verbatim for protocol comparison.
   return raw;
 }
 
-/** Builds social providers; partial credentials refuse startup and identity admission stays database-gated. */
+/** Native social providers assembled from env. Unset pairs are absent; a partial pair refuses
+ * startup. New external identities require verified email and remain invite-gated in the database hook. */
 function parseSocialProvidersFromEnvironment(
   environment: Env,
   AuthConfigError: AuthConfigErrorConstructor,
@@ -110,8 +113,10 @@ function parseSocialProvidersFromEnvironment(
   return providers;
 }
 
-// Provider ids persist as identity namespaces, so generic OIDC must not claim a built-in/plugin id.
-// Keep this aligned with social-provider parsing and plugin assembly.
+// Provider ids are persisted as part of an external identity's namespace. Generic OIDC must not
+// claim an id owned by a built-in sign-in method or one of CapacityLens' installed auth plugins:
+// enabling that method later would otherwise reinterpret existing accounts or overwrite issuer
+// routing. Keep this list aligned with social-provider parsing and plugin assembly below.
 const RESERVED_IDS = new Set(["credential", "generic-oauth", "two-factor", "google", "microsoft", "github"]);
 
 function buildExternalProviderInfo(
@@ -158,12 +163,8 @@ interface PrepareProvidersInput {
   ) => void;
 }
 
-interface GenericOidcConfiguration {
+interface GenericOidcConfiguration extends Required<Parameters<typeof createStrictOidcClient>[0]> {
   providerId: string;
-  issuer: string;
-  discoveryUrl: string;
-  clientId: string;
-  clientSecret: string;
   scopes: string[];
 }
 
