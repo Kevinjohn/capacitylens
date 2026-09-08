@@ -79,6 +79,15 @@ function buildInitialCapacityState(resource?: Resource) {
 }
 
 type FormState = ReturnType<typeof useResourceFormState>;
+type ResourceDraft = {
+  name: string;
+  role: string;
+  disciplineId: string;
+  engagement: ResourceEngagement;
+  workingDays: Weekday[];
+  halfDays: Weekday[];
+  projectId: string;
+};
 type ProjectOptionsInput = {
   resource: Resource | undefined;
   projects: Project[];
@@ -117,7 +126,8 @@ type SubmitInput = {
   resource: Resource | undefined;
   kind: ResourceKind;
   isPlaceholder: boolean;
-  form: FormState;
+  draft: ResourceDraft;
+  readResources: () => Resource[];
   fail: Fail;
   onClose: () => void;
   add: AddResource;
@@ -222,10 +232,10 @@ function saveResource(input: SaveResourceInput) {
 function createSubmit(input: SubmitInput) {
   return () => {
     const fields = parseFormFields({
-      name: input.form.name,
-      role: input.form.role,
-      projectId: input.form.projectId,
-      workingDays: input.form.workingDays,
+      name: input.draft.name,
+      role: input.draft.role,
+      projectId: input.draft.projectId,
+      workingDays: input.draft.workingDays,
       isPlaceholder: input.isPlaceholder,
       fail: input.fail,
     });
@@ -234,15 +244,15 @@ function createSubmit(input: SubmitInput) {
       resource: input.resource,
       kind: input.kind,
       isPlaceholder: input.isPlaceholder,
-      disciplineId: input.form.disciplineId,
-      engagement: input.form.engagement,
-      workingDays: input.form.workingDays,
-      halfDays: input.form.halfDays,
-      projectId: input.form.projectId,
+      disciplineId: input.draft.disciplineId,
+      engagement: input.draft.engagement,
+      workingDays: input.draft.workingDays,
+      halfDays: input.draft.halfDays,
+      projectId: input.draft.projectId,
       fields,
     });
     try {
-      if (!validateResourceFreshness(input.resource, useStore.getState().data.resources, input.fail)) return;
+      if (!validateResourceFreshness(input.resource, input.readResources(), input.fail)) return;
       saveResource({ resource: input.resource, patch, add: input.add, update: input.update });
       input.onClose();
     } catch (e) {
@@ -251,8 +261,12 @@ function createSubmit(input: SubmitInput) {
   };
 }
 
+type ResourceFieldsState = Pick<FormState, "name" | "setName" | "role" | "setRole"> &
+  Pick<FormState, "disciplineId" | "setDisciplineId" | "engagement" | "setEngagement"> &
+  Pick<FormState, "projectId" | "setProjectId">;
+
 type ResourceFieldsProps = {
-  form: FormState;
+  form: ResourceFieldsState;
   isPlaceholder: boolean;
   disciplinesEnabled: boolean;
   disciplines: Discipline[];
@@ -338,7 +352,17 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
     rawProjects: raw.projects,
     rawClients: raw.clients,
   });
-  const submit = createSubmit({ resource, kind, isPlaceholder, form, fail, onClose, add, update });
+  const draft: ResourceDraft = {
+    name: form.name,
+    role: form.role,
+    disciplineId: form.disciplineId,
+    engagement: form.engagement,
+    workingDays: form.workingDays,
+    halfDays: form.halfDays,
+    projectId: form.projectId,
+  };
+  const readResources = () => useStore.getState().data.resources;
+  const submit = createSubmit({ resource, kind, isPlaceholder, draft, readResources, fail, onClose, add, update });
   return (
     <Modal
       title={resolveFormTitle(resource, isPlaceholder)}
