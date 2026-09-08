@@ -3010,12 +3010,12 @@ describe("migration ledger checksum supersession (v11 alpha-line amendment)", ()
   });
 });
 
-describe("migration value preservation policy", () => {
-  const table = (rows: Array<Record<string, string | number | null>>, primaryKey = ["id"]) => ({
-    primaryKey,
-    rows,
-  });
+const table = (rows: Array<Record<string, string | number | null>>, primaryKey = ["id"]) => ({
+  primaryKey,
+  rows,
+});
 
+describe("migration value preservation policy", () => {
   it("allows only the versioned historical deletion repairs", () => {
     const ownerInvite = { id: "invite-1", role: "owner", usedAt: null };
     expect(() =>
@@ -3066,7 +3066,9 @@ describe("migration value preservation policy", () => {
     };
     expect(() => assertMigrationValuesPreserved(before, after, 7)).not.toThrow();
   });
+});
 
+describe("migration value preservation policy", () => {
   it("uses createdAt then id to break pre-v8 fold ties", () => {
     const before: MigrationValueSnapshot = {
       clients: table([
@@ -3102,7 +3104,9 @@ describe("migration value preservation policy", () => {
     };
     expect(() => assertMigrationValuesPreserved(before, after, 7)).not.toThrow();
   });
+});
 
+describe("migration value preservation policy", () => {
   it("allows pre-v22 built-in lifecycle cell repairs", () => {
     const before = {
       id: "internal:a1",
