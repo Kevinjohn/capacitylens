@@ -62,6 +62,7 @@ describe("loadInternalTls", () => {
   });
 
   it("frames unreadable and empty identities as configuration errors", () => {
+    const readFailure = new Error("permission denied");
     expect(() =>
       loadInternalTls({
         environment: {
@@ -69,10 +70,22 @@ describe("loadInternalTls", () => {
           CAPACITYLENS_INTERNAL_TLS_KEY: "/tls/api.key",
         },
         read: () => {
-          throw new Error("permission denied");
+          throw readFailure;
         },
       }),
     ).toThrow(/Unable to read.*permission denied/);
+
+    expect(() =>
+      loadInternalTls({
+        environment: {
+          CAPACITYLENS_INTERNAL_TLS_CERT: "/tls/api.crt",
+          CAPACITYLENS_INTERNAL_TLS_KEY: "/tls/api.key",
+        },
+        read: () => {
+          throw readFailure;
+        },
+      }),
+    ).toThrow(expect.objectContaining({ cause: readFailure }));
 
     expect(() =>
       loadInternalTls({
