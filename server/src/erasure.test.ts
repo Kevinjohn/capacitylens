@@ -6,6 +6,31 @@ import { recordAppliedSyncBatch } from "./syncOrdering";
 
 const TS = "2026-01-01T00:00:00.000Z";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readRecord(value: unknown): Record<string, unknown> {
+  if (!isRecord(value)) {
+    throw new Error("Expected a database row.");
+  }
+  return value;
+}
+
+function readString(value: unknown, field: string): string {
+  if (!isRecord(value) || typeof value[field] !== "string") {
+    throw new Error(`Expected database field ${field} to be a string.`);
+  }
+  return value[field];
+}
+
+function readErrorMessage(value: unknown): string {
+  if (!(value instanceof Error)) {
+    throw new Error("Expected erasure to throw an Error.");
+  }
+  return value.message;
+}
+
 function seedAccounts(db: Db): void {
   const insert = db.prepare(
     `INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, '#3b82f6', ?, ?)`,
@@ -71,7 +96,7 @@ interface InsertResourceInput {
   refs?: { disciplineId?: string; projectId?: string } | undefined;
 }
 
-function insertResource({ db, id, accountId, refs = {} }: InsertResourceInput): void {
+function insertResource({ db, id, accountId, refs }: InsertResourceInput): void {
   db.prepare(
     `
     INSERT INTO resources (
@@ -79,7 +104,7 @@ function insertResource({ db, id, accountId, refs = {} }: InsertResourceInput): 
       workingDays, projectId, color, createdAt, updatedAt
     ) VALUES (?, ?, 'person', ?, 'Designer', ?, 'employee', 8, '[1,2,3,4,5]', ?, '#3b82f6', ?, ?)
   `,
-  ).run(id, accountId, id, refs.disciplineId ?? null, refs.projectId ?? null, TS, TS);
+  ).run(id, accountId, id, refs?.disciplineId ?? null, refs?.projectId ?? null, TS, TS);
 }
 
 interface InsertActivityInput {
@@ -89,13 +114,13 @@ interface InsertActivityInput {
   refs?: { projectId?: string; phaseId?: string } | undefined;
 }
 
-function insertActivity({ db, id, accountId, refs = {} }: InsertActivityInput): void {
+function insertActivity({ db, id, accountId, refs }: InsertActivityInput): void {
   db.prepare(
     `
     INSERT INTO activities (id, accountId, name, kind, projectId, phaseId, createdAt, updatedAt)
     VALUES (?, ?, ?, 'internal', ?, ?, ?, ?)
   `,
-  ).run(id, accountId, id, refs.projectId ?? null, refs.phaseId ?? null, TS, TS);
+  ).run(id, accountId, id, refs?.projectId ?? null, refs?.phaseId ?? null, TS, TS);
 }
 
 interface InsertAllocationInput {
@@ -223,14 +248,7 @@ const crossTenantEdges: Array<{
   },
 ];
 
-describe("CROSS_TENANT_ERASURE_EDGE_SQL", () => {
-  // Pinned so a future edit to tenantIntegrity's TENANT_RELATIONSHIPS (the shared source this SQL is
-  // now generated from) can't silently change the erasure guard's query shape. Content is provably
-  // equivalent to the hand-written SQL this replaced: same relationships, same order, same per-branch
-  // WHERE clause — only the repeated column aliases differ, which UNION ALL ignores past the first
-  // SELECT. The it.each coverage below is the behavioural proof; this is the textual regression pin.
-  it("generates one account-scoped edge check per TENANT_RELATIONSHIPS entry, in order", () => {
-    expect(CROSS_TENANT_ERASURE_EDGE_SQL).toBe(`
+const EXPECTED_CROSS_TENANT_ERASURE_EDGE_SQL = `
   SELECT 'resources.disciplineId -> disciplines.id' AS relationship,
          parent.id AS parentId, child.id AS childId, child.accountId AS childAccountId
     FROM disciplines AS parent
@@ -290,7 +308,16 @@ describe("CROSS_TENANT_ERASURE_EDGE_SQL", () => {
     FROM projects AS parent
     JOIN allocations AS child ON child.projectId = parent.id
    WHERE parent.accountId = ?1 AND child.accountId <> ?1
-  LIMIT 1`);
+  LIMIT 1`;
+
+describe("CROSS_TENANT_ERASURE_EDGE_SQL", () => {
+  // Pinned so a future edit to tenantIntegrity's TENANT_RELATIONSHIPS (the shared source this SQL is
+  // now generated from) can't silently change the erasure guard's query shape. Content is provably
+  // equivalent to the hand-written SQL this replaced: same relationships, same order, same per-branch
+  // WHERE clause — only the repeated column aliases differ, which UNION ALL ignores past the first
+  // SELECT. The it.each coverage below is the behavioural proof; this is the textual regression pin.
+  it("generates one account-scoped edge check per TENANT_RELATIONSHIPS entry, in order", () => {
+    expect(CROSS_TENANT_ERASURE_EDGE_SQL).toBe(EXPECTED_CROSS_TENANT_ERASURE_EDGE_SQL);
   });
 });
 
@@ -320,8 +347,9 @@ describe("workspace erasure tenant-boundary guard", () => {
          AND name LIKE 'capacitylens_tenant_%_insert'
     `,
       )
-      .all() as Array<{ name: string }>;
-    for (const { name } of insertTriggers) db.exec(`DROP TRIGGER ${name}`);
+      .all()
+      .map((row: unknown) => readString(row, "name"));
+    for (const name of insertTriggers) db.exec(`DROP TRIGGER ${name}`);
     seed(db);
 
     // The remaining id-only foreign keys consider the relationship structurally valid. Even after
@@ -336,7 +364,7 @@ describe("workspace erasure tenant-boundary guard", () => {
     }
 
     expect(thrown).toBeInstanceOf(TenantErasureIntegrityError);
-    expect((thrown as Error).message).toContain(relationship);
+    expect(readErrorMessage(thrown)).toContain(relationship);
     expect(db.prepare(`SELECT id FROM accounts ORDER BY id`).all()).toEqual([{ id: "a1" }, { id: "a2" }]);
   });
 
@@ -350,7 +378,7 @@ describe("workspace erasure tenant-boundary guard", () => {
         table: "clients",
         id: "c1",
         accountId: "a1",
-        row: db.prepare(`SELECT * FROM clients WHERE id = 'c1'`).get() as Record<string, unknown>,
+        row: readRecord(db.prepare(`SELECT * FROM clients WHERE id = 'c1'`).get()),
       },
     ]);
     recordAppliedSyncBatch(db, { sessionId: "browser-session-a2", sequence: 1 }, [
@@ -358,7 +386,7 @@ describe("workspace erasure tenant-boundary guard", () => {
         table: "clients",
         id: "c2",
         accountId: "a2",
-        row: db.prepare(`SELECT * FROM clients WHERE id = 'c2'`).get() as Record<string, unknown>,
+        row: readRecord(db.prepare(`SELECT * FROM clients WHERE id = 'c2'`).get()),
       },
     ]);
 
