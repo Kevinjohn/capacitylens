@@ -31,6 +31,11 @@ interface AccessManagementProps {
   permissionStatus: ReturnType<typeof usePermissionStatus>;
 }
 
+interface ResolveAccessWarningInput {
+  offlineReadOnly: boolean;
+  accessExperience: ReturnType<typeof resolveAccessExperience>;
+}
+
 function listCapabilities(role: Role): Capability[] {
   return [
     { label: m.access_cap_view_schedule(), allowed: can(role, "read") },
@@ -42,7 +47,7 @@ function listCapabilities(role: Role): Capability[] {
   ];
 }
 
-function resolveAccessWarning(offlineReadOnly: boolean, accessExperience: ReturnType<typeof resolveAccessExperience>) {
+function resolveAccessWarning({ offlineReadOnly, accessExperience }: ResolveAccessWarningInput) {
   if (offlineReadOnly) return null;
   if (accessExperience === "demo") return m.access_demo_warning();
   if (accessExperience === "open") return m.access_open_warning();
@@ -65,10 +70,12 @@ function CapabilityList({ role }: { role: Role }) {
 
 function CurrentAccessCard({ accessLabel, accessSummary, accessWarning, effectiveRole }: CurrentAccessCardProps) {
   const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
-  let content = null;
+  let accessDetails = null;
 
   if (effectiveRole) {
-    content = (
+    // Collapsed by default: the tick list is reference material, not something anyone reads
+    // on every visit, and expanded it pushed the member table below the fold (#175).
+    accessDetails = (
       <>
         <button
           type="button"
@@ -85,7 +92,7 @@ function CurrentAccessCard({ accessLabel, accessSummary, accessWarning, effectiv
       </>
     );
   } else if (accessWarning) {
-    content = (
+    accessDetails = (
       <Alert>
         <AlertDescription>{accessWarning}</AlertDescription>
       </Alert>
@@ -104,13 +111,15 @@ function CurrentAccessCard({ accessLabel, accessSummary, accessWarning, effectiv
           <Badge variant={badgeVariant}>{accessLabel}</Badge>
         </CardAction>
       </CardHeader>
-      <CardContent>{content}</CardContent>
+      <CardContent>{accessDetails}</CardContent>
     </Card>
   );
 }
 
 function AccessManagement({ authenticated, mayManage, offlineReadOnly, permissionStatus }: AccessManagementProps) {
   if (!authenticated) {
+    // Demo and open installations have no real membership directory, so say so plainly rather
+    // than leaving the page looking broken. Previously this lived in a members explainer card.
     return (
       <Alert>
         <AlertDescription>{m.access_members_demo_note()}</AlertDescription>
@@ -153,7 +162,10 @@ export function TeamAccessView() {
   };
   const accessLabel = resolveAccessLabel(accessCopyInput);
   const accessSummary = resolveAccessSummary(accessCopyInput);
-  const accessWarning = resolveAccessWarning(offline.readOnly, accessExperience);
+  const accessWarning = resolveAccessWarning({
+    offlineReadOnly: offline.readOnly,
+    accessExperience,
+  });
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-5 p-6">
