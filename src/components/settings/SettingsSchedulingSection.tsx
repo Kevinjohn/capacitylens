@@ -177,7 +177,24 @@ function InternalVisibilitySection({
   );
 }
 
-export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps) {
+function SchedulingVisibilitySections({
+  canEdit,
+  placeholdersEnabled,
+  externalEnabled,
+  showInternalProjects,
+  showInternalActivities,
+  inlineActivityCreateEnabled,
+  updateSetting,
+}: Pick<
+  SettingsSchedulingSectionProps,
+  | "canEdit"
+  | "placeholdersEnabled"
+  | "externalEnabled"
+  | "showInternalProjects"
+  | "showInternalActivities"
+  | "inlineActivityCreateEnabled"
+  | "updateSetting"
+>) {
   const externalHelp = (
     <>
       <span className="block">{externalExplainer()}</span>
@@ -186,8 +203,55 @@ export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps)
   );
   return (
     <>
-      <SchedulingModeSection {...props} />
-      <SettingsWorkingDaysSection {...props} />
+      <AccountToggleSection
+        title={m.settings_placeholders_heading()}
+        help={m.settings_placeholders_intro()}
+        label={m.settings_placeholders_toggle()}
+        checked={placeholdersEnabled}
+        canEdit={canEdit}
+        onChange={(next) => updateSetting({ placeholdersEnabled: next })}
+      />
+      <AccountToggleSection
+        title={m.settings_external_heading()}
+        help={externalHelp}
+        label={m.settings_external_toggle()}
+        checked={externalEnabled}
+        canEdit={canEdit}
+        onChange={(next) => updateSetting({ externalEnabled: next })}
+      />
+      <InternalVisibilitySection
+        canEdit={canEdit}
+        showInternalProjects={showInternalProjects}
+        showInternalActivities={showInternalActivities}
+        updateSetting={updateSetting}
+      />
+      <AccountToggleSection
+        title={m.settings_activity_create_heading()}
+        help={m.settings_activity_create_intro()}
+        label={m.settings_inline_activity_create_toggle()}
+        checked={inlineActivityCreateEnabled}
+        canEdit={canEdit}
+        onChange={(next) => updateSetting({ inlineActivityCreateEnabled: next })}
+      />
+    </>
+  );
+}
+
+export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps) {
+  return (
+    <>
+      <SchedulingModeSection
+        canEdit={props.canEdit}
+        schedulingMode={props.schedulingMode}
+        updateSetting={props.updateSetting}
+      />
+      <SettingsWorkingDaysSection
+        canEdit={props.canEdit}
+        workingDayOrder={props.workingDayOrder}
+        workingDays={props.workingDays}
+        workingDaysMinimumId={props.workingDaysMinimumId}
+        updateSetting={props.updateSetting}
+      />
       <AccountToggleSection
         title={m.settings_disciplines_heading()}
         help={m.settings_disciplines_intro()}
@@ -204,32 +268,27 @@ export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps)
         canEdit={props.canEdit}
         onChange={(next) => props.updateSetting({ groupResourcesByEngagement: next })}
       />
-      <ScheduleViewSection {...props} />
-      <InternalColourSection {...props} />
-      <AccountToggleSection
-        title={m.settings_placeholders_heading()}
-        help={m.settings_placeholders_intro()}
-        label={m.settings_placeholders_toggle()}
-        checked={props.placeholdersEnabled}
-        canEdit={props.canEdit}
-        onChange={(next) => props.updateSetting({ placeholdersEnabled: next })}
+      <ScheduleViewSection
+        minimiseWeekends={props.minimiseWeekends}
+        setMinimiseWeekends={props.setMinimiseWeekends}
+        snapToWeekStart={props.snapToWeekStart}
+        setSnapToWeekStart={props.setSnapToWeekStart}
+        compactView={props.compactView}
+        setCompactView={props.setCompactView}
       />
-      <AccountToggleSection
-        title={m.settings_external_heading()}
-        help={externalHelp}
-        label={m.settings_external_toggle()}
-        checked={props.externalEnabled}
+      <InternalColourSection
         canEdit={props.canEdit}
-        onChange={(next) => props.updateSetting({ externalEnabled: next })}
+        internalColourMode={props.internalColourMode}
+        updateSetting={props.updateSetting}
       />
-      <InternalVisibilitySection {...props} />
-      <AccountToggleSection
-        title={m.settings_activity_create_heading()}
-        help={m.settings_activity_create_intro()}
-        label={m.settings_inline_activity_create_toggle()}
-        checked={props.inlineActivityCreateEnabled}
+      <SchedulingVisibilitySections
         canEdit={props.canEdit}
-        onChange={(next) => props.updateSetting({ inlineActivityCreateEnabled: next })}
+        placeholdersEnabled={props.placeholdersEnabled}
+        externalEnabled={props.externalEnabled}
+        showInternalProjects={props.showInternalProjects}
+        showInternalActivities={props.showInternalActivities}
+        inlineActivityCreateEnabled={props.inlineActivityCreateEnabled}
+        updateSetting={props.updateSetting}
       />
     </>
   );
