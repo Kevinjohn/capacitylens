@@ -1466,13 +1466,7 @@
     }
   },
   "src/components/resources/ResourceForm.tsx": {
-    "complexity": {
-      "count": 2
-    },
     "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
       "count": 1
     }
   },
