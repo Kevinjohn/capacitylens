@@ -794,7 +794,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("accepts federated assurance as MFA in mixed mode and advertises provider step-up", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const principalId = "federated-principal";
     db.prepare(
       `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
@@ -813,9 +813,9 @@ describe("CAPACITYLENS_AUTH password", () => {
       now: TS,
     });
     const auth = {
-      ...configured.auth!,
+      ...parseConfiguredAuth(configured.auth),
       api: {
-        ...configured.auth!.api,
+        ...parseConfiguredAuth(configured.auth).api,
         getSession: vi.fn(async () => ({
           user: {
             id: principalId,
@@ -845,7 +845,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("requires enrollment, verifies TOTP, and challenges every later password sign-in", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, {
       authMode: configured.mode,
       auth: configured.auth,
