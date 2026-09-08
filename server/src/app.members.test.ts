@@ -1308,6 +1308,115 @@ const storedStatus = (db: Db, accountId: string, userId: string): string | undef
       { status: string } | undefined
   )?.status;
 
+interface SignInDirectory {
+  signInTrackingEnabled: boolean;
+  members: Array<{ userId: string; signInConfirmed: boolean | null }>;
+}
+
+async function readSignInDirectory(
+  app: FastifyInstance,
+  cookie: string,
+  expectedStatus?: number,
+): Promise<SignInDirectory> {
+  const response = await membersReq(app, "a1", { cookie });
+  if (expectedStatus !== undefined) expect(response.statusCode).toBe(expectedStatus);
+  return response.json() as SignInDirectory;
+}
+
+interface SignInScenarioInput {
+  app: FastifyInstance;
+  db: Db;
+  ownerCookie: string;
+  editorCookie: string;
+  ownerId: string;
+  editorId: string;
+  editorEmail: string;
+}
+
+async function assertSignInTrackingDefaults({
+  app,
+  ownerCookie,
+  editorCookie,
+  ownerId,
+  editorId,
+}: SignInScenarioInput) {
+  const initial = await readSignInDirectory(app, ownerCookie, 200);
+  expect(initial.signInTrackingEnabled).toBe(false);
+  expect(initial.members.find((member) => member.userId === ownerId)?.signInConfirmed).toBeNull();
+  expect(initial.members.find((member) => member.userId === editorId)?.signInConfirmed).toBeNull();
+  expect(
+    (await memberSignInTrackingReq({ app, accountId: "a1", enabled: true, headers: { cookie: editorCookie } }))
+      .statusCode,
+  ).toBe(403);
+  expect(
+    (await memberSignInTrackingReq({ app, accountId: "a1", enabled: "true", headers: { cookie: ownerCookie } }))
+      .statusCode,
+  ).toBe(400);
+}
+
+async function enableAndConfirmMemberSignIn({
+  app,
+  ownerCookie,
+  editorId,
+  editorEmail,
+}: SignInScenarioInput): Promise<void> {
+  const enabled = await memberSignInTrackingReq({
+    app,
+    accountId: "a1",
+    enabled: true,
+    headers: { cookie: ownerCookie },
+  });
+  expect(enabled.statusCode).toBe(200);
+  expect(enabled.json()).toEqual({ enabled: true });
+  let directory = await readSignInDirectory(app, ownerCookie);
+  expect(directory.signInTrackingEnabled).toBe(true);
+  expect(directory.members.find((member) => member.userId === editorId)?.signInConfirmed).toBe(false);
+
+  const signedIn = await call(app, {
+    method: "POST",
+    url: "/api/auth/sign-in/email",
+    payload: { email: editorEmail, password: "password-123456" },
+  });
+  expect(signedIn.statusCode).toBe(200);
+  expect(readCookies(signedIn)).not.toBe("");
+  directory = await readSignInDirectory(app, ownerCookie);
+  expect(directory.members.find((member) => member.userId === editorId)?.signInConfirmed).toBe(true);
+}
+
+async function assertMemberSignInResetAndMfa({
+  app,
+  db,
+  ownerCookie,
+  editorId,
+  editorEmail,
+}: SignInScenarioInput): Promise<void> {
+  expect(
+    (await revokeSessionsReq({ app, accountId: "a1", userId: editorId, headers: { cookie: ownerCookie } })).statusCode,
+  ).toBe(204);
+  let directory = await readSignInDirectory(app, ownerCookie);
+  expect(directory.members.find((member) => member.userId === editorId)?.signInConfirmed).toBe(false);
+
+  db.prepare("UPDATE user SET twoFactorEnabled = 1 WHERE id = ?").run(editorId);
+  const awaitingMfa = await call(app, {
+    method: "POST",
+    url: "/api/auth/sign-in/email",
+    payload: { email: editorEmail, password: "password-123456" },
+  });
+  expect(awaitingMfa.statusCode).toBe(200);
+  expect(awaitingMfa.json()).toMatchObject({ twoFactorRedirect: true });
+  directory = await readSignInDirectory(app, ownerCookie);
+  expect(directory.members.find((member) => member.userId === editorId)?.signInConfirmed).toBe(false);
+
+  expect(
+    (await memberSignInTrackingReq({ app, accountId: "a1", enabled: false, headers: { cookie: ownerCookie } }))
+      .statusCode,
+  ).toBe(200);
+  expect(db.prepare("SELECT signInConfirmed FROM account_members WHERE accountId = 'a1'").all()).toEqual([
+    { signInConfirmed: null },
+    { signInConfirmed: null },
+  ]);
+}
+
 describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", () => {
   /** Owner of a1 plus one editor, the shape nearly every case below needs. */
   async function ownerAndEditor(suffix: string) {
@@ -1570,77 +1679,18 @@ describe("member sign-in confirmation", () => {
     upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
     const ed = await signUp(app, "editor-sign-in-confirmation@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
-
-    const initial = await membersReq(app, "a1", { cookie: owner.cookie });
-    expect(initial.statusCode).toBe(200);
-    const initialDirectory = initial.json() as {
-      signInTrackingEnabled: boolean;
-      members: Array<{ userId: string; signInConfirmed: boolean | null }>;
-    };
-    expect(initialDirectory.signInTrackingEnabled).toBe(false);
-    expect(initialDirectory.members.find((member) => member.userId === owner.userId)?.signInConfirmed).toBeNull();
-    expect(initialDirectory.members.find((member) => member.userId === ed.userId)?.signInConfirmed).toBeNull();
-    expect(
-      (await memberSignInTrackingReq({ app, accountId: "a1", enabled: true, headers: { cookie: ed.cookie } }))
-        .statusCode,
-    ).toBe(403);
-    expect(
-      (await memberSignInTrackingReq({ app, accountId: "a1", enabled: "true", headers: { cookie: owner.cookie } }))
-        .statusCode,
-    ).toBe(400);
-
-    const enabled = await memberSignInTrackingReq({
+    const scenario = {
       app,
-      accountId: "a1",
-      enabled: true,
-      headers: { cookie: owner.cookie },
-    });
-    expect(enabled.statusCode).toBe(200);
-    expect(enabled.json()).toEqual({ enabled: true });
-    let directory = (await membersReq(app, "a1", { cookie: owner.cookie })).json() as {
-      signInTrackingEnabled: boolean;
-      members: Array<{ userId: string; signInConfirmed: boolean | null }>;
-    };
-    expect(directory.signInTrackingEnabled).toBe(true);
-    expect(directory.members.find((member) => member.userId === owner.userId)?.signInConfirmed).toBe(true);
-    expect(directory.members.find((member) => member.userId === ed.userId)?.signInConfirmed).toBe(false);
-
-    const signedIn = await call(app, {
-      method: "POST",
-      url: "/api/auth/sign-in/email",
-      payload: { email: "editor-sign-in-confirmation@capacitylens.dev", password: "password-123456" },
-    });
-    expect(signedIn.statusCode).toBe(200);
-    expect(readCookies(signedIn)).not.toBe("");
-    directory = (await membersReq(app, "a1", { cookie: owner.cookie })).json();
-    expect(directory.members.find((member) => member.userId === ed.userId)?.signInConfirmed).toBe(true);
-
-    expect(
-      (await revokeSessionsReq({ app, accountId: "a1", userId: ed.userId, headers: { cookie: owner.cookie } }))
-        .statusCode,
-    ).toBe(204);
-    directory = (await membersReq(app, "a1", { cookie: owner.cookie })).json();
-    expect(directory.members.find((member) => member.userId === ed.userId)?.signInConfirmed).toBe(false);
-
-    db.prepare("UPDATE user SET twoFactorEnabled = 1 WHERE id = ?").run(ed.userId);
-    const awaitingMfa = await call(app, {
-      method: "POST",
-      url: "/api/auth/sign-in/email",
-      payload: { email: "editor-sign-in-confirmation@capacitylens.dev", password: "password-123456" },
-    });
-    expect(awaitingMfa.statusCode).toBe(200);
-    expect(awaitingMfa.json()).toMatchObject({ twoFactorRedirect: true });
-    directory = (await membersReq(app, "a1", { cookie: owner.cookie })).json();
-    expect(directory.members.find((member) => member.userId === ed.userId)?.signInConfirmed).toBe(false);
-
-    expect(
-      (await memberSignInTrackingReq({ app, accountId: "a1", enabled: false, headers: { cookie: owner.cookie } }))
-        .statusCode,
-    ).toBe(200);
-    expect(db.prepare("SELECT signInConfirmed FROM account_members WHERE accountId = 'a1'").all()).toEqual([
-      { signInConfirmed: null },
-      { signInConfirmed: null },
-    ]);
+      db,
+      ownerCookie: owner.cookie,
+      editorCookie: ed.cookie,
+      ownerId: owner.userId,
+      editorId: ed.userId,
+      editorEmail: "editor-sign-in-confirmation@capacitylens.dev",
+    } satisfies SignInScenarioInput;
+    await assertSignInTrackingDefaults(scenario);
+    await enableAndConfirmMemberSignIn(scenario);
+    await assertMemberSignInResetAndMfa(scenario);
   });
 });
 
