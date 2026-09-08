@@ -1287,7 +1287,7 @@ describe("request/connection timeouts (slowloris guard for the direct-exposure d
   });
 });
 
-describe("CRUD round-trip", () => {
+function registerCrudCreationTests(): void {
   it("creates every entity type and reads them back via /api/state", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -1341,7 +1341,9 @@ describe("CRUD round-trip", () => {
     expect(updated.statusCode).toBe(200);
     expect(updated.json()).toMatchObject({ workingDays: [1, 2, 3, 4, 5], halfDays: [] });
   });
+}
 
+function registerCrudMutationTests(): void {
   it("PATCH updates fields; DELETE removes a non-lifecycle row", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -1374,7 +1376,9 @@ describe("CRUD round-trip", () => {
     expect((await patch({ app, entity: "clients", id: "nope", payload: client("nope", "a1") })).statusCode).toBe(404);
     expect((await post(app, "widgets", { id: "x" })).statusCode).toBe(404);
   });
+}
 
+function registerCrudResourceMutationTests(): void {
   it("PATCH is a partial merge: omitted fields keep their stored value", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -1406,7 +1410,9 @@ describe("CRUD round-trip", () => {
     expect(unfavourite).toBe(false);
     expect(getRow(db, "resources", "r1")?.isFavourite).toBe(false);
   });
+}
 
+function registerCrudScopingTests(): void {
   it("refuses to re-home an existing row to another account (accountId is immutable)", async () => {
     const { app } = freshApp();
     await scaffold(app); // c1 in a1
@@ -1460,7 +1466,9 @@ describe("CRUD round-trip", () => {
     expect((await call(app, { method: "DELETE", url: "/api/clients/c1" })).statusCode).toBe(400);
     expect(await readStateClients(app)).toHaveLength(1); // not deleted
   });
+}
 
+function registerCrudPersistenceTests(): void {
   it("preserves the immutable createdAt on update (a PUT cannot rewrite it)", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -1495,7 +1503,9 @@ describe("CRUD round-trip", () => {
     await post(app, "accounts", account("a1"));
     expect((await del({ app, entity: "phases", id: "ghost", accountId: "a1" })).statusCode).toBe(204);
   });
+}
 
+function registerCrudUpsertTests(): void {
   it("PUT upserts idempotently: first call creates, second overwrites (no conflict)", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -1538,6 +1548,15 @@ describe("CRUD round-trip", () => {
       (await put({ app, entity: "projects", id: "p1", payload: project("p1", "a1", "no-client") })).statusCode,
     ).toBe(400);
   });
+}
+
+describe("CRUD round-trip", () => {
+  registerCrudCreationTests();
+  registerCrudMutationTests();
+  registerCrudResourceMutationTests();
+  registerCrudScopingTests();
+  registerCrudPersistenceTests();
+  registerCrudUpsertTests();
 });
 
 describe("generic lifecycle deletion guard", () => {
