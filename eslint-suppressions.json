@@ -290,11 +290,6 @@
       "count": 1
     }
   },
-  "server/src/accounts/identityPort/cutover.ts": {
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
   "server/src/accounts/identityPort/erasure.ts": {
     "complexity": {
       "count": 1
