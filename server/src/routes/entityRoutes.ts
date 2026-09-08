@@ -13,6 +13,7 @@ import {
   prepareScopedWrite,
   replaceGeneratedBuiltin,
   stampServerRevision,
+  type PreparedWrite,
 } from "../writePipeline";
 import {
   isGenericEntity,
@@ -36,49 +37,146 @@ export interface EntityRouteDependencies {
   fail: (reply: FastifyReply, error: unknown) => FastifyReply;
 }
 
-interface CreateAuditRecordInput {
-  userId: string;
-  accountId: string;
-  action: AuditRecord["action"];
+interface EntityWriteContext {
+  req: FastifyRequest;
+  reply: FastifyReply;
   entity: string;
-  id: string;
-  changedFields: string[];
+  dependencies: EntityRouteDependencies;
 }
 
-/** Stamp `ts` and assemble the 7-field AuditRecord shared by the generic handlers. */
-function createAuditRecord({
-  userId,
-  accountId,
-  action,
-  entity,
-  id,
-  changedFields,
-}: CreateAuditRecordInput): AuditRecord {
-  return { ts: new Date().toISOString(), userId, accountId, action, entity, id, changedFields };
+function readAuthenticatedUserId(req: FastifyRequest): string {
+  if (!req.user) throw new Error("Authenticated entity route request is missing its user.");
+  return req.user.id;
 }
 
-export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityRouteDependencies): void {
+const sendUnknownEntity = (reply: FastifyReply, entity: string) =>
+  reply.code(404).send({ error: `Unknown entity: ${entity}` });
+
+function allowReplacement(
+  { req, reply, entity, dependencies }: EntityWriteContext,
+  body: Record<string, unknown>,
+  existing: Record<string, unknown> | undefined,
+): boolean {
+  const builtinCheck = resolveBuiltinWriteRejection({ verb: "replace", entity, existing, incoming: body });
+  if (builtinCheck) {
+    reply.code(builtinCheck.status).send({ error: builtinCheck.error });
+    return false;
+  }
+  if (
+    entity === "clients" &&
+    body.builtin === true &&
+    existing?.builtin !== true &&
+    !dependencies.authorize({ req, reply, accountId: body.accountId as string, action: "manageInternalClient" })
+  )
+    return false;
+  if (!ownsRow(existing, body.accountId)) {
+    reply.code(404).send({ error: "Not found" });
+    return false;
+  }
+  return true;
+}
+
+function readAllowedPatchTarget(
+  { req, reply, entity, dependencies }: EntityWriteContext,
+  id: string,
+): Record<string, unknown> | undefined {
+  const existing = getRow(dependencies.db, entity, id);
+  if (!existing) {
+    reply.code(404).send({ error: "Not found" });
+    return undefined;
+  }
+  if (
+    isScopedTable(entity) &&
+    !dependencies.authorize({
+      req,
+      reply,
+      accountId: existing.accountId as string,
+      action: "write",
+      options: { concealNonMembership: true },
+    })
+  )
+    return undefined;
+  const builtinCheck = resolveBuiltinWriteRejection({
+    verb: "patch",
+    entity,
+    existing,
+    incoming: req.body as Record<string, unknown>,
+  });
+  if (builtinCheck) {
+    reply.code(builtinCheck.status).send({ error: builtinCheck.error });
+    return undefined;
+  }
+  return existing;
+}
+
+type ApplyWriteInput = Partial<Pick<PreparedWrite, "generatedReplacement" | "scopedState">> & {
+  db: Db;
+  entity: string;
+  row: Record<string, unknown>;
+  existing: Record<string, unknown> | undefined;
+};
+
+function applyWrite(input: ApplyWriteInput): RewrittenAllocationRevision[] {
+  if (input.generatedReplacement) {
+    if (!input.scopedState) throw new Error("Generated client replacement is missing its scoped state.");
+    replaceGeneratedBuiltin({
+      db: input.db,
+      state: input.scopedState,
+      generatedId: input.generatedReplacement,
+      row: input.row,
+    });
+    return [];
+  }
+  if (input.entity === "activities") {
+    return writeActivityRow({ db: input.db, projection: undefined, row: input.row, existing: input.existing });
+  }
+  upsertRow(input.db, input.entity, input.row);
+  return [];
+}
+
+function readPatchValidationState(store: TenantStore, entity: string, accountId: string) {
+  const lookup = store.validationLookup?.();
+  const state = entity === "clients" || lookup === undefined ? store.readFullSlice(accountId) : emptyAppData();
+  return { lookup, state };
+}
+
+interface PatchAuditRows {
+  body: unknown;
+  existing: Record<string, unknown>;
+  merged: Record<string, unknown>;
+  stamped: Record<string, unknown>;
+}
+
+function createPatchAuditRecord(
+  { req, entity }: EntityWriteContext,
+  id: string,
+  { body, existing, merged, stamped }: PatchAuditRows,
+): AuditRecord {
+  return stampAudit({
+    userId: readAuthenticatedUserId(req),
+    accountId: (merged.accountId as string | undefined) ?? id,
+    action: "patch",
+    entity,
+    id,
+    changedFields: listAppliedRequestedFieldNames({ table: entity, requested: body, existing, applied: stamped }),
+  });
+}
+
+const stampAudit = (record: Omit<AuditRecord, "ts">): AuditRecord => ({ ts: new Date().toISOString(), ...record });
+
+function registerCreateRoute(app: FastifyInstance, dependencies: EntityRouteDependencies): void {
   const {
     db,
     store,
-    authMode,
-    optimisticConcurrency,
     authorize,
     fieldVisibility: fieldVisibilityFor,
-    redact: redactWriteEcho,
     commitProductAudit,
     fail: sendFail,
   } = dependencies;
 
-  // Generic scoped-entity creation. `accounts` is served by the dedicated routes above.
   app.post("/api/:entity", (req, reply) => {
     const { entity } = req.params as { entity: string };
-    const unknownEntityMessage = `Unknown entity: ${entity}`;
-    if (!isGenericEntity(entity)) return reply.code(404).send({ error: unknownEntityMessage });
-    // Shared body-shape + builtin-Internal guard (Finding 7 funnel). A missing/non-object body
-    // would otherwise null-deref below (accountId! / sanitizeWrite's assertIdPresent) BEFORE the
-    // try block could classify it — a misclassified 500. checkEntityWriteBody rejects it with the
-    // same shape /api/batch and /api/import use.
+    if (!isGenericEntity(entity)) return sendUnknownEntity(reply, entity);
     const scoped = isScopedTable(entity);
     const bodyCheck = checkEntityWriteBody({ verb: "create", entity, body: req.body, urlId: undefined, scoped });
     if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
@@ -90,16 +188,11 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
       incoming: requestRow,
     });
     if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error });
-    // P1.5 write gate (scoped tables only).
     if (scoped) {
       if (!authorize({ req, reply, accountId: requestRow.accountId as string, action: "write" })) return;
     }
     try {
-      // P1.6: a note-blind writer CREATING time off gets its `note` stripped (nothing stored
-      // to preserve; they could never read back a note they authored) — see sanitizeWrite.
       const visibility = fieldVisibilityFor(req, entity, requestRow.accountId);
-      // Finding 7/9 funnel: sanitize + stamp + ACCOUNT-SCOPED read + validate in one place (was an
-      // inline sanitize/stamp + a full-DB loadState here).
       const { row } = prepareScopedWrite({
         store,
         entity,
@@ -108,8 +201,8 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
         vis: visibility,
         verb: "create",
       });
-      const auditRecord = createAuditRecord({
-        userId: req.user!.id,
+      const auditRecord = stampAudit({
+        userId: readAuthenticatedUserId(req),
         accountId: (row.accountId as string | undefined) ?? (row.id as string),
         action: "create",
         entity,
@@ -129,223 +222,139 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
       return sendFail(reply, error);
     }
   });
+}
 
-  // Idempotent upsert by id — the verb the client sync adapter uses for every
-  // create AND update, so a replayed batch (after a partial failure) is safe. The
-  // body's id must match the URL id.
-  app.put("/api/:entity/:id", (req, reply) => {
-    const { entity, id } = req.params as { entity: string; id: string };
-    const unknownEntityMessage = `Unknown entity: ${entity}`;
-    if (!isGenericEntity(entity)) return reply.code(404).send({ error: unknownEntityMessage });
-    const scoped = isScopedTable(entity);
-    const bodyCheck = checkEntityWriteBody({ verb: "replace", entity, body: req.body, urlId: id, scoped });
-    if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
-    const body = req.body as Record<string, unknown>;
-    // P1.5 write gate (scoped tables): membership + write tier for the body's accountId. The
-    // ownsRow immutability guard below still runs — authorize gates WHO may write, ownsRow keeps
-    // accountId immutable.
-    if (scoped && !authorize({ req, reply, accountId: body.accountId as string, action: "write" })) return;
-    try {
-      const existing = getRow(db, entity, id) ?? undefined;
-      const builtinCheck = resolveBuiltinWriteRejection({ verb: "replace", entity, existing, incoming: body });
-      if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error });
-      // Ordinary Editors may manage clients, but changing the server-owned Internal singleton's
-      // identity also rewrites every referencing project. Preserve the documented legacy-id
-      // adoption path while requiring a fresh Admin/Owner session for that privileged migration.
-      if (
-        entity === "clients" &&
-        body.builtin === true &&
-        existing?.builtin !== true &&
-        !authorize({ req, reply, accountId: body.accountId as string, action: "manageInternalClient" })
-      )
-        return;
-      // accountId is immutable: a write must not move an EXISTING row to another account
-      // (see ownsRow). The web store enforces this via findOwned; without the same guard a
-      // crafted request could re-home a row and orphan its children across the tenant boundary.
-      if (!ownsRow(existing, body.accountId)) {
-        return reply.code(404).send({ error: "Not found" });
-      }
-      // P1.6: the note-visibility fact for this writer — used to PIN the time-off `note` on the
-      // write (their round-tripped row was redacted, so a bare upsert would NULL a note they
-      // never saw — see sanitizeWrite) AND to redact the note from everything echoed back below,
-      // the 409 conflict payload included.
-      const visibility = fieldVisibilityFor(req, entity, body.accountId);
-      // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row — the
-      // predicate is isStaleWrite, SHARED with the batch loop so the two paths can't drift.
-      // The 409's `current` payload is a READ of the stored row, so it gets the same note
-      // redaction as the write echo — the conflict path must not hand a note-blind writer
-      // the redacted field.
-      if (optimisticConcurrency) {
-        const staleWriteInput = { existing, row: body };
-        if (isStaleWrite(staleWriteInput)) {
-          return reply.code(409).send({
-            error: "The record was modified more recently on the server.",
-            current: redactWriteEcho(entity, staleWriteInput.existing, visibility),
-          });
-        }
-      }
-      // Finding 7/9 funnel: sanitize + stamp + ACCOUNT-SCOPED read + validate in one place (was an
-      // inline sanitize/stamp + a full-DB loadState here). A generated-builtin replacement defers
-      // its validation (see prepareScopedWrite); every other write is validated there.
-      const { row, generatedReplacement, scopedState } = prepareScopedWrite({
-        store,
-        entity,
-        body,
-        existing,
-        vis: visibility,
-        verb: "replace",
-      });
-      const auditRecord = createAuditRecord({
-        userId: req.user!.id,
-        accountId: (body.accountId as string | undefined) ?? id,
-        action: existing ? "update" : "create",
-        entity,
-        id,
-        changedFields: listAppliedRequestedFieldNames({ table: entity, requested: body, existing, applied: row }),
-      });
-      let rewrittenAllocations: RewrittenAllocationRevision[] = [];
-      commitProductAudit(reply, auditRecord, () => {
-        if (generatedReplacement) {
-          replaceGeneratedBuiltin({ db, state: scopedState, generatedId: generatedReplacement, row });
-        } else if (entity === "activities") {
-          rewrittenAllocations = writeActivityRow({ db, projection: undefined, row, existing });
-        } else {
-          // Validation already ran in the funnel above.
-          upsertRow(db, entity, row);
-        }
-      });
-      // A write response is a read: apply the same note/private-name projections as /api/state.
-      const echo = redactWriteEcho(entity, row, visibility);
-      return reply.code(200).send(shapeActivityWriteEcho(entity, echo, rewrittenAllocations));
-    } catch (error) {
-      return sendFail(reply, error);
-    }
-  });
-
-  // True partial patch: merge the body over the stored row, then sanitize + validate
-  // the MERGED entity before writing. (A blind column-wise update would null every
-  // field the body omits.) 404 when the row doesn't exist.
-  app.patch("/api/:entity/:id", (req, reply) => {
-    const { entity, id } = req.params as { entity: string; id: string };
-    const unknownEntityMessage = `Unknown entity: ${entity}`;
-    if (!isGenericEntity(entity)) return reply.code(404).send({ error: unknownEntityMessage });
-    // Shared body-shape check (Finding 7 funnel). A missing/non-object body would otherwise
-    // null-deref inside sanitizeWrite's merge, a misclassified 500. For PATCH accountId is
-    // OPTIONAL — only a PRESENT non-string is rejected.
-    const scoped = isScopedTable(entity);
-    const bodyCheck = checkEntityWriteBody({ verb: "patch", entity, body: req.body, urlId: id, scoped });
-    if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
-    try {
-      const existing = getRow(db, entity, id);
-      if (!existing) return reply.code(404).send({ error: "Not found" });
-      // A scoped PATCH has no required account assertion in its partial body. Authorize against
-      // the stored owner, but conceal non-membership as the same 404 used for an absent id. Run
-      // row-specific guards only after that boundary so a foreign built-in row is not an oracle.
-      if (
-        scoped &&
-        !authorize({
-          req,
-          reply,
-          accountId: existing.accountId as string,
-          action: "write",
-          options: {
-            concealNonMembership: true,
-          },
-        })
-      )
-        return;
-      const builtinCheck = resolveBuiltinWriteRejection({
-        verb: "patch",
-        entity,
-        existing,
-        incoming: req.body as Record<string, unknown>,
-      });
-      if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error });
-      // P1.6 note pin (see sanitizeWrite): the merge already carries the STORED note (a note-blind
-      // caller's PATCH body can't include one they never received), but the pin also stops a
-      // crafted note change/clear riding a patch. accountId for the role lookup = the body's
-      // override if present (then refused by ownsRow below), else the stored row's.
-      const visibility = fieldVisibilityFor(
-        req,
-        entity,
-        (req.body as { accountId?: unknown }).accountId ?? existing.accountId,
-      );
-      const merged = sanitizeWrite({
-        table: entity,
-        row: { ...existing, ...(req.body as Record<string, unknown>), id },
-        existing,
-        options: visibility,
-      });
-      // accountId is immutable — a patch must not re-home the row to another company (ownsRow).
-      if (!ownsRow(existing, merged.accountId)) {
-        return reply.code(404).send({ error: "Not found" });
-      }
-      if (
-        optimisticConcurrency &&
-        isStaleWrite({ existing, row: req.body as Record<string, unknown>, requirePrecondition: false })
-      ) {
+function handleReplaceRoute(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  dependencies: EntityRouteDependencies,
+): FastifyReply | undefined {
+  const { db, store, optimisticConcurrency, authorize, commitProductAudit } = dependencies;
+  const fieldVisibilityFor = dependencies.fieldVisibility;
+  const redactWriteEcho = dependencies.redact;
+  const sendFail = dependencies.fail;
+  const { entity, id } = req.params as { entity: string; id: string };
+  if (!isGenericEntity(entity)) return sendUnknownEntity(reply, entity);
+  const scoped = isScopedTable(entity);
+  const bodyCheck = checkEntityWriteBody({ verb: "replace", entity, body: req.body, urlId: id, scoped });
+  if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
+  const body = req.body as Record<string, unknown>;
+  if (scoped && !authorize({ req, reply, accountId: body.accountId as string, action: "write" })) return;
+  try {
+    const existing = getRow(db, entity, id) ?? undefined;
+    if (!allowReplacement({ req, reply, entity, dependencies }, body, existing)) return;
+    const visibility = fieldVisibilityFor(req, entity, body.accountId);
+    if (optimisticConcurrency) {
+      const staleWriteInput = { existing, row: body };
+      if (isStaleWrite(staleWriteInput)) {
         return reply.code(409).send({
           error: "The record was modified more recently on the server.",
-          current: redactWriteEcho(entity, existing, visibility),
+          current: redactWriteEcho(entity, staleWriteInput.existing, visibility),
         });
       }
-      const stamped = stampServerRevision(merged, existing);
-      // PATCH already authorized the stored owner and proved accountId immutable above. SQLite's
-      // validation lookup resolves only the row/FK/dependent coordinates this write needs; custom
-      // stores retain the complete-slice fallback. Client replacement still needs the full client
-      // set for its singleton/reparent rule.
-      const scopeId = String(merged.accountId);
-      const lookup = store.validationLookup?.();
-      const validationState =
-        entity === "clients" || lookup === undefined ? store.readFullSlice(scopeId) : emptyAppData();
-      assertValidWrite({ state: validationState, table: entity, row: stamped, existing, lookup });
-      // Record only requested keys whose sanitized, pinned result actually differs from storage.
-      let rewrittenAllocations: RewrittenAllocationRevision[] = [];
-      commitProductAudit(
-        reply,
-        createAuditRecord({
-          userId: req.user!.id,
-          accountId: (merged.accountId as string | undefined) ?? id,
-          action: "patch",
-          entity,
-          id,
-          changedFields: listAppliedRequestedFieldNames({
-            table: entity,
-            requested: req.body,
-            existing,
-            applied: stamped,
-          }),
-        }),
-        () => {
-          if (entity === "activities") {
-            rewrittenAllocations = writeActivityRow({ db, projection: undefined, row: stamped, existing });
-          } else {
-            upsertRow(db, entity, stamped);
-          }
-        },
-      );
-      // The merge carries stored protected fields into `merged`; apply the normal read projection.
-      const echo = redactWriteEcho(entity, stamped, visibility);
-      return reply.code(200).send(shapeActivityWriteEcho(entity, echo, rewrittenAllocations));
-    } catch (error) {
-      return sendFail(reply, error);
     }
-  });
+    const { row, generatedReplacement, scopedState } = prepareScopedWrite({
+      store,
+      entity,
+      body,
+      existing,
+      vis: visibility,
+      verb: "replace",
+    });
+    const auditRecord = stampAudit({
+      userId: readAuthenticatedUserId(req),
+      accountId: (body.accountId as string | undefined) ?? id,
+      action: existing ? "update" : "create",
+      entity,
+      id,
+      changedFields: listAppliedRequestedFieldNames({ table: entity, requested: body, existing, applied: row }),
+    });
+    let rewrittenAllocations: RewrittenAllocationRevision[] = [];
+    commitProductAudit(reply, auditRecord, () => {
+      rewrittenAllocations = applyWrite({ db, entity, row, existing, generatedReplacement, scopedState });
+    });
+    const echo = redactWriteEcho(entity, row, visibility);
+    return reply.code(200).send(shapeActivityWriteEcho(entity, echo, rewrittenAllocations));
+  } catch (error) {
+    return sendFail(reply, error);
+  }
+}
 
+function registerUpdateRoutes(app: FastifyInstance, dependencies: EntityRouteDependencies): void {
+  app.put("/api/:entity/:id", (req, reply) => handleReplaceRoute(req, reply, dependencies));
+  app.patch("/api/:entity/:id", (req, reply) => handlePatchRoute(req, reply, dependencies));
+}
+
+function handlePatchRoute(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  dependencies: EntityRouteDependencies,
+): FastifyReply | undefined {
+  const { db, store, optimisticConcurrency, commitProductAudit } = dependencies;
+  const fieldVisibilityFor = dependencies.fieldVisibility;
+  const redactWriteEcho = dependencies.redact;
+  const sendFail = dependencies.fail;
+  const { entity, id } = req.params as { entity: string; id: string };
+  if (!isGenericEntity(entity)) return sendUnknownEntity(reply, entity);
+  const scoped = isScopedTable(entity);
+  const bodyCheck = checkEntityWriteBody({ verb: "patch", entity, body: req.body, urlId: id, scoped });
+  if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
+  try {
+    const context = { req, reply, entity, dependencies };
+    const existing = readAllowedPatchTarget(context, id);
+    if (!existing) return;
+    const visibility = fieldVisibilityFor(
+      req,
+      entity,
+      (req.body as { accountId?: unknown }).accountId ?? existing.accountId,
+    );
+    const merged = sanitizeWrite({
+      table: entity,
+      row: { ...existing, ...(req.body as Record<string, unknown>), id },
+      existing,
+      options: visibility,
+    });
+    if (!ownsRow(existing, merged.accountId)) {
+      return reply.code(404).send({ error: "Not found" });
+    }
+    if (
+      optimisticConcurrency &&
+      isStaleWrite({ existing, row: req.body as Record<string, unknown>, requirePrecondition: false })
+    ) {
+      return reply.code(409).send({
+        error: "The record was modified more recently on the server.",
+        current: redactWriteEcho(entity, existing, visibility),
+      });
+    }
+    const stamped = stampServerRevision(merged, existing);
+    const scopeId = String(merged.accountId);
+    const { lookup, state } = readPatchValidationState(store, entity, scopeId);
+    assertValidWrite({ state, table: entity, row: stamped, existing, lookup });
+    let rewrittenAllocations: RewrittenAllocationRevision[] = [];
+    commitProductAudit(
+      reply,
+      createPatchAuditRecord(context, id, { body: req.body, existing, merged, stamped }),
+      () => {
+        rewrittenAllocations = applyWrite({ db, entity, row: stamped, existing });
+      },
+    );
+    const echo = redactWriteEcho(entity, stamped, visibility);
+    return reply.code(200).send(shapeActivityWriteEcho(entity, echo, rewrittenAllocations));
+  } catch (error) {
+    return sendFail(reply, error);
+  }
+}
+
+function registerDeleteRoute(app: FastifyInstance, dependencies: EntityRouteDependencies): void {
+  const { db, authMode, authorize, commitProductAudit, fail: sendFail } = dependencies;
   app.delete("/api/:entity/:id", (req, reply) => {
     const { entity, id } = req.params as { entity: string; id: string };
-    const unknownEntityMessage = `Unknown entity: ${entity}`;
-    if (!isGenericEntity(entity)) return reply.code(404).send({ error: unknownEntityMessage });
+    if (!isGenericEntity(entity)) return sendUnknownEntity(reply, entity);
     if (isLifecycleEntity(entity)) {
       return reply.code(400).send({
         error: "Use the dedicated lifecycle endpoints for this entity.",
       });
     }
-    // Scope a scoped-table delete to its owning account — the server analog of the
-    // client's MANDATORY findOwned guard. A scoped delete MUST assert an owning account:
-    // omitting it can't prove ownership, so we refuse with 400 (rather than deleting by id,
-    // which was a tenant-guard bypass). A wrong owner is 404. (A company hard-delete is a TENANT
-    // ERASURE, not a bare row delete — it has its own DELETE /api/accounts/:id route.)
     const { accountId } = req.query as { accountId?: string };
     try {
       if (!isScopedTable(entity)) {
@@ -358,9 +367,6 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
           error: "accountId is required to delete a scoped record.",
         });
       }
-      // Resolve authority from the caller-asserted tenant before reading the candidate row. A
-      // non-member therefore receives the same 403 for absent and foreign ids; an authorized
-      // member receives the same 404 for either. OFF mode retains its historical idempotent 204.
       if (!authorize({ req, reply, accountId, action: "write" })) return;
       const existing = getRow(db, entity, id) ?? undefined;
       if (!ownsRow(existing, accountId) || (!existing && authMode !== "off")) {
@@ -369,7 +375,14 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
       if (existing) {
         commitProductAudit(
           reply,
-          createAuditRecord({ userId: req.user!.id, accountId, action: "delete", entity, id, changedFields: [] }),
+          stampAudit({
+            userId: readAuthenticatedUserId(req),
+            accountId,
+            action: "delete",
+            entity,
+            id,
+            changedFields: [],
+          }),
           () => deleteRow(db, entity, id),
         );
       }
@@ -378,4 +391,10 @@ export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityR
       return sendFail(reply, error);
     }
   });
+}
+
+export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityRouteDependencies): void {
+  registerCreateRoute(app, dependencies);
+  registerUpdateRoutes(app, dependencies);
+  registerDeleteRoute(app, dependencies);
 }
