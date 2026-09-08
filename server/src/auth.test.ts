@@ -98,6 +98,22 @@ const parseSingleFederatedObservation = (
     auditedAt: row.auditedAt,
   };
 };
+const createCompletedFederatedLinkFixture = (db: ReturnType<typeof openDbRaw>) => {
+  const timestamp = "2026-08-07T00:00:00.000Z";
+  db.prepare(
+    `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
+     VALUES (?, ?, ?, 1, ?, ?)`,
+  ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
+  db.prepare(
+    `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run("link-1", "workforce", "subject-1", "principal-1", timestamp, timestamp);
+  db.prepare(
+    `INSERT INTO capacitylens_federated_link_ceremonies
+      (id, principalId, providerId, createdAt, expiresAt, completedAt)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run("ceremony-1", "principal-1", "workforce", timestamp, "2099-01-01T00:00:00.000Z", timestamp);
+};
 
 describe("password verification backpressure", () => {
   it("maps scrypt saturation to a retryable service-unavailable API error", async () => {
@@ -197,20 +213,7 @@ describe("federated link observation reconciliation", () => {
     const strictProvider = assertPresent(auth.strictProvider, "strict OIDC provider");
     const reconcileFederatedLinks = assertPresent(auth.reconcileFederatedLinks, "federated-link reconciler");
     await runAuthMigrations(auth);
-    const timestamp = "2026-08-07T00:00:00.000Z";
-    db.prepare(
-      `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
-       VALUES (?, ?, ?, 1, ?, ?)`,
-    ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
-    db.prepare(
-      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("link-1", "workforce", "subject-1", "principal-1", timestamp, timestamp);
-    db.prepare(
-      `INSERT INTO capacitylens_federated_link_ceremonies
-        (id, principalId, providerId, createdAt, expiresAt, completedAt)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("ceremony-1", "principal-1", "workforce", timestamp, "2099-01-01T00:00:00.000Z", timestamp);
+    createCompletedFederatedLinkFixture(db);
 
     const identity = createBetterAuthIdentityPort({
       applicationId: "capacitylens",
