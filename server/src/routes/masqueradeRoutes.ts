@@ -78,12 +78,13 @@ async function readMasqueradeState(
   };
 }
 
-/** Register the start, status, and idempotent end endpoints. */
-export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: MasqueradeRouteDependencies): void {
-  const { authMode, applicationId, accountAudit, registry, identity, authorize, roleForPrincipal, effectiveRole } =
-    dependencies;
-  const auditEnd = (record: Readonly<StoredMasqueradeRecord>, reason: MasqueradeEndReason): void =>
-    enqueueMasqueradeEndAudit({ accountAudit, applicationId, record, reason });
+function readTargetUserId(body: unknown): string | null {
+  const { targetUserId } = (body ?? {}) as { targetUserId?: unknown };
+  return typeof targetUserId === "string" && targetUserId.length > 0 ? targetUserId : null;
+}
+
+function registerMasqueradeStartRoute(app: FastifyInstance, dependencies: MasqueradeRouteDependencies): void {
+  const { authMode, applicationId, accountAudit, registry, identity, authorize, roleForPrincipal } = dependencies;
 
   app.post("/api/accounts/:accountId/masquerade", async (request, reply) => {
     const session = request.session;
@@ -95,14 +96,14 @@ export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: Mas
     if (authMode === "off" || !session) return reply.code(403).send({ error: "Forbidden." });
     const { accountId } = request.params as { accountId: string };
     if (!authorize({ req: request, reply, accountId, action: "masquerade" })) return;
-    const body = (request.body ?? {}) as { targetUserId?: unknown };
-    if (typeof body.targetUserId !== "string" || body.targetUserId.length === 0) {
+    const targetUserId = readTargetUserId(request.body);
+    if (targetUserId === null) {
       return reply.code(400).send({ error: "targetUserId must be a non-empty string." });
     }
-    if (body.targetUserId === session.principal.id) {
+    if (targetUserId === session.principal.id) {
       return reply.code(400).send({ error: "You cannot masquerade as yourself." });
     }
-    const effectiveRole = roleForPrincipal(body.targetUserId, accountId);
+    const effectiveRole = roleForPrincipal(targetUserId, accountId);
     if (effectiveRole === null) return reply.code(404).send({ error: "Member not found." });
     if (session.expiresAt === null) {
       return reply.code(503).send({ error: "The session expiry could not be verified." });
@@ -111,7 +112,7 @@ export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: Mas
       sessionHandle: session.id,
       userId: session.principal.id,
       accountId,
-      targetUserId: body.targetUserId,
+      targetUserId,
       token: randomBytes(32).toString("base64url"),
       startedAt: new Date().toISOString(),
       expiresAt: session.expiresAt,
@@ -140,7 +141,10 @@ export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: Mas
     }
     return reply.code(200).send(await readMasqueradeState(record, identity, effectiveRole));
   });
+}
 
+function registerMasqueradeStatusRoute(app: FastifyInstance, dependencies: MasqueradeRouteDependencies): void {
+  const { authMode, registry, identity, effectiveRole } = dependencies;
   app.get("/api/masquerade", async (request, reply) => {
     if (authMode === "off") return reply.code(403).send({ error: "Forbidden." });
     const session = request.session;
@@ -154,7 +158,12 @@ export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: Mas
     if (resolved.role === null) return reply.code(403).send({ error: "Forbidden." });
     return { active: true, ...(await readMasqueradeState(record, identity, resolved.role)) };
   });
+}
 
+function registerMasqueradeEndRoute(app: FastifyInstance, dependencies: MasqueradeRouteDependencies): void {
+  const { authMode, applicationId, accountAudit, registry } = dependencies;
+  const auditEnd = (record: Readonly<StoredMasqueradeRecord>, reason: MasqueradeEndReason): void =>
+    enqueueMasqueradeEndAudit({ accountAudit, applicationId, record, reason });
   app.delete("/api/masquerade", async (request, reply) => {
     if (authMode === "off") return reply.code(403).send({ error: "Forbidden." });
     const body = (request.body ?? {}) as { token?: unknown; reason?: unknown };
@@ -171,4 +180,11 @@ export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: Mas
     }
     return reply.code(204).send();
   });
+}
+
+/** Register the start, status, and idempotent end endpoints. */
+export function registerMasqueradeRoutes(app: FastifyInstance, dependencies: MasqueradeRouteDependencies): void {
+  registerMasqueradeStartRoute(app, dependencies);
+  registerMasqueradeStatusRoute(app, dependencies);
+  registerMasqueradeEndRoute(app, dependencies);
 }
