@@ -297,65 +297,70 @@ describe("effective working-week semantics table", () => {
   const blockMonday = applyCapacityMode({ allocations: normalMonday, blocksMode: true });
   const blockFriday = applyCapacityMode({ allocations: normalFriday, blocksMode: true });
 
-  function registerSemanticsTableTests() {
-    it.each([
-      {
-        name: "normal allocation on an effective day",
-        date: monday,
-        allocations: normalMonday,
-        timeOff: [],
-        expected: { allocated: 8, available: 8, over: false },
-      },
-      {
-        name: "normal allocation over time off on an effective day",
-        date: monday,
-        allocations: normalMonday,
-        timeOff: mondayOff,
-        expected: { allocated: 8, available: 0, over: true },
-      },
-      {
-        name: "normal allocation on a company day off",
-        date: friday,
-        allocations: normalFriday,
-        timeOff: [],
-        expected: { allocated: 0, available: 0, over: false },
-      },
-      {
-        name: "normal allocation on a company day off plus time off",
-        date: friday,
-        allocations: normalFriday,
-        timeOff: fridayOff,
-        expected: { allocated: 0, available: 0, over: false },
-      },
-      {
-        name: "ignored allocation on a company day off",
-        date: friday,
-        allocations: ignoredFriday,
-        timeOff: [],
-        expected: { allocated: 8, available: 0, over: true },
-      },
-      {
-        name: "ignored allocation on a company day off plus time off",
-        date: friday,
-        allocations: ignoredFriday,
-        timeOff: fridayOff,
-        expected: { allocated: 8, available: 0, over: true },
-      },
-      {
-        name: "zero-load block on a company day off",
-        date: friday,
-        allocations: blockFriday,
-        timeOff: [],
-        expected: { allocated: 0, available: 0, over: false },
-      },
-      {
-        name: "zero-load block over time off",
-        date: monday,
-        allocations: blockMonday,
-        timeOff: mondayOff,
-        expected: { allocated: 0, available: 0, over: false },
-      },
-    ] as const)("implements $name", ({ date, allocations, timeOff, expected }: CapacityCaseInput) => {
+  const effectiveDayCases = [
+    {
+      name: "normal allocation on an effective day",
+      date: monday,
+      allocations: normalMonday,
+      timeOff: [],
+      expected: { allocated: 8, available: 8, over: false },
+    },
+    {
+      name: "normal allocation over time off on an effective day",
+      date: monday,
+      allocations: normalMonday,
+      timeOff: mondayOff,
+      expected: { allocated: 8, available: 0, over: true },
+    },
+  ] as const;
+
+  const companyDayOffCases = [
+    {
+      name: "normal allocation on a company day off",
+      date: friday,
+      allocations: normalFriday,
+      timeOff: [],
+      expected: { allocated: 0, available: 0, over: false },
+    },
+    {
+      name: "normal allocation on a company day off plus time off",
+      date: friday,
+      allocations: normalFriday,
+      timeOff: fridayOff,
+      expected: { allocated: 0, available: 0, over: false },
+    },
+    {
+      name: "ignored allocation on a company day off",
+      date: friday,
+      allocations: ignoredFriday,
+      timeOff: [],
+      expected: { allocated: 8, available: 0, over: true },
+    },
+    {
+      name: "ignored allocation on a company day off plus time off",
+      date: friday,
+      allocations: ignoredFriday,
+      timeOff: fridayOff,
+      expected: { allocated: 8, available: 0, over: true },
+    },
+    {
+      name: "zero-load block on a company day off",
+      date: friday,
+      allocations: blockFriday,
+      timeOff: [],
+      expected: { allocated: 0, available: 0, over: false },
+    },
+    {
+      name: "zero-load block over time off",
+      date: monday,
+      allocations: blockMonday,
+      timeOff: mondayOff,
+      expected: { allocated: 0, available: 0, over: false },
+    },
+  ] as const;
+
+  function registerSemanticsTableTests(cases: readonly CapacityCaseInput[]) {
+    it.each(cases)("implements $name", ({ date, allocations, timeOff, expected }: CapacityCaseInput) => {
       expect(
         dayCapacity({
           resource: resource,
@@ -368,7 +373,8 @@ describe("effective working-week semantics table", () => {
       expect(isOnTimeOff(resource.id, date, [...timeOff])).toBe(timeOff.length > 0);
     });
   }
-  registerSemanticsTableTests();
+  registerSemanticsTableTests(effectiveDayCases);
+  registerSemanticsTableTests(companyDayOffCases);
 
   function registerNoneWeekTest() {
     it("keeps a none-week resource at zero capacity and normal load while ignored load remains calendar-day work", () => {
