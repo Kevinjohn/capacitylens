@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useState, type PointerEvent as ReactPointerEvent } from "react";
 import { m } from "@/i18n";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { rangesOverlap } from "@capacitylens/shared/lib/dateMath";
@@ -65,68 +65,6 @@ function refuseIneffectiveResize(bar: BarLayout, mode: DragMode, resourceId: ID)
   if (mode === "move" || hasEffectiveDaysFor(bar, resourceId)) return false;
   useStore.getState().setNotice(m.scheduler_toast_no_effective_days_gesture(), "error");
   return true;
-}
-
-function useGestureRuntime(allocationId: ID): GestureRuntime {
-  const lanesRef = useRef<LaneSnapshot[]>([]);
-  const lanesDirtyRef = useRef(false);
-  const dropElementRef = useRef<HTMLElement | null>(null);
-  const stopWatchRef = useRef<(() => void) | null>(null);
-  const previewDaysRef = useRef(new Map<ID, Weekday[] | undefined>());
-  const stopGeometryWatch = () => {
-    stopWatchRef.current?.();
-    stopWatchRef.current = null;
-    lanesDirtyRef.current = false;
-    previewDaysRef.current.clear();
-  };
-  const setDropTarget = (element: HTMLElement | null) => {
-    if (dropElementRef.current === element) return;
-    dropElementRef.current?.removeAttribute("data-droptarget");
-    element?.setAttribute("data-droptarget", "");
-    dropElementRef.current = element;
-  };
-  const startGeometryWatch = () => {
-    stopGeometryWatch();
-    stopWatchRef.current = watchLaneGeometry(lanesRef, lanesDirtyRef);
-  };
-  useEffect(
-    () => () => {
-      dropElementRef.current?.removeAttribute("data-droptarget");
-      dropElementRef.current = null;
-      stopGeometryWatch();
-      const store = useStore.getState();
-      if (store.draggingAllocationId === allocationId) store.setDraggingAllocation(null);
-    },
-    [allocationId],
-  );
-  return { lanesRef, previewDaysRef, setDropTarget, startGeometryWatch, stopGeometryWatch };
-}
-
-function watchLaneGeometry(lanesRef: React.RefObject<LaneSnapshot[]>, lanesDirtyRef: React.RefObject<boolean>) {
-  let animationFrame = 0;
-  const refreshDirtyLanes = () => {
-    if (!lanesDirtyRef.current) return;
-    lanesRef.current = readLaneSnapshots();
-    lanesDirtyRef.current = false;
-  };
-  const onGeometryChange = () => {
-    lanesDirtyRef.current = true;
-    if (animationFrame) return;
-    animationFrame = requestAnimationFrame(() => {
-      animationFrame = 0;
-      refreshDirtyLanes();
-    });
-  };
-  document.addEventListener("scroll", onGeometryChange, true);
-  window.addEventListener("resize", onGeometryChange);
-  const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(onGeometryChange);
-  for (const lane of lanesRef.current) resizeObserver?.observe(lane.el);
-  return () => {
-    document.removeEventListener("scroll", onGeometryChange, true);
-    window.removeEventListener("resize", onGeometryChange);
-    resizeObserver?.disconnect();
-    if (animationFrame) cancelAnimationFrame(animationFrame);
-  };
 }
 
 function resolvePreviewDays(runtime: GestureRuntime, resourceId: ID) {
@@ -409,10 +347,9 @@ function nudgeAllocation(options: ControllerOptions, mode: DragMode, deltaDays: 
   saveKeyboardGesture(options, next, rescale);
 }
 
-export function useAllocationGestureController(options: ControllerOptions) {
+export function useAllocationGestureController(options: ControllerOptions, runtime: GestureRuntime) {
   const { bar, indexAtClientX, onEdit } = options;
   const [preview, setPreview] = useState<GesturePreview | null>(null);
-  const runtime = useGestureRuntime(bar.allocation.id);
   // Store writes are read at call time: action identities do not change, and every handler already
   // needs live state for the data it commits against.
   const setDragging = (id: ID | null) => useStore.getState().setDraggingAllocation(id);
