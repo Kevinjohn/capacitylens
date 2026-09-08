@@ -16,7 +16,7 @@ afterEach(() => {
   databases.splice(0).forEach((db) => db.close());
 });
 
-describe("synchronous transaction boundary", () => {
+describe("synchronous transaction boundary: thenable callbacks", () => {
   it("rolls back a top-level callback that returns a thenable", () => {
     const db = testDb();
     const callback = (() => {
@@ -48,7 +48,9 @@ describe("synchronous transaction boundary", () => {
     ]);
     expect(db.isTransaction).toBe(false);
   });
+});
 
+describe("synchronous transaction boundary: transaction modes", () => {
   it("rejects a nested immediate request under a deferred outer transaction", () => {
     const db = testDb();
     let nestedRan = false;
@@ -88,7 +90,9 @@ describe("synchronous transaction boundary", () => {
 
     expect(db.prepare("SELECT name FROM events").all()).toEqual([{ name: "nested" }]);
   });
+});
 
+describe("synchronous transaction boundary: rollback reporting", () => {
   it("reports a rollback failure through the injected structured seam and preserves the original error", () => {
     const original = new Error("operation failed");
     const rollback = new Error("rollback failed");
@@ -137,7 +141,9 @@ describe("synchronous transaction boundary", () => {
     expect(db.exec).toHaveBeenNthCalledWith(1, "BEGIN");
     expect(report).toHaveBeenCalledWith({ scope: "transaction", error: rollback });
   });
+});
 
+describe("synchronous transaction boundary: reporter error precedence", () => {
   it("does not let a failing rollback reporter mask the original transaction error", () => {
     const original = new Error("operation failed");
     const rollback = new Error("rollback failed");
