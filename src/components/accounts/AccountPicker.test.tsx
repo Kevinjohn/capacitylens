@@ -56,6 +56,12 @@ function seedAccounts(...accounts: ReturnType<typeof makeAccount>[]) {
   useStore.getState().setAccountSummaries(accounts.map((a) => ({ id: a.id, name: a.name, role: "owner" as const })));
 }
 
+function requireAccount(name: string) {
+  const account = useStore.getState().data.accounts.find((candidate) => candidate.name === name);
+  if (!account) throw new Error(`Expected account ${name} to exist`);
+  return account;
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -127,6 +133,13 @@ describe("AppShell account gate", () => {
 });
 
 describe("AccountPicker create + open + delete", () => {
+  registerCreateAndActivateTests();
+  registerCreateFormValidationTests();
+  registerOpenAndEnterTests();
+  registerDeleteConfirmationTests();
+});
+
+function registerCreateAndActivateTests() {
   it("creates a company inline and activates it", async () => {
     const user = userEvent.setup();
     render(<AccountPicker />);
@@ -138,7 +151,7 @@ describe("AccountPicker create + open + delete", () => {
 
     expect(useStore.getState().data.accounts.map((a) => a.name)).toContain("Stark Industries");
     // Creating activates it.
-    const created = useStore.getState().data.accounts.find((a) => a.name === "Stark Industries")!;
+    const created = requireAccount("Stark Industries");
     expect(useStore.getState().activeAccountId).toBe(created.id);
   });
 
@@ -160,7 +173,7 @@ describe("AccountPicker create + open + delete", () => {
     await user.type(screen.getByLabelText("Company name"), "Frozen Co");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
-    const created = useStore.getState().data.accounts.find((a) => a.name === "Frozen Co")!;
+    const created = requireAccount("Frozen Co");
     expect(created.weekStartsOn).toBe(0);
     expect(created.timezone).toBe("Europe/London");
     expect(created.language).toBe("en");
@@ -168,7 +181,9 @@ describe("AccountPicker create + open + delete", () => {
     // listbox + 9 typed keystrokes, ~0.6s on dev hardware) and it deterministically exceeded 5s
     // on contended CI runners (gate run 29868452988, twice) while every other test passed.
   }, 15_000);
+}
 
+function registerCreateFormValidationTests() {
   it("validates a blank name", async () => {
     const user = userEvent.setup();
     render(<AccountPicker />);
@@ -194,7 +209,9 @@ describe("AccountPicker create + open + delete", () => {
     expect(screen.getByLabelText("Company name")).not.toHaveAttribute("aria-invalid", "true");
     expect(screen.queryByText("Name is required.")).not.toBeInTheDocument();
   });
+}
 
+function registerOpenAndEnterTests() {
   it("opens an existing company by clicking it", async () => {
     const user = userEvent.setup();
     seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
@@ -212,10 +229,12 @@ describe("AccountPicker create + open + delete", () => {
     await user.keyboard("{Enter}");
 
     expect(useStore.getState().data.accounts.map((a) => a.name)).toContain("Enter Co");
-    const created = useStore.getState().data.accounts.find((a) => a.name === "Enter Co")!;
+    const created = requireAccount("Enter Co");
     expect(useStore.getState().activeAccountId).toBe(created.id);
   });
+}
 
+function registerDeleteConfirmationTests() {
   it("deletes a company only after typing its name to confirm", async () => {
     const user = userEvent.setup();
     seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
@@ -237,9 +256,15 @@ describe("AccountPicker create + open + delete", () => {
 
     expect(useStore.getState().data.accounts).toHaveLength(0);
   });
-});
+}
 
 describe("AccountPicker server-mode list (P1.13)", () => {
+  registerServerListMembershipTests();
+  registerServerListAccessTests();
+  registerServerListEmptyStateTests();
+});
+
+function registerServerListMembershipTests() {
   it("lists from accountSummaries, NOT data.accounts (server mode holds only the active slice in data)", () => {
     serverFlag.on = true;
     // Simulate server mode: `data` holds only ONE account (the active slice would, post-load), but the
@@ -268,7 +293,9 @@ describe("AccountPicker server-mode list (P1.13)", () => {
     expect(screen.getByRole("button", { name: "Active Co" })).toHaveAccessibleDescription("Owner");
     expect(screen.getByRole("button", { name: "Other Co" })).toHaveAccessibleDescription("Editor");
   });
+}
 
+function registerServerListAccessTests() {
   it("labels an auth-off persisted server as open access instead of demo or Owner", () => {
     serverFlag.on = true;
     useStore.getState().setAccountSummaries([{ id: "a1", name: "Open Co", role: "owner" }]);
@@ -304,7 +331,9 @@ describe("AccountPicker server-mode list (P1.13)", () => {
     expect(screen.getByRole("button", { name: "Unclear Co" })).not.toHaveAccessibleDescription("Viewer");
     expect(screen.queryByRole("button", { name: "Delete Unclear Co" })).not.toBeInTheDocument();
   });
+}
 
+function registerServerListEmptyStateTests() {
   it("activates an account whose slice is NOT loaded (existence via summaries)", async () => {
     const user = userEvent.setup();
     // `data` is empty (no slice loaded yet — the pre-load state), but the summary exists.
@@ -354,20 +383,35 @@ describe("AccountPicker server-mode list (P1.13)", () => {
     expect(screen.queryByRole("button", { name: /^Colour \(/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
-});
+}
+
+/** A fetch stub returning `response` for every call; records (url, init) pairs. */
+function stubFetch(response: { ok: boolean; status: number; body?: unknown }) {
+  const fetchMock = vi.fn(async () => ({
+    ok: response.ok,
+    status: response.status,
+    json: async () => response.body ?? {},
+  }));
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
 
 describe("AccountPicker server-mode create/delete (P1.13 client migration)", () => {
-  /** A fetch stub returning `response` for every call; records (url, init) pairs. */
-  function stubFetch(response: { ok: boolean; status: number; body?: unknown }) {
-    const fetchMock = vi.fn(async () => ({
-      ok: response.ok,
-      status: response.status,
-      json: async () => response.body ?? {},
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-    return fetchMock;
-  }
+  registerServerCreateRequestTest();
+  registerServerCreateUnusableBodyTest();
+  registerServerCreateWhitespaceBodyTest();
+  registerServerCreateRefusalTest();
+  registerServerCreateUnknownResponseTest();
+  registerServerCreateTransportFailureTest();
+  registerServerDeleteUnloadedTest();
+  registerServerDeleteInFlightTest();
+  registerServerDeleteReconciliationTest();
+  registerServerDeleteUnknownResponseTest();
+  registerServerDeleteTransportFailureTest();
+  registerServerDeletePermissionsTest();
+});
 
+function registerServerCreateRequestTest() {
   it("creates via POST /api/orgs (the atomic org path — NOT the local addAccount), seeds the summary, activates", async () => {
     serverFlag.on = true;
     const user = userEvent.setup();
@@ -394,7 +438,9 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
     // …and NO local addAccount ran (the slice arrives via the switch orchestrator's loadAll, not here).
     expect(useStore.getState().data.accounts).toHaveLength(0);
   });
+}
 
+function registerServerCreateUnusableBodyTest() {
   it("on a 2xx create with an unusable body: NO error, form closes, list refetched, nothing activated", async () => {
     // A 2xx means the org EXISTS server-side. An unreadable/off-spec body must therefore NOT surface
     // an error over a create that succeeded (a resubmit would duplicate / trip the cap-403), and must
@@ -422,7 +468,9 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
     expect(useStore.getState().activeAccountId).toBeNull();
     expect(useStore.getState().accountSummaries.map((a) => a.id)).toEqual(["org-9"]);
   });
+}
 
+function registerServerCreateWhitespaceBodyTest() {
   it.each([
     { id: " ", name: "Stark Industries" },
     { id: "org-9", name: "\t" },
@@ -444,7 +492,9 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
     expect(useStore.getState().activeAccountId).toBeNull();
     expect(useStore.getState().accountSummaries.map((account) => account.id)).toEqual(["org-9"]);
   });
+}
 
+function registerServerCreateRefusalTest() {
   it("surfaces the server refusal (cap / org gate) as the form error and does NOT activate", async () => {
     serverFlag.on = true;
     const user = userEvent.setup();
@@ -459,7 +509,9 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
     expect(useStore.getState().activeAccountId).toBeNull();
     expect(useStore.getState().accountSummaries).toHaveLength(0);
   });
+}
 
+function registerServerCreateUnknownResponseTest() {
   it("uses the localised refreshed-list guidance for an unknown create response", async () => {
     serverFlag.on = true;
     const user = userEvent.setup();
@@ -481,7 +533,9 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
       ),
     );
   });
+}
 
+function registerServerCreateTransportFailureTest() {
   it("uses the localised stale-list guidance and preserves diagnostics after a create transport failure", async () => {
     serverFlag.on = true;
     const user = userEvent.setup();
@@ -501,7 +555,9 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
       ),
     );
   });
+}
 
+function registerServerDeleteUnloadedTest() {
   it("deletes an UNLOADED company via DELETE /api/accounts/:id and drops its summary", async () => {
     // The regression this guards: the local deleteAccount cascade diffs the LOADED slice only, so a
     // company whose slice isn't in `data` would emit no ops, delete nothing server-side, and
@@ -526,7 +582,9 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
     expect(url).toBe("/api/accounts/a9");
     expect(init.method).toBe("DELETE");
   });
+}
 
+function registerServerDeleteInFlightTest() {
   it("disarms Delete while the DELETE is in flight (double-click sends ONE request)", async () => {
     // The regression this guards: without the in-flight guard a double-click sends a second DELETE,
     // which can race the first command and raise a spurious in-progress retry error
@@ -563,7 +621,9 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
       tone: "info",
     });
   });
+}
 
+function registerServerDeleteReconciliationTest() {
   it("reconciles an ambiguous post-erasure 403 against the authoritative company directory", async () => {
     serverFlag.on = true;
     const user = userEvent.setup();
@@ -588,7 +648,9 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
       tone: "warning",
     });
   });
+}
 
+function registerServerDeleteUnknownResponseTest() {
   it("uses the localised refreshed-list guidance for an unknown delete response", async () => {
     serverFlag.on = true;
     const user = userEvent.setup();
@@ -612,7 +674,9 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
       ),
     );
   });
+}
 
+function registerServerDeleteTransportFailureTest() {
   it("uses the localised stale-list guidance and preserves diagnostics after a delete transport failure", async () => {
     serverFlag.on = true;
     const user = userEvent.setup();
@@ -634,7 +698,9 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
       ),
     );
   });
+}
 
+function registerServerDeletePermissionsTest() {
   it("offers a Delete button only on an owner summary", () => {
     serverFlag.on = true;
     useStore.getState().setAccountSummaries([
@@ -668,7 +734,7 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
       "Viewer",
     ]);
   });
-});
+}
 
 describe("AccountPicker — refreshAuth after org create/delete (canCreateAccount stays fresh)", () => {
   // The server recomputes canCreateAccount PER REQUEST from mutable state (account count +
