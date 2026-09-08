@@ -1701,22 +1701,22 @@ describe("member sign-in confirmation", () => {
 // change — agrees about what a non-active row means. Each case below failed before this pass, and
 // each fails independently, so a regression in one cannot hide behind another.
 
-describe("disabling holds across every membership path (#175 review)", () => {
-  /** Owner + editor of a1, with the editor already moved into `status`. */
-  async function ownerAndInactiveEditor(suffix: string, status: "disabled" | "archived" = "disabled") {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const owner = await signUp(app, `owner-${suffix}@capacitylens.dev`);
-    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-    const ed = await signUp(app, `editor-${suffix}@capacitylens.dev`);
-    upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
-    expect(
-      (await patchStatusReq({ app, accountId: "a1", userId: ed.userId, status, headers: { cookie: owner.cookie } }))
-        .statusCode,
-    ).toBe(200);
-    return { app, db, owner, ed };
-  }
+/** Owner + editor of a1, with the editor already moved into `status`. */
+async function ownerAndInactiveEditor(suffix: string, status: "disabled" | "archived" = "disabled") {
+  const { app, db } = await appWithAuth();
+  seedTwo(db);
+  const owner = await signUp(app, `owner-${suffix}@capacitylens.dev`);
+  upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+  const ed = await signUp(app, `editor-${suffix}@capacitylens.dev`);
+  upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
+  expect(
+    (await patchStatusReq({ app, accountId: "a1", userId: ed.userId, status, headers: { cookie: owner.cookie } }))
+      .statusCode,
+  ).toBe(200);
+  return { app, db, owner, ed };
+}
 
+function registerDisabledInviteRedemptionTest(): void {
   it("a disabled member cannot redeem an invite back into the account, and the invite stays unused", async () => {
     const { app, db, owner, ed } = await ownerAndInactiveEditor("invite-bypass");
     // A link-only invite the disabled member holds (or is handed). Before this fix the accept path
@@ -1750,7 +1750,9 @@ describe("disabling holds across every membership path (#175 review)", () => {
     if (!invite) throw new Error("Expected the invitation to remain available.");
     expect(invite.usedAt).toBeNull();
   });
+}
 
+function registerArchivedInviteRedemptionTest(): void {
   it("an archived member is refused identically, so neither suspension is the weaker one", async () => {
     const { app, db, owner, ed } = await ownerAndInactiveEditor("invite-bypass-archived", "archived");
     const token = (
@@ -1769,7 +1771,9 @@ describe("disabling holds across every membership path (#175 review)", () => {
     ).toBe(403);
     expect(storedStatus(db, "a1", ed.userId)).toBe("archived");
   });
+}
 
+function registerRestoredInviteRedemptionTest(): void {
   it("a restored member can then redeem that same invite, so the refusal is a pause and not a wall", async () => {
     const { app, db, owner, ed } = await ownerAndInactiveEditor("invite-after-restore");
     const token = (
@@ -1806,7 +1810,9 @@ describe("disabling holds across every membership path (#175 review)", () => {
     if (!invite) throw new Error("Expected the redeemed invitation.");
     expect(invite.usedAt).not.toBeNull();
   });
+}
 
+function registerDisabledMemberAuthorityTest(): void {
   it("an admin keeps reset-password and revoke-sessions authority over a member they just disabled", async () => {
     const { app, owner, ed } = await ownerAndInactiveEditor("identity-authority");
     // The compromised-account case: an admin disables first, THEN kills the live session. Before
@@ -1843,7 +1849,9 @@ describe("disabling holds across every membership path (#175 review)", () => {
       ).statusCode,
     ).toBe(204);
   });
+}
 
+function registerDisabledMemberRemovalTest(): void {
   it("removes a disabled membership without restoring its access first", async () => {
     const { app, db, owner, ed } = await ownerAndInactiveEditor("remove-suspended");
     // The gear offers Remove on a non-active row; before this fix the route's active-only lookup
@@ -1857,7 +1865,9 @@ describe("disabling holds across every membership path (#175 review)", () => {
     expect(getMemberRole(db, "a1", ed.userId)).toBeNull();
     expect(storedStatus(db, "a1", ed.userId)).toBeUndefined();
   });
+}
 
+function registerDisabledMemberRoleChangeTest(): void {
   it("refuses a ROLE change on a non-active membership — restore is the only way back", async () => {
     const { app, db, owner, ed } = await ownerAndInactiveEditor("role-suspended");
     // Deliberately NOT widened. changeMemberRole writes `status: "active"`, so accepting it here
@@ -1873,6 +1883,15 @@ describe("disabling holds across every membership path (#175 review)", () => {
     expect(getMemberRole(db, "a1", ed.userId)).toBe("editor");
     expect(storedStatus(db, "a1", ed.userId)).toBe("disabled");
   });
+}
+
+describe("disabling holds across every membership path (#175 review)", () => {
+  registerDisabledInviteRedemptionTest();
+  registerArchivedInviteRedemptionTest();
+  registerRestoredInviteRedemptionTest();
+  registerDisabledMemberAuthorityTest();
+  registerDisabledMemberRemovalTest();
+  registerDisabledMemberRoleChangeTest();
 });
 
 function registerRepeatedStatusNoOpTest(): void {
