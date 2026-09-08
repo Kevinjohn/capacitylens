@@ -615,13 +615,7 @@
     }
   },
   "server/src/schema/assert.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
     "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
       "count": 1
     }
   },
