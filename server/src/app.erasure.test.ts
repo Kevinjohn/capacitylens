@@ -231,7 +231,6 @@ const replayCommand = {
 
 async function replayErasureCommand(app: FastifyInstance, cookie: string): Promise<void> {
   expect((await deleteAccountRoute({ app, id: "a1", cookie, command: replayCommand })).statusCode).toBe(204);
-  expect((await deleteAccountRoute({ app, id: "a1", cookie, command: replayCommand })).statusCode).toBe(204);
 }
 
 function assertReplayCommand(db: Db): void {
@@ -298,6 +297,8 @@ async function testIdentityRetention(
     createdAt: TS,
   });
   if (status === "inactive") {
+    // Historical/corrupt databases can contain a status outside the current active-only contract.
+    // The erasure boundary must fail closed even though new typed writes cannot create this row.
     db.prepare(`UPDATE account_members SET status = 'inactive' WHERE accountId = ? AND userId = ?`).run(
       otherAccountId,
       member.userId,
@@ -306,10 +307,13 @@ async function testIdentityRetention(
 
   expect((await deleteAccountRoute({ app, id: "a1", cookie: member.cookie })).statusCode).toBe(204);
   if (shouldRetainIdentity) {
+    // Any control row in a surviving workspace retains its principal so the row cannot dangle,
+    // even when its status grants no live access.
     expect(userRow(db, member.userId)).toMatchObject({ email: "inactive-a2@capacitylens.dev" });
     expect(authAccountCount(db, member.userId)).toBeGreaterThanOrEqual(1);
     expect(sessionCount(db, member.userId)).toBeGreaterThanOrEqual(1);
   } else {
+    // A row targeting a missing workspace has no retention authority and is cleaned up with the identity.
     expect(userRow(db, member.userId)).toBeUndefined();
     expect(authAccountCount(db, member.userId)).toBe(0);
     expect(sessionCount(db, member.userId)).toBe(0);
@@ -413,7 +417,12 @@ describe("P2.6b erasure — (b) last-company identity removal reopens password s
     // same zero-user fact per request. No restart or manual DB repair is required.
     const me = await call(app, { method: "GET", url: "/api/auth/me", headers: { cookie: u.cookie } });
     expect(me.statusCode).toBe(401);
-    const meBody = me.json() as { needsSetup?: boolean };
+    const meBody: unknown = me.json();
+    const isRecord = (value: unknown): value is Record<string, unknown> =>
+      typeof value === "object" && value !== null && !Array.isArray(value);
+    expect(isRecord(meBody)).toBe(true);
+    if (!isRecord(meBody)) throw new Error("Expected an object response from /api/auth/me");
+    expect(typeof meBody.needsSetup).toBe("boolean");
     expect(meBody.needsSetup).toBe(true);
     const replacement = await signUp(app, "replacement-owner@capacitylens.dev");
     expect(userRow(db, replacement.userId)?.email).toBe("replacement-owner@capacitylens.dev");
@@ -430,6 +439,7 @@ describe("P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)", (
     upsertMember(db, { accountId: "a2", userId: actor.userId, role: "editor", status: "active", createdAt: TS });
     await replayErasureCommand(app, actor.cookie);
     expect(accountCount(db, "a1")).toBe(0);
+    await replayErasureCommand(app, actor.cookie);
     assertReplayCommand(db);
 
     const unrelated = await deleteAccountRoute({
