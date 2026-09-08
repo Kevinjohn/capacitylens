@@ -1,7 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
-import { RouterProvider } from "react-router-dom";
+import { Outlet, RouterProvider } from "react-router-dom";
+import { ActivityList } from "./components/activities/ActivityList";
 import { RouteLoading, router } from "./router";
+
+vi.mock("./components/AppShell", () => ({ AppShell: Outlet }));
+vi.mock("./components/activities/ActivityList", () => ({
+  ActivityList: vi.fn(() => <div data-testid="activity-list-route" />),
+}));
 
 describe("router loading boundary", () => {
   it("keeps top-level lazy routes inside a visible main landmark", () => {
@@ -9,6 +15,32 @@ describe("router loading boundary", () => {
 
     expect(screen.getByRole("main")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+  });
+});
+
+describe("activity route selection", () => {
+  it.each(["/activities", "/activities#activity=%E0%A4%A"])("omits selectedActivityId for %s", async (path) => {
+    await act(async () => {
+      await router.navigate(path);
+    });
+
+    render(<RouterProvider router={router} />);
+    await screen.findByTestId("activity-list-route");
+
+    const props = vi.mocked(ActivityList).mock.lastCall?.[0];
+    expect(props).toBeDefined();
+    expect(Object.hasOwn(props ?? {}, "selectedActivityId")).toBe(false);
+  });
+
+  it("passes the decoded activity selection for a valid hash", async () => {
+    await act(async () => {
+      await router.navigate("/activities#activity=planning%2Freview");
+    });
+
+    render(<RouterProvider router={router} />);
+    await screen.findByTestId("activity-list-route");
+
+    expect(vi.mocked(ActivityList).mock.lastCall?.[0]).toEqual({ selectedActivityId: "planning/review" });
   });
 });
 
