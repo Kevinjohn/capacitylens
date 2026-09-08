@@ -236,7 +236,7 @@ function SessionMenuItem({ demoAuthActive, onSignOutDemo }: { demoAuthActive: bo
   const { authMode, signOut, user } = useAuth();
   if (!demoAuthActive && authMode === "off") return null;
 
-  let name = FAKE_USER.name;
+  let name: string = FAKE_USER.name;
   let imageUrl: string | undefined = demoAvatarUrl;
   let onSignOut = onSignOutDemo;
   if (!demoAuthActive) {
