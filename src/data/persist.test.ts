@@ -608,6 +608,53 @@ it("attachPersistence does NOT re-write on an online event when nothing is stran
   detach();
 });
 
+interface AccountSwitchWireEntry {
+  url: string;
+  ops?: Array<{
+    method: string;
+    table: string;
+    id: string;
+    accountId?: string;
+    row?: { accountId?: string; createdAt?: string; updatedAt?: string };
+  }>;
+}
+
+function recordingAccountSwitchAdapter() {
+  const slice = (accountId: string, name: string) => ({
+    ...emptyAppData(),
+    accounts: [{ id: accountId, name, color: "#1", createdAt: "t", updatedAt: "t" }],
+    clients: [internalClient(accountId)],
+  });
+  const aSlice = slice("a1", "Alpha");
+  const bSlice = slice("b1", "Beta");
+  const wire: AccountSwitchWireEntry[] = [];
+  const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes("/api/state")) {
+      wire.push({ url: requestUrl });
+      return new Response(JSON.stringify(requestUrl.includes("accountId=b1") ? bSlice : aSlice), { status: 200 });
+    }
+    const body = JSON.parse(String(init?.body)) as { ops: AccountSwitchWireEntry["ops"] };
+    wire.push(body.ops === undefined ? { url: requestUrl } : { url: requestUrl, ops: body.ops });
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        applied: body.ops?.length ?? 0,
+        revisions: (body.ops ?? [])
+          .filter((operation) => operation.method === "PUT")
+          .map((operation) => ({
+            table: operation.table,
+            id: operation.id,
+            createdAt: operation.row?.createdAt ?? "t",
+            updatedAt: operation.row?.updatedAt ?? "t",
+          })),
+      }),
+      { status: 200 },
+    );
+  });
+  return { adapter: new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch), wire };
+}
+
 describe("account-switch orchestrator (P1.13, server mode)", () => {
   // The §5 correctness core at the persist layer: a tenant switch hydrates THAT account's slice and
   // re-seeds the adapter's diff snapshot atomically, with NO spurious save of the loaded slice.
@@ -744,61 +791,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     // snapshot===A (so the diff is A-vs-A, correct), landing it BEFORE B's slice load reseeds the
     // snapshot to B — never a cross-account diff. Uses the REAL ServerSyncAdapter so the actual
     // diff/snapshot logic runs against a fake fetch; we assert on the wire traffic.
-    const aSlice = {
-      ...emptyAppData(),
-      accounts: [
-        {
-          id: "a1",
-          name: "Alpha",
-          color: "#1",
-          createdAt: "t",
-          updatedAt: "t",
-        },
-      ],
-      clients: [internalClient("a1")],
-    };
-    const bSlice = {
-      ...emptyAppData(),
-      accounts: [{ id: "b1", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
-      clients: [internalClient("b1")],
-    };
-    type Wire = {
-      url: string;
-      ops?: Array<{
-        method: string;
-        table: string;
-        id: string;
-        accountId?: string;
-        row?: { accountId?: string; createdAt?: string; updatedAt?: string };
-      }>;
-    };
-    const wire: Wire[] = [];
-    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-      const u = String(url);
-      if (u.includes("/api/state")) {
-        wire.push({ url: u });
-        return new Response(JSON.stringify(u.includes("accountId=b1") ? bSlice : aSlice), { status: 200 });
-      }
-      // /api/batch — capture the ops carried on the wire.
-      const body = JSON.parse(String(init?.body)) as { ops: Wire["ops"] };
-      wire.push(body.ops === undefined ? { url: u } : { url: u, ops: body.ops });
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          applied: body.ops?.length ?? 0,
-          revisions: (body.ops ?? [])
-            .filter((op) => op.method === "PUT")
-            .map((op) => ({
-              table: op.table,
-              id: op.id,
-              createdAt: op.row?.createdAt ?? "t",
-              updatedAt: op.row?.updatedAt ?? "t",
-            })),
-        }),
-        { status: 200 },
-      );
-    });
-    const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
+    const { adapter, wire } = recordingAccountSwitchAdapter();
 
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
@@ -828,7 +821,8 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
 
     // A's edit reached the adapter (flushed, not dropped): a batch carrying A's client (a PUT, so
     // its accountId rides on the row — DELETEs carry a top-level accountId, PUTs carry the full row).
-    const carriesA = (o: NonNullable<Wire["ops"]>[number]) => o.row?.accountId === "a1" || o.accountId === "a1";
+    const carriesA = (o: NonNullable<AccountSwitchWireEntry["ops"]>[number]) =>
+      o.row?.accountId === "a1" || o.accountId === "a1";
     const aBatchIdx = wire.findIndex((w) => w.ops?.some((o) => o.id === edited.id && carriesA(o)));
     expect(aBatchIdx).toBeGreaterThanOrEqual(0);
     // And it landed BEFORE B's slice load (no window where a diff could cross accounts).
