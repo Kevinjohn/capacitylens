@@ -188,19 +188,19 @@ function applyTransitionMutation({
   return response;
 }
 
-interface ApplyTransitionRequestInput {
+interface SendTransitionResponseInput {
   dependencies: LifecycleRouteDependencies;
   req: FastifyRequest;
   reply: FastifyReply;
   spec: TransitionSpec;
 }
 
-function applyTransitionRequest({
+function sendTransitionResponse({
   dependencies,
   req,
   reply,
   spec,
-}: ApplyTransitionRequestInput): FastifyReply | undefined {
+}: SendTransitionResponseInput): FastifyReply | undefined {
   const request = readLifecycleRequest(req, reply);
   if (!request) return reply;
   if (!dependencies.authorize({ req, reply, accountId: request.accountId, action: spec.permission })) return;
@@ -221,7 +221,7 @@ function registerTransition(
   dependencies: LifecycleRouteDependencies,
   spec: TransitionSpec,
 ): void {
-  app.post(`/api/:entity/:id/${spec.path}`, (req, reply) => applyTransitionRequest({ dependencies, req, reply, spec }));
+  app.post(`/api/:entity/:id/${spec.path}`, (req, reply) => sendTransitionResponse({ dependencies, req, reply, spec }));
 }
 
 /** Dedicated plugin-style registration for all tombstone lifecycle routes. */
