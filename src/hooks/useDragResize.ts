@@ -34,6 +34,100 @@ export interface UseDragResizeArgs {
   threshold?: number;
 }
 
+interface GestureState {
+  argsRef: { current: UseDragResizeArgs };
+  teardownRef: { current: (() => void) | null };
+  mode: DragMode;
+  startX: number;
+  startY: number;
+  pointerId: number;
+  captureTarget: GestureCaptureTarget;
+  threshold: number;
+}
+
+type GesturePointerEvent = Omit<PointerEvent, "pointerId"> & { readonly pointerId?: number };
+type GestureCaptureTarget = Omit<HTMLElement, "hasPointerCapture" | "setPointerCapture"> & {
+  hasPointerCapture?: HTMLElement["hasPointerCapture"];
+  setPointerCapture?: HTMLElement["setPointerCapture"];
+};
+
+function getDragMode(handle: string | undefined): DragMode {
+  if (handle === "start") return "resize-start";
+  if (handle === "end") return "resize-end";
+  return "move";
+}
+
+function createGestureHandlers(state: GestureState) {
+  const { argsRef, teardownRef, mode, startX, startY, pointerId, captureTarget, threshold } = state;
+  let dragging = false;
+  // Synthetic/older events can omit pointerId; treat those as the active pointer.
+  const isOtherPointer = (event: GesturePointerEvent) => event.pointerId !== undefined && event.pointerId !== pointerId;
+
+  // NOTE: the day delta is `indexAtClientX(here) - indexAtClientX(start)`. The
+  // divide-by-zero / out-of-range guarding lives in the PURE ColumnGeometry.indexAt (it's
+  // total and never returns NaN). This hook intentionally stays guard-free — do NOT wrap
+  // these pure calls in try/catch (the guard belongs in the geometry layer). The 4px
+  // arm-vs-click test below stays a RAW pixel test, independent of the day snapping.
+  const onMove = (event: GesturePointerEvent) => {
+    if (isOtherPointer(event)) return;
+    const dx = event.clientX - startX;
+    const dy = event.clientY - startY;
+    if (!dragging && Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return;
+    dragging = true;
+    const deltaDays = argsRef.current.indexAtClientX(event.clientX) - argsRef.current.indexAtClientX(startX);
+    argsRef.current.onPreview({
+      mode,
+      deltaDays,
+      deltaY: dy,
+      pointer: { clientX: event.clientX, clientY: event.clientY },
+    });
+  };
+  const detach = () => {
+    document.removeEventListener("pointermove", onMove);
+    document.removeEventListener("pointerup", onUp);
+    document.removeEventListener("pointercancel", onCancel);
+    document.removeEventListener("keydown", onKeyDown);
+    captureTarget.removeEventListener("lostpointercapture", onLostPointerCapture);
+    if (captureTarget.hasPointerCapture?.(pointerId)) captureTarget.releasePointerCapture(pointerId);
+    teardownRef.current = null;
+  };
+  // THE abandon path, shared by all three ways a gesture can end without committing (pointer
+  // cancel, lost capture, Escape). Notify even on a SUB-THRESHOLD abandon: the gesture was armed
+  // at pointerdown, so the consumer may have started a side effect (e.g. a document scroll
+  // watcher) whose only teardown signal on these paths is onCancel. Skipping it orphans that
+  // listener for every twitch-then-browser-scroll, accumulating across gestures.
+  const abort = () => {
+    detach();
+    argsRef.current.onCancel?.();
+  };
+  const onUp = (event: GesturePointerEvent) => {
+    if (isOtherPointer(event)) return;
+    // A mouse shares one pointerId across all buttons. Releasing a secondary button while the
+    // primary drag remains held must neither commit nor cancel the armed primary gesture.
+    if (event.button !== 0) return;
+    detach();
+    if (!dragging) {
+      argsRef.current.onClick?.();
+      return;
+    }
+    const deltaDays = argsRef.current.indexAtClientX(event.clientX) - argsRef.current.indexAtClientX(startX);
+    argsRef.current.onCommit(mode, deltaDays, { clientX: event.clientX, clientY: event.clientY });
+  };
+  const onCancel = (event: GesturePointerEvent) => {
+    if (isOtherPointer(event)) return;
+    abort();
+  };
+  const onLostPointerCapture = () => abort();
+  // Keyboard escape hatch: a pointer-only gesture has no way to back out once armed (a
+  // resize/move drag has no native "cancel" gesture). Escape takes the same abandon path
+  // rather than committing whatever the last preview was.
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== "Escape") return;
+    abort();
+  };
+  return { onMove, onUp, onCancel, onKeyDown, onLostPointerCapture, detach };
+}
+
 export function useDragResize(args: UseDragResizeArgs) {
   const argsRef = useRef(args);
   useEffect(() => {
@@ -55,87 +149,20 @@ export function useDragResize(args: UseDragResizeArgs) {
     // pointerup could commit twice.
     if (teardownRef.current) return false;
 
-    const handle = (e.target as HTMLElement).dataset.handle;
-    const mode: DragMode = handle === "start" ? "resize-start" : handle === "end" ? "resize-end" : "move";
-    const startX = e.clientX;
-    const startY = e.clientY;
+    const mode = getDragMode((e.target as HTMLElement).dataset.handle);
+    const captureTarget: GestureCaptureTarget = e.currentTarget;
     const pointerId = e.pointerId; // only react to THIS pointer's move/up/cancel
-    const captureTarget = e.currentTarget;
-    const threshold = argsRef.current.threshold ?? 4;
-    let dragging = false;
-
-    // Only react to THIS pointer. Guarded because synthetic/older events may omit
-    // pointerId (treat a missing id as "the active pointer").
-    const isOtherPointer = (event: PointerEvent) => event.pointerId !== undefined && event.pointerId !== pointerId;
-
-    // NOTE: the day delta is `indexAtClientX(here) - indexAtClientX(start)`. The
-    // divide-by-zero / out-of-range guarding lives in the PURE ColumnGeometry.indexAt (it's
-    // total and never returns NaN). This hook intentionally stays guard-free — do NOT wrap
-    // these pure calls in try/catch (the guard belongs in the geometry layer). The 4px
-    // arm-vs-click test below stays a RAW pixel test, independent of the day snapping.
-    const onMove = (event: PointerEvent) => {
-      if (isOtherPointer(event)) return;
-      const dx = event.clientX - startX;
-      const dy = event.clientY - startY;
-      if (!dragging && Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return;
-      dragging = true;
-      const deltaDays = argsRef.current.indexAtClientX(event.clientX) - argsRef.current.indexAtClientX(startX);
-      argsRef.current.onPreview({
-        mode,
-        deltaDays,
-        deltaY: dy,
-        pointer: {
-          clientX: event.clientX,
-          clientY: event.clientY,
-        },
-      });
-    };
-    const detach = () => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-      document.removeEventListener("pointercancel", onCancel);
-      document.removeEventListener("keydown", onKeyDown);
-      captureTarget.removeEventListener("lostpointercapture", onLostPointerCapture);
-      if (captureTarget.hasPointerCapture?.(pointerId)) captureTarget.releasePointerCapture(pointerId);
-      teardownRef.current = null;
-    };
-    const onUp = (event: PointerEvent) => {
-      if (isOtherPointer(event)) return;
-      // A mouse shares one pointerId across all buttons. Releasing a secondary button while the
-      // primary drag remains held must neither commit nor cancel the armed primary gesture.
-      if (event.button !== 0) return;
-      detach();
-      if (!dragging) {
-        argsRef.current.onClick?.();
-        return;
-      }
-      const deltaDays = argsRef.current.indexAtClientX(event.clientX) - argsRef.current.indexAtClientX(startX);
-      argsRef.current.onCommit(mode, deltaDays, {
-        clientX: event.clientX,
-        clientY: event.clientY,
-      });
-    };
-    // THE abandon path, shared by all three ways a gesture can end without committing (pointer
-    // cancel, lost capture, Escape). Notify even on a SUB-THRESHOLD abandon: the gesture was armed
-    // at pointerdown, so the consumer may have started a side effect (e.g. a document scroll
-    // watcher) whose only teardown signal on these paths is onCancel. Skipping it orphans that
-    // listener for every twitch-then-browser-scroll, accumulating across gestures.
-    const abort = () => {
-      detach();
-      argsRef.current.onCancel?.();
-    };
-    const onCancel = (event: PointerEvent) => {
-      if (isOtherPointer(event)) return;
-      abort();
-    };
-    const onLostPointerCapture = () => abort();
-    // Keyboard escape hatch: a pointer-only gesture has no way to back out once armed (a
-    // resize/move drag has no native "cancel" gesture). Escape takes the same abandon path
-    // rather than committing whatever the last preview was.
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      abort();
-    };
+    const handlers = createGestureHandlers({
+      argsRef,
+      teardownRef,
+      mode,
+      startX: e.clientX,
+      startY: e.clientY,
+      pointerId,
+      captureTarget,
+      threshold: argsRef.current.threshold ?? 4,
+    });
+    const { onMove, onUp, onCancel, onKeyDown, onLostPointerCapture, detach } = handlers;
 
     document.addEventListener("pointermove", onMove);
     document.addEventListener("pointerup", onUp);
