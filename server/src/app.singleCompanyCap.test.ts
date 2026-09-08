@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
+import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb, insertAll, type Db } from "./db";
+import { call } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 
 // Single-company-per-instance cap (AppOptions.multiAccount, default false — see app.ts's
@@ -22,13 +23,28 @@ const account = (id: string, name = `Studio ${id}`) => ({ id, name, color: "#3b8
 
 const CAP_MESSAGE = "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.";
 
-const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
-  app.inject(opts) as unknown as Promise<LightMyRequestResponse>;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readResponseField(response: LightMyRequestResponse, field: string): unknown {
+  const body: unknown = JSON.parse(response.body);
+  if (!isRecord(body)) throw new Error("Expected a JSON object response.");
+  return body[field];
+}
+
+function readAccountRows(response: LightMyRequestResponse): Record<string, unknown>[] {
+  const body: unknown = JSON.parse(response.body);
+  if (!isRecord(body) || !Array.isArray(body.accounts)) throw new Error("Expected accounts in state response.");
+  const rows: unknown[] = body.accounts;
+  if (!rows.every(isRecord)) throw new Error("Expected account rows in state response.");
+  return rows;
+}
 
 /** One pre-existing account ('a1') so "the cap is at capacity" holds (accountCount === 1). */
 function atCapDb(): Db {
   const db = openDb(":memory:");
-  insertAll(db, { ...emptyAppData(), accounts: [account("a1")] } as unknown as AppData);
+  insertAll(db, { ...emptyAppData(), accounts: [account("a1")] } satisfies AppData);
   return db;
 }
 
@@ -38,7 +54,7 @@ describe("single-company cap — POST /api/accounts (generic create)", () => {
     const res = await call(app, { method: "POST", url: "/api/accounts", payload: account("brandNew") });
     expect(res.statusCode).toBe(403);
     expect(res.json()).toMatchObject({ error: CAP_MESSAGE, code: "FORBIDDEN" });
-    expect(res.json().commandId).toEqual(expect.any(String));
+    expect(readResponseField(res, "commandId")).toEqual(expect.any(String));
   });
 
   it("zero accounts: the FIRST account still succeeds (201) — the bootstrap case is unaffected", async () => {
@@ -129,47 +145,48 @@ describe("single-company cap — PATCH /api/accounts/:id (never a create — san
   });
 });
 
-describe("single-company cap — POST /api/batch (accounts-PUT pre-scan)", () => {
-  const batchPutAccount = (app: FastifyInstance, id: string, name?: string) =>
-    call(app, {
-      method: "POST",
-      url: "/api/batch",
-      payload: { ops: [{ method: "PUT", table: "accounts", id, row: account(id, name) }] },
-    });
+const batchPutAccount = (app: FastifyInstance, id: string, name?: string) =>
+  call(app, {
+    method: "POST",
+    url: "/api/batch",
+    payload: { ops: [{ method: "PUT", table: "accounts", id, row: account(id, name) }] },
+  });
 
+function registerBatchAtCapTest(): void {
   it("at-cap: a batch PUT-accounts CREATE -> the WHOLE batch 403s with the policy message", async () => {
     const app = createApp(atCapDb());
     const res = await batchPutAccount(app, "brandNew4");
     expect(res.statusCode).toBe(403);
     expect(res.json()).toEqual({ error: CAP_MESSAGE });
   });
+}
 
+function registerBatchBootstrapTest(): void {
   it("zero accounts: the first batch-created account succeeds with its owner membership", async () => {
-    const db = openDb(":memory:");
-    const app = createApp(db);
+    const app = createApp(openDb(":memory:"));
     const res = await batchPutAccount(app, "first");
-
     expect(res.statusCode).toBe(200);
-    expect((await call(app, { method: "GET", url: "/api/state" })).json().accounts).toEqual([
+    expect(readAccountRows(await call(app, { method: "GET", url: "/api/state" }))).toEqual([
       expect.objectContaining({ id: "first" }),
     ]);
   });
+}
 
+function registerBatchConcurrencyTest(): void {
   it("serializes concurrent first-account batches and lets only one pass the cap", async () => {
-    const db = openDb(":memory:");
-    const app = createApp(db);
+    const app = createApp(openDb(":memory:"));
     const responses = await Promise.all([
       batchPutAccount(app, "concurrent-first"),
       batchPutAccount(app, "concurrent-second"),
     ]);
-
     expect(responses.map((response) => response.statusCode).sort()).toEqual([200, 403]);
-    expect((await call(app, { method: "GET", url: "/api/state" })).json().accounts).toHaveLength(1);
+    expect(readAccountRows(await call(app, { method: "GET", url: "/api/state" }))).toHaveLength(1);
   });
+}
 
+function registerBatchProjectedCreatesTest(): void {
   it("projects all creates in one batch, so two accounts cannot pass against the same empty snapshot", async () => {
-    const db = openDb(":memory:");
-    const app = createApp(db);
+    const app = createApp(openDb(":memory:"));
     const res = await call(app, {
       method: "POST",
       url: "/api/batch",
@@ -182,62 +199,63 @@ describe("single-company cap — POST /api/batch (accounts-PUT pre-scan)", () =>
     });
     expect(res.statusCode).toBe(403);
     expect(res.json()).toEqual({ error: CAP_MESSAGE });
-    const state = await call(app, { method: "GET", url: "/api/state" });
-    expect(state.json().accounts).toEqual([]);
+    expect(readAccountRows(await call(app, { method: "GET", url: "/api/state" }))).toEqual([]);
   });
+}
 
+function registerBatchDeleteThenCreateTest(): void {
   it("rejects delete-then-create account replacement through the generic batch", async () => {
-    const db = atCapDb();
-    const app = createApp(db);
-    const res = await call(app, {
-      method: "POST",
-      url: "/api/batch",
-      payload: {
-        ops: [
-          { method: "DELETE", table: "accounts", id: "a1" },
-          { method: "PUT", table: "accounts", id: "replacement", row: account("replacement") },
-        ],
-      },
-    });
-    expect(res.statusCode).toBe(400);
-    const state = await call(app, { method: "GET", url: "/api/state" });
-    expect(state.json().accounts.map((row: { id: string }) => row.id)).toEqual(["a1"]);
-  });
-
-  it("rejects create-then-delete account replacement through the generic batch", async () => {
-    const db = atCapDb();
-    const app = createApp(db);
-    const res = await call(app, {
-      method: "POST",
-      url: "/api/batch",
-      payload: {
-        ops: [
-          { method: "PUT", table: "accounts", id: "replacement", row: account("replacement") },
-          { method: "DELETE", table: "accounts", id: "a1" },
-        ],
-      },
-    });
-
-    expect(res.statusCode).toBe(400);
-    const state = await call(app, { method: "GET", url: "/api/state" });
-    expect(state.json().accounts.map((row: { id: string }) => row.id)).toEqual(["a1"]);
-  });
-
-  it("at-cap: a batch PUT-accounts UPDATE of the EXISTING account still succeeds", async () => {
     const app = createApp(atCapDb());
-    const res = await batchPutAccount(app, "a1", "Renamed via batch");
+    const res = await call(app, {
+      method: "POST",
+      url: "/api/batch",
+      payload: {
+        ops: [
+          { method: "DELETE", table: "accounts", id: "a1" },
+          { method: "PUT", table: "accounts", id: "replacement", row: account("replacement") },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(readAccountRows(await call(app, { method: "GET", url: "/api/state" })).map((row) => row.id)).toEqual(["a1"]);
+  });
+}
+
+function registerBatchCreateThenDeleteTest(): void {
+  it("rejects create-then-delete account replacement through the generic batch", async () => {
+    const app = createApp(atCapDb());
+    const res = await call(app, {
+      method: "POST",
+      url: "/api/batch",
+      payload: {
+        ops: [
+          { method: "PUT", table: "accounts", id: "replacement", row: account("replacement") },
+          { method: "DELETE", table: "accounts", id: "a1" },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(readAccountRows(await call(app, { method: "GET", url: "/api/state" })).map((row) => row.id)).toEqual(["a1"]);
+  });
+}
+
+function registerBatchUpdateTest(): void {
+  it("at-cap: a batch PUT-accounts UPDATE of the EXISTING account still succeeds", async () => {
+    const res = await batchPutAccount(createApp(atCapDb()), "a1", "Renamed via batch");
     expect(res.statusCode).toBe(200);
   });
+}
 
+function registerBatchMultiAccountTest(): void {
   it("multiAccount: true restores the open batch create even at-cap", async () => {
-    const app = createApp(atCapDb(), { multiAccount: true });
-    const res = await batchPutAccount(app, "brandNew5");
+    const res = await batchPutAccount(createApp(atCapDb(), { multiAccount: true }), "brandNew5");
     expect(res.statusCode).toBe(200);
   });
+}
 
+function registerBatchMixedTest(): void {
   it("a MIXED batch (a valid accounts-UPDATE alongside a capped accounts-CREATE) rejects the WHOLE batch, no partial write", async () => {
-    const db = atCapDb();
-    const app = createApp(db);
+    const app = createApp(atCapDb());
     const res = await call(app, {
       method: "POST",
       url: "/api/batch",
@@ -251,9 +269,22 @@ describe("single-company cap — POST /api/batch (accounts-PUT pre-scan)", () =>
     expect(res.statusCode).toBe(403);
     expect(res.json()).toEqual({ error: CAP_MESSAGE });
     // Pre-scan rejected the batch before the tx opened — a1 was NOT renamed.
-    const state = await call(app, { method: "GET", url: "/api/state?accountId=a1" });
-    expect(state.json().accounts[0].name).toBe(account("a1").name);
+    expect(readAccountRows(await call(app, { method: "GET", url: "/api/state?accountId=a1" }))[0]?.name).toBe(
+      account("a1").name,
+    );
   });
+}
+
+describe("single-company cap — POST /api/batch (accounts-PUT pre-scan)", () => {
+  registerBatchAtCapTest();
+  registerBatchBootstrapTest();
+  registerBatchConcurrencyTest();
+  registerBatchProjectedCreatesTest();
+  registerBatchDeleteThenCreateTest();
+  registerBatchCreateThenDeleteTest();
+  registerBatchUpdateTest();
+  registerBatchMultiAccountTest();
+  registerBatchMixedTest();
 });
 
 describe("single-company cap — GET /api/auth/me capability flags", () => {
