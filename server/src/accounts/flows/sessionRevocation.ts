@@ -21,7 +21,7 @@ type SessionRevocationDependencies = Pick<
 >;
 type SessionRevocationExecutionInput = SessionRevocationDependencies & RevokeMemberSessionsInput;
 
-function persistSuccessfulSessionRevocation(
+function ensureSessionRevocationCompleted(
   input: SessionRevocationExecutionInput & { result: SessionRevocationResult; operation: string },
 ): void {
   const { db, persistTerminalOutcome, actor, targetPrincipalId, command, result, operation } = input;
@@ -41,7 +41,7 @@ function persistSuccessfulSessionRevocation(
   );
 }
 
-function recordFailedSessionRevocation(
+function ensureSessionRevocationFailureRecorded(
   input: SessionRevocationExecutionInput & {
     error: unknown;
     operation: string;
@@ -81,59 +81,68 @@ function recordFailedSessionRevocation(
   );
 }
 
-async function executeLockedSessionRevocation(
-  input: SessionRevocationExecutionInput,
-): Promise<SessionRevocationResult> {
-  const { db, identity, administration, denyIdentityAdminCommand, actor, targetPrincipalId, command } = input;
-  const operation = `session-revocation:actor:${actor.principalId}`;
-  const scope = {
-    applicationId: input.applicationId,
-    operation,
-    actorPrincipalId: actor.principalId,
-    targetPrincipalId,
-  };
-  const begun = beginCommand<SessionRevocationResult>({
-    db,
-    scope,
-    command,
-    canonicalPayload: { targetPrincipalId },
-  });
-  if (begun.kind === "replay") return markAccountCommandReplay(begun.result);
-  let revocationStarted = false;
-  let terminalOutcomeRecorded = false;
-  try {
-    const decision = await administration.evaluateIdentityAdminAuthority({
-      actor,
+function createLockedSessionRevocation(
+  dependencies: SessionRevocationDependencies,
+): LocalAccountFlows["revokeMemberSessions"] {
+  return async (request) => {
+    const input = { ...dependencies, ...request };
+    const { db, identity, administration, denyIdentityAdminCommand, actor, targetPrincipalId, command } = input;
+    const operation = `session-revocation:actor:${actor.principalId}`;
+    const scope = {
+      applicationId: input.applicationId,
+      operation,
+      actorPrincipalId: actor.principalId,
       targetPrincipalId,
-      action: "revoke-sessions",
+    };
+    const begun = beginCommand<SessionRevocationResult>({
+      db,
+      scope,
+      command,
+      canonicalPayload: { targetPrincipalId },
     });
-    if (!decision.allowed) {
-      terminalOutcomeRecorded = true;
-      return denyIdentityAdminCommand({
-        scope,
-        command,
-        reason: decision.reason,
-        actorPrincipalId: actor.principalId,
+    if (begun.kind === "replay") return markAccountCommandReplay(begun.result);
+    let revocationStarted = false;
+    let terminalOutcomeRecorded = false;
+    try {
+      const decision = await administration.evaluateIdentityAdminAuthority({
+        actor,
         targetPrincipalId,
-        auditAction: "identity.sessions_revoked",
-        deniedAction: "revoke-sessions",
+        action: "revoke-sessions",
       });
+      if (!decision.allowed) {
+        terminalOutcomeRecorded = true;
+        return denyIdentityAdminCommand({
+          scope,
+          command,
+          reason: decision.reason,
+          actorPrincipalId: actor.principalId,
+          targetPrincipalId,
+          auditAction: "identity.sessions_revoked",
+          deniedAction: "revoke-sessions",
+        });
+      }
+      revocationStarted = true;
+      const result = await identity.revokePrincipalSessions({ targetPrincipalId, command });
+      ensureSessionRevocationCompleted({ ...input, operation, result });
+      return result;
+    } catch (error) {
+      if (!terminalOutcomeRecorded) {
+        ensureSessionRevocationFailureRecorded({ ...input, error, operation, revocationStarted });
+      }
+      throw error;
     }
-    revocationStarted = true;
-    const result = await identity.revokePrincipalSessions({ targetPrincipalId, command });
-    persistSuccessfulSessionRevocation({ ...input, operation, result });
-    return result;
-  } catch (error) {
-    if (!terminalOutcomeRecorded) recordFailedSessionRevocation({ ...input, error, operation, revocationStarted });
-    throw error;
-  }
+  };
 }
 
-async function executeSessionRevocation(input: SessionRevocationExecutionInput): Promise<SessionRevocationResult> {
-  const { lock, buildCommandExecutionKey, actor, targetPrincipalId, command } = input;
-  return lock.withKeys([buildCommandExecutionKey(command), actor.principalId, targetPrincipalId], () =>
-    executeLockedSessionRevocation(input),
-  );
+function createSessionRevocation(
+  dependencies: SessionRevocationDependencies,
+): LocalAccountFlows["revokeMemberSessions"] {
+  const { lock, buildCommandExecutionKey } = dependencies;
+  const revokeMemberSessions = createLockedSessionRevocation(dependencies);
+  return (input) =>
+    lock.withKeys([buildCommandExecutionKey(input.command), input.actor.principalId, input.targetPrincipalId], () =>
+      revokeMemberSessions(input),
+    );
 }
 
 export function createSessionRevocationFlows(
@@ -150,6 +159,6 @@ export function createSessionRevocationFlows(
     buildCommandExecutionKey: context.buildCommandExecutionKey,
   };
   return {
-    revokeMemberSessions: (input) => executeSessionRevocation({ ...dependencies, ...input }),
+    revokeMemberSessions: createSessionRevocation(dependencies),
   };
 }
