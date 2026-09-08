@@ -1775,14 +1775,14 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       }),
     );
     fixture.db.prepare("UPDATE allocations SET activityId = 'internal' WHERE id = 'allocation'").run();
-    const current = (await state(fixture.app)).activities.find((row: { id: string }) => row.id === "internal");
+    const current = readActivity((await readValidatedState(fixture.app)).activities, "internal");
 
     const response = await batch(fixture.app, [{ method: "PUT", table: "activities", id: "internal", row: current }]);
 
     expect(response.statusCode).toBe(200);
-    const repaired = (await state(fixture.app)).allocations[0];
+    const repaired = readAllocation((await readValidatedState(fixture.app)).allocations, "allocation");
     expect(repaired).not.toHaveProperty("projectId");
-    expect(response.json().revisions).toContainEqual({
+    expect(readBatchReceipt(response).revisions).toContainEqual({
       table: "allocations",
       id: repaired.id,
       createdAt: repaired.createdAt,
