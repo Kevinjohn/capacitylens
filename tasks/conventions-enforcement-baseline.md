@@ -11,12 +11,12 @@ Confirmed defects were handled before freezing this inventory: non-Error product
 | Rule                                           | Declarations |
 | ---------------------------------------------- | -----------: |
 | `@typescript-eslint/no-non-null-assertion`     |          729 |
-| `@typescript-eslint/no-unnecessary-condition`  |          130 |
+| `@typescript-eslint/no-unnecessary-condition`  |          129 |
 | `@typescript-eslint/no-unsafe-argument`        |           30 |
 | `@typescript-eslint/no-unsafe-assignment`      |          223 |
 | `@typescript-eslint/no-unsafe-member-access`   |          469 |
 | `@typescript-eslint/prefer-nullish-coalescing` |           46 |
-| `no-nested-ternary`                            |           96 |
+| `no-nested-ternary`                            |           95 |
 
 ## Declaration inventory
 
@@ -1230,10 +1230,8 @@ Confirmed defects were handled before freezing this inventory: non-Error product
 | `src/auth/resetPasswordFailure.ts:21:11`                                       | `@typescript-eslint/no-unnecessary-condition`  | defensive/dead-branch debt       | Unnecessary optional chain on a non-nullish value.                                                                                                                           |
 | `src/auth/resetPasswordFailure.ts:22:11`                                       | `@typescript-eslint/no-unnecessary-condition`  | defensive/dead-branch debt       | Unnecessary optional chain on a non-nullish value.                                                                                                                           |
 | `src/auth/useAccountSummaries.ts:186:7`                                        | `@typescript-eslint/no-unnecessary-condition`  | defensive/dead-branch debt       | Unnecessary conditional, value is always falsy.                                                                                                                              |
-| `src/auth/useAuthContextValue.ts:22:27`                                        | `no-nested-ternary`                            | control-flow readability debt    | Do not nest ternary expressions.                                                                                                                                             |
 | `src/bundleBudgetGate.test.ts:27:12`                                           | `@typescript-eslint/no-non-null-assertion`     | absence decision debt            | Forbidden non-null assertion.                                                                                                                                                |
 | `src/bundleBudgetGate.test.ts:40:12`                                           | `@typescript-eslint/no-non-null-assertion`     | absence decision debt            | Forbidden non-null assertion.                                                                                                                                                |
-| `src/components/AppEntryGate.tsx:96:7`                                         | `@typescript-eslint/no-unnecessary-condition`  | defensive/dead-branch debt       | Unnecessary conditional, value is always truthy.                                                                                                                             |
 | `src/components/AppSidebar.tsx:240:8`                                          | `no-nested-ternary`                            | control-flow readability debt    | Do not nest ternary expressions.                                                                                                                                             |
 | `src/components/CommandPalette.test.tsx:60:18`                                 | `@typescript-eslint/no-non-null-assertion`     | absence decision debt            | Forbidden non-null assertion.                                                                                                                                                |
 | `src/components/CommandPalette.test.tsx:153:58`                                | `@typescript-eslint/no-unnecessary-condition`  | defensive/dead-branch debt       | Unnecessary optional chain on a non-nullish value.                                                                                                                           |
