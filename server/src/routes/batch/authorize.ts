@@ -8,6 +8,29 @@ import { isScopedTable } from "../routeShared";
 import type { BatchRouteDependencies } from "../batchRoutes";
 import { type BatchOp } from "./types";
 
+interface AuthorizeBatchOperationsInput {
+  ops: BatchOp[];
+  db: Db;
+  authMode: AccountMode;
+  req: FastifyRequest;
+  reply: FastifyReply;
+  authorize: BatchRouteDependencies["authorize"];
+}
+
+interface CreateBatchAuthorizerInput {
+  req: FastifyRequest;
+  reply: FastifyReply;
+  authorize: BatchRouteDependencies["authorize"];
+}
+
+interface AuthorizeAccountPutInput {
+  op: BatchOp;
+  db: Db;
+  authMode: AccountMode;
+  reply: FastifyReply;
+  authorizeOnce: (accountId: string, action: Action) => boolean;
+}
+
 /** Project the final top-level account count for an already shape-validated batch. */
 export function projectBatchAccounts(db: Db, ops: BatchOp[]): { count: number; createsFinalAccount: boolean } {
   let count = countAccounts(db);
@@ -30,22 +53,13 @@ export function projectBatchAccounts(db: Db, ops: BatchOp[]): { count: number; c
   };
 }
 
-export function authorizeBatchOperations(parameters: {
-  ops: BatchOp[];
-  db: Db;
-  authMode: AccountMode;
-  req: FastifyRequest;
-  reply: FastifyReply;
-  authorize: BatchRouteDependencies["authorize"];
-}): boolean {
-  const { ops, db, authMode, req, reply, authorize } = parameters;
-  // This function is invoked once before waiting for workspace locks and again after lock
-  // acquisition. Keep the cache local so those remain independent authorization snapshots,
-  // while repeated operations for the same account/action do not repeat the identical
-  // membership query within either snapshot. Only successful checks are cached; a denial
-  // sends its response and ends the pass immediately.
+function createBatchAuthorizer({
+  req,
+  reply,
+  authorize,
+}: CreateBatchAuthorizerInput): (accountId: string, action: Action) => boolean {
   const authorizedActions = new Map<string, Set<Action>>();
-  const authorizeOnce = (accountId: string, action: Action): boolean => {
+  return (accountId, action) => {
     const actions = authorizedActions.get(accountId);
     if (actions?.has(action)) return true;
     if (!authorize({ req, reply, accountId, action })) return false;
@@ -53,16 +67,42 @@ export function authorizeBatchOperations(parameters: {
     else authorizedActions.set(accountId, new Set([action]));
     return true;
   };
+}
+
+function readScopedAccountId(op: BatchOp): string {
+  const accountId = op.method === "PUT" ? op.row?.accountId : op.accountId;
+  if (typeof accountId !== "string") {
+    throw new Error("A validated scoped batch operation requires an account ID.");
+  }
+  return accountId;
+}
+
+function resolveScopedAction(op: BatchOp): Action {
+  return op.method === "PUT" && op.table === "clients" && op.row?.builtin === true
+    ? "manageInternalClient"
+    : "write";
+}
+
+function authorizeAccountPut(parameters: AuthorizeAccountPutInput): boolean {
+  const { op, db, authMode, reply, authorizeOnce } = parameters;
+  if (getRow(db, "accounts", op.id)) return authorizeOnce(op.id, "write");
+  if (authMode === "off") return true;
+  reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE });
+  return false;
+}
+
+export function authorizeBatchOperations(parameters: AuthorizeBatchOperationsInput): boolean {
+  const { ops, db, authMode, req, reply, authorize } = parameters;
+  // This function is invoked once before waiting for workspace locks and again after lock
+  // acquisition. Keep the cache local so those remain independent authorization snapshots,
+  // while repeated operations for the same account/action do not repeat the identical
+  // membership query within either snapshot. Only successful checks are cached; a denial
+  // sends its response and ends the pass immediately.
+  const authorizeOnce = createBatchAuthorizer({ req, reply, authorize });
 
   for (const op of ops) {
-    if (op?.table === "accounts" && op.method === "PUT") {
-      const existingAccount = getRow(db, "accounts", op.id);
-      if (existingAccount) {
-        if (!authorizeOnce(op.id, "write")) return false;
-      } else if (authMode !== "off") {
-        reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE });
-        return false;
-      }
+    if (op.table === "accounts" && op.method === "PUT") {
+      if (!authorizeAccountPut({ op, db, authMode, reply, authorizeOnce })) return false;
       // OFF-mode creates are checked against the projected final set and rechecked by the
       // provisioning policy inside the transaction.
       continue;
@@ -73,12 +113,7 @@ export function authorizeBatchOperations(parameters: {
       });
       return false;
     }
-    const accountId = op.method === "PUT" ? (op.row as { accountId?: string } | undefined)?.accountId : op.accountId;
-    const action: Action =
-      op.method === "PUT" && op.table === "clients" && (op.row as { builtin?: unknown } | undefined)?.builtin === true
-        ? "manageInternalClient"
-        : "write";
-    if (!authorizeOnce(accountId as string, action)) return false;
+    if (!authorizeOnce(readScopedAccountId(op), resolveScopedAction(op))) return false;
   }
   return true;
 }
