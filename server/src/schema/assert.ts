@@ -1,5 +1,6 @@
 import type { Db } from "../db";
-import { INTERNAL_CLIENT_UNIQUE_INDEX_SQL, type TableSpec } from "../tables";
+import { INTERNAL_CLIENT_UNIQUE_INDEX_SQL } from "../tables";
+import type { TableSpec } from "../tables";
 import { V32_TABLES } from "./historicalSpecs";
 import { hasColumn, schemaColumns } from "./introspection";
 const normalizeSchemaObjectSql = (sql: string): string =>
