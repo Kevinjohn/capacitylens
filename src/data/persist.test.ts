@@ -2021,42 +2021,37 @@ async function attachHeldLossSwitch() {
   return { detach, onError, readReleaseB, saveAll };
 }
 
+async function attachRecoverableAccountSwitch() {
+  const bSlice: AppData = {
+    ...emptyAppData(),
+    accounts: [{ id: "b1", name: "Beta Two", color: "#1", createdAt: "t", updatedAt: "t" }],
+  };
+  const loadAll = vi.fn(async (accountId?: string): Promise<AppData> => (accountId === "b1" ? bSlice : a2Slice()));
+  const saveAll = vi.fn().mockResolvedValue(undefined);
+  const onError = vi.fn();
+  const onSuccess = vi.fn();
+  useStore.getState().replaceAll(emptyAppData());
+  useStore.getState().setActiveAccount(null);
+  useStore.getState().setAccountSummaries([
+    { id: "a2", name: "Beta", role: "owner" },
+    { id: "b1", name: "Beta Two", role: "owner" },
+  ]);
+  const detach = attachPersistence({
+    store: useStore,
+    adapter: { loadAll, saveAll },
+    debounceMs: 0,
+    onError: onError,
+    onSuccess: onSuccess,
+    serverMode: true,
+  });
+  useStore.getState().setActiveAccount("a2");
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  return { detach, loadAll, onSuccess, saveAll };
+}
+
 describe("a successful reload clears the failure state (cross-tenant leak + stuck banner)", () => {
   it("a successful TENANT SWITCH clears the prior tenant's failed-write state — B's import/refresh are not blocked by A", async () => {
-    const bSlice: AppData = {
-      ...emptyAppData(),
-      accounts: [
-        {
-          id: "b1",
-          name: "Beta Two",
-          color: "#1",
-          createdAt: "t",
-          updatedAt: "t",
-        },
-      ],
-    };
-    const aSlice = a2Slice();
-    const loadAll = vi.fn(async (accountId?: string): Promise<AppData> => (accountId === "b1" ? bSlice : aSlice));
-    const saveAll = vi.fn().mockResolvedValue(undefined);
-    const onError = vi.fn();
-    const onSuccess = vi.fn();
-
-    useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a2", name: "Beta", role: "owner" },
-      { id: "b1", name: "Beta Two", role: "owner" },
-    ]);
-    const detach = attachPersistence({
-      store: useStore,
-      adapter: { loadAll, saveAll },
-      debounceMs: 0,
-      onError: onError,
-      onSuccess: onSuccess,
-      serverMode: true,
-    });
-    useStore.getState().setActiveAccount("a2");
-    await new Promise((r) => setTimeout(r, 5));
+    const { detach, loadAll, onSuccess, saveAll } = await attachRecoverableAccountSwitch();
 
     // A's write fails → the failure state is up (import blocked, focus refresh suppressed).
     saveAll.mockRejectedValueOnce(new Error("server down"));
