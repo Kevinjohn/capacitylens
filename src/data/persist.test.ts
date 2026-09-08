@@ -2619,9 +2619,11 @@ function registerBootstrapFailureTests() {
   });
 }
 
-describe("bootstrap", registerBootstrapSeedingTests);
-describe("bootstrap", registerBootstrapExistingDataTests);
-describe("bootstrap", registerBootstrapFailureTests);
+describe("bootstrap", () => {
+  registerBootstrapSeedingTests();
+  registerBootstrapExistingDataTests();
+  registerBootstrapFailureTests();
+});
 
 describe("persistence coordinator fault-injection branches", () => {
   it("owns a reconciliation failure after sign-out without starting a reload", async () => {
