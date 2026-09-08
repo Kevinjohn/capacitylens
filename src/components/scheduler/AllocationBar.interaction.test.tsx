@@ -997,35 +997,34 @@ describe("AllocationBar interactions", () => {
   // for the affected resource via the store's polite live region (srAnnouncement). Pointer drags
   // (sighted feedback) must NOT announce. The announced over-count reuses the per-day over-marker
   // signal (allocated > available) — NOT the visible-window % or the overSoon flag.
-  describe("keyboard edit announces the recomputed capacity (a11y live region)", () => {
-    // Resource works Mon–Fri @ 8h. June 2026: 06-01 Mon … 06-05 Fri.
-    // Allocation A is FIXED on Wed 06-03. Bar B starts on Mon–Tue (no overlap → 0 over days);
-    // ArrowRight slides B to Tue–Wed so Wed reads 16h vs 8h available = 1 over day.
-    function seedConflictPair() {
-      const st = useStore.getState();
-      const c = st.addClient({ name: "Acme", color: "#1" });
-      const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
-      const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-      const r = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
-      st.addAllocation({
-        resourceId: r.id,
-        activityId: t.id,
-        startDate: "2026-06-03",
-        endDate: "2026-06-03",
-        hoursPerDay: 8,
-        status: "confirmed",
-      });
-      const b = st.addAllocation({
-        resourceId: r.id,
-        activityId: t.id,
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
-        hoursPerDay: 8,
-        status: "confirmed",
-      });
-      return b;
-    }
+  // Resource works Mon–Fri @ 8h. June 2026: 06-01 Mon … 06-05 Fri.
+  // Allocation A is FIXED on Wed 06-03. Bar B starts on Mon–Tue (no overlap → 0 over days);
+  // ArrowRight slides B to Tue–Wed so Wed reads 16h vs 8h available = 1 over day.
+  function seedConflictPair() {
+    const st = useStore.getState();
+    const c = st.addClient({ name: "Acme", color: "#1" });
+    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
+    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
+    const r = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
+    st.addAllocation({
+      resourceId: r.id,
+      activityId: t.id,
+      startDate: "2026-06-03",
+      endDate: "2026-06-03",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    return st.addAllocation({
+      resourceId: r.id,
+      activityId: t.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+  }
 
+  function registerCapacityAnnouncementTests() {
     it('announces the over-capacity outcome when a nudge flips a day to over, and "no conflicts" when it resolves', () => {
       // Pin the visible window to early June, independent of "today". The announced over-count is
       // clamped to `visibleRange(ui)`, and the store's DEFAULT window derives from today (once, at
@@ -1065,7 +1064,9 @@ describe("AllocationBar interactions", () => {
 
       expect(useStore.getState().srAnnouncement?.text).toBe("Ty: no capacity conflicts.");
     });
+  }
 
+  function registerVisibleWindowAnnouncementTest() {
     // Window-alignment (the major review finding): the spoken count must equal the RENDERED per-row
     // sr-only summary, which counts over-days only WITHIN the visible timeline window
     // (`dayStates.filter(d => d.over)`, built across `visibleRange(ui)`). So an over-day OUTSIDE that
@@ -1125,7 +1126,9 @@ describe("AllocationBar interactions", () => {
       fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" }); // back onto 09-02 → over again
       expect(getSrAnnouncement().text).toBe("Ty now over capacity on 1 day.");
     });
+  }
 
+  function registerPointerAnnouncementTest() {
     it("does NOT announce on a pointer drag (sighted feedback — would be noise)", () => {
       const a = seedAllocation();
       render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
@@ -1138,6 +1141,12 @@ describe("AllocationBar interactions", () => {
       expect(getStoredAllocation(a.id).startDate).toBe("2026-06-02"); // moved
       expect(useStore.getState().srAnnouncement).toBeNull(); // but the live region stayed silent
     });
+  }
+
+  describe("keyboard edit announces the recomputed capacity (a11y live region)", () => {
+    registerCapacityAnnouncementTests();
+    registerVisibleWindowAnnouncementTest();
+    registerPointerAnnouncementTest();
   });
 
   it("excludes retained hidden allocations from pointer capacity advice", () => {
