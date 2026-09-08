@@ -442,12 +442,6 @@
     }
   },
   "server/src/authConfig/bootstrapAdmin.ts": {
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
-    },
     "max-params": {
       "count": 1
     }
