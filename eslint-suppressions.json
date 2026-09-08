@@ -405,19 +405,10 @@
     }
   },
   "server/src/accounts/identityPort/sessions.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 4
-    },
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
     "complexity": {
       "count": 2
     },
     "max-lines-per-function": {
-      "count": 2
-    },
-    "no-nested-ternary": {
       "count": 2
     }
   },
@@ -496,9 +487,6 @@
     }
   },
   "server/src/accounts/ssoCutoverRoutes.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 8
-    },
     "complexity": {
       "count": 2
     },
@@ -538,7 +526,7 @@
   },
   "server/src/app.auth.test.ts": {
     "max-lines-per-function": {
-      "count": 5
+      "count": 1
     }
   },
   "server/src/app.authz.test.ts": {
@@ -591,7 +579,7 @@
   },
   "server/src/app.members.test.ts": {
     "max-lines-per-function": {
-      "count": 8
+      "count": 2
     }
   },
   "server/src/app.resetPassword.test.ts": {
@@ -632,14 +620,8 @@
     }
   },
   "server/src/app.test.ts": {
-    "@typescript-eslint/no-unsafe-argument": {
-      "count": 4
-    },
     "@typescript-eslint/no-unsafe-assignment": {
-      "count": 8
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 8
+      "count": 3
     },
     "max-lines-per-function": {
       "count": 15
@@ -2125,14 +2107,6 @@
       "count": 1
     }
   },
-  "src/components/common/ui.test.tsx": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 6
-    },
-    "max-lines-per-function": {
-      "count": 6
-    }
-  },
   "src/components/disciplines/DisciplineList.test.tsx": {
     "max-lines-per-function": {
       "count": 1
@@ -3207,11 +3181,6 @@
     }
   },
   "src/lib/shortcutGuards.test.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/lib/tour.test.ts": {
     "max-lines-per-function": {
       "count": 1
     }
