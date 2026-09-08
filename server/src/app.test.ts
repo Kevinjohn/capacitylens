@@ -714,6 +714,12 @@ function readFirstAccount(accounts: AccountSnapshot[]): AccountSnapshot {
   return accountRow;
 }
 
+function readAccount(accounts: AccountSnapshot[], id: string): AccountSnapshot {
+  const accountRow = accounts.find((candidate) => candidate.id === id);
+  if (!accountRow) throw new Error(`Expected the state response to contain account ${id}.`);
+  return accountRow;
+}
+
 function readClosureSnapshots(rows: unknown[]): ClosureSnapshot[] {
   return rows.map((row) => {
     if (!isUnknownRecord(row)) throw new Error("Expected every closure row to be an object.");
@@ -2868,7 +2874,7 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     // #aabbcc is not itself a preset — sanitizeWrite snaps it to its NEAREST preset (shared
     // snapToPresetColor), not a fixed fallback colour. See the "snaps a non-preset account
     // colour to its nearest preset" test below for the policy this replaced.
-    expect((await state(app)).accounts[0].color).toBe("#bed4f4");
+    expect((await readStateAccount(app)).color).toBe("#bed4f4");
   });
 
   it("snaps a non-preset account colour to its NEAREST preset, not a fixed fallback colour", async () => {
@@ -2879,12 +2885,12 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     // the identical note at the other multiAccount call sites above).
     const { app } = freshApp(true, { multiAccount: true });
     await post(app, "accounts", { ...account("a1"), color: "#7cd9e4" });
-    expect((await state(app)).accounts[0].color).toBe("#7adae3");
+    expect((await readStateAccount(app)).color).toBe("#7adae3");
     // A colour on the opposite side of the palette snaps to a DIFFERENT preset — proving the two
     // don't collapse onto the same fixed fallback.
     await post(app, "accounts", { ...account("a2"), color: "#f6c3bb" });
-    const accounts = (await state(app)).accounts as Array<Record<string, unknown>>;
-    expect(accounts.find((a) => a.id === "a2")?.color).toBe("#f5bcbc");
+    const accounts = (await readValidatedState(app)).accounts;
+    expect(readAccount(accounts, "a2").color).toBe("#f5bcbc");
   });
 
   it("uses the same nearest-preset mapping for direct scoped-entity writes", async () => {
@@ -3067,10 +3073,10 @@ describe("scheduling-mode fields round-trip through the DB", () => {
       }),
     );
     expect(res.statusCode).toBe(201);
-    const s = await state(app);
-    expect(s.accounts[0].schedulingMode).toBe("blocks");
-    expect(s.allocations[0].hoursPerDay).toBe(0);
-    expect(s.allocations[0].ignoreWeekends).toBe(true);
+    const s = await readValidatedState(app);
+    expect(readFirstAccount(s.accounts).schedulingMode).toBe("blocks");
+    expect(readFirstAllocation(s.allocations).hoursPerDay).toBe(0);
+    expect(readFirstAllocation(s.allocations).ignoreWeekends).toBe(true);
   });
 });
 
