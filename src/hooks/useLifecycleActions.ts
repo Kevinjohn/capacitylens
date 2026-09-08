@@ -119,6 +119,111 @@ function buildCommittedButStaleMessage(outcome: "skipped" | "failed", cause?: un
 // required recovery boundary — a full page reload boots, hydrates, and creates a fresh gate map.
 const reloadRequiredByAccount = new Map<string, string>();
 
+type SetNotice = ReturnType<typeof useStore.getState>["setNotice"];
+
+interface ServerLifecycleContext {
+  activeAccountId: string;
+  setNotice: SetNotice;
+}
+
+async function reconcileLifecycleFailure(
+  context: ServerLifecycleContext,
+  mutationConfirmed: boolean,
+  cause: unknown,
+): Promise<boolean> {
+  const { activeAccountId, setNotice } = context;
+  if (useStore.getState().activeAccountId !== activeAccountId) return false;
+  if (mutationConfirmed) {
+    const message = buildCommittedButStaleMessage("failed", cause);
+    reloadRequiredByAccount.set(activeAccountId, message);
+    setNotice(message, "error");
+    return false;
+  }
+  try {
+    const outcome = await reloadFromServer(activeAccountId);
+    if (outcome.kind === "stale-account") return false;
+    if (outcome.kind !== "reloaded") {
+      throw new Error(`Authoritative reload did not complete (${outcome.kind}).`, { cause });
+    }
+    setNotice(
+      `The lifecycle request had an unknown outcome, so the latest company data was reloaded. ${resolveErrorMessage(cause)}`,
+      "warning",
+    );
+    return true;
+  } catch (reloadError) {
+    if (useStore.getState().activeAccountId !== activeAccountId) return false;
+    const message = `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. ${resolveErrorMessage(reloadError)} Original request: ${resolveErrorMessage(cause)}`;
+    reloadRequiredByAccount.set(activeAccountId, message);
+    setNotice(message, "error");
+    return false;
+  }
+}
+
+async function dispatchServerLifecycle(
+  context: ServerLifecycleContext,
+  transition: { verb: LifecycleVerb; entity: LifecycleEntity; id: string },
+): Promise<boolean> {
+  const { activeAccountId, setNotice } = context;
+  const { verb, entity, id } = transition;
+  const reloadRequiredMessage = reloadRequiredByAccount.get(activeAccountId);
+  if (reloadRequiredMessage) {
+    setNotice(reloadRequiredMessage, "error");
+    return false;
+  }
+  let mutationConfirmed = false;
+  try {
+    const response = await apiFetchReauth(
+      `${API_BASE}/api/${entity}/${encodeURIComponent(id)}/${verb}`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": newId() },
+        body: JSON.stringify({ accountId: activeAccountId }),
+      },
+      API_BULK_TIMEOUT_MS,
+    );
+    if (isLifecycleOutcomeUnknown(response)) {
+      throw new Error(`HTTP ${response.status} did not confirm whether the lifecycle mutation committed.`);
+    }
+    if (!response.ok && response.status !== 204) {
+      setNotice((await readApiError(response)) ?? m.settings_archived_err_action({ status: response.status }), "error");
+      return false;
+    }
+    mutationConfirmed = true;
+    const outcome = await reloadFromServer(activeAccountId);
+    if (outcome.kind === "stale-account") return false;
+    if (outcome.kind !== "reloaded") {
+      const message = buildCommittedButStaleMessage(outcome.kind);
+      reloadRequiredByAccount.set(activeAccountId, message);
+      setNotice(message, "error");
+      return false;
+    }
+    return true;
+  } catch (cause) {
+    return reconcileLifecycleFailure(context, mutationConfirmed, cause);
+  }
+}
+
+interface LocalLifecycleActions {
+  archive: (entity: LifecycleEntity, id: string) => void;
+  unarchive: (entity: LifecycleEntity, id: string) => void;
+  delete: (entity: LifecycleEntity, id: string) => void;
+  purge: (entity: LifecycleEntity, id: string) => void;
+}
+
+function dispatchLocalLifecycle(
+  actions: LocalLifecycleActions,
+  setNotice: SetNotice,
+  transition: { verb: LifecycleVerb; entity: LifecycleEntity; id: string },
+): void {
+  const { verb, entity, id } = transition;
+  try {
+    actions[verb](entity, id);
+  } catch (cause) {
+    setNotice(resolveErrorMessage(cause), "error");
+  }
+}
+
 /**
  * The lifecycle dispatch hook (P2.5b). Returns {@link LifecycleActions} whose methods branch
  * server-vs-local per the module header. An optional `onReloaded` callback fires after a SUCCESSFUL
@@ -138,113 +243,22 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
   const softDeleteEntity = useStore((state) => state.softDeleteEntity);
   const purgeEntity = useStore((state) => state.purgeEntity);
 
-  // The single server-mode dispatch: POST the dedicated route with {accountId}, reconcile an
-  // ambiguous timeout/5xx, surface body.error on a definitive non-OK reply, else reload the active
-  // slice + ping onReloaded. Mirrors MembersSection's fetches.
   const dispatchServer = useCallback(
     async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
       if (!activeAccountId) return;
-      const reloadRequiredMessage = reloadRequiredByAccount.get(activeAccountId);
-      if (reloadRequiredMessage) {
-        setNotice(reloadRequiredMessage, "error");
-        return;
-      }
-      let notifyReloaded = false;
-      let mutationConfirmed = false;
-      try {
-        // apiFetchReauth (not raw fetch) so: (1) the server's `x-capacitylens-audit-warning` header
-        // on these destructive lifecycle writes is surfaced (announceAuditWarning) exactly like
-        // ordinary edits and the shared request-timeout signal is attached (both via apiFetch); and
-        // (2) `delete` and `purge` — the security-sensitive lifecycle verbs (soft-delete is
-        // irreversible and destroys resource PII, so the server freshness-gates both) — that 403
-        // SESSION_NOT_FRESH raise the step-up dialog and retry after re-auth (DEFECT B).
-        // archive/unarchive are ordinary writes and never trip freshness, so this is a no-op there.
-        const res = await apiFetchReauth(
-          `${API_BASE}/api/${entity}/${encodeURIComponent(id)}/${verb}`,
-          {
-            method: "POST",
-            credentials: "include",
-            // newId(), not raw crypto.randomUUID(): on the destructive archive/delete/purge path an
-            // absent secure context must fail with the shared diagnostic (and land in the catch
-            // below as an unconfirmed outcome), never a cryptic native TypeError.
-            headers: { "Content-Type": "application/json", "Idempotency-Key": newId() },
-            body: JSON.stringify({ accountId: activeAccountId }),
-          },
-          API_BULK_TIMEOUT_MS,
-        );
-        if (isLifecycleOutcomeUnknown(res)) {
-          throw new Error(`HTTP ${res.status} did not confirm whether the lifecycle mutation committed.`);
-        }
-        if (!res.ok && res.status !== 204) {
-          // A <30d / non-admin purge is a 409/403 with a server message — show it, never crash.
-          setNotice((await readApiError(res)) ?? m.settings_archived_err_action({ status: res.status }), "error");
-          return;
-        }
-        mutationConfirmed = true;
-        // The dedicated routes write the DB out-of-band from the snapshot-diff sync, so a reload is
-        // REQUIRED to refresh the active views + re-seed the adapter snapshot (see reloadFromServer).
-        const outcome = await reloadFromServer(activeAccountId);
-        if (outcome.kind === "stale-account") return;
-        if (outcome.kind !== "reloaded") {
-          const message = buildCommittedButStaleMessage(outcome.kind);
-          reloadRequiredByAccount.set(activeAccountId, message);
-          setNotice(message, "error");
-          return;
-        }
-        notifyReloaded = true;
-      } catch (e) {
-        // A route change during the request makes this reconciliation intentionally stale. The
-        // original company will hydrate its committed state when selected again; do not attach an
-        // alarming old-company notice to the picker or the newly active company.
-        if (useStore.getState().activeAccountId !== activeAccountId) return;
-        if (mutationConfirmed) {
-          const message = buildCommittedButStaleMessage("failed", e);
-          reloadRequiredByAccount.set(activeAccountId, message);
-          setNotice(message, "error");
-          return;
-        }
-        try {
-          const outcome = await reloadFromServer(activeAccountId);
-          if (outcome.kind === "stale-account") return;
-          if (outcome.kind !== "reloaded") {
-            throw new Error(`Authoritative reload did not complete (${outcome.kind}).`, { cause: e });
-          }
-          notifyReloaded = true;
-          setNotice(
-            `The lifecycle request had an unknown outcome, so the latest company data was reloaded. ${resolveErrorMessage(e)}`,
-            "warning",
-          );
-        } catch (reloadError) {
-          if (useStore.getState().activeAccountId !== activeAccountId) return;
-          const message = `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. ${resolveErrorMessage(reloadError)} Original request: ${resolveErrorMessage(e)}`;
-          reloadRequiredByAccount.set(activeAccountId, message);
-          setNotice(message, "error");
-        }
-      }
-      if (notifyReloaded) onReloaded?.();
+      const reloaded = await dispatchServerLifecycle({ activeAccountId, setNotice }, { verb, entity, id });
+      if (reloaded) onReloaded?.();
     },
     [activeAccountId, setNotice, onReloaded],
   );
 
-  // The single demo-build dispatch: call the store action; wrap so the store's deliberate display-safe
-  // throws (builtin-Internal guard, illegal-transition backstop) surface as a notice rather than a
-  // React error. purgeEntity surfaces its own <30d notice and no-ops (doesn't throw), handled inside.
   const dispatchLocal = useCallback(
     (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
-      // A TOTAL verb→store-action map rather than a switch: a new LifecycleVerb without its store
-      // action wired here is a compile error, where an unhandled `case` would fall straight through
-      // and silently no-op in the demo build.
-      const storeAction: Record<LifecycleVerb, (entity: LifecycleEntity, id: string) => void> = {
-        archive: archiveEntity,
-        unarchive: unarchiveEntity,
-        delete: softDeleteEntity,
-        purge: purgeEntity,
-      };
-      try {
-        storeAction[verb](entity, id);
-      } catch (e) {
-        setNotice(resolveErrorMessage(e), "error");
-      }
+      dispatchLocalLifecycle(
+        { archive: archiveEntity, unarchive: unarchiveEntity, delete: softDeleteEntity, purge: purgeEntity },
+        setNotice,
+        { verb, entity, id },
+      );
     },
     [archiveEntity, unarchiveEntity, softDeleteEntity, purgeEntity, setNotice],
   );
