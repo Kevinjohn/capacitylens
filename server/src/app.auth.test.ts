@@ -158,14 +158,12 @@ function parseTotpSecret(res: LightMyRequestResponse): string {
 }
 
 function parseCreatedUserId(value: unknown): string {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    Array.isArray(value) ||
-    !("id" in value) ||
-    typeof value.id !== "string"
-  ) {
-    throw new Error("Expected the created user to include a string id.");
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Expected the created user to contain only a string id.");
+  }
+  const keys = Object.keys(value);
+  if (keys.length !== 1 || keys[0] !== "id" || !("id" in value) || typeof value.id !== "string") {
+    throw new Error("Expected the created user to contain only a string id.");
   }
   return value.id;
 }
