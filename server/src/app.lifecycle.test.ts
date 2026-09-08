@@ -195,7 +195,8 @@ async function appWithAuth(
 ): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  await runAuthMigrations(auth!);
+  if (!auth) throw new Error("Expected password authentication to be configured.");
+  await runAuthMigrations(auth);
   return {
     app: createApp(db, { authMode: mode, auth, ...(securityLog === undefined ? {} : { securityLog }) }),
     db,
@@ -340,6 +341,12 @@ interface DeletedResourceResponse {
   archivedAt: string;
 }
 
+interface DeletedRevisionResponse {
+  archivedAt: string;
+  deletedAt: string;
+  updatedAt: string;
+}
+
 function readDeletedResource(value: unknown): DeletedResourceResponse {
   if (
     !isUnknownRecord(value) ||
@@ -354,6 +361,15 @@ function readDeletedResource(value: unknown): DeletedResourceResponse {
 
 function readDeletedResourceResponse(response: unknown): DeletedResourceResponse {
   return readDeletedResource(readResponseBodyRecord(response));
+}
+
+function readDeletedRevisionResponse(response: unknown): DeletedRevisionResponse {
+  const body = readResponseBodyRecord(response);
+  return {
+    archivedAt: readRequiredString(body, "archivedAt"),
+    deletedAt: readRequiredString(body, "deletedAt"),
+    updatedAt: readRequiredString(body, "updatedAt"),
+  };
 }
 
 function readEntityRecord(body: Record<string, unknown>, entity: string, id: string): Record<string, unknown> {
@@ -1129,11 +1145,7 @@ describe("P2.5a lifecycle — OFF mode is allow-all (the #1 invariant)", () => {
       accountId: "a1",
     });
     expect(response.statusCode).toBe(200);
-    const deleted = response.json() as {
-      archivedAt: string;
-      deletedAt: string;
-      updatedAt: string;
-    };
+    const deleted = readDeletedRevisionResponse(response);
     expect(deleted.deletedAt >= futureArchive).toBe(true);
     expect(deleted.updatedAt >= deleted.deletedAt).toBe(true);
   });
@@ -1383,8 +1395,10 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
   const rowById = async ({ app, entity, accountId, id }: RowByIdInput) => {
     const res = await readInactive(app, accountId); // includeInactive so a (wrongly) tombstoned row still shows
     expect(res.statusCode).toBe(200);
-    return (res.json()[entity] as Array<{ id: string }>).find((e) => e.id === id) as
-      Record<string, unknown> | undefined;
+    const body = readResponseBodyRecord(res);
+    const rows = body[entity];
+    if (!Array.isArray(rows)) throw new Error(`Expected lifecycle state ${entity} rows.`);
+    return rows.find((row): row is Record<string, unknown> => isUnknownRecord(row) && row.id === id);
   };
 
   it("PATCH cannot set deletedAt/archivedAt on a resource (stripped; row stays active)", async () => {
@@ -1409,7 +1423,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       method: "GET",
       url: "/api/state?accountId=a1",
     });
-    expect((active.json().resources as Array<{ id: string }>).some((r) => r.id === "r1")).toBe(true);
+    expect(readEntityIds(readResponseBodyRecord(active), "resources")).toContain("r1");
   });
 
   it("PUT cannot set deletedAt on a client (stripped)", async () => {
@@ -1475,7 +1489,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       method: "GET",
       url: "/api/state?accountId=a1",
     });
-    expect((active.json().resources as Array<{ id: string }>).some((r) => r.id === "r1")).toBe(false);
+    expect(readEntityIds(readResponseBodyRecord(active), "resources")).not.toContain("r1");
   });
 
   it("rejects a generic PATCH of a soft-deleted client", async () => {
@@ -1508,7 +1522,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       method: "GET",
       url: "/api/state?accountId=a1",
     });
-    expect((active.json().clients as Array<{ id: string }>).some((c) => c.id === "c1")).toBe(false);
+    expect(readEntityIds(readResponseBodyRecord(active), "clients")).not.toContain("c1");
   });
 
   it("rejects replacing the generated Internal client with a soft-deleted legacy row", async () => {
@@ -1532,7 +1546,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/remain active/i);
+    expect(readRequiredString(readResponseBodyRecord(res), "error")).toMatch(/remain active/i);
     expect((await rowById({ app, entity: "clients", accountId: "a1", id: INTERNAL.id }))?.builtin).toBe(true);
     const retainedLegacy = await rowById({ app, entity: "clients", accountId: "a1", id: legacy.id });
     expect(retainedLegacy?.builtin).toBeUndefined();
@@ -1572,7 +1586,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/remain active/i);
+    expect(readRequiredString(readResponseBodyRecord(res), "error")).toMatch(/remain active/i);
     expect((await rowById({ app, entity: "clients", accountId: "a1", id: INTERNAL.id }))?.builtin).toBe(true);
     const retainedLegacy = await rowById({ app, entity: "clients", accountId: "a1", id: legacy.id });
     expect(retainedLegacy?.builtin).toBeUndefined();
@@ -1633,7 +1647,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(updateBeneathDeletedClient.statusCode).toBe(400);
     expect(updateBeneathArchivedProject.statusCode).toBe(400);
     expect(updatePlaceholderBeneathDeletedProject.statusCode).toBe(400);
-    expect(updatePlaceholderBeneathDeletedProject.json().error).toBe(
+    expect(readRequiredString(readResponseBodyRecord(updatePlaceholderBeneathDeletedProject), "error")).toBe(
       "Records beneath an archived or soft-deleted ancestor cannot be changed through generic endpoints.",
     );
     expect(db.prepare(`SELECT id FROM phases WHERE id = 'ph-new'`).get()).toBeUndefined();
