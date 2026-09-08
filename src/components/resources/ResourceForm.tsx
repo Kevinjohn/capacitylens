@@ -288,8 +288,13 @@ function ResourceFields(props: ResourceFieldsProps) {
   );
 }
 
+type ResourceCapacityFieldsState = Pick<
+  ResourceFormState,
+  "workingDays" | "setWorkingDays" | "halfDays" | "setHalfDays"
+>;
+
 type ResourceCapacityFieldsProps = {
-  form: ResourceFormState;
+  form: ResourceCapacityFieldsState;
   isPlaceholder: boolean;
   error: string | null;
   errorField: string | null;
