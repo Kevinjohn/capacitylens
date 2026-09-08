@@ -1419,7 +1419,7 @@ describe("AllocationModal blocks mode", () => {
   registerBlocksFractionalSpanTest();
 });
 
-describe("AllocationModal edit", () => {
+function registerEditScopeTests() {
   it.each([
     {
       caseName: "attributed All-projects",
@@ -1484,7 +1484,9 @@ describe("AllocationModal edit", () => {
       else expect(saved).not.toHaveProperty("projectId");
     },
   );
+}
 
+function registerEditScopeAndHoursTests() {
   it("clears attributed All-projects work when its scope changes", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const activity = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
@@ -1540,7 +1542,9 @@ describe("AllocationModal edit", () => {
       note: "Unrelated edit",
     });
   });
+}
 
+function registerEditHoursAndNoteTests() {
   it("replaces an unmatched hours value when a listed option is chosen", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -1593,7 +1597,9 @@ describe("AllocationModal edit", () => {
       "First line Second line",
     );
   });
+}
 
+function registerRejectedDeletionTest() {
   it("keeps the modal open and surfaces the reason when deletion is rejected", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -1624,7 +1630,9 @@ describe("AllocationModal edit", () => {
       deleteAllocation.mockRestore();
     }
   });
+}
 
+function registerFutureDeletionTest() {
   it("offers one-or-future deletion for a linked occurrence and closes after the atomic removal", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const seriesId = "series-weekly";
@@ -1676,7 +1684,9 @@ describe("AllocationModal edit", () => {
     expect(useStore.getState().data.allocations.map(({ id }) => id)).not.toContain(later.id);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+}
 
+function registerOccurrenceDeletionTest() {
   it("deletes only the selected linked occurrence when that scope is chosen", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const [selected, later] = useStore.getState().addAllocations([
@@ -1716,7 +1726,9 @@ describe("AllocationModal edit", () => {
     expect(useStore.getState().data.allocations.map(({ id }) => id)).toEqual([later.id]);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+}
 
+function registerEditReassignmentTests() {
   it("reassigns an allocation to another resource", async () => {
     const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const b = useStore.getState().addResource({ ...person("Bob"), workingDays: [1, 2, 3, 4, 5] });
@@ -1769,7 +1781,9 @@ describe("AllocationModal edit", () => {
     });
     expect(destination.id).not.toBe(source.id);
   });
+}
 
+function registerIgnoredReassignmentTest() {
   it("rejects reassigning even an ignored allocation to a zero-overlap person (decision 6)", async () => {
     useStore.getState().updateAccount(ACC, { workingDays: [2] });
     const source = useStore.getState().addResource({ ...person("Alice"), workingDays: [2] });
@@ -1797,7 +1811,9 @@ describe("AllocationModal edit", () => {
       screen.getByText("This person has no working days within the company's current working week."),
     ).toBeInTheDocument();
   });
+}
 
+function registerPlaceholderReassignmentTest() {
   it("snaps the project to the placeholder bound project when reassigned, restricting options", async () => {
     const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     useStore.getState().addResource({
@@ -1830,7 +1846,9 @@ describe("AllocationModal edit", () => {
     });
     expect(screen.queryByRole("option", { name: "Acme / Lightning" })).not.toBeInTheDocument();
   });
+}
 
+function registerHiddenPlaceholderEditTest() {
   it("risk A: editing an allocation on a HIDDEN placeholder still offers that placeholder so the value is preserved", async () => {
     const ph = useStore.getState().addResource({
       kind: "placeholder",
@@ -1863,7 +1881,9 @@ describe("AllocationModal edit", () => {
     fireEvent.keyDown(assignee, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Placeholder (slot)" })).toBeInTheDocument();
   });
+}
 
+function registerHiddenExternalEditTest() {
   it("risk A: editing an allocation on a HIDDEN external still offers that external so the value is preserved", async () => {
     // Externals default OFF too; the suite-wide beforeEach only turns placeholders on. Create an
     // external, book it, then assert the picker keeps it as an option even with the pref OFF.
@@ -1898,7 +1918,9 @@ describe("AllocationModal edit", () => {
     fireEvent.keyDown(assignee, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Kord Industries (external)" })).toBeInTheDocument();
   });
+}
 
+function registerLegacyPlaceholderEditTest() {
   it("reopens and saves a legacy unattributed placeholder allocation unchanged", async () => {
     const ph = useStore.getState().addResource({
       kind: "placeholder",
@@ -1934,7 +1956,9 @@ describe("AllocationModal edit", () => {
       "projectId",
     );
   });
+}
 
+function registerDanglingActivityEditTest() {
   it("uses a bound placeholder's project when an edited allocation has a dangling activity", () => {
     const ph = useStore.getState().addResource({
       kind: "placeholder",
@@ -1967,7 +1991,9 @@ describe("AllocationModal edit", () => {
 
     expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Acme / Lightning");
   });
+}
 
+function registerEditDuplicateValueTest() {
   it("duplicates the current validated form values without changing the saved allocation", async () => {
     const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const alloc = useStore.getState().addAllocation({
@@ -2007,7 +2033,9 @@ describe("AllocationModal edit", () => {
       note: "Draft note",
     });
   });
+}
 
+function registerEditDuplicateAvailabilityTests() {
   it("keeps Duplicate for an unlinked all-projects allocation and hides it for a linked occurrence", () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const activity = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
@@ -2059,6 +2087,24 @@ describe("AllocationModal edit", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/hours per day must be greater than 0/i);
     expect(useStore.getState().data.allocations).toHaveLength(1);
   });
+}
+
+describe("AllocationModal edit", () => {
+  registerEditScopeTests();
+  registerEditScopeAndHoursTests();
+  registerEditHoursAndNoteTests();
+  registerRejectedDeletionTest();
+  registerFutureDeletionTest();
+  registerOccurrenceDeletionTest();
+  registerEditReassignmentTests();
+  registerIgnoredReassignmentTest();
+  registerPlaceholderReassignmentTest();
+  registerHiddenPlaceholderEditTest();
+  registerHiddenExternalEditTest();
+  registerLegacyPlaceholderEditTest();
+  registerDanglingActivityEditTest();
+  registerEditDuplicateValueTest();
+  registerEditDuplicateAvailabilityTests();
 });
 
 describe("#257: modal and gesture effective-week agreement", () => {
