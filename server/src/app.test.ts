@@ -1686,19 +1686,19 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
   it("validates an activity edit against corrupt attribution before clearing it", async () => {
     const fixture = await seedAttributedActivity("placeholder");
     fixture.db.prepare("UPDATE resources SET projectId = 'p2' WHERE id = 'ph'").run();
-    const before = await state(fixture.app);
+    const before = await readValidatedState(fixture.app);
 
     const response = await batch(fixture.app, [
       {
         method: "PUT",
         table: "activities",
         id: "repeatable",
-        row: { ...before.activities[0], kind: "project", projectId: "p1" },
+        row: { ...readActivity(before.activities, "repeatable"), kind: "project", projectId: "p1" },
       },
     ]);
 
     expect(response.statusCode).toBe(200);
-    expect((await state(fixture.app)).allocations[0]).not.toHaveProperty("projectId");
+    expect(await readStateAllocation(fixture.app, "allocation")).not.toHaveProperty("projectId");
   });
 
   it("keeps direct activity PUT attribution clearing behavior", async () => {
