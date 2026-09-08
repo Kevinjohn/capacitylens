@@ -158,6 +158,12 @@ function assertWorkspaceMembershipSnapshotStable(): never {
   });
 }
 
+/**
+ * Builds workspace-erasure operations from the supplied account-flow capabilities.
+ * Erasure runs atomically, records command and audit outcomes, and commits masquerade-session
+ * termination only after the transaction succeeds. Authority, conflict, and persistence failures
+ * remain surfaced to the caller after terminal-outcome recording is attempted.
+ */
 export function createWorkspaceErasureFlows(dependencies: WorkspaceErasureDependencies): WorkspaceErasureFlows {
   const { applicationId, administration, lock, buildCommandExecutionKey } = dependencies;
   return {
