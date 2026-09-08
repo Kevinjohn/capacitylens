@@ -2337,7 +2337,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       allocation({ id: "al", accountId: "a1", resourceId: "r1", activityId: "t1", o: { hoursPerDay: 0 } }),
     );
     expect((await patch({ app, entity: "resources", id: "r1", payload: { kind: "external" } })).statusCode).toBe(200);
-    expect((await state(app)).resources.find((r: { id: string }) => r.id === "r1").kind).toBe("external");
+    expect(readFirstResource((await readValidatedState(app)).resources).kind).toBe("external");
   });
 
   it("accepts creating an external resource with no dependents, and editing its name", async () => {
