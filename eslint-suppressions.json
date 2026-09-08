@@ -283,36 +283,6 @@
       "count": 1
     }
   },
-  "server/src/accounts/commands.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 4
-    }
-  },
-  "server/src/accounts/conformance/architecture.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
-  "server/src/accounts/conformance/localIdentityPort.conformance.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 3
-    },
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
   "server/src/accounts/createLocalAccountFlows.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
@@ -546,14 +516,6 @@
       "count": 4
     }
   },
-  "server/src/app.singleCompanyCap.test.ts": {
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 7
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "server/src/app.syncOrdering.integration.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
@@ -565,14 +527,8 @@
     }
   },
   "server/src/audit.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 1
-    },
     "max-lines-per-function": {
-      "count": 5
+      "count": 1
     }
   },
   "server/src/audit.ts": {
@@ -589,20 +545,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "server/src/audit/createFileAuditSink.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 3
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-depth": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
     }
   },
   "server/src/audit/sinks.ts": {
@@ -706,17 +648,6 @@
       "count": 1
     }
   },
-  "server/src/authConfig/providers.ts": {
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 5
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "server/src/authConfig/requestHooks.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 2
@@ -734,12 +665,6 @@
     }
   },
   "server/src/backup.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 3
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 1
-    },
     "max-lines-per-function": {
       "count": 3
     }
@@ -995,25 +920,6 @@
       "count": 1
     }
   },
-  "server/src/routes/accountEntity/lifecycleHandlers.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 5
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
-  "server/src/routes/accountEntity/writeHandlers.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 4
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
   "server/src/routes/appAuthorization.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 3
@@ -1113,17 +1019,6 @@
       "count": 2
     }
   },
-  "server/src/routes/entityRoutes.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 4
-    },
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
   "server/src/routes/lifecycleRoutes.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
@@ -1203,20 +1098,6 @@
       "count": 1
     },
     "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "server/src/strictOidc.ts": {
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 4
-    },
-    "no-nested-ternary": {
       "count": 1
     }
   },
@@ -1430,11 +1311,8 @@
     }
   },
   "shared/src/domain/lifecycle.test.ts": {
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 2
-    },
     "max-lines-per-function": {
-      "count": 5
+      "count": 4
     }
   },
   "shared/src/domain/mutations.test.ts": {
@@ -1507,14 +1385,6 @@
   },
   "shared/src/lib/strings.ts": {
     "complexity": {
-      "count": 1
-    }
-  },
-  "src/account/accountClient.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 7
-    },
-    "max-lines-per-function": {
       "count": 1
     }
   },
@@ -2160,20 +2030,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "src/components/scheduler/SchedulerGrid.test.tsx": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
     }
   },
   "src/components/scheduler/SchedulerGrid.tsx": {
