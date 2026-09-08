@@ -114,7 +114,9 @@ describe("resolveBarColor", () => {
     expect(resolveBarColor(alloc("r", "internal"), base)).toBe("#9ca3af");
     expect(resolveBarColor(alloc("r", "internal"), { ...base, internalColourMode: "palette" })).toBe("#123456");
   });
+});
 
+describe("resolveBarColor project attribution", () => {
   it("defaults an Internal-owned project to grey and restores its saved colour in palette mode", () => {
     const internalClient: Client = {
       id: "c",
@@ -168,7 +170,9 @@ describe("resolveBarColor", () => {
 
     expect(resolveBarColor(alloc("r", "repeatable", "p"), m)).toBe("#abcdef");
   });
+});
 
+describe("resolveBarColor fallbacks", () => {
   it("falls back to the client's colour when its project has no colour of its own", () => {
     // project.color is "" (falsy), so `if (project?.color)` must skip past it to the
     // `if (client?.color)` branch rather than short-circuiting to the resource/neutral fallback.

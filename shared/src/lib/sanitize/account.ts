@@ -53,30 +53,39 @@ const ACCOUNT_ENUM_FIELDS: { readonly [K in "language" | "internalColourMode"]: 
  *  workingDays value when the payload itself omits the (immutable, restored-later) field — without
  *  it a Sunday-start account's repair would silently produce the Monday-start default. */
 export function sanitizeAccount(record: Record<string, unknown>, storedWeekStartsOn?: 0 | 1): Record<string, unknown> {
-  if (record.timezone !== undefined) {
-    if (typeof record.timezone !== "string") {
-      delete record.timezone;
-    } else {
-      try {
-        new Intl.DateTimeFormat(undefined, { timeZone: record.timezone });
-      } catch {
-        delete record.timezone;
-      }
-    }
-  }
-  if (record.weekStartsOn !== undefined && record.weekStartsOn !== 0 && record.weekStartsOn !== 1) {
-    delete record.weekStartsOn;
-  }
-  const repairWeekStartsOn =
-    record.weekStartsOn === 0 || record.weekStartsOn === 1 ? record.weekStartsOn : storedWeekStartsOn;
+  sanitizeTimezone(record);
+  const repairWeekStartsOn = sanitizeWeekStartsOn(record, storedWeekStartsOn);
   record.workingDays = normalizeAccountWorkingDays(record.workingDays, repairWeekStartsOn === 0 ? 0 : 1);
   // Drop rather than coerce: see ACCOUNT_BOOLEAN_FIELDS / ACCOUNT_ENUM_FIELDS above for the
   // per-field default each absence reads back as.
+  sanitizeOptionalPreferences(record);
+  return record;
+}
+
+function sanitizeWeekStartsOn(record: Record<string, unknown>, storedWeekStartsOn?: 0 | 1): 0 | 1 | undefined {
+  if (record.weekStartsOn === 0 || record.weekStartsOn === 1) return record.weekStartsOn;
+  if (record.weekStartsOn !== undefined) delete record.weekStartsOn;
+  return storedWeekStartsOn;
+}
+
+function sanitizeOptionalPreferences(record: Record<string, unknown>): void {
   for (const field of ACCOUNT_BOOLEAN_FIELDS) {
     if (record[field] !== undefined && typeof record[field] !== "boolean") delete record[field];
   }
   for (const [field, allowed] of Object.entries(ACCOUNT_ENUM_FIELDS)) {
     if (record[field] !== undefined && !allowed.includes(record[field])) delete record[field];
   }
-  return record;
+}
+
+function sanitizeTimezone(record: Record<string, unknown>): void {
+  if (record.timezone === undefined) return;
+  if (typeof record.timezone !== "string") {
+    delete record.timezone;
+    return;
+  }
+  try {
+    new Intl.DateTimeFormat(undefined, { timeZone: record.timezone });
+  } catch {
+    delete record.timezone;
+  }
 }

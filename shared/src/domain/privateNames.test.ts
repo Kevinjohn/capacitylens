@@ -43,7 +43,9 @@ describe("private-name projection", () => {
     expect(redacted).not.toHaveProperty("codeName");
     expect(privateClient).toMatchObject({ name: "Real Client", codeName: "Nightwing" });
   });
+});
 
+describe("private-name projection safeguards", () => {
   it("is idempotent for both a projected row and a projected slice", () => {
     const once = redactPrivateName(privateClient);
     expect(redactPrivateName(once)).toBe(once);
@@ -85,7 +87,9 @@ describe("private-name projection", () => {
     const malformed = { ...privateClient, codeName: 42 } as unknown as Client;
     expect(redactPrivateName(malformed).name).toBe('"Confidential #c1"');
   });
+});
 
+describe("private-name projection across data", () => {
   it.each([1, "true", "yes"])("fails closed for a truthy non-boolean privacy flag (%j)", (isPrivate) => {
     const malformed = { ...privateClient, isPrivate } as unknown as Client;
     const redacted = redactPrivateName(malformed);

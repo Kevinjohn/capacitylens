@@ -96,6 +96,12 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
   },
 };
 
+function expectEditableRolePrecondition(actor: Role, target: Role, next: Role): void {
+  if (canManageMemberRole(actor, target, next)) {
+    expect(canEditAnyMemberRole(actor, target), `${actor}->${target}=>${next}`).toBe(true);
+  }
+}
+
 describe("can(role, action) — the pure access matrix", () => {
   // Completeness guard: the action list the sweep iterates must equal the `Action` union, so a new
   // Action can't slip past the exhaustive check. (The `satisfies` on ACTIONS catches an EXTRA/typo
@@ -278,9 +284,7 @@ describe("canEditAnyMemberRole(actor, target) — role-editability matrix", () =
     for (const actor of ROLES) {
       for (const target of ROLES) {
         for (const next of ROLES) {
-          if (canManageMemberRole(actor, target, next)) {
-            expect(canEditAnyMemberRole(actor, target), `${actor}->${target}=>${next}`).toBe(true);
-          }
+          expectEditableRolePrecondition(actor, target, next);
         }
       }
     }

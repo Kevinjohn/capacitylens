@@ -148,7 +148,9 @@ describe("generateRepeatingStartDates monthly", () => {
 
     expect(result.startDates.at(-1)).toBe(expectedLast);
   });
+});
 
+describe("generateRepeatingStartDates monthly boundaries", () => {
   it("includes the sixth monthly occurrence at the exact six-month boundary", () => {
     expect(generateRepeatingStartDates("2026-01-01", "2026-07-01", { kind: "monthly-date" }).startDates).toEqual([
       "2026-01-01",
@@ -190,7 +192,9 @@ describe("generateRepeatingStartDates monthly", () => {
       startDates: ["9999-10-01", "9999-11-01", "9999-12-01"],
     });
   });
+});
 
+describe("generateRepeatingStartDates validation", () => {
   it("rejects malformed dates and unsupported runtime intervals", () => {
     expect(() => generateRepeatingStartDates("2026-2-01" as never, "2026-04-01", { kind: "monthly-date" })).toThrow(
       /valid/i,
