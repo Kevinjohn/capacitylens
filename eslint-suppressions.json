@@ -539,14 +539,6 @@
       "count": 2
     }
   },
-  "server/src/index.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "server/src/index.ts": {
     "complexity": {
       "count": 1
