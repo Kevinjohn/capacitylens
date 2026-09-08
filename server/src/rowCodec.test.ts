@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { resolveTable } from "./db/introspection";
 import { fromRow, toRow } from "./rowCodec";
 
-describe("rowCodec", () => {
-  const spec = resolveTable("accounts");
+const accountSpec = resolveTable("accounts");
 
+describe("rowCodec", () => {
   it("encodes JSON columns and collapses absent optionals to SQL null", () => {
-    const cells = toRow(spec, {
+    const cells = toRow(accountSpec, {
       id: "a1",
       name: "Studio",
       color: "#fff",
@@ -15,7 +15,7 @@ describe("rowCodec", () => {
       createdAt: "created",
       updatedAt: "updated",
     });
-    const byName = Object.fromEntries(spec.columns.map((column, index) => [column.name, cells[index]]));
+    const byName = Object.fromEntries(accountSpec.columns.map((column, index) => [column.name, cells[index]]));
     expect(byName.weekStartsOn).toBe("0");
     expect(byName.disciplinesEnabled).toBe("false");
     expect(byName.timezone).toBeNull();
@@ -23,7 +23,7 @@ describe("rowCodec", () => {
 
   it("decodes JSON, omits optional nulls, and retains required nulls for validation", () => {
     expect(
-      fromRow(spec, {
+      fromRow(accountSpec, {
         id: "a1",
         name: null,
         color: "#fff",
@@ -34,13 +34,20 @@ describe("rowCodec", () => {
       }),
     ).toMatchObject({ id: "a1", name: null, weekStartsOn: 1 });
     expect(
-      fromRow(spec, { id: "a1", name: "Studio", color: "#fff", timezone: null, createdAt: "c", updatedAt: "u" }),
+      fromRow(accountSpec, {
+        id: "a1",
+        name: "Studio",
+        color: "#fff",
+        timezone: null,
+        createdAt: "c",
+        updatedAt: "u",
+      }),
     ).not.toHaveProperty("timezone");
   });
 
   it("identifies corrupt JSON by table, column and row", () => {
     expect(() =>
-      fromRow(spec, {
+      fromRow(accountSpec, {
         id: "a-broken",
         name: "Studio",
         color: "#fff",
@@ -50,7 +57,9 @@ describe("rowCodec", () => {
       }),
     ).toThrow(/Corrupt JSON in accounts\.weekStartsOn \(id=a-broken\)/);
   });
+});
 
+describe("rowCodec round trips", () => {
   it("round-trips a closure without inventing resource or note fields", () => {
     const closures = resolveTable("closures");
     const databaseRow = {

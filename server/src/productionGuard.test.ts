@@ -95,7 +95,9 @@ describe("evaluateProductionPosture", () => {
       true,
     );
   });
+});
 
+describe("production transport and optional-control posture", () => {
   it("warns (does not refuse) on HTTPS/HSTS off in production with auth on", () => {
     const result = productionPosture({
       CAPACITYLENS_AUTH: "password",
@@ -135,7 +137,9 @@ describe("evaluateProductionPosture", () => {
       expect(result.warnings.some((warning) => warning.includes(variable))).toBe(true);
     }
   });
+});
 
+describe("production bootstrap and mandatory controls", () => {
   it("warns on open self-registration in production (sso + https, signup open)", () => {
     const result = productionPosture({
       CAPACITYLENS_AUTH: "sso",
@@ -191,7 +195,9 @@ describe("evaluateProductionPosture", () => {
       evaluateProductionPosture({ NODE_ENV: "test", CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: "x" }).warnings,
     ).toEqual([]);
   });
+});
 
+describe("production mandatory service controls", () => {
   it.each([
     ["rate limiting", { CAPACITYLENS_AUTH: "sso", CAPACITYLENS_RATE_LIMIT: "0" }],
     ["audit logging", { CAPACITYLENS_AUTH: "sso", CAPACITYLENS_AUDIT: "off" }],
@@ -211,7 +217,9 @@ describe("evaluateProductionPosture", () => {
       "CAPACITYLENS_AUDIT=off is not permitted under NODE_ENV=production",
     );
   });
+});
 
+describe("production rate limits and optional hardening", () => {
   // The guard must validate CAPACITYLENS_RATE_LIMIT with the SAME parser the limiter uses
   // (parseRateLimit), not a looser Number() check. A divergent Number()+isSafeInteger check accepted
   // these values while parseRateLimit maps every one of them to 0 (off) — so production would boot

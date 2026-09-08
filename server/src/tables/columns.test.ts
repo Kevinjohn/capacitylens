@@ -21,7 +21,8 @@ function compileColumns(contents: string) {
   expect(program.getSourceFiles().map((file) => file.fileName.replaceAll("\\", "/"))).not.toEqual(
     expect.arrayContaining([expect.stringMatching(/\/server\/src\/(?:db|auth)\.ts$/)]),
   );
-  const file = program.getSourceFile(columnsPath)!;
+  const file = program.getSourceFile(columnsPath);
+  if (!file) throw new Error(`Expected the compiler program to include ${columnsPath}.`);
   return [...program.getSyntacticDiagnostics(file), ...program.getSemanticDiagnostics(file)];
 }
 

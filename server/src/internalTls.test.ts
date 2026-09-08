@@ -90,7 +90,9 @@ describe("loadInternalTls", () => {
   });
 
   registerInternalTlsIdentityReadTests();
+});
 
+describe("loadInternalTls validation", () => {
   it("fails closed when the configured certificate cannot be parsed", () => {
     expect(() =>
       loadInternalTls({
@@ -143,7 +145,9 @@ describe("loadInternalTls", () => {
     expect(() => load("0".repeat(64))).toThrow(/does not match its published generation/);
     expect(() => load("not-a-digest")).toThrow(/does not match its published generation/);
   });
+});
 
+describe("internal TLS health and certificate rotation", () => {
   it("reports ok, renewal-window and expired states at exact boundaries", () => {
     const now = Date.parse("2026-01-01T00:00:00.000Z");
     const expiry = (seconds: number) => new Date(now + seconds * 1_000).toISOString();
@@ -193,7 +197,9 @@ describe("loadInternalTls", () => {
     expect(script).toMatch(/if ca_is_usable; then\s+REUSE_CA=1/);
     expect(script).toMatch(/if test "\$REUSE_CA" -eq 0; then\s+mv -f "\$WORK_DIR\/ca\.key" "\$CA_KEY"/);
   });
+});
 
+describe("internal TLS script execution", () => {
   it("executes fresh initialization, refuses uncoordinated renewal and rotates a leaf safely", () => {
     const root = mkdtempSync(join(tmpdir(), "capacitylens-internal-tls-"));
     const tlsDir = join(root, "tls");

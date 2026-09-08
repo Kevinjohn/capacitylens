@@ -37,6 +37,76 @@ const SEEDED_AT = "2026-01-01T00:00:00.000Z";
 const REV = "2026-06-01T00:00:00.000Z";
 const meta = { createdAt: SEEDED_AT, updatedAt: SEEDED_AT };
 
+function seedCatalog(data: Record<string, unknown[]>): void {
+  data.accounts = [
+    { id: ACCOUNT, name: "Studio", color: "#3b82f6", ...meta },
+    { id: OTHER_ACCOUNT, name: "Neighbour", color: "#f97316", ...meta },
+  ];
+  data.clients = [
+    { id: "c1", accountId: ACCOUNT, name: "Acme", color: "#3b82f6", ...meta },
+    { id: "c2", accountId: ACCOUNT, name: "Other", color: "#22c55e", ...meta },
+    { id: "c9", accountId: OTHER_ACCOUNT, name: "Neighbour co", color: "#f97316", ...meta },
+  ];
+  data.disciplines = [{ id: "d1", accountId: ACCOUNT, name: "Design", sortOrder: 0, ...meta }];
+  data.projects = [
+    { id: "p1", accountId: ACCOUNT, name: "Web", clientId: "c1", color: "#3b82f6", ...meta },
+    { id: "p2", accountId: ACCOUNT, name: "App", clientId: "c1", color: "#3b82f6", ...meta },
+    { id: "p3", accountId: ACCOUNT, name: "Ops", clientId: "c2", color: "#22c55e", ...meta },
+    { id: "p9", accountId: OTHER_ACCOUNT, name: "Theirs", clientId: "c9", color: "#f97316", ...meta },
+  ];
+  data.phases = [
+    { id: "ph1", accountId: ACCOUNT, name: "Build", projectId: "p1", ...meta },
+    { id: "ph2", accountId: ACCOUNT, name: "Build", projectId: "p2", ...meta },
+    { id: "ph3", accountId: ACCOUNT, name: "Build", projectId: "p3", ...meta },
+  ];
+}
+
+const resource = (id: string, extra: Record<string, unknown>) => ({
+  id,
+  accountId: ACCOUNT,
+  kind: "person",
+  role: "Designer",
+  employmentType: "permanent",
+  engagement: "studio" as const,
+  workingHoursPerDay: 8,
+  workingDays: [1, 2, 3, 4, 5],
+  halfDays: [],
+  color: "#3b82f6",
+  ...extra,
+  ...meta,
+});
+
+interface AllocationInput {
+  id: string;
+  resourceId: string;
+  activityId: string;
+  accountId?: string | undefined;
+  projectId?: string | undefined;
+}
+
+const allocation = ({ id, resourceId, activityId, accountId = ACCOUNT, projectId }: AllocationInput) => ({
+  id,
+  accountId,
+  resourceId,
+  activityId,
+  ...(projectId ? { projectId } : {}),
+  startDate: "2026-01-01",
+  endDate: "2026-01-05",
+  hoursPerDay: 8,
+  status: "confirmed",
+  ...meta,
+});
+
+const off = (id: string, resourceId: string, accountId = ACCOUNT) => ({
+  id,
+  accountId,
+  resourceId,
+  startDate: "2026-02-01",
+  endDate: "2026-02-03",
+  type: "vacation",
+  ...meta,
+});
+
 /**
  * One account whose graph exercises every cascade edge at once, including the awkward ones:
  * an activity that belongs to project p3 but sits in a PHASE of p1 (survives a p1 delete with its
@@ -45,41 +115,7 @@ const meta = { createdAt: SEEDED_AT, updatedAt: SEEDED_AT };
  */
 function seed(): AppData {
   const d = emptyAppData() as unknown as Record<string, unknown[]>;
-  d.accounts = [
-    { id: ACCOUNT, name: "Studio", color: "#3b82f6", ...meta },
-    { id: OTHER_ACCOUNT, name: "Neighbour", color: "#f97316", ...meta },
-  ];
-  d.clients = [
-    { id: "c1", accountId: ACCOUNT, name: "Acme", color: "#3b82f6", ...meta },
-    { id: "c2", accountId: ACCOUNT, name: "Other", color: "#22c55e", ...meta },
-    { id: "c9", accountId: OTHER_ACCOUNT, name: "Neighbour co", color: "#f97316", ...meta },
-  ];
-  d.disciplines = [{ id: "d1", accountId: ACCOUNT, name: "Design", sortOrder: 0, ...meta }];
-  d.projects = [
-    { id: "p1", accountId: ACCOUNT, name: "Web", clientId: "c1", color: "#3b82f6", ...meta },
-    { id: "p2", accountId: ACCOUNT, name: "App", clientId: "c1", color: "#3b82f6", ...meta },
-    { id: "p3", accountId: ACCOUNT, name: "Ops", clientId: "c2", color: "#22c55e", ...meta },
-    { id: "p9", accountId: OTHER_ACCOUNT, name: "Theirs", clientId: "c9", color: "#f97316", ...meta },
-  ];
-  d.phases = [
-    { id: "ph1", accountId: ACCOUNT, name: "Build", projectId: "p1", ...meta },
-    { id: "ph2", accountId: ACCOUNT, name: "Build", projectId: "p2", ...meta },
-    { id: "ph3", accountId: ACCOUNT, name: "Build", projectId: "p3", ...meta },
-  ];
-  const resource = (id: string, extra: Record<string, unknown>) => ({
-    id,
-    accountId: ACCOUNT,
-    kind: "person",
-    role: "Designer",
-    employmentType: "permanent",
-    engagement: "studio" as const,
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#3b82f6",
-    ...extra,
-    ...meta,
-  });
+  seedCatalog(d);
   d.resources = [
     resource("r1", { disciplineId: "d1" }),
     // Placeholders bound to a project — the SET NULL / unbind (never delete) rule.
@@ -97,27 +133,6 @@ function seed(): AppData {
     { id: "t5", accountId: ACCOUNT, name: "Design system", kind: "repeatable", ...meta },
     { id: "t9", accountId: OTHER_ACCOUNT, name: "Theirs", kind: "project", projectId: "p9", ...meta },
   ];
-
-  interface AllocationInput {
-    id: string;
-    resourceId: string;
-    activityId: string;
-    accountId?: string | undefined;
-    projectId?: string | undefined;
-  }
-
-  const allocation = ({ id, resourceId, activityId, accountId = ACCOUNT, projectId }: AllocationInput) => ({
-    id,
-    accountId,
-    resourceId,
-    activityId,
-    ...(projectId ? { projectId } : {}),
-    startDate: "2026-01-01",
-    endDate: "2026-01-05",
-    hoursPerDay: 8,
-    status: "confirmed",
-    ...meta,
-  });
   d.allocations = [
     allocation({ id: "al1", resourceId: "r1", activityId: "t1" }),
     allocation({ id: "al2", resourceId: "r1", activityId: "t2" }),
@@ -127,15 +142,6 @@ function seed(): AppData {
     allocation({ id: "al6", resourceId: "r1", activityId: "t5", accountId: ACCOUNT, projectId: "p3" }),
     allocation({ id: "al9", resourceId: "r9", activityId: "t9", accountId: OTHER_ACCOUNT }),
   ];
-  const off = (id: string, resourceId: string, accountId = ACCOUNT) => ({
-    id,
-    accountId,
-    resourceId,
-    startDate: "2026-02-01",
-    endDate: "2026-02-03",
-    type: "vacation",
-    ...meta,
-  });
   d.timeOff = [off("to1", "r1"), off("to2", "r2"), off("to9", "r9", OTHER_ACCOUNT)];
   return d as unknown as AppData;
 }

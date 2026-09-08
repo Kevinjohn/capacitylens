@@ -53,7 +53,9 @@ describe("field policy catalogue", () => {
       color: "#fff",
     });
   });
+});
 
+describe("gated field writes", () => {
   it("pins stored gated fields on blind updates and strips them from blind creates", () => {
     const timeOffUpdate = { note: "attempted overwrite" };
     pinGatedFields({

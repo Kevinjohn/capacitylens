@@ -29,9 +29,8 @@ export function sendAccountRouteFailure(
  * PATCH has nothing between the three checks and calls this once with all three.
  *
  * `existing` stays optional (unlike PATCH's already-narrowed row) because PUT also runs the
- * ownsRow/frozen pair on its CREATE path, before any row exists. The stale branch only reaches
- * `existing!` once isStaleWrite's own type guard has confirmed a stored row exists — same
- * non-null assertion the inline PUT check used.
+ * ownsRow/frozen pair on its CREATE path, before any row exists. A stale result without a stored
+ * row is an invalid dependency result and fails loudly before redaction.
  */
 export function enforceAccountWriteGuards(input: {
   reply: FastifyReply;
@@ -62,9 +61,10 @@ export function enforceAccountWriteGuards(input: {
     checkStale.optimisticConcurrency &&
     isStaleWrite({ existing, row: checkStale.candidateRow, requirePrecondition: checkStale.requirePrecondition })
   ) {
+    if (!existing) throw new Error("A stale account write requires an existing row.");
     reply.code(409).send({
       error: "The record was modified more recently on the server.",
-      current: redact("accounts", existing!, checkStale.vis),
+      current: redact("accounts", existing, checkStale.vis),
     });
     return true;
   }

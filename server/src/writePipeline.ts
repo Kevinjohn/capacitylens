@@ -46,6 +46,11 @@ interface CheckEntityWriteBodyInput {
   scoped: boolean;
 }
 
+function accountIdIsInvalid(verb: WriteVerb, row: Record<string, unknown>): boolean {
+  if (verb === "patch" && !("accountId" in row)) return false;
+  return typeof row.accountId !== "string";
+}
+
 /**
  * Unified body-shape + id + accountId checks for the three generic entity routes (Finding 7 folds
  * the four drifted copies into one). Returns `null` when the body is acceptable, else the
@@ -77,8 +82,7 @@ export function checkEntityWriteBody({
   if (scoped) {
     // PATCH: accountId is OPTIONAL (partial patch inherits the stored one) — reject only a present
     // non-string. create/replace: accountId is REQUIRED. Unified message across all three.
-    const present = verb === "patch" ? "accountId" in row : true;
-    if (present && typeof row.accountId !== "string") {
+    if (accountIdIsInvalid(verb, row)) {
       return { status: 400, error: "A string accountId is required." };
     }
   }

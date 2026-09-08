@@ -21,6 +21,75 @@ export const USED_INVITATION_RETENTION_V24_DEFINITION = [
   INVITATION_RETENTION_INDEXES_V24_SQL,
 ].join("\n-- migration component --\n");
 
+function rebuildPlaintextInvites(db: Db): void {
+  tx(db, () => {
+    if (!hasColumn(db, "invites", "id")) db.exec(`ALTER TABLE invites ADD COLUMN id TEXT`);
+    db.exec(`DROP TABLE IF EXISTS invites_new`);
+    const rows = db.prepare(`SELECT token, id FROM invites`).all() as Array<{ token: string; id: string | null }>;
+    const ids = new Set<string>();
+    const replacements = rows.map((row) => {
+      let id = row.id;
+      while (!id || ids.has(id)) id = newInviteId();
+      ids.add(id);
+      return { token: row.token, id };
+    });
+    const updateId = db.prepare(`UPDATE invites SET id = ? WHERE token = ?`);
+    for (const row of replacements) updateId.run(row.id, row.token);
+    db.exec(`
+      CREATE TABLE invites_new (
+        tokenHash TEXT NOT NULL PRIMARY KEY, id TEXT NOT NULL UNIQUE, accountId TEXT NOT NULL,
+        role TEXT NOT NULL, preauthEmail TEXT, expiresAt TEXT NOT NULL, usedAt TEXT, createdAt TEXT NOT NULL
+      )
+    `);
+    const oldRows = db
+      .prepare(`SELECT token, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites`)
+      .all() as unknown as Array<Invite>;
+    const insert = db.prepare(
+      `INSERT INTO invites_new (tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    for (const row of oldRows)
+      insert.run(
+        inviteTokenHash(row.token),
+        row.id,
+        row.accountId,
+        row.role,
+        row.preauthEmail,
+        row.expiresAt,
+        row.usedAt,
+        row.createdAt,
+      );
+    db.exec(`DROP TABLE invites; ALTER TABLE invites_new RENAME TO invites;`);
+  });
+}
+
+function rebuildNullableInviteIds(db: Db): void {
+  tx(db, () => {
+    const rows = db.prepare(`SELECT tokenHash, id FROM invites`).all() as Array<{
+      tokenHash: string;
+      id: string | null;
+    }>;
+    const ids = new Set<string>();
+    const updateId = db.prepare(`UPDATE invites SET id = ? WHERE tokenHash = ?`);
+    for (const row of rows) {
+      let id = row.id;
+      while (!id || ids.has(id)) id = newInviteId();
+      ids.add(id);
+      updateId.run(id, row.tokenHash);
+    }
+    db.exec(`
+      DROP TABLE IF EXISTS invites_new;
+      CREATE TABLE invites_new (
+        tokenHash TEXT NOT NULL PRIMARY KEY, id TEXT NOT NULL UNIQUE, accountId TEXT NOT NULL,
+        role TEXT NOT NULL, preauthEmail TEXT, expiresAt TEXT NOT NULL, usedAt TEXT, createdAt TEXT NOT NULL
+      );
+      INSERT INTO invites_new (tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt)
+        SELECT tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites;
+      DROP TABLE invites;
+      ALTER TABLE invites_new RENAME TO invites;
+    `);
+  });
+}
+
 /**
  * Create the membership control table (and its lookup indexes) if absent. IDEMPOTENT — every
  * statement is `IF NOT EXISTS`, so this is safe to run on EVERY boot and on every opened DB
@@ -91,51 +160,7 @@ export function ensureControlTables(db: Db): void {
   // backup compromise. Existing nullable ids are backfilled before the NOT NULL+UNIQUE invariant is
   // installed, so every legacy invite remains independently revocable.
   if (legacyPlaintextInvites) {
-    tx(db, () => {
-      if (!hasColumn(db, "invites", "id")) db.exec(`ALTER TABLE invites ADD COLUMN id TEXT`);
-      // A previous interrupted pre-fix migration may have left this scratch table behind.
-      db.exec(`DROP TABLE IF EXISTS invites_new`);
-      const rows = db.prepare(`SELECT token, id FROM invites`).all() as Array<{ token: string; id: string | null }>;
-      const ids = new Set<string>();
-      const replacements = rows.map((row) => {
-        let id = row.id;
-        while (!id || ids.has(id)) id = newInviteId();
-        ids.add(id);
-        return { token: row.token, id };
-      });
-      const updateId = db.prepare(`UPDATE invites SET id = ? WHERE token = ?`);
-      for (const row of replacements) updateId.run(row.id, row.token);
-      db.exec(`
-        CREATE TABLE invites_new (
-          tokenHash TEXT NOT NULL PRIMARY KEY,
-          id TEXT NOT NULL UNIQUE,
-          accountId TEXT NOT NULL,
-          role TEXT NOT NULL,
-          preauthEmail TEXT,
-          expiresAt TEXT NOT NULL,
-          usedAt TEXT,
-          createdAt TEXT NOT NULL
-        )
-      `);
-      const oldRows = db
-        .prepare(`SELECT token, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites`)
-        .all() as unknown as Array<Invite>;
-      const insert = db.prepare(
-        `INSERT INTO invites_new (tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      );
-      for (const row of oldRows)
-        insert.run(
-          inviteTokenHash(row.token),
-          row.id,
-          row.accountId,
-          row.role,
-          row.preauthEmail,
-          row.expiresAt,
-          row.usedAt,
-          row.createdAt,
-        );
-      db.exec(`DROP TABLE invites; ALTER TABLE invites_new RENAME TO invites;`);
-    });
+    rebuildPlaintextInvites(db);
   }
   const idColumn = (
     db.prepare(`PRAGMA table_info(invites)`).all() as Array<{
@@ -144,37 +169,7 @@ export function ensureControlTables(db: Db): void {
     }>
   ).find((column) => column.name === "id");
   if (!legacyPlaintextInvites && idColumn?.notnull !== 1) {
-    tx(db, () => {
-      const rows = db.prepare(`SELECT tokenHash, id FROM invites`).all() as Array<{
-        tokenHash: string;
-        id: string | null;
-      }>;
-      const ids = new Set<string>();
-      const updateId = db.prepare(`UPDATE invites SET id = ? WHERE tokenHash = ?`);
-      for (const row of rows) {
-        let id = row.id;
-        while (!id || ids.has(id)) id = newInviteId();
-        ids.add(id);
-        updateId.run(id, row.tokenHash);
-      }
-      db.exec(`
-        DROP TABLE IF EXISTS invites_new;
-        CREATE TABLE invites_new (
-          tokenHash TEXT NOT NULL PRIMARY KEY,
-          id TEXT NOT NULL UNIQUE,
-          accountId TEXT NOT NULL,
-          role TEXT NOT NULL,
-          preauthEmail TEXT,
-          expiresAt TEXT NOT NULL,
-          usedAt TEXT,
-          createdAt TEXT NOT NULL
-        );
-        INSERT INTO invites_new (tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt)
-          SELECT tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites;
-        DROP TABLE invites;
-        ALTER TABLE invites_new RENAME TO invites;
-      `);
-    });
+    rebuildNullableInviteIds(db);
   }
   db.exec(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_invites_id ON invites(id); CREATE INDEX IF NOT EXISTS idx_invites_accountId ON invites(accountId); ${INVITATION_RETENTION_INDEXES_V24_SQL}`,

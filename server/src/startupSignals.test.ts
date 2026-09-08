@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { installStartupSignalHandlers, stopStartupIfRequested } from "./startupSignals";
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("startup signal handlers", () => {
   const controllers: Array<{ dispose(): void }> = [];
   afterEach(() => {
@@ -37,10 +41,6 @@ describe("startup signal handlers", () => {
 });
 
 describe("startup stop checkpoints", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it("does nothing when no startup signal is requested", () => {
     const stopped = new Error("test exit sentinel");
     const exit = vi.spyOn(process, "exit").mockImplementation(() => {
@@ -84,7 +84,9 @@ describe("startup stop checkpoints", () => {
 
     expect(order).toEqual(["close", "dispose", "exit 0"]);
   });
+});
 
+describe("startup stop checkpoint failures", () => {
   it("reports a close failure before disposing and exiting", () => {
     const stopped = new Error("test exit sentinel");
     const cause = new Error("close failed");
@@ -120,7 +122,9 @@ describe("startup stop checkpoints", () => {
     );
     expect(order).toEqual(["close", "report", "dispose", "exit 0"]);
   });
+});
 
+describe("startup stop checkpoint without a database", () => {
   it("disposes and exits when the database has not been opened", () => {
     const stopped = new Error("test exit sentinel");
     const order: string[] = [];

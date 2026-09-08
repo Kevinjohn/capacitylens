@@ -58,7 +58,9 @@ describe("createShutdownHandler", () => {
     expect(order).toEqual(["exit 1", "app.close", "db.close", "exit 0"]);
     error.mockRestore();
   });
+});
 
+describe("createShutdownHandler deadlines and failures", () => {
   it("force-exits within the deadline when the request drain never settles", async () => {
     vi.useFakeTimers();
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -103,7 +105,9 @@ describe("createShutdownHandler", () => {
     );
     error.mockRestore();
   });
+});
 
+describe("createShutdownHandler concurrent draining", () => {
   it("drains requests and closes the db after background-work stop fails", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const order: string[] = [];
@@ -126,7 +130,9 @@ describe("createShutdownHandler", () => {
     );
     error.mockRestore();
   });
+});
 
+describe("createShutdownHandler overlapping background and request drains", () => {
   it("starts the request drain while background work stops and keeps the db open for both", async () => {
     let releaseBackground!: () => void;
     let releaseRequestDrain!: () => void;
@@ -171,7 +177,9 @@ describe("createShutdownHandler", () => {
       "exit 0",
     ]);
   });
+});
 
+describe("createShutdownHandler cleanup reporting", () => {
   it("reports every cleanup failure after attempting every stage", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const order: string[] = [];

@@ -82,7 +82,7 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
     const aInstant = parseISOTimestamp(a.createdAt) ?? Number.NEGATIVE_INFINITY;
     const bInstant = parseISOTimestamp(b.createdAt) ?? Number.NEGATIVE_INFINITY;
     if (aInstant !== bInstant) return bInstant - aInstant;
-    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    return a.id.localeCompare(b.id);
   });
 }
 
