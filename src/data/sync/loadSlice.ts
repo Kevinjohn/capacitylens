@@ -1,4 +1,4 @@
-import { KNOWN_KEYS, migrateWithRepairBase } from "@capacitylens/shared/data/migrate";
+import { KNOWN_KEYS, migrateWithRepairBase, type MigrationWithRepairBase } from "@capacitylens/shared/data/migrate";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import {
@@ -14,6 +14,73 @@ import { isRecord, parseAccountSliceWithRepairBase } from "../validateAccountSli
 import { listReferencedMissingTables } from "./fkGraph";
 import { seedSnapshot } from "./snapshot";
 import type { SyncState } from "./state";
+
+interface LoadedState extends MigrationWithRepairBase {
+  readonly missingKeys: readonly string[];
+}
+
+interface LiveLoadEffects {
+  readonly state: SyncState;
+  readonly saveAll: (next: AppData) => Promise<void>;
+  readonly loaded: LoadedState;
+  readonly myGen: number;
+  readonly accountId: string | undefined;
+}
+
+interface CachedLoadEffects {
+  readonly state: SyncState;
+  readonly data: AppData;
+  readonly savedAt: number;
+  readonly myGen: number;
+  readonly accountId?: string;
+}
+
+function parseLoadedState(json: unknown, accountId: string | undefined): LoadedState {
+  if (!isRecord(json)) throw new Error("The server returned an invalid state payload.");
+  const record = json;
+  if (KNOWN_KEYS.some((key) => key in record && !Array.isArray(record[key]))) {
+    throw new Error("The server returned an invalid state payload.");
+  }
+  const missingKeys = KNOWN_KEYS.filter((key) => !(key in record));
+  const referencedMissing = listReferencedMissingTables(record, missingKeys);
+  if (referencedMissing.length > 0) {
+    throw new Error(
+      `The server returned an incomplete state payload: omitted referenced table(s) [${referencedMissing.join(", ")}].`,
+    );
+  }
+  if (missingKeys.length > 0) {
+    console.warn(
+      `ServerSyncAdapter: the server state payload omitted known table(s) [${missingKeys.join(", ")}]; ` +
+        "hydrating them empty. Expected during a rolling deploy (new client, older server); if the " +
+        "server is the SAME version, a proxy or server bug dropped the table(s).",
+    );
+  }
+  const scopedInput =
+    missingKeys.length > 0
+      ? { ...record, ...Object.fromEntries(missingKeys.map((key) => [key, [] as unknown[]])) }
+      : record;
+  const migrated =
+    accountId === undefined ? migrateWithRepairBase(json) : parseAccountSliceWithRepairBase(scopedInput, accountId);
+  if (!migrated) throw new Error("The server returned a cross-tenant or incomplete state payload.");
+  return { ...migrated, missingKeys };
+}
+
+async function applyLiveLoadEffects({ state, saveAll, loaded, myGen, accountId }: LiveLoadEffects): Promise<void> {
+  if (myGen !== state.loadGen) return;
+  seedSnapshot(state, loaded.repairBase, accountId);
+  if (diffOps(loaded.repairBase, loaded.data).length > 0) await saveAll(loaded.data);
+  setOfflineReadState("tenant", false);
+  if (accountId !== undefined && loaded.missingKeys.length === 0) {
+    void cacheAccountSlice(accountId, loaded.data).catch((error) =>
+      console.warn("ServerSyncAdapter: the offline account snapshot could not be updated", error),
+    );
+  }
+}
+
+function applyCachedLoadEffects({ state, data, savedAt, myGen, accountId }: CachedLoadEffects): void {
+  if (myGen === state.loadGen) seedSnapshot(state, data, accountId);
+  if (myGen === state.loadGen) setOfflineReadState("tenant", true, savedAt);
+}
 
 // P3.4: every request carries credentials so an auth-enabled server (CAPACITYLENS_AUTH ≠ off)
 // sees the Better Auth session cookie. With auth off (the default) and same-origin
@@ -79,80 +146,25 @@ export async function loadAll(
     // hasNonArrayKnownTable: repair within a record, reject a structurally broken one — never coerce
     // a broken table to [] and report it as success.) The cross-tenant (wrong accountId) checks
     // inside parseAccountSlice keep their FULL strictness regardless.
-    if (!isRecord(json)) {
-      throw new Error("The server returned an invalid state payload.");
-    }
-    const record = json;
-    if (KNOWN_KEYS.some((key) => key in record && !Array.isArray(record[key]))) {
-      throw new Error("The server returned an invalid state payload.");
-    }
     // A missing known key is tolerated (hydrated empty) but DIAGNOSABLE: warn ONCE per load, naming
     // every omitted table. A rolling-deploy skew (new client, older server) is the expected benign
     // cause; the SAME warning against a same-version server is the signal that a proxy or server bug
     // silently dropped a table — without this it would load as "empty" invisibly and be undiagnosable.
-    const missingKeys = KNOWN_KEYS.filter((key) => !(key in record));
-    const referencedMissing = listReferencedMissingTables(record, missingKeys);
-    if (referencedMissing.length > 0) {
-      throw new Error(
-        `The server returned an incomplete state payload: omitted referenced table(s) [${referencedMissing.join(
-          ", ",
-        )}].`,
-      );
-    }
-    if (missingKeys.length > 0) {
-      console.warn(
-        `ServerSyncAdapter: the server state payload omitted known table(s) [${missingKeys.join(", ")}]; ` +
-          "hydrating them empty. Expected during a rolling deploy (new client, older server); if the " +
-          "server is the SAME version, a proxy or server bug dropped the table(s).",
-      );
-    }
     // Scoped path: pre-fill any missing known table as an empty array so parseAccountSlice
     // hydrates it empty instead of hard-failing "incomplete" (its per-key Array.isArray check treats
     // an ABSENT key as a reject). We do this in the scoped BRANCH rather than in parseAccountSlice
     // itself because other callers of that validator (fetchInactiveSlice's backup/export path) rely
     // on its full-completeness contract. Present-but-non-array was already rejected above; the
     // accountId cross-tenant checks still run at full strictness on the real rows.
-    const scopedInput =
-      missingKeys.length > 0
-        ? {
-            ...record,
-            ...Object.fromEntries(missingKeys.map((key) => [key, [] as unknown[]])),
-          }
-        : record;
-    const migrated =
-      accountId === undefined ? migrateWithRepairBase(json) : parseAccountSliceWithRepairBase(scopedInput, accountId);
-    if (!migrated) throw new Error("The server returned a cross-tenant or incomplete state payload.");
-    const { data, repairBase } = migrated;
+    const loaded = parseLoadedState(json, accountId);
     // Re-seed the diff snapshot to the SLICE we just loaded (atomic with the load — see the
     // method doc). A switch orchestrator calling loadAll(newId) gets lastSynced === the new
     // account's slice, so the immediately-following saveAll diffs new-vs-new = ZERO ops, never
     // cross-account deletes. Generation-guarded: a SUPERSEDED load (a newer loadAll started
     // while this fetch was in flight) must not seed — its slice is discarded by persist.ts's
     // token guard, and seeding here anyway would desync snapshot from data (see loadGen).
-    if (myGen === state.loadGen) {
-      // Seed the state the server ACTUALLY returned, then attempt to durably converge any
-      // Internal-client synthesis/restamp/duplicate fold before acknowledging and exposing the
-      // repaired slice. The current server owns its protected Internal row and may reject a
-      // legacy/corrupt repair it cannot safely apply; that rejects hydration rather than masking
-      // the incompatible durable state.
-      // Bootstrap attaches its save subscription only after loadAll returns, so deferring this
-      // write would leave the repair permanently memory-only. saveAll preserves the adapter's
-      // ordinary parent-before-child/upserts-before-deletes ordering and advances lastSynced only
-      // after a confirmed receipt. A failed repair rejects hydration rather than presenting data
-      // whose required parent rows do not exist durably.
-      seedSnapshot(state, repairBase, accountId);
-      // Avoid joining an unrelated in-flight save when migration was identity-preserving. Besides
-      // being unnecessary, awaiting that request here would make a concurrent reload wait on a
-      // batch whose own race coordinator may be waiting for the reload to finish.
-      if (diffOps(repairBase, data).length > 0) await saveAll(data);
-      setOfflineReadState("tenant", false);
-      if (accountId !== undefined && missingKeys.length === 0) {
-        void cacheAccountSlice(accountId, data).catch((error) =>
-          console.warn("ServerSyncAdapter: the offline account snapshot could not be updated", error),
-        );
-      }
-    }
-    return data;
+    await applyLiveLoadEffects({ state, saveAll, loaded, myGen, accountId });
+    return loaded.data;
   } catch (e) {
     // Only an actual fetch/network rejection proves the service is unreachable enough to use a
     // stale read-only snapshot. A reachable 5xx and our own Abort/Timeout deadline are server
@@ -196,8 +208,7 @@ export async function hydrateFromOfflineCache(
       });
       if (cachedIdentity) {
         const empty = emptyAppData();
-        if (myGen === state.loadGen) seedSnapshot(state, empty);
-        if (myGen === state.loadGen) setOfflineReadState("tenant", true, cachedIdentity.savedAt);
+        applyCachedLoadEffects({ state, data: empty, savedAt: cachedIdentity.savedAt, myGen });
         return empty;
       }
     } catch (cacheError) {
@@ -208,8 +219,7 @@ export async function hydrateFromOfflineCache(
   try {
     const cached = await readCachedAccountSlice(accountId);
     if (cached) {
-      if (myGen === state.loadGen) seedSnapshot(state, cached.value, accountId);
-      if (myGen === state.loadGen) setOfflineReadState("tenant", true, cached.savedAt);
+      applyCachedLoadEffects({ state, data: cached.value, savedAt: cached.savedAt, myGen, accountId });
       return cached.value;
     }
   } catch (cacheError) {
