@@ -54,9 +54,13 @@ describe("creation start availability", () => {
       }),
     ).toBe(false);
   });
+  registerCalendarAvailabilityTests();
+  registerExternalAvailabilityTests();
+  registerBlockReasonTests();
+  registerReasonPrecedenceTests();
 });
 
-describe("creation start calendar availability", () => {
+function registerCalendarAvailabilityTests() {
   it("blocks global non-working, personal non-working and time-off dates", () => {
     expect(
       isCreationStartBlocked({
@@ -95,9 +99,9 @@ describe("creation start calendar availability", () => {
       }),
     ).toBe(false);
   });
-});
+}
 
-describe("external creation availability", () => {
+function registerExternalAvailabilityTests() {
   it("applies the account boundary to externals without inventing personal capacity", () => {
     const external: Resource = { ...person, kind: "external", workingDays: [] };
     expect(resolveEffectiveWorkingDays(external, [2, 3, 4, 5])).toEqual([2, 3, 4, 5]);
@@ -130,9 +134,9 @@ describe("external creation availability", () => {
       }),
     ).toBe(false);
   });
-});
+}
 
-describe("creation start block reasons", () => {
+function registerBlockReasonTests() {
   it("does not apply company closures to external resources", () => {
     const external: Resource = { ...person, kind: "external", workingDays: [] };
 
@@ -156,9 +160,9 @@ describe("creation start block reasons", () => {
       }),
     ).toBe(null);
   });
-});
+}
 
-describe("creation start reason precedence", () => {
+function registerReasonPrecedenceTests() {
   it("names which rule blocked the start, and scopes time off to the resource asked about", () => {
     expect(
       resolveCreationBlockReason({
@@ -213,7 +217,7 @@ describe("creation start reason precedence", () => {
       }),
     ).toBe("time-off");
   });
-});
+}
 
 describe("#257 characterization: creation and move gate boundaries", () => {
   // PERMANENT invariants: creation never accepts the override, and the override never bypasses time off.

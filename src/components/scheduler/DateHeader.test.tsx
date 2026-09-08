@@ -52,9 +52,12 @@ describe("DateHeader", () => {
     renderHeader(48, 4);
     expect(screen.getByText("Jun 2026")).toHaveAttribute("data-month-placement", "sticky-start");
   });
+  registerZoomThresholdTests();
+  registerDetailedRenderingTests();
+  registerMinimisedWeekendTests();
 });
 
-describe("DateHeader zoom thresholds", () => {
+function registerZoomThresholdTests() {
   it("switches horizontal placement modes at the weekday-label threshold", () => {
     const below = renderHeader(35);
     expect(screen.getByText("Jun 2026")).toHaveAttribute("data-month-placement", "sticky-start");
@@ -94,9 +97,9 @@ describe("DateHeader zoom thresholds", () => {
     expect(screen.getByText("Tue")).toBeInTheDocument();
     expect(screen.getByText("Sat")).toBeInTheDocument();
   });
-});
+}
 
-describe("DateHeader detailed rendering", () => {
+function registerDetailedRenderingTests() {
   it("groups a cross-month window into correctly sized month spans", () => {
     const days = ["2026-05-31", "2026-06-01", "2026-06-02"];
     const { container } = render(
@@ -162,9 +165,9 @@ describe("DateHeader detailed rendering", () => {
       expect(screen.queryByText("Sat")).not.toBeInTheDocument();
     });
   });
-});
+}
 
-describe("DateHeader minimised weekends", () => {
+function registerMinimisedWeekendTests() {
   describe("with minimise weekends ON (narrowed weekend columns)", () => {
     // Fri, Sat, Sun, Mon — a window straddling a full weekend.
     const WEEKEND_DAYS = ["2026-06-05", "2026-06-06", "2026-06-07", "2026-06-08"];
@@ -204,4 +207,4 @@ describe("DateHeader minimised weekends", () => {
       expect(Array.from(cells).map((c) => (c as HTMLElement).style.width)).toEqual(["48px", "22px", "22px", "48px"]);
     });
   });
-});
+}

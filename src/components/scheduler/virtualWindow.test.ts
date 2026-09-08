@@ -71,9 +71,11 @@ describe("computeWindow", () => {
     // Only a small slice is rendered, not all 200.
     expect(w.last - w.first + 1).toBeLessThan(40);
   });
+  registerWindowBoundaryTests();
+  registerFitAndOverflowGuardTests();
 });
 
-describe("computeWindow boundaries", () => {
+function registerWindowBoundaryTests() {
   it("finds a deep window without scanning all preceding rows", () => {
     const heights = Array.from({ length: 65_536 }, () => 50);
     const layout = buildLayout(heights);
@@ -122,9 +124,9 @@ describe("computeWindow boundaries", () => {
   it("is empty for no items", () => {
     expect(computeWindow({ heights: [], scrollTop: 0, viewportHeight: 720 })).toEqual({ first: 0, last: -1 });
   });
-});
+}
 
-describe("computeWindow fit and overflow guards", () => {
+function registerFitAndOverflowGuardTests() {
   // The "everything fits in view + overscan" fast path is independent of scrollTop — it answers
   // "does the WHOLE list fit", not "what's visible from here". A huge scrollTop, fed through the
   // (unmutated) windowing math below it, would legitimately trim rows off the front — proving the
@@ -161,4 +163,4 @@ describe("computeWindow fit and overflow guards", () => {
     expect(w).toEqual({ first: 2, last: 2 });
     expect(layout.tops[w.first]).toBe(20); // the two rows above are still reserved, not rendered
   });
-});
+}
