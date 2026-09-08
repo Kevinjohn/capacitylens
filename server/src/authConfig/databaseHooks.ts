@@ -34,6 +34,7 @@ type SessionDeleteAfter = Exclude<
   undefined
 >;
 type Assurance = "federated" | "mfa" | "password";
+type PresentHookContext = NonNullable<Parameters<UserBefore>[1]>;
 
 const sanitizeUser = (user: Parameters<UserBefore>[0]) => {
   const cleanedName = cleanText(typeof user.name === "string" ? user.name : "");
@@ -43,7 +44,7 @@ const sanitizeUser = (user: Parameters<UserBefore>[0]) => {
 async function admitExternalIdentity(
   options: HookOptions,
   user: Parameters<UserBefore>[0],
-  context: Parameters<UserBefore>[1],
+  context: PresentHookContext,
 ) {
   const providerId = options.providerIdFromExternalContext({
     path: context.path,
@@ -170,7 +171,7 @@ export function buildDatabaseHooks({
   twoFactorEnabledLookupStatement,
   externalIdentityPath,
 }: HookOptions): Pick<BetterAuthOptions, "databaseHooks"> {
-  const options = {
+  const options: HookOptions = {
     db,
     mode,
     application,
@@ -178,7 +179,7 @@ export function buildDatabaseHooks({
     configuredFederatedIssuers,
     allowOpenSignup,
     requirePasswordMfa,
-    externalIdentityAdmission,
+    ...(externalIdentityAdmission === undefined ? {} : { externalIdentityAdmission }),
     providerIdFromExternalContext,
     countUsers,
     twoFactorEnabledLookupStatement,
