@@ -146,6 +146,8 @@ interface BootstrapAdminInput {
   mode: AccountMode;
 }
 
+type BootstrapAdminResult = { kind: "created" } | { kind: "skipped" };
+
 function readBootstrapPassword(AuthConfigError: typeof AuthFacade.AuthConfigError): string {
   const password = process.env.CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD;
   if (!password) {
@@ -161,12 +163,15 @@ function readBootstrapPassword(AuthConfigError: typeof AuthFacade.AuthConfigErro
   return password;
 }
 
-function acquireBootstrapClaim({
+function createBootstrapClaim({
   AuthConfigError,
   db,
   isSqliteConstraintCollision,
-}: Pick<BootstrapAdminDependencies, "AuthConfigError" | "isSqliteConstraintCollision"> &
-  Pick<BootstrapAdminInput, "db">): string {
+}: {
+  AuthConfigError: typeof AuthFacade.AuthConfigError;
+  db: Db;
+  isSqliteConstraintCollision: BootstrapAdminDependencies["isSqliteConstraintCollision"];
+}): string {
   const claimToken = randomBytes(24).toString("base64url");
   try {
     db.prepare(`INSERT INTO capacitylens_bootstrap_claim (id, claimedAt, claimToken) VALUES (1, ?, ?)`).run(
@@ -195,7 +200,7 @@ function isBootstrapClaimCollision({
   );
 }
 
-function logBootstrapCreated(log: BootstrapLog): void {
+function buildBootstrapCreatedMessage(): string {
   const content = [
     "A bootstrap owner credential was just created:",
     `    email:    ${BOOTSTRAP_ADMIN_EMAIL}`,
@@ -204,22 +209,20 @@ function logBootstrapCreated(log: BootstrapLog): void {
     "the --create-owner-admin-admin flag / CAPACITYLENS_CREATE_ADMIN_ADMIN env.",
   ];
   const width = Math.max(...content.map((line) => line.length));
-  log(
-    [
-      "",
-      `  ╔${"═".repeat(width + 4)}╗`,
-      ...content.map((line) => `  ║  ${line.padEnd(width)}  ║`),
-      `  ╚${"═".repeat(width + 4)}╝`,
-      "",
-    ].join("\n"),
-  );
+  return [
+    "",
+    `  ╔${"═".repeat(width + 4)}╗`,
+    ...content.map((line) => `  ║  ${line.padEnd(width)}  ║`),
+    `  ╚${"═".repeat(width + 4)}╝`,
+    "",
+  ].join("\n");
 }
 
-async function runBootstrapAdmin(
+async function createBootstrapAdminResult(
   dependencies: BootstrapAdminDependencies,
   input: BootstrapAdminInput,
-): Promise<"created" | "skipped"> {
-  const { AuthConfigError, countUsers } = dependencies;
+): Promise<BootstrapAdminResult> {
+  const { AuthConfigError, countUsers, isSqliteConstraintCollision } = dependencies;
   const { auth, db, log, mode } = input;
   if (mode !== "password" || !auth) {
     throw new AuthConfigError(
@@ -228,21 +231,21 @@ async function runBootstrapAdmin(
   }
   if (countUsers(db) > 0) {
     log("capacitylens-server: --create-owner-admin-admin skipped: users already exist");
-    return "skipped";
+    return { kind: "skipped" };
   }
   const password = readBootstrapPassword(AuthConfigError);
-  const claimToken = acquireBootstrapClaim({ ...dependencies, db });
+  const claimToken = createBootstrapClaim({ AuthConfigError, db, isSqliteConstraintCollision });
   try {
     if (countUsers(db) > 0) {
       log("capacitylens-server: --create-owner-admin-admin skipped: users already exist");
-      return "skipped";
+      return { kind: "skipped" };
     }
     await auth.createCredentialUser({ email: BOOTSTRAP_ADMIN_EMAIL, name: BOOTSTRAP_ADMIN_NAME, password });
   } finally {
     db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE id = 1 AND claimToken = ?`).run(claimToken);
   }
-  logBootstrapCreated(log);
-  return "created";
+  log(buildBootstrapCreatedMessage());
+  return { kind: "created" };
 }
 
 // Bind facade-owned policy without importing the facade at runtime.
@@ -271,9 +274,13 @@ export function createBootstrapAdminFactory(dependencies: BootstrapAdminDependen
    * @throws AuthConfigError when mode is not 'password' (boot must refuse, not limp on).
    */
   async function createBootstrapAdmin(
-    ...[db, mode, auth, log]: [db: Db, mode: AccountMode, auth: Auth | null, log?: BootstrapLog]
+    db: Db,
+    mode: AccountMode,
+    auth: Auth | null,
+    log: BootstrapLog = console.log,
   ): Promise<"created" | "skipped"> {
-    return runBootstrapAdmin(dependencies, { auth, db, log: log ?? console.log, mode });
+    const result = await createBootstrapAdminResult(dependencies, { auth, db, log, mode });
+    return result.kind;
   }
 
   return createBootstrapAdmin;
