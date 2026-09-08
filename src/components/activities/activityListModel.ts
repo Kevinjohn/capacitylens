@@ -35,8 +35,35 @@ function compareGroups<T extends NamedEntity & { unavailable: boolean }>(left: T
   return Number(left.unavailable) - Number(right.unavailable) || compareNamed(left, right);
 }
 
+function getClientGroup(
+  groupedClients: Map<string, ClientActivityGroup>,
+  client: Client | undefined,
+  unavailableClient: string,
+): ClientActivityGroup {
+  const key = client ? `client:${client.id}` : "client:unavailable";
+  const existing = groupedClients.get(key);
+  if (existing) return existing;
+
+  const group = { key, name: client?.name ?? unavailableClient, unavailable: !client, projects: [] };
+  groupedClients.set(key, group);
+  return group;
+}
+
+function getProjectGroup(
+  clientGroup: ClientActivityGroup,
+  project: Project | undefined,
+  unavailableProject: string,
+): ProjectActivityGroup {
+  const key = project ? `project:${project.id}` : "project:unavailable";
+  const existing = clientGroup.projects.find((group) => group.key === key);
+  if (existing) return existing;
+
+  const group = { key, name: project?.name ?? unavailableProject, unavailable: !project, activities: [] };
+  clientGroup.projects.push(group);
+  return group;
+}
+
 /** Build the Activities page's view-only ordering without mutating the scoped store arrays. */
-// eslint-disable-next-line complexity -- grouping handles unavailable client/project fallbacks in one pass
 export function buildActivityListModel({
   activities,
   projects,
@@ -59,29 +86,8 @@ export function buildActivityListModel({
 
     const project = activity.projectId ? projectsById.get(activity.projectId) : undefined;
     const client = project ? clientsById.get(project.clientId) : undefined;
-    const clientKey = client ? `client:${client.id}` : "client:unavailable";
-    const projectKey = project ? `project:${project.id}` : "project:unavailable";
-    let clientGroup = groupedClients.get(clientKey);
-    if (!clientGroup) {
-      clientGroup = {
-        key: clientKey,
-        name: client?.name ?? unavailableClient,
-        unavailable: !client,
-        projects: [],
-      };
-      groupedClients.set(clientKey, clientGroup);
-    }
-
-    let projectGroup = clientGroup.projects.find((group) => group.key === projectKey);
-    if (!projectGroup) {
-      projectGroup = {
-        key: projectKey,
-        name: project?.name ?? unavailableProject,
-        unavailable: !project,
-        activities: [],
-      };
-      clientGroup.projects.push(projectGroup);
-    }
+    const clientGroup = getClientGroup(groupedClients, client, unavailableClient);
+    const projectGroup = getProjectGroup(clientGroup, project, unavailableProject);
     projectGroup.activities.push(activity);
   }
 
