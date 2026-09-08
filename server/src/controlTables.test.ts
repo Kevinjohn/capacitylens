@@ -604,14 +604,12 @@ describe("listInvitesForAccount", () => {
   });
 });
 
-const TS_EXPIRED = "2000-01-01T00:00:00.000Z";
-
-const registerInviteExpiryPruneTests = () => {
+const registerInviteExpiryPruneTests = (tsExpired: string) => {
   it("deletes expired-unused links while retaining recent used history and live invites", () => {
     const db = freshDb();
     createInvite(db, invite({ token: "tok-live", id: "inv-live" })); // unused, future expiry
-    createInvite(db, invite({ token: "tok-used", id: "inv-used", usedAt: TS, expiresAt: TS_EXPIRED })); // used + expired
-    createInvite(db, invite({ token: "tok-dead", id: "inv-dead", expiresAt: TS_EXPIRED })); // unused + expired → dead link
+    createInvite(db, invite({ token: "tok-used", id: "inv-used", usedAt: TS, expiresAt: tsExpired })); // used + expired
+    createInvite(db, invite({ token: "tok-dead", id: "inv-dead", expiresAt: tsExpired })); // unused + expired → dead link
 
     expect(pruneInvites(db)).toBe(1); // only the dead unused link is removed
     expect(getInvite(db, "tok-dead")).toBeNull();
@@ -704,7 +702,8 @@ const registerInviteRetentionPruneTest = () => {
 };
 
 describe("pruneInvites", () => {
-  registerInviteExpiryPruneTests();
+  const TS_EXPIRED = "2000-01-01T00:00:00.000Z";
+  registerInviteExpiryPruneTests(TS_EXPIRED);
   registerInviteRetentionPruneTest();
 });
 
