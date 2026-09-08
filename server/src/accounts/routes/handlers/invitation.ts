@@ -1,4 +1,5 @@
 import { AccountContractError } from "@capacitylens/shared/account/errors";
+import type { Role } from "@capacitylens/shared/account/types";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
 import { cleanText } from "@capacitylens/shared/lib/strings";
@@ -29,6 +30,92 @@ function requireAuthenticatedPrincipal(req: FastifyRequest) {
   return { actor: requireAccountActor(req), user: requireAuthenticatedUser(req) };
 }
 
+type ParseResult<T, E> = { value: T; failure?: never } | { failure: E; value?: never };
+
+function parsePreauthorizedEmail(
+  value: unknown,
+  createValidationFailure: AccountRouteContext["validationFailed"],
+): ParseResult<string | null, AccountContractError> {
+  if (value !== undefined && typeof value !== "string") {
+    return { failure: createValidationFailure("preauthEmail must be a valid email address.") };
+  }
+  if (typeof value !== "string" || value.trim().length === 0) return { value: null };
+  return { value: normalizeAccountEmail(value) };
+}
+
+function parseInvitationExpiry(
+  value: unknown,
+  createValidationFailure: AccountRouteContext["validationFailed"],
+): ParseResult<string | null, AccountContractError> {
+  if (value === undefined) return { value: null };
+  const parsed = typeof value === "string" ? parseStrictIsoInstant(value) : null;
+  if (parsed === null) {
+    return { failure: createValidationFailure("expiresAt must be a valid ISO-8601 timestamp.") };
+  }
+  return { value: new Date(parsed).toISOString() };
+}
+
+function parseCreateInvitationInput({
+  req,
+  authMode,
+  isKnownRole,
+  createValidationFailure,
+}: {
+  req: FastifyRequest;
+  authMode: AccountRouteContext["authMode"];
+  isKnownRole: AccountRouteContext["isKnownRole"];
+  createValidationFailure: AccountRouteContext["validationFailed"];
+}): ParseResult<
+  { accountId: string; role: Role; preauthEmail: string | null; expiresAt: string | null },
+  AccountContractError
+> {
+  const body = (req.body ?? {}) as {
+    accountId?: unknown;
+    role?: unknown;
+    expiresAt?: unknown;
+    preauthEmail?: unknown;
+  };
+  if (typeof body.accountId !== "string" || body.accountId.length === 0) {
+    return { failure: createValidationFailure("accountId must be a non-empty string.") };
+  }
+  if (!isKnownRole(body.role)) return { failure: createValidationFailure(INVALID_ROLE_MESSAGE) };
+
+  const emailResult = parsePreauthorizedEmail(body.preauthEmail, createValidationFailure);
+  if ("failure" in emailResult) return { failure: emailResult.failure };
+  if (authMode === "sso" && emailResult.value === null) {
+    return { failure: createValidationFailure("SSO-only onboarding requires an email-preauthorized invitation.") };
+  }
+
+  const expiryResult = parseInvitationExpiry(body.expiresAt, createValidationFailure);
+  if ("failure" in expiryResult) return { failure: expiryResult.failure };
+  return {
+    value: {
+      accountId: body.accountId,
+      role: body.role,
+      preauthEmail: emailResult.value,
+      expiresAt: expiryResult.value,
+    },
+  };
+}
+
+function parseSignupInvitationInput(
+  req: FastifyRequest,
+): ParseResult<{ email: string; name: string; password: string }, string> {
+  const body = (req.body ?? {}) as {
+    email?: unknown;
+    name?: unknown;
+    password?: unknown;
+  };
+  const email = typeof body.email === "string" ? normalizeAccountEmail(body.email) : "";
+  if (!isAccountEmail(email)) return { failure: "A valid email address is required." };
+  const name = typeof body.name === "string" ? cleanText(body.name) : "";
+  if (name.length === 0) return { failure: "Name is required." };
+  if (typeof body.password !== "string" || passwordLengthFailure(body.password)) {
+    return { failure: `Password must be ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} characters.` };
+  }
+  return { value: { email, name, password: body.password } };
+}
+
 export async function createInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     authMode,
@@ -41,61 +128,20 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
     auditUnlessReplayed,
   } = context;
 
-  const body = (req.body ?? {}) as {
-    accountId?: unknown;
-    role?: unknown;
-    expiresAt?: unknown;
-    preauthEmail?: unknown;
-  };
-  if (typeof body.accountId !== "string" || body.accountId.length === 0) {
-    return accountFail(reply, createValidationFailure("accountId must be a non-empty string."));
-  }
-  if (!isKnownRole(body.role)) {
-    return accountFail(reply, createValidationFailure(INVALID_ROLE_MESSAGE));
-  }
-  // Shape-check preauthEmail here before authorize(): an absent value or a string that is empty
-  // after trim means a link invite (null), while any present non-string is invalid. Email syntax
-  // remains enforced by the account-administration port after authorization, keeping the
-  // transport-independent integrity boundary authoritative without changing 400/403 precedence.
-  let preauthEmail: string | null = null;
-  if (body.preauthEmail !== undefined && typeof body.preauthEmail !== "string") {
-    return accountFail(reply, createValidationFailure("preauthEmail must be a valid email address."));
-  }
-  if (typeof body.preauthEmail === "string") {
-    const trimmed = body.preauthEmail.trim();
-    if (trimmed.length > 0) {
-      preauthEmail = normalizeAccountEmail(trimmed); // store normalized so accept compares normalized↔normalized
-    }
-  }
-  if (authMode === "sso" && preauthEmail === null) {
-    return accountFail(
-      reply,
-      createValidationFailure("SSO-only onboarding requires an email-preauthorized invitation."),
-    );
-  }
+  const input = parseCreateInvitationInput({ req, authMode, isKnownRole, createValidationFailure });
+  if ("failure" in input) return accountFail(reply, input.failure);
+  const { value } = input;
   // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
-  if (!authorize({ req, reply, accountId: body.accountId, action: "manageInvites" })) return;
-  const requestedExpiry = body.expiresAt;
-  let expiresAt: string | null;
-  if (requestedExpiry === undefined) {
-    // Null is canonical across retries. The account-administration port chooses the standard
-    // bounded expiry only on first execution, so an idempotent retry cannot drift with wall time.
-    expiresAt = null;
-  } else {
-    const parsed = typeof requestedExpiry === "string" ? parseStrictIsoInstant(requestedExpiry) : null;
-    if (parsed === null) {
-      return accountFail(reply, createValidationFailure("expiresAt must be a valid ISO-8601 timestamp."));
-    }
-    expiresAt = new Date(parsed).toISOString();
-  }
+  if (!authorize({ req, reply, accountId: value.accountId, action: "manageInvites" })) return;
   try {
     const { actor, user } = requireAuthenticatedPrincipal(req);
     const invite = await accountAdminPort.createInvitation({
       actor,
-      workspaceId: body.accountId,
-      role: body.role,
-      preauthorizedEmail: preauthEmail,
-      expiresAt,
+      workspaceId: value.accountId,
+      role: value.role,
+      preauthorizedEmail: value.preauthEmail,
+      // Null is canonical across retries; the port chooses the bounded default only on first execution.
+      expiresAt: value.expiresAt,
       command: accountCommand(req),
     });
     auditUnlessReplayed({
@@ -222,30 +268,15 @@ export async function signupInvitation(req: FastifyRequest, reply: FastifyReply,
     return reply.code(404).send({ error: "Not found." });
   }
   const { token } = req.params as { token: string };
-  const body = (req.body ?? {}) as {
-    email?: unknown;
-    name?: unknown;
-    password?: unknown;
-  };
-  const email = typeof body.email === "string" ? normalizeAccountEmail(body.email) : "";
-  if (!isAccountEmail(email)) {
-    return reply.code(400).send({ error: "A valid email address is required." });
-  }
-  const name = typeof body.name === "string" ? cleanText(body.name) : "";
-  if (name.length === 0) {
-    return reply.code(400).send({ error: "Name is required." });
-  }
-  if (typeof body.password !== "string" || passwordLengthFailure(body.password)) {
-    return reply.code(400).send({
-      error: `Password must be ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} characters.`,
-    });
-  }
+  const input = parseSignupInvitationInput(req);
+  if ("failure" in input) return reply.code(400).send({ error: input.failure });
+  const { value } = input;
   try {
     const result = await accountFlows.acceptInviteWithPasswordSignup({
       token,
-      email,
-      displayName: name,
-      password: body.password,
+      email: value.email,
+      displayName: value.name,
+      password: value.password,
       command: accountCommand(req),
     });
     auditUnlessReplayed({
