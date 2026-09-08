@@ -53,43 +53,46 @@ export function createSessions(
             throw createInvalidProviderSessionError("The session has no trustworthy authentication-method provenance.");
           }
         }
-        const linkedRows =
-          authentication?.assurance === "federated" && authentication.providerId && accountTableExists(db)
-            ? (db
-                .prepare(
-                  `
+        let linkedSubject: ApplicationSession["principal"]["linkedSubject"] = null;
+        let federatedProviderId: string | null = null;
+        if (authentication?.assurance === "federated") {
+          const providerId = authentication.providerId;
+          if (!providerId || !accountTableExists(db)) {
+            throw createInvalidProviderSessionError(
+              "The federated session has no active immutable local issuer/subject binding.",
+            );
+          }
+          const linkedRows = db
+            .prepare(
+              `
               SELECT providerId, accountId
                 FROM account
                WHERE userId = ? AND providerId = ?
                ORDER BY providerId, accountId
                LIMIT 2
             `,
-                )
-                .all(resolved.user.id, authentication.providerId) as Array<{ providerId: string; accountId: string }>)
-            : [];
-        if (linkedRows.length > 1) {
-          throw createInvalidProviderSessionError(
-            "The federated session maps to more than one immutable local issuer/subject binding.",
-          );
-        }
-        const linked = linkedRows[0];
-        const linkedIssuer = linked ? auth.federatedIssuers.get(linked.providerId) : undefined;
-        if (authentication?.assurance === "federated" && (!linked || !linkedIssuer)) {
-          throw createInvalidProviderSessionError(
-            "The federated session has no active immutable local issuer/subject binding.",
-          );
+            )
+            .all(resolved.user.id, providerId) as Array<{ providerId: string; accountId: string }>;
+          if (linkedRows.length > 1) {
+            throw createInvalidProviderSessionError(
+              "The federated session maps to more than one immutable local issuer/subject binding.",
+            );
+          }
+          const linked = linkedRows[0];
+          const linkedIssuer = linked ? auth.federatedIssuers.get(linked.providerId) : undefined;
+          if (!linked || !linkedIssuer) {
+            throw createInvalidProviderSessionError(
+              "The federated session has no active immutable local issuer/subject binding.",
+            );
+          }
+          linkedSubject = { issuer: linkedIssuer, subject: linked.accountId };
+          federatedProviderId = providerId;
         }
         if (authMode === "sso" && authentication?.assurance !== "federated") {
           throw createInvalidProviderSessionError(
             "The SSO-only profile received a session without federated assurance metadata.",
           );
         }
-        const assurance =
-          authentication?.assurance === "federated" && linked
-            ? "federated"
-            : authentication?.assurance === "mfa"
-              ? "mfa"
-              : "password";
         const base = {
           id: resolved.session?.id ?? buildStableFallbackSessionId(applicationId, resolved.user.id, createdAt),
           principal: {
@@ -98,20 +101,18 @@ export function createSessions(
             email: resolved.user.email,
             emailVerified: resolved.user.emailVerified,
             image: resolved.user.image,
-            linkedSubject: linked
-              ? {
-                  issuer: linkedIssuer!,
-                  subject: linked.accountId,
-                }
-              : null,
+            linkedSubject,
           },
           createdAt,
           expiresAt,
           freshUntil: new Date(Date.parse(createdAt) + SESSION_FRESH_AGE_SECONDS * 1000).toISOString(),
         };
-        return assurance === "federated"
-          ? { ...base, assurance, providerId: authentication!.providerId! }
-          : { ...base, assurance, providerId: null };
+        if (federatedProviderId) {
+          return { ...base, assurance: "federated", providerId: federatedProviderId };
+        }
+        let assurance: "password" | "mfa" = "password";
+        if (authentication?.assurance === "mfa") assurance = "mfa";
+        return { ...base, assurance, providerId: null };
       } catch (error) {
         if (error instanceof AccountContractError) throw error;
         throw createProviderFailure("Session verification is temporarily unavailable.", error);
@@ -130,14 +131,7 @@ export function createSessions(
         // Better Auth's session-delete database hook removes the assurance row in the same delete
         // path. Do not pre-resolve the session here: the sign-out endpoint already resolves it and a
         // second lookup would double the authenticated request's database work.
-        const getSetCookie = (response.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie;
-        return {
-          setCookies: getSetCookie
-            ? getSetCookie.call(response.headers)
-            : response.headers.get("set-cookie")
-              ? [response.headers.get("set-cookie")!]
-              : [],
-        };
+        return { setCookies: response.headers.getSetCookie() };
       } catch (error) {
         throw createProviderFailure("Sign-out is temporarily unavailable.", error);
       }
