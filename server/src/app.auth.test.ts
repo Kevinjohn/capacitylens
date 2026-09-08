@@ -2256,7 +2256,7 @@ function registerAuthModeRefusalTests(): void {
   });
 }
 
-function registerPasswordConfigurationTests(): void {
+function registerCredentialAndDiscoveryConfigurationTests(): void {
   it("password mode with an exactly-32-char secret passes the length gate", () => {
     const db = openDb(":memory:");
     // PASSWORD_ENV has a valid URL; a 32-char secret must NOT trip the length check.
@@ -2380,7 +2380,7 @@ function registerOidcProviderIdTests(): void {
 
 describe("boot refusal (AuthConfigError)", () => {
   registerAuthModeRefusalTests();
-  registerPasswordConfigurationTests();
+  registerCredentialAndDiscoveryConfigurationTests();
   registerOidcEndpointRefusalTests();
   registerOidcProviderIdTests();
 });
