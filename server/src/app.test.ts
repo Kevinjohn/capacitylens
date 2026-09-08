@@ -4236,15 +4236,18 @@ describe("optimistic concurrency (default-on)", () => {
       },
     ]);
     expect(res.statusCode).toBe(200);
-    expect(readBatchReceipt(res).revisions).toEqual([
-      expect.objectContaining({
-        table: "clients",
-        id: "c1",
-        createdAt: expect.any(String),
-        updatedAt: expect.any(String),
-      }),
-    ]);
-    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Fresh");
+    const [revision] = readBatchReceipt(res).revisions;
+    if (!revision) throw new Error("Expected the batch response to contain a revision.");
+    const persisted = readFirstClient((await readValidatedState(app)).clients);
+    expect(revision).toEqual({
+      table: "clients",
+      id: "c1",
+      createdAt: persisted.createdAt,
+      updatedAt: persisted.updatedAt,
+    });
+    expect(isIsoInstant(revision.createdAt)).toBe(true);
+    expect(isIsoInstant(revision.updatedAt)).toBe(true);
+    expect(persisted.name).toBe("Fresh");
   });
 
   it("rejects existing-row PUTs that omit the required revision precondition", async () => {
@@ -4569,7 +4572,11 @@ describe("optimistic concurrency (default-on)", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ ok: true, applied: 1, changed: 1 });
-    expect(getRow(db, "clients", "c1")).toMatchObject({ accountId: "a1", archivedAt: expect.any(String) });
+    const archivedRow = getRow(db, "clients", "c1");
+    if (!isUnknownRecord(archivedRow)) throw new Error("Expected the archived client row to remain in the database.");
+    expect(readRequiredString(archivedRow, "id", "archived client row")).toBe("c1");
+    expect(readRequiredString(archivedRow, "accountId", "archived client row")).toBe("a1");
+    expect(isIsoInstant(readRequiredString(archivedRow, "archivedAt", "archived client row"))).toBe(true);
   });
 
   it("ordered successor still rejects a stale write after an intervening external edit", async () => {
@@ -4941,37 +4948,37 @@ describe("absent/null request body on generic writes → 400, not 500", () => {
   });
 });
 
+// Seed the fixture account + dependency chain, then write each entity via POST and
+// GET it back via /api/state. Deep-equal catches any column that is present in the
+// spec but not round-tripping correctly (NULL/optional handling, JSON encode/decode).
+async function seedFixtureDeps(app: FastifyInstance) {
+  expect((await post(app, "accounts", FIXTURE_ACCOUNT)).statusCode).toBe(201);
+  expect((await post(app, "clients", FIXTURE_CLIENT)).statusCode).toBe(201);
+  expect((await post(app, "disciplines", FIXTURE_DISCIPLINE)).statusCode).toBe(201);
+  expect((await post(app, "projects", FIXTURE_PROJECT)).statusCode).toBe(201);
+  expect((await post(app, "phases", FIXTURE_PHASE)).statusCode).toBe(201);
+}
+
+// Generic writes (POST/PUT/PATCH/batch) STRIP lifecycle tombstones (the P2.1 write guard in
+// sanitizeWrite): only the dedicated archive/delete routes may set archivedAt/deletedAt. So a fixture
+// round-tripped through POST comes back MINUS its tombstones — those columns' persistence is covered
+// by app.lifecycle.test.ts (archive/delete → includeInactive read). Stripping them here keeps this
+// column-spec-gap check honest for every OTHER field on clients/projects/resources.
+function stripTombstones<T extends { archivedAt?: string; deletedAt?: string }>(fixture: T): T {
+  const copy = { ...fixture };
+  delete copy.archivedAt;
+  delete copy.deletedAt;
+  return copy;
+}
+
+function expectFixture(actual: object, expected: object) {
+  expect(withoutRevision(actual)).toEqual(withoutRevision(expected));
+  const revision = actual as { createdAt?: unknown; updatedAt?: unknown };
+  expect(Date.parse(String(revision.createdAt))).not.toBeNaN();
+  expect(Date.parse(String(revision.updatedAt))).not.toBeNaN();
+}
+
 describe("full-fixture round-trip (every optional field set; catches column-spec gaps)", () => {
-  // Seed the fixture account + dependency chain, then write each entity via POST and
-  // GET it back via /api/state. Deep-equal catches any column that is present in the
-  // spec but not round-tripping correctly (NULL/optional handling, JSON encode/decode).
-  async function seedFixtureDeps(app: FastifyInstance) {
-    expect((await post(app, "accounts", FIXTURE_ACCOUNT)).statusCode).toBe(201);
-    expect((await post(app, "clients", FIXTURE_CLIENT)).statusCode).toBe(201);
-    expect((await post(app, "disciplines", FIXTURE_DISCIPLINE)).statusCode).toBe(201);
-    expect((await post(app, "projects", FIXTURE_PROJECT)).statusCode).toBe(201);
-    expect((await post(app, "phases", FIXTURE_PHASE)).statusCode).toBe(201);
-  }
-
-  // Generic writes (POST/PUT/PATCH/batch) STRIP lifecycle tombstones (the P2.1 write guard in
-  // sanitizeWrite): only the dedicated archive/delete routes may set archivedAt/deletedAt. So a fixture
-  // round-tripped through POST comes back MINUS its tombstones — those columns' persistence is covered
-  // by app.lifecycle.test.ts (archive/delete → includeInactive read). Stripping them here keeps this
-  // column-spec-gap check honest for every OTHER field on clients/projects/resources.
-  function stripTombstones<T extends { archivedAt?: string; deletedAt?: string }>(fixture: T): T {
-    const copy = { ...fixture };
-    delete copy.archivedAt;
-    delete copy.deletedAt;
-    return copy;
-  }
-
-  function expectFixture(actual: object, expected: object) {
-    expect(withoutRevision(actual)).toEqual(withoutRevision(expected));
-    const revision = actual as { createdAt?: unknown; updatedAt?: unknown };
-    expect(Date.parse(String(revision.createdAt))).not.toBeNaN();
-    expect(Date.parse(String(revision.updatedAt))).not.toBeNaN();
-  }
-
   it("account: every field round-trips (including optional schedulingMode)", async () => {
     const { app } = freshApp();
     expect((await post(app, "accounts", FIXTURE_ACCOUNT)).statusCode).toBe(201);
@@ -4991,7 +4998,9 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     expect((await post(app, "disciplines", FIXTURE_DISCIPLINE)).statusCode).toBe(201);
     expectFixture(readFirstDiscipline((await readValidatedState(app)).disciplines), FIXTURE_DISCIPLINE);
   });
+});
 
+describe("full-fixture round-trip (every optional field set; catches column-spec gaps)", () => {
   it("project: every field round-trips (lifecycle archivedAt/deletedAt stripped by generic writes)", async () => {
     const { app } = freshApp();
     await post(app, "accounts", FIXTURE_ACCOUNT);
@@ -5039,7 +5048,9 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     expect((await post(app, "resources", FIXTURE_RESOURCE_EXTERNAL)).statusCode).toBe(201);
     expectFixture(readFirstResource((await readValidatedState(app)).resources), FIXTURE_RESOURCE_EXTERNAL);
   });
+});
 
+describe("full-fixture round-trip (every optional field set; catches column-spec gaps)", () => {
   it("activity: every field round-trips (including optional projectId/phaseId)", async () => {
     const { app } = freshApp();
     await seedFixtureDeps(app);
