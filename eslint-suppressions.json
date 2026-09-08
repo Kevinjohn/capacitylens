@@ -580,9 +580,6 @@
   "server/src/routes/appSessionResolution.ts": {
     "complexity": {
       "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
     }
   },
   "server/src/routes/masqueradeRoutes.ts": {
