@@ -492,6 +492,40 @@ function assertBootstrapClaimSchema(db: Db): void {
   );
 }
 
+function prepareV21TombstonedInternalClients(db: Db, priorRevision: string): void {
+  insertRow(db, "accounts", {
+    id: "a-archived",
+    name: "Archived Studio",
+    color: "#e02727",
+    createdAt: TS,
+    updatedAt: TS,
+  });
+  insertRow(db, "accounts", {
+    id: "a-deleted",
+    name: "Deleted Studio",
+    color: "#e02727",
+    createdAt: TS,
+    updatedAt: TS,
+  });
+  insertRow(db, "clients", buildInternalClient("a-archived", TS) as unknown as Record<string, unknown>);
+  insertRow(db, "clients", buildInternalClient("a-deleted", TS) as unknown as Record<string, unknown>);
+  db.prepare(`UPDATE clients SET archivedAt = ?, updatedAt = ? WHERE id = ?`).run(
+    TS,
+    priorRevision,
+    "internal:a-archived",
+  );
+  db.prepare(`UPDATE clients SET archivedAt = ?, deletedAt = ?, updatedAt = ? WHERE id = ?`).run(
+    TS,
+    "2026-01-02T00:00:00.000Z",
+    priorRevision,
+    "internal:a-deleted",
+  );
+  db.exec(`
+    DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 22;
+    PRAGMA user_version = 21;
+  `);
+}
+
 describe("schema migration of an existing on-disk DB", () => {
   it("pins synchronous FULL even when the connection inherited a weaker setting", () => {
     const copied = copyFixture("v16-off.db");
@@ -1814,38 +1848,8 @@ describe("schema migration of an existing on-disk DB", () => {
 
   it("v22 reactivates tombstoned built-in Internal clients and advances their revisions", () => {
     const db = openDb(":memory:");
-    insertRow(db, "accounts", {
-      id: "a-archived",
-      name: "Archived Studio",
-      color: "#e02727",
-      createdAt: TS,
-      updatedAt: TS,
-    });
-    insertRow(db, "accounts", {
-      id: "a-deleted",
-      name: "Deleted Studio",
-      color: "#e02727",
-      createdAt: TS,
-      updatedAt: TS,
-    });
-    insertRow(db, "clients", buildInternalClient("a-archived", TS) as unknown as Record<string, unknown>);
-    insertRow(db, "clients", buildInternalClient("a-deleted", TS) as unknown as Record<string, unknown>);
     const priorRevision = "2099-01-01T00:00:00.000Z";
-    db.prepare(`UPDATE clients SET archivedAt = ?, updatedAt = ? WHERE id = ?`).run(
-      TS,
-      priorRevision,
-      "internal:a-archived",
-    );
-    db.prepare(`UPDATE clients SET archivedAt = ?, deletedAt = ?, updatedAt = ? WHERE id = ?`).run(
-      TS,
-      "2026-01-02T00:00:00.000Z",
-      priorRevision,
-      "internal:a-deleted",
-    );
-    db.exec(`
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 22;
-      PRAGMA user_version = 21;
-    `);
+    prepareV21TombstonedInternalClients(db, priorRevision);
 
     expect(planDatabaseMigrations(db).migrations).toEqual([
       {
