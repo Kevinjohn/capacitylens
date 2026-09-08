@@ -33,12 +33,21 @@ import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort"
 import { createSqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
 import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
 import { formatSsoCutoverRefusal, ssoCutoverReadiness } from "./accounts/ssoCutover";
+import type { FastifyInstance } from "fastify";
 
 import { refuseToStart, tryOrRefuse, closeDbSafely, parsePort, parseAuditMaxMb } from "./boot/refusals";
 
 export { parseAuditMaxMb } from "./boot/refusals";
 
 const ACCOUNT_APPLICATION: BoundApplication = DEFAULT_ACCOUNT_APPLICATION;
+type ServerApp = FastifyInstance;
+type BackupController = ReturnType<typeof startBackups>;
+type ShutdownHandler = ReturnType<typeof createShutdownHandler>;
+
+function resolveOptionalEnvironmentValue(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return value;
+}
 
 // Secrets, SQLite/WAL files, audit logs, and backups created by this process must never inherit a
 // permissive shell/container umask. Individual writers also pin 0600 for defence in depth.
@@ -80,19 +89,12 @@ const requireMfa = accountEnv.CAPACITYLENS_REQUIRE_MFA === "1";
 const internalTls: ReturnType<typeof loadInternalTls> = tryOrRefuse(() =>
   loadInternalTls({ environment: process.env }),
 );
-// P1.8 constrained org-creation. An empty/unset value leaves the token path DISABLED (the app
-// treats undefined and '' identically — bootstrapTokenMatches never allows an empty secret), so
-// the secure default holds: POST /api/orgs is first-run-only or an existing Owner/Admin.
-const bootstrapToken = process.env.CAPACITYLENS_BOOTSTRAP_TOKEN || undefined;
-// First-run owner bootstrap: one switch, two spellings — the env var is the repo convention, the
-// argv flag exists for one-shot shells (`node ... --create-owner-admin-admin`) where exporting an
-// env var is awkward. Normalized ONCE here; everything downstream (the production refusal,
-// createBootstrapAdmin) sees a single boolean.
+// Empty and unset values both disable token-based org creation; an empty secret is never valid.
+const bootstrapToken = resolveOptionalEnvironmentValue(process.env.CAPACITYLENS_BOOTSTRAP_TOKEN);
+// Normalize the environment switch and one-shot shell flag before posture validation and bootstrap.
 const bootstrapAdmin =
   process.env.CAPACITYLENS_CREATE_ADMIN_ADMIN === "1" || process.argv.includes("--create-owner-admin-admin");
-// Forwarded client identity and public-origin scheme are one trusted-proxy deployment fact. On a
-// loopback listener only the local proxy can reach the API; a directly exposed listener trusts
-// neither client-spoofable header unless the operator explicitly opts in.
+// A directly exposed listener trusts no forwarded identity or scheme unless explicitly configured.
 const trustProxyHeaders = canTrustProxyHeaders(process.env, host);
 const proxyTrustWarning = resolveLegacyProxyTrustWarning(process.env);
 if (proxyTrustWarning) console.warn(`capacitylens-server: configuration warning — ${proxyTrustWarning}`);
@@ -125,9 +127,7 @@ const startupSignals = installStartupSignalHandlers({
   onRepeated: () => process.exit(1),
 });
 
-// Open without application DDL, inspect the immutable migration plan, and take a verified online
-// rollback snapshot before the first schema mutation. Existing databases fail closed when that
-// snapshot cannot be written; fresh/in-memory databases have nothing to roll back.
+// Existing databases take a verified rollback snapshot before the first schema mutation.
 let db!: Db;
 let authMode!: ReturnType<typeof createAuthFromEnvironment>["mode"];
 let auth!: ReturnType<typeof createAuthFromEnvironment>["auth"];
@@ -176,26 +176,9 @@ try {
   refuseToStart(e instanceof Error ? e.message : String(e));
 }
 
-// Create/upgrade the auth tables only when auth is on (an off-mode DB never grows them), then
-// OPT-IN seed a never-initialised DB. Both are boot preconditions — a failure must crash legibly,
-// not limp on.
-//
-// Demo seed is OPT-IN (CAPACITYLENS_SEED_DEMO=1), NOT automatic: the seed fixture ships TWO
-// companies, which the single-company cap (AppOptions.multiAccount, default off) would otherwise
-// immediately contradict on a fresh real deploy — a from-scratch server now starts EMPTY and the
-// operator creates their one company as the first-run bootstrap (POST /api/orgs / POST
-// /api/accounts, both open while the table is empty). Dev (scripts/dev-fullstack.mjs) sets this
-// flag (plus CAPACITYLENS_MULTI_ACCOUNT=1) so its batteries-included two-company fixture is
-// unaffected; the auth-e2e harness (server/package.json start:auth-e2e) provisions its orgs live
-// via POST /api/orgs instead of this seed, so it only needs CAPACITYLENS_MULTI_ACCOUNT=1.
-//
-// seedIfUninitialized gates on the persistent `initialized` marker, NOT mere emptiness: a user who
-// deletes all their data leaves an empty-but-initialised DB and must NOT get the demo dataset
-// re-seeded on the next restart (matches /api/meta's isInitialized() check) — that rule is
-// unchanged; this only adds a flag gate in FRONT of it.
-// Captured once below and reused by the SETUP LOCKED check further down: nothing between the two
-// reads mutates the `user` table (bootstrapAdmin/seed both run BEFORE this first read), so a second
-// query would only re-observe the same count.
+// Auth migration and opt-in demo seeding are fatal boot preconditions. Seeding still follows the
+// persistent initialized marker, so deleting all data never causes an automatic reseed.
+// The user count is reused by the setup-lock notice; no intervening step mutates the user table.
 let userCount!: number;
 try {
   if (auth) {
@@ -266,14 +249,75 @@ const securityLog = (event: Record<string, unknown>) => {
   );
 };
 
-// Frame the complete post-migration boot phase. These steps are all fatal preconditions, but raw
-// top-level stacks are poor operator diagnostics and bypass the entrypoint's refusal convention.
-const { app, backups } = (() => {
+function createConfiguredAuditSink() {
+  const auditConfig = parseAuditConfig(process.env, dbPath);
+  const auditMaxBytes = parseAuditMaxMb(process.env.CAPACITYLENS_AUDIT_MAX_MB) * 1024 * 1024;
+  const auditFileSink = auditConfig.enabled
+    ? createFileAuditSink(auditConfig.file, (message) => console.error(message), {
+        maxBytes: auditMaxBytes,
+      })
+    : createNoopAuditSink();
+
+  if (process.env.CAPACITYLENS_AUDIT_STDOUT === "1") {
+    return createCompositeAuditSink(auditFileSink, createStreamAuditSink(console.log));
+  }
+  return auditFileSink;
+}
+
+function formatApplicationStartupFailure(error: unknown, startingBackups: boolean): string {
+  if (startingBackups && backupConfig) {
+    return formatBackupStartupFailure(backupConfig.dir, error);
+  }
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+function createConfiguredApplication(backupController: () => BackupController | null): ServerApp {
+  return createApp(db, {
+    application: ACCOUNT_APPLICATION,
+    ...(internalTls
+      ? {
+          internalTls: {
+            ...(internalTls.key === undefined ? {} : { key: internalTls.key }),
+            ...(internalTls.cert === undefined ? {} : { cert: internalTls.cert }),
+            ...(internalTls.minVersion === undefined ? {} : { minVersion: internalTls.minVersion }),
+          },
+          internalTlsExpiresAt: internalTls.expiresAt,
+          internalTlsFingerprintSha256: internalTls.fingerprintSha256,
+        }
+      : {}),
+    allowReset,
+    corsOrigin,
+    optimisticConcurrency,
+    multiAccount,
+    https,
+    log,
+    healthDeep,
+    ...(backupConfig
+      ? {
+          backupHealth: () =>
+            backupController()?.health ?? {
+              degraded: false,
+              lastSuccessAt: null,
+            },
+        }
+      : {}),
+    rateLimit,
+    trustProxyHeaders,
+    ...(bootstrapToken === undefined ? {} : { bootstrapToken }),
+    authMode,
+    auth,
+    requireMfa,
+    allowOpenSignup: accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1",
+    audit: createConfiguredAuditSink(),
+    securityLog,
+  });
+}
+
+function createServerApplication(): { app: ServerApp; backups: BackupController | null } {
   let startingBackups = false;
   try {
-    // SETUP LOCKED notice: userCount was captured after the bootstrap block, so a boot that created
-    // the explicit admin credential skips this. The boot interlock above guarantees the token exists
-    // here.
+    // A successful explicit admin bootstrap makes the captured count nonzero and skips this notice.
     if (authMode === "password" && userCount === 0) {
       console.warn(
         "capacitylens-server: SETUP LOCKED — no user accounts exist yet; owner creation requires the " +
@@ -281,115 +325,69 @@ const { app, backups } = (() => {
       );
     }
 
-    // Audit log (P1.15, flag CAPACITYLENS_AUDIT — ON BY DEFAULT; =off is development-only).
-    const auditCfg = parseAuditConfig(process.env, dbPath);
-    const auditMaxBytes = parseAuditMaxMb(process.env.CAPACITYLENS_AUDIT_MAX_MB) * 1024 * 1024;
-    const auditFileSink = auditCfg.enabled
-      ? createFileAuditSink(auditCfg.file, (m) => console.error(m), {
-          maxBytes: auditMaxBytes,
-        })
-      : createNoopAuditSink();
-    const auditSink =
-      process.env.CAPACITYLENS_AUDIT_STDOUT === "1"
-        ? createCompositeAuditSink(auditFileSink, createStreamAuditSink(console.log))
-        : auditFileSink;
+    let backupController: BackupController | null = null;
+    const app = createConfiguredApplication(() => backupController);
 
-    let backupController: ReturnType<typeof startBackups> | null = null;
-    const app = createApp(db, {
-      application: ACCOUNT_APPLICATION,
-      ...(internalTls
-        ? {
-            internalTls: {
-              ...(internalTls.key === undefined ? {} : { key: internalTls.key }),
-              ...(internalTls.cert === undefined ? {} : { cert: internalTls.cert }),
-              ...(internalTls.minVersion === undefined ? {} : { minVersion: internalTls.minVersion }),
-            },
-            internalTlsExpiresAt: internalTls.expiresAt,
-            internalTlsFingerprintSha256: internalTls.fingerprintSha256,
-          }
-        : {}),
-      allowReset,
-      corsOrigin,
-      optimisticConcurrency,
-      multiAccount,
-      https,
-      log,
-      healthDeep,
-      ...(backupConfig
-        ? {
-            backupHealth: () =>
-              backupController?.health ?? {
-                degraded: false,
-                lastSuccessAt: null,
-              },
-          }
-        : {}),
-      rateLimit,
-      trustProxyHeaders,
-      ...(bootstrapToken === undefined ? {} : { bootstrapToken }),
-      authMode,
-      auth,
-      requireMfa,
-      allowOpenSignup: accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1",
-      audit: auditSink,
-      securityLog,
-    });
-
-    // Backups (P4.1, flag CAPACITYLENS_BACKUP_DIR — default OFF: no timer, no writes).
     if (backupConfig) {
       startingBackups = true;
-      backupController = startBackups({ db, config: backupConfig, log: log ? (m) => app.log.info(m) : console.log });
+      backupController = startBackups({
+        db,
+        config: backupConfig,
+        log: log ? (message) => app.log.info(message) : console.log,
+      });
       startingBackups = false;
     }
     return { app, backups: backupController };
   } catch (error) {
     closeDbSafely(db);
     startupSignals.dispose();
-    refuseToStart(
-      startingBackups && backupConfig
-        ? formatBackupStartupFailure(backupConfig.dir, error)
-        : error instanceof Error
-          ? error.message
-          : String(error),
-    );
+    refuseToStart(formatApplicationStartupFailure(error, startingBackups));
   }
-})();
+}
 
-// Graceful shutdown (P1.2): the deploy restarts the daemon with a signal — drain in-flight
-// requests, then close the DB, instead of dying mid-transaction. A repeat signal force-exits.
-// Backup stop and Fastify close begin together: the timer is cleared, new snapshots are refused,
-// and the listener stops accepting work immediately. SQLite closes only after both any in-flight
-// snapshot and every accepted request have drained (P4.1; a SIGTERM during the start-up shot would
-// otherwise truncate a snapshot mid-write).
-const shutdown = createShutdownHandler({
-  app,
-  db,
-  exit: (code) => process.exit(code),
-  stopBackgroundWork: backups ? () => backups.stop() : undefined,
-});
-const onSignal = (signal: NodeJS.Signals) => {
-  console.log(`capacitylens-server: ${signal} — draining requests, then exiting`);
-  void shutdown(0, `signal:${signal}`);
-};
-// No event-loop turn occurs between removing the startup listeners and installing these handlers,
-// so a queued signal is observed by one phase or the other, never by neither.
-startupSignals.dispose();
-process.on("SIGTERM", () => onSignal("SIGTERM"));
-process.on("SIGINT", () => onSignal("SIGINT"));
-
-const lastResort = createLastResortErrorHandler(shutdown, securityLog, (message, error) =>
-  console.error(message, error),
-);
-process.on("uncaughtException", (error) => {
-  void lastResort("uncaught_exception", error);
-});
-process.on("unhandledRejection", (reason) => {
-  void lastResort("unhandled_rejection", reason);
-});
-
-app
-  .listen({ port, host })
-  .then((address) => console.log(`capacitylens-server listening on ${address} (db=${dbPath}, reset=${allowReset})`))
-  .catch((error) => {
-    void handleListenFailure(error, shutdown);
+function installShutdownHandlers(app: ServerApp, backups: BackupController | null): ShutdownHandler {
+  const shutdown = createShutdownHandler({
+    app,
+    db,
+    exit: (code) => process.exit(code),
+    stopBackgroundWork: backups ? () => backups.stop() : undefined,
   });
+  const onSignal = (signal: NodeJS.Signals) => {
+    console.log(`capacitylens-server: ${signal} — draining requests, then exiting`);
+    void shutdown(0, `signal:${signal}`);
+  };
+  // No event-loop turn occurs between removing the startup listeners and installing these handlers,
+  // so a queued signal is observed by one phase or the other, never by neither.
+  startupSignals.dispose();
+  process.on("SIGTERM", () => onSignal("SIGTERM"));
+  process.on("SIGINT", () => onSignal("SIGINT"));
+
+  const lastResort = createLastResortErrorHandler(shutdown, securityLog, (message, error) =>
+    console.error(message, error),
+  );
+  process.on("uncaughtException", (error) => {
+    void lastResort("uncaught_exception", error);
+  });
+  process.on("unhandledRejection", (reason) => {
+    void lastResort("unhandled_rejection", reason);
+  });
+  return shutdown;
+}
+
+function listenForRequests(app: ServerApp, shutdown: ShutdownHandler): void {
+  app
+    .listen({ port, host })
+    .then((address) => console.log(`capacitylens-server listening on ${address} (db=${dbPath}, reset=${allowReset})`))
+    .catch((error) => {
+      void handleListenFailure(error, shutdown);
+    });
+}
+
+// Frame the complete post-migration boot phase. These steps are all fatal preconditions, but raw
+// top-level stacks are poor operator diagnostics and bypass the entrypoint's refusal convention.
+const { app, backups } = createServerApplication();
+
+// Stop backups and accepting requests together, then close SQLite after both drains complete.
+// A repeated signal force-exits rather than waiting on a stuck drain.
+const shutdown = installShutdownHandlers(app, backups);
+listenForRequests(app, shutdown);
