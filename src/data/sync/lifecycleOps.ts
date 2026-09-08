@@ -99,11 +99,12 @@ export async function restoreRememberedLifecycleRows(
 }
 
 export async function unarchiveLifecycleRow(state: SyncState, op: Op): Promise<Entity> {
+  const rowAccountId = isRecord(op.row) && typeof op.row.accountId === "string" ? op.row.accountId : undefined;
   const res = await state.request(`${state.baseUrl}/api/${op.table}/${encodeURIComponent(op.id)}/unarchive`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      accountId: op.accountId ?? (op.row as { accountId?: unknown })?.accountId,
+      accountId: op.accountId ?? rowAccountId,
     }),
     credentials: "include",
   });
@@ -186,29 +187,36 @@ export async function archiveLifecycleRow(
   // also return 404, only the API's exact row-absence envelope proves the lifecycle intent has
   // converged — anything else likewise falls through to a throw.
   const detail = res.ok ? "" : await res.text().catch(() => "");
-  let envelope: { code?: unknown; error?: unknown } | null;
+  let envelope: Record<string, unknown> | null;
   try {
-    envelope = detail ? (JSON.parse(detail) as { code?: unknown; error?: unknown }) : null;
+    const parsed: unknown = detail ? JSON.parse(detail) : null;
+    envelope = isRecord(parsed) ? parsed : null;
   } catch {
     // Unparseable body — left null, which every arm below treats as "unproven" and surfaces.
     envelope = null;
   }
-  if (res.status === 409) {
-    if (envelope?.code === "already_inactive") {
-      state.archivedBySync.add(buildLifecycleKey(op));
-      return;
-    }
-    if (typeof envelope?.error === "string") {
-      throw new Error(`Lifecycle archive of ${op.table}/${op.id} failed (${res.status}): ${envelope.error}`);
-    }
-    throw createSafeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
+  applyArchiveResponse({ state, op, res, detail, envelope });
+}
+
+interface ApplyArchiveResponseInput {
+  state: SyncState;
+  op: Op;
+  res: Response;
+  detail: string;
+  envelope: Record<string, unknown> | null;
+}
+
+function applyArchiveResponse({ state, op, res, detail, envelope }: ApplyArchiveResponseInput): void {
+  if (res.status === 409 && envelope?.code === "already_inactive") {
+    state.archivedBySync.add(buildLifecycleKey(op));
+    return;
   }
-  if (res.status === 404) {
-    if (envelope?.error === "Not found") {
-      state.archivedBySync.delete(buildLifecycleKey(op));
-      return;
-    }
-    throw createSafeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
+  if (res.status === 404 && envelope?.error === "Not found") {
+    state.archivedBySync.delete(buildLifecycleKey(op));
+    return;
+  }
+  if (res.status === 409 && typeof envelope?.error === "string") {
+    throw new Error(`Lifecycle archive of ${op.table}/${op.id} failed (${res.status}): ${envelope.error}`);
   }
   if (!res.ok) {
     throw createSafeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);

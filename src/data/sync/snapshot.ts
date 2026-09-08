@@ -30,13 +30,12 @@ export function buildAcknowledgedRevisionsByTable(
 
 export function canonicalizeAcknowledged(state: SyncState, data: AppData): AppData {
   if (state.acknowledgedRevisions.size === 0) return data;
-  const next = { ...data };
-  let changed = false;
+  let next = data;
   for (const [table, acknowledgedById] of buildAcknowledgedRevisionsByTable(state)) {
-    next[table] = data[table].map((row) => {
+    const sourceRows = data[table];
+    const canonicalRows = sourceRows.map((row) => {
       const acknowledged = acknowledgedById.get(row.id);
       if (!acknowledged || row.updatedAt !== acknowledged.client) return row;
-      changed = true;
       // DURABLE translation, NOT consume-once — the entry MUST survive this diff. Nothing ever
       // writes the server's revision back into the Zustand store, so the store's copy of this row
       // keeps its client-side updatedAt for the tab's whole life. lastSynced holds the SERVER stamp;
@@ -50,9 +49,12 @@ export function canonicalizeAcknowledged(state: SyncState, data: AppData): AppDa
       // clears the whole Map (seedSnapshot). So the Map holds at most one entry per row edited since
       // the last rehydrate — bounded, not consume-once.
       return applyCommittedRevision(row, acknowledged.server);
-    }) as never;
+    });
+    if (canonicalRows.some((row, index) => row !== sourceRows[index])) {
+      next = { ...next, [table]: canonicalRows };
+    }
   }
-  return changed ? next : data;
+  return next;
 }
 
 // Seed the diff snapshot to a freshly loaded slice and announce the seed to drain() (seedGen).
@@ -133,7 +135,7 @@ export function pruneAcknowledgedRevisions(state: SyncState, data: AppData): voi
   // key's fate — never a reason to index every row of every table just to answer a handful of ids.
   if (state.acknowledgedRevisions.size === 0) return;
   for (const [table, acknowledgedById] of buildAcknowledgedRevisionsByTable(state)) {
-    const live = new Set<string>((data[table] as Entity[] | undefined)?.map((row) => row.id));
+    const live = new Set<string>(data[table].map((row) => row.id));
     for (const id of acknowledgedById.keys()) {
       if (!live.has(id)) state.acknowledgedRevisions.delete(buildRowKey(table, id));
     }

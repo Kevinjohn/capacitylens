@@ -42,6 +42,119 @@ export {
   MAX_OPS_PER_BATCH,
 } from "./sync/batchErrors";
 
+interface DrainTarget {
+  canonicalTarget: AppData;
+  ops: Op[];
+}
+
+interface PreparedDrainTarget extends DrainTarget {
+  restoreOps: Op[];
+}
+
+function prepareDrainTarget(state: SyncState, target: AppData): PreparedDrainTarget {
+  const canonicalTarget = canonicalizeAcknowledged(state, target);
+  state.dispatchedTarget = canonicalTarget;
+  return {
+    canonicalTarget,
+    ops: diffOps(state.lastSynced, canonicalTarget),
+    restoreOps: listRememberedLifecycleRestoreOps(state, canonicalTarget),
+  };
+}
+
+interface RestoreDrainTargetInput {
+  state: SyncState;
+  target: AppData;
+  prepared: PreparedDrainTarget;
+  targetSeedGen: number;
+}
+
+async function restoreDrainTarget({
+  state,
+  target,
+  prepared,
+  targetSeedGen,
+}: RestoreDrainTargetInput): Promise<DrainTarget | null> {
+  try {
+    const restored = await restoreRememberedLifecycleRows(state, prepared.restoreOps, targetSeedGen);
+    if (targetSeedGen !== state.seedGen) {
+      state.dispatchedTarget = null;
+      return null;
+    }
+    if (!restored) return prepared;
+    const canonicalTarget = canonicalizeAcknowledged(state, target);
+    state.dispatchedTarget = canonicalTarget;
+    return { canonicalTarget, ops: diffOps(state.lastSynced, canonicalTarget) };
+  } catch (error) {
+    state.dispatchedTarget = null;
+    throw error;
+  }
+}
+
+interface CommitOrdinaryOpsInput {
+  state: SyncState;
+  target: AppData;
+  ops: Op[];
+  targetSeedGen: number;
+}
+
+async function commitOrdinaryOps({
+  state,
+  target,
+  ops,
+  targetSeedGen,
+}: CommitOrdinaryOpsInput): Promise<AppData | null> {
+  if (ops.length === 0) return target;
+  let receipt: BatchCommitReceipt;
+  try {
+    receipt = await applyBatch(state, ops);
+  } catch (error) {
+    state.dispatchedTarget = null;
+    throw error;
+  }
+  if (receipt.superseded) {
+    state.dispatchedTarget = null;
+    return null;
+  }
+  if (targetSeedGen !== state.seedGen) return target;
+  rememberRevisions({ state, ops, revisions: receipt.revisions, committedSnapshot: target });
+  publishAllocationRewrites(state, receipt.revisions, target);
+  return applyCommittedRevisions(target, receipt.revisions);
+}
+
+interface LifecycleConvergence {
+  committedTarget: AppData;
+  error: unknown;
+}
+
+async function convergeLifecycleDeletes(
+  state: SyncState,
+  committedTarget: AppData,
+  lifecycleDeletes: Op[],
+): Promise<LifecycleConvergence> {
+  let error: unknown = null;
+  const unconverged: Array<{ table: Op["table"]; row: Entity }> = [];
+  for (const op of lifecycleDeletes) {
+    try {
+      await archiveLifecycleRow(state, op);
+    } catch (e) {
+      if (error === null) error = e;
+      const row: Entity | undefined = state.lastSynced[op.table].find((candidate) => candidate.id === op.id);
+      if (row) unconverged.push({ table: op.table, row });
+    }
+  }
+  return {
+    committedTarget: writeRows(committedTarget, unconverged, { replaceExisting: false }),
+    error,
+  };
+}
+
+function throwLifecycleError(error: unknown): void {
+  if (error === null) return;
+  throw error instanceof Error
+    ? error
+    : new Error("Lifecycle archival failed with a non-Error value.", { cause: error });
+}
+
 // A PersistenceAdapter that keeps the SAME whole-tree contract the store already
 // speaks (loadAll / saveAll) but talks to the entity-level REST API:
 //   - loadAll(): GET /api/state  → one round-trip hydration (reads stay whole-tree)
@@ -193,93 +306,48 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       if (targetSeedGen !== this.state.seedGen) {
         throw new Error("The pending changes were superseded by a refreshed company snapshot.");
       }
-      let canonicalTarget = canonicalizeAcknowledged(this.state, target);
-      this.state.dispatchedTarget = canonicalTarget;
-      let ops = diffOps(this.state.lastSynced, canonicalTarget);
       // A lifecycle row removed by a prior sync was archived, not deleted. Redo therefore cannot
       // recreate it with a generic PUT: the server deliberately pins archivedAt. Reverse those
       // remembered transitions parent-first, fold their authoritative revisions into the baseline,
       // then re-diff so the ordinary batch carries only genuine edits and descendants.
-      try {
-        // Keep the ordinary save path synchronous through its first network dispatch. That timing
-        // lets an overlapping pagehide observe the in-flight request and immediately put its own
-        // compensating keepalive on the wire. Only a real remembered restore needs this await.
-        const restoreOps = listRememberedLifecycleRestoreOps(this.state, canonicalTarget);
-        const restored =
-          restoreOps.length > 0 ? await restoreRememberedLifecycleRows(this.state, restoreOps, targetSeedGen) : false;
-        if (targetSeedGen !== this.state.seedGen) {
-          this.state.dispatchedTarget = null;
-          continue;
-        }
-        if (restored) {
-          canonicalTarget = canonicalizeAcknowledged(this.state, target);
-          this.state.dispatchedTarget = canonicalTarget;
-          ops = diffOps(this.state.lastSynced, canonicalTarget);
-        }
-      } catch (error) {
-        this.state.dispatchedTarget = null;
-        throw error;
+      // Keep the ordinary save path synchronous through its first network dispatch. That timing
+      // lets an overlapping pagehide observe the in-flight request and immediately put its own
+      // compensating keepalive on the wire. Only a real remembered restore needs this await.
+      const initialTarget = prepareDrainTarget(this.state, target);
+      let prepared: DrainTarget | null = initialTarget;
+      if (initialTarget.restoreOps.length > 0) {
+        prepared = await restoreDrainTarget({ state: this.state, target, prepared: initialTarget, targetSeedGen });
       }
+      if (!prepared) continue;
       // Lifecycle-entity deletes (clients/projects/resources) CANNOT ride the atomic batch — the
       // server 400-rejects them, which would poison the whole batch and permanently strand every
       // later edit re-including the poisoned op. Split them out and converge them by ARCHIVING through
       // the dedicated archive route AFTER the batch (see archiveLifecycleRow for the archive-only
       // policy), so any reparent/upsert the same diff carries (e.g. a child moved off the row being
       // deleted) lands first — mirroring the batch's own upserts-before-deletes invariant across the split.
-      const { batchOps, lifecycleDeletes } = splitLifecycleDeletes(ops);
+      const { batchOps, lifecycleDeletes } = splitLifecycleDeletes(prepared.ops);
       // An applyBatch throw MUST propagate before the snapshot advances so saveAll rejects and
       // persist.ts either retries a transport failure or reloads after an uncertain receipt. The
       // narrow catch below clears only the no-longer-in-flight possible base and rethrows; swallowing
       // would advance past writes that never landed and permanently drop them from future diffs.
-      let committedTarget = canonicalTarget;
-      if (batchOps.length > 0) {
-        let receipt: BatchCommitReceipt;
-        try {
-          receipt = await applyBatch(this.state, batchOps);
-        } catch (error) {
-          // The request has settled without an accepted receipt, so it is no longer an in-flight
-          // possible base for a later teardown diff. An uncertain commit is resolved by the
-          // persistence layer's authoritative reload before another write is accepted.
-          this.state.dispatchedTarget = null;
-          throw error;
-        }
-        if (receipt.superseded) {
-          this.state.dispatchedTarget = null;
-          continue;
-        }
-        if (targetSeedGen === this.state.seedGen) {
-          rememberRevisions({
-            state: this.state,
-            ops: batchOps,
-            revisions: receipt.revisions,
-            committedSnapshot: canonicalTarget,
-          });
-          publishAllocationRewrites(this.state, receipt.revisions, canonicalTarget);
-          committedTarget = applyCommittedRevisions(canonicalTarget, receipt.revisions);
-        }
-      }
+      const committedTarget = await commitOrdinaryOps({
+        state: this.state,
+        target: prepared.canonicalTarget,
+        ops: batchOps,
+        targetSeedGen,
+      });
+      if (!committedTarget) continue;
       // Drive the lifecycle deletes one row at a time by ARCHIVING (the batch above has already
       // committed all ordinary ops, so a stuck archive can never block them). A row whose archive does
       // NOT converge is RESTORED into the advanced snapshot so the NEXT diff re-emits its delete
       // (retry); the rows that DID converge (archived) stay absent. The FIRST failure is surfaced via
       // the normal save-error path (persist banner + retry) — after the snapshot advances, so the
       // committed batch and the converged archives are never replayed.
-      let lifecycleError: unknown = null;
-      const unconverged: Array<{ table: Op["table"]; row: Entity }> = [];
-      for (const op of lifecycleDeletes) {
-        try {
-          await archiveLifecycleRow(this.state, op);
-        } catch (e) {
-          if (lifecycleError === null) lifecycleError = e;
-          const row = (this.state.lastSynced[op.table] as Entity[]).find((row) => row.id === op.id);
-          if (row) unconverged.push({ table: op.table, row });
-        }
-      }
+      const convergence = await convergeLifecycleDeletes(this.state, committedTarget, lifecycleDeletes);
       // Re-insert lifecycle rows whose out-of-batch archive did NOT converge back into the advanced
       // snapshot, so the NEXT diff re-emits their DELETE and the adapter keeps trying (rather than
       // silently dropping the deletion intent by advancing past an archive that never landed). The
       // row is the pre-delete copy read from the current snapshot, so never overwrite a live one.
-      committedTarget = writeRows(committedTarget, unconverged, { replaceExisting: false });
       // Advance the snapshot ONLY if no seed landed while this batch was in flight — a reload's
       // fresh seed must win over our pre-reload target, or snapshot and store desync. Checked via
       // seedGen, NOT loadGen: loadGen bumps at fetch START, so a load already in flight when this
@@ -287,18 +355,14 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // safe: the server already holds these idempotent ops, so the next diff re-derives anything
       // still relevant against the fresh seed.
       if (targetSeedGen === this.state.seedGen) {
-        this.state.lastSynced = committedTarget;
-        pruneAcknowledgedRevisions(this.state, committedTarget);
+        this.state.lastSynced = convergence.committedTarget;
+        pruneAcknowledgedRevisions(this.state, convergence.committedTarget);
       }
       this.state.dispatchedTarget = null;
       // Surface a lifecycle-archive failure LAST — after the snapshot advanced — so unrelated ops are
       // never blocked (they committed above and won't replay) and only the un-converged row's delete
       // re-fires on the next diff.
-      if (lifecycleError !== null) {
-        throw lifecycleError instanceof Error
-          ? lifecycleError
-          : new Error("Lifecycle archival failed with a non-Error value.", { cause: lifecycleError });
-      }
+      throwLifecycleError(convergence.error);
     }
   }
 }

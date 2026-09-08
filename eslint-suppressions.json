@@ -1355,17 +1355,6 @@
       "count": 2
     }
   },
-  "src/data/ServerSyncAdapter.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-depth": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/data/offline/crypto.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
@@ -1425,32 +1414,6 @@
   },
   "src/data/persistence/writeQueue.ts": {
     "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/data/sync/batchWire.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/data/sync/lifecycleOps.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/data/sync/snapshot.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    }
-  },
-  "src/data/validateAccountSlice.ts": {
-    "complexity": {
       "count": 1
     }
   },
