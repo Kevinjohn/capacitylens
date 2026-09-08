@@ -61,113 +61,133 @@ function importedSlice(): AppData {
   });
 }
 
-describe("ImportExport with the real persistence coordinator", () => {
-  let detachPersistence: (() => void) | null = null;
-  let adapter: InMemoryDemoAdapter;
-  let saveAll: ReturnType<typeof vi.spyOn>;
-  let onPersistenceError: Mock<(error: unknown) => void>;
+function stringMatching(pattern: RegExp): unknown {
+  return expect.stringMatching(pattern);
+}
 
-  beforeEach(async () => {
-    resetStoreWithAccount();
-    adapter = new InMemoryDemoAdapter();
-    await adapter.saveAll(structuredClone(useStore.getState().data));
-    saveAll = vi.spyOn(adapter, "saveAll");
-    onPersistenceError = vi.fn((error: unknown) => {
-      useStore.getState().setNotice(error instanceof Error ? error.message : "Persistence failed.", "error");
-    });
-    detachPersistence = attachPersistence({
-      store: useStore,
-      adapter: adapter,
-      debounceMs: 0,
-      onError: onPersistenceError,
-      serverMode: true,
-    });
+function savedData(saveAll: Mock<(data: AppData) => Promise<void>>): AppData {
+  const saved = saveAll.mock.calls[0]?.[0];
+  if (saved === undefined) {
+    throw new Error("Expected persistence to save data.");
+  }
+  return saved;
+}
+
+let detachPersistence: (() => void) | null = null;
+let adapter: InMemoryDemoAdapter;
+let saveAll: Mock<(data: AppData) => Promise<void>>;
+let onPersistenceError: Mock<(error: unknown) => void>;
+
+beforeEach(async () => {
+  resetStoreWithAccount();
+  adapter = new InMemoryDemoAdapter();
+  await adapter.saveAll(structuredClone(useStore.getState().data));
+  saveAll = vi.spyOn(adapter, "saveAll");
+  onPersistenceError = vi.fn((error: unknown) => {
+    useStore.getState().setNotice(error instanceof Error ? error.message : "Persistence failed.", "error");
   });
-
-  afterEach(() => {
-    detachPersistence?.();
-    detachPersistence = null;
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
+  detachPersistence = attachPersistence({
+    store: useStore,
+    adapter: adapter,
+    debounceMs: 0,
+    onError: onPersistenceError,
+    serverMode: true,
   });
+});
 
-  it("drops an edit parked during a committed import and surfaces the loss", async () => {
-    let finishImport!: (response: Response) => void;
-    const fetchMock = vi.fn(
-      () =>
-        new Promise<Response>((resolve) => {
-          finishImport = resolve;
-        }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-    render(<ImportExport />);
+afterEach(() => {
+  detachPersistence?.();
+  detachPersistence = null;
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
-    await chooseAndConfirmImport();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-
-    useStore.getState().addClient({ name: "Parked during import", color: "#dc2626" });
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(saveAll).not.toHaveBeenCalled();
-
-    await adapter.saveAll(importedSlice());
-    saveAll.mockClear();
-    finishImport(
-      new Response(JSON.stringify({ imported: 1, skipped: 0 }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
+async function dropsParkedEditDuringCommittedImport(): Promise<void> {
+  let finishImport!: (response: Response) => void;
+  const fetchMock = vi.fn(
+    () =>
+      new Promise<Response>((resolve) => {
+        finishImport = resolve;
       }),
-    );
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  render(<ImportExport />);
 
-    await waitFor(() =>
-      expect(onPersistenceError.mock.calls.some(([error]) => error instanceof ReloadDiscardedEditError)).toBe(true),
-    );
-    expect(useStore.getState().notice).toMatchObject({
-      tone: "error",
-      message: expect.stringMatching(/could not be saved/i),
-    });
-    expect(saveAll).not.toHaveBeenCalled();
+  await chooseAndConfirmImport();
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
 
-    // A later ordinary edit must not smuggle the dropped pre-import edit back into persistence.
-    useStore.getState().addClient({ name: "After import", color: "#16a34a" });
-    await waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
-    const saved = saveAll.mock.calls[0]?.[0] as AppData;
-    expect(saved.clients.map((client) => client.name)).toContain("Imported client");
-    expect(saved.clients.map((client) => client.name)).toContain("After import");
-    expect(saved.clients.map((client) => client.name)).not.toContain("Parked during import");
+  useStore.getState().addClient({ name: "Parked during import", color: "#dc2626" });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(saveAll).not.toHaveBeenCalled();
+
+  await adapter.saveAll(importedSlice());
+  saveAll.mockClear();
+  finishImport(
+    new Response(JSON.stringify({ imported: 1, skipped: 0 }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
+
+  await waitFor(() =>
+    expect(onPersistenceError.mock.calls.some(([error]) => error instanceof ReloadDiscardedEditError)).toBe(true),
+  );
+  expect(useStore.getState().notice).toMatchObject({
+    tone: "error",
+    message: stringMatching(/could not be saved/i),
+  });
+  expect(saveAll).not.toHaveBeenCalled();
+
+  // A later ordinary edit must not smuggle the dropped pre-import edit back into persistence.
+  useStore.getState().addClient({ name: "After import", color: "#16a34a" });
+  await waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
+  const saved = savedData(saveAll);
+  expect(saved.clients.map((client) => client.name)).toContain("Imported client");
+  expect(saved.clients.map((client) => client.name)).toContain("After import");
+  expect(saved.clients.map((client) => client.name)).not.toContain("Parked during import");
+}
+
+async function reschedulesParkedEditDuringZeroRecordImport(): Promise<void> {
+  let finishImport!: (response: Response) => void;
+  const fetchMock = vi.fn(
+    () =>
+      new Promise<Response>((resolve) => {
+        finishImport = resolve;
+      }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  render(<ImportExport />);
+
+  await chooseAndConfirmImport();
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+
+  useStore.getState().addClient({ name: "Keep after refused import", color: "#16a34a" });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(saveAll).not.toHaveBeenCalled();
+
+  finishImport(
+    new Response(JSON.stringify({ imported: 0, skipped: 1 }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
+
+  await waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
+  const saved = savedData(saveAll);
+  expect(saved.clients.map((client) => client.name)).toContain("Keep after refused import");
+  expect(onPersistenceError.mock.calls.some(([error]) => error instanceof ReloadDiscardedEditError)).toBe(false);
+  expect(useStore.getState().notice).toMatchObject({
+    tone: "error",
+    message: stringMatching(/no records imported/i),
+  });
+}
+
+describe("ImportExport with the real persistence coordinator", () => {
+  it("drops an edit parked during a committed import and surfaces the loss", async () => {
+    await dropsParkedEditDuringCommittedImport();
   });
 
   it("re-schedules an edit parked during a zero-record import", async () => {
-    let finishImport!: (response: Response) => void;
-    const fetchMock = vi.fn(
-      () =>
-        new Promise<Response>((resolve) => {
-          finishImport = resolve;
-        }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-    render(<ImportExport />);
-
-    await chooseAndConfirmImport();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-
-    useStore.getState().addClient({ name: "Keep after refused import", color: "#16a34a" });
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(saveAll).not.toHaveBeenCalled();
-
-    finishImport(
-      new Response(JSON.stringify({ imported: 0, skipped: 1 }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
-
-    await waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
-    const saved = saveAll.mock.calls[0]?.[0] as AppData;
-    expect(saved.clients.map((client) => client.name)).toContain("Keep after refused import");
-    expect(onPersistenceError.mock.calls.some(([error]) => error instanceof ReloadDiscardedEditError)).toBe(false);
-    expect(useStore.getState().notice).toMatchObject({
-      tone: "error",
-      message: expect.stringMatching(/no records imported/i),
-    });
+    await reschedulesParkedEditDuringZeroRecordImport();
   });
 });
