@@ -63,7 +63,14 @@ export function buildRepeatProjection({
   | "status"
   | "validDaysOver"
 >) {
-  if (!create || repeat === "none" || !selectedResource || !selectedEffectiveWeek || !resourceId || !activityId) {
+  if (
+    !create ||
+    repeat === "none" ||
+    !selectedResource ||
+    selectedEffectiveWeek === undefined ||
+    !resourceId ||
+    !activityId
+  ) {
     return null;
   }
   if (!isValidISODate(startDate) || !isValidISODate(effectiveEndDate) || effectiveEndDate < startDate) return null;

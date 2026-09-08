@@ -53,7 +53,7 @@ export function buildAllocationAdvisory({
   const span = startDate && effectiveEndDate ? daysInclusive(startDate, effectiveEndDate) : 0;
   if (
     !selectedResource ||
-    !selectedEffectiveWeek ||
+    selectedEffectiveWeek === undefined ||
     !startDate ||
     !effectiveEndDate ||
     span < 1 ||

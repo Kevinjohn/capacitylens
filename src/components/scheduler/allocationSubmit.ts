@@ -158,7 +158,7 @@ export function createAllocationCommands(input: CommandInput) {
    *  spans and moves of saved allocations only). Repeat OCCURRENCES are the deliberate exception
    *  (advisory-counted instead, decision 9). */
   const rejectNewPlacementCalendarConflicts = ({ draft, newPlacement }: RejectNewPlacementCalendarConflictsInput) => {
-    if (!draft || !newPlacement || !selectedResource || !selectedEffectiveWeek) return false;
+    if (!draft || !newPlacement || !selectedResource || selectedEffectiveWeek === undefined) return false;
     if (selectedEffectiveWeek.kind !== "days") {
       fail("resource", m.form_allocation_err_no_effective_working_days());
       return true;
@@ -204,7 +204,7 @@ export function createAllocationCommands(input: CommandInput) {
       } else if (repeat === "none") {
         addAllocation(draft);
       } else {
-        if (!selectedResource || !selectedEffectiveWeek) {
+        if (!selectedResource || selectedEffectiveWeek === undefined) {
           throw new Error("The selected resource could not be resolved for repeat projection.");
         }
         const { startDates } = generateRepeatingStartDates(draft.startDate, repeatUntil, resolveRepeatPattern(repeat));

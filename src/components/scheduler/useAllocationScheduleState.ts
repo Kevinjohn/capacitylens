@@ -47,7 +47,7 @@ export function useAllocationScheduleState({
       : roundDays(initialCapacityHours > 0 ? initialCapacityHours / FULL_DAY_HOURS : initialDaysOver),
   );
   const selectedEffectiveWeek = useMemo(
-    () => (selectedResource ? effectiveWorkingWeek(selectedResource, accountWorkingDays) : null),
+    () => (selectedResource ? effectiveWorkingWeek(selectedResource, accountWorkingDays) : undefined),
     [accountWorkingDays, selectedResource],
   );
   const effectiveValues = useMemo(

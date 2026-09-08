@@ -10,7 +10,7 @@ export type AllocationModalProps =
 
 export interface EffectiveAllocationInput {
   resource: Resource | undefined;
-  effectiveWeek: EffectiveWorkingWeek | null;
+  effectiveWeek: EffectiveWorkingWeek | undefined;
   mode: SchedulingMode;
   startDate: ISODate;
   endDate: ISODate;

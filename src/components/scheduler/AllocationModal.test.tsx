@@ -21,6 +21,10 @@ import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { chooseOption, GEOM, indexAtClientX, renderWithTooltip } from "./__tests__/schedulerTestKit";
 import { buildAllocationModalSeed } from "./buildAllocationModalSeed";
+import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import type { AllocationModalSnapshot } from "./allocationModalSnapshot";
+
+type IsExact<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 
 function required<T>(value: T | undefined | null, message: string): T {
   expect(value).toBeDefined();
@@ -102,6 +106,15 @@ beforeEach(() => {
 });
 
 describe("buildAllocationModalSeed", () => {
+  it("represents a missing selected effective week with undefined", () => {
+    const selectedEffectiveWeekUsesUndefined: IsExact<
+      AllocationModalSnapshot["selectedEffectiveWeek"],
+      EffectiveWorkingWeek | undefined
+    > = true;
+
+    expect(selectedEffectiveWeekUsesUndefined).toBe(true);
+  });
+
   it("uses the injected calendar date when no create or edit date exists", () => {
     const data = base();
 
@@ -764,6 +777,29 @@ describe("AllocationModal advisory work bounds", () => {
 const enableDays = (workingDays?: Weekday[]) =>
   useStore.getState().updateAccount(ACC, { schedulingMode: "days", ...(workingDays && { workingDays }) });
 
+function registerMissingResourceEffectiveWeekTest() {
+  it("keeps a missing resource distinct from a resource with no effective working days", async () => {
+    enableDays();
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        kind="create"
+        create={{ resourceId: "missing-resource", startDate: "2026-06-01", endDate: "2026-06-05" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByRole("alert")).not.toHaveTextContent(
+      "This person has no working days within the company's current working week.",
+    );
+    expect(useStore.getState().data.allocations).toHaveLength(0);
+  });
+}
+
 function registerDaysEffectiveWeekTests() {
   it("counts and derives spans through a company-narrowed effective week", async () => {
     enableDays([1, 2, 3, 4]);
@@ -1248,6 +1284,7 @@ function registerDaysExistingAllocationTests() {
 
 describe("AllocationModal days mode", () => {
   registerDaysEffectiveWeekTests();
+  registerMissingResourceEffectiveWeekTest();
   registerDaysZeroOverlapTests();
   registerDaysWorkingDayChoiceTests();
   registerDaysExistingIgnoredSpanTest();
