@@ -10,7 +10,7 @@ import { isDemoMode } from "../data/apiConfig";
 
 /** The persona shown on the demo sign-in card and the picker's "Signed in as" line. */
 export const FAKE_USER = {
-  name: "Jordan Avery",
+  name: "Bruce Wayne",
   email: "jordan.avery@example.com",
 } as const;
 

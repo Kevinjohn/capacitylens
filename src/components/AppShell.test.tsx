@@ -464,7 +464,7 @@ describe("AppShell navigation links", () => {
 
     const signOut = screen.getByTestId("nav-sign-out");
     expect(signOut).toHaveTextContent("Sign out");
-    expect(signOut).toHaveAttribute("title", "Signed in as Jordan Avery");
+    expect(signOut).toHaveAttribute("title", "Signed in as Bruce Wayne");
     expect(signOut.querySelector("[data-slot='avatar']")).not.toBeNull();
 
     expect(useStore.getState().fakeSignedIn).toBe(true);

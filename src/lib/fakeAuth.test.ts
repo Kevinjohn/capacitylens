@@ -46,6 +46,6 @@ describe("useDemoAuthActive", () => {
 
 describe("FAKE_USER", () => {
   it("is the cosmetic demo persona", () => {
-    expect(FAKE_USER).toEqual({ name: "Jordan Avery", email: "jordan.avery@example.com" });
+    expect(FAKE_USER).toEqual({ name: "Bruce Wayne", email: "jordan.avery@example.com" });
   });
 });

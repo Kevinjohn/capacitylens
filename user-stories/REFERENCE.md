@@ -22,7 +22,7 @@ If the app changes, update this file first, then the affected stories.
    `lsof -nP -iTCP:5173 -sTCP:LISTEN` and kill it (strict port is deliberate).
 2. **First run** seeds a demo dataset (see _Seed data_ below).
 3. CapacityLens opens on a **demo sign-in** — a cosmetic, Google-style _"Choose an account"_ screen
-   (the **Jordan Avery** account; heading `Choose an account`). It is **not** real auth and
+   (the **Bruce Wayne** account; heading `Choose an account`). It is **not** real auth and
    has **no** popup: click the single preview account to continue. It is shown only
    when real auth is off (the default) and is skipped once "signed in" (the choice persists
    device-globally; "Sign out" on the picker/sidebar returns to it).
@@ -32,7 +32,7 @@ If the app changes, update this file first, then the affected stories.
    login still show the picker. Pick **Wayne Enterprises** to see the seeded data these stories
    describe. (A second seeded company, _Stark Industries_, is near-empty, so this demo remains on
    the multi-company picker after a reload.) While "signed in", the picker shows
-   _"Signed in as Jordan Avery"_ with a **Sign out** link. **`New company`**
+   _"Signed in as Bruce Wayne"_ with a **Sign out** link. **`New company`**
    (`data-testid="new-company-button"`) opens an inline create form that captures the company
    name and the three **frozen-after-creation** fields: **Week starts on** (segmented
    Monday/Sunday, default Monday), **Timezone** (select, default `GMT`, with its numeric UTC offset
@@ -1075,7 +1075,7 @@ to **viewer**, the whole app goes **read-only**:
   spec `e2e/viewer.auth.spec.ts`.
 
 **Demo sign-in (cosmetic; not real auth).** In the default (auth-off) deploy, a Google-style
-_"Choose an account"_ screen (heading `Choose an account`; the **Jordan Avery** account row,
+_"Choose an account"_ screen (heading `Choose an account`; the **Bruce Wayne** account row,
 `data-testid="fake-sign-in"`) is shown **before** the company
 picker, to preview a "log in first, then pick a company" flow. There is no password and no
 popup — the preview account advances. The signed-in state is a **device-global** flag
