@@ -9,28 +9,81 @@ import type { AccountEntityRouteDependencies } from "./dependencies";
 import { sendAccountRouteFailure } from "./guards";
 import { ACCOUNT_CREATE_CLOSED_MESSAGE, buildCanonicalAccountProductPayload } from "./policy";
 
-export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteDependencies) {
-  const {
-    db,
-    store,
-    authMode,
-    multiAccount,
-    flows,
-    authorize,
-    command,
-    replayCommand,
-    fieldVisibility,
-    drainProductAudit,
-    enqueueAudit,
-  } = dependencies;
+function requireRequestContext(req: FastifyRequest) {
+  if (!req.user || !req.accountActor) throw new Error("Authenticated request context is required.");
+  return { user: req.user, actor: req.accountActor };
+}
 
-  // Create a company. CLOSED when auth is on (→ POST /api/orgs, which also mints the Internal
-  // client and the owner membership atomically); OPEN in trusted-local OFF mode, still BOUNDED by
-  // the single-company cap inside AccountFlows.
-  const post = async (req: FastifyRequest, reply: FastifyReply) => {
-    // Shared body-shape guard (the Finding 7 funnel). A missing/non-object body would otherwise
-    // null-deref in sanitizeWrite's assertIdPresent BEFORE the try block could classify it — a
-    // misclassified 500. `accounts` is unscoped, so no accountId is required.
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function requireRequestRow(body: unknown): Record<string, unknown> {
+  if (!isUnknownRecord(body)) {
+    throw new Error("Validated account request body is unavailable.");
+  }
+  return body;
+}
+
+function requireRowString(row: Record<string, unknown>, field: "id" | "createdAt"): string {
+  const value = row[field];
+  if (typeof value !== "string") throw new Error(`Validated account row requires a string ${field}.`);
+  return value;
+}
+
+async function createAccount(req: FastifyRequest, reply: FastifyReply, dependencies: AccountEntityRouteDependencies) {
+  const { db, store, multiAccount, flows, command, fieldVisibility, drainProductAudit, enqueueAudit } = dependencies;
+  const requestRow = requireRequestRow(req.body);
+  const { user, actor } = requireRequestContext(req);
+  const visibility = fieldVisibility(req, "accounts", requestRow.accountId);
+  const { row, scopedState } = prepareScopedWrite({
+    store,
+    entity: "accounts",
+    body: requestRow,
+    existing: undefined,
+    vis: visibility,
+    verb: "create",
+  });
+  const id = requireRowString(row, "id");
+  const createdAt = requireRowString(row, "createdAt");
+  const auditRecord: AuditRecord = {
+    ts: new Date().toISOString(),
+    userId: user.id,
+    accountId: typeof row.accountId === "string" ? row.accountId : id,
+    action: "create",
+    entity: "accounts",
+    id,
+    changedFields: listAppliedRequestedFieldNames({
+      table: "accounts",
+      requested: requestRow,
+      existing: undefined,
+      applied: row,
+    }),
+  };
+  const provisioned = await flows.provisionWorkspace({
+    actor,
+    workspaceId: id,
+    joinedAt: createdAt,
+    command: command(req),
+    multiWorkspace: multiAccount,
+    bootstrapAuthorized: false,
+    canonicalProductPayload: buildCanonicalAccountProductPayload(row),
+    provisionProductData: () => {
+      // Validate and mint the account's singleton Internal client in the provisioning transaction.
+      assertValidWrite({ state: scopedState, table: "accounts", row });
+      insertRow(db, "accounts", row);
+      insertRow(db, "clients", { ...buildInternalClient(id, createdAt) });
+      enqueueAudit(auditRecord);
+      return row;
+    },
+  });
+  if (!provisioned.replayed) drainProductAudit(reply);
+  return reply.code(201).send(provisioned.product);
+}
+
+function createPostHandler(dependencies: AccountEntityRouteDependencies) {
+  return async (req: FastifyRequest, reply: FastifyReply) => {
+    // Authenticated account creation stays on POST /api/orgs, which also creates membership.
     const bodyCheck = checkEntityWriteBody({
       verb: "create",
       entity: "accounts",
@@ -39,109 +92,48 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
       scoped: false,
     });
     if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
-    if (authMode !== "off") {
+    if (dependencies.authMode !== "off") {
       return reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE });
     }
-    const requestRow = req.body as Record<string, unknown>;
     try {
-      const visibility = fieldVisibility(req, "accounts", requestRow.accountId);
-      const { row, scopedState } = prepareScopedWrite({
-        store,
-        entity: "accounts",
-        body: requestRow,
-        existing: undefined,
-        vis: visibility,
-        verb: "create",
-      });
-      const auditRecord: AuditRecord = {
-        ts: new Date().toISOString(),
-        userId: req.user!.id,
-        accountId: (row.accountId as string | undefined) ?? (row.id as string),
-        action: "create",
-        entity: "accounts",
-        id: row.id as string,
-        changedFields: listAppliedRequestedFieldNames({
-          table: "accounts",
-          requested: requestRow,
-          existing: undefined,
-          applied: row,
-        }),
-      };
-      // A company is not usable without its singleton Internal client. Commit both rows as one unit
-      // so a constraint/storage failure cannot leave a degraded company behind.
-      const provisioned = await flows.provisionWorkspace({
-        actor: req.accountActor!,
-        workspaceId: row.id as string,
-        joinedAt: row.createdAt as string,
-        command: command(req),
-        multiWorkspace: multiAccount,
-        bootstrapAuthorized: false,
-        canonicalProductPayload: buildCanonicalAccountProductPayload(row),
-        provisionProductData: () => {
-          // Run validation only on first execution, inside the same transaction as the insert. A
-          // committed command replay must not be rejected merely because the account now exists or
-          // the single-company cap became full after its original success. Reuses the funnel's
-          // scoped slice (Finding 9 — accounts validation is name-only, so a second full-DB
-          // loadState here would be pure waste).
-          assertValidWrite({ state: scopedState, table: "accounts", row });
-          insertRow(db, "accounts", row);
-          insertRow(
-            db,
-            "clients",
-            buildInternalClient(row.id as string, row.createdAt as string) as unknown as Record<string, unknown>,
-          );
-          enqueueAudit(auditRecord);
-          return row;
-        },
-      });
-      if (!provisioned.replayed) drainProductAudit(reply);
-      return reply.code(201).send(provisioned.product);
+      return await createAccount(req, reply, dependencies);
     } catch (error) {
       return sendAccountRouteFailure(reply, error, dependencies);
     }
   };
+}
 
-  // Hard-delete a company. This is a TENANT ERASURE, not a bare row delete: dropping an `accounts`
-  // row CASCADES (FK ON DELETE CASCADE) and wipes ALL the account's scoped data, so AccountFlows
-  // coordinates the product cascade, administration sweep and orphaned local-identity erasure in one
-  // transaction.
-  const deleteAccount = async (req: FastifyRequest, reply: FastifyReply) => {
-    const { id } = req.params as { id: string };
+function createDeleteHandler(dependencies: AccountEntityRouteDependencies) {
+  const { db, authMode, flows, authorize, command, replayCommand, drainProductAudit, enqueueAudit } = dependencies;
+  return async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    const { id } = req.params;
     try {
       const targetExisted = Boolean(getRow(db, "accounts", id));
-      // The completed erasure receipt is deliberately retained after membership removal. An exact
-      // authenticated retry may replay that receipt before the ordinary live-membership gate; absent,
-      // malformed, pending or unrelated commands still take the Owner path.
+      // A completed receipt may replay after erasure removed the caller's live membership.
       const replay = replayCommand(req);
       if (replay) {
         const replayed = await flows.replayWorkspaceErasure({
-          actor: req.accountActor!,
+          actor: requireRequestContext(req).actor,
           workspaceId: id,
           command: replay,
         });
         if (replayed) return reply.code(204).send();
       }
-      // P1.5 account hard-delete gate. The account-lifecycle CREATE exemption (a new auth-on user
-      // must mint their first account before any membership exists) does NOT extend to DELETE: this
-      // is total tenant destruction, intentionally stricter than purging one tombstoned record —
-      // only an owner may erase the tenant and orphaned member identities. OFF mode short-circuits
-      // to allow so the default deploy can still delete companies.
       if (!authorize({ req, reply, accountId: id, action: "deleteAccount" })) return;
-      // Preserve the auth-off API's established idempotent-delete contract. The coordinated erasure
-      // path deliberately requires a real workspace so authenticated callers cannot use it as an
-      // existence oracle, but trusted-local deletion historically returned 204 for an absent account.
+      // Preserve trusted-local idempotency without exposing authenticated account existence.
       if (!targetExisted && authMode === "off") return reply.code(204).send();
+      const { user, actor } = requireRequestContext(req);
       const auditRecord: AuditRecord = {
         ts: new Date().toISOString(),
-        userId: req.user!.id,
-        accountId: id, // attribution is the erased account itself, never a caller-supplied query value
+        userId: user.id,
+        accountId: id,
         action: "delete",
         entity: "accounts",
         id,
         changedFields: [],
       };
       await flows.eraseWorkspace({
-        actor: req.accountActor!,
+        actor,
         workspaceId: id,
         command: command(req),
         ...(targetExisted ? { auditProductMutationInTx: () => enqueueAudit(auditRecord) } : {}),
@@ -152,5 +144,8 @@ export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteD
       return sendAccountRouteFailure(reply, error, dependencies);
     }
   };
-  return { post, delete: deleteAccount };
+}
+
+export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteDependencies) {
+  return { post: createPostHandler(dependencies), delete: createDeleteHandler(dependencies) };
 }
