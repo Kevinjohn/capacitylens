@@ -1988,6 +1988,39 @@ describe("mid-reload edits are rebased onto the fresh server slice", () => {
   });
 });
 
+async function attachHeldLossSwitch() {
+  const bSlice: AppData = {
+    ...emptyAppData(),
+    accounts: [{ id: "b1", name: "Beta Two", color: "#1", createdAt: "t", updatedAt: "t" }],
+  };
+  let release: (() => void) | null = null;
+  const loadAll = vi.fn((accountId?: string): Promise<AppData> => {
+    if (accountId !== "b1") return Promise.resolve(a2Slice());
+    return new Promise<AppData>((resolve) => {
+      release = () => resolve(bSlice);
+    });
+  });
+  const saveAll = vi.fn().mockResolvedValue(undefined);
+  const onError = vi.fn();
+  useStore.getState().replaceAll(emptyAppData());
+  useStore.getState().setActiveAccount(null);
+  useStore.getState().setAccountSummaries([
+    { id: "a2", name: "Beta", role: "owner" },
+    { id: "b1", name: "Beta Two", role: "owner" },
+  ]);
+  const detach = attachPersistence({
+    store: useStore,
+    adapter: { loadAll, saveAll },
+    debounceMs: 0,
+    onError: onError,
+    serverMode: true,
+  });
+  useStore.getState().setActiveAccount("a2");
+  await vi.advanceTimersByTimeAsync(5);
+  const readReleaseB = () => release;
+  return { detach, onError, readReleaseB, saveAll };
+}
+
 describe("a successful reload clears the failure state (cross-tenant leak + stuck banner)", () => {
   it("a successful TENANT SWITCH clears the prior tenant's failed-write state — B's import/refresh are not blocked by A", async () => {
     const bSlice: AppData = {
@@ -2057,44 +2090,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
     // A's failure must not survive into the reload and fire mid-/post-load with A's stale tree.
     vi.useFakeTimers();
     try {
-      const bSlice: AppData = {
-        ...emptyAppData(),
-        accounts: [
-          {
-            id: "b1",
-            name: "Beta Two",
-            color: "#1",
-            createdAt: "t",
-            updatedAt: "t",
-          },
-        ],
-      };
-      const aSlice = a2Slice();
-      let releaseB: (() => void) | null = null;
-      const loadAll = vi.fn((accountId?: string): Promise<AppData> => {
-        if (accountId !== "b1") return Promise.resolve(aSlice);
-        return new Promise<AppData>((resolve) => {
-          releaseB = () => resolve(bSlice);
-        });
-      });
-      const saveAll = vi.fn().mockResolvedValue(undefined);
-      const onError = vi.fn();
-
-      useStore.getState().replaceAll(emptyAppData());
-      useStore.getState().setActiveAccount(null);
-      useStore.getState().setAccountSummaries([
-        { id: "a2", name: "Beta", role: "owner" },
-        { id: "b1", name: "Beta Two", role: "owner" },
-      ]);
-      const detach = attachPersistence({
-        store: useStore,
-        adapter: { loadAll, saveAll },
-        debounceMs: 0,
-        onError: onError,
-        serverMode: true,
-      });
-      useStore.getState().setActiveAccount("a2");
-      await vi.advanceTimersByTimeAsync(5);
+      const { detach, onError, readReleaseB, saveAll } = await attachHeldLossSwitch();
 
       saveAll.mockRejectedValue(new Error("server down")); // every save now fails
       useStore.getState().addClient({ name: "Doomed in A", color: "#222222" });
@@ -2104,6 +2100,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
       saveAll.mockResolvedValue(undefined); // the connection heals — but A's edit is already lost
       useStore.getState().setActiveAccount("b1");
       await vi.advanceTimersByTimeAsync(5);
+      const releaseB = readReleaseB();
       expect(releaseB).not.toBeNull();
       const midSwitchEdit = useStore.getState().addClient({ name: "New in B", color: "#333333" });
       requireValue(releaseB, "account B load release")();
