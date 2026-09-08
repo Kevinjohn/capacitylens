@@ -2401,7 +2401,7 @@ function registerInviteClipboardFailureTests(): void {
 }
 
 describe("MembersSection — SSO cutover repair", () => {
-  const providers: AuthContextValue["providers"] = [
+  const providers: NonNullable<AuthContextValue["providers"]> = [
     { id: "workforce", label: "Workforce SSO", kind: "oidc", experimental: false },
   ];
   const directory = [
@@ -2438,7 +2438,8 @@ describe("MembersSection — SSO cutover repair", () => {
     return mockApi(directory, { "GET /sso-readiness": () => jsonResponse(ssoReadiness(linked, reason)) });
   }
 
-  registerSsoDraftTests(directory, providers, ssoReadiness);
+  registerSsoDraftTests(directory);
+  registerSsoReadinessRefreshTests(directory, providers, ssoReadiness);
   registerSsoEmailRepairTests(providers, ssoFetch);
   registerSsoEmailValidationTests(providers, ssoFetch);
   registerSsoRefusedEmailTest(directory, providers, ssoReadiness);
@@ -2450,11 +2451,7 @@ describe("MembersSection — SSO cutover repair", () => {
   registerSsoModeTests(providers, ssoFetch);
 });
 
-function registerSsoDraftTests<T>(
-  directory: RawMember[],
-  providers: AuthContextValue["providers"],
-  ssoReadiness: (linked: boolean, reason: string) => T,
-): void {
+function registerSsoDraftTests(directory: RawMember[]): void {
   it("preserves invite and member role drafts when the render children unmount and remount", async () => {
     const user = userEvent.setup();
     const directoryWithTracking = directory.map((member) => ({ ...member, signInConfirmed: true }));
@@ -2498,7 +2495,13 @@ function registerSsoDraftTests<T>(
     expect(screen.getByTestId("invite-role")).toHaveTextContent("Viewer");
     expect(within(await screen.findByRole("dialog")).getByRole("combobox")).toHaveTextContent("Editor");
   });
+}
 
+function registerSsoReadinessRefreshTests<T>(
+  directory: RawMember[],
+  providers: NonNullable<AuthContextValue["providers"]>,
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
   it("refreshes readiness after a successful membership mutation while retaining the loaded snapshot", async () => {
     const user = userEvent.setup();
     let readinessReads = 0;
@@ -2527,13 +2530,14 @@ function registerSsoDraftTests<T>(
       requireValue(
         resolveRefresh,
         "the readiness refresh resolver",
-      )(jsonResponse(ssoReadiness(false, "member_not_linked")));
+      )(jsonResponse({ ...ssoReadiness(false, "member_not_linked"), ready: true, members: [] }));
     });
+    expect(await screen.findByText(m.settings_sso_readiness_ready())).toBeInTheDocument();
   });
 }
 
 function registerSsoEmailRepairTests(
-  providers: AuthContextValue["providers"],
+  providers: NonNullable<AuthContextValue["providers"]>,
   ssoFetch: (linked: boolean, reason: string) => ReturnType<typeof mockApi>,
 ): void {
   it("corrects a blocking member email through the fresh identity-global route", async () => {
@@ -2561,7 +2565,7 @@ function registerSsoEmailRepairTests(
 }
 
 function registerSsoEmailValidationTests(
-  providers: AuthContextValue["providers"],
+  providers: NonNullable<AuthContextValue["providers"]>,
   ssoFetch: (linked: boolean, reason: string) => ReturnType<typeof mockApi>,
 ): void {
   it("confirms removal of an unverified wrong-subject link before dispatch", async () => {
@@ -2609,7 +2613,7 @@ function registerSsoEmailValidationTests(
 
 function registerSsoRefusedEmailTest<T>(
   directory: RawMember[],
-  providers: AuthContextValue["providers"],
+  providers: NonNullable<AuthContextValue["providers"]>,
   ssoReadiness: (linked: boolean, reason: string) => T,
 ): void {
   it("shows a refused email correction beside the repair field", async () => {
@@ -2637,7 +2641,7 @@ function registerSsoRefusedEmailTest<T>(
 
 function registerSsoSelfEmailRepairTests<T extends { members: { principalId: string; email: string }[] }>(
   directory: RawMember[],
-  providers: AuthContextValue["providers"],
+  providers: NonNullable<AuthContextValue["providers"]>,
   ssoReadiness: (linked: boolean, reason: string) => T,
 ): void {
   it("reloads after correcting the current user's email without refreshing the directory", async () => {
@@ -2697,7 +2701,7 @@ function registerSsoSelfEmailRepairTests<T extends { members: { principalId: str
 
 function registerSsoLinkRepairTests<T extends { members: { principalId: string; email: string }[] }>(
   directory: RawMember[],
-  providers: AuthContextValue["providers"],
+  providers: NonNullable<AuthContextValue["providers"]>,
   ssoReadiness: (linked: boolean, reason: string) => T,
 ): void {
   it("does not bump readiness when federated unlink is refused", async () => {
@@ -2751,7 +2755,7 @@ function registerSsoLinkRepairTests<T extends { members: { principalId: string; 
 
 function registerSsoLinkFailureTest<T>(
   directory: RawMember[],
-  providers: AuthContextValue["providers"],
+  providers: NonNullable<AuthContextValue["providers"]>,
   ssoReadiness: (linked: boolean, reason: string) => T,
 ): void {
   it("shows the remove-link error when unlink throws", async () => {
@@ -2774,9 +2778,11 @@ function registerSsoLinkFailureTest<T>(
 
 function registerSsoReadinessLifecycleTests<T>(
   directory: RawMember[],
-  providers: AuthContextValue["providers"],
+  providers: NonNullable<AuthContextValue["providers"]>,
   ssoReadiness: (linked: boolean, reason: string) => T,
 ): void {
+  registerSsoReplacementEffectTest(directory, providers, ssoReadiness);
+
   it.each(["resolve", "reject"])("ignores a readiness request that finishes after unmount (%s)", async (outcome) => {
     let resolvePending: ((response: Response) => void) | undefined;
     let rejectPending: ((reason: Error) => void) | undefined;
@@ -2809,11 +2815,69 @@ function registerSsoReadinessLifecycleTests<T>(
   });
 }
 
+function registerSsoReplacementEffectTest<T>(
+  directory: RawMember[],
+  providers: NonNullable<AuthContextValue["providers"]>,
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
+  it("ignores an obsolete readiness completion after a provider change starts its replacement", async () => {
+    const replacementProvider: NonNullable<AuthContextValue["providers"]>[number] = {
+      id: "partner",
+      label: "Partner SSO",
+      kind: "oidc",
+      experimental: false,
+    };
+    let resolveObsolete: ((response: Response) => void) | undefined;
+    let resolveReplacement: ((response: Response) => void) | undefined;
+    const obsolete = new Promise<Response>((resolve) => {
+      resolveObsolete = resolve;
+    });
+    const replacement = new Promise<Response>((resolve) => {
+      resolveReplacement = resolve;
+    });
+    let readinessReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi(directory, {
+        "GET /sso-readiness": () => {
+          readinessReads += 1;
+          return readinessReads === 1 ? obsolete : replacement;
+        },
+      }),
+    );
+    const view = renderSection({ providers });
+    await waitFor(() => expect(readinessReads).toBe(1));
+
+    view.rerender(
+      <AuthContext.Provider value={authValue({ providers: [replacementProvider] })}>
+        <MembersSection />
+      </AuthContext.Provider>,
+    );
+    await waitFor(() => expect(readinessReads).toBe(2));
+    await act(async () => {
+      requireValue(
+        resolveReplacement,
+        "the replacement readiness resolver",
+      )(jsonResponse({ ...ssoReadiness(false, "member_not_linked"), provider: replacementProvider }));
+    });
+    expect(await screen.findByText(/Partner SSO/)).toBeInTheDocument();
+
+    await act(async () => {
+      requireValue(
+        resolveObsolete,
+        "the obsolete readiness resolver",
+      )(jsonResponse(ssoReadiness(false, "member_not_linked")));
+    });
+    expect(screen.getByText(/Partner SSO/)).toBeInTheDocument();
+    expect(screen.queryByText(/Workforce SSO/)).not.toBeInTheDocument();
+  });
+}
+
 function registerSsoReadinessFailureTests<
   T extends { members: { principalId: unknown; repairLinks: { subject: string }[] }[] },
 >(
   directory: RawMember[],
-  providers: AuthContextValue["providers"],
+  providers: NonNullable<AuthContextValue["providers"]>,
   ssoReadiness: (linked: boolean, reason: string) => T,
 ): void {
   it("surfaces a readiness fetch failure instead of hiding the cutover state", async () => {
@@ -2822,6 +2886,30 @@ function registerSsoReadinessFailureTests<
 
     expect(await screen.findByTestId("sso-readiness-error")).toHaveTextContent(m.settings_sso_readiness_error());
     expect(screen.queryByTestId("sso-readiness")).not.toBeInTheDocument();
+  });
+
+  it("retries an errored readiness read after a successful membership mutation", async () => {
+    const user = userEvent.setup();
+    let readinessReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi(directory, {
+        "GET /sso-readiness": () => {
+          readinessReads += 1;
+          return readinessReads === 1
+            ? jsonResponse({}, 503)
+            : jsonResponse({ ...ssoReadiness(false, "member_not_linked"), ready: true, members: [] });
+        },
+      }),
+    );
+    renderSection({ providers });
+    expect(await screen.findByTestId("sso-readiness-error")).toBeInTheDocument();
+
+    await saveRoleVia(user, await findMemberRow(/target@x\.io/), "Viewer");
+
+    expect(await screen.findByText(m.settings_sso_readiness_ready())).toBeInTheDocument();
+    expect(screen.queryByTestId("sso-readiness-error")).not.toBeInTheDocument();
+    expect(readinessReads).toBe(2);
   });
 
   it("rejects malformed nested readiness coordinates", async () => {
@@ -2836,7 +2924,7 @@ function registerSsoReadinessFailureTests<
 }
 
 function registerSsoModeTests(
-  providers: AuthContextValue["providers"],
+  providers: NonNullable<AuthContextValue["providers"]>,
   ssoFetch: (linked: boolean, reason: string) => ReturnType<typeof mockApi>,
 ): void {
   it("does not offer mixed-mode email or link repair after password sign-in is disabled", async () => {

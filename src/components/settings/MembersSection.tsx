@@ -123,7 +123,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           <FieldError id={orchestration.errorId}>
             {orchestration.errorField === null ? orchestration.error : null}
           </FieldError>
-          {orchestration.readinessApplies && orchestration.readinessState.kind === "error" && (
+          {orchestration.readinessApplies && orchestration.readinessError && (
             <section
               className="flex flex-col gap-2 rounded-md border border-danger/40 bg-danger/5 p-3"
               data-testid="sso-readiness-error"
@@ -133,10 +133,10 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
               <p className="text-xs text-danger">{m.settings_sso_readiness_error()}</p>
             </section>
           )}
-          {orchestration.readinessApplies && orchestration.readinessState.kind === "ready" && (
+          {orchestration.readinessApplies && orchestration.readiness && (
             <SsoReadinessPanel
               authMode={orchestration.authMode}
-              readiness={orchestration.readinessState.readiness}
+              readiness={orchestration.readiness}
               busy={orchestration.busyAction !== null}
               emailRepair={orchestration.emailRepair}
               setEmailRepair={orchestration.setEmailRepair}

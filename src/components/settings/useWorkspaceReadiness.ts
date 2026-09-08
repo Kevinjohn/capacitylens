@@ -13,8 +13,10 @@ import {
 import type { useTeamDirectory } from "./useTeamDirectory";
 import type { MemberActionDependencies } from "./memberActionDependencies";
 
-interface WorkspaceReadinessDependencies
-  extends Pick<MemberActionDependencies, "requestAccountId" | "withMemberAction" | "fail" | "setNotice"> {
+interface WorkspaceReadinessDependencies extends Pick<
+  MemberActionDependencies,
+  "requestAccountId" | "withMemberAction" | "fail" | "setNotice"
+> {
   activeAccountId: string | null;
   strictProviderId: string | null;
   directory: ReturnType<typeof useTeamDirectory>["directory"];
@@ -24,9 +26,7 @@ interface WorkspaceReadinessDependencies
 }
 
 type WorkspaceReadinessState =
-  | { kind: "loading" }
-  | { kind: "ready"; readiness: WorkspaceReadiness }
-  | { kind: "error" };
+  { kind: "loading" } | { kind: "ready"; readiness: WorkspaceReadiness } | { kind: "error" };
 
 export function useWorkspaceReadiness({
   activeAccountId,

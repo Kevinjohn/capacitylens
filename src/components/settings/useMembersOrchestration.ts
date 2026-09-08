@@ -16,6 +16,7 @@ import { createMemberMutations } from "./createMemberMutations";
 import { startMasquerade } from "../../auth/accountTransition";
 import { STATUS_FOR_ACTION, type MemberConfirmation, type MemberConfirmationAction } from "./memberConfirmationCopy";
 import { buildMemberDirectoryPresentation } from "./buildMemberDirectoryPresentation";
+import type { WorkspaceReadiness } from "./ssoReadiness";
 
 const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
 
@@ -31,7 +32,26 @@ function selectAuthorizedDirectory(directory: ReturnType<typeof useTeamDirectory
   }
 }
 
-function pickNextInviteDeadline(invites: TeamInvitation[], clock: number): number | null {
+function assertNeverReadinessState(state: never): never {
+  throw new Error(`Unexpected workspace readiness state: ${JSON.stringify(state)}`);
+}
+
+function resolveReadinessPresentation(state: ReturnType<typeof useWorkspaceReadiness>["readinessState"]): {
+  readiness: WorkspaceReadiness | null;
+  readinessError: boolean;
+} {
+  switch (state.kind) {
+    case "loading":
+      return { readiness: null, readinessError: false };
+    case "ready":
+      return { readiness: state.readiness, readinessError: false };
+    case "error":
+      return { readiness: null, readinessError: true };
+  }
+  return assertNeverReadinessState(state);
+}
+
+function pickNextInviteDeadline(invites: readonly TeamInvitation[], clock: number): number | null {
   const nextExpiry = invites
     .filter((invite) => invite.usedAt === null)
     .map((invite) => Date.parse(invite.expiresAt))
@@ -152,7 +172,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     fail,
     setNotice,
   };
-  const { bumpReadiness, ...readinessState } = useWorkspaceReadiness({
+  const { bumpReadiness, readinessState, ...readinessActions } = useWorkspaceReadiness({
     activeAccountId,
     strictProviderId,
     directory,
@@ -161,6 +181,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     refreshDirectory: () => refreshDirectory(),
     ...actionDependencies,
   });
+  const readinessPresentation = resolveReadinessPresentation(readinessState);
   /** The pair nearly every membership write needs: re-read the directory, then the readiness that is
    *  derived from it. */
   const refreshDirectory = () => {
@@ -239,7 +260,8 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     errorId,
     clear,
     reload,
-    ...readinessState,
+    ...readinessActions,
+    ...readinessPresentation,
     members,
     ...presentation,
     changeSignInTracking: actions.changeSignInTracking,
