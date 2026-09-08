@@ -481,7 +481,9 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     expect((await batchInto({ app, accountId: "a2", id: "x3", cookie })).statusCode).toBe(403);
     expect((await importInto({ app, accountId: "a2", id: "x4", cookie })).statusCode).toBe(403);
   });
+});
 
+describe("P1.5 authorize — auth-on 403 matrix", () => {
   it("cross-account batch (one a1 op + one a2 op) → 403 AND the a1 op is NOT applied", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -547,7 +549,9 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     // the P1.6 note pin — ultimately gated to owner. See the dedicated import-tier suite below.
     expect((await importInto({ app, accountId: "a1", id: "ec4", cookie })).statusCode).toBe(403);
   });
+});
 
+describe("P1.5 authorize — auth-on 403 matrix", () => {
   it.each([
     ["direct PUT", false],
     ["atomic batch", true],
@@ -601,7 +605,9 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
       expect(getRow(db, "projects", "internal-project")?.clientId).toBe("legacy-internal");
     },
   );
+});
 
+describe("P1.5 authorize — auth-on 403 matrix", () => {
   it("resolves the membership role once for a scoped state read", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -630,7 +636,9 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
 
     expect(membershipRoleReads).toBe(1);
   });
+});
 
+describe("P1.5 authorize — auth-on 403 matrix", () => {
   it("resolves one membership role per account/action in each batch authorization pass", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -687,7 +695,9 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     // The two reads are deliberately independent: one before lock acquisition and one after it.
     expect(membershipRoleReads).toBe(2);
   });
+});
 
+describe("P1.5 authorize — auth-on 403 matrix", () => {
   it.each(["admin", "owner"] as const)("%s of a1: row writes succeed; only owner may import", async (role) => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -704,7 +714,9 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
       role === "owner" ? 200 : 403,
     );
   });
+});
 
+describe("P1.5 authorize — auth-on 403 matrix", () => {
   it("generic account create is CLOSED auth-on: POST /api/accounts → 403 directing to /api/orgs", async () => {
     const { app, db } = await appWithAuth();
     const { cookie } = await signUp(app, "onboarding@capacitylens.dev"); // no membership → no account yet
@@ -732,41 +744,44 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
   });
 });
 
-describe("scoped generic writes conceal foreign row existence", () => {
-  const foreignIds = {
-    disciplines: "d-loft-design",
-    resources: "r-jo",
-    clients: "c-internal-loft",
-    projects: "p-loft-app",
-    phases: "ph-loft",
-    activities: "t-loft-screens",
-    allocations: "a-jo-1",
-    timeOff: "to-loft",
-  } as const;
+const scopedForeignIds = {
+  disciplines: "d-loft-design",
+  resources: "r-jo",
+  clients: "c-internal-loft",
+  projects: "p-loft-app",
+  phases: "ph-loft",
+  activities: "t-loft-screens",
+  allocations: "a-jo-1",
+  timeOff: "to-loft",
+} as const;
 
-  type ScopedEntity = keyof typeof foreignIds;
+type ScopedEntity = keyof typeof scopedForeignIds;
+
+function seedScopedOracleRows(db: Db, foreignIds: typeof scopedForeignIds): void {
+  const data = seed();
+  data.phases.push({
+    id: foreignIds.phases,
+    accountId: "a-loft",
+    name: "Loft discovery",
+    projectId: "p-loft-app",
+    ...meta(),
+  });
+  data.timeOff.push({
+    id: foreignIds.timeOff,
+    accountId: "a-loft",
+    resourceId: "r-jo",
+    startDate: "2026-06-08",
+    endDate: "2026-06-09",
+    type: "holiday",
+    ...meta(),
+  });
+  insertAll(db, data);
+}
+
+function scopedWriteFixture() {
+  const foreignIds = scopedForeignIds;
   const scopedEntities = Object.keys(foreignIds) as ScopedEntity[];
-
-  function seedOracleRows(db: Db): void {
-    const data = seed();
-    data.phases.push({
-      id: foreignIds.phases,
-      accountId: "a-loft",
-      name: "Loft discovery",
-      projectId: "p-loft-app",
-      ...meta(),
-    });
-    data.timeOff.push({
-      id: foreignIds.timeOff,
-      accountId: "a-loft",
-      resourceId: "r-jo",
-      startDate: "2026-06-08",
-      endDate: "2026-06-09",
-      type: "holiday",
-      ...meta(),
-    });
-    insertAll(db, data);
-  }
+  const seedOracleRows = (db: Db) => seedScopedOracleRows(db, foreignIds);
 
   const responseShape = (response: LightMyRequestResponse) => ({
     statusCode: response.statusCode,
@@ -819,6 +834,11 @@ describe("scoped generic writes conceal foreign row existence", () => {
       headers: { cookie },
     });
 
+  return { foreignIds, scopedEntities, seedOracleRows, responseShape, patch, put, remove };
+}
+
+describe("scoped generic writes conceal foreign row existence", () => {
+  const { foreignIds, scopedEntities, seedOracleRows, responseShape, patch, put, remove } = scopedWriteFixture();
   it("gives a membership-less principal byte-identical absent/foreign responses for every scoped verb and entity", async () => {
     const { app, db } = await appWithAuth();
     seedOracleRows(db);
@@ -839,7 +859,10 @@ describe("scoped generic writes conceal foreign row existence", () => {
       );
     }
   });
+});
 
+describe("scoped generic writes conceal foreign row existence", () => {
+  const { responseShape, patch } = scopedWriteFixture();
   it("conceals a foreign account whose built-in client has its deterministic account-derived id", async () => {
     const { app, db } = await appWithAuth();
     const accountId = "derived-account";
@@ -875,7 +898,10 @@ describe("scoped generic writes conceal foreign row existence", () => {
       ),
     );
   });
+});
 
+describe("scoped generic writes conceal foreign row existence", () => {
+  const { foreignIds, scopedEntities, seedOracleRows, responseShape, patch, remove } = scopedWriteFixture();
   it("gives a member byte-identical absent/foreign PATCH and DELETE responses across every scoped entity", async () => {
     const { app, db } = await appWithAuth();
     seedOracleRows(db);
@@ -965,7 +991,7 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
   });
 });
 
-describe("P1.6 time-off note preservation on WRITE — a note-blind writer cannot erase a note", () => {
+function timeOffWriteFixture() {
   // The write-side counterpart of the read redaction above. An editor's reads have the `note`
   // REDACTED, so every row they round-trip back (PUT / batch PUT — the client's real save paths)
   // is note-less by construction; without the sanitizeWrite pin, upsertRow would store NULL and
@@ -992,6 +1018,11 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
     return { app, db, cookie };
   }
 
+  return { SENTINEL, stampedTimeOff, noteInDb, memberApp };
+}
+
+describe("P1.6 time-off note preservation on WRITE — a note-blind writer cannot erase a note", () => {
+  const { SENTINEL, stampedTimeOff, noteInDb, memberApp } = timeOffWriteFixture();
   it("editor PUT of a redacted round-trip (no note key, edited dates) → 200 and the note SURVIVES", async () => {
     const { app, db, cookie } = await memberApp("editor");
     const res = await call(app, {
@@ -1023,7 +1054,10 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
     expect(noteInDb(db)).toBe(SENTINEL);
     expect((db.prepare(`SELECT type FROM timeOff WHERE id = 'to1'`).get() as { type: string }).type).toBe("sick");
   });
+});
 
+describe("P1.6 time-off note preservation on WRITE — a note-blind writer cannot erase a note", () => {
+  const { SENTINEL, stampedTimeOff, noteInDb, memberApp } = timeOffWriteFixture();
   it("editor STALE write (optimistic concurrency) → the 409's `current` payload is note-REDACTED too", async () => {
     // The conflict path is a READ of the stored row: without redaction, an editor could learn a
     // note they can't read simply by sending a stale write. Both write paths must redact it.
@@ -1060,7 +1094,10 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
     // it for a note-blind patcher, closing the pre-existing merge-echo leak.
     expect(patched.body).not.toContain(SENTINEL);
   });
+});
 
+describe("P1.6 time-off note preservation on WRITE — a note-blind writer cannot erase a note", () => {
+  const { stampedTimeOff, noteInDb, memberApp } = timeOffWriteFixture();
   it("editor CREATE of NEW time off works; a note they cannot see is stripped, not stored", async () => {
     const { app, db, cookie } = await memberApp("editor");
     const res = await call(app, {
@@ -1096,7 +1133,10 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
       expect(noteInDb(db)).toBeNull();
     },
   );
+});
 
+describe("P1.6 time-off note preservation on WRITE — a note-blind writer cannot erase a note", () => {
+  const { stampedTimeOff, noteInDb } = timeOffWriteFixture();
   it("OFF mode (trusted-local): PUT without the note key still clears it — pre-change behaviour intact", async () => {
     const db = openDb(":memory:");
     const app = createApp(db, { optimisticConcurrency: false }); // OFF ⇒ the writer always "sees" the note
@@ -1259,7 +1299,7 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
   });
 });
 
-describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
+function accountWriteFixture() {
   // The scoped tables carry accountId and pass through the isScopedTable() authorize gate; `accounts`
   // does NOT (top-level, no accountId column), so a bare account UPDATE (rename / colour / scheduling
   // mode / feature toggles) needs its OWN gate — else any signed-in user could rewrite another tenant's
@@ -1285,6 +1325,11 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
       headers: cookie ? { cookie } : {},
     });
 
+  return { putAccount, patchAccount, batchPutAccount };
+}
+
+describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
+  const { putAccount, patchAccount, batchPutAccount } = accountWriteFixture();
   it("non-member (signed in): PUT / PATCH / batch-PUT updating a1 → 403", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -1303,7 +1348,10 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     expect((await patchAccount(app, "a2", cookie)).statusCode).toBe(403);
     expect((await batchPutAccount(app, "a2", cookie)).statusCode).toBe(403);
   });
+});
 
+describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
+  const { putAccount, patchAccount, batchPutAccount } = accountWriteFixture();
   it("viewer of a1: account update → 403 (write tier); editor of a1: → 2xx", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -1318,7 +1366,10 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     expect(readWorkingDays(await getState(app, "a1", editor.cookie))).toEqual([1, 2, 3, 4]);
     expect((await batchPutAccount(app, "a1", editor.cookie)).statusCode).toBe(200);
   });
+});
 
+describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
+  const { putAccount, batchPutAccount } = accountWriteFixture();
   // Auth-on, a CREATE via any generic vector is CLOSED outright — 403 directing to POST /api/orgs
   // (the atomic account + Internal client + owner-membership path). The refusal is UNCONDITIONAL in
   // auth-on: it fires ahead of the single-company cap, at zero accounts (the bootstrap case now
@@ -1353,7 +1404,10 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     expect(readErrorMessage(batch)).toContain("/api/orgs");
     // /api/orgs then applies the single-company cap itself (its own GATE 0) — see app.orgs.test.ts.
   });
+});
 
+describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
+  const { putAccount, patchAccount, batchPutAccount } = accountWriteFixture();
   it("(c) multiAccount: true does NOT reopen the generic vectors auth-on — creation still goes through /api/orgs", async () => {
     const { app, db } = await appWithAuth({ multiAccount: true });
     seedTwo(db);
@@ -1375,14 +1429,14 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   });
 });
 
-describe("private client/project names — owner-only server projection", () => {
-  interface PrivateIdentityProjectionInput {
-    role: "owner" | "admin" | "editor" | "viewer";
-    clientName: string;
-    projectName: string;
-    seesCodeNameField: boolean;
-  }
+interface PrivateIdentityProjectionInput {
+  role: "owner" | "admin" | "editor" | "viewer";
+  clientName: string;
+  projectName: string;
+  seesCodeNameField: boolean;
+}
 
+describe("private client/project names — owner-only server projection", () => {
   it.each([
     { role: "owner", clientName: REAL_CLIENT_NAME, projectName: REAL_PROJECT_NAME, seesCodeNameField: true },
     { role: "admin", clientName: '"Nightwing"', projectName: '"Aurora"', seesCodeNameField: false },
@@ -1409,7 +1463,9 @@ describe("private client/project names — owner-only server projection", () => 
       }
     },
   );
+});
 
+describe("private client/project names — owner-only server projection", () => {
   it("pins real names and privacy settings when an editor PATCHes or batch-round-trips redacted rows", async () => {
     const { app, db } = await appWithAuth();
     seedPrivateNames(db);
@@ -1455,7 +1511,9 @@ describe("private client/project names — owner-only server projection", () => 
       color: "#2d75da",
     });
   });
+});
 
+describe("private client/project names — owner-only server projection", () => {
   it("redacts a private lifecycle response while retaining the real database name", async () => {
     const { app, db } = await appWithAuth();
     seedPrivateNames(db);
@@ -1493,7 +1551,9 @@ describe("private client/project names — owner-only server projection", () => 
     expect(readCurrentObject(res)).not.toHaveProperty("codeName");
     expect(res.body).not.toContain(REAL_CLIENT_NAME);
   });
+});
 
+describe("private client/project names — owner-only server projection", () => {
   it("strips attempted privacy fields from a non-owner create, while an owner may update them", async () => {
     const editorSetup = await appWithAuth();
     seedPrivateNames(editorSetup.db);
