@@ -22,235 +22,178 @@ type CommandInput = Omit<AllocationModalSnapshot, "editId" | "repeatUntilMinimum
     onClose: () => void;
     setConfirmDelete: (value: boolean) => void;
   };
-export function createAllocationCommands(input: CommandInput) {
-  const {
-    resourceId,
-    activityId,
-    startDate,
-    endDate,
-    usesTypedDateRange,
-    typedDateSpanTooLong,
-    isBlocks,
-    isDays,
-    isExternal,
-    validDaysOver,
-    spanFitsDateDomain,
-    spanLimitedByDateDomain,
-    maximumDaysOver,
-    daysOfWork,
-    hoursPerDay,
-    effHoursPerDay: effectiveHoursPerDay,
-    create,
-    repeat,
-    repeatUntil,
-    repeatToday,
-    repeatUntilMaximum,
-    note,
-    noteEdited,
-    selectedResource,
-    selectedActivity,
-    selectedEffectiveProjectId,
-    editing,
-    ignoreWeekends,
-    daysOver,
-    initialDaysOver,
-    effEndDate: effectiveEndDate,
-    status,
-    attributedProjectId,
-    selectedEffectiveWeek,
-    data,
-    mode,
-    addAllocation,
-    addAllocations,
-    updateAllocation,
-    deleteAllocation,
-    deleteAllocationSeriesFrom,
-    fail,
-    canEdit,
-    onClose,
-    setConfirmDelete,
-  } = input;
-  // Save and Duplicate operate on the same visible draft. Keeping validation and effective-value
-  // derivation here prevents Duplicate from silently discarding edits or persisting a shape that
-  // Save would reject (for example, a historical zero-hour block viewed in Hours mode). The rules
-  // themselves live in allocationDraft.ts; this routes the first problem through the callback and
-  // boolean result, then adds the two checks that need the modal's own machinery (the note sanitiser
-  // owns `fail`, and the assignment check needs the activity list).
-  const validateDraft = () => {
-    const valid = validateAllocationDraft(
-      {
-        resourceId,
-        activityId,
-        startDate,
-        endDate,
-        usesTypedDateRange,
-        typedDateSpanTooLong,
-        isBlocks,
-        isDays,
-        isExternal,
-        validDaysOver,
-        spanFitsDateDomain,
-        spanLimitedByDateDomain,
-        maximumDaysOver,
-        daysOfWork,
-        hoursPerDay,
-        effHoursPerDay: effectiveHoursPerDay,
-        repeat:
-          create && repeat !== "none"
-            ? { selection: repeat, until: repeatUntil, today: repeatToday, maximum: repeatUntilMaximum }
-            : null,
-      },
-      fail,
-    );
-    if (!valid) return null;
-    const cleanNote = validateText(note, fail, {
-      field: "note",
-      required: false,
-      multiline: !noteEdited,
-      maxLength: MAX_NOTE_LENGTH,
-    });
-    if (cleanNote === null) return null;
-    if (selectedResource && selectedActivity) {
-      const check = validateAllocationAssignment(selectedResource, selectedEffectiveProjectId);
-      if (!check.ok) {
-        const firstCode = check.codes[0];
-        if (!firstCode) throw new Error("Invalid allocation assignment did not provide an error code.");
-        fail("activity", resolveDomainErrorMessage(firstCode));
-        return null;
-      }
-    }
-    return {
-      resourceId,
-      activityId,
-      startDate,
-      endDate: resolveEndDate({
-        editing,
-        isBlocks,
-        isDays,
-        resourceId,
-        startDate,
-        ignoreWeekends,
-        daysOver,
-        initialDaysOver,
-        effectiveEndDate: effectiveEndDate,
-      }),
-      hoursPerDay: effectiveHoursPerDay,
-      status,
-      ...(cleanNote ? { note: cleanNote } : {}),
-      ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
-      // Externals have no working week — weekends are plain calendar days for them, so a span is
-      // literal (ignoreWeekends: true) and the toggle is hidden below.
-      ignoreWeekends: isExternal ? true : ignoreWeekends,
-    };
-  };
+type ValidatedDraft = Parameters<CommandInput["addAllocation"]>[0];
 
-  interface RejectNewPlacementCalendarConflictsInput {
-    draft: ReturnType<typeof validateDraft>;
-    newPlacement: boolean;
+function validateAssignment(input: CommandInput): boolean {
+  if (!input.selectedResource || !input.selectedActivity) return true;
+  const check = validateAllocationAssignment(input.selectedResource, input.selectedEffectiveProjectId);
+  if (check.ok) return true;
+  const firstCode = check.codes[0];
+  if (!firstCode) throw new Error("Invalid allocation assignment did not provide an error code.");
+  input.fail("activity", resolveDomainErrorMessage(firstCode));
+  return false;
+}
+
+function resolveDraftEndDate(input: CommandInput) {
+  return resolveEndDate({
+    editing: input.editing,
+    isBlocks: input.isBlocks,
+    isDays: input.isDays,
+    resourceId: input.resourceId,
+    startDate: input.startDate,
+    ignoreWeekends: input.ignoreWeekends,
+    daysOver: input.daysOver,
+    initialDaysOver: input.initialDaysOver,
+    effectiveEndDate: input.effEndDate,
+  });
+}
+
+function validateCommandDraft(input: CommandInput): ValidatedDraft | null {
+  const repeat =
+    input.create && input.repeat !== "none"
+      ? {
+          selection: input.repeat,
+          until: input.repeatUntil,
+          today: input.repeatToday,
+          maximum: input.repeatUntilMaximum,
+        }
+      : null;
+  const valid = validateAllocationDraft(
+    {
+      resourceId: input.resourceId,
+      activityId: input.activityId,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      usesTypedDateRange: input.usesTypedDateRange,
+      typedDateSpanTooLong: input.typedDateSpanTooLong,
+      isBlocks: input.isBlocks,
+      isDays: input.isDays,
+      isExternal: input.isExternal,
+      validDaysOver: input.validDaysOver,
+      spanFitsDateDomain: input.spanFitsDateDomain,
+      spanLimitedByDateDomain: input.spanLimitedByDateDomain,
+      maximumDaysOver: input.maximumDaysOver,
+      daysOfWork: input.daysOfWork,
+      hoursPerDay: input.hoursPerDay,
+      effHoursPerDay: input.effHoursPerDay,
+      repeat,
+    },
+    input.fail,
+  );
+  if (!valid) return null;
+  const cleanNote = validateText(input.note, input.fail, {
+    field: "note",
+    required: false,
+    multiline: !input.noteEdited,
+    maxLength: MAX_NOTE_LENGTH,
+  });
+  if (cleanNote === null || !validateAssignment(input)) return null;
+  return {
+    resourceId: input.resourceId,
+    activityId: input.activityId,
+    startDate: input.startDate,
+    endDate: resolveDraftEndDate(input),
+    hoursPerDay: input.effHoursPerDay,
+    status: input.status,
+    ...(cleanNote ? { note: cleanNote } : {}),
+    ...(input.attributedProjectId ? { projectId: input.attributedProjectId } : {}),
+    ignoreWeekends: input.isExternal ? true : input.ignoreWeekends,
+  };
+}
+
+function rejectsNewPlacement(input: CommandInput, draft: ValidatedDraft, newPlacement: boolean): boolean {
+  if (!newPlacement || !input.selectedResource || input.selectedEffectiveWeek === undefined) return false;
+  if (input.selectedEffectiveWeek.kind !== "days") {
+    input.fail("resource", m.form_allocation_err_no_effective_working_days());
+    return true;
   }
+  const blocked = resolveEffectiveWeekCreationBlockReason({
+    resource: input.selectedResource,
+    date: draft.startDate,
+    timeOff: input.data.timeOff,
+    effectiveWeek: input.selectedEffectiveWeek,
+    closures: input.data.closures,
+  });
+  if (blocked === "non-working") input.fail("startDate", m.form_allocation_err_start_non_working());
+  if (blocked === "time-off") input.fail("startDate", m.form_allocation_err_start_time_off());
+  return blocked !== null;
+}
 
-  /** The calendar gates for NEW placement only: create, duplicate, or an assignee-changing edit.
-   *  A normal edit on the original assignee remains valid after calendar settings change (its
-   *  stale start stays editable). Routed through the grid's own start gate so a typed date obeys
-   *  exactly the rules a click or draw does: no effective week means no new work at all, a start
-   *  must land on a company and personal working day, and never on time off — with NO exemption
-   *  for Ignore working days (there is no ignored-creation escape hatch; the override affects
-   *  spans and moves of saved allocations only). Repeat OCCURRENCES are the deliberate exception
-   *  (advisory-counted instead, decision 9). */
-  const rejectNewPlacementCalendarConflicts = ({ draft, newPlacement }: RejectNewPlacementCalendarConflictsInput) => {
-    if (!draft || !newPlacement || !selectedResource || selectedEffectiveWeek === undefined) return false;
-    if (selectedEffectiveWeek.kind !== "days") {
-      fail("resource", m.form_allocation_err_no_effective_working_days());
-      return true;
-    }
-    const blocked = resolveEffectiveWeekCreationBlockReason({
-      resource: selectedResource,
-      date: draft.startDate,
-      timeOff: data.timeOff,
-      effectiveWeek: selectedEffectiveWeek,
-      closures: data.closures,
+function saveDraft(input: CommandInput, draft: ValidatedDraft): void {
+  if (input.editing) {
+    const { hoursPerDay, ...fields } = draft;
+    input.updateAllocation(input.editing.id, {
+      ...fields,
+      projectId: draft.projectId,
+      ...(!input.isBlocks || input.isExternal ? { hoursPerDay } : {}),
     });
-    if (blocked === "non-working") {
-      fail("startDate", m.form_allocation_err_start_non_working());
-      return true;
-    }
-    if (blocked === "time-off") {
-      fail("startDate", m.form_allocation_err_start_time_off());
-      return true;
-    }
-    return false;
-  };
+    return;
+  }
+  if (input.repeat === "none") {
+    input.addAllocation(draft);
+    return;
+  }
+  if (!input.selectedResource || input.selectedEffectiveWeek === undefined) {
+    throw new Error("The selected resource could not be resolved for repeat projection.");
+  }
+  const { startDates } = generateRepeatingStartDates(
+    draft.startDate,
+    input.repeatUntil,
+    resolveRepeatPattern(input.repeat),
+  );
+  const drafts = buildRepeatedAllocationDrafts(draft, startDates, {
+    schedulingMode: input.mode,
+    daysOver: input.daysOver,
+    resource: input.selectedResource,
+    effectiveWeek: input.selectedEffectiveWeek,
+  });
+  const seriesId = newId();
+  input.addAllocations(drafts.map((occurrence) => ({ ...occurrence, seriesId })));
+}
 
+function reportSaveError(input: CommandInput, error: unknown): void {
+  if (input.repeat !== "none" && error instanceof RangeError) {
+    input.fail("repeatUntil", m.form_allocation_err_repeat_date_domain());
+    return;
+  }
+  input.fail(null, error instanceof Error ? resolveErrorMessage(error) : m.form_allocation_err_save_failed());
+}
+
+export function createAllocationCommands(input: CommandInput) {
+  const validateDraft = () => validateCommandDraft(input);
   const submit = () => {
-    if (!canEdit) return;
+    if (!input.canEdit) return;
     const draft = validateDraft();
-    if (!draft) return;
-    if (
-      rejectNewPlacementCalendarConflicts({ draft, newPlacement: !editing || editing.resourceId !== draft.resourceId })
-    )
+    if (!draft || rejectsNewPlacement(input, draft, !input.editing || input.editing.resourceId !== draft.resourceId))
       return;
     try {
-      if (editing) {
-        // Blocks-mode edits deliberately omit hoursPerDay so the store preserves the allocation's
-        // historical hourly load; zero load is persisted for a new or duplicated block. Reassigning
-        // to an external still writes 0 because that invariant takes precedence over preservation.
-        const { hoursPerDay: draftHoursPerDay, ...fields } = draft;
-        updateAllocation(editing.id, {
-          ...fields,
-          // The store treats an own `undefined` value as a request to delete the persisted key.
-          projectId: draft.projectId,
-          ...(!isBlocks || isExternal ? { hoursPerDay: draftHoursPerDay } : {}),
-        });
-      } else if (repeat === "none") {
-        addAllocation(draft);
-      } else {
-        if (!selectedResource || selectedEffectiveWeek === undefined) {
-          throw new Error("The selected resource could not be resolved for repeat projection.");
-        }
-        const { startDates } = generateRepeatingStartDates(draft.startDate, repeatUntil, resolveRepeatPattern(repeat));
-        const drafts = buildRepeatedAllocationDrafts(draft, startDates, {
-          schedulingMode: mode,
-          daysOver,
-          resource: selectedResource,
-          effectiveWeek: selectedEffectiveWeek,
-        });
-        const seriesId = newId();
-        addAllocations(drafts.map((occurrence) => ({ ...occurrence, seriesId })));
-      }
-      onClose();
+      saveDraft(input, draft);
+      input.onClose();
     } catch (e) {
-      if (repeat !== "none" && e instanceof RangeError) {
-        fail("repeatUntil", m.form_allocation_err_repeat_date_domain());
-      } else {
-        fail(null, e instanceof Error ? resolveErrorMessage(e) : m.form_allocation_err_save_failed());
-      }
+      reportSaveError(input, e);
     }
   };
-
   const duplicateAllocation = () => {
-    if (!editing) return;
+    if (!input.editing) return;
     const draft = validateDraft();
-    if (!draft) return;
-    if (rejectNewPlacementCalendarConflicts({ draft, newPlacement: true })) return;
+    if (!draft || rejectsNewPlacement(input, draft, true)) return;
     try {
-      addAllocation(draft);
-      onClose();
+      input.addAllocation(draft);
+      input.onClose();
     } catch (e) {
-      fail(null, e instanceof Error ? resolveErrorMessage(e) : m.form_allocation_err_save_failed());
+      input.fail(null, e instanceof Error ? resolveErrorMessage(e) : m.form_allocation_err_save_failed());
     }
   };
-
   const deleteSelectedAllocation = (scope: "one" | "future" = "one") => {
-    if (!editing || !canEdit) return;
-    setConfirmDelete(false);
+    if (!input.editing || !input.canEdit) return;
+    input.setConfirmDelete(false);
     try {
-      if (scope === "future") deleteAllocationSeriesFrom(editing.id);
-      else deleteAllocation(editing.id);
+      if (scope === "future") input.deleteAllocationSeriesFrom(input.editing.id);
+      else input.deleteAllocation(input.editing.id);
     } catch (e) {
-      fail(null, e instanceof Error ? resolveErrorMessage(e) : m.form_allocation_err_delete_failed());
+      input.fail(null, e instanceof Error ? resolveErrorMessage(e) : m.form_allocation_err_delete_failed());
     }
   };
-
   return {
     validatedDraft: validateDraft,
     submit,

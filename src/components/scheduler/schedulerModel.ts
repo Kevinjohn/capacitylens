@@ -42,6 +42,12 @@ interface ApplyVisibleUtilizationInput {
   blocksMode?: boolean | undefined;
 }
 
+interface BuildResourceGroupsInput {
+  data: AppData;
+  disciplinesEnabled: boolean;
+  groupResourcesByEngagement: boolean;
+}
+
 export type {
   BarLayout,
   DayState,
@@ -80,13 +86,11 @@ export function applyVisibleUtilization({
   const personalTimeOff = groupByResourceId(data.timeOff, { include: includeRenderableDateRange });
   const closuresByDate = bucketByCoveredDate(data.closures.filter(includeRenderableDateRange), days);
   return model.map((group) => {
-    let changed = false;
     const rows = group.rows.map((row) => {
       // External / 3rd-party rows carry no capacity, so their 0 can never change (the same
       // starvation contract the build's capacity seam states).
       if (isExternalResource(row.resource)) {
         if (row.utilization === 0) return row;
-        changed = true;
         return { ...row, utilization: 0 };
       }
       const resourceAllocations = applyCapacityMode({
@@ -114,24 +118,111 @@ export function applyVisibleUtilization({
         ),
       );
       if (next === row.utilization) return row;
-      changed = true;
       return { ...row, utilization: next };
     });
-    return changed ? { ...group, rows } : group;
+    return rows.some((row, index) => row !== group.rows[index]) ? { ...group, rows } : group;
   });
 }
 
+function buildFallbackGroups(resources: Resource[], groupResourcesByEngagement: boolean): SchedulerResourceGroup[] {
+  if (!groupResourcesByEngagement) {
+    return resources.length ? [{ key: "unassigned", title: "Unassigned", discipline: null, resources }] : [];
+  }
+  return [
+    {
+      key: "engagement-studio",
+      title: "Studio",
+      discipline: null,
+      resources: resources.filter((resource) => resource.engagement === "studio"),
+    },
+    {
+      key: "engagement-supplementary",
+      title: "Supplementary",
+      discipline: null,
+      resources: resources.filter((resource) => resource.engagement === "supplementary"),
+    },
+  ].filter((group) => group.resources.length > 0);
+}
+
+function buildResourceGroups({
+  data,
+  disciplinesEnabled,
+  groupResourcesByEngagement,
+}: BuildResourceGroupsInput): SchedulerResourceGroup[] {
+  const groups: SchedulerResourceGroup[] = [];
+  if (disciplinesEnabled) {
+    const disciplineGroups = buildDisciplineGroups(data);
+    for (const group of disciplineGroups) {
+      if (group.discipline) {
+        groups.push({
+          ...group,
+          key: group.discipline.id,
+          title: group.discipline.name,
+          ...(group.discipline.color ? { color: group.discipline.color } : {}),
+        });
+      }
+    }
+    const unassigned = disciplineGroups.find((group) => !group.discipline && !group.external)?.resources ?? [];
+    groups.push(...buildFallbackGroups(unassigned, groupResourcesByEngagement));
+  } else {
+    groups.push(...buildFallbackGroups(data.resources.filter(isCapacityTracked), groupResourcesByEngagement));
+  }
+  const external = buildExternalBand(data.resources);
+  if (external) {
+    groups.push({ ...external, key: "external", title: "External / 3rd party", color: NEUTRAL_COLOR });
+  }
+  return groups;
+}
+
+function createResourceComparator(
+  groupResourcesByEngagement: boolean,
+  comparators: {
+    byDisplayName: (a: Resource, b: Resource) => number;
+    byFavouriteDisplayName: (a: Resource, b: Resource) => number;
+    byEngagementFavouriteDisplayName: (a: Resource, b: Resource) => number;
+  },
+): (a: Resource, b: Resource) => number {
+  const comparePeople = groupResourcesByEngagement
+    ? comparators.byEngagementFavouriteDisplayName
+    : comparators.byFavouriteDisplayName;
+  return (a, b) => {
+    const placeholderOrder = Number(a.kind === "placeholder") - Number(b.kind === "placeholder");
+    if (placeholderOrder !== 0) return placeholderOrder;
+    return a.kind === "placeholder" ? comparators.byDisplayName(a, b) : comparePeople(a, b);
+  };
+}
+
+function createSchedulerRowBuilder(options: SchedulerModelOptions, accountWorkingDays: Weekday[], blocksMode: boolean) {
+  const { data, geom, days, visibleWindow, overSoonWindow, filters, preferences } = options;
+  const allocationFilters = createAllocationFilters(filters, preferences, data);
+  const seriesEndByKey = new Map<string, ISODate>();
+  const allocationsByResource = groupByResourceId(data.allocations, {
+    visit: (allocation) => {
+      if (!allocation.seriesId || !isValidISODate(allocation.endDate)) return;
+      const key = `${allocation.accountId}\u0000${allocation.seriesId}`;
+      const current = seriesEndByKey.get(key);
+      if (current === undefined || allocation.endDate > current) seriesEndByKey.set(key, allocation.endDate);
+    },
+  });
+  const closures = data.closures.filter(includeRenderableDateRange);
+  return {
+    buildRow: createRowBuilder({
+      model: { data, geom, days },
+      accountWorkingDays,
+      blocksMode,
+      laneLayout: options.laneLayout ?? compactLaneLayout,
+      allocationsByResource,
+      timeOffByResource: groupByResourceId(data.timeOff.filter(includeRenderableDateRange)),
+      seriesEndByKey,
+      allocationFilters,
+      capacitySource: createCapacitySource({ days, visibleWindow, overSoonWindow, closures, blocksMode }),
+    }),
+    resourceVisible: allocationFilters.resourceVisible,
+  };
+}
+
 export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[] {
-  const {
-    data,
-    geom: geometry,
-    days,
-    visibleWindow,
-    overSoonWindow,
-    filters,
-    preferences,
-    laneLayout = compactLaneLayout,
-  } = options;
+  const { data, filters, preferences } = options;
   const {
     disciplinesEnabled,
     accountWorkingDays = [1, 2, 3, 4, 5],
@@ -148,89 +239,17 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
   const byEngagementFavouriteResourceDisplayName =
     createEngagementFavouriteDisplayNameComparator<Resource>(resolveDisplayName);
   const byResourceDisplayName = createDisplayNameComparator<Resource>(resolveDisplayName);
-  const allocationFilters = createAllocationFilters(filters, preferences, data);
-  const { resourceVisible } = allocationFilters;
-  // Group allocations / time off by resource ONCE up front, so building each row
-  // is a Map lookup instead of a full-array scan per resource (was O(resources ×
-  // (allocations + timeOff)); now O(allocations + timeOff + resources)).
-  const seriesEndByKey = new Map<string, ISODate>();
-  const allocationsByResource = groupByResourceId(data.allocations, {
-    visit: (allocation) => {
-      if (!allocation.seriesId || !isValidISODate(allocation.endDate)) return;
-      const key = `${allocation.accountId}\u0000${allocation.seriesId}`;
-      const current = seriesEndByKey.get(key);
-      if (!current || allocation.endDate > current) {
-        seriesEndByKey.set(key, allocation.endDate);
-      }
-    },
+  const byResourceOrder = createResourceComparator(groupResourcesByEngagement, {
+    byDisplayName: byResourceDisplayName,
+    byFavouriteDisplayName: byFavouriteResourceDisplayName,
+    byEngagementFavouriteDisplayName: byEngagementFavouriteResourceDisplayName,
   });
-  const personalTimeOff = data.timeOff.filter(includeRenderableDateRange);
-  const closures = data.closures.filter(includeRenderableDateRange);
-  const timeOffByResource = groupByResourceId(personalTimeOff);
-
-  const capacitySource = createCapacitySource({ days, visibleWindow, overSoonWindow, closures, blocksMode });
-  const buildRow = createRowBuilder({
-    model: { data, geom: geometry, days },
-    accountWorkingDays,
-    blocksMode,
-    laneLayout,
-    allocationsByResource,
-    timeOffByResource,
-    seriesEndByKey,
-    allocationFilters,
-    capacitySource,
-  });
-
-  const buildFallbackGroups = (resources: Resource[]): SchedulerResourceGroup[] => {
-    if (!groupResourcesByEngagement) {
-      return resources.length ? [{ key: "unassigned", title: "Unassigned", discipline: null, resources }] : [];
-    }
-    return [
-      {
-        key: "engagement-studio",
-        title: "Studio",
-        discipline: null,
-        resources: resources.filter((resource) => resource.engagement === "studio"),
-      },
-      {
-        key: "engagement-supplementary",
-        title: "Supplementary",
-        discipline: null,
-        resources: resources.filter((resource) => resource.engagement === "supplementary"),
-      },
-    ].filter((group) => group.resources.length > 0);
-  };
+  const { buildRow, resourceVisible } = createSchedulerRowBuilder(options, accountWorkingDays, blocksMode);
 
   // Assigned resources retain canonical discipline order. Every unassigned capacity-tracked row
   // then receives a useful engagement home; with disciplines off, that fallback becomes the whole
   // capacity grouping. External / 3rd party is deliberately appended last in both modes.
-  const groups: SchedulerResourceGroup[] = [];
-  if (disciplinesEnabled) {
-    const disciplineGroups = buildDisciplineGroups(data);
-    for (const group of disciplineGroups) {
-      if (group.discipline) {
-        groups.push({
-          ...group,
-          key: group.discipline.id,
-          title: group.discipline.name,
-          ...(group.discipline.color ? { color: group.discipline.color } : {}),
-        });
-      }
-    }
-    const unassigned = disciplineGroups.find((group) => !group.discipline && !group.external)?.resources ?? [];
-    groups.push(...buildFallbackGroups(unassigned));
-  } else {
-    groups.push(...buildFallbackGroups(data.resources.filter(isCapacityTracked)));
-  }
-  const external = buildExternalBand(data.resources);
-  if (external) {
-    groups.push({
-      ...external,
-      key: "external",
-      title: "External / 3rd party",
-      color: NEUTRAL_COLOR,
-    });
-  }
+  const groups = buildResourceGroups({ data, disciplinesEnabled, groupResourcesByEngagement });
   return groups
     .map((group) => ({
       key: group.key,
@@ -242,15 +261,7 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
       // partition. Placeholders remain after all people and have no favourite affordance.
       rows: group.resources
         .filter(resourceVisible)
-        .sort(
-          (a, b) =>
-            Number(a.kind === "placeholder") - Number(b.kind === "placeholder") ||
-            (a.kind === "placeholder"
-              ? byResourceDisplayName(a, b)
-              : groupResourcesByEngagement
-                ? byEngagementFavouriteResourceDisplayName(a, b)
-                : byFavouriteResourceDisplayName(a, b)),
-        )
+        .sort(byResourceOrder)
         .map(buildRow)
         // Non-matching rows are hidden by default; the "Show unallocated" toggle opts
         // the dimmed staffing view back in.
