@@ -112,7 +112,7 @@ async function memberFixture(
   return { ...setup, actor, target };
 }
 
-describe("identity masquerade", () => {
+function registerProjectionStartTests(): void {
   it("starts an audited target projection and ends back at the real role", async () => {
     const { app, actor, target, auditEvents } = await memberFixture();
     const started = await call(app, {
@@ -163,7 +163,9 @@ describe("identity masquerade", () => {
       expect.objectContaining({ action: "identity.masquerade_ended", reason: "explicit" }),
     );
   });
+}
 
+function registerReadOnlyGuardTest(): void {
   it("blocks every unsafe request before domain validation while active", async () => {
     const { app, actor, target } = await memberFixture();
     const started = await call(app, {
@@ -183,7 +185,9 @@ describe("identity masquerade", () => {
     expect(blocked.statusCode).toBe(403);
     expect(readStringField(blocked, "code")).toBe("MASQUERADE_READ_ONLY");
   });
+}
 
+function registerStartGuardTests(): void {
   it("rejects replacement, self-targeting, inactive targets, and non-admin callers", async () => {
     const { app, db, actor, target } = await memberFixture();
     const first = await call(app, {
@@ -238,7 +242,9 @@ describe("identity masquerade", () => {
     });
     expect(forbidden.statusCode).toBe(403);
   });
+}
 
+function registerTrustedLocalGuardTest(): void {
   it("keeps the feature unavailable in trusted-local mode", async () => {
     const db = trackDb(openDb(":memory:"));
     seedAccount(db);
@@ -254,7 +260,9 @@ describe("identity masquerade", () => {
     ).toBe(403);
     expect((await call(app, { method: "GET", url: "/api/masquerade" })).statusCode).toBe(403);
   });
+}
 
+function registerInvalidationTests(): void {
   it("reprojects target role changes and ends without falling through when either member is invalidated", async () => {
     const { app, db, actor, target, auditEvents } = await memberFixture();
     const started = await call(app, {
@@ -312,7 +320,9 @@ describe("identity masquerade", () => {
       expect.objectContaining({ action: "identity.masquerade_ended", reason: "caller_invalidated" }),
     );
   });
+}
 
+function registerMembershipProjectionTests(): void {
   it("ends on caller membership removal before returning the remaining account list", async () => {
     const { app, db, actor, target, auditEvents } = await memberFixture();
     expect(
@@ -367,7 +377,9 @@ describe("identity masquerade", () => {
       mayRevokeSessions: false,
     });
   });
+}
 
+function registerAccountProjectionTests(): void {
   it("confines the target role to the started account and keeps the caller's real role elsewhere", async () => {
     const { app, db, actor, target } = await memberFixture("owner", { multiAccount: true });
     seedAdditionalAccount(db, "a2", "Stark Industries");
@@ -397,7 +409,9 @@ describe("identity masquerade", () => {
         .statusCode,
     ).toBe(200);
   });
+}
 
+function registerPrivateNameProjectionTest(): void {
   it("uses the target role for private-name redaction and restores the owner projection after end", async () => {
     const { app, db, actor, target } = await memberFixture();
     const data = emptyAppData() as unknown as Record<string, unknown[]>;
@@ -441,7 +455,9 @@ describe("identity masquerade", () => {
       )[0],
     ).toMatchObject({ name: "SENTINEL_REAL_CLIENT_NAME", codeName: "Nightwing" });
   });
+}
 
+function registerIdentityCapabilityTests(): void {
   it("reports canCreateAccount false while active", async () => {
     const { app, actor, target } = await memberFixture("owner", { multiAccount: true });
     const before = await call(app, { method: "GET", url: "/api/auth/me", headers: { cookie: actor.cookie } });
@@ -487,7 +503,9 @@ describe("identity masquerade", () => {
       (await call(app, { method: "GET", url: "/api/accounts", headers: { cookie: actor.cookie } })).statusCode,
     ).toBe(401);
   });
+}
 
+function registerSessionRevocationTests(): void {
   it("ends and audits a masquerade when another owner revokes the caller's sessions", async () => {
     const { app, db, actor, target, auditEvents } = await memberFixture("admin");
     const owner = await signUp(app, "owner-revoker@capacitylens.dev");
@@ -550,7 +568,9 @@ describe("identity masquerade", () => {
       expect.objectContaining({ action: "identity.masquerade_ended", reason: "session_revoked" }),
     );
   });
+}
 
+function registerExpiryAndMutationGuardTests(): void {
   it("audits an inactivity-expired masquerade before the session is removed", async () => {
     const { app, db, actor, target, auditEvents } = await memberFixture();
     expect(
@@ -595,4 +615,18 @@ describe("identity masquerade", () => {
     expect(blocked.statusCode).toBe(403);
     expect(readStringField(blocked, "code")).toBe("MASQUERADE_READ_ONLY");
   });
+}
+
+describe("identity masquerade", () => {
+  registerProjectionStartTests();
+  registerReadOnlyGuardTest();
+  registerStartGuardTests();
+  registerTrustedLocalGuardTest();
+  registerInvalidationTests();
+  registerMembershipProjectionTests();
+  registerAccountProjectionTests();
+  registerPrivateNameProjectionTest();
+  registerIdentityCapabilityTests();
+  registerSessionRevocationTests();
+  registerExpiryAndMutationGuardTests();
 });
