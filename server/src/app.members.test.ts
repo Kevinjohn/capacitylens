@@ -1874,7 +1874,7 @@ describe("disabling holds across every membership path (#175 review)", () => {
   });
 });
 
-describe("re-applying a member's current status is a no-op (#175 review)", () => {
+function registerRepeatedStatusNoOpTest(): void {
   it("succeeds without burning the member's outstanding reset link", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -1914,7 +1914,9 @@ describe("re-applying a member's current status is a no-op (#175 review)", () =>
     });
     expect(redeemed.statusCode).toBe(200);
   });
+}
 
+function registerChangedStatusResetTest(): void {
   it("still burns the link when the status genuinely changes", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -1956,6 +1958,11 @@ describe("re-applying a member's current status is a no-op (#175 review)", () =>
       ).statusCode,
     ).toBe(400);
   });
+}
+
+describe("re-applying a member's current status is a no-op (#175 review)", () => {
+  registerRepeatedStatusNoOpTest();
+  registerChangedStatusResetTest();
 });
 
 // The directory is a list a person reads top to bottom, so its order is part of the feature, not an
