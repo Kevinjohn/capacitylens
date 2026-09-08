@@ -43,6 +43,48 @@ const ACCOUNT_APPLICATION: BoundApplication = DEFAULT_ACCOUNT_APPLICATION;
 type ServerApp = FastifyInstance;
 type BackupController = ReturnType<typeof startBackups>;
 type ShutdownHandler = ReturnType<typeof createShutdownHandler>;
+type StartupSignals = ReturnType<typeof installStartupSignalHandlers>;
+type SecurityLog = (event: Record<string, unknown>) => void;
+
+type ConfiguredAuditSinkInput = {
+  environment: NodeJS.ProcessEnv;
+  dbPath: string;
+  logError: (message: string) => void;
+  logOutput: (message: string) => void;
+};
+
+type ApplicationStartupFailureInput = {
+  error: unknown;
+  startingBackups: boolean;
+  backupDirectory?: string;
+};
+
+type ConfiguredApplicationInput = {
+  db: Db;
+  options: Parameters<typeof createApp>[1];
+};
+
+type ShutdownHandlersInput = {
+  app: ServerApp;
+  backups: BackupController | null;
+  db: Db;
+  startupSignals: StartupSignals;
+  securityLog: SecurityLog;
+  exit: (code: number) => never;
+  onProcessEvent: NodeJS.Process["on"];
+  logInfo: (message: string) => void;
+  logError: (message: string, error: unknown) => void;
+};
+
+type ListenForRequestsInput = {
+  app: ServerApp;
+  shutdown: ShutdownHandler;
+  port: number;
+  host: string;
+  dbPath: string;
+  allowReset: boolean;
+  logInfo: (message: string) => void;
+};
 
 function resolveOptionalEnvironmentValue(value: string | undefined): string | undefined {
   if (!value) return undefined;
@@ -249,69 +291,31 @@ const securityLog = (event: Record<string, unknown>) => {
   );
 };
 
-function createConfiguredAuditSink() {
-  const auditConfig = parseAuditConfig(process.env, dbPath);
-  const auditMaxBytes = parseAuditMaxMb(process.env.CAPACITYLENS_AUDIT_MAX_MB) * 1024 * 1024;
+function createConfiguredAuditSink(input: ConfiguredAuditSinkInput) {
+  const auditConfig = parseAuditConfig(input.environment, input.dbPath);
+  const auditMaxBytes = parseAuditMaxMb(input.environment.CAPACITYLENS_AUDIT_MAX_MB) * 1024 * 1024;
   const auditFileSink = auditConfig.enabled
-    ? createFileAuditSink(auditConfig.file, (message) => console.error(message), {
+    ? createFileAuditSink(auditConfig.file, input.logError, {
         maxBytes: auditMaxBytes,
       })
     : createNoopAuditSink();
 
-  if (process.env.CAPACITYLENS_AUDIT_STDOUT === "1") {
-    return createCompositeAuditSink(auditFileSink, createStreamAuditSink(console.log));
+  if (input.environment.CAPACITYLENS_AUDIT_STDOUT === "1") {
+    return createCompositeAuditSink(auditFileSink, createStreamAuditSink(input.logOutput));
   }
   return auditFileSink;
 }
 
-function formatApplicationStartupFailure(error: unknown, startingBackups: boolean): string {
-  if (startingBackups && backupConfig) {
-    return formatBackupStartupFailure(backupConfig.dir, error);
+function formatApplicationStartupFailure(input: ApplicationStartupFailureInput): string {
+  if (input.startingBackups && input.backupDirectory !== undefined) {
+    return formatBackupStartupFailure(input.backupDirectory, input.error);
   }
-  if (error instanceof Error) return error.message;
-  return String(error);
+  if (input.error instanceof Error) return input.error.message;
+  return String(input.error);
 }
 
-function createConfiguredApplication(backupController: () => BackupController | null): ServerApp {
-  return createApp(db, {
-    application: ACCOUNT_APPLICATION,
-    ...(internalTls
-      ? {
-          internalTls: {
-            ...(internalTls.key === undefined ? {} : { key: internalTls.key }),
-            ...(internalTls.cert === undefined ? {} : { cert: internalTls.cert }),
-            ...(internalTls.minVersion === undefined ? {} : { minVersion: internalTls.minVersion }),
-          },
-          internalTlsExpiresAt: internalTls.expiresAt,
-          internalTlsFingerprintSha256: internalTls.fingerprintSha256,
-        }
-      : {}),
-    allowReset,
-    corsOrigin,
-    optimisticConcurrency,
-    multiAccount,
-    https,
-    log,
-    healthDeep,
-    ...(backupConfig
-      ? {
-          backupHealth: () =>
-            backupController()?.health ?? {
-              degraded: false,
-              lastSuccessAt: null,
-            },
-        }
-      : {}),
-    rateLimit,
-    trustProxyHeaders,
-    ...(bootstrapToken === undefined ? {} : { bootstrapToken }),
-    authMode,
-    auth,
-    requireMfa,
-    allowOpenSignup: accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1",
-    audit: createConfiguredAuditSink(),
-    securityLog,
-  });
+function createConfiguredApplication(input: ConfiguredApplicationInput): ServerApp {
+  return createApp(input.db, input.options);
 }
 
 function createServerApplication(): { app: ServerApp; backups: BackupController | null } {
@@ -326,7 +330,54 @@ function createServerApplication(): { app: ServerApp; backups: BackupController 
     }
 
     let backupController: BackupController | null = null;
-    const app = createConfiguredApplication(() => backupController);
+    const audit = createConfiguredAuditSink({
+      environment: process.env,
+      dbPath,
+      logError: (message) => console.error(message),
+      logOutput: console.log,
+    });
+    const app = createConfiguredApplication({
+      db,
+      options: {
+        application: ACCOUNT_APPLICATION,
+        ...(internalTls
+          ? {
+              internalTls: {
+                ...(internalTls.key === undefined ? {} : { key: internalTls.key }),
+                ...(internalTls.cert === undefined ? {} : { cert: internalTls.cert }),
+                ...(internalTls.minVersion === undefined ? {} : { minVersion: internalTls.minVersion }),
+              },
+              internalTlsExpiresAt: internalTls.expiresAt,
+              internalTlsFingerprintSha256: internalTls.fingerprintSha256,
+            }
+          : {}),
+        allowReset,
+        corsOrigin,
+        optimisticConcurrency,
+        multiAccount,
+        https,
+        log,
+        healthDeep,
+        ...(backupConfig
+          ? {
+              backupHealth: () =>
+                backupController?.health ?? {
+                  degraded: false,
+                  lastSuccessAt: null,
+                },
+            }
+          : {}),
+        rateLimit,
+        trustProxyHeaders,
+        ...(bootstrapToken === undefined ? {} : { bootstrapToken }),
+        authMode,
+        auth,
+        requireMfa,
+        allowOpenSignup: accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1",
+        audit,
+        securityLog,
+      },
+    });
 
     if (backupConfig) {
       startingBackups = true;
@@ -341,45 +392,52 @@ function createServerApplication(): { app: ServerApp; backups: BackupController 
   } catch (error) {
     closeDbSafely(db);
     startupSignals.dispose();
-    refuseToStart(formatApplicationStartupFailure(error, startingBackups));
+    refuseToStart(
+      formatApplicationStartupFailure({
+        error,
+        startingBackups,
+        ...(backupConfig === null ? {} : { backupDirectory: backupConfig.dir }),
+      }),
+    );
   }
 }
 
-function installShutdownHandlers(app: ServerApp, backups: BackupController | null): ShutdownHandler {
+function installShutdownHandlers(input: ShutdownHandlersInput): ShutdownHandler {
+  const backups = input.backups;
   const shutdown = createShutdownHandler({
-    app,
-    db,
-    exit: (code) => process.exit(code),
+    app: input.app,
+    db: input.db,
+    exit: input.exit,
     stopBackgroundWork: backups ? () => backups.stop() : undefined,
   });
   const onSignal = (signal: NodeJS.Signals) => {
-    console.log(`capacitylens-server: ${signal} — draining requests, then exiting`);
+    input.logInfo(`capacitylens-server: ${signal} — draining requests, then exiting`);
     void shutdown(0, `signal:${signal}`);
   };
   // No event-loop turn occurs between removing the startup listeners and installing these handlers,
   // so a queued signal is observed by one phase or the other, never by neither.
-  startupSignals.dispose();
-  process.on("SIGTERM", () => onSignal("SIGTERM"));
-  process.on("SIGINT", () => onSignal("SIGINT"));
+  input.startupSignals.dispose();
+  input.onProcessEvent("SIGTERM", () => onSignal("SIGTERM"));
+  input.onProcessEvent("SIGINT", () => onSignal("SIGINT"));
 
-  const lastResort = createLastResortErrorHandler(shutdown, securityLog, (message, error) =>
-    console.error(message, error),
-  );
-  process.on("uncaughtException", (error) => {
+  const lastResort = createLastResortErrorHandler(shutdown, input.securityLog, input.logError);
+  input.onProcessEvent("uncaughtException", (error) => {
     void lastResort("uncaught_exception", error);
   });
-  process.on("unhandledRejection", (reason) => {
+  input.onProcessEvent("unhandledRejection", (reason) => {
     void lastResort("unhandled_rejection", reason);
   });
   return shutdown;
 }
 
-function listenForRequests(app: ServerApp, shutdown: ShutdownHandler): void {
-  app
-    .listen({ port, host })
-    .then((address) => console.log(`capacitylens-server listening on ${address} (db=${dbPath}, reset=${allowReset})`))
+function listenForRequests(input: ListenForRequestsInput): void {
+  input.app
+    .listen({ port: input.port, host: input.host })
+    .then((address) =>
+      input.logInfo(`capacitylens-server listening on ${address} (db=${input.dbPath}, reset=${input.allowReset})`),
+    )
     .catch((error) => {
-      void handleListenFailure(error, shutdown);
+      void handleListenFailure(error, input.shutdown);
     });
 }
 
@@ -389,5 +447,15 @@ const { app, backups } = createServerApplication();
 
 // Stop backups and accepting requests together, then close SQLite after both drains complete.
 // A repeated signal force-exits rather than waiting on a stuck drain.
-const shutdown = installShutdownHandlers(app, backups);
-listenForRequests(app, shutdown);
+const shutdown = installShutdownHandlers({
+  app,
+  backups,
+  db,
+  startupSignals,
+  securityLog,
+  exit: (code) => process.exit(code),
+  onProcessEvent: process.on.bind(process),
+  logInfo: console.log,
+  logError: (message, error) => console.error(message, error),
+});
+listenForRequests({ app, shutdown, port, host, dbPath, allowReset, logInfo: console.log });
