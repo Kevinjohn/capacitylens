@@ -1,7 +1,9 @@
-# Issue #647 initial structural baseline
+# Issue #647 structural baseline reconciliation
 
-This ledger records the declaration-level structural suppressions accepted at
-`6a9cf77480a34cb4f3c3429bae48561af90b7948`. It covers production and test declarations under
+The immutable initial declaration inventory is available at
+`6a9cf77480a34cb4f3c3429bae48561af90b7948`. This file is the shrink-only live reconciliation;
+the historical snapshot remains available with
+`git show 6a9cf774:tasks/strictness-structure-baseline.md`. The inventory covers declarations under
 `src`, `shared/src`, `server/src`, and `server/scripts`, plus end-to-end declarations under `e2e`.
 The settings are `complexity` 12, `max-depth` 3, and `max-lines-per-function` 60 with blank lines and
 comments excluded and IIFEs included.
