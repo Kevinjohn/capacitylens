@@ -197,6 +197,64 @@ function sampleData(): AppData {
   };
 }
 
+function danglingPhaseData(): AppData {
+  return {
+    ...emptyAppData(),
+    clients: [
+      {
+        id: "c1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "C",
+        color: "#1",
+      },
+    ],
+    projects: [
+      {
+        id: "p1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "P1",
+        clientId: "c1",
+        color: "#1",
+      },
+      {
+        id: "p2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "P2",
+        clientId: "c1",
+        color: "#2",
+      },
+    ],
+    phases: [
+      {
+        id: "ph-p1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Ph",
+        projectId: "p1",
+      },
+    ],
+    activities: [
+      {
+        id: "t-keep",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Keep",
+        kind: "project",
+        projectId: "p2",
+        phaseId: "ph-p1",
+      },
+    ],
+  };
+}
+
 describe("validateProjectClient", () => {
   it("requires a client", () => {
     expect(validateProjectClient("c1").ok).toBe(true);
@@ -435,61 +493,7 @@ describe("cascade deletes", () => {
     // t-keep belongs to p2 but (incoherently) references phase ph-p1, which belongs to p1.
     // Deleting p1 removes ph-p1; t-keep must SURVIVE with its phaseId unbound — never a
     // dangling reference (mirrors the server FK's ON DELETE SET NULL).
-    const data: AppData = {
-      ...emptyAppData(),
-      clients: [
-        {
-          id: "c1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "C",
-          color: "#1",
-        },
-      ],
-      projects: [
-        {
-          id: "p1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "P1",
-          clientId: "c1",
-          color: "#1",
-        },
-        {
-          id: "p2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "P2",
-          clientId: "c1",
-          color: "#2",
-        },
-      ],
-      phases: [
-        {
-          id: "ph-p1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Ph",
-          projectId: "p1",
-        },
-      ],
-      activities: [
-        {
-          id: "t-keep",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Keep",
-          kind: "project",
-          projectId: "p2",
-          phaseId: "ph-p1",
-        },
-      ],
-    };
+    const data = danglingPhaseData();
     const revision = "2026-07-15T00:00:00.000Z";
     const next = deleteProjectCascade(data, "p1", revision);
     const keep = assertEntityById(next.activities, "t-keep"); // survives — it belongs to p2
