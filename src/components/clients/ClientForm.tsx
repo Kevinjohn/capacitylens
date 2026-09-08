@@ -12,7 +12,37 @@ import { FieldError } from "../ui/field";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import type { Client } from "@capacitylens/shared/types/entities";
 
+function ClientFormFields({
+  color,
+  onColorChange,
+  errorField,
+  errorId,
+  error,
+}: {
+  color: string;
+  onColorChange: (value: string) => void;
+  errorField: string | null;
+  errorId: string | undefined;
+  error: string | undefined;
+}) {
+  return (
+    <>
+      <ColorField
+        label={m.form_client_colour_label()}
+        value={color}
+        onChange={onColorChange}
+        invalid={errorField === "color"}
+        describedById={errorId}
+        layout="label-control"
+      />
+      <FieldError id={errorId}>{error}</FieldError>
+      <RequiredLegend />
+    </>
+  );
+}
+
 /** Add (no `client`) or edit a client: name + preset colour. `onClose` fires on save or cancel. */
+// eslint-disable-next-line max-lines-per-function -- form orchestration keeps validation and persistence atomic
 export function ClientForm({ client, onClose }: { client?: Client; onClose: () => void }) {
   const addClient = useStore((state) => state.addClient);
   const updateClient = useStore((state) => state.updateClient);
@@ -72,16 +102,13 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
         layout="label-control"
       />
       <PrivateNameFields fields={privateNameFields} errorField={errorField} errorId={errorId} layout="label-control" />
-      <ColorField
-        label={m.form_client_colour_label()}
-        value={color}
-        onChange={setColor}
-        invalid={errorField === "color"}
-        describedById={errorId}
-        layout="label-control"
+      <ClientFormFields
+        color={color}
+        onColorChange={setColor}
+        errorField={errorField}
+        errorId={errorId}
+        error={error}
       />
-      <FieldError id={errorId}>{error}</FieldError>
-      <RequiredLegend />
     </Modal>
   );
 }

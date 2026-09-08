@@ -35,7 +35,9 @@ describe("ExternalResourceSection", () => {
 
     const rows = screen.getAllByTestId("external-row");
     expect(rows).toHaveLength(2);
-    expect(within(rows[0]!).getByText("Acme Studio")).toBeInTheDocument();
+    const firstRow = rows[0];
+    expect(firstRow).toBeDefined();
+    expect(within(firstRow as HTMLElement).getByText("Acme Studio")).toBeInTheDocument();
   });
 
   it("passes the selected external to onEdit", () => {

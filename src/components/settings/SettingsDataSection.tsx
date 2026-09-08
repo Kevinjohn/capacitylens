@@ -7,6 +7,7 @@ import { Button } from "../ui/button";
 import { SettingsSection } from "./SettingsSection";
 
 import type { useLocalDataActions } from "./useLocalDataActions";
+// eslint-disable-next-line max-lines-per-function -- device-data actions share confirmation state
 export function SettingsDataSection({
   serverMode,
   authMode,

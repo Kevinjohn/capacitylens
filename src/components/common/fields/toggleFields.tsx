@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import { Switch } from "../../ui/switch";
 import { Checkbox } from "../../ui/checkbox";
 import { Field, FieldContent, FieldDescription, FieldLabel } from "../../ui/field";
@@ -43,6 +43,16 @@ export function SwitchField({
       disabled={disabled}
     />
   );
+  let fieldContent: ReactNode = control;
+  if (layout === "label-control") fieldContent = <div className="flex min-h-9 items-center">{control}</div>;
+  if (descriptionInControl) {
+    fieldContent = (
+      <FieldContent className="min-h-9 justify-center">
+        {control}
+        <FieldDescription id={descriptionId}>{description}</FieldDescription>
+      </FieldContent>
+    );
+  }
   return (
     <Field
       orientation={layout === "label-control" ? "vertical" : "horizontal"}
@@ -53,16 +63,7 @@ export function SwitchField({
         <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
         {description && !descriptionInControl && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
       </FieldContent>
-      {descriptionInControl ? (
-        <FieldContent className="min-h-9 justify-center">
-          {control}
-          <FieldDescription id={descriptionId}>{description}</FieldDescription>
-        </FieldContent>
-      ) : layout === "label-control" ? (
-        <div className="flex min-h-9 items-center">{control}</div>
-      ) : (
-        control
-      )}
+      {fieldContent}
     </Field>
   );
 }

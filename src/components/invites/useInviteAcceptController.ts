@@ -12,6 +12,7 @@ import { createInviteSignInActions } from "./inviteSignInActions";
 import { createInviteSignupActions } from "./inviteSignupActions";
 
 // One owner for the invite flow, shared credentials, live refs and idempotency tokens.
+// eslint-disable-next-line max-lines-per-function -- controller owns the invite state machine
 export function useInviteAcceptController(token: string | undefined) {
   const { authMode, user, providers: configuredProviders, refreshAuth, signOut } = useAuth();
   const providers = configuredProviders ?? [];

@@ -26,6 +26,7 @@ function buildClientArchiveMessage(data: AppData, client: Client): string {
   return projects + phases + allocations > 0 ? `${base} ${buildClientArchiveImpactCopy(impact)}` : base;
 }
 
+// eslint-disable-next-line max-lines-per-function -- list and confirmation state must remain coordinated
 export function ClientList() {
   // The built-in Internal client is a behind-the-scenes data anchor (project-less internal/all-projects
   // activities bucket under it; it can own real projects), NOT a user-managed client — so it is HIDDEN

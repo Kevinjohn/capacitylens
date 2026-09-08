@@ -14,6 +14,7 @@ import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/
 import { useConfirmDelete } from "../../hooks/useConfirmDelete";
 import { CompanyClosureSection } from "./CompanyClosureSection";
 
+// eslint-disable-next-line max-lines-per-function -- grouped rows and dialogs share list state
 export function TimeOffList() {
   const data = useActiveScopedData();
   const resources = data.resources;

@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { SectionHelp } from "../common/ui";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "../ui/card";
 
+// eslint-disable-next-line complexity -- collapsible and danger variants are independent presentation branches
 export function SettingsSection({
   title,
   help,

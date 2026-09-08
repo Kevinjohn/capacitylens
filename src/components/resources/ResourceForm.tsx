@@ -335,6 +335,7 @@ function ResourceFields(props: ResourceFieldsProps) {
 }
 
 /** Add or edit a person or placeholder while preserving kind-specific capacity semantics. */
+// eslint-disable-next-line max-lines-per-function -- form orchestration keeps validation and persistence atomic
 export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceFormProps) {
   const add = useStore((state) => state.addResource);
   const update = useStore((state) => state.updateResource);

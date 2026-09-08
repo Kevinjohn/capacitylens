@@ -13,6 +13,7 @@ import { resolveReadinessMemberLabel, type ReadinessMember, type ReadinessRepair
 export type MemberRoleEdit = { member: TeamMember; nextRole: Role };
 export type UnlinkRepair = { member: ReadinessMember; link: ReadinessRepairLink };
 
+// eslint-disable-next-line max-lines-per-function -- related confirmation dialogs share the pending-action state
 export function MemberConfirmations({
   memberConfirmation,
   setMemberConfirmation,

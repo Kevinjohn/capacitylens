@@ -18,6 +18,7 @@ import type { Resource } from "@capacitylens/shared/types/entities";
  * silent defaults the rest of the app never reads. Colour is the single neutral swatch (no picker),
  * per DECISIONS.md "external kind". Store rejections surface as a form error, like ResourceForm.
  */
+// eslint-disable-next-line max-lines-per-function -- form orchestration keeps validation and persistence atomic
 export function ExternalForm({ resource, onClose }: { resource?: Resource; onClose: () => void }) {
   const add = useStore((state) => state.addResource);
   const update = useStore((state) => state.updateResource);

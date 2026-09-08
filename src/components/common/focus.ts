@@ -8,7 +8,7 @@
  *  programmatically focusable) to keep focus in the content. */
 export function restoreFocus(previousValue: HTMLElement | null) {
   if (previousValue?.isConnected) {
-    previousValue.focus?.();
+    previousValue.focus();
   } else {
     const main = document.querySelector<HTMLElement>("main");
     if (main) {

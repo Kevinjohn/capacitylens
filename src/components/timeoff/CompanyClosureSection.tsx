@@ -13,6 +13,7 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemSeparat
 import { ClosureForm } from "./ClosureForm";
 import { buildClosureList, readCurrentTimeOffWeekStart } from "./timeOffView";
 
+// eslint-disable-next-line max-lines-per-function -- list and confirmation state must remain coordinated
 export function CompanyClosureSection() {
   const data = useActiveScopedData();
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));

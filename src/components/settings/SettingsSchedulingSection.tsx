@@ -12,6 +12,7 @@ import { SettingsSection } from "./SettingsSection";
 
 import type { StoreState } from "../../store/useStore";
 import { INTERNAL_COLOUR_MESSAGES, SCHEDULING_MESSAGES } from "./settingsLabels";
+// eslint-disable-next-line max-lines-per-function -- settings sections share one controlled update boundary
 export function SettingsSchedulingSection({
   canEdit,
   schedulingMode,

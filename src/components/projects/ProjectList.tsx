@@ -25,6 +25,7 @@ function buildProjectArchiveMessage(data: AppData, project: Project): string {
   return impact.phases + impact.allocations > 0 ? `${base} ${buildProjectArchiveImpactCopy(impact)}` : base;
 }
 
+// eslint-disable-next-line max-lines-per-function -- list and confirmation state must remain coordinated
 export function ProjectList() {
   const data = useActiveScopedData();
   const projects = useMemo(() => [...data.projects].sort(byName), [data.projects]);

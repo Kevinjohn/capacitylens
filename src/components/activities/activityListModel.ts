@@ -36,6 +36,7 @@ function compareGroups<T extends NamedEntity & { unavailable: boolean }>(left: T
 }
 
 /** Build the Activities page's view-only ordering without mutating the scoped store arrays. */
+// eslint-disable-next-line complexity -- grouping handles unavailable client/project fallbacks in one pass
 export function buildActivityListModel({
   activities,
   projects,

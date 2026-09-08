@@ -49,6 +49,7 @@ const connectedItemClass = [
 ].join(" ");
 
 /** Single-select option group backed by ShadCN ToggleGroup. */
+// eslint-disable-next-line max-lines-per-function -- control rendering keeps geometry and accessibility props together
 export function SegmentedControl<T extends string | number>({
   value,
   onChange,

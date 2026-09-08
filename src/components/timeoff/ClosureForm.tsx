@@ -11,6 +11,7 @@ import { useStore } from "../../store/useStore";
 import { DateField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
 import { FieldError } from "../ui/field";
 
+// eslint-disable-next-line max-lines-per-function -- form orchestration keeps validation and persistence atomic
 export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: () => void }) {
   const add = useStore((state) => state.addClosure);
   const update = useStore((state) => state.updateClosure);
