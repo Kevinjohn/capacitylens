@@ -440,7 +440,7 @@ function expectAllocationSpanRow(controls: HTMLElement[]) {
   }
 }
 
-describe("AllocationModal compact layout", () => {
+function registerCompactCreateLayoutTest() {
   it("aligns Hours-mode create fields, the full-width scheduling row, inline creation and repeat hints", async () => {
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
     const user = userEvent.setup();
@@ -476,7 +476,9 @@ describe("AllocationModal compact layout", () => {
     expectLabelControl(screen.getByLabelText("Repeat until"));
     expectInAllocationControlColumn(screen.getByText(/Creates \d+ linked allocations/));
   });
+}
 
+function registerCompactSharedRowTests() {
   it("adds Assignee to the shared rows in edit mode without adding Repeat", () => {
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -515,7 +517,9 @@ describe("AllocationModal compact layout", () => {
     expectAllocationSpanRow(labels.map((label) => screen.getByLabelText(label)));
     expect(screen.getByText(/^Ends /).closest("[data-allocation-span-row]")).toBeInTheDocument();
   });
+}
 
+function registerCompactResourceLayoutTest() {
   it("keeps External dates aligned and the placeholder hint under the control area", () => {
     const external = useStore.getState().addResource({
       kind: "external",
@@ -559,6 +563,12 @@ describe("AllocationModal compact layout", () => {
     );
     expectInAllocationControlColumn(screen.getByText("Placeholder — locked to its bound project."));
   });
+}
+
+describe("AllocationModal compact layout", () => {
+  registerCompactCreateLayoutTest();
+  registerCompactSharedRowTests();
+  registerCompactResourceLayoutTest();
 });
 
 describe("AllocationModal advisory work bounds", () => {
