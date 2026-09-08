@@ -77,10 +77,12 @@ test("turning disciplines off hides every surface; turning it back on restores t
   // window before asserting (the grid drops off-screen rows from the DOM).
   const grid = page.getByTestId("scheduler-grid");
   await grid.evaluate((el) => {
-    (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight;
+    const element = el as HTMLElement;
+    element.scrollTop = element.scrollHeight;
+    element.dispatchEvent(new Event("scroll", { bubbles: true }));
   });
-  // The browser delivers the scroll event before the next paint; wait for the scheduler's scroll
-  // frame and the following paint so virtualization has observed the browser's bottom position.
+  // Dispatching the native event makes the browser-observable scroll explicit; wait for the
+  // scheduler's scroll frame and following paint so virtualization observes the bottom position.
   await grid.evaluate(
     () =>
       new Promise<void>((resolve) => {
