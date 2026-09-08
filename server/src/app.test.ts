@@ -285,11 +285,10 @@ const orderedBatch = ({ app, sessionId, sequence, ops }: OrderedBatchInput) =>
     payload: body({ ops }),
   });
 const state = async (app: FastifyInstance) => {
-  const data = (await call(app, { method: "GET", url: "/api/state" })).json();
   // Generic account creation now guarantees its required Internal client. Most legacy CRUD tests
-  // predate that invariant and reason about the regular clients they explicitly create.
-  data.clients = data.clients.filter((c: { id: string }) => !c.id.startsWith("internal:"));
-  return data;
+  // predate that invariant and reason about the regular clients they explicitly create. The exact
+  // state validator retains that view by filtering rows whose validated builtin flag is true.
+  return readValidatedStateValue((await call(app, { method: "GET", url: "/api/state" })).json());
 };
 
 interface ProjectBinding {
