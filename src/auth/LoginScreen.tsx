@@ -2,7 +2,7 @@ import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { MAX_PASSWORD_INPUT_CODE_UNITS, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
@@ -29,14 +29,7 @@ import { useSecondFactor } from "./useSecondFactor";
 // the screen offers "Create the owner account" instead of a dead-end sign-in; every other
 // password identity is created through a valid invite (self-registration stays closed).
 
-export function LoginScreen({
-  authMode,
-  needsSetup = false,
-  providers = [],
-  degraded = false,
-  hadUnsavedChanges = false,
-  onSignedIn,
-}: {
+type LoginScreenProps = {
   authMode: "password" | "sso";
   /** Server-reported first-run state (password mode + empty user table). Fail-closed default:
    *  absent means the ordinary sign-in form. */
@@ -49,7 +42,16 @@ export function LoginScreen({
   /** A mid-session 401 replaced an app whose server persistence still held unsaved writes. */
   hadUnsavedChanges?: boolean;
   onSignedIn: () => void;
-}) {
+};
+
+export function LoginScreen({
+  authMode,
+  needsSetup = false,
+  providers = [],
+  degraded = false,
+  hadUnsavedChanges = false,
+  onSignedIn,
+}: LoginScreenProps) {
   const [returnedWithExternalError] = useState(() => hasExternalSignInError(window.location.href));
   const [error, setError] = useState<string | null>(() =>
     returnedWithExternalError
@@ -57,24 +59,16 @@ export function LoginScreen({
       : null,
   );
   const [busy, setBusy] = useState(false);
-  const {
-    twoFactorPending,
-    setTwoFactorPending,
-    twoFactorCode,
-    setTwoFactorCode,
-    useRecoveryCode,
-    setUseRecoveryCode,
-    verifySecondFactor,
-  } = useSecondFactor({ setError, setBusy, onSignedIn });
-  const { email, setEmail, password, setPassword, signInWithPassword } = usePasswordSignIn({
+  const secondFactor = useSecondFactor({ setError, setBusy, onSignedIn });
+  const passwordSignIn = usePasswordSignIn({
     setError,
     setBusy,
     onSignedIn,
-    setTwoFactorPending,
+    setTwoFactorPending: secondFactor.setTwoFactorPending,
   });
-  const { name, setName, setupToken, setSetupToken, setupClosed, createOwner } = useOwnerSetup({
-    email,
-    password,
+  const ownerSetup = useOwnerSetup({
+    email: passwordSignIn.email,
+    password: passwordSignIn.password,
     setError,
     setBusy,
     onSignedIn,
@@ -82,12 +76,7 @@ export function LoginScreen({
   // Stable ids so each input can point at the shared error message (WCAG 3.3.1). A sign-in
   // failure is form-level (not field-specific), so we describe BOTH inputs by the one error and
   // skip aria-invalid — describedby is what re-announces the reason as the user navigates back.
-  const nameId = useId();
-  const emailId = useId();
-  const passwordId = useId();
-  const setupTokenId = useId();
-  const errorId = useId();
-  const setup = authMode === "password" && needsSetup && !setupClosed;
+  const ids = { name: useId(), email: useId(), password: useId(), setupToken: useId(), error: useId() };
 
   // This wall replaces the router, so AppShell cannot replace a stale in-app route title after a
   // session expires. Keep the tab's purpose explicit, matching the other public auth entries.
@@ -100,7 +89,32 @@ export function LoginScreen({
     window.history.replaceState(window.history.state, "", clearExternalSignInError(window.location.href));
   }, [returnedWithExternalError]);
 
-  const signInWithProvider = async (provider: AuthProviderInfo) => {
+  const signInWithProvider = createProviderSignIn(setBusy, setError);
+
+  return (
+    <LoginView
+      authMode={authMode}
+      needsSetup={needsSetup}
+      providers={providers}
+      degraded={degraded}
+      hadUnsavedChanges={hadUnsavedChanges}
+      busy={busy}
+      error={error}
+      setError={setError}
+      ids={ids}
+      secondFactor={secondFactor}
+      passwordSignIn={passwordSignIn}
+      ownerSetup={ownerSetup}
+      signInWithProvider={signInWithProvider}
+    />
+  );
+}
+
+function createProviderSignIn(
+  setBusy: Dispatch<SetStateAction<boolean>>,
+  setError: Dispatch<SetStateAction<string | null>>,
+) {
+  return async (provider: AuthProviderInfo) => {
     setBusy(true);
     setError(null);
     try {
@@ -124,199 +138,434 @@ export function LoginScreen({
       setBusy(false);
     }
   };
+}
+
+type LoginIds = { name: string; email: string; password: string; setupToken: string; error: string };
+type LoginViewProps = {
+  authMode: "password" | "sso";
+  needsSetup: boolean;
+  providers: AuthProviderInfo[];
+  degraded: boolean;
+  hadUnsavedChanges: boolean;
+  busy: boolean;
+  error: string | null;
+  setError: Dispatch<SetStateAction<string | null>>;
+  ids: LoginIds;
+  secondFactor: ReturnType<typeof useSecondFactor>;
+  passwordSignIn: ReturnType<typeof usePasswordSignIn>;
+  ownerSetup: ReturnType<typeof useOwnerSetup>;
+  signInWithProvider: (provider: AuthProviderInfo) => Promise<void>;
+};
+
+function LoginView(props: LoginViewProps) {
+  const setup = props.authMode === "password" && props.needsSetup && !props.ownerSetup.setupClosed;
+  const heading = setup ? m.login_setup_heading() : m.login_sign_in();
+  const subtitle = setup ? m.login_setup_subtitle() : m.login_subtitle();
 
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <main className="w-full max-w-sm">
         <div className="mb-6 text-center">
           <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
-          <h1 className="text-lg font-semibold text-ink">{setup ? m.login_setup_heading() : m.login_sign_in()}</h1>
-          <p className="text-sm text-muted-foreground">{setup ? m.login_setup_subtitle() : m.login_subtitle()}</p>
+          <h1 className="text-lg font-semibold text-ink">{heading}</h1>
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
         </div>
         <Card className="gap-4 py-4">
           <CardContent className="px-4">
-            {/* Non-terminal advisory (§1 DEFENSIVE-CODING.md — surface, never swallow): the 401 body
-              itself was untrustworthy, so this password form is a guess, not a confirmed signal.
-              Never rendered for a well-formed password-mode 401 or a valid SSO body — see
-              AuthProvider.Status.degraded. */}
-            {degraded && (
-              <div className="mb-4">
-                <Alert variant="warn" role="status">
-                  <AlertDescription>{m.login_degraded_notice()}</AlertDescription>
-                </Alert>
-              </div>
-            )}
-            {hadUnsavedChanges && (
-              <div className="mb-4">
-                <Alert variant="destructive" role="alert">
-                  <AlertDescription>{m.login_unsaved_changes_notice()}</AlertDescription>
-                </Alert>
-              </div>
-            )}
-            {twoFactorPending ? (
-              <form onSubmit={(e) => void verifySecondFactor(e)} noValidate>
-                <FieldGroup className="gap-3">
-                  <p className="text-sm text-muted-foreground">
-                    {useRecoveryCode ? m.login_mfa_recovery_prompt() : m.login_mfa_authenticator_prompt()}
-                  </p>
-                  <LoginField
-                    id="mfa-code"
-                    label={useRecoveryCode ? m.login_mfa_recovery_code() : m.login_mfa_authentication_code()}
-                    data-testid="mfa-code"
-                    type="text"
-                    inputMode={useRecoveryCode ? "text" : "numeric"}
-                    autoComplete="one-time-code"
-                    value={twoFactorCode}
-                    onChange={(e) => setTwoFactorCode(e.target.value.trim())}
-                    aria-describedby={error ? errorId : undefined}
-                    autoFocus
-                  />
-                  <FieldError id={errorId}>{error}</FieldError>
-                  <div className="flex items-center justify-between gap-3">
-                    <Button
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setUseRecoveryCode((value) => !value);
-                        setTwoFactorCode("");
-                        setError(null);
-                      }}
-                    >
-                      {useRecoveryCode ? m.login_mfa_use_authenticator() : m.login_mfa_use_recovery()}
-                    </Button>
-                    <Button
-                      size="sm"
-                      type="submit"
-                      data-testid="mfa-submit"
-                      disabled={busy || twoFactorCode.length === 0}
-                    >
-                      {m.login_mfa_verify()}
-                    </Button>
-                  </div>
-                </FieldGroup>
-              </form>
-            ) : setup ? (
-              <form onSubmit={(e) => void createOwner(e)} noValidate>
-                <FieldGroup className="gap-3">
-                  <LoginField
-                    id={nameId}
-                    label={m.login_name()}
-                    data-testid="owner-setup-name"
-                    type="text"
-                    autoComplete="name"
-                    value={name}
-                    maxLength={MAX_NAME_INPUT_CODE_UNITS}
-                    onChange={(e) => setName(e.target.value)}
-                    // Same form-level error contract as sign-in: describe every field by the one
-                    // error only while it's showing (WCAG 3.3.1).
-                    aria-describedby={error ? errorId : undefined}
-                    autoFocus
-                  />
-                  <LoginField
-                    id={emailId}
-                    label={m.login_email()}
-                    data-testid="owner-setup-email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    maxLength={MAX_EMAIL_LENGTH}
-                    onChange={(e) => setEmail(e.target.value)}
-                    aria-describedby={error ? errorId : undefined}
-                  />
-                  <LoginField
-                    id={passwordId}
-                    label={m.login_password()}
-                    data-testid="owner-setup-password"
-                    type="password"
-                    autoComplete="new-password"
-                    value={password}
-                    minLength={MIN_PASSWORD_LENGTH}
-                    maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
-                    onChange={(e) => setPassword(e.target.value)}
-                    aria-describedby={error ? errorId : undefined}
-                  />
-                  <LoginField
-                    id={setupTokenId}
-                    label={m.login_setup_token()}
-                    data-testid="owner-setup-token"
-                    type="password"
-                    autoComplete="off"
-                    value={setupToken}
-                    onChange={(e) => setSetupToken(e.target.value)}
-                    placeholder={m.login_setup_token_placeholder()}
-                    aria-describedby={error ? errorId : undefined}
-                  />
-                  <FieldError id={errorId}>{error}</FieldError>
-                  <div className="flex justify-end">
-                    <Button size="sm" type="submit" data-testid="owner-setup-submit" disabled={busy}>
-                      {m.login_create_owner()}
-                    </Button>
-                  </div>
-                </FieldGroup>
-              </form>
-            ) : authMode === "password" ? (
-              <form onSubmit={(e) => void signInWithPassword(e)} noValidate>
-                <FieldGroup className="gap-3">
-                  <LoginField
-                    id={emailId}
-                    label={m.login_email()}
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    maxLength={MAX_EMAIL_LENGTH}
-                    onChange={(e) => setEmail(e.target.value)}
-                    // Describe by the form-level error only while it's showing, so the reason is
-                    // re-announced when focus returns to this field (WCAG 3.3.1).
-                    aria-describedby={error ? errorId : undefined}
-                    autoFocus
-                  />
-                  <LoginField
-                    id={passwordId}
-                    label={m.login_password()}
-                    type="password"
-                    autoComplete="current-password"
-                    value={password}
-                    maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
-                    onChange={(e) => setPassword(e.target.value)}
-                    aria-describedby={error ? errorId : undefined}
-                  />
-                  <FieldError id={errorId}>{error}</FieldError>
-                  <div className="flex justify-end">
-                    <Button size="sm" type="submit" disabled={busy}>
-                      {m.login_sign_in()}
-                    </Button>
-                  </div>
-                </FieldGroup>
-              </form>
-            ) : null}
-            {!twoFactorPending && providers.length > 0 && (
-              <div className="mt-4 flex flex-col gap-3">
-                <Separator />
-                {providers.some((provider) => provider.experimental) ? (
-                  <p className="text-xs text-muted-foreground">{m.login_external_experimental()}</p>
-                ) : null}
-                <FieldError>{authMode === "sso" ? error : null}</FieldError>
-                {providers.map((provider) => (
-                  <Button
-                    size="sm"
-                    type="button"
-                    key={`${provider.kind}:${provider.id}`}
-                    variant="outline"
-                    onClick={() => void signInWithProvider(provider)}
-                    disabled={busy}
-                  >
-                    {m.login_continue_with({ provider: provider.label })}
-                  </Button>
-                ))}
-              </div>
-            )}
-            {!setup && authMode === "sso" && providers.length === 0 && (
-              <FieldError>{m.login_sso_unavailable()}</FieldError>
-            )}
+            <LoginNotices degraded={props.degraded} hadUnsavedChanges={props.hadUnsavedChanges} />
+            <LoginForm
+              authMode={props.authMode}
+              setup={setup}
+              busy={props.busy}
+              error={props.error}
+              setError={props.setError}
+              ids={props.ids}
+              secondFactor={props.secondFactor}
+              passwordSignIn={props.passwordSignIn}
+              ownerSetup={props.ownerSetup}
+            />
+            <ProviderButtons
+              authMode={props.authMode}
+              setup={setup}
+              providers={props.providers}
+              busy={props.busy}
+              error={props.error}
+              twoFactorPending={props.secondFactor.twoFactorPending}
+              signInWithProvider={props.signInWithProvider}
+            />
           </CardContent>
         </Card>
       </main>
+    </div>
+  );
+}
+
+function LoginNotices({ degraded, hadUnsavedChanges }: { degraded: boolean; hadUnsavedChanges: boolean }) {
+  return (
+    <>
+      {degraded && (
+        <div className="mb-4">
+          <Alert variant="warn" role="status">
+            <AlertDescription>{m.login_degraded_notice()}</AlertDescription>
+          </Alert>
+        </div>
+      )}
+      {hadUnsavedChanges && (
+        <div className="mb-4">
+          <Alert variant="destructive" role="alert">
+            <AlertDescription>{m.login_unsaved_changes_notice()}</AlertDescription>
+          </Alert>
+        </div>
+      )}
+    </>
+  );
+}
+
+type LoginFormProps = {
+  authMode: "password" | "sso";
+  setup: boolean;
+  busy: boolean;
+  error: string | null;
+  setError: Dispatch<SetStateAction<string | null>>;
+  ids: LoginIds;
+  secondFactor: {
+    twoFactorPending: boolean;
+    twoFactorCode: string;
+    setTwoFactorCode: Dispatch<SetStateAction<string>>;
+    useRecoveryCode: boolean;
+    setUseRecoveryCode: Dispatch<SetStateAction<boolean>>;
+    verifySecondFactor: (e: FormEvent) => Promise<void>;
+  };
+  passwordSignIn: {
+    email: string;
+    setEmail: Dispatch<SetStateAction<string>>;
+    password: string;
+    setPassword: Dispatch<SetStateAction<string>>;
+    signInWithPassword: (e: FormEvent) => Promise<void>;
+  };
+  ownerSetup: {
+    name: string;
+    setName: Dispatch<SetStateAction<string>>;
+    setupToken: string;
+    setSetupToken: Dispatch<SetStateAction<string>>;
+    createOwner: (e: FormEvent) => Promise<void>;
+  };
+};
+
+function LoginForm(props: LoginFormProps) {
+  if (props.secondFactor.twoFactorPending) {
+    return (
+      <SecondFactorForm
+        busy={props.busy}
+        error={props.error}
+        setError={props.setError}
+        errorId={props.ids.error}
+        twoFactorCode={props.secondFactor.twoFactorCode}
+        setTwoFactorCode={props.secondFactor.setTwoFactorCode}
+        useRecoveryCode={props.secondFactor.useRecoveryCode}
+        setUseRecoveryCode={props.secondFactor.setUseRecoveryCode}
+        verifySecondFactor={props.secondFactor.verifySecondFactor}
+      />
+    );
+  }
+  if (props.setup) {
+    return (
+      <OwnerSetupForm
+        busy={props.busy}
+        error={props.error}
+        ids={props.ids}
+        name={props.ownerSetup.name}
+        setName={props.ownerSetup.setName}
+        setupToken={props.ownerSetup.setupToken}
+        setSetupToken={props.ownerSetup.setSetupToken}
+        createOwner={props.ownerSetup.createOwner}
+        email={props.passwordSignIn.email}
+        setEmail={props.passwordSignIn.setEmail}
+        password={props.passwordSignIn.password}
+        setPassword={props.passwordSignIn.setPassword}
+      />
+    );
+  }
+  if (props.authMode === "password") {
+    return (
+      <PasswordForm
+        busy={props.busy}
+        error={props.error}
+        emailId={props.ids.email}
+        passwordId={props.ids.password}
+        errorId={props.ids.error}
+        email={props.passwordSignIn.email}
+        setEmail={props.passwordSignIn.setEmail}
+        password={props.passwordSignIn.password}
+        setPassword={props.passwordSignIn.setPassword}
+        signInWithPassword={props.passwordSignIn.signInWithPassword}
+      />
+    );
+  }
+  return null;
+}
+
+type SecondFactorFormProps = {
+  busy: boolean;
+  error: string | null;
+  setError: Dispatch<SetStateAction<string | null>>;
+  errorId: string;
+  twoFactorCode: string;
+  setTwoFactorCode: Dispatch<SetStateAction<string>>;
+  useRecoveryCode: boolean;
+  setUseRecoveryCode: Dispatch<SetStateAction<boolean>>;
+  verifySecondFactor: (e: FormEvent) => Promise<void>;
+};
+
+function SecondFactorForm({
+  busy,
+  error,
+  setError,
+  errorId,
+  twoFactorCode,
+  setTwoFactorCode,
+  useRecoveryCode,
+  setUseRecoveryCode,
+  verifySecondFactor,
+}: SecondFactorFormProps) {
+  const prompt = useRecoveryCode ? m.login_mfa_recovery_prompt() : m.login_mfa_authenticator_prompt();
+  const label = useRecoveryCode ? m.login_mfa_recovery_code() : m.login_mfa_authentication_code();
+  const toggleLabel = useRecoveryCode ? m.login_mfa_use_authenticator() : m.login_mfa_use_recovery();
+  return (
+    <form onSubmit={(e) => void verifySecondFactor(e)} noValidate>
+      <FieldGroup className="gap-3">
+        <p className="text-sm text-muted-foreground">{prompt}</p>
+        <LoginField
+          id="mfa-code"
+          label={label}
+          data-testid="mfa-code"
+          type="text"
+          inputMode={useRecoveryCode ? "text" : "numeric"}
+          autoComplete="one-time-code"
+          value={twoFactorCode}
+          onChange={(e) => setTwoFactorCode(e.target.value.trim())}
+          aria-describedby={error ? errorId : undefined}
+          autoFocus
+        />
+        <FieldError id={errorId}>{error}</FieldError>
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            size="sm"
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setUseRecoveryCode((value) => !value);
+              setTwoFactorCode("");
+              setError(null);
+            }}
+          >
+            {toggleLabel}
+          </Button>
+          <Button size="sm" type="submit" data-testid="mfa-submit" disabled={busy || twoFactorCode.length === 0}>
+            {m.login_mfa_verify()}
+          </Button>
+        </div>
+      </FieldGroup>
+    </form>
+  );
+}
+
+type OwnerSetupFormProps = {
+  busy: boolean;
+  error: string | null;
+  ids: LoginIds;
+  name: string;
+  setName: Dispatch<SetStateAction<string>>;
+  setupToken: string;
+  setSetupToken: Dispatch<SetStateAction<string>>;
+  createOwner: (e: FormEvent) => Promise<void>;
+  email: string;
+  setEmail: Dispatch<SetStateAction<string>>;
+  password: string;
+  setPassword: Dispatch<SetStateAction<string>>;
+};
+
+function OwnerSetupForm({
+  busy,
+  error,
+  ids,
+  name,
+  setName,
+  setupToken,
+  setSetupToken,
+  createOwner,
+  email,
+  setEmail,
+  password,
+  setPassword,
+}: OwnerSetupFormProps) {
+  return (
+    <form onSubmit={(e) => void createOwner(e)} noValidate>
+      <FieldGroup className="gap-3">
+        <LoginField
+          id={ids.name}
+          label={m.login_name()}
+          data-testid="owner-setup-name"
+          type="text"
+          autoComplete="name"
+          value={name}
+          maxLength={MAX_NAME_INPUT_CODE_UNITS}
+          onChange={(e) => setName(e.target.value)}
+          // Same form-level error contract as sign-in: describe every field by the one
+          // error only while it's showing (WCAG 3.3.1).
+          aria-describedby={error ? ids.error : undefined}
+          autoFocus
+        />
+        <LoginField
+          id={ids.email}
+          label={m.login_email()}
+          data-testid="owner-setup-email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          maxLength={MAX_EMAIL_LENGTH}
+          onChange={(e) => setEmail(e.target.value)}
+          aria-describedby={error ? ids.error : undefined}
+        />
+        <LoginField
+          id={ids.password}
+          label={m.login_password()}
+          data-testid="owner-setup-password"
+          type="password"
+          autoComplete="new-password"
+          value={password}
+          minLength={MIN_PASSWORD_LENGTH}
+          maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
+          onChange={(e) => setPassword(e.target.value)}
+          aria-describedby={error ? ids.error : undefined}
+        />
+        <LoginField
+          id={ids.setupToken}
+          label={m.login_setup_token()}
+          data-testid="owner-setup-token"
+          type="password"
+          autoComplete="off"
+          value={setupToken}
+          onChange={(e) => setSetupToken(e.target.value)}
+          placeholder={m.login_setup_token_placeholder()}
+          aria-describedby={error ? ids.error : undefined}
+        />
+        <FieldError id={ids.error}>{error}</FieldError>
+        <div className="flex justify-end">
+          <Button size="sm" type="submit" data-testid="owner-setup-submit" disabled={busy}>
+            {m.login_create_owner()}
+          </Button>
+        </div>
+      </FieldGroup>
+    </form>
+  );
+}
+
+type PasswordFormProps = {
+  busy: boolean;
+  error: string | null;
+  emailId: string;
+  passwordId: string;
+  errorId: string;
+  email: string;
+  setEmail: Dispatch<SetStateAction<string>>;
+  password: string;
+  setPassword: Dispatch<SetStateAction<string>>;
+  signInWithPassword: (e: FormEvent) => Promise<void>;
+};
+
+function PasswordForm({
+  busy,
+  error,
+  emailId,
+  passwordId,
+  errorId,
+  email,
+  setEmail,
+  password,
+  setPassword,
+  signInWithPassword,
+}: PasswordFormProps) {
+  return (
+    <form onSubmit={(e) => void signInWithPassword(e)} noValidate>
+      <FieldGroup className="gap-3">
+        <LoginField
+          id={emailId}
+          label={m.login_email()}
+          type="email"
+          autoComplete="email"
+          value={email}
+          maxLength={MAX_EMAIL_LENGTH}
+          onChange={(e) => setEmail(e.target.value)}
+          // Describe by the form-level error only while it's showing, so the reason is
+          // re-announced when focus returns to this field (WCAG 3.3.1).
+          aria-describedby={error ? errorId : undefined}
+          autoFocus
+        />
+        <LoginField
+          id={passwordId}
+          label={m.login_password()}
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
+          onChange={(e) => setPassword(e.target.value)}
+          aria-describedby={error ? errorId : undefined}
+        />
+        <FieldError id={errorId}>{error}</FieldError>
+        <div className="flex justify-end">
+          <Button size="sm" type="submit" disabled={busy}>
+            {m.login_sign_in()}
+          </Button>
+        </div>
+      </FieldGroup>
+    </form>
+  );
+}
+
+type ProviderButtonsProps = {
+  authMode: "password" | "sso";
+  setup: boolean;
+  providers: AuthProviderInfo[];
+  busy: boolean;
+  error: string | null;
+  twoFactorPending: boolean;
+  signInWithProvider: (provider: AuthProviderInfo) => Promise<void>;
+};
+
+function ProviderButtons({
+  authMode,
+  setup,
+  providers,
+  busy,
+  error,
+  twoFactorPending,
+  signInWithProvider,
+}: ProviderButtonsProps) {
+  if (twoFactorPending) return null;
+  if (providers.length === 0) {
+    return !setup && authMode === "sso" ? <FieldError>{m.login_sso_unavailable()}</FieldError> : null;
+  }
+  const hasExperimentalProvider = providers.some((provider) => provider.experimental);
+  return (
+    <div className="mt-4 flex flex-col gap-3">
+      <Separator />
+      {hasExperimentalProvider ? (
+        <p className="text-xs text-muted-foreground">{m.login_external_experimental()}</p>
+      ) : null}
+      <FieldError>{authMode === "sso" ? error : null}</FieldError>
+      {providers.map((provider) => (
+        <Button
+          size="sm"
+          type="button"
+          key={`${provider.kind}:${provider.id}`}
+          variant="outline"
+          onClick={() => void signInWithProvider(provider)}
+          disabled={busy}
+        >
+          {m.login_continue_with({ provider: provider.label })}
+        </Button>
+      ))}
     </div>
   );
 }

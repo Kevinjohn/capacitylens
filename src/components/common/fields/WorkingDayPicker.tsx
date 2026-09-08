@@ -20,6 +20,97 @@ function buildWorkingDayOptions(): Array<{ value: WorkingDayOption; label: strin
   ];
 }
 
+function resolveWorkingDayOption(day: Weekday, workingDays: Weekday[], halfDays: Weekday[]): WorkingDayOption {
+  if (!workingDays.includes(day)) return "off";
+  return halfDays.includes(day) ? "half" : "full";
+}
+
+function applyWorkingDayOption({
+  day,
+  option,
+  workingDays,
+  halfDays,
+}: {
+  day: Weekday;
+  option: WorkingDayOption;
+  workingDays: Weekday[];
+  halfDays: Weekday[];
+}): { workingDays: Weekday[]; halfDays: Weekday[] } {
+  const nextWorkingDays =
+    option === "off"
+      ? workingDays.filter((candidate) => candidate !== day)
+      : [...new Set([...workingDays, day])].sort((a, b) => a - b);
+  const nextHalfDays =
+    option === "half"
+      ? [...new Set([...halfDays, day])]
+          .filter((candidate) => nextWorkingDays.includes(candidate))
+          .sort((a, b) => a - b)
+      : halfDays.filter((candidate) => candidate !== day);
+  return { workingDays: nextWorkingDays, halfDays: nextHalfDays };
+}
+
+interface WorkingDayRowsProps {
+  groupId: string;
+  workingDays: Weekday[];
+  halfDays: Weekday[];
+  onChoose: (day: Weekday, option: WorkingDayOption) => void;
+  options: ReturnType<typeof buildWorkingDayOptions>;
+}
+
+function chooseWorkingDay({
+  day,
+  option,
+  workingDays,
+  halfDays,
+  markDirty,
+  onChange,
+}: {
+  day: Weekday;
+  option: WorkingDayOption;
+  workingDays: Weekday[];
+  halfDays: Weekday[];
+  markDirty: () => void;
+  onChange: (workingDays: Weekday[], halfDays: Weekday[]) => void;
+}) {
+  const next = applyWorkingDayOption({ day, option, workingDays, halfDays });
+  markDirty();
+  onChange(next.workingDays, next.halfDays);
+}
+
+function WorkingDayRows({ groupId, workingDays, halfDays, onChoose, options }: WorkingDayRowsProps) {
+  return WEEKDAY_ORDER.map((day) => {
+    const dayLabel = resolveWeekdayLabel(day);
+    const rowHeadingId = `${groupId}-${day}-heading`;
+    return (
+      <tr key={day} className="border-b last:border-b-0">
+        <th id={rowHeadingId} scope="row" className="min-w-24 whitespace-nowrap px-3 py-2 text-left font-medium">
+          {dayLabel}
+        </th>
+        {options.map((option) => {
+          const radioId = `${groupId}-${day}-${option.value}`;
+          return (
+            <td key={option.value} className="px-3 py-1 text-center">
+              <Label htmlFor={radioId} className="flex min-h-8 cursor-pointer justify-center">
+                <input
+                  id={radioId}
+                  type="radio"
+                  name={`${groupId}-${day}`}
+                  value={option.value}
+                  checked={resolveWorkingDayOption(day, workingDays, halfDays) === option.value}
+                  aria-labelledby={`${rowHeadingId} ${groupId}-${option.value}-heading`}
+                  data-form-dirty-managed
+                  className="size-4 cursor-pointer"
+                  onChange={() => onChoose(day, option.value)}
+                />
+              </Label>
+            </td>
+          );
+        })}
+      </tr>
+    );
+  });
+}
+
 export function WorkingDayPicker({
   label,
   workingDays,
@@ -40,27 +131,11 @@ export function WorkingDayPicker({
   const markDirty = useMarkFormDirty();
   const groupId = useId();
   const options = buildWorkingDayOptions();
-  const optionFor = (day: Weekday): WorkingDayOption =>
-    !workingDays.includes(day) ? "off" : halfDays.includes(day) ? "half" : "full";
-  const choose = (day: Weekday, option: WorkingDayOption) => {
-    const nextWorkingDays =
-      option === "off"
-        ? workingDays.filter((candidate) => candidate !== day)
-        : [...new Set([...workingDays, day])].sort((a, b) => a - b);
-    const nextHalfDays =
-      option === "half"
-        ? [...new Set([...halfDays, day])]
-            .filter((candidate) => nextWorkingDays.includes(candidate))
-            .sort((a, b) => a - b)
-        : halfDays.filter((candidate) => candidate !== day);
-    markDirty();
-    onChange(nextWorkingDays, nextHalfDays);
-  };
 
   return (
     <FieldSet
       className="min-w-0"
-      aria-invalid={invalid || undefined}
+      aria-invalid={invalid === true ? true : undefined}
       aria-describedby={invalid ? describedById : undefined}
     >
       <FieldLegend variant="label">{label}</FieldLegend>
@@ -84,41 +159,13 @@ export function WorkingDayPicker({
             </tr>
           </thead>
           <tbody>
-            {WEEKDAY_ORDER.map((day) => {
-              const dayLabel = resolveWeekdayLabel(day);
-              const rowHeadingId = `${groupId}-${day}-heading`;
-              return (
-                <tr key={day} className="border-b last:border-b-0">
-                  <th
-                    id={rowHeadingId}
-                    scope="row"
-                    className="min-w-24 whitespace-nowrap px-3 py-2 text-left font-medium"
-                  >
-                    {dayLabel}
-                  </th>
-                  {options.map((option) => {
-                    const radioId = `${groupId}-${day}-${option.value}`;
-                    return (
-                      <td key={option.value} className="px-3 py-1 text-center">
-                        <Label htmlFor={radioId} className="flex min-h-8 cursor-pointer justify-center">
-                          <input
-                            id={radioId}
-                            type="radio"
-                            name={`${groupId}-${day}`}
-                            value={option.value}
-                            checked={optionFor(day) === option.value}
-                            aria-labelledby={`${rowHeadingId} ${groupId}-${option.value}-heading`}
-                            data-form-dirty-managed
-                            className="size-4 cursor-pointer"
-                            onChange={() => choose(day, option.value)}
-                          />
-                        </Label>
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
+            <WorkingDayRows
+              groupId={groupId}
+              workingDays={workingDays}
+              halfDays={halfDays}
+              onChoose={(day, option) => chooseWorkingDay({ day, option, workingDays, halfDays, markDirty, onChange })}
+              options={options}
+            />
           </tbody>
         </table>
       </div>

@@ -36,6 +36,29 @@ interface RenderEngagementSectionInput {
   separated?: boolean | undefined;
 }
 
+function ExternalArchiveDialog({
+  resource,
+  archive,
+  onClose,
+}: {
+  resource: Resource;
+  archive: (table: "resources", id: string) => Promise<unknown> | void;
+  onClose: () => void;
+}) {
+  return (
+    <ConfirmDialog
+      title={m.list_resources_archive_title()}
+      message={m.list_resources_archive_message({ name: resource.name ?? resource.role })}
+      confirmLabel={m.list_archive()}
+      onConfirm={() => {
+        void archive("resources", resource.id);
+        onClose();
+      }}
+      onCancel={onClose}
+    />
+  );
+}
+
 const byFavouriteResourceDisplayName = createFavouriteDisplayNameComparator<Resource>(resolveResourceDisplayName);
 const byEngagementFavouriteResourceDisplayName =
   createEngagementFavouriteDisplayNameComparator<Resource>(resolveResourceDisplayName);
@@ -263,17 +286,10 @@ export function ResourceList() {
         <ExternalForm resource={externalState.editing} onClose={() => externalState.setEditing(null)} />
       )}
       {externalState.confirming && (
-        <ConfirmDialog
-          title={m.list_resources_archive_title()}
-          message={m.list_resources_archive_message({
-            name: externalState.confirming.name ?? externalState.confirming.role,
-          })}
-          confirmLabel={m.list_archive()}
-          onConfirm={() => {
-            void archive("resources", externalState.confirming!.id);
-            externalState.setConfirming(null);
-          }}
-          onCancel={() => externalState.setConfirming(null)}
+        <ExternalArchiveDialog
+          resource={externalState.confirming}
+          archive={archive}
+          onClose={() => externalState.setConfirming(null)}
         />
       )}
     </ListPage>
