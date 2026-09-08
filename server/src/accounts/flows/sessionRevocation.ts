@@ -8,21 +8,20 @@ import type { LocalAccountFlowContext } from "./context";
 
 type RevokeMemberSessionsInput = Parameters<LocalAccountFlows["revokeMemberSessions"]>[0];
 type SessionRevocationResult = Awaited<ReturnType<IdentityPort["revokePrincipalSessions"]>>;
-type SessionRevocationDependencies = Pick<
+type SessionRevocationExecutionDependencies = Pick<
   LocalAccountFlowContext,
-  | "applicationId"
-  | "db"
-  | "identity"
-  | "administration"
-  | "lock"
-  | "persistTerminalOutcome"
-  | "denyIdentityAdminCommand"
-  | "buildCommandExecutionKey"
+  "applicationId" | "db" | "identity" | "administration" | "persistTerminalOutcome" | "denyIdentityAdminCommand"
 >;
-type SessionRevocationExecutionInput = SessionRevocationDependencies & RevokeMemberSessionsInput;
+type SessionRevocationLockDependencies = Pick<LocalAccountFlowContext, "lock" | "buildCommandExecutionKey">;
+type SessionRevocationTerminalDependencies = Pick<
+  LocalAccountFlowContext,
+  "applicationId" | "db" | "persistTerminalOutcome"
+>;
+type SessionRevocationTerminalInput = SessionRevocationTerminalDependencies &
+  Pick<RevokeMemberSessionsInput, "actor" | "targetPrincipalId" | "command">;
 
-function ensureSessionRevocationCompleted(
-  input: SessionRevocationExecutionInput & { result: SessionRevocationResult; operation: string },
+function completeSessionRevocation(
+  input: SessionRevocationTerminalInput & { result: SessionRevocationResult; operation: string },
 ): void {
   const { db, persistTerminalOutcome, actor, targetPrincipalId, command, result, operation } = input;
   persistTerminalOutcome(
@@ -41,8 +40,8 @@ function ensureSessionRevocationCompleted(
   );
 }
 
-function ensureSessionRevocationFailureRecorded(
-  input: SessionRevocationExecutionInput & {
+function recordSessionRevocationFailure(
+  input: SessionRevocationTerminalInput & {
     error: unknown;
     operation: string;
     revocationStarted: boolean;
@@ -81,8 +80,8 @@ function ensureSessionRevocationFailureRecorded(
   );
 }
 
-function createLockedSessionRevocation(
-  dependencies: SessionRevocationDependencies,
+function createSessionRevocationExecutor(
+  dependencies: SessionRevocationExecutionDependencies,
 ): LocalAccountFlows["revokeMemberSessions"] {
   return async (request) => {
     const input = { ...dependencies, ...request };
@@ -123,42 +122,43 @@ function createLockedSessionRevocation(
       }
       revocationStarted = true;
       const result = await identity.revokePrincipalSessions({ targetPrincipalId, command });
-      ensureSessionRevocationCompleted({ ...input, operation, result });
+      completeSessionRevocation({ ...input, operation, result });
       return result;
     } catch (error) {
       if (!terminalOutcomeRecorded) {
-        ensureSessionRevocationFailureRecorded({ ...input, error, operation, revocationStarted });
+        recordSessionRevocationFailure({ ...input, error, operation, revocationStarted });
       }
       throw error;
     }
   };
 }
 
-function createSessionRevocation(
-  dependencies: SessionRevocationDependencies,
+function createLockedSessionRevocation(
+  dependencies: SessionRevocationLockDependencies,
+  revokeMemberSessionsUnlocked: LocalAccountFlows["revokeMemberSessions"],
 ): LocalAccountFlows["revokeMemberSessions"] {
   const { lock, buildCommandExecutionKey } = dependencies;
-  const revokeMemberSessions = createLockedSessionRevocation(dependencies);
   return (input) =>
     lock.withKeys([buildCommandExecutionKey(input.command), input.actor.principalId, input.targetPrincipalId], () =>
-      revokeMemberSessions(input),
+      revokeMemberSessionsUnlocked(input),
     );
 }
 
 export function createSessionRevocationFlows(
   context: LocalAccountFlowContext,
 ): Pick<LocalAccountFlows, "revokeMemberSessions"> {
-  const dependencies: SessionRevocationDependencies = {
+  const revokeMemberSessionsUnlocked = createSessionRevocationExecutor({
     applicationId: context.applicationId,
     db: context.db,
     identity: context.identity,
     administration: context.administration,
-    lock: context.lock,
     persistTerminalOutcome: context.persistTerminalOutcome,
     denyIdentityAdminCommand: context.denyIdentityAdminCommand,
-    buildCommandExecutionKey: context.buildCommandExecutionKey,
-  };
+  });
   return {
-    revokeMemberSessions: createSessionRevocation(dependencies),
+    revokeMemberSessions: createLockedSessionRevocation(
+      { lock: context.lock, buildCommandExecutionKey: context.buildCommandExecutionKey },
+      revokeMemberSessionsUnlocked,
+    ),
   };
 }
