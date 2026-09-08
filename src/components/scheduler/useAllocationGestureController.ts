@@ -106,7 +106,13 @@ function previewGesture(options: ControllerOptions, runtime: GestureRuntime, inp
   const previewDays = resolvePreviewDays(runtime, destination?.id ?? resourceId);
   const result = buildGesturePreviewDates({ bar, mode: input.mode, deltaDays: input.deltaDays, previewDays });
   const dates = result.kind === "ready" ? result.dates : null;
-  const preview = { ...input, targetResourceId: target?.id ?? null, dates };
+  const preview: GesturePreview = {
+    mode: input.mode,
+    deltaDays: input.deltaDays,
+    deltaY: input.deltaY,
+    targetResourceId: target?.id ?? null,
+    dates,
+  };
   if (input.mode !== "move") return { preview, dropTarget: undefined };
   const blocked = isPreviewDestinationBlocked(bar, destination, result);
   return { preview, dropTarget: destination && !blocked ? destination.el : null };
