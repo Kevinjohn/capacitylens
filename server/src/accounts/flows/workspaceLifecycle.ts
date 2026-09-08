@@ -1,6 +1,5 @@
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
-import type { ActorContext, CommandIdentity } from "@capacitylens/shared/account/types";
 import { tx } from "../../txn";
 import { recordTerminalOutcome } from "../accountFlowRuntime";
 import {
@@ -17,9 +16,7 @@ import { assertWorkspaceProvisioningAllowedInTx, withMembershipSnapshotRetry } f
 import type { LocalAccountFlowContext } from "./context";
 import { isAuthorityDenial } from "./failures";
 
-export function createWorkspaceLifecycleFlows(
-  context: LocalAccountFlowContext,
-): Pick<
+type WorkspaceLifecycleFlows = Pick<
   LocalAccountFlows,
   | "replayWorkspaceProvisioning"
   | "replayWorkspaceErasure"
@@ -27,102 +24,198 @@ export function createWorkspaceLifecycleFlows(
   | "eraseWorkspace"
   | "provisionWorkspaceInExistingTransaction"
   | "withWorkspaceErasureLocks"
-> {
-  const {
-    applicationId,
-    db,
-    identity,
-    administration,
-    lock,
-    eraseProductWorkspaceInTx,
-    audit,
-    persistTerminalOutcome,
-    buildCommandExecutionKey,
-  } = context;
-  return {
-    async replayWorkspaceProvisioning<T>({
-      actor,
-      workspaceId,
-      command,
-      canonicalProductPayload,
-    }: {
-      actor: ActorContext;
-      workspaceId: string;
-      command: CommandIdentity;
-      canonicalProductPayload: unknown;
-    }) {
-      return lock.withKeys([buildCommandExecutionKey(command), actor.principalId], () => {
-        const operation = `workspace-provisioning:actor:${actor.principalId}`;
-        if (!readCommand({ db, applicationId, operation, command })) return null;
-        const begun = beginCommand<{
-          product: unknown;
-          membership: Awaited<ReturnType<AccountAdminPort["getMembership"]>>;
-        }>({
-          db,
-          scope: {
-            applicationId,
-            operation,
-            actorPrincipalId: actor.principalId,
-            targetPrincipalId: actor.principalId,
-            workspaceId,
-          },
-          command,
-          canonicalPayload: { workspaceId, product: canonicalProductPayload },
-        });
-        if (begun.kind !== "replay") {
-          throw new AccountContractError({
-            code: "COMMAND_IN_PROGRESS",
-            message: "That workspace-provisioning command is still in progress.",
-            retryable: true,
-            commandId: command.commandId,
-          });
-        }
-        return { ...begun.result, replayed: true };
-      }) as Promise<{
-        product: T;
-        membership: Awaited<ReturnType<AccountAdminPort["getMembership"]>>;
-        replayed: true;
-      } | null>;
-    },
+>;
 
-    async replayWorkspaceErasure({ actor, workspaceId, command }) {
-      return lock.withKeys([buildCommandExecutionKey(command), actor.principalId], () => {
-        const operation = "workspace-erasure";
-        const existing = readCommand({ db, applicationId, operation, command });
-        // Only a committed success may bypass live workspace authorization. New, pending and
-        // failed commands continue through the ordinary Owner/fresh-session checks below.
-        if (!existing || existing.status !== "completed") return null;
-        const replay = resumeExistingCommand<{
-          commandId: string;
-          completedAt: string;
-        }>({
-          db,
-          scope: {
-            applicationId,
-            operation,
-            // A successful erasure deliberately anonymises its retained receipt. Accept that
-            // redacted scope only after the exact completed command has been found above; a live
-            // principal binding must still match the authenticated caller.
-            actorPrincipalId: existing.actorPrincipalId === null ? null : actor.principalId,
-            workspaceId,
-          },
-          command,
-          canonicalPayload: { workspaceId },
-        });
-        return replay ? markAccountCommandReplay(replay.result) : null;
+type ProvisionWorkspaceInput<T = unknown> = Omit<
+  Parameters<LocalAccountFlows["provisionWorkspace"]>[0],
+  "provisionProductData"
+> & {
+  provisionProductData: () => T;
+};
+type EraseWorkspaceInput = Parameters<LocalAccountFlows["eraseWorkspace"]>[0];
+
+async function replayWorkspaceProvisioning<T>(
+  context: LocalAccountFlowContext,
+  input: Parameters<LocalAccountFlows["replayWorkspaceProvisioning"]>[0],
+) {
+  const { applicationId, db, lock, buildCommandExecutionKey } = context;
+  const { actor, workspaceId, command, canonicalProductPayload } = input;
+  return lock.withKeys([buildCommandExecutionKey(command), actor.principalId], () => {
+    const operation = `workspace-provisioning:actor:${actor.principalId}`;
+    if (!readCommand({ db, applicationId, operation, command })) return null;
+    const begun = beginCommand<{
+      product: T;
+      membership: Awaited<ReturnType<AccountAdminPort["getMembership"]>>;
+    }>({
+      db,
+      scope: {
+        applicationId,
+        operation,
+        actorPrincipalId: actor.principalId,
+        targetPrincipalId: actor.principalId,
+        workspaceId,
+      },
+      command,
+      canonicalPayload: { workspaceId, product: canonicalProductPayload },
+    });
+    if (begun.kind !== "replay") {
+      throw new AccountContractError({
+        code: "COMMAND_IN_PROGRESS",
+        message: "That workspace-provisioning command is still in progress.",
+        retryable: true,
+        commandId: command.commandId,
       });
-    },
+    }
+    return { ...begun.result, replayed: true };
+  });
+}
 
-    async provisionWorkspace({
-      actor,
-      workspaceId,
-      joinedAt,
+async function replayWorkspaceErasure(
+  context: LocalAccountFlowContext,
+  input: Parameters<LocalAccountFlows["replayWorkspaceErasure"]>[0],
+) {
+  const { applicationId, db, lock, buildCommandExecutionKey } = context;
+  const { actor, workspaceId, command } = input;
+  return lock.withKeys([buildCommandExecutionKey(command), actor.principalId], () => {
+    const operation = "workspace-erasure";
+    const existing = readCommand({ db, applicationId, operation, command });
+    // Only a committed success may bypass live workspace authorization. New, pending and
+    // failed commands continue through the ordinary Owner/fresh-session checks below.
+    if (!existing || existing.status !== "completed") return null;
+    const replay = resumeExistingCommand<{
+      commandId: string;
+      completedAt: string;
+    }>({
+      db,
+      scope: {
+        applicationId,
+        operation,
+        // Successful erasure anonymises its receipt. Accept a redacted scope only after the
+        // exact completed command is found; a live binding must still match the caller.
+        actorPrincipalId: existing.actorPrincipalId === null ? null : actor.principalId,
+        workspaceId,
+      },
       command,
-      multiWorkspace,
-      bootstrapAuthorized,
-      canonicalProductPayload,
-      provisionProductData,
-    }) {
+      canonicalPayload: { workspaceId },
+    });
+    return replay ? markAccountCommandReplay(replay.result) : null;
+  });
+}
+
+function createWorkspaceReplayFlows(
+  context: LocalAccountFlowContext,
+): Pick<WorkspaceLifecycleFlows, "replayWorkspaceProvisioning" | "replayWorkspaceErasure"> {
+  return {
+    async replayWorkspaceProvisioning<T>(input) {
+      return replayWorkspaceProvisioning<T>(context, input);
+    },
+    async replayWorkspaceErasure(input) {
+      return replayWorkspaceErasure(context, input);
+    },
+  };
+}
+
+function persistProvisioningFailure(
+  context: LocalAccountFlowContext,
+  input: ProvisionWorkspaceInput,
+  scope: Parameters<typeof beginCommand>[0]["scope"],
+  error: unknown,
+): void {
+  const { db, persistTerminalOutcome } = context;
+  const { actor, workspaceId, command } = input;
+  const deniedOutcome = isAuthorityDenial(error);
+  recordTerminalOutcome(error, () =>
+    persistTerminalOutcome(
+      () =>
+        terminateCommand({
+          db,
+          scope,
+          command,
+          status: "compensated",
+          failureCode: error instanceof AccountContractError ? error.failure.code : "CONFLICT",
+        }),
+      {
+        action: deniedOutcome ? "workspace.provisioned" : "flow.compensated",
+        outcome: deniedOutcome ? "denied" : "compensated",
+        workspaceId,
+        actorPrincipalId: actor.principalId,
+        command,
+      },
+    ),
+  );
+}
+
+function provisionWorkspaceInTransaction<T>(
+  context: LocalAccountFlowContext,
+  input: ProvisionWorkspaceInput<T>,
+  scope: Parameters<typeof beginCommand>[0]["scope"],
+) {
+  const { db, administration, audit } = context;
+  const { actor, workspaceId, joinedAt, command, multiWorkspace, bootstrapAuthorized, provisionProductData } = input;
+  return tx(
+    db,
+    () => {
+      assertWorkspaceProvisioningAllowedInTx(administration, {
+        actor,
+        multiWorkspace,
+        bootstrapAuthorized,
+        commandId: command.commandId,
+      });
+      const product = provisionProductData();
+      const membership = administration.provisionOwnerMembershipInTx({
+        workspaceId,
+        principalId: actor.principalId,
+        joinedAt,
+      });
+      const result = { product, membership };
+      completeCommand({ db, scope, command, result });
+      audit({
+        action: "workspace.provisioned",
+        outcome: "success",
+        workspaceId,
+        actorPrincipalId: actor.principalId,
+        targetPrincipalId: actor.principalId,
+        command,
+        changedFields: ["workspace", "membership"],
+      });
+      return result;
+    },
+    "immediate",
+  );
+}
+
+async function runWorkspaceProvisioning<T>(context: LocalAccountFlowContext, input: ProvisionWorkspaceInput<T>) {
+  const { applicationId, db } = context;
+  const { actor, workspaceId, command, canonicalProductPayload } = input;
+  const operation = `workspace-provisioning:actor:${actor.principalId}`;
+  const scope = {
+    applicationId,
+    operation,
+    actorPrincipalId: actor.principalId,
+    targetPrincipalId: actor.principalId,
+    workspaceId,
+  };
+  const begun = beginCommand<{
+    product: T;
+    membership: Awaited<ReturnType<AccountAdminPort["getMembership"]>>;
+  }>({ db, scope, command, canonicalPayload: { workspaceId, product: canonicalProductPayload } });
+  if (begun.kind === "replay") return { ...begun.result, replayed: true };
+  try {
+    const result = provisionWorkspaceInTransaction(context, input, scope);
+    return { ...result, replayed: false };
+  } catch (error) {
+    persistProvisioningFailure(context, input, scope, error);
+    throw error;
+  }
+}
+
+function createWorkspaceProvisioningFlows(
+  context: LocalAccountFlowContext,
+): Pick<WorkspaceLifecycleFlows, "provisionWorkspace" | "provisionWorkspaceInExistingTransaction"> {
+  const { applicationId, administration, lock, buildCommandExecutionKey } = context;
+  return {
+    async provisionWorkspace<T>(input: ProvisionWorkspaceInput<T>) {
+      const { actor, workspaceId, command } = input;
       return lock.withKeys(
         [
           buildCommandExecutionKey(command),
@@ -130,205 +223,16 @@ export function createWorkspaceLifecycleFlows(
           `application:${applicationId}:workspace-provisioning`,
           `workspace:${workspaceId}`,
         ],
-        async () => {
-          const operation = `workspace-provisioning:actor:${actor.principalId}`;
-          const scope = {
-            applicationId,
-            operation,
-            actorPrincipalId: actor.principalId,
-            targetPrincipalId: actor.principalId,
-            workspaceId,
-          };
-          const begun = beginCommand<{
-            product: unknown;
-            membership: Awaited<ReturnType<AccountAdminPort["getMembership"]>>;
-          }>({
-            db,
-            scope,
-            command,
-            canonicalPayload: {
-              workspaceId,
-              product: canonicalProductPayload,
-            },
-          });
-          if (begun.kind === "replay") {
-            return {
-              ...(begun.result as {
-                product: ReturnType<typeof provisionProductData>;
-                membership: Awaited<ReturnType<AccountAdminPort["getMembership"]>>;
-              }),
-              replayed: true,
-            };
-          }
-          try {
-            const result = tx(
-              db,
-              () => {
-                assertWorkspaceProvisioningAllowedInTx(administration, {
-                  actor,
-                  multiWorkspace,
-                  bootstrapAuthorized,
-                  commandId: command.commandId,
-                });
-                const product = provisionProductData();
-                const membership = administration.provisionOwnerMembershipInTx({
-                  workspaceId,
-                  principalId: actor.principalId,
-                  joinedAt,
-                });
-                const result = { product, membership };
-                completeCommand({ db, scope, command, result });
-                audit({
-                  action: "workspace.provisioned",
-                  outcome: "success",
-                  workspaceId,
-                  actorPrincipalId: actor.principalId,
-                  targetPrincipalId: actor.principalId,
-                  command,
-                  changedFields: ["workspace", "membership"],
-                });
-                return result;
-              },
-              "immediate",
-            );
-            return { ...result, replayed: false };
-          } catch (error) {
-            const deniedOutcome = isAuthorityDenial(error);
-            recordTerminalOutcome(error, () =>
-              persistTerminalOutcome(
-                () =>
-                  terminateCommand({
-                    db,
-                    scope,
-                    command,
-                    status: "compensated",
-                    failureCode: error instanceof AccountContractError ? error.failure.code : "CONFLICT",
-                  }),
-                {
-                  action: deniedOutcome ? "workspace.provisioned" : "flow.compensated",
-                  outcome: deniedOutcome ? "denied" : "compensated",
-                  workspaceId,
-                  actorPrincipalId: actor.principalId,
-                  command,
-                },
-              ),
-            );
-            throw error;
-          }
-        },
+        () => runWorkspaceProvisioning(context, input),
       );
     },
-
-    async eraseWorkspace({ actor, workspaceId, command, auditProductMutationInTx }) {
-      return withMembershipSnapshotRetry({
-        lock,
-        currentPrincipalIds: () => administration.workspacePrincipalIds(workspaceId),
-        lockKeysFor: (principalIds) => [
-          buildCommandExecutionKey(command),
-          actor.principalId,
-          `workspace:${workspaceId}`,
-          ...principalIds,
-        ],
-        run: async () => {
-          // Do not embed the soon-to-be-erased actor id in the durable operation key. The row is
-          // retained briefly for safe client replay after erasure, with principal/workspace
-          // columns anonymized in the same transaction.
-          const operation = "workspace-erasure";
-          const scope = {
-            applicationId,
-            operation,
-            actorPrincipalId: actor.principalId,
-            workspaceId,
-          };
-          const begun = beginCommand<{
-            commandId: string;
-            completedAt: string;
-          }>({ db, scope, command, canonicalPayload: { workspaceId } });
-          if (begun.kind === "replay") {
-            return markAccountCommandReplay(begun.result);
-          }
-          try {
-            let masqueradeHandles: readonly string[] = [];
-            const erased = tx(
-              db,
-              () => {
-                administration.assertWorkspaceErasureAuthorityInTx(actor, workspaceId);
-                eraseProductWorkspaceInTx(workspaceId);
-                const orphaned = administration.eraseWorkspaceAdministrationInTx(workspaceId);
-                masqueradeHandles = identity.deprovisionLocalPrincipalsInTx(orphaned, command.commandId);
-                auditProductMutationInTx?.();
-                const receipt = {
-                  commandId: command.commandId,
-                  completedAt: new Date().toISOString(),
-                };
-                eraseWorkspaceCommandHistoryInTx(db, workspaceId, command.commandId);
-                completeCommand({ db, scope, command, result: receipt });
-                for (const principalId of orphaned) {
-                  audit({
-                    action: "identity.local_deprovisioned",
-                    outcome: "success",
-                    workspaceId,
-                    actorPrincipalId: actor.principalId,
-                    targetPrincipalId: principalId,
-                    command,
-                    changedFields: ["localPrincipal"],
-                  });
-                }
-                audit({
-                  action: "workspace.erased",
-                  outcome: "success",
-                  workspaceId,
-                  actorPrincipalId: actor.principalId,
-                  command,
-                  changedFields: ["workspace", "memberships", "localPrincipals"],
-                });
-                return { receipt, orphaned };
-              },
-              "immediate",
-            );
-            identity.commitMasqueradeSessionEnds(masqueradeHandles);
-            return erased.receipt;
-          } catch (error) {
-            recordTerminalOutcome(error, () =>
-              persistTerminalOutcome(
-                () =>
-                  terminateCommand({
-                    db,
-                    scope,
-                    command,
-                    status: "compensated",
-                    failureCode: error instanceof AccountContractError ? error.failure.code : "CONFLICT",
-                  }),
-                {
-                  action: "flow.compensated",
-                  outcome: "compensated",
-                  workspaceId,
-                  actorPrincipalId: actor.principalId,
-                  command,
-                },
-              ),
-            );
-            throw error;
-          }
-        },
-        onAttemptsExhausted: () => {
-          throw new AccountContractError({
-            code: "CONFLICT",
-            message: "Company membership changed repeatedly during erasure. Retry the request.",
-            retryable: true,
-            commandId: command.commandId,
-          });
-        },
-      });
-    },
-
     provisionWorkspaceInExistingTransaction({
       workspaceId,
       principalId,
       joinedAt,
       multiWorkspace,
       projectedWorkspaceCount,
-    }): void {
+    }) {
       assertWorkspaceProvisioningAllowedInTx(administration, {
         actor: {
           principalId,
@@ -341,18 +245,157 @@ export function createWorkspaceLifecycleFlows(
         bootstrapAuthorized: false,
         projectedWorkspaceCount,
       });
-      administration.provisionOwnerMembershipInTx({
+      administration.provisionOwnerMembershipInTx({ workspaceId, principalId, joinedAt });
+    },
+  };
+}
+
+type ErasedWorkspace = {
+  receipt: { commandId: string; completedAt: string };
+  masqueradeHandles: readonly string[];
+};
+
+function eraseWorkspaceInTransaction(
+  context: LocalAccountFlowContext,
+  input: EraseWorkspaceInput,
+  scope: Parameters<typeof beginCommand>[0]["scope"],
+): ErasedWorkspace {
+  const { db, identity, administration, eraseProductWorkspaceInTx, audit } = context;
+  const { actor, workspaceId, command, auditProductMutationInTx } = input;
+  return tx(
+    db,
+    () => {
+      administration.assertWorkspaceErasureAuthorityInTx(actor, workspaceId);
+      eraseProductWorkspaceInTx(workspaceId);
+      const orphaned = administration.eraseWorkspaceAdministrationInTx(workspaceId);
+      const masqueradeHandles = identity.deprovisionLocalPrincipalsInTx(orphaned, command.commandId);
+      auditProductMutationInTx?.();
+      const receipt = { commandId: command.commandId, completedAt: new Date().toISOString() };
+      eraseWorkspaceCommandHistoryInTx(db, workspaceId, command.commandId);
+      completeCommand({ db, scope, command, result: receipt });
+      for (const principalId of orphaned) {
+        audit({
+          action: "identity.local_deprovisioned",
+          outcome: "success",
+          workspaceId,
+          actorPrincipalId: actor.principalId,
+          targetPrincipalId: principalId,
+          command,
+          changedFields: ["localPrincipal"],
+        });
+      }
+      audit({
+        action: "workspace.erased",
+        outcome: "success",
         workspaceId,
-        principalId,
-        joinedAt,
+        actorPrincipalId: actor.principalId,
+        command,
+        changedFields: ["workspace", "memberships", "localPrincipals"],
+      });
+      return { receipt, masqueradeHandles };
+    },
+    "immediate",
+  );
+}
+function persistErasureFailure(
+  context: LocalAccountFlowContext,
+  input: EraseWorkspaceInput,
+  scope: Parameters<typeof beginCommand>[0]["scope"],
+  error: unknown,
+): void {
+  const { db, persistTerminalOutcome } = context;
+  const { actor, workspaceId, command } = input;
+  recordTerminalOutcome(error, () =>
+    persistTerminalOutcome(
+      () =>
+        terminateCommand({
+          db,
+          scope,
+          command,
+          status: "compensated",
+          failureCode: error instanceof AccountContractError ? error.failure.code : "CONFLICT",
+        }),
+      {
+        action: "flow.compensated",
+        outcome: "compensated",
+        workspaceId,
+        actorPrincipalId: actor.principalId,
+        command,
+      },
+    ),
+  );
+}
+
+async function runWorkspaceErasure(
+  context: LocalAccountFlowContext,
+  input: EraseWorkspaceInput,
+): Promise<{ commandId: string; completedAt: string }> {
+  const { applicationId, db, identity } = context;
+  const { actor, workspaceId, command } = input;
+  // Do not embed the erased actor id in the durable operation key. Its receipt remains briefly
+  // available for replay and has its principal/workspace columns anonymised transactionally.
+  const scope = {
+    applicationId,
+    operation: "workspace-erasure",
+    actorPrincipalId: actor.principalId,
+    workspaceId,
+  };
+  const begun = beginCommand<{ commandId: string; completedAt: string }>({
+    db,
+    scope,
+    command,
+    canonicalPayload: { workspaceId },
+  });
+  if (begun.kind === "replay") return markAccountCommandReplay(begun.result);
+  try {
+    const erased = eraseWorkspaceInTransaction(context, input, scope);
+    identity.commitMasqueradeSessionEnds(erased.masqueradeHandles);
+    return erased.receipt;
+  } catch (error) {
+    persistErasureFailure(context, input, scope, error);
+    throw error;
+  }
+}
+
+function throwErasureMembershipSnapshotConflict(commandId: string): never {
+  throw new AccountContractError({
+    code: "CONFLICT",
+    message: "Company membership changed repeatedly during erasure. Retry the request.",
+    retryable: true,
+    commandId,
+  });
+}
+
+function throwWorkspaceMembershipSnapshotConflict(): never {
+  throw new AccountContractError({
+    code: "CONFLICT",
+    message: "Company membership changed repeatedly during erasure. Retry the request.",
+    retryable: true,
+  });
+}
+
+function createWorkspaceErasureFlows(
+  context: LocalAccountFlowContext,
+): Pick<WorkspaceLifecycleFlows, "eraseWorkspace" | "withWorkspaceErasureLocks"> {
+  const { applicationId, administration, lock, buildCommandExecutionKey } = context;
+  return {
+    async eraseWorkspace(input) {
+      const { actor, workspaceId, command } = input;
+      return withMembershipSnapshotRetry({
+        lock,
+        currentPrincipalIds: () => administration.workspacePrincipalIds(workspaceId),
+        lockKeysFor: (principalIds) => [
+          buildCommandExecutionKey(command),
+          actor.principalId,
+          `workspace:${workspaceId}`,
+          ...principalIds,
+        ],
+        run: () => runWorkspaceErasure(context, input),
+        onAttemptsExhausted: () => throwErasureMembershipSnapshotConflict(command.commandId),
       });
     },
 
-    async withWorkspaceErasureLocks<T>(
-      workspaceIds: readonly string[],
-      operation: () => Promise<T> | T,
-      options: { serializeWorkspaceProvisioning?: boolean } = {},
-    ): Promise<T> {
+    async withWorkspaceErasureLocks(workspaceIds, operation, options = {}) {
       const uniqueWorkspaceIds = [...new Set(workspaceIds)];
       return withMembershipSnapshotRetry({
         lock,
@@ -364,14 +407,16 @@ export function createWorkspaceLifecycleFlows(
           ...principalIds,
         ],
         run: async () => operation(),
-        onAttemptsExhausted: () => {
-          throw new AccountContractError({
-            code: "CONFLICT",
-            message: "Company membership changed repeatedly during erasure. Retry the request.",
-            retryable: true,
-          });
-        },
+        onAttemptsExhausted: () => throwWorkspaceMembershipSnapshotConflict(),
       });
     },
+  };
+}
+
+export function createWorkspaceLifecycleFlows(context: LocalAccountFlowContext): WorkspaceLifecycleFlows {
+  return {
+    ...createWorkspaceReplayFlows(context),
+    ...createWorkspaceProvisioningFlows(context),
+    ...createWorkspaceErasureFlows(context),
   };
 }
