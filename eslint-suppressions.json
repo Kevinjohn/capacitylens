@@ -270,14 +270,6 @@
       "count": 2
     }
   },
-  "server/src/accounts/adminPort/membership.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 3
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "server/src/accounts/betterAuthIdentityPort.ts": {
     "max-lines-per-function": {
       "count": 1
@@ -410,19 +402,9 @@
       "count": 1
     }
   },
-  "server/src/app.accountRoutes.test.ts": {
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 4
-    }
-  },
   "server/src/app.auth.test.ts": {
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "server/src/app.authz.test.ts": {
-    "max-lines-per-function": {
-      "count": 5
     }
   },
   "server/src/app.cspReport.test.ts": {
@@ -456,28 +438,12 @@
       "count": 2
     }
   },
-  "server/src/app.resetPassword.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "server/src/app.retire-open-dataset.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
     },
     "@typescript-eslint/no-unsafe-member-access": {
       "count": 2
-    }
-  },
-  "server/src/app.routes.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 4
     }
   },
   "server/src/app.syncOrdering.integration.test.ts": {
@@ -487,7 +453,7 @@
   },
   "server/src/app.test.ts": {
     "max-lines-per-function": {
-      "count": 14
+      "count": 12
     }
   },
   "server/src/audit.test.ts": {
@@ -497,17 +463,6 @@
   },
   "server/src/audit.ts": {
     "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    }
-  },
-  "server/src/audit/createAuditRecovery.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "max-depth": {
-      "count": 1
-    },
-    "max-lines-per-function": {
       "count": 1
     }
   },
@@ -539,20 +494,6 @@
       "count": 1
     }
   },
-  "server/src/authConfig/authFromEnv.ts": {
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 1
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "server/src/authConfig/bootstrapAdmin.ts": {
     "@typescript-eslint/no-unsafe-assignment": {
       "count": 1
@@ -572,20 +513,6 @@
   "server/src/authConfig/captureContexts.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 3
-    }
-  },
-  "server/src/authConfig/databaseHooks.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
     }
   },
   "server/src/authConfig/federatedIdentitySchema.ts": {
@@ -633,14 +560,6 @@
   "server/src/cascadeParity.test.ts": {
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "server/src/controlTables.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 2
     }
   },
   "server/src/controlTables/inviteRetention.ts": {
@@ -770,28 +689,6 @@
       "count": 1
     },
     "no-nested-ternary": {
-      "count": 1
-    }
-  },
-  "server/src/passwordSecurity.test.ts": {
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 3
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "server/src/passwordSecurity.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-argument": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 1
-    },
-    "complexity": {
       "count": 1
     }
   },
@@ -1053,20 +950,6 @@
       "count": 1
     }
   },
-  "server/src/validate/sanitize.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-depth": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
-    }
-  },
   "server/src/workQueue.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 3
@@ -1152,11 +1035,6 @@
   "shared/src/domain/access.test.ts": {
     "max-depth": {
       "count": 1
-    }
-  },
-  "shared/src/domain/assertions/dependents.ts": {
-    "max-params": {
-      "count": 4
     }
   },
   "shared/src/domain/importFold.ts": {
@@ -1460,17 +1338,6 @@
     },
     "no-nested-ternary": {
       "count": 1
-    }
-  },
-  "src/components/ImportExport.test.tsx": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
     }
   },
   "src/components/ImportExport.tsx": {
