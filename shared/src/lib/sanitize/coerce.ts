@@ -31,6 +31,9 @@ export const clampAllocHours = (value: unknown, fallback: number): number =>
 export const safeInt = (value: unknown, fallback: number): number =>
   typeof value === "number" && Number.isSafeInteger(value) ? value : fallback;
 
+const isWeekday = (value: unknown): value is Weekday =>
+  typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 6;
+
 // Repair a sloppily-formatted date to the canonical zero-padded "YYYY-MM-DD". The whole
 // app relies on dates being zero-padded so they sort chronologically as strings (see
 // isWithin), and the forms guarantee that — but a hand-edited import might carry
@@ -55,7 +58,7 @@ export const normalizeISODate = (value: unknown): unknown => {
 // keeping whatever real weekdays remain. Only the default they fall back to is shared.
 export const safeWorkingDays = (value: unknown): Weekday[] => {
   if (!Array.isArray(value)) return defaultAccountWorkingDays();
-  const days = value.filter((day): day is Weekday => Number.isInteger(day) && day >= 0 && day <= 6);
+  const days = value.filter(isWeekday);
   const unique = [...new Set(days)].sort((a, b) => a - b);
   return unique.length ? unique : defaultAccountWorkingDays();
 };
@@ -64,11 +67,7 @@ export const safeWorkingDays = (value: unknown): Weekday[] => {
 export const safeHalfDays = (value: unknown, workingDays: Weekday[]): Weekday[] => {
   if (!Array.isArray(value)) return [];
   const working = new Set(workingDays);
-  return [
-    ...new Set(
-      value.filter((day): day is Weekday => Number.isInteger(day) && day >= 0 && day <= 6 && working.has(day)),
-    ),
-  ].sort((a, b) => a - b);
+  return [...new Set(value.filter((day): day is Weekday => isWeekday(day) && working.has(day)))].sort((a, b) => a - b);
 };
 
 interface CleanFieldOptions {

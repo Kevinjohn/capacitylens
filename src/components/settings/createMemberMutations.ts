@@ -25,142 +25,144 @@ export interface MemberMutationDependencies extends Pick<
   setResetLink: Dispatch<SetStateAction<{ userId: string; link: string; member: string; expiresAt: string } | null>>;
 }
 
-export function createMemberMutations(dependencies: MemberMutationDependencies) {
-  const {
-    withMemberAction,
-    isActiveAccount,
-    fail,
-    setNotice,
-    reconcileUnknownMutation,
-    refreshCallerAccess,
-    refreshDirectory,
-    reload,
-    clearResetLinkFor,
-  } = dependencies;
-  const changeSignInTracking = ({ next }: ChangeSignInTrackingInput) =>
-    withMemberAction("member-sign-in-tracking", async (accountId) => {
+function createSignInTrackingMutation(dependencies: MemberMutationDependencies) {
+  return ({ next }: ChangeSignInTrackingInput) =>
+    dependencies.withMemberAction("member-sign-in-tracking", async (accountId) => {
       try {
         const result = await teamAccessClient.setMemberSignInTracking(accountId, next);
-        if (!isActiveAccount(accountId)) return;
+        if (!dependencies.isActiveAccount(accountId)) return;
         if (result.kind !== "ok") {
-          fail(
+          dependencies.fail(
             null,
             resolveRejectionMessage(result, m.settings_members_err_sign_in_tracking({ status: result.status })),
           );
-          reload();
+          dependencies.reload();
           return;
         }
-        setNotice(
+        dependencies.setNotice(
           result.value ? m.settings_members_sign_in_tracking_enabled() : m.settings_members_sign_in_tracking_disabled(),
         );
-        reload();
+        dependencies.reload();
       } catch (cause) {
-        fail(null, m.settings_err_server({ error: resolveErrorMessage(cause) }));
-        reload();
+        dependencies.fail(null, m.settings_err_server({ error: resolveErrorMessage(cause) }));
+        dependencies.reload();
       }
     });
-  // NB: the param is `mem`, NOT `m` — `m` is the i18n catalogue, not a Member.
-  const changeRole = async (member: Member, nextRole: Role) => {
+}
+
+function createRoleMutation(dependencies: MemberMutationDependencies) {
+  return async (member: Member, nextRole: Role) => {
     if (nextRole === member.role) return;
-    await withMemberAction(`role:${member.userId}`, async (accountId) => {
+    await dependencies.withMemberAction(`role:${member.userId}`, async (accountId) => {
       try {
         const result = await teamAccessClient.changeMemberRole(accountId, member.userId, nextRole);
-        if (!isActiveAccount(accountId)) return;
+        if (!dependencies.isActiveAccount(accountId)) return;
         if (result.kind !== "ok") {
           if (result.kind === "unknown") {
-            await reconcileUnknownMutation(m.settings_members_unknown_role_change(), {
+            await dependencies.reconcileUnknownMutation(m.settings_members_unknown_role_change(), {
               callerAccessMayHaveChanged: member.isSelf,
             });
             return;
           }
-          fail(null, resolveRejectionMessage(result, m.settings_members_err_change_role({ status: result.status })));
+          dependencies.fail(
+            null,
+            resolveRejectionMessage(result, m.settings_members_err_change_role({ status: result.status })),
+          );
           return;
         }
-        setNotice(m.settings_members_role_updated());
-        clearResetLinkFor(member.userId);
-        if (member.isSelf) await refreshCallerAccess();
-        refreshDirectory();
-      } catch (e) {
-        await reconcileUnknownMutation(
+        dependencies.setNotice(m.settings_members_role_updated());
+        dependencies.clearResetLinkFor(member.userId);
+        if (member.isSelf) await dependencies.refreshCallerAccess();
+        dependencies.refreshDirectory();
+      } catch (cause) {
+        await dependencies.reconcileUnknownMutation(
           m.settings_members_error_detail({
             message: m.settings_members_unknown_role_change(),
-            error: resolveErrorMessage(e),
+            error: resolveErrorMessage(cause),
           }),
           { callerAccessMayHaveChanged: member.isSelf },
         );
       }
     });
   };
+}
 
-  // NB: the param is `mem`, NOT `m` — see changeRole above (`m` is the i18n catalogue, not a Member).
-  const removeMember = (member: Member) =>
-    withMemberAction(`remove:${member.userId}`, async (accountId) => {
+function createRemoveMemberMutation(dependencies: MemberMutationDependencies) {
+  return (member: Member) =>
+    dependencies.withMemberAction(`remove:${member.userId}`, async (accountId) => {
       try {
         const result = await teamAccessClient.removeMember(accountId, member.userId);
-        if (!isActiveAccount(accountId)) return;
+        if (!dependencies.isActiveAccount(accountId)) return;
         if (result.kind !== "ok") {
           if (result.kind === "unknown") {
-            await reconcileUnknownMutation(m.settings_members_unknown_member_removal(), {
+            await dependencies.reconcileUnknownMutation(m.settings_members_unknown_member_removal(), {
               callerAccessMayHaveChanged: member.isSelf,
             });
             return;
           }
-          fail(null, resolveRejectionMessage(result, m.settings_members_err_remove({ status: result.status })));
+          dependencies.fail(
+            null,
+            resolveRejectionMessage(result, m.settings_members_err_remove({ status: result.status })),
+          );
           return;
         }
-        setNotice(m.settings_members_removed());
-        clearResetLinkFor(member.userId);
+        dependencies.setNotice(m.settings_members_removed());
+        dependencies.clearResetLinkFor(member.userId);
         if (member.isSelf) {
-          await refreshCallerAccess({ knownRemoved: true });
+          await dependencies.refreshCallerAccess({ knownRemoved: true });
         }
-        refreshDirectory();
-      } catch (e) {
-        await reconcileUnknownMutation(
+        dependencies.refreshDirectory();
+      } catch (cause) {
+        await dependencies.reconcileUnknownMutation(
           m.settings_members_error_detail({
             message: m.settings_members_unknown_member_removal(),
-            error: resolveErrorMessage(e),
+            error: resolveErrorMessage(cause),
           }),
           { callerAccessMayHaveChanged: member.isSelf },
         );
       }
     });
+}
 
-  // Disable / archive / restore a membership. The row survives with its role intact; every
-  // authorization read narrows on status='active', so a non-active membership simply confers
-  // nothing. `mem` is NOT `m` (the i18n catalogue) — see changeRole above.
-  const changeStatus = async (member: Member, nextStatus: MembershipStatus) => {
+function createStatusMutation(dependencies: MemberMutationDependencies) {
+  return async (member: Member, nextStatus: MembershipStatus) => {
     if (nextStatus === member.status) return;
-    await withMemberAction(`status:${member.userId}`, async (accountId) => {
+    await dependencies.withMemberAction(`status:${member.userId}`, async (accountId) => {
       try {
         const result = await teamAccessClient.changeMemberStatus(accountId, member.userId, nextStatus);
-        if (!isActiveAccount(accountId)) return;
+        if (!dependencies.isActiveAccount(accountId)) return;
         if (result.kind !== "ok") {
           if (result.kind === "unknown") {
-            await reconcileUnknownMutation(m.settings_members_unknown_status_change());
+            await dependencies.reconcileUnknownMutation(m.settings_members_unknown_status_change());
             return;
           }
-          fail(null, resolveRejectionMessage(result, m.settings_members_err_change_status({ status: result.status })));
+          dependencies.fail(
+            null,
+            resolveRejectionMessage(result, m.settings_members_err_change_status({ status: result.status })),
+          );
           return;
         }
-        setNotice(m.settings_members_status_changed());
-        clearResetLinkFor(member.userId);
-        refreshDirectory();
-      } catch (e) {
-        await reconcileUnknownMutation(
+        dependencies.setNotice(m.settings_members_status_changed());
+        dependencies.clearResetLinkFor(member.userId);
+        dependencies.refreshDirectory();
+      } catch (cause) {
+        await dependencies.reconcileUnknownMutation(
           m.settings_members_error_detail({
             message: m.settings_members_unknown_status_change(),
-            error: resolveErrorMessage(e),
+            error: resolveErrorMessage(cause),
           }),
         );
       }
     });
   };
+}
 
+export function createMemberMutations(dependencies: MemberMutationDependencies) {
   return {
-    changeSignInTracking,
-    changeRole,
-    removeMember,
-    changeStatus,
+    changeSignInTracking: createSignInTrackingMutation(dependencies),
+    changeRole: createRoleMutation(dependencies),
+    removeMember: createRemoveMemberMutation(dependencies),
+    changeStatus: createStatusMutation(dependencies),
     ...createMemberCredentialMutations(dependencies),
   };
 }

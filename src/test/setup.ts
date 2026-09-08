@@ -59,7 +59,7 @@ if (typeof globalThis.ResizeObserver === "undefined") {
     disconnect() {} // no-op
   };
 }
-if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
+if (!Reflect.has(Element.prototype, "scrollIntoView")) {
   Element.prototype.scrollIntoView = () => {};
 }
 const browserGlobals = globalThis as unknown as { HTMLElement?: typeof HTMLElement };

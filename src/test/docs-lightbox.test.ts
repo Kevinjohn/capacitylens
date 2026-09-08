@@ -56,14 +56,14 @@ const articleOf = (html: string) => {
 // and the only way to get green is to weaken the check.
 const withoutLinks = (html: string) => html.replace(/<a\b[^>]*>[\s\S]*?<\/a>/g, "");
 
+const pages = htmlPages(SITE).map((path) => {
+  const html = readFileSync(path, "utf8");
+  return { name: path.slice(SITE.length + 1), html, article: articleOf(html) };
+});
+
+const withScreenshots = pages.filter((page) => page.article.includes("<img"));
+
 describe("docs image lightbox", () => {
-  const pages = htmlPages(SITE).map((path) => {
-    const html = readFileSync(path, "utf8");
-    return { name: path.slice(SITE.length + 1), html, article: articleOf(html) };
-  });
-
-  const withScreenshots = pages.filter((page) => page.article.includes("<img"));
-
   it("has a built site with screenshots to check", () => {
     expect(pages.length).toBeGreaterThan(0);
     // The walkthrough pages carry the screenshots; if this collapses, the checks
@@ -141,7 +141,9 @@ describe("docs image lightbox", () => {
     });
     expect(mismatched.map((page) => page.name)).toEqual([]);
   });
+});
 
+describe("docs image build hygiene", () => {
   it("keeps generated HTML free of trailing whitespace", () => {
     const offenders = pages.filter((page) => /[^\S\r\n]+$/m.test(page.html));
     expect(offenders.map((page) => page.name)).toEqual([]);
