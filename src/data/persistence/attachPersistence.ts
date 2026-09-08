@@ -67,7 +67,10 @@ function isFlushBlocked(owner: AttachmentState): boolean {
 }
 
 function hasQueuedWrite(owner: AttachmentState): boolean {
-  return owner.current.timer !== null || owner.current.pending !== null || owner.current.inFlightSave !== null;
+  return (
+    !owner.current.disposed &&
+    (owner.current.timer !== null || owner.current.pending !== null || owner.current.inFlightSave !== null)
+  );
 }
 
 function isWriteStateClean(owner: AttachmentState): boolean {
