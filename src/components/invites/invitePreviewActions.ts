@@ -16,6 +16,10 @@ interface Dependencies {
   setState: Dispatch<SetStateAction<InviteAcceptState>>;
 }
 
+function isPreviewCancelled(requestState: { cancelled: boolean }): boolean {
+  return requestState.cancelled;
+}
+
 export function createInvitePreviewAction({
   token,
   previewed,
@@ -26,12 +30,12 @@ export function createInvitePreviewAction({
 }: Dependencies) {
   return () => {
     if (!isServerConfigured() || !token) return; // demo build / no token: nothing to preview
-    let cancelled = false;
+    const requestState = { cancelled: false };
 
     void (async () => {
       try {
         const previewResponse = await accountClient.previewInvitation(token);
-        if (cancelled) return;
+        if (isPreviewCancelled(requestState)) return;
         if (!previewResponse.ok) {
           setState({
             kind: "error",
@@ -40,7 +44,7 @@ export function createInvitePreviewAction({
           return;
         }
         const parsedPreview = parsePreview(await previewResponse.json().catch(() => null));
-        if (cancelled) return;
+        if (isPreviewCancelled(requestState)) return;
         if (!parsedPreview) {
           setState({ kind: "error", message: m.invite_err_preview_invalid() });
           return;
@@ -56,7 +60,7 @@ export function createInvitePreviewAction({
               },
         );
       } catch (err) {
-        if (cancelled) return;
+        if (isPreviewCancelled(requestState)) return;
         // Preview is read-only, so a transport failure cannot have consumed the invite. Keep this
         // distinct from an accept failure, whose outcome may genuinely be unknown.
         console.error("InviteAccept: preview request failed", err);
@@ -68,7 +72,7 @@ export function createInvitePreviewAction({
       }
     })();
     return () => {
-      cancelled = true;
+      requestState.cancelled = true;
     };
   };
 }
