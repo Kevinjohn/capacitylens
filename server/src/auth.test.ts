@@ -708,7 +708,7 @@ describe("resolved auth options", () => {
   });
 });
 
-describe("cookie/session hardening (P1.16)", () => {
+const registerCookieHardeningTests = () => {
   it("pins sameSite:lax + httpOnly on the session cookie", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), PASSWORD_ENV);
     const passwordAuth = assertPresent(auth, "password auth");
@@ -773,7 +773,9 @@ describe("cookie/session hardening (P1.16)", () => {
       }),
     ).not.toThrow();
   });
+};
 
+const registerSessionHardeningTests = () => {
   it("pins a 12-hour absolute lifetime with no sliding refresh and a 15-minute fresh window", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), PASSWORD_ENV);
     const passwordAuth = assertPresent(auth, "password auth");
@@ -787,6 +789,11 @@ describe("cookie/session hardening (P1.16)", () => {
     expect(mode).toBe("off");
     expect(auth).toBeNull();
   });
+};
+
+describe("cookie/session hardening (P1.16)", () => {
+  registerCookieHardeningTests();
+  registerSessionHardeningTests();
 });
 
 describe("external identity creation gate", () => {
