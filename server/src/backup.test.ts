@@ -224,12 +224,13 @@ describe("pre-migration rollback snapshot", () => {
       log: () => {},
     });
     expect(snapshot).not.toBeNull();
+    if (snapshot === null) throw new Error("expected a pre-migration backup snapshot");
 
     initializeOpenDb(db, dbPath);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(DB_SCHEMA_VERSION);
     db.close();
 
-    const rollback = trackDatabase(new DatabaseSync(snapshot!, { readOnly: true }));
+    const rollback = trackDatabase(new DatabaseSync(snapshot, { readOnly: true }));
     expect(
       (
         rollback.prepare(`PRAGMA user_version`).get() as {
@@ -260,7 +261,7 @@ describe("pre-migration rollback snapshot", () => {
       ).journal_mode,
     ).toBe("delete");
     rollback.close();
-    expect(statSync(snapshot!).mode & 0o777).toBe(0o600);
+    expect(statSync(snapshot).mode & 0o777).toBe(0o600);
     expect(existsSync(`${snapshot}.tmp-wal`)).toBe(false);
     expect(existsSync(`${snapshot}.tmp-shm`)).toBe(false);
   });
@@ -353,11 +354,12 @@ describe("pre-migration rollback snapshot", () => {
     db.close();
 
     expect(second).toBe(first);
+    if (second === null) throw new Error("expected a refreshed pre-migration backup snapshot");
     expect(readdirSync(rollbacks).filter((file) => file.endsWith(".db"))).toEqual([
       "capacitylens-pre-migration-v7-to-v16.db",
     ]);
     expect(readdirSync(rollbacks).filter((file) => file.endsWith(".tmp"))).toEqual([]);
-    const refreshed = trackDatabase(new DatabaseSync(second!, { readOnly: true }));
+    const refreshed = trackDatabase(new DatabaseSync(second, { readOnly: true }));
     expect(
       (
         refreshed.prepare("SELECT COUNT(*) AS n FROM example").get() as {
@@ -422,10 +424,8 @@ describe("startBackups", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("backup written"));
     expect(statSync(dir).mode & 0o777).toBe(0o700);
     expect(statSync(file).mode & 0o777).toBe(0o600);
-    expect(backups.health).toEqual({
-      degraded: false,
-      lastSuccessAt: expect.any(String),
-    });
+    expect(backups.health.degraded).toBe(false);
+    expect(typeof backups.health.lastSuccessAt).toBe("string");
   });
 
   it("persists the scheduled snapshot name before retention and then persists deletions", async () => {
