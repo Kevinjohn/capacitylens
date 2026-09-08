@@ -1,6 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { foldForSearch, fuzzyScore, fuzzyFilter } from "./fuzzy";
 
+const resources = [
+  { id: "r-tyler", name: "Bruce Wayne" },
+  { id: "r-pam", name: "Diana Prince" },
+  { id: "r-nike", name: "Clark Kent" },
+  { id: "r-alex", name: "Barry Allen" },
+];
+const getText = (resource: { name: string }) => resource.name;
+
 describe("foldForSearch", () => {
   it("lower-cases and strips canonically decomposable diacritics", () => {
     expect(foldForSearch("José ÁLVAREZ")).toBe("jose alvarez");
@@ -13,7 +21,7 @@ describe("foldForSearch", () => {
   });
 });
 
-describe("fuzzyScore", () => {
+describe("fuzzyScore — prefix tiers", () => {
   describe("Tier 0 — exact prefix", () => {
     it("scores 0 for exact prefix match", () => {
       expect(fuzzyScore("br", "Bruce Wayne")).toBe(0);
@@ -48,7 +56,9 @@ describe("fuzzyScore", () => {
       },
     );
   });
+});
 
+describe("fuzzyScore — fallback tiers", () => {
   describe("Tier 2 — contiguous substring", () => {
     it("scores 2 for mid-word substring", () => {
       expect(fuzzyScore("uce", "Bruce Wayne")).toBe(2);
@@ -83,15 +93,7 @@ describe("fuzzyScore", () => {
   });
 });
 
-describe("fuzzyFilter", () => {
-  const resources = [
-    { id: "r-tyler", name: "Bruce Wayne" },
-    { id: "r-pam", name: "Diana Prince" },
-    { id: "r-nike", name: "Clark Kent" },
-    { id: "r-alex", name: "Barry Allen" },
-  ];
-  const getText = (r: { name: string }) => r.name;
-
+describe("fuzzyFilter — ranking", () => {
   it("returns all items for empty query", () => {
     expect(fuzzyFilter(resources, "", getText)).toHaveLength(4);
   });
@@ -145,7 +147,9 @@ describe("fuzzyFilter", () => {
     expect(fuzzyFilter(people, "jose", getText).map((person) => person.id)).toEqual(["r-jose"]);
     expect(fuzzyFilter(people, "muller", getText).map((person) => person.id)).toEqual(["r-muller"]);
   });
+});
 
+describe("fuzzyFilter — query and tie behavior", () => {
   it("returns items in original (unsorted) order for an empty or whitespace-only query", () => {
     // The early-return path must hand back `items` untouched, not run them through the tier/
     // length/alpha sort — an empty query short-circuits before scoring even starts.

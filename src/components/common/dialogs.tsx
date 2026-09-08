@@ -19,8 +19,6 @@ import {
 import { restoreFocus } from "./focus";
 import { FormDirtyContext } from "./formDirty";
 
-// Product dialog and page compositions. Modal adds the dirty-form guard used by editor forms.
-
 function hasOpenNestedOverlay(): boolean {
   return (
     document.querySelector(
@@ -29,14 +27,6 @@ function hasOpenNestedOverlay(): boolean {
   );
 }
 
-// ─── Row / create action buttons ────────────────────────────────────────────
-// The management lists share three small ShadCN Button compositions:
-//  • AddButton    — a create affordance with a leading plus glyph (e.g. "+ Add client").
-//  • EditButton   — an icon-only pencil; the label is the accessible name + hover title.
-//  • DeleteButton — an icon-only trash, in the danger variant.
-// Lucide glyphs are decorative; the accessible name comes from visible label text or aria-label.
-
-/** A create button with a decorative leading plus and a visible accessible label. */
 export function AddButton({
   label,
   onClick,
@@ -58,10 +48,6 @@ export function AddButton({
   );
 }
 
-/** Icon-only Edit button for a list row. `label` is BOTH the accessible name and the hover
- *  tooltip — it defaults to "Edit" so per-row selectors keep matching; pass a contextual label
- *  (e.g. "Edit Acme") where rows need to disambiguate. It is hidden from viewers; server
- *  authorization remains the security boundary. */
 export function EditButton({
   label = m.form_edit(),
   onClick,
@@ -87,10 +73,6 @@ export function EditButton({
   );
 }
 
-/** Icon-only Delete button for a list row — the danger-variant twin of EditButton. `label`
- *  defaults to "Delete" (so per-row selectors keep matching); pass a contextual label where
- *  rows need to disambiguate (e.g. "Delete Wayne Enterprises" on the company picker). It is hidden from
- *  viewers. */
 export function DeleteButton({
   label = m.form_delete(),
   onClick,
@@ -146,6 +128,39 @@ export function Modal({
   /** Called for every form edit, including edits after the form is already dirty. */
   onEdit?: () => void;
 }) {
+  const { markDirty, requestClose } = useModalController({
+    guardDirty,
+    controlledDirty,
+    onDirtyChange,
+    onEdit,
+    onClose,
+  });
+
+  return (
+    <ModalSurface
+      title={title}
+      requestClose={requestClose}
+      onSubmit={onSubmit}
+      markDirty={markDirty}
+      children={children}
+      footer={footer}
+    />
+  );
+}
+
+function useModalController({
+  guardDirty,
+  controlledDirty,
+  onDirtyChange,
+  onEdit,
+  onClose,
+}: {
+  guardDirty: boolean;
+  controlledDirty?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
+  onEdit?: () => void;
+  onClose: () => void;
+}) {
   const setNotice = useStore((state) => state.setNotice);
   const setDirtyFormSource = useStore((state) => state.setDirtyFormSource);
   const [dirtySource] = useState(() => Symbol("modal-dirty"));
@@ -184,7 +199,24 @@ export function Modal({
     }
     onClose();
   };
+  return { markDirty, requestClose };
+}
 
+function ModalSurface({
+  title,
+  requestClose,
+  onSubmit,
+  children,
+  footer,
+  markDirty,
+}: {
+  title: ReactNode;
+  requestClose: () => void;
+  onSubmit?: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  markDirty: () => void;
+}) {
   return (
     <Dialog
       open
@@ -213,26 +245,44 @@ export function Modal({
         <DialogHeader className="border-b px-4 py-3 text-left">
           <DialogTitle className="text-base">{title}</DialogTitle>
         </DialogHeader>
-        <FormDirtyContext.Provider value={markDirty}>
-          <form
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              onSubmit?.();
-            }}
-            onInputCapture={markDirty}
-            onChangeCapture={markDirty}
-            onClickCapture={(event) => {
-              const toggle = (event.target as HTMLElement).closest('[aria-pressed],[role="radio"],[role="switch"]');
-              if (toggle && !toggle.hasAttribute("data-form-dirty-managed")) markDirty();
-            }}
-          >
-            <div className="flex min-w-0 flex-col gap-3 p-4">{children}</div>
-            {footer && <DialogFooter className="border-t px-4 py-3">{footer}</DialogFooter>}
-          </form>
-        </FormDirtyContext.Provider>
+        <ModalForm onSubmit={onSubmit} markDirty={markDirty} footer={footer}>
+          {children}
+        </ModalForm>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ModalForm({
+  onSubmit,
+  markDirty,
+  footer,
+  children,
+}: {
+  onSubmit?: () => void;
+  markDirty: () => void;
+  footer?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <FormDirtyContext.Provider value={markDirty}>
+      <form
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit?.();
+        }}
+        onInputCapture={markDirty}
+        onChangeCapture={markDirty}
+        onClickCapture={(event) => {
+          const toggle = (event.target as HTMLElement).closest('[aria-pressed],[role="radio"],[role="switch"]');
+          if (toggle && !toggle.hasAttribute("data-form-dirty-managed")) markDirty();
+        }}
+      >
+        <div className="flex min-w-0 flex-col gap-3 p-4">{children}</div>
+        {footer && <DialogFooter className="border-t px-4 py-3">{footer}</DialogFooter>}
+      </form>
+    </FormDirtyContext.Provider>
   );
 }
 
@@ -309,7 +359,6 @@ export function ListPage({
   );
 }
 
-/** Product empty-state composition with an optional icon, description and single action. */
 export function EmptyState({
   children,
   icon,
@@ -336,7 +385,7 @@ export function EmptyState({
         <EmptyTitle>{children}</EmptyTitle>
         {description && <EmptyDescription>{description}</EmptyDescription>}
       </EmptyHeader>
-      {showAction && action && (
+      {showAction && (
         <EmptyContent>
           <Button size="sm" type="button" onClick={action.onClick}>
             {ActionIcon && <ActionIcon data-icon="inline-start" />}

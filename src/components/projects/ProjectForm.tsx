@@ -16,6 +16,8 @@ import { usePrivateNameFields } from "../common/usePrivateNameFields";
 import { FieldError } from "../ui/field";
 import type { Project } from "@capacitylens/shared/types/entities";
 
+type ProjectPrivacy = NonNullable<ReturnType<ReturnType<typeof usePrivateNameFields>["validatePrivacy"]>>;
+
 /** Add (no `project`) or edit a project: name, REQUIRED client, preset colour. `onClose` fires on
  *  save or cancel. */
 export function ProjectForm({ project, onClose }: { project?: Project; onClose: () => void }) {
@@ -59,20 +61,80 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   // round-trip the unchanged clientId. Append the current id as a DISABLED option — it stays
   // selected/submittable as the current value (the store's unchanged-parent relaxation accepts it),
   // but can't be picked back once the user chooses an active client.
-  let clientOptions: Option[] = baseClientOptions;
-  if (project && !clients.some((client) => client.id === project.clientId)) {
-    const raw = rawClients.find((client) => client.id === project.clientId);
-    clientOptions = [
-      ...baseClientOptions,
-      {
-        value: project.clientId,
-        label: raw ? m.list_label_archived({ name: raw.name }) : m.form_option_current_archived(),
-        disabled: true,
-      },
-    ];
-  }
+  const clientOptions = resolveProjectClientOptions({ baseOptions: baseClientOptions, clients, rawClients, project });
+  const submit = useProjectSubmit({ project, name, clientId, color, privateNameFields, fail, add, update, onClose });
 
-  const submit = () => {
+  return (
+    <Modal
+      title={project ? m.form_project_edit_title() : m.form_project_add_title()}
+      onClose={onClose}
+      onSubmit={submit}
+      footer={<FormActions onCancel={onClose} />}
+    >
+      <ProjectFormFields
+        name={name}
+        setName={setName}
+        protectedName={privateNameFields.protectedName}
+        errorField={errorField}
+        errorId={errorId}
+        privateNameFields={privateNameFields}
+        clientId={clientId}
+        setClientId={setClientId}
+        clientOptions={clientOptions}
+        showColourPicker={showColourPicker}
+        color={color}
+        setColor={setColor}
+        error={error}
+      />
+    </Modal>
+  );
+}
+
+function resolveProjectClientOptions({
+  baseOptions,
+  clients,
+  rawClients,
+  project,
+}: {
+  baseOptions: Option[];
+  clients: ReturnType<typeof useActiveScopedData>["clients"];
+  rawClients: ReturnType<typeof useScopedData>["clients"];
+  project?: Project;
+}): Option[] {
+  if (!project || clients.some((client) => client.id === project.clientId)) return baseOptions;
+  const raw = rawClients.find((client) => client.id === project.clientId);
+  return [
+    ...baseOptions,
+    {
+      value: project.clientId,
+      label: raw ? m.list_label_archived({ name: raw.name }) : m.form_option_current_archived(),
+      disabled: true,
+    },
+  ];
+}
+
+function useProjectSubmit({
+  project,
+  name,
+  clientId,
+  color,
+  privateNameFields,
+  fail,
+  add,
+  update,
+  onClose,
+}: {
+  project?: Project;
+  name: string;
+  clientId: string;
+  color: string;
+  privateNameFields: ReturnType<typeof usePrivateNameFields>;
+  fail: ReturnType<typeof useFieldError>["fail"];
+  add: ReturnType<typeof useStore.getState>["addProject"];
+  update: ReturnType<typeof useStore.getState>["updateProject"];
+  onClose: () => void;
+}) {
+  return () => {
     const trimmed = validateName(name, fail);
     if (!trimmed) return;
     const privacy = privateNameFields.validatePrivacy();
@@ -85,61 +147,184 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
       return;
     }
     if (!validateHex(color, fail)) return;
-    // Surface a store-side rejection (e.g. a clientId that isn't in this company) as a form error
-    // instead of an uncaught React error — see the store CRUD contract.
     try {
-      if (project) {
-        if (isStaleEdit(useStore.getState().data.projects, project.id, project.updatedAt)) {
-          fail(null, m.form_project_err_changed());
-          return;
-        }
-        update(project.id, { name: trimmed, clientId, color, ...privacy });
-      } else {
-        add({
-          name: trimmed,
-          clientId,
-          color,
-          ...(privacy.isPrivate && privacy.codeName
-            ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName }
-            : {}),
-        });
+      if (project && isStaleEdit(useStore.getState().data.projects, project.id, project.updatedAt)) {
+        fail(null, m.form_project_err_changed());
+        return;
       }
+      saveProject({ project, trimmed, clientId, color, privacy, add, update });
       onClose();
-    } catch (e) {
-      fail(null, resolveErrorMessage(e));
+    } catch (error) {
+      fail(null, resolveErrorMessage(error));
     }
   };
+}
 
+function saveProject({
+  project,
+  trimmed,
+  clientId,
+  color,
+  privacy,
+  add,
+  update,
+}: {
+  project?: Project;
+  trimmed: string;
+  clientId: string;
+  color: string;
+  privacy: ProjectPrivacy;
+  add: ReturnType<typeof useStore.getState>["addProject"];
+  update: ReturnType<typeof useStore.getState>["updateProject"];
+}) {
+  if (project) {
+    update(project.id, { name: trimmed, clientId, color, ...privacy });
+    return;
+  }
+  add({
+    name: trimmed,
+    clientId,
+    color,
+    ...(privacy.isPrivate && privacy.codeName ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName } : {}),
+  });
+}
+
+function ProjectFormFields({
+  name,
+  setName,
+  protectedName,
+  errorField,
+  errorId,
+  privateNameFields,
+  clientId,
+  setClientId,
+  clientOptions,
+  showColourPicker,
+  color,
+  setColor,
+  error,
+}: {
+  name: string;
+  setName: (value: string) => void;
+  protectedName: boolean;
+  errorField: string | null;
+  errorId: string | undefined;
+  privateNameFields: ReturnType<typeof usePrivateNameFields>;
+  clientId: string;
+  setClientId: (value: string) => void;
+  clientOptions: Option[];
+  showColourPicker: boolean;
+  color: string;
+  setColor: (value: string) => void;
+  error: string | undefined;
+}) {
   return (
-    <Modal
-      title={project ? m.form_project_edit_title() : m.form_project_add_title()}
-      onClose={onClose}
-      onSubmit={submit}
-      footer={<FormActions onCancel={onClose} />}
-    >
+    <>
+      <ProjectNameFields
+        name={name}
+        setName={setName}
+        protectedName={protectedName}
+        errorField={errorField}
+        errorId={errorId}
+        privateNameFields={privateNameFields}
+      />
+      <ProjectClientField
+        clientId={clientId}
+        setClientId={setClientId}
+        clientOptions={clientOptions}
+        errorField={errorField}
+        errorId={errorId}
+      />
+      <ProjectFormDetails
+        showColourPicker={showColourPicker}
+        color={color}
+        setColor={setColor}
+        errorField={errorField}
+        errorId={errorId}
+        error={error}
+      />
+    </>
+  );
+}
+
+function ProjectClientField({
+  clientId,
+  setClientId,
+  clientOptions,
+  errorField,
+  errorId,
+}: {
+  clientId: string;
+  setClientId: (value: string) => void;
+  clientOptions: Option[];
+  errorField: string | null;
+  errorId: string | undefined;
+}) {
+  return (
+    <SelectField
+      label={m.form_project_client_label()}
+      value={clientId}
+      onChange={setClientId}
+      options={clientOptions}
+      placeholder={m.form_project_select_client_placeholder()}
+      required
+      invalid={errorField === "client"}
+      describedById={errorId}
+      layout="label-control"
+    />
+  );
+}
+
+function ProjectNameFields({
+  name,
+  setName,
+  protectedName,
+  errorField,
+  errorId,
+  privateNameFields,
+}: {
+  name: string;
+  setName: (value: string) => void;
+  protectedName: boolean;
+  errorField: string | null;
+  errorId: string | undefined;
+  privateNameFields: ReturnType<typeof usePrivateNameFields>;
+}) {
+  return (
+    <>
       <TextField
         label={m.form_project_name_label()}
         value={name}
         onChange={setName}
-        autoFocus={!privateNameFields.protectedName}
+        autoFocus={!protectedName}
         required
-        disabled={privateNameFields.protectedName}
+        disabled={protectedName}
         invalid={errorField === "name"}
         describedById={errorId}
         layout="label-control"
       />
       <PrivateNameFields fields={privateNameFields} errorField={errorField} errorId={errorId} layout="label-control" />
-      <SelectField
-        label={m.form_project_client_label()}
-        value={clientId}
-        onChange={setClientId}
-        options={clientOptions}
-        placeholder={m.form_project_select_client_placeholder()}
-        required
-        invalid={errorField === "client"}
-        describedById={errorId}
-        layout="label-control"
-      />
+    </>
+  );
+}
+
+function ProjectFormDetails({
+  showColourPicker,
+  color,
+  setColor,
+  errorField,
+  errorId,
+  error,
+}: {
+  showColourPicker: boolean;
+  color: string;
+  setColor: (value: string) => void;
+  errorField: string | null;
+  errorId: string | undefined;
+  error: string | undefined;
+}) {
+  return (
+    <>
       {showColourPicker && (
         <ColorField
           label={m.form_project_colour_label()}
@@ -152,6 +337,6 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
       )}
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />
-    </Modal>
+    </>
   );
 }

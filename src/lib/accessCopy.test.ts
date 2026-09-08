@@ -5,99 +5,69 @@ import { resolveAccessLabel, resolveAccessSummary, resolveRoleLabel, resolveRole
 
 const roles: Role[] = ["owner", "admin", "editor", "viewer"];
 
+const localizedRoleCopy = (role: Role) => ({
+  label: {
+    owner: m.settings_role_owner(),
+    admin: m.settings_role_admin(),
+    editor: m.settings_role_editor(),
+    viewer: m.settings_role_viewer(),
+  }[role],
+  summary: {
+    owner: m.access_role_owner_summary(),
+    admin: m.access_role_admin_summary(),
+    editor: m.access_role_editor_summary(),
+    viewer: m.access_role_viewer_summary(),
+  }[role],
+});
+
+const accessPrecedenceCases = () =>
+  [
+    [
+      { offlineReadOnly: true, experience: "demo", permissionStatus: "pending", role: "owner" },
+      m.access_offline_label(),
+      m.access_offline_summary(),
+    ],
+    [
+      { offlineReadOnly: false, experience: "demo", permissionStatus: "pending", role: null },
+      m.access_demo_label(),
+      m.access_demo_summary(),
+    ],
+    [
+      { offlineReadOnly: false, experience: "open", permissionStatus: "pending", role: null },
+      m.access_open_label(),
+      m.access_open_summary(),
+    ],
+    [
+      { offlineReadOnly: false, experience: "authenticated", permissionStatus: "pending", role: null },
+      m.access_checking_label(),
+      m.access_checking_summary(),
+    ],
+    [
+      { offlineReadOnly: false, experience: "authenticated", permissionStatus: "not-applicable", role: null },
+      m.access_not_applicable_label(),
+      m.access_not_applicable_summary(),
+    ],
+    [
+      { offlineReadOnly: false, experience: "authenticated", permissionStatus: "unavailable", role: "owner" },
+      m.access_unavailable_label(),
+      m.access_unavailable_summary(),
+    ],
+    [
+      { offlineReadOnly: false, experience: "authenticated", permissionStatus: "resolved", role: "viewer" },
+      m.settings_role_viewer(),
+      m.access_role_viewer_summary(),
+    ],
+  ] as const;
+
 describe("access copy", () => {
   it.each(roles)("maps the %s role to its localized label and summary", (role) => {
-    const labels: Record<Role, string> = {
-      owner: m.settings_role_owner(),
-      admin: m.settings_role_admin(),
-      editor: m.settings_role_editor(),
-      viewer: m.settings_role_viewer(),
-    };
-    const summaries: Record<Role, string> = {
-      owner: m.access_role_owner_summary(),
-      admin: m.access_role_admin_summary(),
-      editor: m.access_role_editor_summary(),
-      viewer: m.access_role_viewer_summary(),
-    };
-    expect(resolveRoleLabel(role)).toBe(labels[role]);
-    expect(resolveRoleSummary(role)).toBe(summaries[role]);
+    const copy = localizedRoleCopy(role);
+    expect(resolveRoleLabel(role)).toBe(copy.label);
+    expect(resolveRoleSummary(role)).toBe(copy.summary);
   });
 
   it("applies offline, demo, open, pending, unavailable and role precedence consistently", () => {
-    const cases = [
-      [
-        {
-          offlineReadOnly: true,
-          experience: "demo",
-          permissionStatus: "pending",
-          role: "owner",
-        },
-        m.access_offline_label(),
-        m.access_offline_summary(),
-      ],
-      [
-        {
-          offlineReadOnly: false,
-          experience: "demo",
-          permissionStatus: "pending",
-          role: null,
-        },
-        m.access_demo_label(),
-        m.access_demo_summary(),
-      ],
-      [
-        {
-          offlineReadOnly: false,
-          experience: "open",
-          permissionStatus: "pending",
-          role: null,
-        },
-        m.access_open_label(),
-        m.access_open_summary(),
-      ],
-      [
-        {
-          offlineReadOnly: false,
-          experience: "authenticated",
-          permissionStatus: "pending",
-          role: null,
-        },
-        m.access_checking_label(),
-        m.access_checking_summary(),
-      ],
-      [
-        {
-          offlineReadOnly: false,
-          experience: "authenticated",
-          permissionStatus: "not-applicable",
-          role: null,
-        },
-        m.access_not_applicable_label(),
-        m.access_not_applicable_summary(),
-      ],
-      [
-        {
-          offlineReadOnly: false,
-          experience: "authenticated",
-          permissionStatus: "unavailable",
-          role: "owner",
-        },
-        m.access_unavailable_label(),
-        m.access_unavailable_summary(),
-      ],
-      [
-        {
-          offlineReadOnly: false,
-          experience: "authenticated",
-          permissionStatus: "resolved",
-          role: "viewer",
-        },
-        m.settings_role_viewer(),
-        m.access_role_viewer_summary(),
-      ],
-    ] as const;
-
-    for (const [input, label, summary] of cases) {
+    for (const [input, label, summary] of accessPrecedenceCases()) {
       expect(resolveAccessLabel(input)).toBe(label);
       expect(resolveAccessSummary(input)).toBe(summary);
     }
