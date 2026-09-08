@@ -1361,6 +1361,33 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
   });
 });
 
+async function attachHeldAccountSwitch() {
+  const { aSlice, bSlice } = accountSwitchSlices();
+  let release: (() => void) | null = null;
+  const loadAll = vi.fn((accountId?: string): Promise<AppData> => {
+    if (accountId !== "b1") return Promise.resolve(aSlice);
+    return new Promise<AppData>((resolve) => {
+      release = () => resolve(bSlice);
+    });
+  });
+  useStore.getState().replaceAll(emptyAppData());
+  useStore.getState().setActiveAccount(null);
+  useStore.getState().setAccountSummaries([
+    { id: "a1", name: "Alpha", role: "owner" },
+    { id: "b1", name: "Beta", role: "owner" },
+  ]);
+  const detach = attachPersistence({
+    store: useStore,
+    adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
+    debounceMs: 0,
+    serverMode: true,
+  });
+  useStore.getState().setActiveAccount("a1");
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  const readReleaseB = () => release;
+  return { detach, loadAll, readReleaseB };
+}
+
 describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
   // The out-of-band server writers (archive/delete/purge routes) reload the active slice THROUGH the
   // orchestrator via this export — a bare loadAll+replaceAll would clobber a still-debounced edit and
@@ -1412,39 +1439,12 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
     // CANCELLING B's late-resolving load — then installed A's slice while activeAccountId === B
     // (cross-tenant display → cross-tenant writes). The entry guard must make the stale call a
     // pure no-op: no loadAll(A), no token bump, and B's held-open load still lands.
-    const { aSlice, bSlice } = accountSwitchSlices();
-    let releaseB: (() => void) | null = null;
-    const loadAll = vi.fn((accountId?: string): Promise<AppData> => {
-      if (accountId === "b1") {
-        // Hold B's slice load open so the stale refresh races it mid-flight.
-        return new Promise<AppData>((resolve) => {
-          releaseB = () => resolve(bSlice);
-        });
-      }
-      return Promise.resolve(aSlice);
-    });
-    const saveAll = vi.fn().mockResolvedValue(undefined);
-    const adapter: PersistenceAdapter = { loadAll, saveAll };
-
-    useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "b1", name: "Beta", role: "owner" },
-    ]);
-    const detach = attachPersistence({
-      store: useStore,
-      adapter: adapter,
-      debounceMs: 0,
-      serverMode: true,
-    });
-
-    useStore.getState().setActiveAccount("a1"); // hydrate A
-    await new Promise((r) => setTimeout(r, 5));
+    const { detach, loadAll, readReleaseB } = await attachHeldAccountSwitch();
     expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["ca"]);
 
     useStore.getState().setActiveAccount("b1"); // switch — B's load is now held open
     await new Promise((r) => setTimeout(r, 5));
+    const releaseB = readReleaseB();
     expect(releaseB).not.toBeNull(); // B's loadAll dispatched, unresolved
     const aLoadsBefore = loadAll.mock.calls.filter((c) => c[0] === "a1").length;
 
