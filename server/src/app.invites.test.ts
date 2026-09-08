@@ -119,7 +119,7 @@ const acceptReq = (app: FastifyInstance, token: string, headers: Record<string, 
 const previewReq = (app: FastifyInstance, token: string, headers: Record<string, string> = {}) =>
   call(app, { method: "GET", url: `/api/invites/${token}/preview`, headers });
 
-describe("POST /api/invites (P1.9 create) — gate", () => {
+function registerOwnerInviteCreationTest(): void {
   it("owner of the account creates an invite -> 201, with a token + a getInvite row", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
@@ -156,7 +156,9 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
     expect(stored.preauthEmail).toBeNull(); // P1.9 always null
     expect(Date.parse(stored.expiresAt)).toBeGreaterThan(Date.now());
   });
+}
 
+function registerDefaultExpiryReplayTest(): void {
   it("replays the same default-expiry invitation command without minting a second bearer", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
@@ -184,7 +186,9 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       count: 1,
     });
   });
+}
 
+function registerInviteReplayConflictTest(): void {
   it("rejects a command replay whose payload differs from the original", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
@@ -214,7 +218,9 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       count: 1,
     });
   });
+}
 
+function registerMalformedCommandHeadersTest(): void {
   it("rejects malformed account-command headers before creating an invitation", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
@@ -259,7 +265,9 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       count: 0,
     });
   });
+}
 
+function registerExplicitExpiryReplayTest(): void {
   it("replays a completed explicit-expiry command after the invitation expires", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
@@ -295,7 +303,9 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       count: 1,
     });
   });
+}
 
+function registerInvalidExpiryTests(): void {
   it.each([
     ["malformed", "not-a-date", /valid ISO-8601/],
     ["past", "2000-01-01T00:00:00.000Z", /future/],
@@ -318,7 +328,9 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       n: 0,
     });
   });
+}
 
+function registerInvalidCalendarExpiryTests(): void {
   it.each([
     ["non-leap February 29", "2099-02-29T12:00:00Z"],
     ["April 31", "2099-04-31T12:00:00.123Z"],
@@ -343,7 +355,9 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       n: 0,
     });
   });
+}
 
+function registerFractionalExpiryTest(): void {
   it.each([["fractional instant", validFractionalExpiry.input, validFractionalExpiry.canonical]])(
     "accepts and canonicalizes a valid %s expiry",
     async (_label, expiresAt, canonical) => {
@@ -364,7 +378,9 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       expect(readResponseObject(res).expiresAt).toBe(canonical);
     },
   );
+}
 
+function registerInviteAuthorizationTests(): void {
   it("admin of the account is ALLOWED (admin tier = manageInvites) -> 201", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
@@ -414,7 +430,9 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
     const res = await createInviteReq(app, { accountId: "a1", role: "editor" });
     expect(res.statusCode).toBe(401);
   });
+}
 
+function registerInviteInputTests(): void {
   it("a bad or empty role is 400 (before the gate matters for shape)", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
@@ -456,6 +474,19 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       n: 0,
     });
   });
+}
+
+describe("POST /api/invites (P1.9 create) — gate", () => {
+  registerOwnerInviteCreationTest();
+  registerDefaultExpiryReplayTest();
+  registerInviteReplayConflictTest();
+  registerMalformedCommandHeadersTest();
+  registerExplicitExpiryReplayTest();
+  registerInvalidExpiryTests();
+  registerInvalidCalendarExpiryTests();
+  registerFractionalExpiryTest();
+  registerInviteAuthorizationTests();
+  registerInviteInputTests();
 });
 
 describe("GET /api/invites/:token/preview", () => {
