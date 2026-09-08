@@ -410,17 +410,6 @@
       "count": 1
     }
   },
-  "server/src/accounts/state/commandLedgerWrites.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "server/src/app.accountRoutes.test.ts": {
     "@typescript-eslint/no-unsafe-member-access": {
       "count": 4
@@ -550,17 +539,6 @@
       "count": 1
     }
   },
-  "server/src/authConfig/authAdapter.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-depth": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 4
-    }
-  },
   "server/src/authConfig/authFromEnv.ts": {
     "@typescript-eslint/no-unsafe-assignment": {
       "count": 1
@@ -621,17 +599,6 @@
   "server/src/authConfig/passwordPolicy.ts": {
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "server/src/authConfig/requestHooks.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
     }
   },
   "server/src/authConfig/strictOidcAddressPolicy.ts": {
@@ -735,20 +702,6 @@
   },
   "server/src/db/migrationLedger.ts": {
     "max-params": {
-      "count": 1
-    }
-  },
-  "server/src/db/open.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-depth": {
-      "count": 2
-    },
-    "max-lines-per-function": {
       "count": 1
     }
   },
@@ -887,17 +840,6 @@
       "count": 1
     }
   },
-  "server/src/routes/appAuthorization.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 3
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "server/src/routes/appConfig.ts": {
     "complexity": {
       "count": 1
@@ -934,20 +876,6 @@
   "server/src/routes/authProxyRoutes.ts": {
     "complexity": {
       "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "server/src/routes/batch/applyOperation.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 1
     },
     "max-lines-per-function": {
       "count": 1
@@ -1162,14 +1090,6 @@
       "count": 1
     }
   },
-  "shared/src/account/policy.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 4
-    },
-    "max-params": {
-      "count": 1
-    }
-  },
   "shared/src/account/validation.test.ts": {
     "max-lines-per-function": {
       "count": 2
@@ -1180,14 +1100,6 @@
       "count": 1
     },
     "complexity": {
-      "count": 1
-    }
-  },
-  "shared/src/data/internalClient.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 4
-    },
-    "max-lines-per-function": {
       "count": 1
     }
   },
@@ -1261,11 +1173,6 @@
   "shared/src/domain/lifecycle.test.ts": {
     "max-lines-per-function": {
       "count": 4
-    }
-  },
-  "shared/src/domain/mutations.test.ts": {
-    "max-lines-per-function": {
-      "count": 6
     }
   },
   "shared/src/domain/privateNames.test.ts": {
@@ -1740,20 +1647,6 @@
       "count": 2
     }
   },
-  "src/components/invites/InviteAcceptView.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 3
-    }
-  },
   "src/components/invites/externalSignIn.test.ts": {
     "max-lines-per-function": {
       "count": 1
@@ -1770,20 +1663,6 @@
       "count": 1
     }
   },
-  "src/components/invites/inviteAcceptanceActions.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-depth": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 2
-    },
-    "no-nested-ternary": {
-      "count": 1
-    }
-  },
   "src/components/invites/invitePreviewActions.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 3
@@ -1792,20 +1671,6 @@
   "src/components/invites/inviteSignInActions.ts": {
     "max-lines-per-function": {
       "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
-    }
-  },
-  "src/components/invites/inviteSignupActions.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-depth": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
     },
     "no-nested-ternary": {
       "count": 1
@@ -1874,20 +1739,6 @@
   "src/components/scheduler/AllocationBar.test.tsx": {
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "src/components/scheduler/AllocationBar.tsx": {
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 2
     }
   },
   "src/components/scheduler/AllocationFooter.tsx": {
@@ -2115,17 +1966,6 @@
       "count": 2
     }
   },
-  "src/components/scheduler/useAllocationGesture.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 3
-    },
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
   "src/components/scheduler/useAllocationModalState.ts": {
     "max-lines-per-function": {
       "count": 1
@@ -2232,11 +2072,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "src/components/settings/MembersSection.test.tsx": {
-    "max-lines-per-function": {
-      "count": 7
     }
   },
   "src/components/settings/MembersSection.tsx": {
@@ -2361,17 +2196,6 @@
   "src/components/settings/useMembersOrchestration.ts": {
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "src/components/settings/useTeamDirectory.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "max-depth": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 3
     }
   },
   "src/components/settings/useWorkspaceReadiness.ts": {
@@ -2505,17 +2329,6 @@
       "count": 1
     }
   },
-  "src/data/persistence/attachPersistence.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3
-    },
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/data/persistence/attachmentState.ts": {
     "max-lines-per-function": {
       "count": 1
@@ -2566,14 +2379,6 @@
   "src/data/sync/snapshot.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
-    }
-  },
-  "src/data/syncOps.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-depth": {
-      "count": 5
     }
   },
   "src/data/validateAccountSlice.ts": {
@@ -2855,14 +2660,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "src/store/useStore.crud.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 4
-    },
-    "max-lines-per-function": {
-      "count": 5
     }
   },
   "src/store/useStore.tenancy.test.ts": {
