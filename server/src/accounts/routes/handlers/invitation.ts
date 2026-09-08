@@ -25,6 +25,10 @@ function requireAuthenticatedUser(req: FastifyRequest) {
   return req.user;
 }
 
+function requireAuthenticatedPrincipal(req: FastifyRequest) {
+  return { actor: requireAccountActor(req), user: requireAuthenticatedUser(req) };
+}
+
 export async function createInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     authMode,
@@ -71,22 +75,22 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   }
   // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
   if (!authorize({ req, reply, accountId: body.accountId, action: "manageInvites" })) return;
-  const requestedExpiry = body.expiresAt;
   let expiresAt: string | null;
-  if (requestedExpiry === undefined) {
+  if (body.expiresAt === undefined) {
     // Null is canonical across retries. The account-administration port chooses the standard
     // bounded expiry only on first execution, so an idempotent retry cannot drift with wall time.
     expiresAt = null;
   } else {
-    const parsed = typeof requestedExpiry === "string" ? parseStrictIsoInstant(requestedExpiry) : null;
+    const parsed = typeof body.expiresAt === "string" ? parseStrictIsoInstant(body.expiresAt) : null;
     if (parsed === null) {
       return accountFail(reply, createValidationFailure("expiresAt must be a valid ISO-8601 timestamp."));
     }
     expiresAt = new Date(parsed).toISOString();
   }
   try {
+    const { actor, user } = requireAuthenticatedPrincipal(req);
     const invite = await accountAdminPort.createInvitation({
-      actor: requireAccountActor(req),
+      actor,
       workspaceId: body.accountId,
       role: body.role,
       preauthorizedEmail: preauthEmail,
@@ -98,7 +102,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
       result: invite,
       record: {
         ts: invite.createdAt,
-        userId: requireAuthenticatedUser(req).id,
+        userId: user.id,
         accountId: invite.workspaceId,
         action: "inviteCreate",
         entity: "invite",
@@ -305,8 +309,9 @@ export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply,
   const { accountId, id } = req.params as { accountId: string; id: string };
   if (!authorize({ req, reply, accountId, action: "manageInvites" })) return;
   try {
+    const { actor, user } = requireAuthenticatedPrincipal(req);
     const revoked = await accountAdminPort.revokeInvitation({
-      actor: requireAccountActor(req),
+      actor,
       workspaceId: accountId,
       invitationId: id,
       command: accountCommand(req),
@@ -316,7 +321,7 @@ export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply,
       result: revoked,
       record: {
         ts: new Date().toISOString(),
-        userId: requireAuthenticatedUser(req).id,
+        userId: user.id,
         accountId,
         action: "inviteRevoke",
         entity: "invite",
