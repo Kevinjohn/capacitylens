@@ -2119,7 +2119,7 @@ describe("#257: modal and gesture effective-week agreement", () => {
   });
 });
 
-describe("#257: stale-start edit and duplicate creation gates", () => {
+function registerStaleStartEditAndCreateTests() {
   it("still saves an existing allocation after its assignee loses every effective working day", async () => {
     useStore.getState().updateAccount(ACC, { workingDays: [2] });
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] });
@@ -2171,7 +2171,9 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
     );
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerStaleStartDuplicateTests() {
   // Phase 1 pinned the ungated duplicate; Phase 5 flips it to a rejected record-creation action.
   it("rejects duplicating an allocation whose start is company-non-working", async () => {
     useStore.getState().updateAccount(ACC, { workingDays: [1, 2, 3, 4] });
@@ -2219,7 +2221,9 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
       "New allocations must begin on a company and personal working day. Move the start date.",
     );
   });
+}
 
+function registerZeroOverlapDuplicateTest() {
   it("rejects duplicating a normal allocation for a zero-overlap person", async () => {
     useStore.getState().updateAccount(ACC, { workingDays: [2] });
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] });
@@ -2241,6 +2245,12 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
     );
     expect(useStore.getState().data.allocations).toHaveLength(1);
   });
+}
+
+describe("#257: stale-start edit and duplicate creation gates", () => {
+  registerStaleStartEditAndCreateTests();
+  registerStaleStartDuplicateTests();
+  registerZeroOverlapDuplicateTest();
 });
 
 function addInlineActivityTestPerson() {
