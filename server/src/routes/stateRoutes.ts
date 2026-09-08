@@ -33,6 +33,15 @@ function buildWorkspaceId(commandId: string): string {
     .slice(0, 21)}`;
 }
 
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function resolveWorkspaceId(body: unknown, commandId: string): string {
+  if (isUnknownRecord(body) && typeof body.id === "string" && body.id.trim() !== "") return body.id;
+  return buildWorkspaceId(commandId);
+}
+
 export interface StateRouteDependencies {
   section: "read" | "org";
   db: Db;
@@ -284,10 +293,7 @@ async function createOrganisation(
     const command = accountCommand(req);
     const bootstrapAuthorized = isMatchingSecretToken(bootstrapToken, req.headers["x-capacitylens-bootstrap-token"]);
     const now = new Date().toISOString();
-    const id =
-      typeof (req.body as { id?: unknown }).id === "string" && (req.body as { id: string }).id.trim() !== ""
-        ? (req.body as { id: string }).id
-        : buildWorkspaceId(command.commandId);
+    const id = resolveWorkspaceId(req.body, command.commandId);
     const accountRow = sanitizeWrite({
       table: "accounts",
       row: {
