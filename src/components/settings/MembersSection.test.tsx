@@ -290,6 +290,40 @@ const accessibleMemberNames = [
   ["James Gordon", "James Gordon (bob@example.test)"],
 ] as const;
 
+interface AccessibleMemberControlsInput {
+  user: User;
+  rows: HTMLElement[];
+  name: string;
+  member: string;
+}
+
+async function expectAccessibleMemberControls({
+  user,
+  rows,
+  name,
+  member,
+}: AccessibleMemberControlsInput): Promise<void> {
+  // Both row affordances name their subject, so a screen reader never hears a bare "Edit".
+  expect(screen.getByRole("button", { name: `Edit ${member}` })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: `More actions for ${member}` })).toBeInTheDocument();
+
+  const row = requireValue(
+    rows.find((candidate) => within(candidate).queryByText(name)),
+    `the ${name} row in the members table`,
+  );
+  await openMemberMenu(user, row);
+  for (const action of [
+    `Reset password for ${member}`,
+    `Revoke sessions for ${member}`,
+    `Disable ${member}`,
+    `Archive ${member}`,
+    `Remove ${member}`,
+  ]) {
+    expect(screen.getByRole("button", { name: action })).toBeInTheDocument();
+  }
+  await user.keyboard("{Escape}");
+}
+
 function stubPageReload(): ReturnType<typeof vi.fn> {
   const reload = vi.fn();
   const windowStub = Object.create(window) as Window;
@@ -795,25 +829,7 @@ describe("MembersSection — owner affordances", () => {
     const user = userEvent.setup();
     const rows = screen.getAllByTestId("member-row");
     for (const [name, member] of accessibleMemberNames) {
-      // Both row affordances name their subject, so a screen reader never hears a bare "Edit".
-      expect(screen.getByRole("button", { name: `Edit ${member}` })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: `More actions for ${member}` })).toBeInTheDocument();
-
-      const row = requireValue(
-        rows.find((candidate) => within(candidate).queryByText(name)),
-        `the ${name} row in the members table`,
-      );
-      await openMemberMenu(user, row);
-      for (const action of [
-        `Reset password for ${member}`,
-        `Revoke sessions for ${member}`,
-        `Disable ${member}`,
-        `Archive ${member}`,
-        `Remove ${member}`,
-      ]) {
-        expect(screen.getByRole("button", { name: action })).toBeInTheDocument();
-      }
-      await user.keyboard("{Escape}");
+      await expectAccessibleMemberControls({ user, rows, name, member });
     }
     expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
   });
