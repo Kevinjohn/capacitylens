@@ -105,7 +105,9 @@ describe("ResourceList display", () => {
       "Zulu",
     ]);
   });
+});
 
+describe("ResourceList display", () => {
   it("separates Studio and Supplementary by default, with favourites first inside each section", () => {
     useStore.getState().addResource(personDraft("Studio Zulu"));
     useStore.getState().addResource({ ...personDraft("Studio Alpha"), isFavourite: true });
@@ -121,8 +123,11 @@ describe("ResourceList display", () => {
 
     render(<ResourceList />);
 
-    const studio = screen.getByRole("heading", { name: "Studio" }).closest("section")!;
-    const supplementary = screen.getByRole("heading", { name: "Supplementary" }).closest("section")!;
+    const studio = requireValue(screen.getByRole("heading", { name: "Studio" }).closest("section"), "Studio section");
+    const supplementary = requireValue(
+      screen.getByRole("heading", { name: "Supplementary" }).closest("section"),
+      "Supplementary section",
+    );
     expect(
       within(studio)
         .getAllByTestId("resource-row")
@@ -153,7 +158,9 @@ describe("ResourceList display", () => {
       "Studio Zulu",
     ]);
   });
+});
 
+describe("ResourceList display", () => {
   it("hides direct section create actions from viewers", () => {
     useStore.getState().addResource(personDraft("Alice"));
     render(
@@ -171,7 +178,9 @@ describe("ResourceList display", () => {
     render(<ResourceList />);
     expect(screen.getByText(/No resources yet/i)).toBeInTheDocument();
   });
+});
 
+describe("ResourceList display", () => {
   it("shows the name of a person resource", () => {
     useStore.getState().addResource(personDraft("Alice"));
     render(<ResourceList />);
@@ -219,9 +228,11 @@ describe("ResourceList display", () => {
     expect(rows.get("Discipline only")).toBe(" · Design");
     expect(rows.get("No metadata")).toBeUndefined();
     expect(rows.get("Dangling discipline")).toBe(" · Researcher");
-    expect(screen.getAllByTestId("resource-row").every((row) => !row.textContent?.includes("—"))).toBe(true);
+    expect(screen.getAllByTestId("resource-row").every((row) => !row.textContent.includes("—"))).toBe(true);
   });
+});
 
+describe("ResourceList display", () => {
   it("gives repeated resource edit controls distinct contextual names", () => {
     useStore.getState().addResource(personDraft("Alice"));
     useStore.getState().addResource(personDraft("Bob"));
@@ -241,7 +252,9 @@ describe("ResourceList display", () => {
     expect(screen.getByRole("button", { name: "Edit Kord Industries" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit Pixel Forge" })).toBeInTheDocument();
   });
+});
 
+describe("ResourceList display", () => {
   it("keeps the External explainer behind the section's labelled help action", async () => {
     const user = userEvent.setup();
     setExternalEnabled(true);
@@ -264,7 +277,9 @@ describe("ResourceList display", () => {
     expect(within(row).queryByText("placeholder")).not.toBeInTheDocument();
     expect(within(row).queryByText("Temp")).not.toBeInTheDocument();
   });
+});
 
+describe("ResourceList display", () => {
   it("renders a freelancer with no employment-type badge", () => {
     useStore.getState().addResource(freelancerDraft("Bob"));
     render(<ResourceList />);
@@ -301,7 +316,9 @@ describe("ResourceList display", () => {
     expect(within(row).queryByText("Temp")).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: /favourites/i })).not.toBeInTheDocument();
   });
+});
 
+describe("ResourceList display", () => {
   it("does not show global first-resource onboarding when only a visible later section has rows", () => {
     const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
     const project = useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" });
@@ -350,7 +367,9 @@ describe("ResourceList display", () => {
     expect(screen.queryByText("placeholder")).not.toBeInTheDocument();
     expect(screen.getAllByTestId("resource-row")).toHaveLength(1);
   });
+});
 
+describe("ResourceList display", () => {
   it("renders all three resource types together", () => {
     const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
     const project = useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" });
@@ -375,19 +394,28 @@ describe("ResourceList display", () => {
     expect(rows).toHaveLength(3);
 
     // Alice row: no tags
-    const aliceRow = rows.find((r) => within(r).queryByText("Alice"))!;
+    const aliceRow = requireValue(
+      rows.find((r) => within(r).queryByText("Alice")),
+      "Alice row",
+    );
     expect(aliceRow).toBeDefined();
     expect(within(aliceRow).queryByText("placeholder")).not.toBeInTheDocument();
     expect(within(aliceRow).queryByText("Temp")).not.toBeInTheDocument();
 
     // Bob row (freelancer): no tags either — the Temp pill is parked
-    const bobRow = rows.find((r) => within(r).queryByText("Bob"))!;
+    const bobRow = requireValue(
+      rows.find((r) => within(r).queryByText("Bob")),
+      "Bob row",
+    );
     expect(bobRow).toBeDefined();
     expect(within(bobRow).queryByText("Temp")).not.toBeInTheDocument();
     expect(within(bobRow).queryByText("placeholder")).not.toBeInTheDocument();
 
     // Placeholder row: placeholder tag, no Temp tag (role "Senior Designer" is in its secondary text)
-    const slotRow = rows.find((r) => within(r).queryByText(/Senior Designer/))!;
+    const slotRow = requireValue(
+      rows.find((r) => within(r).queryByText(/Senior Designer/)),
+      "placeholder row",
+    );
     expect(slotRow).toBeDefined();
     expect(within(slotRow).getByText("placeholder")).toBeInTheDocument();
     expect(within(slotRow).getByText("Placeholder")).toBeInTheDocument();
@@ -439,6 +467,11 @@ describe("ResourceList archive flow", () => {
     expect(useStore.getState().data.resources[0]?.archivedAt).toBeTruthy();
     expect(screen.queryByText("Alice")).not.toBeInTheDocument();
   });
+});
+
+describe("ResourceList archive flow", () => {
+  beforeEach(() => vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1"));
+  afterEach(() => vi.unstubAllEnvs());
 
   it("archives the correct resource when multiple exist", async () => {
     const user = userEvent.setup();
@@ -448,7 +481,10 @@ describe("ResourceList archive flow", () => {
 
     // Find the Bob row and click its Archive button.
     const rows = screen.getAllByTestId("resource-row");
-    const bobRow = rows.find((r) => within(r).queryByText("Bob"))!;
+    const bobRow = requireValue(
+      rows.find((r) => within(r).queryByText("Bob")),
+      "Bob row",
+    );
     await user.click(within(bobRow).getByRole("button", { name: "Archive Bob" }));
 
     const dialog = screen.getByRole("alertdialog");
@@ -456,11 +492,19 @@ describe("ResourceList archive flow", () => {
     await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 
     // Alice stays active + visible; Bob is archived (still in data) and gone from the list.
-    const bob = useStore.getState().data.resources.find((r) => r.name === "Bob")!;
+    const bob = requireValue(
+      useStore.getState().data.resources.find((r) => r.name === "Bob"),
+      "Bob resource",
+    );
     expect(bob.archivedAt).toBeTruthy();
     expect(screen.getByText("Alice")).toBeInTheDocument();
     expect(screen.queryByText("Bob")).not.toBeInTheDocument();
   });
+});
+
+describe("ResourceList archive flow", () => {
+  beforeEach(() => vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1"));
+  afterEach(() => vi.unstubAllEnvs());
 
   it("archives a freelancer resource", async () => {
     const user = userEvent.setup();
