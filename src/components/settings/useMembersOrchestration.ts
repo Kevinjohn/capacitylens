@@ -191,14 +191,14 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   /** Pick an action from a row's gear menu: dismiss the menu, then raise its confirmation. */
   const chooseMemberAction = (action: MemberConfirmationAction, member: Member) => {
     setOpenMenuFor(null);
-    setMemberConfirmation({ action, member });
+    setMemberConfirmation({ kind: action, member });
   };
 
   const confirmMemberAction = () => {
     if (!memberConfirmation) return;
     const pending = memberConfirmation;
     setMemberConfirmation(null);
-    switch (pending.action) {
+    switch (pending.kind) {
       case "masquerade":
         if (activeAccountId) {
           void startMasquerade(activeAccountId, pending.member.userId);
@@ -216,7 +216,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
       case "disable":
       case "archive":
       case "restore":
-        void changeStatus(pending.member, STATUS_FOR_ACTION[pending.action]);
+        void changeStatus(pending.member, STATUS_FOR_ACTION[pending.kind]);
         return;
     }
   };

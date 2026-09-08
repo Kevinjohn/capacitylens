@@ -19,7 +19,7 @@ interface MemberInviteDependencies extends MemberActionDependencies {
 /** Establish link reconciliation before directory reads, then bind actions to directory outputs. */
 export function useMemberInvites() {
   const [inviteRole, setInviteRole] = useState<InvitationRole>("editor");
-  const [invitePreauth, setInvitePreauth] = useState("");
+  const [invitationPreauthorizedEmail, setInvitationPreauthorizedEmail] = useState("");
   // The freshly-minted link, shown ONCE after a successful create (the token is write-once). Keep
   // its non-secret invite id so a revoke or authoritative list refresh can clear a now-dead link.
   const [mintedLink, setMintedLink] = useState<{
@@ -51,7 +51,7 @@ export function useMemberInvites() {
       // is raised BEFORE the draft is validated — with no company open there is nothing to invite
       // anyone to, whatever the form says.
       requestAccountId();
-      const trimmed = invitePreauth.trim();
+      const trimmed = invitationPreauthorizedEmail.trim();
       if (authMode === "sso" && trimmed.length === 0) {
         fail("invite", m.settings_sso_invite_email_required());
         return;
@@ -89,7 +89,7 @@ export function useMemberInvites() {
             inviteId: body.id ?? null,
             link: `${window.location.origin}/invite/${encodeURIComponent(body.token)}`,
           });
-          setInvitePreauth("");
+          setInvitationPreauthorizedEmail("");
           clear();
           setNotice(m.settings_members_invite_created());
           // Invites only: creating one cannot have changed the member list, and re-reading it would
@@ -159,8 +159,8 @@ export function useMemberInvites() {
   return {
     inviteRole,
     setInviteRole,
-    invitePreauth,
-    setInvitePreauth,
+    invitationPreauthorizedEmail,
+    setInvitationPreauthorizedEmail,
     mintedLink,
     reconcileMintedInvite,
     createActions,

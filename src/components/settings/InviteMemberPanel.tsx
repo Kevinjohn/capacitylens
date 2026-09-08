@@ -68,8 +68,8 @@ export function InviteMemberPanel({
   busy,
   inviteRole,
   setInviteRole,
-  invitePreauth,
-  setInvitePreauth,
+  invitationPreauthorizedEmail,
+  setInvitationPreauthorizedEmail,
   error,
   errorField,
   errorId,
@@ -86,8 +86,8 @@ export function InviteMemberPanel({
   busy: boolean;
   inviteRole: InvitationRole;
   setInviteRole(role: InvitationRole): void;
-  invitePreauth: string;
-  setInvitePreauth(value: string): void;
+  invitationPreauthorizedEmail: string;
+  setInvitationPreauthorizedEmail(value: string): void;
   error: string | null;
   errorField: string | null;
   errorId: string;
@@ -129,10 +129,10 @@ export function InviteMemberPanel({
                 }
                 ariaLabel={m.settings_invite_preauth_aria()}
                 type="email"
-                value={invitePreauth}
+                value={invitationPreauthorizedEmail}
                 maxLength={MAX_EMAIL_LENGTH}
                 onChange={(next) => {
-                  setInvitePreauth(next);
+                  setInvitationPreauthorizedEmail(next);
                   if (errorField === "invite") clear();
                 }}
                 disabled={busy}

@@ -230,8 +230,8 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           busy={orchestration.busyAction !== null}
           inviteRole={orchestration.inviteRole}
           setInviteRole={orchestration.setInviteRole}
-          invitePreauth={orchestration.invitePreauth}
-          setInvitePreauth={orchestration.setInvitePreauth}
+          invitationPreauthorizedEmail={orchestration.invitationPreauthorizedEmail}
+          setInvitationPreauthorizedEmail={orchestration.setInvitationPreauthorizedEmail}
           error={orchestration.error}
           errorField={orchestration.errorField}
           errorId={orchestration.errorId}
