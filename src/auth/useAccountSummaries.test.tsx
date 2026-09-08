@@ -88,12 +88,14 @@ function createBasicResponseClassificationTests() {
         json(200, [
           { id: "a1", name: "Studio A", role: "owner" },
           { id: "a1", name: "Studio A", role: "viewer" },
+          { bogus: true },
         ]),
       ),
     );
 
     await expect(fetchAccountSummaries()).resolves.toBeNull();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("duplicate account identities"));
+    expect(useStore.getState().notice).toEqual({ message: m.picker_accounts_incomplete(), tone: "warning" });
   });
 
   it("does not mark a cached active slice online merely because the company directory responds", async () => {
@@ -198,6 +200,7 @@ function createMalformedResponseClassificationTests() {
     );
     await expect(fetchAccountSummaries()).resolves.toBeNull();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("dropped 1 malformed"), [null]);
+    expect(useStore.getState().notice).toEqual({ message: m.picker_accounts_incomplete(), tone: "warning" });
   });
 
   it('an id-only row is malformed too: [{"id":"a"}] -> null, not []', async () => {
