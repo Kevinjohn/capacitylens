@@ -805,48 +805,56 @@ async function patchResourceFavourite(app: FastifyInstance, isFavourite: boolean
   return readResourceResponse(await patch({ app, entity: "resources", id: "r1", payload: { isFavourite } }));
 }
 
+function readAllClientSnapshots(rows: unknown[]): ClientSnapshot[] {
+  return rows.map((row) => {
+    if (!isUnknownRecord(row)) throw new Error("Expected every client row to be an object.");
+    requireModeledKeys(
+      row,
+      [
+        "accountId",
+        "archivedAt",
+        "builtin",
+        "codeName",
+        "color",
+        "createdAt",
+        "deletedAt",
+        "id",
+        "isPrivate",
+        "name",
+        "updatedAt",
+      ],
+      "client row",
+    );
+    const clientRow: ClientSnapshot = {
+      accountId: readRequiredString(row, "accountId", "client row"),
+      color: readRequiredString(row, "color", "client row"),
+      createdAt: readRequiredString(row, "createdAt", "client row"),
+      id: readRequiredString(row, "id", "client row"),
+      name: readRequiredString(row, "name", "client row"),
+      updatedAt: readRequiredString(row, "updatedAt", "client row"),
+    };
+    const archivedAt = readOptionalString(row, "archivedAt", "client row");
+    const builtin = readOptionalBoolean(row, "builtin", "client row");
+    const codeName = readOptionalString(row, "codeName", "client row");
+    const deletedAt = readOptionalString(row, "deletedAt", "client row");
+    const isPrivate = readOptionalBoolean(row, "isPrivate", "client row");
+    if (archivedAt !== undefined) clientRow.archivedAt = archivedAt;
+    if (builtin !== undefined) clientRow.builtin = builtin;
+    if (codeName !== undefined) clientRow.codeName = codeName;
+    if (deletedAt !== undefined) clientRow.deletedAt = deletedAt;
+    if (isPrivate !== undefined) clientRow.isPrivate = isPrivate;
+    return clientRow;
+  });
+}
+
 function readClientSnapshots(rows: unknown[]): ClientSnapshot[] {
-  return rows
-    .map((row) => {
-      if (!isUnknownRecord(row)) throw new Error("Expected every client row to be an object.");
-      requireModeledKeys(
-        row,
-        [
-          "accountId",
-          "archivedAt",
-          "builtin",
-          "codeName",
-          "color",
-          "createdAt",
-          "deletedAt",
-          "id",
-          "isPrivate",
-          "name",
-          "updatedAt",
-        ],
-        "client row",
-      );
-      const clientRow: ClientSnapshot = {
-        accountId: readRequiredString(row, "accountId", "client row"),
-        color: readRequiredString(row, "color", "client row"),
-        createdAt: readRequiredString(row, "createdAt", "client row"),
-        id: readRequiredString(row, "id", "client row"),
-        name: readRequiredString(row, "name", "client row"),
-        updatedAt: readRequiredString(row, "updatedAt", "client row"),
-      };
-      const archivedAt = readOptionalString(row, "archivedAt", "client row");
-      const builtin = readOptionalBoolean(row, "builtin", "client row");
-      const codeName = readOptionalString(row, "codeName", "client row");
-      const deletedAt = readOptionalString(row, "deletedAt", "client row");
-      const isPrivate = readOptionalBoolean(row, "isPrivate", "client row");
-      if (archivedAt !== undefined) clientRow.archivedAt = archivedAt;
-      if (builtin !== undefined) clientRow.builtin = builtin;
-      if (codeName !== undefined) clientRow.codeName = codeName;
-      if (deletedAt !== undefined) clientRow.deletedAt = deletedAt;
-      if (isPrivate !== undefined) clientRow.isPrivate = isPrivate;
-      return clientRow;
-    })
-    .filter((clientRow) => clientRow.builtin !== true);
+  return readAllClientSnapshots(rows).filter((clientRow) => clientRow.builtin !== true);
+}
+
+function readAllStateClients(response: LightMyRequestResponse): ClientSnapshot[] {
+  const value: unknown = response.json();
+  if (!isUnknownRecord(value)) throw new Error("Expected the state response to be an object.");
+  return readAllClientSnapshots(readStateArray(value, "clients"));
 }
 
 function readFirstClient(clients: ClientSnapshot[]): ClientSnapshot {
@@ -2342,8 +2350,8 @@ describe("built-in Internal client is a per-account singleton on direct writes",
     expect(
       auditEntries.filter((entry) => "entity" in entry).map(({ entity, action, id }) => ({ entity, action, id })),
     ).toEqual([{ entity: "accounts", action: "create", id: "a1" }]);
-    const stored = (await call(app, { method: "GET", url: "/api/state" })).json();
-    expect(stored.clients).toMatchObject([
+    const storedClients = readAllStateClients(await call(app, { method: "GET", url: "/api/state" }));
+    expect(storedClients).toMatchObject([
       {
         id: "internal:a1",
         accountId: "a1",
@@ -2376,8 +2384,8 @@ describe("built-in Internal client is a per-account singleton on direct writes",
         })
       ).statusCode,
     ).toBe(400);
-    const snapshot = (await call(app, { method: "GET", url: "/api/state" })).json();
-    expect(snapshot.clients.filter((c: { builtin?: boolean }) => c.builtin)).toHaveLength(2);
+    const clients = readAllStateClients(await call(app, { method: "GET", url: "/api/state" }));
+    expect(clients.filter((clientRow) => clientRow.builtin)).toHaveLength(2);
   });
 });
 
