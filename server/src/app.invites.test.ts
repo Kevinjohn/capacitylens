@@ -666,6 +666,49 @@ describe("POST /api/invites/:token/accept (P1.9 accept)", () => {
   });
 });
 
+async function createClosedSignupInviteContext() {
+  const db = openDb(":memory:");
+  const { mode, auth } = createAuthFromEnvironment(db, {
+    ...PASSWORD_ENV,
+    CAPACITYLENS_ALLOW_OPEN_SIGNUP: undefined,
+    CAPACITYLENS_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
+  });
+  const requiredAuth = requireValue(auth, "password authentication");
+  await runAuthMigrations(requiredAuth);
+  const inviter = await requiredAuth.createCredentialUser({
+    email: "inviter-closed@capacitylens.dev",
+    name: "Inviter",
+    password: "password-123456",
+  });
+  const app = buildApp(db, { authMode: mode, auth });
+  seedOne(db);
+  upsertMember(db, {
+    accountId: "a1",
+    userId: inviter.id,
+    role: "owner",
+    status: "active",
+    createdAt: TS,
+  });
+  const signInInviter = await call(app, {
+    method: "POST",
+    url: "/api/auth/sign-in/email",
+    payload: {
+      email: "inviter-closed@capacitylens.dev",
+      password: "password-123456",
+    },
+  });
+  const created = await createInviteReq(
+    app,
+    {
+      accountId: "a1",
+      role: "editor",
+      preauthEmail: "new-person@capacitylens.dev",
+    },
+    { cookie: readCookies(signInInviter) },
+  );
+  return { app, db, token: readResponseString(created, "token") };
+}
+
 describe("POST /api/invites/:token/signup — password invite onboarding", () => {
   it("rejects invalid email, empty name, short password, and unsupported auth mode", async () => {
     const { app } = await appWithAuth();
@@ -719,46 +762,7 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
   });
 
   it("creates, binds, and signs in a genuinely new preauthorized user while public signup is closed", async () => {
-    const db = openDb(":memory:");
-    const { mode, auth } = createAuthFromEnvironment(db, {
-      ...PASSWORD_ENV,
-      CAPACITYLENS_ALLOW_OPEN_SIGNUP: undefined,
-      CAPACITYLENS_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
-    });
-    const requiredAuth = requireValue(auth, "password authentication");
-    await runAuthMigrations(requiredAuth);
-    const inviter = await requiredAuth.createCredentialUser({
-      email: "inviter-closed@capacitylens.dev",
-      name: "Inviter",
-      password: "password-123456",
-    });
-    const app = buildApp(db, { authMode: mode, auth });
-    seedOne(db);
-    upsertMember(db, {
-      accountId: "a1",
-      userId: inviter.id,
-      role: "owner",
-      status: "active",
-      createdAt: TS,
-    });
-    const signInInviter = await call(app, {
-      method: "POST",
-      url: "/api/auth/sign-in/email",
-      payload: {
-        email: "inviter-closed@capacitylens.dev",
-        password: "password-123456",
-      },
-    });
-    const created = await createInviteReq(
-      app,
-      {
-        accountId: "a1",
-        role: "editor",
-        preauthEmail: "new-person@capacitylens.dev",
-      },
-      { cookie: readCookies(signInInviter) },
-    );
-    const token = readResponseString(created, "token");
+    const { app, db, token } = await createClosedSignupInviteContext();
 
     // Ordinary self-registration is closed once the inviter exists.
     const publicSignup = await call(app, {
