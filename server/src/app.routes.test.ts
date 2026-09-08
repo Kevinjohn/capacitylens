@@ -205,11 +205,19 @@ function rootHookNames(app: FastifyInstance): typeof EXPECTED_ROOT_HOOKS {
   >;
   const onClose = rootHookRegistrations.get(app)?.get("onClose");
   if (!onClose) throw new Error("Fastify onClose hook registration was not captured");
+  const onRequest = hookStore.onRequest;
+  if (!onRequest) throw new Error("Fastify onRequest hooks were not captured");
+  const preHandler = hookStore.preHandler;
+  if (!preHandler) throw new Error("Fastify preHandler hooks were not captured");
+  const onSend = hookStore.onSend;
+  if (!onSend) throw new Error("Fastify onSend hooks were not captured");
+  const onResponse = hookStore.onResponse;
+  if (!onResponse) throw new Error("Fastify onResponse hooks were not captured");
   return {
-    onRequest: hookStore.onRequest!.map((hook) => hook.name),
-    preHandler: hookStore.preHandler!.map((hook) => hook.name),
-    onSend: hookStore.onSend!.map((hook) => hook.name),
-    onResponse: hookStore.onResponse!.map((hook) => hook.name),
+    onRequest: onRequest.map((hook) => hook.name),
+    preHandler: preHandler.map((hook) => hook.name),
+    onSend: onSend.map((hook) => hook.name),
+    onResponse: onResponse.map((hook) => hook.name),
     onClose,
   };
 }
