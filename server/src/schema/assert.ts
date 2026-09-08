@@ -10,6 +10,150 @@ const normalizeSchemaObjectSql = (sql: string): string =>
     .replace(/;$/, "");
 
 const expectedInternalClientIndexSql = normalizeSchemaObjectSql(INTERNAL_CLIENT_UNIQUE_INDEX_SQL);
+
+interface SchemaProblems {
+  missing: string[];
+  nullability: string[];
+  types: string[];
+  primaryKeys: string[];
+  unexpectedColumns: string[];
+  unexpectedRequired: string[];
+  constraints: string[];
+  foreignKeys: string[];
+}
+
+interface InspectTableInput {
+  db: Db;
+  table: string;
+  spec: TableSpec;
+  tableSpecs: Record<string, TableSpec>;
+  allowCompatibleExtensions: boolean;
+  problems: SchemaProblems;
+}
+
+interface TableOption {
+  type: string;
+  wr: number;
+  strict: number;
+}
+
+interface InspectForeignKeysInput {
+  db: Db;
+  tableSpecs: Record<string, TableSpec>;
+  allowCompatibleExtensions: boolean;
+  problems: string[];
+}
+
+interface InspectTableConstraintsInput {
+  db: Db;
+  table: string;
+  tableOption?: TableOption;
+  problems: string[];
+}
+
+const createSchemaProblems = (): SchemaProblems => ({
+  missing: [],
+  nullability: [],
+  types: [],
+  primaryKeys: [],
+  unexpectedColumns: [],
+  unexpectedRequired: [],
+  constraints: [],
+  foreignKeys: [],
+});
+
+function inspectTableColumns(input: InspectTableInput): void {
+  const { table, spec, tableSpecs, allowCompatibleExtensions, problems } = input;
+  const liveColumns = schemaColumns(input.db, table);
+  const liveByName = new Map(liveColumns.map((column) => [column.name, column]));
+  const includedNames = new Set(spec.columns.map((column) => column.name));
+  for (const column of spec.columns) {
+    const liveColumn = liveByName.get(column.name);
+    if (!liveColumn) {
+      problems.missing.push(`${table}.${column.name}`);
+      continue;
+    }
+    if (liveColumn.hidden !== 0) {
+      problems.constraints.push(`${table}.${column.name} is unexpectedly generated or hidden`);
+    }
+    const expectedType = column.sqlType ?? "TEXT";
+    if (liveColumn.type.toUpperCase() !== expectedType) {
+      problems.types.push(`${table}.${column.name} (spec ${expectedType}, DB ${liveColumn.type || "untyped"})`);
+    }
+    const expectedPrimaryKey = column.name === "id" ? 1 : 0;
+    if (liveColumn.pk !== expectedPrimaryKey) {
+      problems.primaryKeys.push(`${table}.${column.name} (spec PK ${expectedPrimaryKey}, DB PK ${liveColumn.pk})`);
+    }
+    if (column.name === "id") continue;
+    const liveNotNull = liveColumn.notnull === 1;
+    const specNotNull = !column.optional;
+    // Historical migrations may be replayed in tests or an idempotent recovery against the
+    // already-widened v33 shape. Nullable resourceId is forward-compatible with every personal
+    // v8-v32 row; the current TABLES assertion still requires it because its spec is optional.
+    const compatibleV33Widening =
+      tableSpecs === V32_TABLES && table === "timeOff" && column.name === "resourceId" && specNotNull && !liveNotNull;
+    if (liveNotNull !== specNotNull && !compatibleV33Widening) {
+      problems.nullability.push(
+        `${table}.${column.name} (spec ${specNotNull ? "required" : "optional"}, ` +
+          `DB ${liveNotNull ? "NOT NULL" : "nullable"})`,
+      );
+    }
+  }
+  for (const column of liveColumns) {
+    if (includedNames.has(column.name)) continue;
+    if (!allowCompatibleExtensions) problems.unexpectedColumns.push(`${table}.${column.name}`);
+    else if (column.notnull === 1 && column.dflt_value === null)
+      problems.unexpectedRequired.push(`${table}.${column.name}`);
+    if (column.pk > 0) problems.primaryKeys.push(`${table}.${column.name} is an unexpected primary-key column`);
+  }
+}
+
+function inspectUniqueIndexes(db: Db, table: string, constraintProblems: string[]): void {
+  const expected =
+    table === "clients"
+      ? new Map([["clients_one_builtin_per_account", expectedInternalClientIndexSql]])
+      : new Map<string, string>();
+  const actual = (
+    db.prepare(`PRAGMA index_list(${table})`).all() as Array<{ name: string; unique: number; origin: string }>
+  ).filter((index) => index.unique === 1 && index.origin !== "pk");
+  for (const index of actual) {
+    const expectedSql = expected.get(index.name);
+    const actualSql = (
+      db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?`).get(index.name) as
+        | { sql: string | null }
+        | undefined
+    )?.sql;
+    if (!expectedSql || !actualSql || normalizeSchemaObjectSql(actualSql) !== expectedSql) {
+      constraintProblems.push(`${table}.${index.name} is an unexpected or invalid UNIQUE constraint`);
+    }
+    expected.delete(index.name);
+  }
+  for (const name of expected.keys()) constraintProblems.push(`${table}.${name} expected UNIQUE constraint is missing`);
+}
+
+function inspectTableConstraints(input: InspectTableConstraintsInput): void {
+  const { db, table, tableOption, problems } = input;
+  if (tableOption && (tableOption.type !== "table" || tableOption.wr !== 0 || tableOption.strict !== 0)) {
+    problems.push(
+      `${table} has unsupported table options (type ${tableOption.type}, ` +
+        `WITHOUT ROWID ${tableOption.wr}, STRICT ${tableOption.strict})`,
+    );
+  }
+  const tableSql =
+    (
+      db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) as
+        | { sql: string | null }
+        | undefined
+    )?.sql ?? "";
+  if (/\bCHECK\s*\(/i.test(tableSql)) problems.push(`${table} has an unexpected CHECK constraint`);
+  inspectUniqueIndexes(db, table, problems);
+  const unexpectedTriggers = (
+    db.prepare(`SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = ?`).all(table) as Array<{
+      name: string;
+    }>
+  ).filter(({ name }) => !name.startsWith("capacitylens_tenant_"));
+  for (const trigger of unexpectedTriggers) problems.push(`${table}.${trigger.name} is an unexpected trigger`);
+}
 /**
  * Fail loudly if the live DB has drifted from the current spec in a way migrateSchema can't (or
  * won't) silently repair. These checks are no-ops on any fresh / current / already-migrated DB —
@@ -42,13 +186,7 @@ export function assertSchemaVersion(
   tableSpecs: Record<string, TableSpec>,
   allowCompatibleExtensions: boolean,
 ): void {
-  const missing: string[] = [];
-  const nullabilityProblems: string[] = [];
-  const typeProblems: string[] = [];
-  const primaryKeyProblems: string[] = [];
-  const unexpectedColumns: string[] = [];
-  const unexpectedRequired: string[] = [];
-  const constraintProblems: string[] = [];
+  const schemaProblems = createSchemaProblems();
   const tableOptions = new Map(
     (
       db.prepare("PRAGMA table_list").all() as Array<{
@@ -63,103 +201,22 @@ export function assertSchemaVersion(
       .map((table) => [table.name, table]),
   );
   for (const [table, spec] of Object.entries(tableSpecs)) {
-    const liveColumns = schemaColumns(db, table);
-    const live = new Map(liveColumns.map((column) => [column.name, column]));
-    const includedNames = new Set(spec.columns.map((column) => column.name));
-    for (const col of spec.columns) {
-      if (!live.has(col.name)) {
-        missing.push(`${table}.${col.name}`);
-        continue;
-      }
-      const liveColumn = live.get(col.name)!;
-      if (liveColumn.hidden !== 0) {
-        constraintProblems.push(`${table}.${col.name} is unexpectedly generated or hidden`);
-      }
-      const expectedType = col.sqlType ?? "TEXT";
-      if (liveColumn.type.toUpperCase() !== expectedType) {
-        typeProblems.push(`${table}.${col.name} (spec ${expectedType}, DB ${liveColumn.type || "untyped"})`);
-      }
-      const expectedPk = col.name === "id" ? 1 : 0;
-      if (liveColumn.pk !== expectedPk) {
-        primaryKeyProblems.push(`${table}.${col.name} (spec PK ${expectedPk}, DB PK ${liveColumn.pk})`);
-      }
-      if (col.name === "id") continue; // TEXT PRIMARY KEY: PRAGMA reports notnull=0 on older DDL
-      const liveNotNull = liveColumn.notnull === 1;
-      const specNotNull = !col.optional;
-      // Historical migrations may be replayed in tests or an idempotent recovery against the
-      // already-widened v33 shape. Nullable resourceId is forward-compatible with every personal
-      // v8-v32 row; the current TABLES assertion still requires it because its spec is optional.
-      const compatibleV33Widening =
-        tableSpecs === V32_TABLES && table === "timeOff" && col.name === "resourceId" && specNotNull && !liveNotNull;
-      if (liveNotNull !== specNotNull && !compatibleV33Widening) {
-        nullabilityProblems.push(
-          `${table}.${col.name} (spec ${specNotNull ? "required" : "optional"}, ` +
-            `DB ${liveNotNull ? "NOT NULL" : "nullable"})`,
-        );
-      }
-    }
-    for (const column of liveColumns) {
-      if (includedNames.has(column.name)) continue;
-      if (!allowCompatibleExtensions) {
-        unexpectedColumns.push(`${table}.${column.name}`);
-      } else if (column.notnull === 1 && column.dflt_value === null) {
-        unexpectedRequired.push(`${table}.${column.name}`);
-      }
-      if (column.pk > 0) {
-        primaryKeyProblems.push(`${table}.${column.name} is an unexpected primary-key column`);
-      }
-    }
-
-    const tableInfo = tableOptions.get(table);
-    if (tableInfo && (tableInfo.type !== "table" || tableInfo.wr !== 0 || tableInfo.strict !== 0)) {
-      constraintProblems.push(
-        `${table} has unsupported table options (type ${tableInfo.type}, ` +
-          `WITHOUT ROWID ${tableInfo.wr}, STRICT ${tableInfo.strict})`,
-      );
-    }
-    const tableSql =
-      (
-        db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) as
-          { sql: string | null } | undefined
-      )?.sql ?? "";
-    if (/\bCHECK\s*\(/i.test(tableSql)) constraintProblems.push(`${table} has an unexpected CHECK constraint`);
-
-    const expectedUniqueIndexes =
-      table === "clients"
-        ? new Map([["clients_one_builtin_per_account", expectedInternalClientIndexSql]])
-        : new Map<string, string>();
-    const actualUniqueIndexes = (
-      db.prepare(`PRAGMA index_list(${table})`).all() as Array<{
-        name: string;
-        unique: number;
-        origin: string;
-      }>
-    ).filter((index) => index.unique === 1 && index.origin !== "pk");
-    for (const index of actualUniqueIndexes) {
-      const expectedSql = expectedUniqueIndexes.get(index.name);
-      const actualSql = (
-        db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?`).get(index.name) as
-          { sql: string | null } | undefined
-      )?.sql;
-      if (!expectedSql || !actualSql || normalizeSchemaObjectSql(actualSql) !== expectedSql) {
-        constraintProblems.push(`${table}.${index.name} is an unexpected or invalid UNIQUE constraint`);
-      }
-      expectedUniqueIndexes.delete(index.name);
-    }
-    for (const name of expectedUniqueIndexes.keys()) {
-      constraintProblems.push(`${table}.${name} expected UNIQUE constraint is missing`);
-    }
-
-    const unexpectedTriggers = (
-      db.prepare(`SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = ?`).all(table) as Array<{
-        name: string;
-      }>
-    ).filter(({ name }) => !name.startsWith("capacitylens_tenant_"));
-    for (const trigger of unexpectedTriggers) {
-      constraintProblems.push(`${table}.${trigger.name} is an unexpected trigger`);
-    }
+    inspectTableColumns({ db, table, spec, tableSpecs, allowCompatibleExtensions, problems: schemaProblems });
+    const tableOption = tableOptions.get(table);
+    inspectTableConstraints({
+      db,
+      table,
+      ...(tableOption ? { tableOption } : {}),
+      problems: schemaProblems.constraints,
+    });
   }
-  const problems: string[] = [];
+  inspectForeignKeys({ db, tableSpecs, allowCompatibleExtensions, problems: schemaProblems.foreignKeys });
+  const messages = describeSchemaProblems(schemaProblems);
+  if (messages.length > 0) throw new Error(`DB schema does not match the current model — ${messages.join(". ")}.`);
+}
+
+function inspectForeignKeys(input: InspectForeignKeysInput): void {
+  const { db, tableSpecs, allowCompatibleExtensions, problems } = input;
   const allocationsSpec = tableSpecs.allocations;
   if (!allocationsSpec) throw new Error("Missing allocations table specification.");
   const expectedForeignKeys: Record<string, Array<[string, string, string, string]>> = {
@@ -198,7 +255,6 @@ export function assertSchemaVersion(
     ],
     ...(tableSpecs.closures ? { closures: [["accountId", "accounts", "id", "CASCADE"]] } : {}),
   };
-  const foreignKeyProblems: string[] = [];
   for (const [table, expected] of Object.entries(expectedForeignKeys)) {
     const actual = (
       db.prepare(`PRAGMA foreign_key_list(${table})`).all() as Array<{
@@ -210,45 +266,49 @@ export function assertSchemaVersion(
     ).map((fk) => [fk.from, fk.table, fk.to, fk.on_delete] as [string, string, string, string]);
     for (const wanted of expected) {
       if (!actual.some((got) => got.every((value, i) => value === wanted[i]))) {
-        foreignKeyProblems.push(`${table}.${wanted[0]} -> ${wanted[1]}.${wanted[2]} ON DELETE ${wanted[3]}`);
+        problems.push(`${table}.${wanted[0]} -> ${wanted[1]}.${wanted[2]} ON DELETE ${wanted[3]}`);
       }
     }
-    if (actual.length !== expected.length) foreignKeyProblems.push(`${table} has unexpected foreign-key count`);
+    if (actual.length !== expected.length) problems.push(`${table} has unexpected foreign-key count`);
   }
-  if (missing.length > 0) {
-    problems.push(
-      `missing column(s): ${missing.join(", ")} — migrateSchema auto-adds optional columns, but a ` +
+}
+
+function describeSchemaProblems(schemaProblems: SchemaProblems): string[] {
+  const messages: string[] = [];
+  if (schemaProblems.missing.length > 0) {
+    messages.push(
+      `missing column(s): ${schemaProblems.missing.join(", ")} — migrateSchema auto-adds optional columns, but a ` +
         `new REQUIRED (NOT NULL) column needs an explicit migration step (a table rebuild, like ` +
         `rebuildActivitiesTable) before this DB can open`,
     );
   }
-  if (nullabilityProblems.length > 0) {
-    problems.push(
-      `nullability mismatch: ${nullabilityProblems.join("; ")} — the spec's optional? flag and SCHEMA_SQL's ` +
+  if (schemaProblems.nullability.length > 0) {
+    messages.push(
+      `nullability mismatch: ${schemaProblems.nullability.join("; ")} — the spec's optional? flag and SCHEMA_SQL's ` +
         `NOT NULL have drifted; reconcile them (a NOT NULL change to an existing table needs a rebuild)`,
     );
   }
-  if (typeProblems.length > 0) problems.push(`declared-type mismatch: ${typeProblems.join("; ")}`);
-  if (primaryKeyProblems.length > 0) problems.push(`primary-key mismatch: ${primaryKeyProblems.join("; ")}`);
-  if (unexpectedColumns.length > 0) {
-    problems.push(
-      `unexpected versioned column(s): ${unexpectedColumns.join(", ")} — a released migration ` +
+  if (schemaProblems.types.length > 0) messages.push(`declared-type mismatch: ${schemaProblems.types.join("; ")}`);
+  if (schemaProblems.primaryKeys.length > 0) {
+    messages.push(`primary-key mismatch: ${schemaProblems.primaryKeys.join("; ")}`);
+  }
+  if (schemaProblems.unexpectedColumns.length > 0) {
+    messages.push(
+      `unexpected versioned column(s): ${schemaProblems.unexpectedColumns.join(", ")} — a released migration ` +
         `must not include columns owned by a later schema version`,
     );
   }
-  if (unexpectedRequired.length > 0) {
-    problems.push(
-      `unexpected required column(s): ${unexpectedRequired.join(", ")} — TABLES inserts cannot ` +
+  if (schemaProblems.unexpectedRequired.length > 0) {
+    messages.push(
+      `unexpected required column(s): ${schemaProblems.unexpectedRequired.join(", ")} — TABLES inserts cannot ` +
         `supply unknown NOT NULL columns without defaults`,
     );
   }
-  if (constraintProblems.length > 0) {
-    problems.push(`unexpected write constraint(s): ${constraintProblems.join("; ")}`);
+  if (schemaProblems.constraints.length > 0) {
+    messages.push(`unexpected write constraint(s): ${schemaProblems.constraints.join("; ")}`);
   }
-  if (foreignKeyProblems.length > 0) {
-    problems.push(`foreign-key mismatch: ${foreignKeyProblems.join("; ")}`);
+  if (schemaProblems.foreignKeys.length > 0) {
+    messages.push(`foreign-key mismatch: ${schemaProblems.foreignKeys.join("; ")}`);
   }
-  if (problems.length > 0) {
-    throw new Error(`DB schema does not match the current model — ${problems.join(". ")}.`);
-  }
+  return messages;
 }
