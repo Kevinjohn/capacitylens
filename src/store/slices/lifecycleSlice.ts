@@ -1,4 +1,4 @@
-import type { StateCreator } from "zustand";
+import type { StateCreator, StoreApi } from "zustand";
 import {
   archive,
   canPurge,
@@ -51,53 +51,7 @@ export function createLifecycleSlice(internals: StoreInternals): StateCreator<St
           ),
         }));
       }),
-      softDeleteEntity: createGuardedAction((entity: LifecycleEntity, id: ID) => {
-        if (!resolveOwnedRow(get().data, entity, id)) return;
-        // The Internal client can never be 'archived' (so softDelete would throw), but guard explicitly
-        // for a display-safe message and parity with the delete path.
-        assertNotBuiltinClient(entity, id, "deleted");
-        // softDelete() THROWS unless the row is 'archived' (prior-archival rule). For a resource, COMPOSE
-        // the shared obfuscateResource so the local tombstone carries NO original PII (the obfuscation
-        // string is single-sourced from lifecycle.ts — never hand-written here).
-        const applyDelete = (data: AppData): AppData => ({
-          ...data,
-          [entity]: data[entity].map((lifecycleRow) => {
-            if (lifecycleRow.id !== id) return lifecycleRow;
-            const now = touchAfter(lifecycleRow.updatedAt);
-            const deletedEntity = softDelete(lifecycleRow, now);
-            const revision = deletedEntity.deletedAt ?? now;
-            return entity === "resources"
-              ? { ...obfuscateResource(deletedEntity as Resource), updatedAt: revision }
-              : { ...deletedEntity, updatedAt: revision };
-          }),
-          ...(entity === "resources"
-            ? {
-                allocations: data.allocations.map((allocation) =>
-                  allocation.resourceId === id && allocation.note != null
-                    ? (() => {
-                        const scrubbed = { ...allocation, updatedAt: touchAfter(allocation.updatedAt) };
-                        delete scrubbed.note;
-                        return scrubbed;
-                      })()
-                    : allocation,
-                ),
-                timeOff: data.timeOff.map((timeOff) =>
-                  timeOff.resourceId === id && timeOff.note != null
-                    ? (() => {
-                        const scrubbed = { ...timeOff, updatedAt: touchAfter(timeOff.updatedAt) };
-                        delete scrubbed.note;
-                        return scrubbed;
-                      })()
-                    : timeOff,
-                ),
-              }
-            : {}),
-        });
-        // Lifecycle deletion is irreversible for every supported entity. Clear both history stacks
-        // even when a client/project tombstone retains its display data: undo must never bypass the
-        // archive → soft-delete lifecycle contract or resurrect a deliberately removed record.
-        mutateIrreversible(applyDelete);
-      }),
+      softDeleteEntity: createSoftDeleteAction(internals, get),
       purgeEntity: createGuardedAction((entity: LifecycleEntity, id: ID) => {
         const existing = resolveOwnedRow(get().data, entity, id);
         if (!existing) return;
@@ -117,4 +71,55 @@ export function createLifecycleSlice(internals: StoreInternals): StateCreator<St
       }),
     };
   };
+}
+
+function createSoftDeleteAction(internals: StoreInternals, get: StoreApi<StoreState>["getState"]) {
+  const { createGuardedAction, resolveOwnedRow, assertNotBuiltinClient, mutateIrreversible } = internals;
+  return createGuardedAction((entity: LifecycleEntity, id: ID) => {
+    if (!resolveOwnedRow(get().data, entity, id)) return;
+    // The Internal client can never be 'archived' (so softDelete would throw), but guard explicitly
+    // for a display-safe message and parity with the delete path.
+    assertNotBuiltinClient(entity, id, "deleted");
+    // softDelete() THROWS unless the row is 'archived' (prior-archival rule). For a resource, COMPOSE
+    // the shared obfuscateResource so the local tombstone carries NO original PII (the obfuscation
+    // string is single-sourced from lifecycle.ts — never hand-written here).
+    const applyDelete = (data: AppData): AppData => ({
+      ...data,
+      [entity]: data[entity].map((lifecycleRow) => {
+        if (lifecycleRow.id !== id) return lifecycleRow;
+        const now = touchAfter(lifecycleRow.updatedAt);
+        const deletedEntity = softDelete(lifecycleRow, now);
+        const revision = deletedEntity.deletedAt ?? now;
+        return entity === "resources"
+          ? { ...obfuscateResource(deletedEntity as Resource), updatedAt: revision }
+          : { ...deletedEntity, updatedAt: revision };
+      }),
+      ...(entity === "resources"
+        ? {
+            allocations: data.allocations.map((allocation) =>
+              allocation.resourceId === id && allocation.note != null
+                ? (() => {
+                    const scrubbed = { ...allocation, updatedAt: touchAfter(allocation.updatedAt) };
+                    delete scrubbed.note;
+                    return scrubbed;
+                  })()
+                : allocation,
+            ),
+            timeOff: data.timeOff.map((timeOff) =>
+              timeOff.resourceId === id && timeOff.note != null
+                ? (() => {
+                    const scrubbed = { ...timeOff, updatedAt: touchAfter(timeOff.updatedAt) };
+                    delete scrubbed.note;
+                    return scrubbed;
+                  })()
+                : timeOff,
+            ),
+          }
+        : {}),
+    });
+    // Lifecycle deletion is irreversible for every supported entity. Clear both history stacks
+    // even when a client/project tombstone retains its display data: undo must never bypass the
+    // archive → soft-delete lifecycle contract or resurrect a deliberately removed record.
+    mutateIrreversible(applyDelete);
+  });
 }

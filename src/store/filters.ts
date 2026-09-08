@@ -44,13 +44,13 @@ export const clearEntityLenses = (filters: Filters): Filters => ({
 /** The project/client lens specifically — the pair that decides whether a bar "matches the filter"
  *  (the activity lens is standalone and mutually exclusive with it via setFilters). */
 export function hasProjectClientLens(filters: Filters): boolean {
-  return !!(filters.projectId || filters.clientId);
+  return filters.projectId !== null || filters.clientId !== null;
 }
 
 /** Any "what work" lens is active — project/client OR activity. This is the gate for the dimmed
  *  show-unmatched staffing view, which behaves identically whichever of the two lenses is set. */
 export function hasLensFilter(filters: Filters): boolean {
-  return hasProjectClientLens(filters) || !!(filters.activityId || filters.activityKind);
+  return hasProjectClientLens(filters) || filters.activityId !== null || filters.activityKind !== null;
 }
 
 export function hasActiveFilters(filters: Filters): boolean {

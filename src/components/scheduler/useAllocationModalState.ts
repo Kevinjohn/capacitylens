@@ -3,7 +3,7 @@ import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWor
 import { parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { carriesHourlyLoad } from "@capacitylens/shared/types/entities";
 import { format } from "date-fns";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useCanEdit } from "../../auth/permissionContext";
 import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
 import { resolveResourceDisplayName } from "../../lib/metadata";
@@ -23,27 +23,39 @@ import { buildRepeatProjection } from "./buildRepeatProjection";
 import { createAllocationCommands } from "./allocationSubmit";
 import { useAllocationScheduleState } from "./useAllocationScheduleState";
 import { useAllocationTargetState } from "./useAllocationTargetState";
-export function useAllocationModalState(props: AllocationModalProps) {
-  const { onClose } = props;
-  const canEdit = useCanEdit();
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const data = useActiveScopedData();
-  const addAllocation = useStore((state) => state.addAllocation);
-  const addAllocations = useStore((state) => state.addAllocations);
-  const updateAllocation = useStore((state) => state.updateAllocation);
-  const deleteAllocation = useStore((state) => state.deleteAllocation);
-  const deleteAllocationSeriesFrom = useStore((state) => state.deleteAllocationSeriesFrom);
-  const addActivity = useStore((state) => state.addActivity);
+
+function useAllocationStoreActions() {
+  return {
+    addAllocation: useStore((state) => state.addAllocation),
+    addAllocations: useStore((state) => state.addAllocations),
+    updateAllocation: useStore((state) => state.updateAllocation),
+    deleteAllocation: useStore((state) => state.deleteAllocation),
+    deleteAllocationSeriesFrom: useStore((state) => state.deleteAllocationSeriesFrom),
+    addActivity: useStore((state) => state.addActivity),
+  };
+}
+
+function useSchedulingContext() {
   const mode = useStore((state) => resolveSchedulingMode(state.data, state.activeAccountId));
   const activeAccount = useStore((state) =>
     state.data.accounts.find((account) => account.id === state.activeAccountId),
   );
-  // Not listAccountWorkingDays: the modal's scoped data blanks `accounts`, so it subscribes to the
-  // account row itself and runs the selector's one repair seam directly.
   const accountWorkingDays = useMemo(
     () => normalizeAccountWorkingDays(activeAccount?.workingDays, activeAccount?.weekStartsOn ?? 1),
     [activeAccount],
   );
+  return { mode, accountWorkingDays };
+}
+
+function useAllocationModalContext(props: AllocationModalProps) {
+  const { onClose } = props;
+  const canEdit = useCanEdit();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const data = useActiveScopedData();
+  const actions = useAllocationStoreActions();
+  const { mode, accountWorkingDays } = useSchedulingContext();
+  // Not listAccountWorkingDays: the modal's scoped data blanks `accounts`, so it subscribes to the
+  // account row itself and runs the selector's one repair seam directly.
   const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
   const externalEnabled = useStore((state) => hasExternalResourcesEnabled(state.data, state.activeAccountId));
   const inlineActivityCreateEnabled = useStore((state) => canCreateInlineActivity(state.data, state.activeAccountId));
@@ -69,7 +81,6 @@ export function useAllocationModalState(props: AllocationModalProps) {
     today: todayISO(calendarTimeZone),
   });
   const fieldError = useFieldError();
-  const { error, errorField, errorId, fail, clear } = fieldError;
   // Register focus before the schedule hook registers its repeat-adjustment effect.
   useFieldErrorFocus(fieldError);
 
@@ -79,183 +90,228 @@ export function useAllocationModalState(props: AllocationModalProps) {
     if (editId && !editing) onClose();
   }, [editId, editing, onClose]);
 
-  const target = useAllocationTargetState({
-    data,
-    seed,
-    resourceById: resourcesById,
+  return {
+    onClose,
     canEdit,
+    confirmDelete,
+    setConfirmDelete,
+    data,
+    ...actions,
+    mode,
+    accountWorkingDays,
     placeholdersEnabled,
     externalEnabled,
     inlineActivityCreateEnabled,
-    ...fieldError,
-    addActivity,
-  });
-  const { selectedResource, selectedActivity, attributedProjectId, selectedEffectiveProjectId } = target;
-  const { resourceId, activityId } = target.fields;
-  const schedule = useAllocationScheduleState({ selectedResource, mode, accountWorkingDays, calendarTimeZone, seed });
-  const { selectedEffectiveWeek, effEndDate: effectiveEndDate, validDaysOver, spanFitsDateDomain } = schedule;
-  const {
-    daysOfWork,
-    daysOver,
-    effHoursPerDay: effectiveHoursPerDay,
-    ignoreWeekends,
-    isExternal,
-    note,
-    repeat,
-    repeatUntil,
-    repeatUntilMaximum,
-    repeatUntilMinimum,
-    startDate,
-    status,
-  } = schedule.fields;
-  const repeatProjection = useMemo(
-    () =>
-      buildRepeatProjection({
-        activityId,
-        create,
-        attributedProjectId,
-        daysOfWork,
-        daysOver,
-        effEndDate: effectiveEndDate,
-        effHoursPerDay: effectiveHoursPerDay,
-        ignoreWeekends,
-        isBlocks,
-        isDays,
-        isExternal,
-        mode,
-        note,
-        repeat,
-        repeatUntil,
-        repeatUntilMaximum,
-        repeatUntilMinimum,
-        resourceId,
-        selectedActivity,
-        selectedEffectiveProjectId,
-        selectedResource,
-        selectedEffectiveWeek,
-        spanFitsDateDomain,
-        startDate,
-        status,
-        validDaysOver,
-      }),
-    [
-      activityId,
-      create,
-      attributedProjectId,
-      daysOfWork,
-      daysOver,
-      effectiveEndDate,
-      effectiveHoursPerDay,
-      ignoreWeekends,
-      isBlocks,
-      isDays,
-      isExternal,
-      mode,
-      note,
-      repeat,
-      repeatUntil,
-      repeatUntilMaximum,
-      repeatUntilMinimum,
-      resourceId,
-      selectedActivity,
-      selectedEffectiveProjectId,
-      selectedResource,
-      selectedEffectiveWeek,
-      spanFitsDateDomain,
-      startDate,
-      status,
-      validDaysOver,
-    ],
-  );
-  const advisory = useMemo(
-    () =>
-      buildAllocationAdvisory({
-        attributedProjectId,
-        create,
-        editId,
-        effEndDate: effectiveEndDate,
-        effHoursPerDay: effectiveHoursPerDay,
-        ignoreWeekends,
-        isBlocks,
-        isExternal,
-        repeat,
-        repeatProjection,
-        resourceId,
-        selectedResource,
-        selectedEffectiveWeek,
-        startDate,
-        data: { allocations: data.allocations, closures: data.closures, timeOff: data.timeOff },
-      }),
-    [
-      attributedProjectId,
-      create,
-      data.allocations,
-      data.closures,
-      data.timeOff,
-      editId,
-      effectiveEndDate,
-      effectiveHoursPerDay,
-      ignoreWeekends,
-      isBlocks,
-      isExternal,
-      repeat,
-      repeatProjection,
-      resourceId,
-      selectedResource,
-      selectedEffectiveWeek,
-      startDate,
-    ],
-  );
-  // A typed span can produce an invalid date; guard format() to avoid crashing the modal.
-  const parsedEndDate = parseDate(effectiveEndDate);
-  const endDateHint = Number.isNaN(parsedEndDate.getTime()) ? null : format(parsedEndDate, "EEE d MMM yyyy");
+    calendarTimeZone,
+    isDays,
+    isBlocks,
+    editId,
+    create,
+    editing,
+    resourcesById,
+    seed,
+    fieldError,
+  };
+}
 
+function useTargetSchedule(context: ReturnType<typeof useAllocationModalContext>) {
+  const target = useAllocationTargetState({
+    data: context.data,
+    seed: context.seed,
+    resourceById: context.resourcesById,
+    canEdit: context.canEdit,
+    placeholdersEnabled: context.placeholdersEnabled,
+    externalEnabled: context.externalEnabled,
+    inlineActivityCreateEnabled: context.inlineActivityCreateEnabled,
+    ...context.fieldError,
+    addActivity: context.addActivity,
+  });
+  const schedule = useAllocationScheduleState({
+    selectedResource: target.selectedResource,
+    mode: context.mode,
+    accountWorkingDays: context.accountWorkingDays,
+    calendarTimeZone: context.calendarTimeZone,
+    seed: context.seed,
+  });
+  const repeatProjection = useRepeatProjection(buildRepeatProjectionInput(context, target, schedule));
+  const advisory = useAllocationAdvisory(buildAdvisoryInput({ context, target, schedule, repeatProjection }));
+  // A typed span can produce an invalid date; guard format() to avoid crashing the modal.
+  const parsedEndDate = parseDate(schedule.effEndDate);
+  const endDateHint = Number.isNaN(parsedEndDate.getTime()) ? null : format(parsedEndDate, "EEE d MMM yyyy");
+  return { target, schedule, repeatProjection, advisory, endDateHint };
+}
+
+export function useAllocationModalState(props: AllocationModalProps) {
+  const context = useAllocationModalContext(props);
+  return buildModalState(context, useTargetSchedule(context));
+}
+
+function buildModalState(
+  context: ReturnType<typeof useAllocationModalContext>,
+  state: ReturnType<typeof useTargetSchedule>,
+) {
+  const { target, schedule, repeatProjection, advisory, endDateHint } = state;
   const { submit, onDuplicate, onDelete } = createAllocationCommands({
     ...target.fields,
     ...target,
     ...schedule.fields,
     ...schedule,
-    data,
-    create,
-    editing,
-    mode,
-    isDays,
-    isBlocks,
-    initialDaysOver: seed.initialDaysOver,
-    fail,
-    canEdit,
-    onClose,
-    setConfirmDelete,
-    addAllocation,
-    addAllocations,
-    updateAllocation,
-    deleteAllocation,
-    deleteAllocationSeriesFrom,
+    data: context.data,
+    create: context.create,
+    editing: context.editing,
+    mode: context.mode,
+    isDays: context.isDays,
+    isBlocks: context.isBlocks,
+    initialDaysOver: context.seed.initialDaysOver,
+    fail: context.fieldError.fail,
+    canEdit: context.canEdit,
+    onClose: context.onClose,
+    setConfirmDelete: context.setConfirmDelete,
+    addAllocation: context.addAllocation,
+    addAllocations: context.addAllocations,
+    updateAllocation: context.updateAllocation,
+    deleteAllocation: context.deleteAllocation,
+    deleteAllocationSeriesFrom: context.deleteAllocationSeriesFrom,
   });
   // In create mode the assignee is already chosen (the user clicked the + next to
   // their row), so we drop the Assignee select and name them in the title instead.
-  const createName = create
-    ? seed.initialResource
-      ? resolveResourceDisplayName(seed.initialResource)
-      : m.form_allocation_advisory_resource_name()
-    : undefined;
+  const createName = resolveCreateName(context.create !== undefined, context.seed.initialResource);
   const repeatLastStart = repeatProjection?.startDates.at(-1);
   return {
-    shell: { editing, createName, onClose, submit, clear },
+    shell: { editing: context.editing, createName, onClose: context.onClose, submit, clear: context.fieldError.clear },
     targetFields: target.fields,
     scheduleFields: {
       ...schedule.fields,
       endDateHint,
-      create,
+      create: context.create,
       repeatProjection,
       repeatLastStart,
       advisory,
-      error,
-      errorField,
-      errorId,
+      error: context.fieldError.error,
+      errorField: context.fieldError.errorField,
+      errorId: context.fieldError.errorId,
     },
-    footer: { editing, canEdit, confirmDelete, setConfirmDelete, onDelete, onDuplicate, onClose },
+    footer: {
+      editing: context.editing,
+      canEdit: context.canEdit,
+      confirmDelete: context.confirmDelete,
+      setConfirmDelete: context.setConfirmDelete,
+      onDelete,
+      onDuplicate,
+      onClose: context.onClose,
+    },
   };
+}
+
+function buildRepeatProjectionInput(
+  context: ReturnType<typeof useAllocationModalContext>,
+  target: ReturnType<typeof useAllocationTargetState>,
+  schedule: ReturnType<typeof useAllocationScheduleState>,
+): Parameters<typeof buildRepeatProjection>[0] {
+  return {
+    activityId: target.fields.activityId,
+    create: context.create,
+    attributedProjectId: target.attributedProjectId,
+    daysOfWork: schedule.fields.daysOfWork,
+    daysOver: schedule.fields.daysOver,
+    effEndDate: schedule.effEndDate,
+    effHoursPerDay: schedule.fields.effHoursPerDay,
+    ignoreWeekends: schedule.fields.ignoreWeekends,
+    isBlocks: context.isBlocks,
+    isDays: context.isDays,
+    isExternal: schedule.fields.isExternal,
+    mode: context.mode,
+    note: schedule.fields.note,
+    repeat: schedule.fields.repeat,
+    repeatUntil: schedule.fields.repeatUntil,
+    repeatUntilMaximum: schedule.fields.repeatUntilMaximum,
+    repeatUntilMinimum: schedule.fields.repeatUntilMinimum,
+    resourceId: target.fields.resourceId,
+    selectedActivity: target.selectedActivity,
+    selectedEffectiveProjectId: target.selectedEffectiveProjectId,
+    selectedResource: target.selectedResource,
+    selectedEffectiveWeek: schedule.selectedEffectiveWeek,
+    spanFitsDateDomain: schedule.spanFitsDateDomain,
+    startDate: schedule.fields.startDate,
+    status: schedule.fields.status,
+    validDaysOver: schedule.validDaysOver,
+  };
+}
+
+interface BuildAdvisoryInput {
+  context: ReturnType<typeof useAllocationModalContext>;
+  target: ReturnType<typeof useAllocationTargetState>;
+  schedule: ReturnType<typeof useAllocationScheduleState>;
+  repeatProjection: ReturnType<typeof useRepeatProjection>;
+}
+
+function buildAdvisoryInput({
+  context,
+  target,
+  schedule,
+  repeatProjection,
+}: BuildAdvisoryInput): Parameters<typeof buildAllocationAdvisory>[0] {
+  return {
+    attributedProjectId: target.attributedProjectId,
+    create: context.create,
+    editId: context.editId,
+    effEndDate: schedule.effEndDate,
+    effHoursPerDay: schedule.fields.effHoursPerDay,
+    ignoreWeekends: schedule.fields.ignoreWeekends,
+    isBlocks: context.isBlocks,
+    isExternal: schedule.fields.isExternal,
+    repeat: schedule.fields.repeat,
+    repeatProjection,
+    resourceId: target.fields.resourceId,
+    selectedResource: target.selectedResource,
+    selectedEffectiveWeek: schedule.selectedEffectiveWeek,
+    startDate: schedule.fields.startDate,
+    data: { allocations: context.data.allocations, closures: context.data.closures, timeOff: context.data.timeOff },
+  };
+}
+
+function useRepeatProjection(input: Parameters<typeof buildRepeatProjection>[0]) {
+  const cache = useRef<{ input: typeof input; result: ReturnType<typeof buildRepeatProjection> } | null>(null);
+  if (!cache.current || !hasSameRepeatProjectionInput(cache.current.input, input)) {
+    cache.current = { input, result: buildRepeatProjection(input) };
+  }
+  return cache.current.result;
+}
+
+function useAllocationAdvisory(input: Parameters<typeof buildAllocationAdvisory>[0]) {
+  const cache = useRef<{ input: typeof input; result: ReturnType<typeof buildAllocationAdvisory> } | null>(null);
+  if (!cache.current || !hasSameAdvisoryInput(cache.current.input, input)) {
+    cache.current = { input, result: buildAllocationAdvisory(input) };
+  }
+  return cache.current.result;
+}
+
+function hasSameRepeatProjectionInput(
+  previous: Parameters<typeof buildRepeatProjection>[0],
+  next: Parameters<typeof buildRepeatProjection>[0],
+): boolean {
+  return Object.keys(previous).every(
+    (key) => previous[key as keyof typeof previous] === next[key as keyof typeof next],
+  );
+}
+
+function hasSameAdvisoryInput(
+  previous: Parameters<typeof buildAllocationAdvisory>[0],
+  next: Parameters<typeof buildAllocationAdvisory>[0],
+): boolean {
+  return (
+    Object.keys(previous).every(
+      (key) => key === "data" || previous[key as keyof typeof previous] === next[key as keyof typeof next],
+    ) &&
+    previous.data.allocations === next.data.allocations &&
+    previous.data.closures === next.data.closures &&
+    previous.data.timeOff === next.data.timeOff
+  );
+}
+
+function resolveCreateName(isCreate: boolean, resource: Parameters<typeof resolveResourceDisplayName>[0] | undefined) {
+  if (!isCreate) return undefined;
+  return resource ? resolveResourceDisplayName(resource) : m.form_allocation_advisory_resource_name();
 }
 
 export type AllocationModalState = ReturnType<typeof useAllocationModalState>;

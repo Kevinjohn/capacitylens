@@ -52,16 +52,23 @@ export function createGuards(get: StoreApi<StoreState>["getState"], set: StoreAp
       return true;
     }
     if (state.activeRole !== "viewer") return false;
-    const message =
-      state.activeRoleStatus === "pending"
-        ? m.access_checking_summary()
-        : state.activeRoleStatus === "unavailable"
-          ? m.access_unavailable_summary()
-          : m.notice_viewer_read_only();
+    let message = m.notice_viewer_read_only();
+    if (state.activeRoleStatus === "pending") message = m.access_checking_summary();
+    if (state.activeRoleStatus === "unavailable") message = m.access_unavailable_summary();
     state.setNotice(message, "error");
     return true;
   };
 
+  return buildGuards({ get, requireAccount, blockedByViewer });
+}
+
+interface BuildGuardsInput {
+  get: StoreApi<StoreState>["getState"];
+  requireAccount: () => ID;
+  blockedByViewer: () => boolean;
+}
+
+function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput) {
   // Tenancy + integrity rules now live in src/domain/mutations.ts (pure, shared
   // with a future server). findOwned is wrapped here to inject the active account
   // so the call sites stay terse; assertAllocation keeps its legacy name locally.
