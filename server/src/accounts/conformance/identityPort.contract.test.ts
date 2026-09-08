@@ -371,6 +371,69 @@ function trustedLocalHarness(): Harness {
   };
 }
 
+interface FakeIdentityState {
+  principals: Map<string, PrincipalSummary>;
+  sessions: Map<string, SessionSummary>;
+  provisional: Map<string, ProvisionalPrincipal>;
+  session: ApplicationSession;
+  receipt(operation: CommandIdentity): OperationReceipt;
+}
+
+function createFakeIdentityPort(state: FakeIdentityState): IdentityPort {
+  return {
+    async verifyApplicationSession() {
+      return state.session;
+    },
+    async getPrincipalSummaries({ principalIds }) {
+      return [...new Set(principalIds)].flatMap((id) => {
+        const summary = state.principals.get(id);
+        return summary ? [summary] : [];
+      });
+    },
+    async findPrincipalByFederatedSubject() {
+      return null;
+    },
+    async signOut() {
+      return { setCookies: [] };
+    },
+    async listSessions({ actor }) {
+      return [...state.sessions.values()].filter(() => actor.principalId === PRINCIPAL.id);
+    },
+    async revokeOwnSession({ sessionId, command: operation }) {
+      return { ...state.receipt(operation), changed: state.sessions.delete(sessionId) };
+    },
+    async createProvisionalCredentialPrincipal({ email, displayName, command: operation }) {
+      const value = {
+        principalId: `fake-${operation.commandId}`,
+        compensationHandle: `opaque-${operation.idempotencyKey}`,
+      };
+      state.provisional.set(value.principalId, value);
+      state.principals.set(value.principalId, { id: value.principalId, displayName, email });
+      return value;
+    },
+    async compensateProvisionalPrincipal({ provisional: value }) {
+      if (!state.provisional.delete(value.principalId)) throw new Error("unknown provisional principal");
+      state.principals.delete(value.principalId);
+    },
+    async deprovisionLocalPrincipal({ principalId, command: operation }) {
+      state.principals.delete(principalId);
+      return state.receipt(operation);
+    },
+    async issuePasswordReset({ command: operation }) {
+      return {
+        ceremonyId: `ceremony-${operation.commandId}`,
+        token: `token-${operation.idempotencyKey}`,
+        expiresAt: LATER,
+      };
+    },
+    async revokePasswordResetCeremony() {},
+    async revokePrincipalSessions({ command: operation }) {
+      state.sessions.clear();
+      return state.receipt(operation);
+    },
+  };
+}
+
 function fakeIdentityHarness(): Harness {
   const principals = new Map<string, PrincipalSummary>([[PRINCIPAL.id, summaryOf(PRINCIPAL.id)]]);
   const sessions = new Map<string, SessionSummary>([
@@ -397,58 +460,7 @@ function fakeIdentityHarness(): Harness {
     freshUntil: "2026-07-18T10:10:00.000Z",
     assurance: "password",
   };
-  const port: IdentityPort = {
-    async verifyApplicationSession() {
-      return session;
-    },
-    async getPrincipalSummaries({ principalIds }) {
-      return [...new Set(principalIds)].flatMap((id) => {
-        const summary = principals.get(id);
-        return summary ? [summary] : [];
-      });
-    },
-    async findPrincipalByFederatedSubject() {
-      return null;
-    },
-    async signOut() {
-      return { setCookies: [] };
-    },
-    async listSessions({ actor }) {
-      return [...sessions.values()].filter(() => actor.principalId === PRINCIPAL.id);
-    },
-    async revokeOwnSession({ sessionId, command: operation }) {
-      return { ...receipt(operation), changed: sessions.delete(sessionId) };
-    },
-    async createProvisionalCredentialPrincipal({ email, displayName, command: operation }) {
-      const value = {
-        principalId: `fake-${operation.commandId}`,
-        compensationHandle: `opaque-${operation.idempotencyKey}`,
-      };
-      provisional.set(value.principalId, value);
-      principals.set(value.principalId, { id: value.principalId, displayName, email });
-      return value;
-    },
-    async compensateProvisionalPrincipal({ provisional: value }) {
-      if (!provisional.delete(value.principalId)) throw new Error("unknown provisional principal");
-      principals.delete(value.principalId);
-    },
-    async deprovisionLocalPrincipal({ principalId, command: operation }) {
-      principals.delete(principalId);
-      return receipt(operation);
-    },
-    async issuePasswordReset({ command: operation }) {
-      return {
-        ceremonyId: `ceremony-${operation.commandId}`,
-        token: `token-${operation.idempotencyKey}`,
-        expiresAt: LATER,
-      };
-    },
-    async revokePasswordResetCeremony() {},
-    async revokePrincipalSessions({ command: operation }) {
-      sessions.clear();
-      return receipt(operation);
-    },
-  };
+  const port = createFakeIdentityPort({ principals, sessions, provisional, session, receipt });
   return {
     port,
     session,
