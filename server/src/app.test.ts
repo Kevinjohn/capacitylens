@@ -5053,15 +5053,16 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     await seedFixtureDeps(app);
     expect((await post(app, "activities", FIXTURE_ACTIVITY_INTERNAL)).statusCode).toBe(201);
     expect((await post(app, "activities", FIXTURE_ACTIVITY_REPEATABLE)).statusCode).toBe(201);
-    const activities = (await state(app)).activities;
-    expectFixture(
-      activities.find((a: { id: string }) => a.id === FIXTURE_ACTIVITY_INTERNAL.id),
-      FIXTURE_ACTIVITY_INTERNAL,
-    );
-    expectFixture(
-      activities.find((a: { id: string }) => a.id === FIXTURE_ACTIVITY_REPEATABLE.id),
-      FIXTURE_ACTIVITY_REPEATABLE,
-    );
+    const activities = (await readValidatedState(app)).activities;
+    const internalActivity = readActivity(activities, FIXTURE_ACTIVITY_INTERNAL.id);
+    const repeatableActivity = readActivity(activities, FIXTURE_ACTIVITY_REPEATABLE.id);
+    expect(activities).toHaveLength(2);
+    expect(internalActivity.id).toBe(FIXTURE_ACTIVITY_INTERNAL.id);
+    expect(repeatableActivity.id).toBe(FIXTURE_ACTIVITY_REPEATABLE.id);
+    expect(internalActivity).not.toBe(repeatableActivity);
+
+    expectFixture(internalActivity, FIXTURE_ACTIVITY_INTERNAL);
+    expectFixture(repeatableActivity, FIXTURE_ACTIVITY_REPEATABLE);
   });
 
   it("allocation: every field round-trips (including optional project attribution)", async () => {
@@ -5072,15 +5073,16 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     await post(app, "activities", FIXTURE_ACTIVITY_REPEATABLE);
     expect((await post(app, "allocations", FIXTURE_ALLOCATION)).statusCode).toBe(201);
     expect((await post(app, "allocations", FIXTURE_ALLOCATION_ATTRIBUTED)).statusCode).toBe(201);
-    const allocations = (await state(app)).allocations;
-    expectFixture(
-      allocations.find((allocation: { id: string }) => allocation.id === FIXTURE_ALLOCATION.id),
-      FIXTURE_ALLOCATION,
-    );
-    expectFixture(
-      allocations.find((allocation: { id: string }) => allocation.id === FIXTURE_ALLOCATION_ATTRIBUTED.id),
-      FIXTURE_ALLOCATION_ATTRIBUTED,
-    );
+    const allocations = (await readValidatedState(app)).allocations;
+    const allocationRow = readAllocation(allocations, FIXTURE_ALLOCATION.id);
+    const attributedAllocation = readAllocation(allocations, FIXTURE_ALLOCATION_ATTRIBUTED.id);
+    expect(allocations).toHaveLength(2);
+    expect(allocationRow.id).toBe(FIXTURE_ALLOCATION.id);
+    expect(attributedAllocation.id).toBe(FIXTURE_ALLOCATION_ATTRIBUTED.id);
+    expect(allocationRow).not.toBe(attributedAllocation);
+
+    expectFixture(allocationRow, FIXTURE_ALLOCATION);
+    expectFixture(attributedAllocation, FIXTURE_ALLOCATION_ATTRIBUTED);
   });
 
   it("timeOff: every field round-trips (including optional note)", async () => {
