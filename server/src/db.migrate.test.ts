@@ -526,6 +526,49 @@ function prepareV21TombstonedInternalClients(db: Db, priorRevision: string): voi
   `);
 }
 
+function prepareV26LegacyDefaultEntities(db: Db) {
+  insertRow(db, "accounts", {
+    id: "a1",
+    name: "Wayne Enterprises",
+    color: "#2d75da",
+    createdAt: TS,
+    updatedAt: TS,
+  });
+  insertRow(db, "accounts", {
+    id: "a2",
+    name: "Stark Industries",
+    color: "#da2d92",
+    weekStartsOn: 0,
+    createdAt: TS,
+    updatedAt: TS,
+  });
+  const resource = {
+    id: "r1",
+    accountId: "a1",
+    kind: "person" as const,
+    name: "Bruce Wayne",
+    role: "Director",
+    employmentType: "permanent" as const,
+    engagement: "studio" as const,
+    workingHoursPerDay: 8,
+    workingDays: [1, 2, 3, 4, 5] as Array<1 | 2 | 3 | 4 | 5>,
+    halfDays: [],
+    color: "#2d75da",
+    createdAt: TS,
+    updatedAt: TS,
+  };
+  insertRow(db, "resources", resource);
+  insertRow(db, "activities", {
+    id: "t1",
+    accountId: "a1",
+    name: "Admin",
+    kind: "repeatable",
+    createdAt: TS,
+    updatedAt: TS,
+  });
+  return resource;
+}
+
 describe("schema migration of an existing on-disk DB", () => {
   it("pins synchronous FULL even when the connection inherited a weaker setting", () => {
     const copied = copyFixture("v16-off.db");
@@ -2310,45 +2353,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
   it("v27 through v33 preserve legacy defaults and leave old allocations unlinked", () => {
     const db = openDb(":memory:");
-    insertRow(db, "accounts", {
-      id: "a1",
-      name: "Wayne Enterprises",
-      color: "#2d75da",
-      createdAt: TS,
-      updatedAt: TS,
-    });
-    insertRow(db, "accounts", {
-      id: "a2",
-      name: "Stark Industries",
-      color: "#da2d92",
-      weekStartsOn: 0,
-      createdAt: TS,
-      updatedAt: TS,
-    });
-    const resource = {
-      id: "r1",
-      accountId: "a1",
-      kind: "person" as const,
-      name: "Bruce Wayne",
-      role: "Director",
-      employmentType: "permanent" as const,
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5] as Array<1 | 2 | 3 | 4 | 5>,
-      halfDays: [],
-      color: "#2d75da",
-      createdAt: TS,
-      updatedAt: TS,
-    };
-    insertRow(db, "resources", resource);
-    insertRow(db, "activities", {
-      id: "t1",
-      accountId: "a1",
-      name: "Admin",
-      kind: "repeatable",
-      createdAt: TS,
-      updatedAt: TS,
-    });
+    const resource = prepareV26LegacyDefaultEntities(db);
     const legacyAllocation = {
       id: "al-legacy",
       accountId: "a1",
