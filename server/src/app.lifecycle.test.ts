@@ -563,7 +563,9 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
     ).toBe(403);
     expect((await readInactive(app, "a1", cookie)).statusCode).toBe(403);
   });
+});
 
+describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
   it("editor of a1: archive/unarchive → 2xx; irreversible delete/purge and read-inactive → 403", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -595,7 +597,9 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
     ).toBe(403);
     expect((await readInactive(app, "a1", cookie)).statusCode).toBe(403);
   });
+});
 
+describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
   it.each(["admin", "owner"] as const)("%s of a1: every lifecycle route + read-inactive → 2xx", async (role) => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -626,7 +630,9 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
     ).toBe(204);
     expect((await readInactive(app, "a1", cookie)).statusCode).toBe(200);
   });
+});
 
+describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
   it("non-member (signed in, no membership): every lifecycle route + read-inactive → 403", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -650,7 +656,9 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
     ).toBe(403);
     expect((await readInactive(app, "a1", cookie)).statusCode).toBe(403);
   });
+});
 
+describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
   it("requires a fresh admin session for read-inactive while ordinary state remains readable", async () => {
     const events: Array<Record<string, unknown>> = [];
     const { app, db } = await appWithAuth((event) => events.push(event));
@@ -688,7 +696,9 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
       }),
     );
   });
+});
 
+describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
   // The freshness deadline is INCLUSIVE (`>=` in authorize()): a session exactly at the bound is
   // stale. The bound is pinned here at millisecond precision — the coarse 16-minute test above
   // proves the wiring, these prove the operator.
