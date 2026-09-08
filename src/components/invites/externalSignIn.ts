@@ -8,6 +8,9 @@ interface ExternalSignInResult {
 type NavigationOutcome = { kind: "navigation" };
 type TimeoutOutcome = { kind: "timeout" };
 type RequestOutcome = { kind: "result"; result: ExternalSignInResult } | { kind: "error"; error: unknown };
+type ExternalRedirectOutcome =
+  | { kind: "failure"; message: string | null | undefined }
+  | { kind: "redirect"; url: string };
 
 function parseExternalRedirectUrl(value: string | null | undefined): string | null {
   if (value === undefined || value === null || value === "") return null;
@@ -33,9 +36,7 @@ function startExternalRequest(
     );
 }
 
-function externalRedirect(
-  result: ExternalSignInResult,
-): { kind: "failure"; message: string | null | undefined } | { kind: "redirect"; url: string } {
+function resolveExternalRedirect(result: ExternalSignInResult): ExternalRedirectOutcome {
   if (result.error !== undefined && result.error !== null) {
     return { kind: "failure", message: result.error.message };
   }
@@ -127,7 +128,7 @@ export async function runExternalSignIn({
       onRequestError(outcome.error);
       return;
     }
-    const redirect = externalRedirect(outcome.result);
+    const redirect = resolveExternalRedirect(outcome.result);
     if (redirect.kind === "failure") {
       onFailure(redirect.message ?? undefined);
       return;
