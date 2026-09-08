@@ -1239,6 +1239,37 @@ async function scaffold(app: FastifyInstance) {
   await post(app, "resources", person("r1", "a1"));
 }
 
+function readUpdatedAt(response: LightMyRequestResponse): string {
+  const payload: unknown = response.json();
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    !("updatedAt" in payload) ||
+    !isIsoInstant(payload.updatedAt)
+  ) {
+    throw new TypeError("Expected the response to contain a valid updatedAt timestamp.");
+  }
+  return payload.updatedAt;
+}
+
+async function createExternalAllocationEdit(app: FastifyInstance) {
+  await scaffold(app);
+  const allocationRow = allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "t1" });
+  const created = await post(app, "allocations", allocationRow);
+  const baseRevision = readUpdatedAt(created);
+  const external = await put({
+    app,
+    entity: "allocations",
+    id: "al1",
+    payload: {
+      ...allocationRow,
+      note: "Committed by another browser",
+      updatedAt: baseRevision,
+    },
+  });
+  return { baseRevision, external };
+}
+
 describe("health + state", () => {
   it("reports health and starts empty", async () => {
     const { app } = freshApp();
@@ -4628,26 +4659,10 @@ describe("optimistic concurrency (default-on)", () => {
 
   it("ordered stale DELETE rolls back its batch and preserves an externally edited row", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
-    await scaffold(app);
-    const created = await post(
-      app,
-      "allocations",
-      allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "t1" }),
-    );
-    const createdRow = created.json() as Record<string, unknown>;
-    const baseRevision = createdRow.updatedAt as string;
-    const external = await put({
-      app,
-      entity: "allocations",
-      id: "al1",
-      payload: {
-        ...createdRow,
-        note: "Committed by another browser",
-        updatedAt: baseRevision,
-      },
-    });
+    const { baseRevision, external } = await createExternalAllocationEdit(app);
     expect(external.statusCode).toBe(200);
-    expect(readUpdatedAtResponse(external)).not.toBe(baseRevision);
+    const externalRevision = readUpdatedAt(external);
+    expect(externalRevision).not.toBe(baseRevision);
 
     const staleDelete = await orderedBatch({
       app,
@@ -4683,7 +4698,7 @@ describe("optimistic concurrency (default-on)", () => {
       current: {
         id: "al1",
         note: "Committed by another browser",
-        updatedAt: readUpdatedAtResponse(external),
+        updatedAt: externalRevision,
       },
     });
     const current = await readValidatedState(app);
