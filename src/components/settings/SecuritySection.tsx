@@ -132,8 +132,10 @@ export function SecuritySection() {
   }, [fail, clear]);
 
   useEffect(() => {
-    // The state changes happen only after the external session request settles.
-    void loadSessions();
+    const generation = sessionLoadGeneration.current;
+    queueMicrotask(() => {
+      if (generation === sessionLoadGeneration.current) void loadSessions();
+    });
     return () => {
       sessionLoadGeneration.current += 1;
     };

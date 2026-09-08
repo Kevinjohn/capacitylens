@@ -353,6 +353,11 @@ function nudgeAllocation(options: ControllerOptions, mode: DragMode, deltaDays: 
   saveKeyboardGesture(options, next, rescale);
 }
 
+function startPointerGesture(runtime: GestureRuntime) {
+  runtime.lanesRef.current = readLaneSnapshots();
+  runtime.startGeometryWatch();
+}
+
 export function useAllocationGestureController(options: ControllerOptions, runtime: GestureRuntime) {
   const { bar, indexAtClientX, onEdit } = options;
   const [preview, setPreview] = useState<GesturePreview | null>(null);
@@ -386,8 +391,7 @@ export function useAllocationGestureController(options: ControllerOptions, runti
   });
   const beginPointerGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!armPointerGesture(event)) return;
-    runtime.lanesRef.current = readLaneSnapshots();
-    runtime.startGeometryWatch();
+    startPointerGesture(runtime);
   };
   return {
     preview,
