@@ -1035,7 +1035,7 @@ async function createSsoProviderInviteContext() {
   return { db, joiner, sessionHandle, ssoApp, timestamp };
 }
 
-describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
+function registerSsoProviderInviteTest(): void {
   it("requires the strict provider before an SSO-only session can create a membership", async () => {
     const { db, joiner, sessionHandle, ssoApp, timestamp } = await createSsoProviderInviteContext();
 
@@ -1095,7 +1095,9 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
     expect(accepted.statusCode).toBe(200);
     expect(getMemberRole(db, "a1", joiner.userId)).toBe("editor");
   });
+}
 
+function registerPreauthRefusalTests(): void {
   it("a LINK invite (preauthEmail null) still binds any signed-in caller — P1.9 regression", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
@@ -1147,7 +1149,9 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
     expect(getMemberRole(db, "a1", b.userId)).toBeNull(); // no bind
     expect(readInvite(db, token).usedAt).toBeNull(); // NOT consumed — still live for the right caller
   });
+}
 
+function registerPasswordPreauthAcceptanceTest(): void {
   it("password mode accepts a matching preauthorized email without a separate verification service", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
@@ -1177,7 +1181,9 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
     expect(getMemberRole(db, "a1", b.userId)).toBe("editor");
     expect(readInvite(db, token).usedAt).not.toBeNull();
   });
+}
 
+function registerVerifiedPreauthAcceptanceTest(): void {
   it("preauth + matching VERIFIED email → 200; role bound; usedAt set (end-to-end)", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
@@ -1219,7 +1225,9 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
     expect(getMemberRole(db, "a1", b.userId)).toBe("editor");
     expect(readInvite(db, token).usedAt).not.toBeNull();
   });
+}
 
+function registerOffModePreauthAcceptanceTest(): void {
   it("OFF mode skips the preauth check — a preauth invite binds DEMO_USER (trusted-local)", async () => {
     const db = openDb(":memory:");
     const app = buildApp(db); // authMode defaults to 'off'
@@ -1239,6 +1247,14 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
     expect(getMemberRole(db, "a1", DEMO_USER.id)).toBe("admin");
     expect(readInvite(db, token).usedAt).not.toBeNull();
   });
+}
+
+describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
+  registerSsoProviderInviteTest();
+  registerPreauthRefusalTests();
+  registerPasswordPreauthAcceptanceTest();
+  registerVerifiedPreauthAcceptanceTest();
+  registerOffModePreauthAcceptanceTest();
 });
 
 describe("invites are excluded from the AppData path", () => {
