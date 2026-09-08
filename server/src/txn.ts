@@ -59,16 +59,16 @@ function assertSynchronousResult(result: unknown): void {
 type TransactionConfiguration =
   | []
   | [mode: TransactionMode]
-  | [mode: TransactionMode, reportRollbackFailure: RollbackFailureReporter]
+  | [mode: TransactionMode | undefined, reportRollbackFailure: RollbackFailureReporter]
   | [options: TransactionOptions];
 
 function resolveTransactionOptions(configuration: TransactionConfiguration): Required<TransactionOptions> {
   const [modeOrOptions, positionalReporter] = configuration;
+  if (positionalReporter !== undefined) {
+    return { mode: modeOrOptions ?? "deferred", reportRollbackFailure: positionalReporter };
+  }
   if (typeof modeOrOptions === "string") {
-    return {
-      mode: modeOrOptions,
-      reportRollbackFailure: positionalReporter ?? defaultRollbackFailureReporter,
-    };
+    return { mode: modeOrOptions, reportRollbackFailure: defaultRollbackFailureReporter };
   }
   return {
     mode: modeOrOptions?.mode ?? "deferred",

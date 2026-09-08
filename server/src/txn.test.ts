@@ -113,6 +113,31 @@ describe("synchronous transaction boundary", () => {
     expect(report).toHaveBeenCalledWith({ scope: "transaction", error: rollback });
   });
 
+  it("preserves an explicit undefined mode before a positional rollback reporter", () => {
+    const original = new Error("operation failed");
+    const rollback = new Error("rollback failed");
+    const db = {
+      isTransaction: false,
+      exec: vi.fn((sql: string) => {
+        if (sql === "ROLLBACK") throw rollback;
+      }),
+    } as unknown as Db;
+    const report = vi.fn();
+
+    expect(() =>
+      tx(
+        db,
+        () => {
+          throw original;
+        },
+        undefined,
+        report,
+      ),
+    ).toThrow(original);
+    expect(db.exec).toHaveBeenNthCalledWith(1, "BEGIN");
+    expect(report).toHaveBeenCalledWith({ scope: "transaction", error: rollback });
+  });
+
   it("does not let a failing rollback reporter mask the original transaction error", () => {
     const original = new Error("operation failed");
     const rollback = new Error("rollback failed");
