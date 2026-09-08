@@ -698,8 +698,8 @@ cleanup behavior without changing production scheduling.
       failures are confined to sandbox-blocked localhost listeners and one dependency-mount ESM
       spy behavior reproduced on the already certified PR #688 tree. The current-head E2E run is
       still required: this worktree's path beneath `node_modules` prevents Node from loading the
-      TypeScript Playwright configuration. A manually dispatched GitHub gate on the published
-      branch is the authoritative remaining integrated certification.
+      TypeScript Playwright configuration. Manually dispatched GitHub `gate.yml` and `e2e.yml`
+      workflows on the published branch are the authoritative remaining integrated certification.
 - [ ] Separate minor release passes necessary GitHub CI and is verified after merge.
 - [ ] Actual finish, residual debt and any unmet criteria recorded.
 
