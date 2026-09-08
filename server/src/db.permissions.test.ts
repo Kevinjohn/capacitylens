@@ -15,6 +15,12 @@ import { openDb } from "./db";
 
 const artifacts: string[] = [];
 
+const isPermissionFailure = (error: unknown, path: string): boolean =>
+  error instanceof Error &&
+  error.message.includes(`Could not restrict SQLite file permissions at "${path}".`) &&
+  error.cause instanceof Error &&
+  error.cause.message === "simulated chmod refusal";
+
 afterEach(() => {
   fsMocks.chmodSync.mockReset();
   for (const path of artifacts.splice(0)) {
@@ -32,11 +38,6 @@ describe("openDb failure causality", () => {
       if (calls > 1) throw new Error("simulated chmod refusal");
     });
 
-    expect(() => openDb(path)).toThrow(
-      expect.objectContaining({
-        message: expect.stringContaining(`Could not restrict SQLite file permissions at "${path}".`),
-        cause: expect.objectContaining({ message: "simulated chmod refusal" }),
-      }),
-    );
+    expect(() => openDb(path)).toThrowError(expect.toSatisfy((error: unknown) => isPermissionFailure(error, path)));
   });
 });

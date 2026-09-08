@@ -149,12 +149,25 @@ export function assertNoCrossTenantRelationships(
   );
 }
 
-function assertTenantRelationshipIntegrity(
-  db: Db,
-  definitions: readonly { name: string; sql: string }[],
-  relationships: readonly TenantRelationship[],
+interface TenantRelationshipIntegrityInput {
+  db: Db;
+  definitions: readonly { name: string; sql: string }[];
+  relationships: readonly TenantRelationship[];
+  allowCompatibleExtensions?: boolean;
+}
+
+const triggerDifference = (invalid: { name: string } | undefined, missing: string | undefined): string => {
+  if (invalid) return `; first mismatch ${invalid.name}`;
+  if (missing) return `; missing ${missing}`;
+  return "";
+};
+
+function assertTenantRelationshipIntegrity({
+  db,
+  definitions,
+  relationships,
   allowCompatibleExtensions = false,
-): void {
+}: TenantRelationshipIntegrityInput): void {
   assertNoCrossTenantRelationships(db, relationships);
   const normalizeSql = (sql: string): string => sql.replace(/\s+/g, " ").trim().replace(/;$/, "");
   const expected = new Map(definitions.map(({ name, sql }) => [name, normalizeSql(sql)]));
@@ -177,22 +190,36 @@ function assertTenantRelationshipIntegrity(
   if ((!allowCompatibleExtensions && actual.length !== expected.size) || missing || invalid) {
     throw new Error(
       `Database tenant-integrity trigger set is invalid (expected ${expected.size}, found ${actual.length}` +
-        `${invalid ? `; first mismatch ${invalid.name}` : missing ? `; missing ${missing}` : ""}).`,
+        `${triggerDifference(invalid, missing)}).`,
     );
   }
 }
 
 /** Verify the released v19 trigger set while replaying migrations before v34. */
 export function assertTenantRelationshipIntegrityV19(db: Db): void {
-  assertTenantRelationshipIntegrity(db, TRIGGER_DEFINITIONS_V19, TENANT_RELATIONSHIPS_V19, true);
+  assertTenantRelationshipIntegrity({
+    db,
+    definitions: TRIGGER_DEFINITIONS_V19,
+    relationships: TENANT_RELATIONSHIPS_V19,
+    allowCompatibleExtensions: true,
+  });
 }
 
 /** Verify the released v34 trigger set without requiring v35's allocation-project column. */
 export function assertTenantRelationshipIntegrityV34(db: Db): void {
-  assertTenantRelationshipIntegrity(db, TRIGGER_DEFINITIONS_V34, TENANT_RELATIONSHIPS_V19, true);
+  assertTenantRelationshipIntegrity({
+    db,
+    definitions: TRIGGER_DEFINITIONS_V34,
+    relationships: TENANT_RELATIONSHIPS_V19,
+    allowCompatibleExtensions: true,
+  });
 }
 
 /** Verify both live data and the complete current trigger set on every database open. */
 export function assertTenantRelationshipIntegrityCurrent(db: Db): void {
-  assertTenantRelationshipIntegrity(db, CURRENT_TRIGGER_DEFINITIONS, TENANT_RELATIONSHIPS);
+  assertTenantRelationshipIntegrity({
+    db,
+    definitions: CURRENT_TRIGGER_DEFINITIONS,
+    relationships: TENANT_RELATIONSHIPS,
+  });
 }

@@ -54,7 +54,15 @@ export const quoteIdentifier = (value: string): string => `"${value.replaceAll('
  *  foreign-key loop: both verify a single non-unique, non-partial, ASC/BINARY, table-created index
  *  on exactly one named column. The two call sites keep their own byte-identical error message text
  *  (`message` is caller-supplied) — only the PRAGMA-reading/shape-check logic is shared. */
-function assertSingleColumnIndex(db: Db, table: string, index: string, column: string, message: string): void {
+interface SingleColumnIndexInput {
+  db: Db;
+  table: string;
+  index: string;
+  column: string;
+  message: string;
+}
+
+function assertSingleColumnIndex({ db, table, index, column, message }: SingleColumnIndexInput): void {
   const listed = (
     db.prepare(`PRAGMA index_list(${quoteIdentifier(table)})`).all() as Array<{
       name: string;
@@ -90,13 +98,13 @@ function assertSingleColumnIndex(db: Db, table: string, index: string, column: s
 /** Verify the immutable v21 subset while replaying that migration. */
 export function assertTenantAccountIndexesV21(db: Db): void {
   for (const { table, index } of TENANT_ENTITY_ACCOUNT_INDEXES_V21) {
-    assertSingleColumnIndex(
+    assertSingleColumnIndex({
       db,
       table,
       index,
-      "accountId",
-      `Tenant entity index ${index} does not match ${table}(accountId).`,
-    );
+      column: "accountId",
+      message: `Tenant entity index ${index} does not match ${table}(accountId).`,
+    });
   }
 }
 
@@ -104,13 +112,13 @@ export function assertTenantAccountIndexesV21(db: Db): void {
 export function assertTenantEntityIndexesV23(db: Db): void {
   assertTenantAccountIndexesV21(db);
   for (const { table, column, index } of FOREIGN_KEY_CHILD_INDEXES_V23) {
-    assertSingleColumnIndex(
+    assertSingleColumnIndex({
       db,
       table,
       index,
       column,
-      `Foreign-key child index ${index} does not match ${table}(${column}).`,
-    );
+      message: `Foreign-key child index ${index} does not match ${table}(${column}).`,
+    });
   }
 }
 
@@ -118,13 +126,13 @@ export function assertTenantEntityIndexesV23(db: Db): void {
 export function assertTenantEntityIndexesV34(db: Db): void {
   assertTenantEntityIndexesV23(db);
   for (const { table, index } of TENANT_ENTITY_ACCOUNT_INDEXES_V34) {
-    assertSingleColumnIndex(
+    assertSingleColumnIndex({
       db,
       table,
       index,
-      "accountId",
-      `Tenant entity index ${index} does not match ${table}(accountId).`,
-    );
+      column: "accountId",
+      message: `Tenant entity index ${index} does not match ${table}(accountId).`,
+    });
   }
 }
 
@@ -132,11 +140,11 @@ export function assertTenantEntityIndexesV34(db: Db): void {
 export function assertTenantEntityIndexesCurrent(db: Db): void {
   assertTenantEntityIndexesV34(db);
   const { table, column, index } = ALLOCATION_PROJECT_INDEX_V35;
-  assertSingleColumnIndex(
+  assertSingleColumnIndex({
     db,
     table,
     index,
     column,
-    `Foreign-key child index ${index} does not match ${table}(${column}).`,
-  );
+    message: `Foreign-key child index ${index} does not match ${table}(${column}).`,
+  });
 }
