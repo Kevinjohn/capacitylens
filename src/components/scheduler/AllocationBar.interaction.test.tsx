@@ -832,9 +832,9 @@ describe("AllocationBar interactions", () => {
     },
   );
 
-  describe("days mode preserves volume on resize", () => {
-    const enableDays = () => useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: "days" });
+  const enableDays = () => useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: "days" });
 
+  function registerDayModeResizeTests() {
     it("rescales hours/day when the end is resized by keyboard (Shift+arrow)", () => {
       enableDays();
       const a = seedAllocation(); // 2026-06-01 → 2026-06-03, 8h/day, Mon–Fri = 3 working days
@@ -870,7 +870,9 @@ describe("AllocationBar interactions", () => {
       expect(after.endDate).toBe("2026-06-04");
       expect(after.hoursPerDay).toBe(6);
     });
+  }
 
+  function registerDayModeKeyboardNoticeTests() {
     it("surfaces a non-blocking notice when a shrink-resize clamps the work volume at the cap", () => {
       enableDays();
       const st = useStore.getState();
@@ -918,7 +920,9 @@ describe("AllocationBar interactions", () => {
       // resize — transient confirmations elsewhere stay 'info' (~4s auto-dismiss).
       expect(useStore.getState().notice?.message ?? "").not.toMatch(/capped/i);
     });
+  }
 
+  function registerDayModePointerNoticeTests() {
     it("raises the PERSISTENT warning tone when a POINTER shrink-resize clamps the work volume", () => {
       // Mirror of the keyboard clamp test, for the POINTER path (the OTHER clamp site, in onCommit).
       // The cap advisory rides on the post-commit confirmation toast there; on a clamp that single
@@ -981,6 +985,12 @@ describe("AllocationBar interactions", () => {
       expect(after.endDate).toBe("2026-06-04");
       expect(after.hoursPerDay).toBe(8);
     });
+  }
+
+  describe("days mode preserves volume on resize", () => {
+    registerDayModeResizeTests();
+    registerDayModeKeyboardNoticeTests();
+    registerDayModePointerNoticeTests();
   });
 
   // WCAG 4.1.3: a keyboard nudge that changes over-capacity must announce the recomputed outcome
