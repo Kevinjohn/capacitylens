@@ -59,69 +59,75 @@ function chromeTokens(theme: Theme) {
   };
 }
 
-it("defines every chrome and scheduler ground in both themes and leaves shadcn surfaces mapped to --c-*", () => {
-  for (const name of [
-    "chrome-sidebar",
-    "chrome-sidebar-ink",
-    "chrome-sidebar-muted-ink",
-    "chrome-toolbar",
-    "chrome-filterbar",
-    "chrome-filterbar-ink",
-    "scheduler-canvas",
-    "scheduler-header",
-    "scheduler-group",
-  ]) {
-    expect(lightDeclarations.has(name)).toBe(true);
-    expect(darkDeclarations.has(name)).toBe(true);
-  }
-  expect(indexCss).toMatch(/--background:\s*var\(--c-base\)/);
-  expect(indexCss).toMatch(/--card:\s*var\(--c-surface\)/);
-  expect(indexCss).toMatch(/--muted:\s*var\(--c-base\)/);
-});
+function registerChromeDepthTokenScenarios(): void {
+  it("defines every chrome and scheduler ground in both themes and leaves shadcn surfaces mapped to --c-*", () => {
+    for (const name of [
+      "chrome-sidebar",
+      "chrome-sidebar-ink",
+      "chrome-sidebar-muted-ink",
+      "chrome-toolbar",
+      "chrome-filterbar",
+      "chrome-filterbar-ink",
+      "scheduler-canvas",
+      "scheduler-header",
+      "scheduler-group",
+    ]) {
+      expect(lightDeclarations.has(name)).toBe(true);
+      expect(darkDeclarations.has(name)).toBe(true);
+    }
+    expect(indexCss).toMatch(/--background:\s*var\(--c-base\)/);
+    expect(indexCss).toMatch(/--card:\s*var\(--c-surface\)/);
+    expect(indexCss).toMatch(/--muted:\s*var\(--c-base\)/);
+  });
 
-it("orders every light chrome tier from the most distinct sidebar to the clean canvas", () => {
-  const { sidebar, toolbar, filterbar, canvas } = chromeTokens("light");
-  expect(contrastRatio(sidebar, canvas)).toBeGreaterThan(contrastRatio(toolbar, canvas));
-  expect(contrastRatio(toolbar, canvas)).toBeGreaterThan(contrastRatio(filterbar, canvas));
-  expect(contrastRatio(filterbar, canvas)).toBeGreaterThan(1);
-});
+  it("orders every light chrome tier from the most distinct sidebar to the clean canvas", () => {
+    const { sidebar, toolbar, filterbar, canvas } = chromeTokens("light");
+    expect(contrastRatio(sidebar, canvas)).toBeGreaterThan(contrastRatio(toolbar, canvas));
+    expect(contrastRatio(toolbar, canvas)).toBeGreaterThan(contrastRatio(filterbar, canvas));
+    expect(contrastRatio(filterbar, canvas)).toBeGreaterThan(1);
+  });
 
-it("orders every dark chrome tier below the scheduler canvas and preserves faint-text AA", () => {
-  const { sidebar, toolbar, filterbar, canvas, canvasInk } = chromeTokens("dark");
-  const black = "#000000";
-  expect(contrastRatio(sidebar, black)).toBeLessThan(contrastRatio(toolbar, black));
-  expect(contrastRatio(toolbar, black)).toBeLessThan(contrastRatio(filterbar, black));
-  expect(contrastRatio(filterbar, black)).toBeLessThan(contrastRatio(canvas, black));
-  expect(contrastRatio(canvasInk, canvas)).toBeGreaterThanOrEqual(4.5);
-});
+  it("orders every dark chrome tier below the scheduler canvas and preserves faint-text AA", () => {
+    const { sidebar, toolbar, filterbar, canvas, canvasInk } = chromeTokens("dark");
+    const black = "#000000";
+    expect(contrastRatio(sidebar, black)).toBeLessThan(contrastRatio(toolbar, black));
+    expect(contrastRatio(toolbar, black)).toBeLessThan(contrastRatio(filterbar, black));
+    expect(contrastRatio(filterbar, black)).toBeLessThan(contrastRatio(canvas, black));
+    expect(contrastRatio(canvasInk, canvas)).toBeGreaterThanOrEqual(4.5);
+  });
 
-it.each(["light", "dark"] as const)("keeps every %s chrome and scheduler ground paired with AA ink", (theme) => {
-  const tokens = chromeTokens(theme);
-  const pairs = [
-    ["sidebar", tokens.sidebarInk, tokens.sidebar],
-    ["sidebar muted", tokens.sidebarMutedInk, tokens.sidebar],
-    ["toolbar", tokens.toolbarInk, tokens.toolbar],
-    ["filterbar", tokens.filterbarInk, tokens.filterbar],
-    ["scheduler canvas", tokens.canvasInk, tokens.canvas],
-    ["scheduler header", tokens.headerInk, tokens.header],
-    ["scheduler group", tokens.groupInk, tokens.group],
-  ] as const;
+  it.each(["light", "dark"] as const)("keeps every %s chrome and scheduler ground paired with AA ink", (theme) => {
+    const tokens = chromeTokens(theme);
+    const pairs = [
+      ["sidebar", tokens.sidebarInk, tokens.sidebar],
+      ["sidebar muted", tokens.sidebarMutedInk, tokens.sidebar],
+      ["toolbar", tokens.toolbarInk, tokens.toolbar],
+      ["filterbar", tokens.filterbarInk, tokens.filterbar],
+      ["scheduler canvas", tokens.canvasInk, tokens.canvas],
+      ["scheduler header", tokens.headerInk, tokens.header],
+      ["scheduler group", tokens.groupInk, tokens.group],
+    ] as const;
 
-  for (const [, ink, ground] of pairs) {
-    expect(contrastRatio(ink, ground)).toBeGreaterThanOrEqual(4.5);
-  }
-});
+    for (const [, ink, ground] of pairs) {
+      expect(contrastRatio(ink, ground)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
 
-it("gives band controls shared semantic surface inputs without overriding final properties", () => {
-  const bandRule = indexCss.match(/\[data-chrome-band\]\s*\{([\s\S]*?)\}/)?.[1] ?? "";
-  expect(bandRule).toMatch(/--background:\s*var\(--chrome-control\)/);
-  expect(bandRule).toMatch(/--border:\s*var\(--chrome-control-border\)/);
-  expect(bandRule).toMatch(/--input:\s*var\(--chrome-control-border\)/);
-  expect(bandRule).toMatch(/--input-background:\s*var\(--chrome-control\)/);
-  expect(bandRule).toMatch(/--input-hover-background:\s*var\(--chrome-control-hover\)/);
-  expect(bandRule).toMatch(/--outline-background:\s*var\(--chrome-control\)/);
-  expect(bandRule).toMatch(/--outline-hover-background:\s*var\(--chrome-control-hover\)/);
-  expect(bandRule).not.toMatch(/(?:background|border)-color:/);
+  it("gives band controls shared semantic surface inputs without overriding final properties", () => {
+    const bandRule = indexCss.match(/\[data-chrome-band\]\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+    expect(bandRule).toMatch(/--background:\s*var\(--chrome-control\)/);
+    expect(bandRule).toMatch(/--border:\s*var\(--chrome-control-border\)/);
+    expect(bandRule).toMatch(/--input:\s*var\(--chrome-control-border\)/);
+    expect(bandRule).toMatch(/--input-background:\s*var\(--chrome-control\)/);
+    expect(bandRule).toMatch(/--input-hover-background:\s*var\(--chrome-control-hover\)/);
+    expect(bandRule).toMatch(/--outline-background:\s*var\(--chrome-control\)/);
+    expect(bandRule).toMatch(/--outline-hover-background:\s*var\(--chrome-control-hover\)/);
+    expect(bandRule).not.toMatch(/(?:background|border)-color:/);
+  });
+}
+
+describe("chrome depth tokens", () => {
+  registerChromeDepthTokenScenarios();
 });
 
 describe("DEFAULT_COLORS bar legibility (WCAG 1.4.3 AA)", () => {

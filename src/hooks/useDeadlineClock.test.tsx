@@ -73,102 +73,114 @@ it("uses the injected clock to arm, wake past, and re-arm deadlines", () => {
   expect(result.current).toBe(second + 1);
 });
 
-it("starts at the current time", () => {
-  const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(START + 60_000))));
-  expect(result.current).toBe(START);
-});
-
-it("advances just AFTER the deadline passes, not at it", () => {
-  const deadline = START + 60_000;
-  const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(deadline))));
-
-  act(() => void vi.advanceTimersByTime(60_000));
-  expect(result.current).toBe(START); // still armed: firing at exactly the deadline is too early
-
-  act(() => void vi.advanceTimersByTime(1));
-  expect(result.current).toBe(deadline + 1);
-  expect(result.current).toBeGreaterThan(deadline);
-});
-
-it("arms nothing at all when no deadline is pending", () => {
-  const { result } = renderHook(() => useDeadlineClock(makeInput(() => null)));
-
-  act(() => void vi.advanceTimersByTime(24 * 60 * 60 * 1000));
-  expect(result.current).toBe(START);
-});
-
-it("re-arms on the nearer deadline when one appears", () => {
-  const { result, rerender } = renderHook(({ nextAt }: { nextAt: number | null }) => useClockFor(nextAt), {
-    initialProps: { nextAt: START + 60_000 },
+function registerDeadlineClockBasics(): void {
+  it("starts at the current time", () => {
+    const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(START + 60_000))));
+    expect(result.current).toBe(START);
   });
 
-  rerender({ nextAt: START + 5_000 });
-  act(() => void vi.advanceTimersByTime(5_001));
-  expect(result.current).toBe(START + 5_001);
-});
+  it("advances just AFTER the deadline passes, not at it", () => {
+    const deadline = START + 60_000;
+    const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(deadline))));
 
-it("works down a queue of deadlines, the caller's stale filter running against its own clock", () => {
-  const first = START + 5_000;
-  const second = START + 9_000;
-  const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(first, second))));
+    act(() => void vi.advanceTimersByTime(60_000));
+    expect(result.current).toBe(START); // still armed: firing at exactly the deadline is too early
 
-  act(() => void vi.advanceTimersByTime(5_001));
-  // The first has fired, so the picker — asked with the clock it just produced — drops it as past
-  // and answers with the second; a picker asked with any OTHER clock could not have done that.
-  expect(result.current).toBe(first + 1);
-
-  act(() => void vi.advanceTimersByTime(3_999));
-  expect(result.current).toBe(first + 1); // armed for the second, which has not passed yet
-
-  act(() => void vi.advanceTimersByTime(1));
-  expect(result.current).toBe(second + 1);
-});
-
-it("does not re-arm when only the picker's identity changes", () => {
-  // The picker is expected to be an inline arrow — a NEW function every render. The effect keys on
-  // the instant it returns, so re-renders that change nothing else must leave the timer alone.
-  const deadline = START + 60_000;
-  const { rerender } = renderHook(() => useDeadlineClock(makeInput(nextOf(deadline))));
-  const setTimeoutSpy = vi.spyOn(window, "setTimeout");
-
-  rerender();
-  rerender();
-  expect(setTimeoutSpy).not.toHaveBeenCalled();
-});
-
-it("stops waking once the deadline is cleared", () => {
-  const { result, rerender } = renderHook(({ nextAt }: { nextAt: number | null }) => useClockFor(nextAt), {
-    initialProps: { nextAt: (START + 5_000) as number | null },
+    act(() => void vi.advanceTimersByTime(1));
+    expect(result.current).toBe(deadline + 1);
+    expect(result.current).toBeGreaterThan(deadline);
   });
 
-  rerender({ nextAt: null });
-  act(() => void vi.advanceTimersByTime(60_000));
-  expect(result.current).toBe(START);
-});
+  it("arms nothing at all when no deadline is pending", () => {
+    const { result } = renderHook(() => useDeadlineClock(makeInput(() => null)));
 
-it("clamps a deadline beyond setTimeout's 32-bit ceiling instead of overflowing", () => {
-  // Passed through raw, this delay overflows and fires IMMEDIATELY (then again on every re-arm).
-  const deadline = START + 3 * MAX_TIMEOUT_DELAY;
-  const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(deadline))));
+    act(() => void vi.advanceTimersByTime(24 * 60 * 60 * 1000));
+    expect(result.current).toBe(START);
+  });
+}
 
-  // Each clamped wake re-arms for the remainder without advancing the clock: the deadline has not
-  // been crossed, so there is nothing for a re-render to show.
-  act(() => void vi.advanceTimersByTime(MAX_TIMEOUT_DELAY));
-  expect(result.current).toBe(START);
-  act(() => void vi.advanceTimersByTime(MAX_TIMEOUT_DELAY));
-  expect(result.current).toBe(START);
-  act(() => void vi.advanceTimersByTime(MAX_TIMEOUT_DELAY));
-  expect(result.current).toBe(START);
+function registerDeadlineClockRearming(): void {
+  it("re-arms on the nearer deadline when one appears", () => {
+    const { result, rerender } = renderHook(({ nextAt }: { nextAt: number | null }) => useClockFor(nextAt), {
+      initialProps: { nextAt: START + 60_000 },
+    });
 
-  act(() => void vi.advanceTimersByTime(1));
-  expect(result.current).toBe(deadline + 1);
-});
+    rerender({ nextAt: START + 5_000 });
+    act(() => void vi.advanceTimersByTime(5_001));
+    expect(result.current).toBe(START + 5_001);
+  });
 
-it("clears its outstanding timer on unmount", () => {
-  const clearTimeoutSpy = vi.spyOn(window, "clearTimeout");
-  const { unmount } = renderHook(() => useDeadlineClock(makeInput(nextOf(START + 60_000))));
+  it("works down a queue of deadlines, the caller's stale filter running against its own clock", () => {
+    const first = START + 5_000;
+    const second = START + 9_000;
+    const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(first, second))));
 
-  clearTimeoutSpy.mockClear();
-  unmount();
-  expect(clearTimeoutSpy).toHaveBeenCalled();
+    act(() => void vi.advanceTimersByTime(5_001));
+    // The first has fired, so the picker — asked with the clock it just produced — drops it as past
+    // and answers with the second; a picker asked with any OTHER clock could not have done that.
+    expect(result.current).toBe(first + 1);
+
+    act(() => void vi.advanceTimersByTime(3_999));
+    expect(result.current).toBe(first + 1); // armed for the second, which has not passed yet
+
+    act(() => void vi.advanceTimersByTime(1));
+    expect(result.current).toBe(second + 1);
+  });
+
+  it("does not re-arm when only the picker's identity changes", () => {
+    // The picker is expected to be an inline arrow — a NEW function every render. The effect keys on
+    // the instant it returns, so re-renders that change nothing else must leave the timer alone.
+    const deadline = START + 60_000;
+    const { rerender } = renderHook(() => useDeadlineClock(makeInput(nextOf(deadline))));
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+
+    rerender();
+    rerender();
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+  });
+
+  it("stops waking once the deadline is cleared", () => {
+    const { result, rerender } = renderHook(({ nextAt }: { nextAt: number | null }) => useClockFor(nextAt), {
+      initialProps: { nextAt: (START + 5_000) as number | null },
+    });
+
+    rerender({ nextAt: null });
+    act(() => void vi.advanceTimersByTime(60_000));
+    expect(result.current).toBe(START);
+  });
+}
+
+function registerDeadlineClockCleanup(): void {
+  it("clamps a deadline beyond setTimeout's 32-bit ceiling instead of overflowing", () => {
+    // Passed through raw, this delay overflows and fires IMMEDIATELY (then again on every re-arm).
+    const deadline = START + 3 * MAX_TIMEOUT_DELAY;
+    const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(deadline))));
+
+    // Each clamped wake re-arms for the remainder without advancing the clock: the deadline has not
+    // been crossed, so there is nothing for a re-render to show.
+    act(() => void vi.advanceTimersByTime(MAX_TIMEOUT_DELAY));
+    expect(result.current).toBe(START);
+    act(() => void vi.advanceTimersByTime(MAX_TIMEOUT_DELAY));
+    expect(result.current).toBe(START);
+    act(() => void vi.advanceTimersByTime(MAX_TIMEOUT_DELAY));
+    expect(result.current).toBe(START);
+
+    act(() => void vi.advanceTimersByTime(1));
+    expect(result.current).toBe(deadline + 1);
+  });
+
+  it("clears its outstanding timer on unmount", () => {
+    const clearTimeoutSpy = vi.spyOn(window, "clearTimeout");
+    const { unmount } = renderHook(() => useDeadlineClock(makeInput(nextOf(START + 60_000))));
+
+    clearTimeoutSpy.mockClear();
+    unmount();
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+  });
+}
+
+describe("useDeadlineClock", () => {
+  registerDeadlineClockBasics();
+  registerDeadlineClockRearming();
+  registerDeadlineClockCleanup();
 });
