@@ -4236,7 +4236,9 @@ describe("optimistic concurrency (default-on)", () => {
       },
     ]);
     expect(res.statusCode).toBe(200);
-    const [revision] = readBatchReceipt(res).revisions;
+    const revisions = readBatchReceipt(res).revisions;
+    expect(revisions).toHaveLength(1);
+    const [revision] = revisions;
     if (!revision) throw new Error("Expected the batch response to contain a revision.");
     const persisted = readFirstClient((await readValidatedState(app)).clients);
     expect(revision).toEqual({
