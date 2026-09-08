@@ -70,6 +70,7 @@ const expectLifecycleError = (
   }
   expect(caught).toBeInstanceOf(LifecycleTransitionError);
   if (caught instanceof LifecycleTransitionError) {
+    expect(caught.name).toBe("LifecycleTransitionError");
     expect(caught.code).toBe(code);
     expect(caught.message).toMatch(message);
   }
@@ -329,6 +330,7 @@ const RESOURCE_BASE: Resource = {
 };
 const makeResource = (over: Partial<Resource> = {}): Resource => ({
   ...RESOURCE_BASE,
+  workingDays: [...RESOURCE_BASE.workingDays],
   ...(over.projectId === undefined ? {} : { projectId: over.projectId }),
   ...over,
   halfDays: over.halfDays ?? [],
