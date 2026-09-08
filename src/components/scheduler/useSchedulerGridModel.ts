@@ -24,6 +24,70 @@ import { defaultAccountWorkingDays, normalizeAccountWorkingDays } from "@capacit
 import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
 import { UTILIZATION_WINDOW_DAYS } from "../../lib/schedulerConfig";
 
+type GridPreferences = ReturnType<typeof useSchedulerGridPreferences>;
+type GridViewport = Pick<ReturnType<typeof useSchedulerViewport>, "days" | "leftEdgeIdx" | "start" | "end" | "geom">;
+
+interface SchedulerModelProjectionInput {
+  preferences: GridPreferences;
+  viewport: GridViewport;
+  overStart: string;
+  overEnd: string;
+  visibleStart: string;
+  visibleEnd: string;
+  rowLaneLayout: ReturnType<typeof buildLaneLayout>;
+}
+
+function useSchedulerModelProjection({
+  preferences: { data, accountPrefs, accountWorkingDays, ui },
+  viewport: { days, geom },
+  overStart,
+  overEnd,
+  visibleStart,
+  visibleEnd,
+  rowLaneLayout,
+}: SchedulerModelProjectionInput) {
+  const modelPreferences = useMemo(
+    () => ({
+      disciplinesEnabled: accountPrefs.disciplinesEnabled,
+      placeholdersEnabled: accountPrefs.placeholdersEnabled,
+      externalEnabled: accountPrefs.externalEnabled,
+      accountWorkingDays,
+      groupResourcesByEngagement: accountPrefs.groupResourcesByEngagement,
+      blocksMode: accountPrefs.blocksMode,
+      internalColourMode: accountPrefs.internalColourMode,
+      showInternalProjects: accountPrefs.showInternalProjects,
+      showInternalActivities: accountPrefs.showInternalActivities,
+    }),
+    [accountPrefs, accountWorkingDays],
+  );
+  const staticModel = useMemo(
+    () =>
+      buildSchedulerModel({
+        data,
+        geom,
+        days,
+        visibleWindow: { start: overStart, end: overEnd },
+        overSoonWindow: { start: overStart, end: overEnd },
+        filters: ui.filters,
+        preferences: modelPreferences,
+        laneLayout: rowLaneLayout,
+      }),
+    [data, geom, days, overStart, overEnd, ui.filters, modelPreferences, rowLaneLayout],
+  );
+  return useMemo(
+    () =>
+      applyVisibleUtilization({
+        model: staticModel,
+        data,
+        start: visibleStart,
+        end: visibleEnd,
+        accountWorkingDays,
+        blocksMode: accountPrefs.blocksMode,
+      }),
+    [staticModel, data, visibleStart, visibleEnd, accountWorkingDays, accountPrefs.blocksMode],
+  );
+}
+
 /** Resolve preferences before the single viewport owner computes its geometry. */
 export function useSchedulerGridPreferences() {
   const data = useActiveScopedData();
@@ -88,27 +152,10 @@ export function useSchedulerGridPreferences() {
   };
 }
 
-export function useSchedulerGridModel(
-  { data, accountPrefs: accountPreferences, accountWorkingDays, ui }: ReturnType<typeof useSchedulerGridPreferences>,
-  {
-    days,
-    leftEdgeIdx: leftEdgeIndex,
-    start,
-    end,
-    geom: geometry,
-  }: Pick<ReturnType<typeof useSchedulerViewport>, "days" | "leftEdgeIdx" | "start" | "end" | "geom">,
-) {
-  const {
-    placeholdersEnabled,
-    externalEnabled,
-    disciplinesEnabled,
-    groupResourcesByEngagement,
-    internalColourMode,
-    showInternalProjects,
-    showInternalActivities,
-    blocksMode,
-    calendarTimeZone,
-  } = accountPreferences;
+export function useSchedulerGridModel(preferences: GridPreferences, viewport: GridViewport) {
+  const { accountPrefs: accountPreferences, ui } = preferences;
+  const { days, leftEdgeIdx: leftEdgeIndex, start, end, geom: geometry } = viewport;
+  const { calendarTimeZone } = accountPreferences;
   const today = useCalendarToday(calendarTimeZone);
   // FIXED forward window from today (overStart..overEnd): drives ONLY the `overSoon` red flag — a
   // near-term, zoom/pan-INDEPENDENT "over soon" radar, so the per-resource overbooked warning fires
@@ -147,61 +194,15 @@ export function useSchedulerGridModel(
     [compactView],
   );
 
-  const staticModel = useMemo(
-    () =>
-      buildSchedulerModel({
-        data,
-        geom: geometry,
-        days,
-        // The percentage is overlaid below. Keeping this input fixed prevents horizontal scrolling
-        // from rebuilding lanes, bars and every timeline day-state.
-        visibleWindow: { start: overStart, end: overEnd },
-        overSoonWindow: { start: overStart, end: overEnd },
-        filters: ui.filters,
-        preferences: {
-          disciplinesEnabled,
-          placeholdersEnabled,
-          externalEnabled,
-          accountWorkingDays,
-          groupResourcesByEngagement,
-          blocksMode,
-          internalColourMode,
-          showInternalProjects,
-          showInternalActivities,
-        },
-        laneLayout: rowLaneLayout,
-      }),
-    [
-      data,
-      geometry,
-      days,
-      overStart,
-      overEnd,
-      ui.filters,
-      disciplinesEnabled,
-      placeholdersEnabled,
-      externalEnabled,
-      accountWorkingDays,
-      groupResourcesByEngagement,
-      blocksMode,
-      internalColourMode,
-      showInternalProjects,
-      showInternalActivities,
-      rowLaneLayout,
-    ],
-  );
-  const model = useMemo(
-    () =>
-      applyVisibleUtilization({
-        model: staticModel,
-        data,
-        start: visibleStart,
-        end: visibleEnd,
-        accountWorkingDays,
-        blocksMode,
-      }),
-    [staticModel, data, visibleStart, visibleEnd, accountWorkingDays, blocksMode],
-  );
+  const model = useSchedulerModelProjection({
+    preferences,
+    viewport,
+    overStart,
+    overEnd,
+    visibleStart,
+    visibleEnd,
+    rowLaneLayout,
+  });
 
   const todayX = today >= start && today <= end ? geometry.xForDateInGeom(today) : null;
 

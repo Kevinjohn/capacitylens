@@ -16,22 +16,28 @@ export function AllocationFooter({
   onDuplicate,
   onClose,
 }: AllocationFooterProps) {
+  let deleteDialog = null;
+  if (confirmDelete && editing?.seriesId) {
+    deleteDialog = (
+      <RepeatedAllocationDeleteDialog
+        onDeleteOne={() => onDelete("one")}
+        onDeleteFuture={() => onDelete("future")}
+        onCancel={() => setConfirmDelete(false)}
+      />
+    );
+  } else if (confirmDelete) {
+    deleteDialog = (
+      <ConfirmDialog
+        title={m.form_allocation_delete_title()}
+        message={m.form_allocation_delete_message({ shortcut: buildUndoShortcut() })}
+        onConfirm={() => onDelete("one")}
+        onCancel={() => setConfirmDelete(false)}
+      />
+    );
+  }
   return (
     <>
-      {confirmDelete && editing?.seriesId ? (
-        <RepeatedAllocationDeleteDialog
-          onDeleteOne={() => onDelete("one")}
-          onDeleteFuture={() => onDelete("future")}
-          onCancel={() => setConfirmDelete(false)}
-        />
-      ) : confirmDelete ? (
-        <ConfirmDialog
-          title={m.form_allocation_delete_title()}
-          message={m.form_allocation_delete_message({ shortcut: buildUndoShortcut() })}
-          onConfirm={() => onDelete("one")}
-          onCancel={() => setConfirmDelete(false)}
-        />
-      ) : null}
+      {deleteDialog}
       {editing && canEdit && (
         <>
           <Button size="sm" type="button" variant="danger-soft" onClick={() => setConfirmDelete(true)}>

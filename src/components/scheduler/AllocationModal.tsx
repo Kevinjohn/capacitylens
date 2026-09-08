@@ -7,24 +7,26 @@ import { useAllocationModalState } from "./useAllocationModalState";
 
 type AllocationModalProps = Parameters<typeof useAllocationModalState>[0];
 
+function buildTitle(editing: boolean, createName: string | undefined) {
+  if (editing) return m.form_allocation_edit_title();
+  if (createName) {
+    return (
+      <>
+        {m.form_allocation_new_for({ name: "" })}
+        <strong>{createName}</strong>
+      </>
+    );
+  }
+  return m.form_allocation_new_title();
+}
+
 export function AllocationModal(props: AllocationModalProps) {
   const state = useAllocationModalState(props);
   const { editing, createName, onClose, submit, clear } = state.shell;
 
   return (
     <Modal
-      title={
-        editing ? (
-          m.form_allocation_edit_title()
-        ) : createName ? (
-          <>
-            {m.form_allocation_new_for({ name: "" })}
-            <strong>{createName}</strong>
-          </>
-        ) : (
-          m.form_allocation_new_title()
-        )
-      }
+      title={buildTitle(editing !== undefined, createName)}
       onClose={onClose}
       onSubmit={submit}
       onEdit={clear}

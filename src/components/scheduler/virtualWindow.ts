@@ -37,7 +37,7 @@ function requireRowValue(values: number[], index: number, invariant: string): nu
 }
 
 export function buildLayout(heights: number[]): RowLayout {
-  const tops: number[] = new Array(heights.length);
+  const tops = Array.from<number>({ length: heights.length });
   let totalHeight = 0;
   for (let index = 0; index < heights.length; index++) {
     const height = requireRowValue(heights, index, "Virtual row heights must be dense.");

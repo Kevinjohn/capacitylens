@@ -89,7 +89,9 @@ describe("AllocationBar rendering", () => {
     expect(screen.getByTestId("allocation-popover")).toHaveTextContent("Series through 31 Aug");
     expect(screen.getByTestId("allocation-bar")).toHaveAccessibleName(/series through 31 Aug/i);
   });
+});
 
+describe("AllocationBar rendering modes", () => {
   it("shows just the activity when the bar carries no client/project metadata", () => {
     render(
       <AllocationBar bar={makeBar(makeAllocation())} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,

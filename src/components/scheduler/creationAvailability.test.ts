@@ -54,7 +54,9 @@ describe("creation start availability", () => {
       }),
     ).toBe(false);
   });
+});
 
+describe("creation start calendar availability", () => {
   it("blocks global non-working, personal non-working and time-off dates", () => {
     expect(
       isCreationStartBlocked({
@@ -93,7 +95,9 @@ describe("creation start availability", () => {
       }),
     ).toBe(false);
   });
+});
 
+describe("external creation availability", () => {
   it("applies the account boundary to externals without inventing personal capacity", () => {
     const external: Resource = { ...person, kind: "external", workingDays: [] };
     expect(resolveEffectiveWorkingDays(external, [2, 3, 4, 5])).toEqual([2, 3, 4, 5]);
@@ -126,7 +130,9 @@ describe("creation start availability", () => {
       }),
     ).toBe(false);
   });
+});
 
+describe("creation start block reasons", () => {
   it("does not apply company closures to external resources", () => {
     const external: Resource = { ...person, kind: "external", workingDays: [] };
 
@@ -150,7 +156,9 @@ describe("creation start availability", () => {
       }),
     ).toBe(null);
   });
+});
 
+describe("creation start reason precedence", () => {
   it("names which rule blocked the start, and scopes time off to the resource asked about", () => {
     expect(
       resolveCreationBlockReason({

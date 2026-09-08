@@ -80,7 +80,8 @@ export function resolveVolumePreservingHours({
   // has no volume to preserve — `hoursPerDay * 0 / newSpan` is 0, and committing that would
   // silently wipe the stored hours the moment the resize lands on a working day. Preserving the
   // existing value is the only non-destructive choice (no defaulting to 8, no clamping).
-  const raw = oldSpan === 0 ? hoursPerDay : newSpan > 0 ? (hoursPerDay * oldSpan) / newSpan : hoursPerDay;
+  let raw = hoursPerDay;
+  if (oldSpan !== 0 && newSpan > 0) raw = (hoursPerDay * oldSpan) / newSpan;
   // Clamp to a real working day — collapsing the span (e.g. a resize dragged past the
   // opposite edge → 1-day span) would otherwise inflate hours/day without bound.
   return { hours: Math.max(0, Math.min(raw, MAX_HOURS_PER_DAY)), clamped: raw > MAX_HOURS_PER_DAY };

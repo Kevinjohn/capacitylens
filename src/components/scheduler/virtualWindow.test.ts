@@ -71,7 +71,9 @@ describe("computeWindow", () => {
     // Only a small slice is rendered, not all 200.
     expect(w.last - w.first + 1).toBeLessThan(40);
   });
+});
 
+describe("computeWindow boundaries", () => {
   it("finds a deep window without scanning all preceding rows", () => {
     const heights = Array.from({ length: 65_536 }, () => 50);
     const layout = buildLayout(heights);
@@ -89,7 +91,6 @@ describe("computeWindow", () => {
     expect(w.last).toBe(60_015);
     expect(offsetReads).toBeLessThan(100);
   });
-
   it("clamps at the top of the list", () => {
     const heights = Array.from({ length: 200 }, () => 50);
     const layout = buildLayout(heights);
@@ -121,7 +122,9 @@ describe("computeWindow", () => {
   it("is empty for no items", () => {
     expect(computeWindow({ heights: [], scrollTop: 0, viewportHeight: 720 })).toEqual({ first: 0, last: -1 });
   });
+});
 
+describe("computeWindow fit and overflow guards", () => {
   // The "everything fits in view + overscan" fast path is independent of scrollTop — it answers
   // "does the WHOLE list fit", not "what's visible from here". A huge scrollTop, fed through the
   // (unmutated) windowing math below it, would legitimately trim rows off the front — proving the

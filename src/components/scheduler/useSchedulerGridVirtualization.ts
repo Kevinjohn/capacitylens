@@ -14,6 +14,29 @@ interface UseSchedulerGridVirtualizationInput {
   viewport: Pick<ReturnType<typeof useSchedulerViewport>, "days" | "scrollRef" | "scrollTop" | "timelineHeight">;
 }
 
+type Item = { kind: "group"; group: GroupModel } | { kind: "row"; group: GroupModel; row: RowModel };
+
+function flattenVisibleItems(model: GroupModel[], collapsedGroups: readonly string[]): Item[] {
+  const collapsedKeys = new Set(collapsedGroups);
+  const items: Item[] = [];
+  for (const group of model) {
+    items.push({ kind: "group", group });
+    if (!collapsedKeys.has(group.key)) {
+      for (const row of group.rows) items.push({ kind: "row", group, row });
+    }
+  }
+  return items;
+}
+
+function resolveTrackedGridHeight(items: Item[], layout: ReturnType<typeof buildLayout>): number {
+  const externalGroupIndex = items.findIndex((item) => item.kind === "group" && item.group.external);
+  return externalGroupIndex === -1 ? layout.total : (layout.tops[externalGroupIndex] ?? 0);
+}
+
+function resolveTimelineBounds(days: readonly string[]) {
+  return { timelineStart: days[0], timelineEnd: days[days.length - 1] };
+}
+
 /**
  * The week-grid scheduler: the helicopter view of who's busy/free. Two non-obvious
  * mechanisms run here — read this before touching the scroll/render path.
@@ -47,18 +70,7 @@ export function useSchedulerGridVirtualization({
   // headers + the rows of expanded groups) so the grid can window them vertically:
   // at small scale everything renders; past a viewport's worth, only the on-screen
   // slice is in the DOM (the rest is reserved by top/bottom spacers).
-  type Item = { kind: "group"; group: GroupModel } | { kind: "row"; group: GroupModel; row: RowModel };
-  const items = useMemo(() => {
-    const collapsedKeys = new Set(ui.collapsedGroups);
-    const out: Item[] = [];
-    for (const group of model) {
-      // Every model group is now meaningful and labelled: a discipline, Studio/Supplementary,
-      // Unassigned, or External. Keep the same collapse behaviour for synthetic fallback bands.
-      out.push({ kind: "group", group });
-      if (!collapsedKeys.has(group.key)) for (const row of group.rows) out.push({ kind: "row", group, row });
-    }
-    return out;
-  }, [model, ui.collapsedGroups]);
+  const items = useMemo(() => flattenVisibleItems(model, ui.collapsedGroups), [model, ui.collapsedGroups]);
 
   // Heights + their prefix-sum depend only on the item set (model/collapse), NOT on
   // scroll — memoise so a scroll frame only runs the cheap edge-scan in resolveVirtualWindow.
@@ -67,10 +79,8 @@ export function useSchedulerGridVirtualization({
     [items, density],
   );
   const layout = useMemo(() => buildLayout(heights), [heights]);
-  const externalGroupIndex = items.findIndex((item) => item.kind === "group" && item.group.external);
-  const trackedGridHeight = externalGroupIndex === -1 ? layout.total : (layout.tops[externalGroupIndex] ?? 0);
-  const timelineStart = days[0];
-  const timelineEnd = days[days.length - 1];
+  const trackedGridHeight = resolveTrackedGridHeight(items, layout);
+  const { timelineStart, timelineEnd } = resolveTimelineBounds(days);
   const visibleClosures = useMemo(
     () =>
       timelineStart && timelineEnd
