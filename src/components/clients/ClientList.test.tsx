@@ -131,9 +131,10 @@ describe("ClientList withholds the Archive affordance for the built-in Internal 
     // Mint the one builtin Internal via addAccount (the privileged path), then add a normal client so
     // the list isn't empty — matching internalClient.test.ts / the lifecycle suite's seeding.
     useStore.getState().replaceAll(emptyAppData());
-    const a = useStore.getState().addAccount({ name: "Acme Co", color: "#6366f1" })!;
+    const a = useStore.getState().addAccount({ name: "Acme Co", color: "#6366f1" });
+    if (!a) throw new Error("Expected account");
     useStore.getState().setActiveAccount(a.id);
-    const internal = internalClientFor(useStore.getState().data.clients, a.id)!;
+    const internal = requireValue(internalClientFor(useStore.getState().data.clients, a.id), "internal client");
     useStore.getState().addClient({ name: "Globex", color: "#3b82f6" });
 
     render(<ClientList />);
