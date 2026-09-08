@@ -397,9 +397,14 @@ interface ImportSummary {
 
 interface ClientSnapshot {
   accountId: string;
+  archivedAt?: string;
+  builtin?: boolean;
+  codeName?: string;
   color: string;
   createdAt: string;
+  deletedAt?: string;
   id: string;
+  isPrivate?: boolean;
   name: string;
   updatedAt: string;
 }
@@ -804,7 +809,24 @@ function readClientSnapshots(rows: unknown[]): ClientSnapshot[] {
   return rows
     .map((row) => {
       if (!isUnknownRecord(row)) throw new Error("Expected every client row to be an object.");
-      return {
+      requireModeledKeys(
+        row,
+        [
+          "accountId",
+          "archivedAt",
+          "builtin",
+          "codeName",
+          "color",
+          "createdAt",
+          "deletedAt",
+          "id",
+          "isPrivate",
+          "name",
+          "updatedAt",
+        ],
+        "client row",
+      );
+      const clientRow: ClientSnapshot = {
         accountId: readRequiredString(row, "accountId", "client row"),
         color: readRequiredString(row, "color", "client row"),
         createdAt: readRequiredString(row, "createdAt", "client row"),
@@ -812,6 +834,17 @@ function readClientSnapshots(rows: unknown[]): ClientSnapshot[] {
         name: readRequiredString(row, "name", "client row"),
         updatedAt: readRequiredString(row, "updatedAt", "client row"),
       };
+      const archivedAt = readOptionalString(row, "archivedAt", "client row");
+      const builtin = readOptionalBoolean(row, "builtin", "client row");
+      const codeName = readOptionalString(row, "codeName", "client row");
+      const deletedAt = readOptionalString(row, "deletedAt", "client row");
+      const isPrivate = readOptionalBoolean(row, "isPrivate", "client row");
+      if (archivedAt !== undefined) clientRow.archivedAt = archivedAt;
+      if (builtin !== undefined) clientRow.builtin = builtin;
+      if (codeName !== undefined) clientRow.codeName = codeName;
+      if (deletedAt !== undefined) clientRow.deletedAt = deletedAt;
+      if (isPrivate !== undefined) clientRow.isPrivate = isPrivate;
+      return clientRow;
     })
     .filter((clientRow) => !clientRow.id.startsWith("internal:"));
 }
@@ -2499,7 +2532,7 @@ describe("import", () => {
       error: "The company data changed while the import was being prepared. Retry the import from the latest data.",
       code: "IMPORT_SNAPSHOT_STALE",
     });
-    const current = await state(app);
+    const current = await readValidatedState(app);
     expect(current.resources).toContainEqual(expect.objectContaining({ id: "concurrent", accountId: "a1" }));
     expect(current.clients).not.toContainEqual(expect.objectContaining({ name: "Acme", builtin: false }));
     expect(auditedActions).not.toContain("import");
@@ -2533,7 +2566,7 @@ describe("import", () => {
     const response = await importing;
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ imported: 5, skipped: 1 });
-    const current = await state(app);
+    const current = await readValidatedState(app);
     expect(current.resources).toContainEqual(expect.objectContaining({ id: "a2-concurrent", accountId: "a2" }));
     expect(current.projects).toContainEqual(expect.objectContaining({ accountId: "a1" }));
   });
