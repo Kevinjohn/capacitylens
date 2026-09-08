@@ -1581,13 +1581,11 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
 
   it("reconciles attributed allocations after repeatable activity kind changes", async () => {
     const allocationFirst = await seedAttributedActivity();
-    const allocationFirstBefore = await state(allocationFirst.app);
-    const allocationFirstActivity = allocationFirstBefore.activities.find(
-      (row: { id: string }) => row.id === "repeatable",
-    );
-    const allocationFirstAllocation = allocationFirstBefore.allocations.find(
-      (row: { id: string }) => row.id === "allocation",
-    );
+    const allocationFirstBefore = await readValidatedState(allocationFirst.app);
+    const allocationFirstActivity = readActivity(allocationFirstBefore.activities, "repeatable");
+    const allocationFirstAllocation = readAllocation(allocationFirstBefore.allocations, "allocation");
+    expect(allocationFirstActivity.id).toBe("repeatable");
+    expect(allocationFirstAllocation.id).toBe("allocation");
     const allocationFirstResponse = await orderedBatch({
       app: allocationFirst.app,
       sessionId: "browser-session-kind-change-0001",
@@ -1603,10 +1601,10 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       ],
     });
     expect(allocationFirstResponse.statusCode).toBe(200);
-    const allocationFirstState = await state(allocationFirst.app);
-    const rewrittenAllocation = allocationFirstState.allocations[0];
+    const allocationFirstState = await readValidatedState(allocationFirst.app);
+    const rewrittenAllocation = readAllocation(allocationFirstState.allocations, "allocation");
     expect(rewrittenAllocation).not.toHaveProperty("projectId");
-    expect(allocationFirstResponse.json().revisions).toContainEqual({
+    expect(readBatchReceipt(allocationFirstResponse).revisions).toContainEqual({
       table: "allocations",
       id: "allocation",
       createdAt: rewrittenAllocation.createdAt,
@@ -1615,9 +1613,9 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     });
 
     const explicit = await seedAttributedActivity();
-    const explicitBefore = await state(explicit.app);
-    const explicitActivity = explicitBefore.activities.find((row: { id: string }) => row.id === "repeatable");
-    const explicitAllocation = explicitBefore.allocations.find((row: { id: string }) => row.id === "allocation");
+    const explicitBefore = await readValidatedState(explicit.app);
+    const explicitActivity = readActivity(explicitBefore.activities, "repeatable");
+    const explicitAllocation = readAllocation(explicitBefore.allocations, "allocation");
     const clearedAllocation = { ...explicitAllocation };
     delete clearedAllocation.projectId;
     const explicitResponse = await orderedBatch({
@@ -1635,11 +1633,11 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       ],
     });
     expect(explicitResponse.statusCode).toBe(200);
-    expect((await state(explicit.app)).allocations[0]).not.toHaveProperty("projectId");
+    expect(await readStateAllocation(explicit.app, "allocation")).not.toHaveProperty("projectId");
 
     const implicit = await seedAttributedActivity();
-    const implicitBefore = await state(implicit.app);
-    const implicitActivity = implicitBefore.activities.find((row: { id: string }) => row.id === "repeatable");
+    const implicitBefore = await readValidatedState(implicit.app);
+    const implicitActivity = readActivity(implicitBefore.activities, "repeatable");
     const implicitResponse = await orderedBatch({
       app: implicit.app,
       sessionId: "browser-session-kind-change-0003",
@@ -1654,9 +1652,9 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       ],
     });
     expect(implicitResponse.statusCode).toBe(200);
-    const implicitAllocation = (await state(implicit.app)).allocations[0];
+    const implicitAllocation = await readStateAllocation(implicit.app, "allocation");
     expect(implicitAllocation).not.toHaveProperty("projectId");
-    expect(implicitResponse.json().revisions).toContainEqual({
+    expect(readBatchReceipt(implicitResponse).revisions).toContainEqual({
       table: "allocations",
       id: "allocation",
       createdAt: implicitAllocation.createdAt,
@@ -1665,9 +1663,9 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     });
 
     const forbidden = await seedAttributedActivity();
-    const forbiddenBefore = await state(forbidden.app);
-    const forbiddenActivity = forbiddenBefore.activities.find((row: { id: string }) => row.id === "repeatable");
-    const forbiddenAllocation = forbiddenBefore.allocations.find((row: { id: string }) => row.id === "allocation");
+    const forbiddenBefore = await readValidatedState(forbidden.app);
+    const forbiddenActivity = readActivity(forbiddenBefore.activities, "repeatable");
+    const forbiddenAllocation = readAllocation(forbiddenBefore.allocations, "allocation");
     const forbiddenResponse = await orderedBatch({
       app: forbidden.app,
       sessionId: "browser-session-kind-change-0004",
@@ -1684,7 +1682,9 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     });
     expect(forbiddenResponse.statusCode).toBe(400);
     expect(forbiddenResponse.json()).toMatchObject({ code: "allocation_project_forbidden" });
-    expect((await state(forbidden.app)).activities[0]).toMatchObject({ kind: "repeatable" });
+    expect(readActivity((await readValidatedState(forbidden.app)).activities, "repeatable")).toMatchObject({
+      kind: "repeatable",
+    });
   });
 
   it("keeps at-flip-time clearing after an activity flips back before a dependent write", async () => {
