@@ -4,11 +4,11 @@ import { buildRealizedVisibleSpan, buildVisibleSpanLabels, resolveVisibleWindow 
 
 describe("realizedVisibleSpan", () => {
   it("reports exact whole-week ranges in weeks", () => {
-    expect(buildRealizedVisibleSpan("2026-06-01", "2026-06-28")).toEqual({ days: 28, weeks: 4 });
+    expect(buildRealizedVisibleSpan("2026-06-01", "2026-06-28")).toEqual({ dayCount: 28, weekCount: 4 });
   });
 
   it("keeps an end-clamped range in days instead of claiming the requested week span", () => {
-    expect(buildRealizedVisibleSpan("2026-06-25", "2026-06-28")).toEqual({ days: 4 });
+    expect(buildRealizedVisibleSpan("2026-06-25", "2026-06-28")).toEqual({ dayCount: 4 });
   });
 });
 

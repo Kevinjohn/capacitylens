@@ -10,15 +10,15 @@ interface ResolveVisibleWindowInput {
 }
 
 export interface RealizedVisibleSpan {
-  days: number;
+  dayCount: number;
   /** Present only when the realized inclusive range is an exact whole number of weeks. */
-  weeks?: number;
+  weekCount?: number;
 }
 
 /** Describe the range actually measured after timeline clamping, not the requested zoom preset. */
 export function buildRealizedVisibleSpan(start: ISODate, end: ISODate): RealizedVisibleSpan {
-  const days = Math.max(1, daysInclusive(start, end));
-  return days % 7 === 0 ? { days, weeks: days / 7 } : { days };
+  const dayCount = Math.max(1, daysInclusive(start, end));
+  return dayCount % 7 === 0 ? { dayCount, weekCount: dayCount / 7 } : { dayCount };
 }
 
 /** The two phrasings of the visible span the utilisation surfaces need: `long` for the "over the
@@ -32,15 +32,15 @@ export interface VisibleSpanLabels {
  *  clamped range never claims a week it does not cover. */
 export function buildVisibleSpanLabels(start: ISODate, end: ISODate): VisibleSpanLabels {
   const span = buildRealizedVisibleSpan(start, end);
-  if (span.weeks !== undefined) {
-    const count = span.weeks;
+  if (span.weekCount !== undefined) {
+    const count = span.weekCount;
     return {
       long:
         count === 1 ? m.scheduler_visible_weeks_label_one({ count }) : m.scheduler_visible_weeks_label_other({ count }),
       compact: m.scheduler_visible_weeks_compact({ count }),
     };
   }
-  const count = span.days;
+  const count = span.dayCount;
   return {
     long: count === 1 ? m.scheduler_visible_days_label_one({ count }) : m.scheduler_visible_days_label_other({ count }),
     compact: m.scheduler_visible_days_compact({ count }),
