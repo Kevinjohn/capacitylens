@@ -42,9 +42,18 @@ function Harness({
 
 beforeEach(() => {
   // Clean up any stray document listeners between tests
-  HTMLElement.prototype.setPointerCapture = vi.fn();
-  HTMLElement.prototype.hasPointerCapture = vi.fn(() => false);
-  HTMLElement.prototype.releasePointerCapture = vi.fn();
+  const capturedPointers = new WeakMap<HTMLElement, Set<number>>();
+  HTMLElement.prototype.setPointerCapture = vi.fn(function (this: HTMLElement, pointerId: number) {
+    const pointers = capturedPointers.get(this) ?? new Set<number>();
+    pointers.add(pointerId);
+    capturedPointers.set(this, pointers);
+  });
+  HTMLElement.prototype.hasPointerCapture = vi.fn(function (this: HTMLElement, pointerId: number) {
+    return capturedPointers.get(this)?.has(pointerId) ?? false;
+  });
+  HTMLElement.prototype.releasePointerCapture = vi.fn(function (this: HTMLElement, pointerId: number) {
+    capturedPointers.get(this)?.delete(pointerId);
+  });
 });
 
 describe("useDragResize", () => {
@@ -77,6 +86,7 @@ describe("useDragResize", () => {
 
     expect(onCommit).toHaveBeenCalledWith("move", 1, expect.objectContaining({ clientX: 48 }));
     expect(onClick).not.toHaveBeenCalled();
+    expect(body.hasPointerCapture(1)).toBe(false);
   });
 
   it("(b) pointerDown then pointerup with no move calls onClick", () => {
