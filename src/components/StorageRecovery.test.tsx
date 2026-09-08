@@ -53,14 +53,16 @@ describe("resetLocalStorage", () => {
 
   it("reports a partial failure without reloading when only local storage fails", async () => {
     const clearOfflineData = vi.fn().mockResolvedValue(undefined);
+    const localStorageError = new Error("localStorage blocked");
     const clearLocalStorage = vi.fn(() => {
-      throw new Error("localStorage blocked");
+      throw localStorageError;
     });
     const reload = vi.fn();
 
     await expect(resetLocalStorage({ clearOfflineData, clearLocalStorage, reload })).rejects.toMatchObject({
       name: "StorageResetError",
       offlineDataCleared: true,
+      cause: new AggregateError([localStorageError], "One or more browser storage backends could not be cleared."),
     });
     expect(clearOfflineData).toHaveBeenCalledOnce();
     expect(clearLocalStorage).toHaveBeenCalledOnce();
@@ -68,15 +70,21 @@ describe("resetLocalStorage", () => {
   });
 
   it("reports a full failure after both backend attempts fail", async () => {
-    const clearOfflineData = vi.fn().mockRejectedValue(new Error("IndexedDB blocked"));
+    const offlineError = new Error("IndexedDB blocked");
+    const localStorageError = new Error("localStorage blocked");
+    const clearOfflineData = vi.fn().mockRejectedValue(offlineError);
     const clearLocalStorage = vi.fn(() => {
-      throw new Error("localStorage blocked");
+      throw localStorageError;
     });
     const reload = vi.fn();
 
     await expect(resetLocalStorage({ clearOfflineData, clearLocalStorage, reload })).rejects.toMatchObject({
       name: "StorageResetError",
       offlineDataCleared: false,
+      cause: new AggregateError(
+        [localStorageError, offlineError],
+        "One or more browser storage backends could not be cleared.",
+      ),
     });
     expect(clearOfflineData).toHaveBeenCalledOnce();
     expect(clearLocalStorage).toHaveBeenCalledOnce();
@@ -152,7 +160,7 @@ describe("StorageRecovery", () => {
       "Neither the unreadable browser data nor offline snapshots could be cleared. Check your browser’s storage/privacy settings and try again.",
     ],
   ])("surfaces the specific backend outcome after a reset failure", async (offlineDataCleared, message) => {
-    const onReset = vi.fn().mockRejectedValue(new StorageResetError(offlineDataCleared));
+    const onReset = vi.fn().mockRejectedValue(new StorageResetError({ offlineDataCleared }));
     render(<StorageRecovery onReset={onReset} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Reset data" }));

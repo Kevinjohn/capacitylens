@@ -30,14 +30,19 @@ interface StorageResetDependencies {
   reload?: () => void;
 }
 
+interface StorageResetErrorInput {
+  offlineDataCleared: boolean;
+  cause?: unknown;
+}
+
 // Exported beside the recovery boundary so its injected reset path can be tested without mutating
 // real browser storage.
 // eslint-disable-next-line react-refresh/only-export-components
 export class StorageResetError extends Error {
   readonly offlineDataCleared: boolean;
 
-  constructor(offlineDataCleared: boolean, options?: ErrorOptions) {
-    super("Browser storage could not be fully reset.", options);
+  constructor({ offlineDataCleared, cause }: StorageResetErrorInput) {
+    super("Browser storage could not be fully reset.", { cause });
     this.name = "StorageResetError";
     this.offlineDataCleared = offlineDataCleared;
   }
@@ -89,7 +94,8 @@ export async function resetLocalStorage({
 
   const causes = [localStorageResult.reason];
   if (offlineResult.status === "rejected") causes.push(offlineResult.reason);
-  throw new StorageResetError(offlineResult.status === "fulfilled", {
+  throw new StorageResetError({
+    offlineDataCleared: offlineResult.status === "fulfilled",
     cause: new AggregateError(causes, "One or more browser storage backends could not be cleared."),
   });
 }
