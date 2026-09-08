@@ -224,7 +224,7 @@ const SSO_ENV = {
 async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, env);
-  await runAuthMigrations(auth!);
+  await runAuthMigrations(parseConfiguredAuth(auth));
   return createApp(db, { authMode: mode, auth });
 }
 
@@ -561,7 +561,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("refuses to relink a principal who already has the strict provider", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, { authMode: "password", auth: configured.auth });
     const signUp = await call(app, {
       method: "POST",
@@ -613,7 +613,7 @@ describe("CAPACITYLENS_AUTH password", () => {
       },
     }) as Db;
     const configured = createAuthFromEnvironment(observed, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(observed, { authMode: "password", auth: configured.auth });
     const signUp = await call(app, {
       method: "POST",
@@ -666,7 +666,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("rejects an untrusted link return URL before persisting a ceremony", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, { authMode: "password", auth: configured.auth });
     const signUp = await call(app, {
       method: "POST",
@@ -694,7 +694,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     async (callbackURL) => {
       const db = openDb(":memory:");
       const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
-      await runAuthMigrations(configured.auth!);
+      await runAuthMigrations(parseConfiguredAuth(configured.auth));
       const app = createApp(db, { authMode: "password", auth: configured.auth });
       const signUp = await call(app, {
         method: "POST",
@@ -721,7 +721,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("forwards the signed OAuth state cookie when a provider-link ceremony starts", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, { authMode: "password", auth: configured.auth });
     const signUp = await call(app, {
       method: "POST",
@@ -751,7 +751,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("does not expose SSO email repair on an ordinary password-only installation", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, { authMode: "password", auth: configured.auth });
     const signUp = await call(app, {
       method: "POST",
@@ -1057,7 +1057,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     async (_label, env) => {
       const db = openDb(":memory:");
       const configured = createAuthFromEnvironment(db, env);
-      await runAuthMigrations(configured.auth!);
+      await runAuthMigrations(parseConfiguredAuth(configured.auth));
       const app = createApp(db, {
         authMode: configured.mode,
         auth: configured.auth,
@@ -1108,7 +1108,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("expires a session whose activity timestamp is in the future", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, {
       authMode: configured.mode,
       auth: configured.auth,
@@ -1281,7 +1281,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("touches active sessions without extending their absolute expiry", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, {
       authMode: configured.mode,
       auth: configured.auth,
@@ -1322,7 +1322,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("does not delete a session touched after an expired request resolved its stale snapshot", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, { authMode: configured.mode, auth: configured.auth });
     await call(app, {
       method: "POST",
@@ -1343,7 +1343,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("does not move a concurrent newer session touch backward", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, { authMode: configured.mode, auth: configured.auth });
     await call(app, {
       method: "POST",
@@ -1514,7 +1514,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("lists and revokes sessions through neutral opaque handles without exposing bearer tokens", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, {
       authMode: configured.mode,
       auth: configured.auth,
@@ -1728,7 +1728,7 @@ describe("social providers (P1.7)", () => {
 
   it("inits all three (Google/Microsoft/GitHub) from env without throwing", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), SOCIAL_ENV);
-    const social = auth!.options.socialProviders ?? {};
+    const social = parseConfiguredAuth(auth).options.socialProviders ?? {};
     expect(Object.keys(social).sort()).toEqual(["github", "google", "microsoft"]);
     expect(social.google).toMatchObject({
       clientId: "google-id",
@@ -1751,7 +1751,7 @@ describe("social providers (P1.7)", () => {
       ...SOCIAL_ENV,
       CAPACITYLENS_MICROSOFT_TENANT_ID: "tenant-123",
     });
-    expect(auth!.options.socialProviders?.microsoft).toMatchObject({
+    expect(parseConfiguredAuth(auth).options.socialProviders?.microsoft).toMatchObject({
       tenantId: "tenant-123",
     });
   });
@@ -1767,7 +1767,7 @@ describe("social providers (P1.7)", () => {
 
   it("is empty (no providers) when no social env is set", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), PASSWORD_ENV);
-    expect(Object.keys(auth!.options.socialProviders ?? {})).toEqual([]);
+    expect(Object.keys(parseConfiguredAuth(auth).options.socialProviders ?? {})).toEqual([]);
   });
 });
 
@@ -1818,7 +1818,7 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
   it("releases the bootstrap claim after success so erasing the sole identity reopens setup", async () => {
     const db = openDb(":memory:");
     const { mode, auth } = createAuthFromEnvironment(db, CLOSED_ENV);
-    await runAuthMigrations(auth!);
+    await runAuthMigrations(parseConfiguredAuth(auth));
     const app = createApp(db, { authMode: mode, auth });
     expect((await signUp(app, "first-owner@capacitylens.dev")).statusCode).toBe(200);
     expect((db.prepare(`SELECT COUNT(*) AS n FROM capacitylens_bootstrap_claim`).get() as { n: number }).n).toBe(0);
@@ -1830,7 +1830,7 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
   it("releases the bootstrap claim when first-owner password policy rejects the endpoint", async () => {
     const db = openDb(":memory:");
     const { mode, auth } = createAuthFromEnvironment(db, CLOSED_ENV);
-    await runAuthMigrations(auth!);
+    await runAuthMigrations(parseConfiguredAuth(auth));
     const app = createApp(db, { authMode: mode, auth });
 
     const rejected = await call(app, {
@@ -1893,7 +1893,7 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
     const env = { ...CLOSED_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1" };
     const db = openDb(":memory:");
     const { mode, auth } = createAuthFromEnvironment(db, env);
-    await runAuthMigrations(auth!);
+    await runAuthMigrations(parseConfiguredAuth(auth));
     const app = createApp(db, { authMode: mode, auth });
     const invalid = await call(app, {
       method: "POST",
@@ -1918,8 +1918,8 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
       CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
     });
     const closed = createAuthFromEnvironment(openDb(":memory:"), CLOSED_ENV);
-    expect(open.auth!.options.emailAndPassword?.disableSignUp).toBe(false);
-    expect(closed.auth!.options.emailAndPassword?.disableSignUp).toBe(false);
+    expect(parseConfiguredAuth(open.auth).options.emailAndPassword?.disableSignUp).toBe(false);
+    expect(parseConfiguredAuth(closed.auth).options.emailAndPassword?.disableSignUp).toBe(false);
   });
 
   it("reports needsSetup on the /api/auth/me 401 at zero users, and drops it once a user exists", async () => {
@@ -1953,7 +1953,7 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
   async function bootstrapFixture(env: Record<string, string> = CLOSED_ENV) {
     const db = openDb(":memory:");
     const { mode, auth } = createAuthFromEnvironment(db, env);
-    await runAuthMigrations(auth!);
+    await runAuthMigrations(parseConfiguredAuth(auth));
     return { db, mode, auth };
   }
 
@@ -1973,7 +1973,7 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
     await createBootstrapAdmin(db, mode, auth, () => {});
     // "Restart": a fresh instance on the SAME DB, bootstrap flag absent → floor back at the min.
     const restarted = createAuthFromEnvironment(db, CLOSED_ENV);
-    expect(restarted.auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
+    expect(parseConfiguredAuth(restarted.auth).options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
     const app = createApp(db, { authMode: restarted.mode, auth: restarted.auth });
     const signIn = await call(app, {
       method: "POST",
@@ -2029,13 +2029,13 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
     // password is created through a DIFFERENT path (auth.createCredentialUser(), bypassing the sign-up route
     // entirely — see createBootstrapAdmin) instead of lowering this option.
     const { auth } = await bootstrapFixture();
-    expect(auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
+    expect(parseConfiguredAuth(auth).options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
     const seeded = await bootstrapFixture();
     await createBootstrapAdmin(seeded.db, seeded.mode, seeded.auth, () => {});
     const populated = createAuthFromEnvironment(seeded.db, CLOSED_ENV);
-    expect(populated.auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
+    expect(parseConfiguredAuth(populated.auth).options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
     const plain = createAuthFromEnvironment(openDb(":memory:"), CLOSED_ENV);
-    expect(plain.auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
+    expect(parseConfiguredAuth(plain.auth).options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
   });
 
   it("REJECTS a 5-char sign-up password during a boot where the bootstrap just ran (the floor is never bent for anything else)", async () => {
@@ -2308,9 +2308,11 @@ describe("boot refusal (AuthConfigError)", () => {
       CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
     });
 
-    expect(configured.auth!.providers.map(({ id }) => id)).toEqual(["google", "company-sso"]);
-    expect(configured.auth!.federatedIssuers.get("google")).toBe("https://accounts.google.com");
-    expect(configured.auth!.federatedIssuers.get("company-sso")).toBe(SSO_ENV.CAPACITYLENS_SSO_ISSUER);
+    expect(parseConfiguredAuth(configured.auth).providers.map(({ id }) => id)).toEqual(["google", "company-sso"]);
+    expect(parseConfiguredAuth(configured.auth).federatedIssuers.get("google")).toBe("https://accounts.google.com");
+    expect(parseConfiguredAuth(configured.auth).federatedIssuers.get("company-sso")).toBe(
+      SSO_ENV.CAPACITYLENS_SSO_ISSUER,
+    );
   });
 
   it("buildApp refuses authMode ≠ off without an auth instance", () => {
