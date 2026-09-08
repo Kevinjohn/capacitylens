@@ -409,6 +409,46 @@ function readDependentNote(
   return { note, updatedAt };
 }
 
+async function submitDescendantWrites(app: FastifyInstance) {
+  const beneathArchivedProject = await call(app, {
+    method: "POST",
+    url: "/api/phases",
+    payload: phase("ph-new", "a1", "p-archived"),
+  });
+  const beneathDeletedClient = await call(app, {
+    method: "POST",
+    url: "/api/activities",
+    payload: activity({
+      id: "act-new",
+      accountId: "a1",
+      projectId: "p-under-deleted-client",
+      phaseId: "ph-existing",
+    }),
+  });
+  const updateBeneathDeletedClient = await call(app, {
+    method: "PATCH",
+    url: "/api/phases/ph-existing",
+    payload: { name: "Invisible update" },
+  });
+  const updateBeneathArchivedProject = await call(app, {
+    method: "PATCH",
+    url: "/api/phases/ph-under-archived",
+    payload: { name: "Invisible immediate-parent update" },
+  });
+  const updatePlaceholderBeneathDeletedProject = await call(app, {
+    method: "PATCH",
+    url: "/api/resources/placeholder-under-deleted-project",
+    payload: { role: "Invisible placeholder update" },
+  });
+  return {
+    beneathArchivedProject,
+    beneathDeletedClient,
+    updateBeneathDeletedClient,
+    updateBeneathArchivedProject,
+    updatePlaceholderBeneathDeletedProject,
+  };
+}
+
 function readDeletedResourceState(response: unknown, id: string): DeletedResourceResponse {
   const resource = readEntityRecord(readResponseBodyRecord(response), "resources", id);
   return readDeletedResource(resource);
@@ -1621,36 +1661,13 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       resources: [person("placeholder-under-deleted-project", "a1", { kind: "placeholder", projectId: "p-deleted" })],
     });
 
-    const beneathArchivedProject = await call(app, {
-      method: "POST",
-      url: "/api/phases",
-      payload: phase("ph-new", "a1", "p-archived"),
-    });
-    const beneathDeletedClient = await call(app, {
-      method: "POST",
-      url: "/api/activities",
-      payload: activity({
-        id: "act-new",
-        accountId: "a1",
-        projectId: "p-under-deleted-client",
-        phaseId: "ph-existing",
-      }),
-    });
-    const updateBeneathDeletedClient = await call(app, {
-      method: "PATCH",
-      url: "/api/phases/ph-existing",
-      payload: { name: "Invisible update" },
-    });
-    const updateBeneathArchivedProject = await call(app, {
-      method: "PATCH",
-      url: "/api/phases/ph-under-archived",
-      payload: { name: "Invisible immediate-parent update" },
-    });
-    const updatePlaceholderBeneathDeletedProject = await call(app, {
-      method: "PATCH",
-      url: "/api/resources/placeholder-under-deleted-project",
-      payload: { role: "Invisible placeholder update" },
-    });
+    const {
+      beneathArchivedProject,
+      beneathDeletedClient,
+      updateBeneathDeletedClient,
+      updateBeneathArchivedProject,
+      updatePlaceholderBeneathDeletedProject,
+    } = await submitDescendantWrites(app);
 
     expect(beneathArchivedProject.statusCode).toBe(400);
     expect(beneathDeletedClient.statusCode).toBe(400);
