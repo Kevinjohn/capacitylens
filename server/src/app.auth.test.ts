@@ -328,6 +328,89 @@ function createLifecycleRaceFixture(next: string | null) {
   return { deletions, expired, now, raced, raw, token };
 }
 
+async function createRequiredMfaFixture() {
+  const db = openDb(":memory:");
+  const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
+  await runAuthMigrations(parseConfiguredAuth(configured.auth));
+  const app = createApp(db, {
+    authMode: configured.mode,
+    auth: configured.auth,
+    requireMfa: true,
+  });
+  const email = "mfa-user@capacitylens.dev";
+  const password = "password-123456";
+  const signup = await call(app, {
+    method: "POST",
+    url: "/api/auth/sign-up/email",
+    payload: { email, password, name: "MFA User" },
+  });
+  expect(signup.statusCode).toBe(200);
+  const signupCookie = cookiesOf(signup);
+  const blocked = await call(app, {
+    method: "GET",
+    url: "/api/accounts",
+    headers: { cookie: signupCookie },
+  });
+  expect(blocked.statusCode).toBe(403);
+  expect(parseErrorCode(blocked)).toBe("MFA_ENROLLMENT_REQUIRED");
+  const before = await call(app, {
+    method: "GET",
+    url: "/api/auth/me",
+    headers: { cookie: signupCookie },
+  });
+  expect(before.statusCode).toBe(200);
+  expect(before.json()).toMatchObject({
+    mfaRequired: true,
+    user: { twoFactorEnabled: false },
+  });
+  return { app, email, password, signupCookie };
+}
+
+async function completeRequiredMfaEnrollment(options: {
+  app: FastifyInstance;
+  password: string;
+  signupCookie: string;
+}) {
+  const enabled = await call(options.app, {
+    method: "POST",
+    url: "/api/auth/two-factor/enable",
+    headers: { cookie: options.signupCookie },
+    payload: { password: options.password },
+  });
+  expect(enabled.statusCode).toBe(200);
+  expect(parseBackupCodes(enabled)).toHaveLength(10);
+  const secret = parseTotpSecret(enabled);
+  expect(secret).toBeTruthy();
+  const verified = await call(options.app, {
+    method: "POST",
+    url: "/api/auth/two-factor/verify-totp",
+    headers: { cookie: options.signupCookie },
+    payload: { code: totpCode(secret), trustDevice: false },
+  });
+  expect(verified.statusCode).toBe(200);
+  const enrolledCookie = cookiesOf(verified);
+  const after = await call(options.app, {
+    method: "GET",
+    url: "/api/auth/me",
+    headers: { cookie: enrolledCookie },
+  });
+  expect(after.statusCode).toBe(200);
+  expect(after.json()).toMatchObject({
+    mfaRequired: false,
+    user: { twoFactorEnabled: true },
+  });
+  expect(
+    (
+      await call(options.app, {
+        method: "GET",
+        url: "/api/accounts",
+        headers: { cookie: enrolledCookie },
+      })
+    ).statusCode,
+  ).toBe(200);
+  return { enrolledCookie, secret };
+}
+
 describe("CAPACITYLENS_AUTH off (default)", () => {
   it("reports the demo identity from /api/auth/me and gates nothing", async () => {
     const app = createApp(openDb(":memory:"));
@@ -943,81 +1026,12 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 
   it("requires enrollment, verifies TOTP, and challenges every later password sign-in", async () => {
-    const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(parseConfiguredAuth(configured.auth));
-    const app = createApp(db, {
-      authMode: configured.mode,
-      auth: configured.auth,
-      requireMfa: true,
+    const { app, email, password, signupCookie } = await createRequiredMfaFixture();
+    const { enrolledCookie, secret } = await completeRequiredMfaEnrollment({
+      app,
+      password,
+      signupCookie,
     });
-    const email = "mfa-user@capacitylens.dev";
-    const password = "password-123456";
-
-    const signup = await call(app, {
-      method: "POST",
-      url: "/api/auth/sign-up/email",
-      payload: { email, password, name: "MFA User" },
-    });
-    expect(signup.statusCode).toBe(200);
-    const signupCookie = cookiesOf(signup);
-    const blocked = await call(app, {
-      method: "GET",
-      url: "/api/accounts",
-      headers: { cookie: signupCookie },
-    });
-    expect(blocked.statusCode).toBe(403);
-    expect(parseErrorCode(blocked)).toBe("MFA_ENROLLMENT_REQUIRED");
-
-    const before = await call(app, {
-      method: "GET",
-      url: "/api/auth/me",
-      headers: { cookie: signupCookie },
-    });
-    expect(before.statusCode).toBe(200);
-    expect(before.json()).toMatchObject({
-      mfaRequired: true,
-      user: { twoFactorEnabled: false },
-    });
-
-    const enabled = await call(app, {
-      method: "POST",
-      url: "/api/auth/two-factor/enable",
-      headers: { cookie: signupCookie },
-      payload: { password },
-    });
-    expect(enabled.statusCode).toBe(200);
-    expect(parseBackupCodes(enabled)).toHaveLength(10);
-    const secret = parseTotpSecret(enabled);
-    expect(secret).toBeTruthy();
-
-    const verified = await call(app, {
-      method: "POST",
-      url: "/api/auth/two-factor/verify-totp",
-      headers: { cookie: signupCookie },
-      payload: { code: totpCode(secret), trustDevice: false },
-    });
-    expect(verified.statusCode).toBe(200);
-    const enrolledCookie = cookiesOf(verified);
-    const after = await call(app, {
-      method: "GET",
-      url: "/api/auth/me",
-      headers: { cookie: enrolledCookie },
-    });
-    expect(after.statusCode).toBe(200);
-    expect(after.json()).toMatchObject({
-      mfaRequired: false,
-      user: { twoFactorEnabled: true },
-    });
-    expect(
-      (
-        await call(app, {
-          method: "GET",
-          url: "/api/accounts",
-          headers: { cookie: enrolledCookie },
-        })
-      ).statusCode,
-    ).toBe(200);
 
     expect(
       (
