@@ -4800,7 +4800,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     const { app } = freshApp();
     await seedFixtureDeps(app);
     expect((await post(app, "resources", FIXTURE_RESOURCE)).statusCode).toBe(201);
-    expectFixture((await state(app)).resources[0], stripTombstones(FIXTURE_RESOURCE));
+    expectFixture(readFirstResource((await readValidatedState(app)).resources), stripTombstones(FIXTURE_RESOURCE));
   });
 
   it("person resource: Supplementary engagement round-trips independently of employment", async () => {
@@ -4814,7 +4814,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     };
 
     expect((await post(app, "resources", supplementary)).statusCode).toBe(201);
-    expect((await state(app)).resources[0]).toMatchObject({
+    expect(readFirstResource((await readValidatedState(app)).resources)).toMatchObject({
       employmentType: "permanent",
       engagement: "supplementary",
     });
@@ -4824,7 +4824,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     const { app } = freshApp();
     await seedFixtureDeps(app);
     expect((await post(app, "resources", FIXTURE_RESOURCE_EXTERNAL)).statusCode).toBe(201);
-    expectFixture((await state(app)).resources[0], FIXTURE_RESOURCE_EXTERNAL);
+    expectFixture(readFirstResource((await readValidatedState(app)).resources), FIXTURE_RESOURCE_EXTERNAL);
   });
 
   it("activity: every field round-trips (including optional projectId/phaseId)", async () => {
