@@ -544,11 +544,6 @@
       "count": 1
     }
   },
-  "server/src/fixtures/credentialOnboardingCrashFixture.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 3
-    }
-  },
   "server/src/importWorker.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 2
