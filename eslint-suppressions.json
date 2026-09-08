@@ -164,14 +164,6 @@
       "count": 1
     }
   },
-  "server/scripts/generate-database-fixtures.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
-    "max-depth": {
-      "count": 3
-    }
-  },
   "server/scripts/recover-audit-outbox.ts": {
     "max-depth": {
       "count": 1
