@@ -213,7 +213,7 @@ function createSessionPreHandler(dependencies: CreateSessionPreHandlerInput) {
   return async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
     const path = req.url.split("?", 1)[0] ?? req.url;
     if (!path.startsWith("/api/") || isPublicApiPath(path)) return;
-    let resolution = await dependencies.resolveIncomingSession({ req });
+    const resolution = await dependencies.resolveIncomingSession({ req });
     if (resolution.kind === "verified") attachVerifiedSession(req, resolution.session);
     const unsafe = req.method !== "GET" && req.method !== "HEAD" && req.method !== "OPTIONS";
     if (await applyMasqueradePolicy({ dependencies, path, reply, req, resolution, unsafe })) return;
