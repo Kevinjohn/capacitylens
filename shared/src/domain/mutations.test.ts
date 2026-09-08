@@ -1472,59 +1472,55 @@ const registerRemapAndValidateImportPart8 = () => {
   });
 };
 
+const deletedResourceImportFixture = (): AppData => {
+  const deleted = {
+    ...person("src-r", "src-acct"),
+    name: "Named Person",
+    archivedAt: "2026-01-02T00:00:00.000Z",
+    deletedAt: "2026-01-03T00:00:00.000Z",
+  };
+  return {
+    ...emptyAppData(),
+    clients: [client("src-c", "src-acct")],
+    projects: [project("src-p", "src-acct", "src-c")],
+    activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
+    resources: [deleted, person("active-r", "src-acct")],
+    allocations: [
+      allocation({
+        id: "deleted-al",
+        accountId: "src-acct",
+        resourceId: "src-r",
+        activityId: "src-t",
+        overrides: { note: "Private project context" },
+      }),
+      allocation({
+        id: "active-al",
+        accountId: "src-acct",
+        resourceId: "active-r",
+        activityId: "src-t",
+        overrides: { note: "Keep this context" },
+      }),
+    ],
+    timeOff: [
+      timeOff({
+        id: "deleted-to",
+        accountId: "src-acct",
+        resourceId: "src-r",
+        overrides: { note: "Private medical detail" },
+      }),
+      timeOff({
+        id: "active-to",
+        accountId: "src-acct",
+        resourceId: "active-r",
+        overrides: { note: "Keep this absence detail" },
+      }),
+    ],
+  };
+};
+
 const registerRemapAndValidateImportPart9 = () => {
   it("scrubs dependent allocation and time-off notes for an imported deleted resource", () => {
-    const deleted = {
-      ...person("src-r", "src-acct"),
-      name: "Named Person",
-      archivedAt: "2026-01-02T00:00:00.000Z",
-      deletedAt: "2026-01-03T00:00:00.000Z",
-    };
-    const handEdited: AppData = {
-      ...emptyAppData(),
-      clients: [client("src-c", "src-acct")],
-      projects: [project("src-p", "src-acct", "src-c")],
-      activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
-      resources: [deleted, person("active-r", "src-acct")],
-      allocations: [
-        allocation({
-          id: "deleted-al",
-          accountId: "src-acct",
-          resourceId: "src-r",
-          activityId: "src-t",
-          overrides: {
-            note: "Private project context",
-          },
-        }),
-        allocation({
-          id: "active-al",
-          accountId: "src-acct",
-          resourceId: "active-r",
-          activityId: "src-t",
-          overrides: {
-            note: "Keep this context",
-          },
-        }),
-      ],
-      timeOff: [
-        timeOff({
-          id: "deleted-to",
-          accountId: "src-acct",
-          resourceId: "src-r",
-          overrides: {
-            note: "Private medical detail",
-          },
-        }),
-        timeOff({
-          id: "active-to",
-          accountId: "src-acct",
-          resourceId: "active-r",
-          overrides: {
-            note: "Keep this absence detail",
-          },
-        }),
-      ],
-    };
+    const handEdited = deletedResourceImportFixture();
 
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, handEdited, TS);
 
