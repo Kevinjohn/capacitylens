@@ -345,6 +345,27 @@ interface ProjectSnapshot {
   updatedAt: string;
 }
 
+interface ClosureSnapshot {
+  accountId: string;
+  createdAt: string;
+  endDate: string;
+  id: string;
+  name: string;
+  startDate: string;
+  updatedAt: string;
+}
+
+interface TimeOffSnapshot {
+  accountId: string;
+  createdAt: string;
+  endDate: string;
+  id: string;
+  resourceId: string;
+  startDate: string;
+  type: string;
+  updatedAt: string;
+}
+
 interface ClientSnapshot {
   accountId: string;
   color: string;
@@ -361,11 +382,12 @@ interface ValidatedStateResponse {
   activities: ProjectBinding[];
   allocations: AllocationSnapshot[];
   clients: ClientSnapshot[];
+  closures: ClosureSnapshot[];
   disciplines: unknown[];
   phases: unknown[];
   projects: ProjectSnapshot[];
   resources: ResourceSnapshot[];
-  timeOff: unknown[];
+  timeOff: TimeOffSnapshot[];
 }
 
 function isUnknownRecord(value: unknown): value is Record<string, unknown> {
@@ -578,6 +600,47 @@ function readFirstProject(projects: ProjectSnapshot[]): ProjectSnapshot {
   return projectRow;
 }
 
+function readClosureSnapshots(rows: unknown[]): ClosureSnapshot[] {
+  return rows.map((row) => {
+    if (!isUnknownRecord(row)) throw new Error("Expected every closure row to be an object.");
+    requireModeledKeys(
+      row,
+      ["accountId", "createdAt", "endDate", "id", "name", "startDate", "updatedAt"],
+      "closure row",
+    );
+    return {
+      accountId: readRequiredString(row, "accountId", "closure row"),
+      createdAt: readRequiredString(row, "createdAt", "closure row"),
+      endDate: readRequiredString(row, "endDate", "closure row"),
+      id: readRequiredString(row, "id", "closure row"),
+      name: readRequiredString(row, "name", "closure row"),
+      startDate: readRequiredString(row, "startDate", "closure row"),
+      updatedAt: readRequiredString(row, "updatedAt", "closure row"),
+    };
+  });
+}
+
+function readTimeOffSnapshots(rows: unknown[]): TimeOffSnapshot[] {
+  return rows.map((row) => {
+    if (!isUnknownRecord(row)) throw new Error("Expected every time-off row to be an object.");
+    requireModeledKeys(
+      row,
+      ["accountId", "createdAt", "endDate", "id", "resourceId", "startDate", "type", "updatedAt"],
+      "time-off row",
+    );
+    return {
+      accountId: readRequiredString(row, "accountId", "time-off row"),
+      createdAt: readRequiredString(row, "createdAt", "time-off row"),
+      endDate: readRequiredString(row, "endDate", "time-off row"),
+      id: readRequiredString(row, "id", "time-off row"),
+      resourceId: readRequiredString(row, "resourceId", "time-off row"),
+      startDate: readRequiredString(row, "startDate", "time-off row"),
+      type: readRequiredString(row, "type", "time-off row"),
+      updatedAt: readRequiredString(row, "updatedAt", "time-off row"),
+    };
+  });
+}
+
 function readResourceSnapshots(rows: unknown[]): ResourceSnapshot[] {
   return readProjectBindings(rows, "resource").map((binding, index) => {
     const source = rows[index];
@@ -687,8 +750,7 @@ function readFirstProjectId(rows: ProjectBinding[]): string | undefined {
   return row.projectId;
 }
 
-async function readValidatedState(app: FastifyInstance): Promise<ValidatedStateResponse> {
-  const value: unknown = (await call(app, { method: "GET", url: "/api/state" })).json();
+function readValidatedStateValue(value: unknown): ValidatedStateResponse {
   if (!isUnknownRecord(value)) {
     throw new Error("Expected the state response to be an object.");
   }
@@ -697,12 +759,30 @@ async function readValidatedState(app: FastifyInstance): Promise<ValidatedStateR
     activities: readProjectBindings(readStateArray(value, "activities"), "activity"),
     allocations: readAllocationSnapshots(readStateArray(value, "allocations")),
     clients: readClientSnapshots(readStateArray(value, "clients")),
+    closures: readClosureSnapshots(readStateArray(value, "closures")),
     disciplines: readStateArray(value, "disciplines"),
     phases: readStateArray(value, "phases"),
     projects: readProjectSnapshots(readStateArray(value, "projects")),
     resources: readResourceSnapshots(readStateArray(value, "resources")),
-    timeOff: readStateArray(value, "timeOff"),
+    timeOff: readTimeOffSnapshots(readStateArray(value, "timeOff")),
   };
+}
+
+function readSuccessfulStateResponse(response: LightMyRequestResponse): {
+  state: ValidatedStateResponse;
+  value: unknown;
+} {
+  expect(response.statusCode).toBe(200);
+  const value: unknown = response.json();
+  return { state: readValidatedStateValue(value), value };
+}
+
+function readStateResponse(response: LightMyRequestResponse): ValidatedStateResponse {
+  return readValidatedStateValue(response.json());
+}
+
+async function readValidatedState(app: FastifyInstance): Promise<ValidatedStateResponse> {
+  return readValidatedStateValue((await call(app, { method: "GET", url: "/api/state" })).json());
 }
 
 async function readStateClients(app: FastifyInstance): Promise<ClientSnapshot[]> {
@@ -1423,7 +1503,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
       ).statusCode,
     ).toBe(200);
 
-    expect((await state(app)).closures).toEqual(
+    expect((await readValidatedState(app)).closures).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: "direct-closure", name: "Christmas shutdown" }),
         expect.objectContaining({ id: "batch-closure", name: "New Year shutdown" }),
@@ -1444,7 +1524,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     expect(
       (await batch(app, [{ method: "PUT", table: "timeOff", id: "missing-resource", row: missing }])).statusCode,
     ).toBe(400);
-    expect((await state(app)).timeOff).toEqual([]);
+    expect((await readValidatedState(app)).timeOff).toEqual([]);
   });
 
   it("rejects a lifecycle DELETE before executing any batch operation", async () => {
@@ -2187,25 +2267,25 @@ describe("import", () => {
       method: "GET",
       url: "/api/state?accountId=a1&includeInactive=1",
     });
-    expect(exported.statusCode).toBe(200);
-    expect(exported.json().timeOff).toHaveLength(1);
-    expect(exported.json().closures).toEqual([
+    const { state: exportedState, value: exportedValue } = readSuccessfulStateResponse(exported);
+    expect(exportedState.timeOff).toHaveLength(1);
+    expect(exportedState.closures).toEqual([
       expect.objectContaining({ name: "Christmas shutdown", startDate: "2026-12-24", endDate: "2026-12-27" }),
     ]);
 
     const secondImport = await call(app, {
       method: "POST",
       url: "/api/import",
-      payload: { accountId: "a2", data: { schemaVersion: EXPORT_SCHEMA_VERSION, data: exported.json() } },
+      payload: { accountId: "a2", data: { schemaVersion: EXPORT_SCHEMA_VERSION, data: exportedValue } },
     });
     expect(secondImport.statusCode).toBe(200);
     expect(secondImport.json()).toMatchObject({ imported: 3, skipped: 0 });
 
     const roundTripped = await call(app, { method: "GET", url: "/api/state?accountId=a2" });
-    expect(roundTripped.json().timeOff).toEqual([
+    expect(readStateResponse(roundTripped).timeOff).toEqual([
       expect.objectContaining({ resourceId: expect.any(String), type: "holiday" }),
     ]);
-    expect(roundTripped.json().closures).toEqual([expect.objectContaining({ name: "Christmas shutdown" })]);
+    expect(readStateResponse(roundTripped).closures).toEqual([expect.objectContaining({ name: "Christmas shutdown" })]);
   });
 
   it("imports into an account with fresh ids + remapped FKs, dropping invalid rows", async () => {
