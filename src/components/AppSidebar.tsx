@@ -34,7 +34,7 @@ import type React from "react";
 import { APP_NAME } from "@capacitylens/shared/brand";
 
 interface AppSidebarProps {
-  activeAccount: { name: string } | null;
+  activeAccount: { name: string } | undefined;
   /** Administration destinations pinned to the bottom of the nav (Team & access, Settings). */
   adminLinks: NavigationLinkDefinition[];
   demoAuthActive: boolean;
