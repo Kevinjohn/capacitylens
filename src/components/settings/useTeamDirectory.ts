@@ -110,7 +110,7 @@ async function loadDirectory(load: DirectoryLoad): Promise<void> {
     membersLoaded = await loadMembers(load);
     if (!membersLoaded) return;
     const invites = await loadInvitations(load.accountId, load.current, load.fail);
-    if (invites === null) return;
+    if (invites === null || !load.current()) return;
     load.setDirectory((previous) => (previous.accountId === load.accountId ? { ...previous, invites } : previous));
     load.onInvitesLoaded?.(invites);
   } catch (error) {
@@ -181,7 +181,7 @@ function useInviteReload(
     const current = () => inviteGeneration.current === generation && requestGeneration.current === loadGeneration;
     try {
       const invites = await loadInvitations(accountId, current, fail);
-      if (invites === null) return;
+      if (invites === null || !current()) return;
       setDirectory((previous) => (previous.accountId === accountId ? { ...previous, invites } : previous));
       onInvitesLoaded?.(invites);
     } catch (error) {
