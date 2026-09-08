@@ -105,7 +105,7 @@ describe("unarchiveEntity", () => {
   });
 });
 
-describe("softDeleteEntity", () => {
+function registerSoftDeleteGuardsAndResourceScrubTests() {
   it("throws unless the row is archived first (prior-archival rule)", () => {
     const r = s().addResource(personDraft);
     // Active, not archived → cannot delete directly.
@@ -152,7 +152,9 @@ describe("softDeleteEntity", () => {
     expect(row.name).toMatch(/^Removed person #/);
     expect(row.name).not.toContain("Ada"); // the original name is gone
   });
+}
 
+function registerDependentNoteScrubTest() {
   it("scrubs and re-stamps only dependent rows that actually carry a note", () => {
     const client = s().addClient({ name: "Acme", color: "#1" });
     const project = s().addProject({ name: "Project", clientId: client.id, color: "#2" });
@@ -201,7 +203,9 @@ describe("softDeleteEntity", () => {
     expect(timeOff(notedTimeOff.id).updatedAt).not.toBe(notedTimeOff.updatedAt);
     expect(timeOff(plainTimeOff.id).updatedAt).toBe(plainTimeOff.updatedAt);
   });
+}
 
+function registerSoftDeleteTimestampAndNameTests() {
   it("on a non-resource (client/project), the name is unchanged", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     s().archiveEntity("clients", c.id);
@@ -236,9 +240,15 @@ describe("softDeleteEntity", () => {
     expect(deletedAt >= futureArchive).toBe(true);
     expect(deleted.updatedAt >= deletedAt).toBe(true);
   });
+}
+
+describe("softDeleteEntity", () => {
+  registerSoftDeleteGuardsAndResourceScrubTests();
+  registerDependentNoteScrubTest();
+  registerSoftDeleteTimestampAndNameTests();
 });
 
-describe("purgeEntity", () => {
+function registerResourcePurgeTests() {
   it("does NOT purge a tombstone deleted < 30 days ago — fires a notice instead", () => {
     const r = s().addResource(personDraft);
     s().archiveEntity("resources", r.id);
@@ -283,7 +293,9 @@ describe("purgeEntity", () => {
     expect(s().data.resources.some((x) => x.id === r.id)).toBe(false); // row removed
     expect(s().data.allocations.some((x) => x.id === a.id)).toBe(false); // child allocation cascaded out
   });
+}
 
+function registerClientPurgeTest() {
   it("cascades a purged client through its projects/activities/allocations", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
@@ -314,6 +326,11 @@ describe("purgeEntity", () => {
     expect(d.allocations).toHaveLength(0);
     expect(d.resources).toHaveLength(1); // resources are not cascaded by a client purge
   });
+}
+
+describe("purgeEntity", () => {
+  registerResourcePurgeTests();
+  registerClientPurgeTest();
 });
 
 describe("built-in Internal client is protected from every lifecycle action", () => {
