@@ -4,8 +4,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { openDb } from "./db";
+import { openDb, type Db } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
+import type { Auth } from "./authConfig/authTypes";
 import { getAccountCommand, getAccountCommandByIdForReconciliation, reserveAccountCommand } from "./accounts/state";
 
 const serverDirectory = dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
@@ -18,7 +19,20 @@ afterEach(() => {
   }
 });
 
-function runCrash(boundary: "after-user" | "after-correlation-commit"): string {
+function createPasswordAuth(db: Db): Auth {
+  const configured = createAuthFromEnvironment(db, {
+    NODE_ENV: "test",
+    CAPACITYLENS_AUTH: "password",
+    BETTER_AUTH_SECRET: "correlation-test-secret-0123456789abcdef",
+    BETTER_AUTH_URL: "http://localhost:8787",
+    CAPACITYLENS_PASSWORD_BREACH_CHECK: "off",
+  });
+  const auth = configured.auth;
+  if (!auth) throw new Error("Expected password authentication to be configured.");
+  return auth;
+}
+
+function createCrashDatabase(boundary: "after-user" | "after-correlation-commit"): string {
   const directory = mkdtempSync(join(tmpdir(), `capacitylens-credential-${boundary}-`));
   temporaryDirectories.push(directory);
   const dbPath = join(directory, "capacitylens.db");
@@ -32,20 +46,30 @@ function runCrash(boundary: "after-user" | "after-correlation-commit"): string {
   return dbPath;
 }
 
+function readQuickCheck(db: Db): string {
+  const row = db.prepare(`PRAGMA quick_check`).get();
+  if (!row || typeof row.quick_check !== "string") throw new Error("Expected SQLite quick_check output.");
+  return row.quick_check;
+}
+
+function readPrincipalIds(db: Db): string[] {
+  return db
+    .prepare(`SELECT id FROM user`)
+    .all()
+    .map((row) => {
+      if (typeof row.id !== "string") throw new Error("Expected a credential principal id.");
+      return row.id;
+    });
+}
+
 // Two of these cases spawn a full tsx child process with a 30 s budget of its own; the per-test
-// budget must cover that spawn, not vitest's 5 s default, which the shared CI runner already
-// brushes against on a slow run.
+// budget must cover that spawn, not vitest's 5 s limit, which the shared CI runner already brushes
+// against on a slow run.
 describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
   it("rolls back both credential rows when command correlation fails", async () => {
     const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, {
-      NODE_ENV: "test",
-      CAPACITYLENS_AUTH: "password",
-      BETTER_AUTH_SECRET: "correlation-test-secret-0123456789abcdef",
-      BETTER_AUTH_URL: "http://localhost:8787",
-      CAPACITYLENS_PASSWORD_BREACH_CHECK: "off",
-    });
-    await runAuthMigrations(configured.auth!);
+    const auth = createPasswordAuth(db);
+    await runAuthMigrations(auth);
     reserveAccountCommand(db, {
       applicationId: "correlation-test",
       operation: "invite-password-signup",
@@ -57,7 +81,7 @@ describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
     });
 
     await expect(
-      configured.auth!.createCredentialUser({
+      auth.createCredentialUser({
         email: "correlation@example.com",
         name: "Correlation Failure",
         password: "a-valid-correlation-test-password",
@@ -81,16 +105,16 @@ describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
   });
 
   it("rolls back a user when the process exits before its credential link is inserted", () => {
-    const db = openDb(runCrash("after-user"));
+    const db = openDb(createCrashDatabase("after-user"));
     expect(db.prepare(`SELECT id FROM user`).all()).toEqual([]);
     expect(db.prepare(`SELECT id FROM account`).all()).toEqual([]);
-    expect((db.prepare(`PRAGMA quick_check`).get() as { quick_check: string }).quick_check).toBe("ok");
+    expect(readQuickCheck(db)).toBe("ok");
     db.close();
   });
 
   it("recovers the exact principal coordinate when the process exits after identity commit", () => {
-    const db = openDb(runCrash("after-correlation-commit"));
-    const users = db.prepare(`SELECT id FROM user`).all() as Array<{ id: string }>;
+    const db = openDb(createCrashDatabase("after-correlation-commit"));
+    const users = readPrincipalIds(db);
     expect(users).toHaveLength(1);
     const user = users[0];
     if (!user) throw new Error("Expected one recovered credential principal.");
@@ -109,7 +133,7 @@ describe("credential onboarding crash durability", { timeout: 60_000 }, () => {
       workspaceId: "workspace-1",
       targetPrincipalId: user.id,
     });
-    expect((db.prepare(`PRAGMA quick_check`).get() as { quick_check: string }).quick_check).toBe("ok");
+    expect(readQuickCheck(db)).toBe("ok");
     db.close();
   });
 });
