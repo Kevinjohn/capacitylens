@@ -43,7 +43,9 @@ describe("apiFetchReauth", () => {
     expect(isReauthPending()).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(outcome ? 4 : 2);
   });
+});
 
+describe("apiFetchReauth passthrough", () => {
   it("passes an ordinary 200 straight through and never raises a step-up", async () => {
     const fetchMock = vi.fn(async () => json(200, { ok: true }));
     vi.stubGlobal("fetch", fetchMock);
@@ -87,7 +89,9 @@ describe("apiFetchReauth", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(isReauthPending()).toBe(false);
   });
+});
 
+describe("apiFetchReauth retry outcomes", () => {
   it("distinguishes a retry that is still not fresh without opening a second prompt", async () => {
     const fetchMock = vi.fn(async () => json(403, { error: "Sign in again first.", code: "SESSION_NOT_FRESH" }));
     vi.stubGlobal("fetch", fetchMock);
@@ -98,15 +102,17 @@ describe("apiFetchReauth", () => {
 
     const res = await pending;
     expect(res.status).toBe(403);
-    await expect(res.json()).resolves.toMatchObject({
+    expect((await res.json()) as unknown).toMatchObject({
       code: "SESSION_NOT_FRESH",
       reauthenticationAttempted: true,
-      error: expect.stringMatching(/did not refresh your session/i),
+      error: expect.stringMatching(/did not refresh your session/i) as unknown as string,
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(isReauthPending()).toBe(false);
   });
+});
 
+describe("apiFetchReauth replay behavior", () => {
   it("also retries a freshness-gated privileged directory GET", async () => {
     const fetchMock = vi
       .fn()
@@ -164,7 +170,9 @@ describe("apiFetchReauth", () => {
     expect(bodies).toEqual(["payload", "payload"]);
     expect(request.bodyUsed).toBe(false);
   });
+});
 
+describe("apiFetchReauth request guards", () => {
   it("rejects a one-shot RequestInit stream before dispatch", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
