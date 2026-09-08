@@ -282,11 +282,6 @@
       "count": 1
     }
   },
-  "server/src/accounts/identityPort/federatedLinks.ts": {
-    "max-lines-per-function": {
-      "count": 4
-    }
-  },
   "server/src/accounts/identityPort/inspection.ts": {
     "max-lines-per-function": {
       "count": 2
