@@ -2407,14 +2407,6 @@
       "count": 1
     }
   },
-  "src/store/useStore.tenancy.test.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 4
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/store/useStore.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
