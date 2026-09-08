@@ -27,7 +27,7 @@ import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
 import { formatSsoCutoverRefusal, ssoCutoverReadiness } from "./accounts/ssoCutover";
 
 import { refuseToStart, tryOrRefuse, closeDbSafely, parsePort } from "./boot/refusals";
-import { createServerRuntime } from "./boot/serverRuntime";
+import { startServerRuntime } from "./boot/serverRuntime";
 
 export { parseAuditMaxMb } from "./boot/refusals";
 
@@ -239,7 +239,7 @@ const securityLog = (event: Record<string, unknown>) => {
 
 // Frame the complete post-migration boot phase. These steps are all fatal preconditions, but raw
 // top-level stacks are poor operator diagnostics and bypass the entrypoint's refusal convention.
-createServerRuntime({
+startServerRuntime({
   application: ACCOUNT_APPLICATION,
   applicationOptions: {
     ...(internalTls

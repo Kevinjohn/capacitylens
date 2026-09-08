@@ -19,10 +19,30 @@ import { closeDbSafely, parseAuditMaxMb, refuseToStart } from "./refusals";
 
 type BackupController = ReturnType<typeof startBackups>;
 type SecurityLog = (event: Record<string, unknown>) => void;
+type ServerApplicationOptions = Pick<
+  AppOptions,
+  | "allowOpenSignup"
+  | "allowReset"
+  | "auth"
+  | "authMode"
+  | "bootstrapToken"
+  | "corsOrigin"
+  | "healthDeep"
+  | "https"
+  | "internalTls"
+  | "internalTlsExpiresAt"
+  | "internalTlsFingerprintSha256"
+  | "log"
+  | "multiAccount"
+  | "optimisticConcurrency"
+  | "rateLimit"
+  | "requireMfa"
+  | "trustProxyHeaders"
+>;
 
-export interface ServerRuntimeInput {
+interface ServerRuntimeInput {
   application: BoundApplication;
-  applicationOptions: Omit<AppOptions, "application" | "audit" | "backupHealth" | "securityLog">;
+  applicationOptions: ServerApplicationOptions;
   backupConfig: BackupConfig | null;
   db: Db;
   dbPath: string;
@@ -137,8 +157,8 @@ function createRuntimeShutdown(
   return shutdown;
 }
 
-/** Creates the post-migration server runtime and starts accepting requests. */
-export function createServerRuntime(input: ServerRuntimeInput): void {
+/** Starts the post-migration server runtime and begins accepting requests. */
+export function startServerRuntime(input: ServerRuntimeInput): void {
   const { app, backups } = createServerApplication(input);
   const shutdown = createRuntimeShutdown(input, app, backups);
   app
