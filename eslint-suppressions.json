@@ -1211,11 +1211,6 @@
       "count": 1
     }
   },
-  "src/components/AppShell.test.tsx": {
-    "max-lines-per-function": {
-      "count": 4
-    }
-  },
   "src/components/AppShell.tsx": {
     "complexity": {
       "count": 1
