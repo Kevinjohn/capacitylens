@@ -114,10 +114,12 @@ describe("ImportExport – Import", () => {
 
     expect(text).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Replace data" })).not.toBeInTheDocument();
-    expect(useStore.getState().notice).toMatchObject({
-      tone: "error",
-      message: /5\s*MB/i,
+    const noticeMatcher = { tone: "error" as const };
+    Object.defineProperty(noticeMatcher, "message", {
+      value: expect.stringMatching(/5\s*MB/i),
+      enumerable: true,
     });
+    expect(useStore.getState().notice).toMatchObject(noticeMatcher);
   });
 });
 
@@ -805,16 +807,13 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
 describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
   beforeEach(setupServerMode);
   it("locks the UI while the import is in flight: blocking dialog + dirtyForm + disabled affordances", async () => {
-    let resolveFetch = (_r: Response): void => {
-      void _r;
-      throw new Error("Expected the import request to be pending");
-    };
+    const pendingFetch: { resolve?: (response: Response) => void } = {};
     vi.stubGlobal(
       "fetch",
       vi.fn(
         () =>
           new Promise<Response>((resolve) => {
-            resolveFetch = resolve;
+            pendingFetch.resolve = resolve;
           }),
       ),
     );
@@ -832,6 +831,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.getByTestId("import-busy")).toBeInTheDocument();
 
+    const resolveFetch = pendingFetch.resolve;
+    if (resolveFetch === undefined) {
+      throw new Error("Expected the import request to be pending");
+    }
     resolveFetch(
       new Response(JSON.stringify({ imported: 1, skipped: 0 }), {
         status: 200,
