@@ -2214,7 +2214,7 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
   });
 });
 
-describe("boot refusal (AuthConfigError)", () => {
+function registerAuthModeRefusalTests(): void {
   it("rejects an unknown CAPACITYLENS_AUTH value; blank/unset means off", () => {
     expect(() => parseAuthMode("on")).toThrow(AuthConfigError);
     expect(parseAuthMode(undefined)).toBe("off");
@@ -2254,7 +2254,9 @@ describe("boot refusal (AuthConfigError)", () => {
     expect((thrown as Error).message).toContain(String(MIN_BETTER_AUTH_SECRET_LENGTH));
     expect((thrown as Error).message).not.toContain(tooShort);
   });
+}
 
+function registerPasswordConfigurationTests(): void {
   it("password mode with an exactly-32-char secret passes the length gate", () => {
     const db = openDb(":memory:");
     // PASSWORD_ENV has a valid URL; a 32-char secret must NOT trip the length check.
@@ -2287,7 +2289,9 @@ describe("boot refusal (AuthConfigError)", () => {
       }),
     ).toThrow(AuthConfigError);
   });
+}
 
+function registerOidcEndpointRefusalTests(): void {
   it("rejects explicit authorization or token endpoint overrides for strict OIDC", () => {
     expect(() =>
       createAuthFromEnvironment(openDb(":memory:"), {
@@ -2328,7 +2332,9 @@ describe("boot refusal (AuthConfigError)", () => {
       }),
     ).not.toThrow();
   });
+}
 
+function registerOidcProviderIdTests(): void {
   it("restricts provider ids to route-safe lowercase identifiers", () => {
     for (const providerId of ["UPPER", "../callback", "sso space", "-sso"]) {
       expect(() =>
@@ -2370,4 +2376,11 @@ describe("boot refusal (AuthConfigError)", () => {
   it("buildApp refuses authMode ≠ off without an auth instance", () => {
     expect(() => createApp(openDb(":memory:"), { authMode: "password" })).toThrow(/requires a Better Auth instance/);
   });
+}
+
+describe("boot refusal (AuthConfigError)", () => {
+  registerAuthModeRefusalTests();
+  registerPasswordConfigurationTests();
+  registerOidcEndpointRefusalTests();
+  registerOidcProviderIdTests();
 });
