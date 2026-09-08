@@ -388,6 +388,13 @@ interface AccountSnapshot {
   workingDays?: number[];
 }
 
+interface ImportSummary {
+  auditWarning: boolean;
+  imported: number;
+  maxRecords: number;
+  skipped: number;
+}
+
 interface ClientSnapshot {
   accountId: string;
   color: string;
@@ -764,6 +771,13 @@ function readTimeOffSnapshots(rows: unknown[]): TimeOffSnapshot[] {
   });
 }
 
+function readOnlyTimeOff(rows: TimeOffSnapshot[]): TimeOffSnapshot {
+  if (rows.length !== 1) throw new Error("Expected the state response to contain exactly one time-off row.");
+  const row = rows[0];
+  if (!row) throw new Error("Expected the state response to contain a time-off row.");
+  return row;
+}
+
 function readResourceSnapshots(rows: unknown[]): ResourceSnapshot[] {
   return readProjectBindings(rows, "resource").map((binding, index) => {
     const source = rows[index];
@@ -902,6 +916,20 @@ function readSuccessfulStateResponse(response: LightMyRequestResponse): {
 
 function readStateResponse(response: LightMyRequestResponse): ValidatedStateResponse {
   return readValidatedStateValue(response.json());
+}
+
+function readImportSummary(response: LightMyRequestResponse): ImportSummary {
+  const value: unknown = response.json();
+  if (!isUnknownRecord(value)) throw new Error("Expected the import response to be an object.");
+  requireModeledKeys(value, ["auditWarning", "imported", "maxRecords", "skipped"], "import response");
+  const auditWarning = value.auditWarning;
+  if (typeof auditWarning !== "boolean") throw new Error("Expected import response auditWarning to be boolean.");
+  return {
+    auditWarning,
+    imported: readRequiredNumber(value, "imported", "import response"),
+    maxRecords: readRequiredNumber(value, "maxRecords", "import response"),
+    skipped: readRequiredNumber(value, "skipped", "import response"),
+  };
 }
 
 async function readValidatedState(app: FastifyInstance): Promise<ValidatedStateResponse> {
@@ -2409,9 +2437,9 @@ describe("import", () => {
     expect(secondImport.json()).toMatchObject({ imported: 3, skipped: 0 });
 
     const roundTripped = await call(app, { method: "GET", url: "/api/state?accountId=a2" });
-    expect(readStateResponse(roundTripped).timeOff).toEqual([
-      expect.objectContaining({ resourceId: expect.any(String), type: "holiday" }),
-    ]);
+    const roundTrippedTimeOff = readOnlyTimeOff(readStateResponse(roundTripped).timeOff);
+    expect(typeof roundTrippedTimeOff.resourceId).toBe("string");
+    expect(roundTrippedTimeOff.type).toBe("holiday");
     expect(readStateResponse(roundTripped).closures).toEqual([expect.objectContaining({ name: "Christmas shutdown" })]);
   });
 
@@ -2424,14 +2452,14 @@ describe("import", () => {
       payload: { accountId: "a1", data: exportFile("whatever") },
     });
     expect(res.statusCode).toBe(200);
-    const out = res.json();
+    const out = readImportSummary(res);
     expect(out.imported).toBe(5); // client, project, resource, activity, 1 valid allocation
     expect(out.skipped).toBe(1); // the dangling allocation
-    const s = await state(app);
-    const proj = s.projects[0];
+    const s = await readValidatedState(app);
+    const proj = readFirstProject(s.projects);
     expect(proj.id).not.toBe("src-p");
     expect(proj.accountId).toBe("a1");
-    expect(s.activities[0].projectId).toBe(proj.id); // FK rewired to the new project id
+    expect(readFirstProjectId(s.activities)).toBe(proj.id); // FK rewired to the new project id
     expect(s.allocations).toHaveLength(1);
   });
 
