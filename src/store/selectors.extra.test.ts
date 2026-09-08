@@ -52,7 +52,7 @@ const data: AppData = {
   ],
 };
 
-function requireValue<T>(value: T | undefined, label: string): T {
+function assertDefined<T>(value: T | undefined, label: string): T {
   if (value === undefined) {
     throw new Error(`Expected ${label} to exist`);
   }
@@ -61,10 +61,10 @@ function requireValue<T>(value: T | undefined, label: string): T {
 
 describe("lookup + relation selectors", () => {
   it("by-id selectors find entities (and return undefined for misses)", () => {
-    const client = requireValue(clientById(data, "c1"), "client c1");
-    const project = requireValue(projectById(data, "p1"), "project p1");
-    const activity = requireValue(activityById(data, "t1"), "activity t1");
-    const resource = requireValue(resourceById(data, "r1"), "resource r1");
+    const client = assertDefined(clientById(data, "c1"), "client c1");
+    const project = assertDefined(projectById(data, "p1"), "project p1");
+    const activity = assertDefined(activityById(data, "t1"), "activity t1");
+    const resource = assertDefined(resourceById(data, "r1"), "resource r1");
 
     expect(client.name).toBe("Acme");
     expect(project.name).toBe("P1");
