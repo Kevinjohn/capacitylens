@@ -211,19 +211,6 @@
       "count": 1
     }
   },
-  "shared/src/account/validation.test.ts": {
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
-  "shared/src/account/validation.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 1
-    }
-  },
   "shared/src/data/seed/activities.ts": {
     "max-lines-per-function": {
       "count": 1
@@ -269,11 +256,6 @@
       "count": 1
     }
   },
-  "shared/src/lib/dateMath.test.ts": {
-    "max-lines-per-function": {
-      "count": 4
-    }
-  },
   "shared/src/lib/dateMath.ts": {
     "max-params": {
       "count": 1
@@ -296,14 +278,6 @@
   },
   "shared/src/lib/sanitize/coerce.ts": {
     "@typescript-eslint/no-unsafe-argument": {
-      "count": 1
-    }
-  },
-  "shared/src/lib/sanitizeImport.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
       "count": 1
     }
   },

@@ -95,7 +95,9 @@ describe("boundApplicationFailure", () => {
     expect(() => boundApplicationFailure(application)).not.toThrow();
     expect(boundApplicationFailure(application)).toBe("The account application binding could not be validated.");
   });
+});
 
+describe("boundApplicationFailure branding characters and boundaries", () => {
   it.each(["\n", "\0", "\u202e", "\u200b", "\ud800", "\ue000"])(
     "rejects disallowed branding character %j in every single-line field",
     (character) => {
@@ -147,7 +149,9 @@ describe("boundApplicationFailure", () => {
       }),
     ).toBeNull();
   });
+});
 
+describe("boundApplicationFailure Unicode names", () => {
   it("counts astral CJK branding and credential names as Unicode code points", () => {
     const astralLetter = "𠀀";
     expect(astralLetter).toHaveLength(2);
@@ -177,7 +181,9 @@ describe("boundApplicationFailure", () => {
       }),
     ).toBe("display-name");
   });
+});
 
+describe("boundApplicationFailure upper bounds", () => {
   it.each([
     [{ ...validApplication, displayName: "a".repeat(MAX_NAME_LENGTH + 1) }, "display name"],
     [
@@ -223,7 +229,9 @@ describe("boundApplicationFailure", () => {
   ])("rejects an application binding beyond a branding bound %#", (application, message) => {
     expect(boundApplicationFailure(application)).toContain(message);
   });
+});
 
+describe("boundApplicationFailure invalid values", () => {
   it.each([
     [{ ...validApplication, applicationId: "../other" }, "application id"],
     [{ ...validApplication, applicationId: "a".repeat(65) }, "application id"],
@@ -314,7 +322,9 @@ describe("identity input validation", () => {
   ] as const)("classifies credential input %#", (input, expected) => {
     expect(validateCredentialInput(input)).toBe(expected);
   });
+});
 
+describe("identity input validation boundaries", () => {
   it.each([
     "invite\0@example.com",
     "invite\u202e@example.com",
