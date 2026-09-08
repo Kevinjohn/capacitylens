@@ -106,7 +106,8 @@ describe("synchronous transaction boundary", () => {
         () => {
           throw original;
         },
-        { reportRollbackFailure: report },
+        "deferred",
+        report,
       ),
     ).toThrow(original);
     expect(report).toHaveBeenCalledWith({ scope: "transaction", error: rollback });

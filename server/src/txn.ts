@@ -56,13 +56,23 @@ function assertSynchronousResult(result: unknown): void {
   }
 }
 
-function resolveTransactionOptions(options?: TransactionMode | TransactionOptions): Required<TransactionOptions> {
-  if (typeof options === "string") {
-    return { mode: options, reportRollbackFailure: defaultRollbackFailureReporter };
+type TransactionConfiguration =
+  | []
+  | [mode: TransactionMode]
+  | [mode: TransactionMode, reportRollbackFailure: RollbackFailureReporter]
+  | [options: TransactionOptions];
+
+function resolveTransactionOptions(configuration: TransactionConfiguration): Required<TransactionOptions> {
+  const [modeOrOptions, positionalReporter] = configuration;
+  if (typeof modeOrOptions === "string") {
+    return {
+      mode: modeOrOptions,
+      reportRollbackFailure: positionalReporter ?? defaultRollbackFailureReporter,
+    };
   }
   return {
-    mode: options?.mode ?? "deferred",
-    reportRollbackFailure: options?.reportRollbackFailure ?? defaultRollbackFailureReporter,
+    mode: modeOrOptions?.mode ?? "deferred",
+    reportRollbackFailure: modeOrOptions?.reportRollbackFailure ?? defaultRollbackFailureReporter,
   };
 }
 
@@ -132,14 +142,14 @@ function runTopLevelTransaction<Result>(db: Db, callback: () => Result, options:
 export function tx<Result>(
   db: Db,
   callback: (() => Result) & ([Extract<Result, PromiseLike<unknown>>] extends [never] ? unknown : never),
-  options?: TransactionMode | TransactionOptions,
+  ...configuration: TransactionConfiguration
 ): Result {
   if (poisonedHandles.has(db)) {
     throw new Error(
       "This database handle is quarantined: an earlier ROLLBACK failed while the transaction stayed active, so no further writes can be acknowledged on it.",
     );
   }
-  const resolvedOptions = resolveTransactionOptions(options);
+  const resolvedOptions = resolveTransactionOptions(configuration);
   return db.isTransaction
     ? runNestedTransaction(db, callback, resolvedOptions)
     : runTopLevelTransaction(db, callback, resolvedOptions);
