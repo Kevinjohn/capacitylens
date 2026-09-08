@@ -621,15 +621,7 @@ describe("assertScopedRefs", () => {
   registerAssertScopedRefsPart9();
 });
 
-const registerAssertAllocationRefsPart1 = () => {
-  const world = (): AppData => ({
-    ...base(),
-    clients: [client("c1", A1)],
-    projects: [project("p1", A1, "c1")],
-    activities: [activity({ id: "t1", accountId: A1, projectId: "p1" })],
-    resources: [person("r1", A1)],
-  });
-
+const registerAssertAllocationRefsPart1 = (world: () => AppData) => {
   it("passes for a real resource + activity in the account", () => {
     expect(() => assertAllocationRefs(world(), A1, "r1", "t1", 8)).not.toThrow();
   });
@@ -641,7 +633,7 @@ const registerAssertAllocationRefsPart1 = () => {
   });
 };
 
-const registerAssertAllocationRefsPart2 = () => {
+const registerAssertAllocationRefsPart2 = (world: () => AppData) => {
   it("rejects new allocations to archived resources and archived projects", () => {
     const archivedResource: AppData = {
       ...world(),
@@ -681,7 +673,7 @@ const registerAssertAllocationRefsPart2 = () => {
   });
 };
 
-const registerAssertAllocationRefsPart3 = () => {
+const registerAssertAllocationRefsPart3 = (world: () => AppData) => {
   it("rejects a project-bound activity whose project is missing or belongs to another account", () => {
     const missingProject = { ...world(), projects: [] };
     expect(() => assertAllocationRefs(missingProject, A1, "r1", "t1", 8)).toThrow(
@@ -729,7 +721,7 @@ const registerAssertAllocationRefsPart3 = () => {
   });
 };
 
-const registerAssertAllocationRefsPart4 = () => {
+const registerAssertAllocationRefsPart4 = (world: () => AppData) => {
   it("throws when a placeholder is assigned outside its bound project", () => {
     const data: AppData = {
       ...base(),
@@ -758,7 +750,7 @@ const registerAssertAllocationRefsPart4 = () => {
   });
 };
 
-const registerAssertAllocationRefsPart5 = () => {
+const registerAssertAllocationRefsPart5 = (world: () => AppData) => {
   it("enforces repeatable-only attribution, project ownership/liveness and placeholder scope", () => {
     const repeatable: Activity = {
       ...activity({ id: "repeatable", accountId: A1, projectId: "p1" }),
@@ -809,11 +801,18 @@ const registerAssertAllocationRefsPart5 = () => {
 };
 
 describe("assertAllocationRefs", () => {
-  registerAssertAllocationRefsPart1();
-  registerAssertAllocationRefsPart2();
-  registerAssertAllocationRefsPart3();
-  registerAssertAllocationRefsPart4();
-  registerAssertAllocationRefsPart5();
+  const world = (): AppData => ({
+    ...base(),
+    clients: [client("c1", A1)],
+    projects: [project("p1", A1, "c1")],
+    activities: [activity({ id: "t1", accountId: A1, projectId: "p1" })],
+    resources: [person("r1", A1)],
+  });
+  registerAssertAllocationRefsPart1(world);
+  registerAssertAllocationRefsPart2(world);
+  registerAssertAllocationRefsPart3(world);
+  registerAssertAllocationRefsPart4(world);
+  registerAssertAllocationRefsPart5(world);
 });
 
 describe("assertDateRange", () => {
@@ -969,10 +968,7 @@ describe("assertResourceKindAllowsDependents", () => {
   registerAssertResourceKindAllowsDependentsPart2();
 });
 
-const registerParentProjectEditsPart1 = () => {
-  const rejectResource = /reassign or remove this placeholder’s work before changing its bound project/i;
-  const rejectActivity = /reassign placeholder work before changing this activity’s project/i;
-
+const registerParentProjectEditsPart1 = (rejectResource: RegExp) => {
   it("rejects rebinding a placeholder while it owns work under its previous project", () => {
     const existing = placeholder("ph", A1, "p1");
     const data: AppData = {
@@ -1004,7 +1000,7 @@ const registerParentProjectEditsPart1 = () => {
   });
 };
 
-const registerParentProjectEditsPart2 = () => {
+const registerParentProjectEditsPart2 = (rejectResource: RegExp, rejectActivity: RegExp) => {
   it("rejects rebinding a placeholder with repeatable work attributed to its bound project", () => {
     const existing = placeholder("ph", A1, "p1");
     const repeatable: Activity = { ...meta("shared", A1), name: "Shared", kind: "repeatable" };
@@ -1052,7 +1048,7 @@ const registerParentProjectEditsPart2 = () => {
   });
 };
 
-const registerParentProjectEditsPart3 = () => {
+const registerParentProjectEditsPart3 = (rejectResource: RegExp, rejectActivity: RegExp) => {
   it("rejects converting a person with all-projects work into a bound placeholder", () => {
     const existing = person("r1", A1);
     const data: AppData = {
@@ -1144,9 +1140,11 @@ const registerParentProjectEditsPart5 = () => {
 };
 
 describe("parent project edits preserve placeholder allocation assignments", () => {
-  registerParentProjectEditsPart1();
-  registerParentProjectEditsPart2();
-  registerParentProjectEditsPart3();
+  const rejectResource = /reassign or remove this placeholder’s work before changing its bound project/i;
+  const rejectActivity = /reassign placeholder work before changing this activity’s project/i;
+  registerParentProjectEditsPart1(rejectResource);
+  registerParentProjectEditsPart2(rejectResource, rejectActivity);
+  registerParentProjectEditsPart3(rejectResource, rejectActivity);
   registerParentProjectEditsPart4();
   registerParentProjectEditsPart5();
 });
@@ -1173,14 +1171,7 @@ describe("deleteAccountCascade", () => {
   });
 });
 
-const registerRemapAndValidateImportPart1 = () => {
-  const incoming = (): AppData => ({
-    ...emptyAppData(),
-    clients: [client("src-c", "src-acct")],
-    projects: [project("src-p", "src-acct", "src-c")],
-    activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
-  });
-
+const registerRemapAndValidateImportPart1 = (incoming: () => AppData) => {
   it("imports into the active account with FRESH ids and remapped foreign keys", () => {
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, incoming(), TS);
     expect(imported).toBe(3);
@@ -1252,7 +1243,7 @@ const registerRemapAndValidateImportPart2 = () => {
   });
 };
 
-const registerRemapAndValidateImportPart3 = () => {
+const registerRemapAndValidateImportPart3 = (incoming: () => AppData) => {
   it("replaces only the active account slice; other accounts are untouched", () => {
     const start: AppData = { ...base(), clients: [client("keep", A2)] };
     const { data } = remapAndValidateImport(start, A1, incoming(), TS);
@@ -2005,9 +1996,15 @@ const registerRemapAndValidateImportPart21 = () => {
 };
 
 describe("remapAndValidateImport", () => {
-  registerRemapAndValidateImportPart1();
+  const incoming = (): AppData => ({
+    ...emptyAppData(),
+    clients: [client("src-c", "src-acct")],
+    projects: [project("src-p", "src-acct", "src-c")],
+    activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
+  });
+  registerRemapAndValidateImportPart1(incoming);
   registerRemapAndValidateImportPart2();
-  registerRemapAndValidateImportPart3();
+  registerRemapAndValidateImportPart3(incoming);
   registerRemapAndValidateImportPart4();
   registerRemapAndValidateImportPart5();
   registerRemapAndValidateImportPart6();
