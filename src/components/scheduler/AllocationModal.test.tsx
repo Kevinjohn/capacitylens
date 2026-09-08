@@ -98,7 +98,7 @@ beforeEach(() => {
   setPlaceholdersEnabled(true);
 });
 
-describe("AllocationModal create", () => {
+function registerCreatePickerTests() {
   it("orders project scopes and activities, and exposes status as a labelled radiogroup", async () => {
     useStore.getState().addClient({ name: "Zeta", color: "#123456" });
     const zetaClient = required(
@@ -154,7 +154,9 @@ describe("AllocationModal create", () => {
     expect(within(status).getByRole("radio", { name: "Tentative" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByLabelText("Note").tagName).toBe("INPUT");
   });
+}
 
+function registerCreateDefaultsAndLabelsTests() {
   it("defaults hourly load to four hours when creation starts on a half day", () => {
     const resource = useStore
       .getState()
@@ -192,7 +194,9 @@ describe("AllocationModal create", () => {
     expect(screen.getByRole("option", { name: "Wireframes / Lightning (1)" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Wireframes / Lightning (2)" })).toBeInTheDocument();
   });
+}
 
+function registerCreateSavingTests() {
   it("creates an allocation for a person after picking project + activity", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = first(useStore.getState().data.resources).id;
@@ -221,7 +225,9 @@ describe("AllocationModal create", () => {
     });
     expect(allocs[0]).not.toHaveProperty("projectId");
   });
+}
 
+function registerCreateAttributionTests() {
   it.each([
     ["Internal", "Operations", undefined],
     ["No specific project", "Planning", undefined],
@@ -252,7 +258,9 @@ describe("AllocationModal create", () => {
     if (expectedProjectId) expect(allocation).toHaveProperty("projectId", expectedProjectId);
     else expect(allocation).not.toHaveProperty("projectId");
   });
+}
 
+function registerCreateHoursAndValidationTests() {
   it.each([
     ["1 h", 1],
     ["2 h - quarter day", 2],
@@ -304,7 +312,9 @@ describe("AllocationModal create", () => {
     expect(screen.getByLabelText("Start Date")).toHaveFocus();
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerBoundPlaceholderCreateTests() {
   it("books an All-projects activity for a bound placeholder under its locked project", async () => {
     const planning = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
     const ph = useStore.getState().addResource({
@@ -358,7 +368,9 @@ describe("AllocationModal create", () => {
       projectId: "p1",
     });
   });
+}
 
+function registerUnboundPlaceholderCreateTests() {
   it("cannot attribute an All-projects activity for an unbound placeholder", async () => {
     useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
     const placeholder = useStore.getState().addResource({
@@ -394,6 +406,16 @@ describe("AllocationModal create", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("This placeholder is not bound to a project yet.");
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
+
+describe("AllocationModal create", () => {
+  registerCreatePickerTests();
+  registerCreateDefaultsAndLabelsTests();
+  registerCreateSavingTests();
+  registerCreateAttributionTests();
+  registerCreateHoursAndValidationTests();
+  registerBoundPlaceholderCreateTests();
+  registerUnboundPlaceholderCreateTests();
 });
 
 const person = (name: string) => makeResourceDraft({ name, role: "Dev", color: "#111" });
