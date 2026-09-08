@@ -233,14 +233,6 @@
       "count": 1
     }
   },
-  "server/src/accounts/adminPort/invitationClaims.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "server/src/accounts/adminPort/invitations.ts": {
     "max-lines-per-function": {
       "count": 2
