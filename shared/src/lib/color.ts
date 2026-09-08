@@ -144,6 +144,29 @@ export function resolveProjectColor(
   return internalColourMode === "grey" && client?.builtin === true ? NEUTRAL_COLOR : project.color;
 }
 
+interface BarAttribution {
+  activity: Activity | undefined;
+  project: Project | undefined;
+  client: Client | undefined;
+}
+
+function resolveBarAttribution(allocation: Allocation, maps: BarColorMaps): BarAttribution {
+  const activity = maps.activities.get(allocation.activityId);
+  const projectId = effectiveProjectId(allocation, activity ?? {});
+  const project = projectId ? maps.projects.get(projectId) : undefined;
+  return {
+    activity,
+    project,
+    client: project ? maps.clients.get(project.clientId) : undefined,
+  };
+}
+
+function hasNeutralBarColor(attribution: BarAttribution, internalColourMode: InternalColourMode): boolean {
+  return (
+    internalColourMode === "grey" && (attribution.activity?.kind === "internal" || attribution.client?.builtin === true)
+  );
+}
+
 /** Resolve an allocation bar colour. External work is always grey. In the default Internal-grey
  * mode, `internal` activities and allocations whose effective project is Internal-owned are also
  * grey; otherwise bars use project → client → resource → neutral fallback order. */
@@ -153,15 +176,11 @@ export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): str
   // overriding the usual project→client colouring so an outsourced bar never looks like one of
   // our own. See DECISIONS.md "external kind": single neutral colour.
   if (resource && isExternalResource(resource)) return NEUTRAL_COLOR;
-  const activity = maps.activities.get(allocation.activityId);
-  const projectId = effectiveProjectId(allocation, activity ?? {});
-  const project = projectId ? maps.projects.get(projectId) : undefined;
-  const client = project ? maps.clients.get(project.clientId) : undefined;
+  const attribution = resolveBarAttribution(allocation, maps);
   const internalColourMode = maps.internalColourMode ?? "grey";
-  if (internalColourMode === "grey" && (activity?.kind === "internal" || client?.builtin === true))
-    return NEUTRAL_COLOR;
-  if (project?.color) return project.color;
-  if (client?.color) return client.color;
+  if (hasNeutralBarColor(attribution, internalColourMode)) return NEUTRAL_COLOR;
+  if (attribution.project?.color) return attribution.project.color;
+  if (attribution.client?.color) return attribution.client.color;
 
   return resource?.color ?? NEUTRAL_COLOR;
 }

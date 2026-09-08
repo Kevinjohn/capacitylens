@@ -19,11 +19,3 @@ export const byAccount =
   (accountId: ID) =>
   (scopedEntity: ScopedEntity): boolean =>
     belongsToAccount(scopedEntity, accountId);
-
-/** Curried complement predicate for `.filter(...)`: keep the rows NOT in `accountId` — i.e. drop
- *  that account's rows while preserving every OTHER account's. Cascade-delete-account, clear,
- *  and replace-import use this to remove exactly one tenant's slice. */
-export const notInAccount =
-  (accountId: ID) =>
-  (scopedEntity: ScopedEntity): boolean =>
-    !belongsToAccount(scopedEntity, accountId);

@@ -1,6 +1,6 @@
 import { SCOPED_KEYS, scopedTables } from "../types/entities";
 import type { AppData, ID } from "../types/entities";
-import { notInAccount } from "./tenancy";
+import { belongsToAccount } from "./tenancy";
 
 export type { ValidationDataLookup } from "./validationLookup";
 export { findOwned, assertScopedRefs, assertAllocationRefs } from "./assertions/refs";
@@ -36,7 +36,7 @@ export function deleteAccountCascade(data: AppData, accountId: ID): AppData {
   const sourceTables = scopedTables(data);
   const destinationTables = scopedTables(next);
   for (const key of SCOPED_KEYS) {
-    destinationTables[key] = sourceTables[key].filter(notInAccount(accountId));
+    destinationTables[key] = sourceTables[key].filter((scopedEntity) => !belongsToAccount(scopedEntity, accountId));
   }
   return next;
 }
