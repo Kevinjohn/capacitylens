@@ -62,15 +62,12 @@ function parseSecureProviderUrl(
   if (url.username || url.password) {
     throw new ErrorType(`${resolveAccountConfigKey(key)} must not contain URL credentials.`);
   }
-  // Issuer identifiers are exact strings in OIDC. URL#toString() adds a trailing slash to a bare
-  // origin, which would turn a correct configured `https://idp.example` issuer into a different
-  // identity namespace and reject otherwise matching discovery metadata. Validate through URL,
-  // but preserve the operator's trimmed value verbatim for protocol comparison.
+  // Validate through URL but preserve the trimmed issuer verbatim: URL#toString() can add a slash
+  // and change the exact OIDC identity namespace.
   return raw;
 }
 
-/** Native social providers assembled from env. Unset pairs are absent; a partial pair refuses
- * startup. New external identities are separately verified and invite-gated in the database hook. */
+/** Builds social providers; partial credentials refuse startup and identity admission stays database-gated. */
 function parseSocialProvidersFromEnvironment(
   environment: Env,
   AuthConfigError: AuthConfigErrorConstructor,
@@ -113,10 +110,8 @@ function parseSocialProvidersFromEnvironment(
   return providers;
 }
 
-// Provider ids are persisted as part of an external identity's namespace. Generic OIDC must not
-// claim an id owned by a built-in sign-in method or one of CapacityLens' installed auth plugins:
-// enabling that method later would otherwise reinterpret existing accounts or overwrite issuer
-// routing. Keep this list aligned with socialProvidersFromEnv() and the plugins assembled below.
+// Provider ids persist as identity namespaces, so generic OIDC must not claim a built-in/plugin id.
+// Keep this aligned with social-provider parsing and plugin assembly.
 const RESERVED_IDS = new Set(["credential", "generic-oauth", "two-factor", "google", "microsoft", "github"]);
 
 function buildExternalProviderInfo(
@@ -272,6 +267,8 @@ function captureStrictOidcVerificationError(
 ): null {
   if (!(error instanceof StrictOidcVerificationError)) throw error;
   console.error("Strict OIDC identity verification failed.", error);
+  // Request-local APIError plus null replaces generic-oauth's user_info_is_missing redirect without
+  // allowing an exception to escape to the browser as raw JSON.
   const capture = authHandlerErrorCapture.getStore();
   if (capture) {
     capture.error = APIError.from("UNAUTHORIZED", {
@@ -295,9 +292,12 @@ function createGenericOidcPlugin(
         providerId,
         clientId,
         clientSecret,
+        // Same-origin proxy keeps the plugin from consuming untrusted discovery before validation.
         authorizationUrl: new URL(strictOidcAuthorizationProxyPath, input.publicUrl).toString(),
+        // Shape-only placeholder: custom getToken owns exchange, so this URL is never requested.
         tokenUrl: new URL(`/api/auth/oidc/token/${providerId}`, input.publicUrl).toString(),
         issuer,
+        // Dex may omit RFC 9207 `iss`; the strict client still enforces ID-token issuer and audience.
         requireIssuerValidation: false,
         pkce: true,
         getToken: ({ code, redirectURI, codeVerifier }) =>
