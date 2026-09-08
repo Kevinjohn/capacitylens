@@ -54,7 +54,8 @@ async function appWith(
 ): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, env);
-  await runAuthMigrations(auth!);
+  if (!auth) throw new Error("Password reset tests require an auth instance.");
+  await runAuthMigrations(auth);
   return {
     app: buildApp(db, {
       authMode: mode,
@@ -114,6 +115,28 @@ const signIn = (app: FastifyInstance, email: string, password: string) =>
     payload: { email, password },
   });
 
+const freshToken = async (app: FastifyInstance, db: Db): Promise<string> => {
+  const owner = await member({
+    app,
+    db,
+    accountId: "a1",
+    email: `owner-${Math.random()}@capacitylens.dev`,
+    role: "owner",
+  });
+  const editor = await member({
+    app,
+    db,
+    accountId: "a1",
+    email: `editor-${Math.random()}@capacitylens.dev`,
+    role: "editor",
+  });
+  return (
+    (await mint({ app, accountId: "a1", userId: editor.userId, cookie: owner.cookie })).json() as {
+      token: string;
+    }
+  ).token;
+};
+
 describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
   it("owner mints a link for an editor; redeem sets the new password (old dead, new works), token is single-use", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
@@ -141,7 +164,9 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     // SINGLE-USE: the token was consumed on redeem — a second redeem is refused.
     expect((await redeem(app, body.token, "attacker-password-789")).statusCode).toBe(400);
   });
+});
 
+describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
   it("revokes the target user's existing sessions on redeem (revokeSessionsOnPasswordReset)", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
@@ -168,7 +193,9 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     });
     expect(after.statusCode).toBe(401);
   });
+});
 
+describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
   it("authz matrix: editor/viewer 403; admin→editor 201; admin→OWNER 403 (takeover path); owner→owner 201", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
@@ -187,7 +214,9 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     // An owner may reset anyone, including an owner (self here — useful for social-only sign-ins).
     expect((await mint({ app, accountId: "a1", userId: owner.userId, cookie: owner.cookie })).statusCode).toBe(201);
   });
+});
 
+describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
   it("cross-tenant and unknown targets: non-member caller 403; non-member target 404; no session 401", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
@@ -204,11 +233,13 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
       code: "NOT_FOUND",
       retryable: false,
     });
-    expect(unknownTarget.json().commandId).toEqual(expect.any(String));
+    expect((unknownTarget.json() as { commandId: string }).commandId).toEqual(expect.any(String));
     // No session at all → the requireUser preHandler 401s upstream of the route.
     expect((await mint({ app, accountId: "a1", userId: owner1.userId })).statusCode).toBe(401);
   });
+});
 
+describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
   it("mode gates: 'sso' → 400 (IdP owns credentials); 'off' → 400 (no credential model); neither crashes", async () => {
     const sso = await appWith(SSO_ENV);
     seedAccount(sso.db, "a1");
@@ -221,7 +252,9 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     const off = buildApp(openDb(":memory:"));
     expect((await mint({ app: off, accountId: "a1", userId: "nobody" })).statusCode).toBe(400);
   });
+});
 
+describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
   it("cross-account: an admin of X cannot reset a user who is an owner of another account Y (global takeover closed)", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "x");
@@ -250,7 +283,9 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     const ownerX = await member({ app, db, accountId: "x", email: "owner-x@capacitylens.dev", role: "owner" });
     expect((await mint({ app, accountId: "x", userId: bob.userId, cookie: ownerX.cookie })).statusCode).toBe(403);
   });
+});
 
+describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
   it("SELF-RESET across accounts: a user who is owner of X but a mere editor of Y may reset their OWN password", async () => {
     // The finding-1 scenario: without the isSelf exemption the cross-account loop hits Y and
     // Identity administration for editor/editor fails the manageMembers tier, wrongly 403-ing a
@@ -274,105 +309,95 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     const token = (res.json() as { token: string }).token;
     expect((await redeem(app, token, "brand-new-password-456")).statusCode).toBe(200);
   });
+});
 
-  // Better Auth's public /api/auth/reset-password returns a machine-readable { code } on failure, and
-  // the CLIENT's messageForFailure sniffs exactly that code to pick a friendly message. Per
-  // DEFENSIVE-CODING.md's test-pin rule, we PIN the library's error-body shape here so a Better Auth
-  // upgrade that renamed a code would fail this suite loudly rather than silently degrade the client's
-  // messaging. (These are library contracts, not our route's — hence asserted against the redeem path.)
-  describe("Better Auth reset-password failure body shape (pinned for the client sniffer)", () => {
-    const freshToken = async (app: FastifyInstance, db: Db): Promise<string> => {
-      const owner = await member({
-        app,
-        db,
-        accountId: "a1",
-        email: `owner-${Math.random()}@capacitylens.dev`,
-        role: "owner",
-      });
-      const editor = await member({
-        app,
-        db,
-        accountId: "a1",
-        email: `editor-${Math.random()}@capacitylens.dev`,
-        role: "editor",
-      });
-      return (
-        (await mint({ app, accountId: "a1", userId: editor.userId, cookie: owner.cookie })).json() as {
-          token: string;
-        }
-      ).token;
-    };
-
-    it("token reuse → code INVALID_TOKEN", async () => {
-      const { app, db } = await appWith(PASSWORD_ENV);
-      seedAccount(db, "a1");
-      const token = await freshToken(app, db);
-      expect((await redeem(app, token, "brand-new-password-456")).statusCode).toBe(200);
-      const reuse = await redeem(app, token, "another-password-789");
-      expect(reuse.statusCode).toBe(400);
-      expect((reuse.json() as { code: string }).code).toBe("INVALID_TOKEN");
-    });
-
-    it("too-short password → code PASSWORD_TOO_SHORT", async () => {
-      const { app, db } = await appWith(PASSWORD_ENV);
-      seedAccount(db, "a1");
-      const token = await freshToken(app, db);
-      const res = await redeem(app, token, "short"); // below Better Auth's 8-char minimum
-      expect(res.statusCode).toBe(400);
-      expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_SHORT");
-    });
-
-    it("counts astral passwords in Unicode code points at the minimum boundary", async () => {
-      const { app, db } = await appWith(PASSWORD_ENV);
-      seedAccount(db, "a1");
-      const token = await freshToken(app, db);
-      const res = await redeem(app, token, "🔐".repeat(14));
-      expect(res.statusCode).toBe(400);
-      expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_SHORT");
-    });
-
-    it("accepts 128 astral code points even though they occupy 256 UTF-16 code units", async () => {
-      const { app, db } = await appWith(PASSWORD_ENV);
-      seedAccount(db, "a1");
-      const email = `astral-${Math.random()}@capacitylens.dev`;
-      const owner = await member({
-        app,
-        db,
-        accountId: "a1",
-        email: `owner-${Math.random()}@capacitylens.dev`,
-        role: "owner",
-      });
-      const editor = await member({ app, db, accountId: "a1", email, role: "editor" });
-      const token = (
-        (await mint({ app, accountId: "a1", userId: editor.userId, cookie: owner.cookie })).json() as {
-          token: string;
-        }
-      ).token;
-      const password = "🔐".repeat(128);
-
-      expect((await redeem(app, token, password)).statusCode).toBe(200);
-      expect((await signIn(app, email, password)).statusCode).toBe(200);
-    });
-
-    it("129-character password → code PASSWORD_TOO_LONG", async () => {
-      const { app, db } = await appWith(PASSWORD_ENV);
-      seedAccount(db, "a1");
-      const token = await freshToken(app, db);
-      const res = await redeem(app, token, "x".repeat(129)); // 128 is the Better Auth default cap
-      expect(res.statusCode).toBe(400);
-      expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_LONG");
-    });
-
-    it("counts astral passwords in Unicode code points at the maximum boundary", async () => {
-      const { app, db } = await appWith(PASSWORD_ENV);
-      seedAccount(db, "a1");
-      const token = await freshToken(app, db);
-      const res = await redeem(app, token, "🔐".repeat(129));
-      expect(res.statusCode).toBe(400);
-      expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_LONG");
-    });
+// Better Auth's public /api/auth/reset-password returns a machine-readable { code } on failure, and
+// the CLIENT's messageForFailure sniffs exactly that code to pick a friendly message. Per
+// DEFENSIVE-CODING.md's test-pin rule, we PIN the library's error-body shape here so a Better Auth
+// upgrade that renamed a code would fail this suite loudly rather than silently degrade the client's
+// messaging. (These are library contracts, not our route's — hence asserted against the redeem path.)
+describe("Better Auth reset-password failure body shape (pinned for the client sniffer)", () => {
+  it("token reuse → code INVALID_TOKEN", async () => {
+    const { app, db } = await appWith(PASSWORD_ENV);
+    seedAccount(db, "a1");
+    const token = await freshToken(app, db);
+    expect((await redeem(app, token, "brand-new-password-456")).statusCode).toBe(200);
+    const reuse = await redeem(app, token, "another-password-789");
+    expect(reuse.statusCode).toBe(400);
+    expect((reuse.json() as { code: string }).code).toBe("INVALID_TOKEN");
   });
+});
 
+describe("Better Auth reset-password failure body shape (pinned for the client sniffer)", () => {
+  it("too-short password → code PASSWORD_TOO_SHORT", async () => {
+    const { app, db } = await appWith(PASSWORD_ENV);
+    seedAccount(db, "a1");
+    const token = await freshToken(app, db);
+    const res = await redeem(app, token, "short"); // below Better Auth's 8-char minimum
+    expect(res.statusCode).toBe(400);
+    expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_SHORT");
+  });
+});
+
+describe("Better Auth reset-password failure body shape (pinned for the client sniffer)", () => {
+  it("counts astral passwords in Unicode code points at the minimum boundary", async () => {
+    const { app, db } = await appWith(PASSWORD_ENV);
+    seedAccount(db, "a1");
+    const token = await freshToken(app, db);
+    const res = await redeem(app, token, "🔐".repeat(14));
+    expect(res.statusCode).toBe(400);
+    expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_SHORT");
+  });
+});
+
+describe("Better Auth reset-password failure body shape (pinned for the client sniffer)", () => {
+  it("accepts 128 astral code points even though they occupy 256 UTF-16 code units", async () => {
+    const { app, db } = await appWith(PASSWORD_ENV);
+    seedAccount(db, "a1");
+    const email = `astral-${Math.random()}@capacitylens.dev`;
+    const owner = await member({
+      app,
+      db,
+      accountId: "a1",
+      email: `owner-${Math.random()}@capacitylens.dev`,
+      role: "owner",
+    });
+    const editor = await member({ app, db, accountId: "a1", email, role: "editor" });
+    const token = (
+      (await mint({ app, accountId: "a1", userId: editor.userId, cookie: owner.cookie })).json() as {
+        token: string;
+      }
+    ).token;
+    const password = "🔐".repeat(128);
+
+    expect((await redeem(app, token, password)).statusCode).toBe(200);
+    expect((await signIn(app, email, password)).statusCode).toBe(200);
+  });
+});
+
+describe("Better Auth reset-password failure body shape (pinned for the client sniffer)", () => {
+  it("129-character password → code PASSWORD_TOO_LONG", async () => {
+    const { app, db } = await appWith(PASSWORD_ENV);
+    seedAccount(db, "a1");
+    const token = await freshToken(app, db);
+    const res = await redeem(app, token, "x".repeat(129)); // 128 is the Better Auth default cap
+    expect(res.statusCode).toBe(400);
+    expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_LONG");
+  });
+});
+
+describe("Better Auth reset-password failure body shape (pinned for the client sniffer)", () => {
+  it("counts astral passwords in Unicode code points at the maximum boundary", async () => {
+    const { app, db } = await appWith(PASSWORD_ENV);
+    seedAccount(db, "a1");
+    const token = await freshToken(app, db);
+    const res = await redeem(app, token, "🔐".repeat(129));
+    expect(res.statusCode).toBe(400);
+    expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_LONG");
+  });
+});
+
+describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
   it("TOCTOU: a reset link is burned when the target is promoted, so it cannot redeem into the new owner identity", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
@@ -398,7 +423,9 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     // The old password therefore still works (nothing was changed).
     expect((await signIn(app, "editor@capacitylens.dev", PASSWORD)).statusCode).toBe(200);
   });
+});
 
+describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
   it("the same burn happens on transfer-ownership (the promoted target's outstanding link dies)", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
@@ -419,7 +446,9 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     expect(transfer.statusCode).toBe(200);
     expect((await redeem(app, token, "attacker-owner-password")).statusCode).toBe(400);
   });
+});
 
+describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
   it("accepting an admin invite preserves an existing editor role and its outstanding reset link", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
@@ -455,7 +484,9 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     expect((await redeem(app, token, "new-editor-password")).statusCode).toBe(200);
     expect((await signIn(app, "editor@capacitylens.dev", "new-editor-password")).statusCode).toBe(200);
   });
+});
 
+describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
   it("TOCTOU via ORG-CREATE: becoming the owner of a new account burns an outstanding reset link", async () => {
     // Multi-account instance so POST /api/orgs is not capped to one company.
     const { app, db } = await appWith(PASSWORD_ENV, { multiAccount: true });
@@ -483,7 +514,9 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     // identity (which the mint-time cross-account guard would now refuse).
     expect((await redeem(app, token, "attacker-owner-password")).statusCode).toBe(400);
   });
+});
 
+describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
   it("the public /api/auth/request-password-reset endpoint is SHADOWED (404) — no unauthenticated reset path", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
