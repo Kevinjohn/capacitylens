@@ -48,6 +48,26 @@ interface BuildResourceGroupsInput {
   groupResourcesByEngagement: boolean;
 }
 
+interface BuildFallbackGroupsInput {
+  resources: Resource[];
+  groupResourcesByEngagement: boolean;
+}
+
+interface CreateResourceComparatorInput {
+  groupResourcesByEngagement: boolean;
+  comparators: {
+    byDisplayName: (a: Resource, b: Resource) => number;
+    byFavouriteDisplayName: (a: Resource, b: Resource) => number;
+    byEngagementFavouriteDisplayName: (a: Resource, b: Resource) => number;
+  };
+}
+
+interface CreateSchedulerRowBuilderInput {
+  options: SchedulerModelOptions;
+  accountWorkingDays: Weekday[];
+  blocksMode: boolean;
+}
+
 export type {
   BarLayout,
   DayState,
@@ -124,7 +144,10 @@ export function applyVisibleUtilization({
   });
 }
 
-function buildFallbackGroups(resources: Resource[], groupResourcesByEngagement: boolean): SchedulerResourceGroup[] {
+function buildFallbackGroups({
+  resources,
+  groupResourcesByEngagement,
+}: BuildFallbackGroupsInput): SchedulerResourceGroup[] {
   if (!groupResourcesByEngagement) {
     return resources.length ? [{ key: "unassigned", title: "Unassigned", discipline: null, resources }] : [];
   }
@@ -163,9 +186,11 @@ function buildResourceGroups({
       }
     }
     const unassigned = disciplineGroups.find((group) => !group.discipline && !group.external)?.resources ?? [];
-    groups.push(...buildFallbackGroups(unassigned, groupResourcesByEngagement));
+    groups.push(...buildFallbackGroups({ resources: unassigned, groupResourcesByEngagement }));
   } else {
-    groups.push(...buildFallbackGroups(data.resources.filter(isCapacityTracked), groupResourcesByEngagement));
+    groups.push(
+      ...buildFallbackGroups({ resources: data.resources.filter(isCapacityTracked), groupResourcesByEngagement }),
+    );
   }
   const external = buildExternalBand(data.resources);
   if (external) {
@@ -174,14 +199,10 @@ function buildResourceGroups({
   return groups;
 }
 
-function createResourceComparator(
-  groupResourcesByEngagement: boolean,
-  comparators: {
-    byDisplayName: (a: Resource, b: Resource) => number;
-    byFavouriteDisplayName: (a: Resource, b: Resource) => number;
-    byEngagementFavouriteDisplayName: (a: Resource, b: Resource) => number;
-  },
-): (a: Resource, b: Resource) => number {
+function createResourceComparator({
+  groupResourcesByEngagement,
+  comparators,
+}: CreateResourceComparatorInput): (a: Resource, b: Resource) => number {
   const comparePeople = groupResourcesByEngagement
     ? comparators.byEngagementFavouriteDisplayName
     : comparators.byFavouriteDisplayName;
@@ -192,7 +213,7 @@ function createResourceComparator(
   };
 }
 
-function createSchedulerRowBuilder(options: SchedulerModelOptions, accountWorkingDays: Weekday[], blocksMode: boolean) {
+function createSchedulerRowBuilder({ options, accountWorkingDays, blocksMode }: CreateSchedulerRowBuilderInput) {
   const { data, geom, days, visibleWindow, overSoonWindow, filters, preferences } = options;
   const allocationFilters = createAllocationFilters(filters, preferences, data);
   const seriesEndByKey = new Map<string, ISODate>();
@@ -239,12 +260,15 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
   const byEngagementFavouriteResourceDisplayName =
     createEngagementFavouriteDisplayNameComparator<Resource>(resolveDisplayName);
   const byResourceDisplayName = createDisplayNameComparator<Resource>(resolveDisplayName);
-  const byResourceOrder = createResourceComparator(groupResourcesByEngagement, {
-    byDisplayName: byResourceDisplayName,
-    byFavouriteDisplayName: byFavouriteResourceDisplayName,
-    byEngagementFavouriteDisplayName: byEngagementFavouriteResourceDisplayName,
+  const byResourceOrder = createResourceComparator({
+    groupResourcesByEngagement,
+    comparators: {
+      byDisplayName: byResourceDisplayName,
+      byFavouriteDisplayName: byFavouriteResourceDisplayName,
+      byEngagementFavouriteDisplayName: byEngagementFavouriteResourceDisplayName,
+    },
   });
-  const { buildRow, resourceVisible } = createSchedulerRowBuilder(options, accountWorkingDays, blocksMode);
+  const { buildRow, resourceVisible } = createSchedulerRowBuilder({ options, accountWorkingDays, blocksMode });
 
   // Assigned resources retain canonical discipline order. Every unassigned capacity-tracked row
   // then receives a useful engagement home; with disciplines off, that fallback becomes the whole

@@ -24,14 +24,19 @@ type CommandInput = Omit<AllocationModalSnapshot, "editId" | "repeatUntilMinimum
   };
 type ValidatedDraft = Parameters<CommandInput["addAllocation"]>[0];
 
-function validateAssignment(input: CommandInput): boolean {
-  if (!input.selectedResource || !input.selectedActivity) return true;
+interface RejectNewPlacementInput {
+  command: CommandInput;
+  draft: ValidatedDraft;
+  newPlacement: boolean;
+}
+
+function resolveAssignmentError(input: CommandInput): string | null {
+  if (!input.selectedResource || !input.selectedActivity) return null;
   const check = validateAllocationAssignment(input.selectedResource, input.selectedEffectiveProjectId);
-  if (check.ok) return true;
+  if (check.ok) return null;
   const firstCode = check.codes[0];
   if (!firstCode) throw new Error("Invalid allocation assignment did not provide an error code.");
-  input.fail("activity", resolveDomainErrorMessage(firstCode));
-  return false;
+  return resolveDomainErrorMessage(firstCode);
 }
 
 function resolveDraftEndDate(input: CommandInput) {
@@ -87,7 +92,12 @@ function validateCommandDraft(input: CommandInput): ValidatedDraft | null {
     multiline: !input.noteEdited,
     maxLength: MAX_NOTE_LENGTH,
   });
-  if (cleanNote === null || !validateAssignment(input)) return null;
+  if (cleanNote === null) return null;
+  const assignmentError = resolveAssignmentError(input);
+  if (assignmentError) {
+    input.fail("activity", assignmentError);
+    return null;
+  }
   return {
     resourceId: input.resourceId,
     activityId: input.activityId,
@@ -101,21 +111,21 @@ function validateCommandDraft(input: CommandInput): ValidatedDraft | null {
   };
 }
 
-function rejectsNewPlacement(input: CommandInput, draft: ValidatedDraft, newPlacement: boolean): boolean {
-  if (!newPlacement || !input.selectedResource || input.selectedEffectiveWeek === undefined) return false;
-  if (input.selectedEffectiveWeek.kind !== "days") {
-    input.fail("resource", m.form_allocation_err_no_effective_working_days());
+function rejectsNewPlacement({ command, draft, newPlacement }: RejectNewPlacementInput): boolean {
+  if (!newPlacement || !command.selectedResource || command.selectedEffectiveWeek === undefined) return false;
+  if (command.selectedEffectiveWeek.kind !== "days") {
+    command.fail("resource", m.form_allocation_err_no_effective_working_days());
     return true;
   }
   const blocked = resolveEffectiveWeekCreationBlockReason({
-    resource: input.selectedResource,
+    resource: command.selectedResource,
     date: draft.startDate,
-    timeOff: input.data.timeOff,
-    effectiveWeek: input.selectedEffectiveWeek,
-    closures: input.data.closures,
+    timeOff: command.data.timeOff,
+    effectiveWeek: command.selectedEffectiveWeek,
+    closures: command.data.closures,
   });
-  if (blocked === "non-working") input.fail("startDate", m.form_allocation_err_start_non_working());
-  if (blocked === "time-off") input.fail("startDate", m.form_allocation_err_start_time_off());
+  if (blocked === "non-working") command.fail("startDate", m.form_allocation_err_start_non_working());
+  if (blocked === "time-off") command.fail("startDate", m.form_allocation_err_start_time_off());
   return blocked !== null;
 }
 
@@ -164,7 +174,14 @@ export function createAllocationCommands(input: CommandInput) {
   const submit = () => {
     if (!input.canEdit) return;
     const draft = validateDraft();
-    if (!draft || rejectsNewPlacement(input, draft, !input.editing || input.editing.resourceId !== draft.resourceId))
+    if (
+      !draft ||
+      rejectsNewPlacement({
+        command: input,
+        draft,
+        newPlacement: !input.editing || input.editing.resourceId !== draft.resourceId,
+      })
+    )
       return;
     try {
       saveDraft(input, draft);
@@ -176,7 +193,7 @@ export function createAllocationCommands(input: CommandInput) {
   const duplicateAllocation = () => {
     if (!input.editing) return;
     const draft = validateDraft();
-    if (!draft || rejectsNewPlacement(input, draft, true)) return;
+    if (!draft || rejectsNewPlacement({ command: input, draft, newPlacement: true })) return;
     try {
       input.addAllocation(draft);
       input.onClose();
