@@ -363,8 +363,17 @@ export function createAuthority(
       const current = evaluateAuthority({ db, actor, targetPrincipalId, action });
       return current.allowed && current.revision === expectedRevision;
     },
-    assertIdentityRepairAuthorityInTx(input) {
-      assertIdentityRepairAuthority({ db, trustedLocal, requireMfa, ...input });
+    assertIdentityRepairAuthorityInTx({ actor, workspaceId, targetPrincipalId, action, expectedRevision }) {
+      assertIdentityRepairAuthority({
+        db,
+        trustedLocal,
+        requireMfa,
+        actor,
+        workspaceId,
+        targetPrincipalId,
+        action,
+        expectedRevision,
+      });
     },
   };
 }

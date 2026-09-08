@@ -129,6 +129,7 @@ describe("sqliteAccountAdminPort authority integrity", () => {
   registerSqliteAccountAdminPortTest22();
   registerSqliteAccountAdminPortTest23();
   registerSqliteAccountAdminPortTest24();
+  registerSqliteAccountAdminPortTest30();
 });
 
 describe("sqliteAccountAdminPort listMemberships bulk revisions", () => {
@@ -1219,6 +1220,48 @@ function registerSqliteAccountAdminPortTest24(): void {
         status: "suspended",
       });
     } finally {
+      db.close();
+    }
+  });
+}
+
+function registerSqliteAccountAdminPortTest30(): void {
+  it("does not let injected input override identity-repair authority dependencies", async () => {
+    const db = openDb(":memory:");
+    const injectedDb = openDb(":memory:");
+    try {
+      seedIdentityRepairFixture(db);
+      const port = createSqliteAccountAdminPort({
+        applicationId: "test-application",
+        db,
+        lock: new KeyedOperationLock(),
+        requireMfa: true,
+      });
+      const authority = await port.evaluateIdentityAdminAuthority({
+        actor,
+        targetPrincipalId: "target-1",
+        action: "correct-email",
+      });
+      if (!authority.allowed) throw new Error("Expected identity repair authority");
+      const injectedInput: Parameters<typeof port.assertIdentityRepairAuthorityInTx>[0] & {
+        db: Db;
+        trustedLocal: boolean;
+        requireMfa: boolean;
+      } = {
+        actor: { ...actor, fresh: false, mfaSatisfied: false },
+        workspaceId: "workspace-b",
+        targetPrincipalId: "target-1",
+        action: "correct-email",
+        expectedRevision: authority.revision,
+        db: injectedDb,
+        trustedLocal: true,
+        requireMfa: false,
+      };
+
+      expectFailureCode(() => port.assertIdentityRepairAuthorityInTx(injectedInput), "SESSION_NOT_FRESH");
+      port.assertIdentityRepairAuthorityInTx({ ...injectedInput, actor });
+    } finally {
+      injectedDb.close();
       db.close();
     }
   });
