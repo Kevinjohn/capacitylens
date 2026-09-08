@@ -13,7 +13,7 @@ const s = () => useStore.getState();
 const A = "acct-a";
 const B = "acct-b";
 
-function requireDefined<T>(value: T | undefined, label: string): T {
+function assertDefined<T>(value: T | undefined, label: string): T {
   if (value === undefined) throw new Error(`Expected ${label} to exist`);
   return value;
 }
@@ -168,7 +168,7 @@ function registerAccountOwnershipTests(): void {
 
   it("refuses to update a row owned by another account", () => {
     expect(() => s().updateClient("cB", { name: "hijacked" })).toThrow(/does not belong to the active company/i);
-    const client = requireDefined(
+    const client = assertDefined(
       s().data.clients.find((c) => c.id === "cB"),
       "client cB",
     );
@@ -183,7 +183,7 @@ function registerEntityOwnershipTests(): void {
     // findOwned THROWS a display-safe message (a cross-account id, unlike a stale/non-existent one).
     // The foreign row stays untouched (still active) and nothing cascades.
     expect(() => s().archiveEntity("projects", "pB")).toThrow(/does not belong to the active company/i);
-    const proj = requireDefined(
+    const proj = assertDefined(
       s().data.projects.find((p) => p.id === "pB"),
       "project pB",
     );
@@ -220,7 +220,7 @@ function registerEntityOwnershipTests(): void {
     s().setActiveAccount(A);
     expect(() => s().updateAllocation("aB", { status: "tentative" })).toThrow(/does not belong to the active company/i);
     expect(() => s().deleteAllocation("aB")).toThrow(/does not belong to the active company/i);
-    const allocation = requireDefined(
+    const allocation = assertDefined(
       s().data.allocations.find((a) => a.id === "aB"),
       "allocation aB",
     );
@@ -279,7 +279,7 @@ describe("foreign-key refs must stay in the active account", () => {
     const p = s().addProject({ name: "A Project", clientId: c.id, color: "#666666" });
     const t = s().addActivity({ name: "An Activity", kind: "project", projectId: p.id });
     expect(t.accountId).toBe(A);
-    const project = requireDefined(
+    const project = assertDefined(
       s().data.projects.find((x) => x.id === p.id),
       `project ${p.id}`,
     );
