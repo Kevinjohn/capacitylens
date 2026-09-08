@@ -719,7 +719,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     // none is ever backfilled), so every generic auth-on create is now refused. Even the zero-
     // account first-run goes through /api/orgs, which handles it atomically.
     expect(res.statusCode).toBe(403);
-    expect(res.json().error).toContain("/api/orgs");
+    expect(readErrorMessage(res)).toContain("/api/orgs");
     expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0);
     // …and /api/orgs DOES let the same user bootstrap their first company (201 + owner membership).
     const orgs = await call(app, {
@@ -1032,7 +1032,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
 
     const put = await call(app, { method: "PUT", url: "/api/timeOff/to1", payload: stale, headers: { cookie } });
     expect(put.statusCode).toBe(409);
-    expect((put.json() as { current?: Record<string, unknown> }).current?.id).toBe("to1"); // payload present…
+    expect(readCurrentObject(put)).toMatchObject({ id: "to1" }); // payload present…
     expect(put.body).not.toContain(SENTINEL); // …but the note never rides it
 
     const batch = await call(app, {
@@ -1042,7 +1042,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
       headers: { cookie },
     });
     expect(batch.statusCode).toBe(409);
-    expect((batch.json() as { current?: Record<string, unknown> }).current?.id).toBe("to1");
+    expect(readCurrentObject(batch)).toMatchObject({ id: "to1" });
     expect(batch.body).not.toContain(SENTINEL);
   });
 
@@ -1328,14 +1328,14 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     const { cookie: putCookie } = await signUp(put.app, "acct-onboard-put@capacitylens.dev"); // no membership
     const putRes = await putAccount(put.app, "brandNew1", putCookie);
     expect(putRes.statusCode).toBe(403);
-    expect(putRes.json().error).toContain("/api/orgs");
+    expect(readErrorMessage(putRes)).toContain("/api/orgs");
     expect((put.db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0);
 
     const batch = await appWithAuth(); // separate fresh instance — also zero accounts
     const { cookie: batchCookie } = await signUp(batch.app, "acct-onboard-batch@capacitylens.dev");
     const batchRes = await batchPutAccount(batch.app, "brandNew2", batchCookie);
     expect(batchRes.statusCode).toBe(403);
-    expect(batchRes.json().error).toContain("/api/orgs");
+    expect(readErrorMessage(batchRes)).toContain("/api/orgs");
     expect((batch.db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0);
   });
 
@@ -1346,11 +1346,11 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
 
     const put = await putAccount(app, "brandNew3", cookie);
     expect(put.statusCode).toBe(403);
-    expect(put.json().error).toContain("/api/orgs");
+    expect(readErrorMessage(put)).toContain("/api/orgs");
 
     const batch = await batchPutAccount(app, "brandNew4", cookie);
     expect(batch.statusCode).toBe(403);
-    expect(batch.json().error).toContain("/api/orgs");
+    expect(readErrorMessage(batch)).toContain("/api/orgs");
     // /api/orgs then applies the single-company cap itself (its own GATE 0) — see app.orgs.test.ts.
   });
 
