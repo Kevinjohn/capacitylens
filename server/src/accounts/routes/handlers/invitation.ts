@@ -15,6 +15,16 @@ function createAuthenticationRequiredError() {
   });
 }
 
+function requireAccountActor(req: FastifyRequest) {
+  if (!req.accountActor) throw createAuthenticationRequiredError();
+  return req.accountActor;
+}
+
+function requireAuthenticatedUser(req: FastifyRequest) {
+  if (!req.user) throw createAuthenticationRequiredError();
+  return req.user;
+}
+
 export async function createInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     authMode,
@@ -76,7 +86,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   }
   try {
     const invite = await accountAdminPort.createInvitation({
-      actor: req.accountActor!,
+      actor: requireAccountActor(req),
       workspaceId: body.accountId,
       role: body.role,
       preauthorizedEmail: preauthEmail,
@@ -88,7 +98,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
       result: invite,
       record: {
         ts: invite.createdAt,
-        userId: req.user!.id,
+        userId: requireAuthenticatedUser(req).id,
         accountId: invite.workspaceId,
         action: "inviteCreate",
         entity: "invite",
@@ -264,7 +274,7 @@ export async function listInvitations(req: FastifyRequest, reply: FastifyReply, 
   if (authMode === "off") return { invites: [] };
   try {
     const invites = await accountAdminPort.listInvitations({
-      actor: req.accountActor!,
+      actor: requireAccountActor(req),
       workspaceId: accountId,
     });
     return {
@@ -296,7 +306,7 @@ export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply,
   if (!authorize({ req, reply, accountId, action: "manageInvites" })) return;
   try {
     const revoked = await accountAdminPort.revokeInvitation({
-      actor: req.accountActor!,
+      actor: requireAccountActor(req),
       workspaceId: accountId,
       invitationId: id,
       command: accountCommand(req),
@@ -306,7 +316,7 @@ export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply,
       result: revoked,
       record: {
         ts: new Date().toISOString(),
-        userId: req.user!.id,
+        userId: requireAuthenticatedUser(req).id,
         accountId,
         action: "inviteRevoke",
         entity: "invite",
