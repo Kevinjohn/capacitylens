@@ -316,6 +316,144 @@ function siblingProjectData(): AppData {
   };
 }
 
+function siblingClientHierarchy(): Pick<AppData, "clients" | "projects" | "phases"> {
+  return {
+    clients: [
+      {
+        id: "c1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "C1",
+        color: "#1",
+      },
+      {
+        id: "c2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "C2",
+        color: "#2",
+      },
+    ],
+    projects: [
+      {
+        id: "p1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "P1",
+        clientId: "c1",
+        color: "#1",
+      },
+      {
+        id: "p2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "P2",
+        clientId: "c2",
+        color: "#2",
+      },
+    ],
+    phases: [
+      {
+        id: "ph1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Ph1",
+        projectId: "p1",
+      },
+      {
+        id: "ph2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Ph2",
+        projectId: "p2",
+      },
+    ],
+  };
+}
+
+function siblingClientActivityData(): Pick<AppData, "activities"> {
+  return {
+    activities: [
+      {
+        id: "a1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "A1",
+        kind: "project",
+        projectId: "p1",
+      },
+      {
+        id: "a2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "A2",
+        kind: "project",
+        projectId: "p2",
+        phaseId: "ph2",
+      },
+      {
+        id: "a3",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "A3",
+        kind: "project",
+        projectId: "p2",
+        phaseId: "ph1",
+      },
+    ],
+  };
+}
+
+function siblingClientCapacityData(): Pick<AppData, "allocations" | "resources"> {
+  return {
+    allocations: [
+      {
+        id: "al1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "phc2",
+        activityId: "a1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      },
+      {
+        id: "al2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "phc2",
+        activityId: "a2",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      },
+    ],
+    resources: [placeholder({ id: "phc1", projectId: "p1" }), placeholder({ id: "phc2", projectId: "p2" })],
+  };
+}
+
+function siblingClientData(): AppData {
+  return {
+    ...emptyAppData(),
+    ...siblingClientHierarchy(),
+    ...siblingClientActivityData(),
+    ...siblingClientCapacityData(),
+  };
+}
+
 describe("validateProjectClient", () => {
   it("requires a client", () => {
     expect(validateProjectClient("c1").ok).toBe(true);
@@ -612,123 +750,7 @@ describe("cascade deletes", () => {
   it("deleteClientCascade removes ONLY the target client’s subtree, sparing a sibling client", () => {
     // Two clients; deleting c1 leaves c2's project/phase/activity/allocation/placeholder intact.
     // A c2 activity that (incoherently) points at a c1 phase SURVIVES with its phaseId unbound.
-    const data: AppData = {
-      ...emptyAppData(),
-      clients: [
-        {
-          id: "c1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "C1",
-          color: "#1",
-        },
-        {
-          id: "c2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "C2",
-          color: "#2",
-        },
-      ],
-      projects: [
-        {
-          id: "p1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "P1",
-          clientId: "c1",
-          color: "#1",
-        },
-        {
-          id: "p2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "P2",
-          clientId: "c2",
-          color: "#2",
-        },
-      ],
-      phases: [
-        {
-          id: "ph1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Ph1",
-          projectId: "p1",
-        },
-        {
-          id: "ph2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Ph2",
-          projectId: "p2",
-        },
-      ],
-      activities: [
-        {
-          id: "a1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "A1",
-          kind: "project",
-          projectId: "p1",
-        },
-        {
-          id: "a2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "A2",
-          kind: "project",
-          projectId: "p2",
-          phaseId: "ph2",
-        },
-        {
-          id: "a3",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "A3",
-          kind: "project",
-          projectId: "p2",
-          phaseId: "ph1",
-        },
-      ],
-      allocations: [
-        {
-          id: "al1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "phc2",
-          activityId: "a1",
-          startDate: "2026-06-01",
-          endDate: "2026-06-02",
-          hoursPerDay: 8,
-          status: "confirmed",
-        },
-        {
-          id: "al2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "phc2",
-          activityId: "a2",
-          startDate: "2026-06-01",
-          endDate: "2026-06-02",
-          hoursPerDay: 8,
-          status: "confirmed",
-        },
-      ],
-      resources: [placeholder({ id: "phc1", projectId: "p1" }), placeholder({ id: "phc2", projectId: "p2" })],
-    };
+    const data = siblingClientData();
     const revision = "2026-07-15T00:00:00.000Z";
     const next = deleteClientCascade(data, "c1", revision);
     expect(next.clients.map((c) => c.id)).toEqual(["c2"]);
