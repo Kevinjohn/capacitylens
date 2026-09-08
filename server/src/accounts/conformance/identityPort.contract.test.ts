@@ -88,6 +88,25 @@ function expectExactKeys(value: object, expectedKeys: string[]): void {
   expect(Object.keys(value).sort()).toEqual(expectedKeys.sort());
 }
 
+function withApplicationSession(auth: Auth, principalId: string, sessionId: string): Auth {
+  return {
+    ...auth,
+    api: {
+      ...auth.api,
+      getSession: async () => ({
+        user: {
+          id: principalId,
+          name: PRINCIPAL.displayName,
+          email: PRINCIPAL.email,
+          emailVerified: true,
+          image: null,
+        },
+        session: { id: sessionId, createdAt: NOW, expiresAt: LATER },
+      }),
+    },
+  };
+}
+
 /**
  * One provider-neutral executable contract. Every implementation runs the same assertions; an
  * adapter may omit a capability only by returning the contract's explicit fail-closed error.
@@ -306,22 +325,7 @@ async function betterAuthHarness(): Promise<Harness> {
     assurance: "password",
     providerId: null,
   };
-  const auth: Auth = {
-    ...realAuth,
-    api: {
-      ...realAuth.api,
-      getSession: async () => ({
-        user: {
-          id: created.id,
-          name: PRINCIPAL.displayName,
-          email: PRINCIPAL.email,
-          emailVerified: true,
-          image: null,
-        },
-        session: { id: sessionId, createdAt: NOW, expiresAt: LATER },
-      }),
-    },
-  };
+  const auth = withApplicationSession(realAuth, created.id, sessionId);
   const actor = { ...ACTOR, principalId: created.id, sessionId };
   return {
     port: createBetterAuthIdentityPort({
