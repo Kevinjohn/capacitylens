@@ -930,7 +930,7 @@ describe("P1.10 — preauthInviteAllows / normalizeEmail (pure decision matrix)"
   });
 });
 
-describe("POST /api/invites (P1.10 create) — preauthEmail", () => {
+function registerNormalizedPreauthCreationTest(): void {
   it("create with preauthEmail → 201; getInvite stores the NORMALIZED value; 201 echoes it", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
@@ -958,7 +958,9 @@ describe("POST /api/invites (P1.10 create) — preauthEmail", () => {
     expect(body.preauthEmail).toBe("friend@example.com"); // echoed normalized
     expect(readInvite(db, token).preauthEmail).toBe("friend@example.com"); // stored normalized
   });
+}
 
+function registerPreauthInputTests(): void {
   it("empty/whitespace preauthEmail → stored null (link invite, unchanged P1.9 behaviour)", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
@@ -1008,6 +1010,11 @@ describe("POST /api/invites (P1.10 create) — preauthEmail", () => {
       expect(res.statusCode, `"${bad}" rejected`).toBe(400);
     }
   });
+}
+
+describe("POST /api/invites (P1.10 create) — preauthEmail", () => {
+  registerNormalizedPreauthCreationTest();
+  registerPreauthInputTests();
 });
 
 async function createSsoProviderInviteContext() {
