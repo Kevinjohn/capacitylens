@@ -33,6 +33,11 @@ type SwatchGridProps = {
   onClose: () => void;
 };
 
+type ColorTriggerProps = Pick<ColorFieldProps, "label" | "value"> & {
+  invalid: boolean | undefined;
+  describedById: string | undefined;
+};
+
 function resolveSwatchDelta(key: string): number | null {
   if (key === "ArrowRight") return 1;
   if (key === "ArrowLeft") return -1;
@@ -41,7 +46,7 @@ function resolveSwatchDelta(key: string): number | null {
   return null;
 }
 
-function ColorTrigger({ label, value, invalid, describedById }: Omit<ColorFieldProps, "onChange" | "layout">) {
+function ColorTrigger({ label, value, invalid, describedById }: ColorTriggerProps) {
   return (
     <PopoverTrigger asChild>
       <Button
