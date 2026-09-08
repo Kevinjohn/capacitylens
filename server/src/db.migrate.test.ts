@@ -366,6 +366,30 @@ function prepareV14ResetCeremonyFixture(path: string): void {
   db.close();
 }
 
+function prepareV16AccountViewPreferencesFixture(path: string): void {
+  const db = openDb(path);
+  insertRow(db, "accounts", {
+    id: "a1",
+    name: "Studio",
+    color: "#e02727",
+    createdAt: TS,
+    updatedAt: TS,
+  });
+  for (const column of ["showInternalProjects", "showInternalActivities", "inlineActivityCreateEnabled"]) {
+    db.exec(`ALTER TABLE accounts DROP COLUMN ${column}`);
+  }
+  db.exec(`ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement`);
+  db.exec(`ALTER TABLE accounts DROP COLUMN workingDays`);
+  db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
+  db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
+  db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
+  dropAllocationProjectAttribution(db);
+  db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
+  db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 16`);
+  db.exec(`PRAGMA user_version = 15`);
+  db.close();
+}
+
 describe("schema migration of an existing on-disk DB", () => {
   it("pins synchronous FULL even when the connection inherited a weaker setting", () => {
     const copied = copyFixture("v16-off.db");
@@ -657,27 +681,7 @@ describe("schema migration of an existing on-disk DB", () => {
     };
     cleanup();
     try {
-      const db = openDb(path); // fresh DB: already current (v16 columns present)
-      insertRow(db, "accounts", {
-        id: "a1",
-        name: "Studio",
-        color: "#e02727",
-        createdAt: TS,
-        updatedAt: TS,
-      });
-      for (const column of ["showInternalProjects", "showInternalActivities", "inlineActivityCreateEnabled"]) {
-        db.exec(`ALTER TABLE accounts DROP COLUMN ${column}`);
-      }
-      db.exec(`ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement`);
-      db.exec(`ALTER TABLE accounts DROP COLUMN workingDays`);
-      db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
-      db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
-      db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
-      dropAllocationProjectAttribution(db);
-      db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
-      db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 16`);
-      db.exec(`PRAGMA user_version = 15`);
-      db.close();
+      prepareV16AccountViewPreferencesFixture(path);
 
       const upgraded = openDb(path);
       const cols = (
