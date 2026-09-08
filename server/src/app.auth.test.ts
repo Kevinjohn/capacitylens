@@ -2006,25 +2006,22 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
   registerClosedSignupStatusTests();
 });
 
+const BOOTSTRAP_PASSWORD = "operator-managed-bootstrap-password";
+const CLOSED_ENV: Record<string, string> = { ...PASSWORD_ENV };
+delete CLOSED_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP;
+
+/** authFromEnv + migrations on a fresh in-memory DB, ready for createBootstrapAdmin. */
+async function bootstrapFixture(env: Record<string, string> = CLOSED_ENV) {
+  const db = openDb(":memory:");
+  const { mode, auth } = createAuthFromEnvironment(db, env);
+  await runAuthMigrations(parseConfiguredAuth(auth));
+  return { db, mode, auth };
+}
+
 // First-run owner bootstrap (--create-owner-admin-admin / CAPACITYLENS_CREATE_ADMIN_ADMIN=1):
 // createBootstrapAdmin creates admin@admin.admin with an operator-managed password on an EMPTY user
 // table, skips (one line, not an error) when users exist, and refuses outside password mode.
-describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
-  const BOOTSTRAP_PASSWORD = "operator-managed-bootstrap-password";
-  const CLOSED_ENV: Record<string, string> = { ...PASSWORD_ENV };
-  delete CLOSED_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP;
-
-  beforeEach(() => vi.stubEnv("CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD", BOOTSTRAP_PASSWORD));
-  afterEach(() => vi.unstubAllEnvs());
-
-  /** authFromEnv + migrations on a fresh in-memory DB, ready for createBootstrapAdmin. */
-  async function bootstrapFixture(env: Record<string, string> = CLOSED_ENV) {
-    const db = openDb(":memory:");
-    const { mode, auth } = createAuthFromEnvironment(db, env);
-    await runAuthMigrations(parseConfiguredAuth(auth));
-    return { db, mode, auth };
-  }
-
+function registerBootstrapCreationTests(): void {
   it("creates admin@admin.admin and confirms it without copying the operator password into logs", async () => {
     const { db, mode, auth } = await bootstrapFixture();
     const lines: string[] = [];
@@ -2071,7 +2068,9 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
     });
     expect(signIn.statusCode).toBe(200);
   });
+}
 
+function registerBootstrapCredentialPolicyTests(): void {
   it("refuses to create an irretrievable generated credential when the operator password is absent", async () => {
     vi.stubEnv("CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD", "");
     const { db, mode, auth } = await bootstrapFixture();
@@ -2129,7 +2128,9 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
     expect(res.statusCode).toBe(400);
     expect(parseErrorCode(res)).toBe("PASSWORD_TOO_SHORT");
   });
+}
 
+function registerBootstrapUnicodePolicyTests(): void {
   it("enforces sign-up bounds in Unicode code points rather than UTF-16 code units", async () => {
     const { db } = await bootstrapFixture();
     const open = createAuthFromEnvironment(db, {
@@ -2171,7 +2172,9 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
     });
     expect(parseCreatedUserId(createdUser)).toBeTypeOf("string");
   });
+}
 
+function registerBootstrapLifecycleTests(): void {
   it("skips with one line (not an error) when users already exist", async () => {
     const { db, mode, auth } = await bootstrapFixture();
     await createBootstrapAdmin(db, mode, auth, () => {});
@@ -2228,6 +2231,16 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
     expect(await createBootstrapAdmin(db, mode, auth, (l) => lines.push(l))).toBe("created");
     expect(countUsers(db)).toBe(1);
   });
+}
+
+describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
+  beforeEach(() => vi.stubEnv("CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD", BOOTSTRAP_PASSWORD));
+  afterEach(() => vi.unstubAllEnvs());
+
+  registerBootstrapCreationTests();
+  registerBootstrapCredentialPolicyTests();
+  registerBootstrapUnicodePolicyTests();
+  registerBootstrapLifecycleTests();
 });
 
 function registerAuthModeRefusalTests(): void {
