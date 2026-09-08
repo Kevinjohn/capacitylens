@@ -4304,7 +4304,7 @@ describe("sensitive response caching", () => {
   });
 });
 
-function registerDirectPutConcurrencyTests(): void {
+function createDirectPutConcurrencyTests(): void {
   it("rejects a stale PUT with 409 when enabled; allows same/newer", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
@@ -4347,7 +4347,7 @@ function registerDirectPutConcurrencyTests(): void {
   });
 }
 
-function registerDirectPatchConcurrencyTests(): void {
+function createDirectPatchConcurrencyTests(): void {
   it("rejects a stale PATCH and accepts one carrying the current server revision", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
@@ -4377,7 +4377,7 @@ function registerDirectPatchConcurrencyTests(): void {
   });
 }
 
-function registerConcurrencyOptOutTests(): void {
+function createConcurrencyOptOutTests(): void {
   it("can be explicitly disabled for a trusted single-writer deployment", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
@@ -4405,7 +4405,7 @@ function registerConcurrencyOptOutTests(): void {
   });
 }
 
-function registerBatchStalePutConcurrencyTests(): void {
+function createBatchStalePutConcurrencyTests(): void {
   // The batch PUT branch applies the SAME stale-write refusal as the direct PUT (it previously
   // had none — a stale client batch could silently overwrite newer server rows even with the flag
   // on). The 409 carries the stored row as `current`, and — the batch being one tx — rolls the
@@ -4456,7 +4456,7 @@ function registerBatchStalePutConcurrencyTests(): void {
   });
 }
 
-function registerBatchFreshPutConcurrencyTests(): void {
+function createBatchFreshPutConcurrencyTests(): void {
   it("batch: a fresh (same/newer updatedAt) PUT op passes with the flag on", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
@@ -4499,7 +4499,7 @@ function registerBatchFreshPutConcurrencyTests(): void {
   });
 }
 
-function registerMissingRevisionConcurrencyTests(): void {
+function createMissingRevisionConcurrencyTests(): void {
   it("rejects existing-row PUTs that omit the required revision precondition", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
@@ -4537,7 +4537,7 @@ function registerMissingRevisionConcurrencyTests(): void {
   });
 }
 
-function registerFutureRevisionConcurrencyTests(): void {
+function createFutureRevisionConcurrencyTests(): void {
   it("rejects a future-authored revision instead of treating it as fresher than the server", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
@@ -4559,7 +4559,7 @@ function registerFutureRevisionConcurrencyTests(): void {
   });
 }
 
-function registerPartialPatchConcurrencyTests(): void {
+function createPartialPatchConcurrencyTests(): void {
   it("accepts a partial PATCH that omits updatedAt (a normal partial edit is never a 409)", async () => {
     // The PATCH route calls isStaleWrite unconditionally; a partial PATCH legitimately omits
     // updatedAt, so it must NOT be treated as a stale conflict — otherwise every ordinary partial
@@ -4574,7 +4574,7 @@ function registerPartialPatchConcurrencyTests(): void {
   });
 }
 
-function registerNullPatchConcurrencyTests(): void {
+function createNullPatchConcurrencyTests(): void {
   it("rejects null for a required PATCH field without rewriting the stored value", async () => {
     const app = createApp(openDb(":memory:"));
     await post(app, "accounts", account("a1"));
@@ -4588,7 +4588,7 @@ function registerNullPatchConcurrencyTests(): void {
   });
 }
 
-function registerUnparseableStoredRevisionTests(): void {
+function createUnparseableStoredRevisionTests(): void {
   it("keeps writing to a row whose STORED updatedAt is unparseable (never write-bricked)", async () => {
     // Regression: the inverted predicate returned "stale" whenever a timestamp failed to parse, so a
     // row with a corrupt/legacy stored updatedAt 409'd on EVERY write — permanently unrecoverable.
@@ -4616,7 +4616,7 @@ function registerUnparseableStoredRevisionTests(): void {
   });
 }
 
-function registerUnincrementableStoredRevisionTests(): void {
+function createUnincrementableStoredRevisionTests(): void {
   it.each(["9999-12-31T23:59:59.999Z", "+010000-01-01T00:00:00.000Z", "+275760-09-13T00:00:00.000Z"])(
     "repairs an unincrementable or expanded stored revision through the API: %s",
     async (storedRevision) => {
@@ -4634,7 +4634,7 @@ function registerUnincrementableStoredRevisionTests(): void {
   );
 }
 
-function registerBatchConcurrencyOptOutTests(): void {
+function createBatchConcurrencyOptOutTests(): void {
   it("batch: explicit opt-out restores last-writer-wins semantics", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
@@ -4664,7 +4664,7 @@ function registerBatchConcurrencyOptOutTests(): void {
   });
 }
 
-function registerOrderedBatchSuccessorTests(): void {
+function createOrderedBatchSuccessorTests(): void {
   it.each([true, false])(
     "ordered browser batches preserve the newer edit when sequence 1 commits before sequence 2 (optimistic=%s)",
     async (optimisticConcurrency) => {
@@ -4716,7 +4716,7 @@ function registerOrderedBatchSuccessorTests(): void {
   );
 }
 
-function registerOrderedBatchSupersessionTests(): void {
+function createOrderedBatchSupersessionTests(): void {
   it.each([true, false])(
     "ordered browser batches preserve the newer edit when sequence 2 arrives before sequence 1 (optimistic=%s)",
     async (optimisticConcurrency) => {
@@ -4772,7 +4772,7 @@ function registerOrderedBatchSupersessionTests(): void {
   );
 }
 
-function registerOrderedLifecycleFenceTests(): void {
+function createOrderedLifecycleFenceTests(): void {
   it.each([true, false])(
     "an ordered teardown archive fences an older in-flight lifecycle creation (optimistic=%s)",
     async (optimisticConcurrency) => {
@@ -4818,7 +4818,7 @@ function registerOrderedLifecycleFenceTests(): void {
   );
 }
 
-function registerOrderedLifecycleArchiveTests(): void {
+function createOrderedLifecycleArchiveTests(): void {
   it("applies an ordered lifecycle archive atomically and retains its inactive row", async () => {
     const db = openDb(":memory:");
     const app = createApp(db);
@@ -4850,7 +4850,7 @@ function registerOrderedLifecycleArchiveTests(): void {
   });
 }
 
-function registerOrderedExternalEditTests(): void {
+function createOrderedExternalEditTests(): void {
   it("ordered successor still rejects a stale write after an intervening external edit", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
@@ -4891,7 +4891,7 @@ function registerOrderedExternalEditTests(): void {
   });
 }
 
-function registerOrderedStaleDeleteTests(): void {
+function createOrderedStaleDeleteTests(): void {
   it("ordered stale DELETE rolls back its batch and preserves an externally edited row", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     const { baseRevision, external } = await createExternalAllocationEdit(app);
@@ -4947,7 +4947,7 @@ function registerOrderedStaleDeleteTests(): void {
   });
 }
 
-function registerOrderedStaleArchiveTests(): void {
+function createOrderedStaleArchiveTests(): void {
   it("ordered stale ARCHIVE rolls back its batch when it is not a same-session successor", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: false });
     await post(app, "accounts", account("a1"));
@@ -4990,7 +4990,7 @@ function registerOrderedStaleArchiveTests(): void {
   });
 }
 
-function registerOrderedNonLifecycleDeletionTests(): void {
+function createOrderedNonLifecycleDeletionTests(): void {
   it.each(["first-before-undo", "undo-before-first"])(
     "ordered creation followed by a non-lifecycle deletion cannot be resurrected (%s)",
     async (arrivalOrder) => {
@@ -5036,26 +5036,26 @@ function registerOrderedNonLifecycleDeletionTests(): void {
 }
 
 describe("optimistic concurrency (default-on)", () => {
-  registerDirectPutConcurrencyTests();
-  registerDirectPatchConcurrencyTests();
-  registerConcurrencyOptOutTests();
-  registerBatchStalePutConcurrencyTests();
-  registerBatchFreshPutConcurrencyTests();
-  registerMissingRevisionConcurrencyTests();
-  registerFutureRevisionConcurrencyTests();
-  registerPartialPatchConcurrencyTests();
-  registerNullPatchConcurrencyTests();
-  registerUnparseableStoredRevisionTests();
-  registerUnincrementableStoredRevisionTests();
-  registerBatchConcurrencyOptOutTests();
-  registerOrderedBatchSuccessorTests();
-  registerOrderedBatchSupersessionTests();
-  registerOrderedLifecycleFenceTests();
-  registerOrderedLifecycleArchiveTests();
-  registerOrderedExternalEditTests();
-  registerOrderedStaleDeleteTests();
-  registerOrderedStaleArchiveTests();
-  registerOrderedNonLifecycleDeletionTests();
+  createDirectPutConcurrencyTests();
+  createDirectPatchConcurrencyTests();
+  createConcurrencyOptOutTests();
+  createBatchStalePutConcurrencyTests();
+  createBatchFreshPutConcurrencyTests();
+  createMissingRevisionConcurrencyTests();
+  createFutureRevisionConcurrencyTests();
+  createPartialPatchConcurrencyTests();
+  createNullPatchConcurrencyTests();
+  createUnparseableStoredRevisionTests();
+  createUnincrementableStoredRevisionTests();
+  createBatchConcurrencyOptOutTests();
+  createOrderedBatchSuccessorTests();
+  createOrderedBatchSupersessionTests();
+  createOrderedLifecycleFenceTests();
+  createOrderedLifecycleArchiveTests();
+  createOrderedExternalEditTests();
+  createOrderedStaleDeleteTests();
+  createOrderedStaleArchiveTests();
+  createOrderedNonLifecycleDeletionTests();
 });
 
 describe("batch op-count cap (MAX_BATCH_OPS)", () => {
