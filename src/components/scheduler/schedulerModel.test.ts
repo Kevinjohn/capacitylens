@@ -1839,6 +1839,67 @@ describe("buildSchedulerModel(activeOnly(data), …) — non-active resources va
   });
 });
 
+function buildBlockTimeOffRows() {
+  const d = dataset();
+  d.allocations = [
+    {
+      ...requireValue(d.allocations[0], "a1 allocation"),
+      startDate: "2026-06-01",
+      endDate: "2026-06-07",
+      hoursPerDay: 8, // legacy load is retained in storage but projected to zero in Blocks mode
+    },
+  ];
+  d.timeOff = [
+    {
+      id: "to-r1-tuesday",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: "r1",
+      startDate: "2026-06-02",
+      endDate: "2026-06-02",
+      type: "holiday",
+    },
+    {
+      id: "to-r2-wednesday",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: "r2",
+      startDate: "2026-06-03",
+      endDate: "2026-06-03",
+      type: "holiday",
+    },
+  ];
+
+  const model = buildSchedulerModel({
+    data: d,
+    geom,
+    days,
+    visibleWindow: { start, end },
+    overSoonWindow: { start, end },
+    filters: buildEmptyFilters(),
+    preferences: {
+      disciplinesEnabled: true,
+      placeholdersEnabled: true,
+      externalEnabled: true,
+      accountWorkingDays: [1, 2, 3, 4], // Friday is globally closed; Sat/Sun are personally closed.
+      blocksMode: true,
+    },
+  });
+  const rows = model.flatMap((group) => group.rows);
+  const r1 = requireValue(
+    rows.find((row) => row.resource.id === "r1"),
+    "r1 scheduler row",
+  );
+  const r2 = requireValue(
+    rows.find((row) => row.resource.id === "r2"),
+    "r2 scheduler row",
+  );
+
+  return { r1, r2 };
+}
+
 // Mutation-testing gap-fill: each block below targets a specific line the exhaustive suites above
 // happen not to exercise in a way that observes real output (a fallback path, an optional-chain
 // guard, a Map built via array-pair entries, etc).
@@ -2194,62 +2255,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
   });
 
   it("marks only block/time-off overlaps without adding load or treating non-working days as conflicts", () => {
-    const d = dataset();
-    d.allocations = [
-      {
-        ...requireValue(d.allocations[0], "a1 allocation"),
-        startDate: "2026-06-01",
-        endDate: "2026-06-07",
-        hoursPerDay: 8, // legacy load is retained in storage but projected to zero in Blocks mode
-      },
-    ];
-    d.timeOff = [
-      {
-        id: "to-r1-tuesday",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r1",
-        startDate: "2026-06-02",
-        endDate: "2026-06-02",
-        type: "holiday",
-      },
-      {
-        id: "to-r2-wednesday",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r2",
-        startDate: "2026-06-03",
-        endDate: "2026-06-03",
-        type: "holiday",
-      },
-    ];
-
-    const model = buildSchedulerModel({
-      data: d,
-      geom,
-      days,
-      visibleWindow: { start, end },
-      overSoonWindow: { start, end },
-      filters: buildEmptyFilters(),
-      preferences: {
-        disciplinesEnabled: true,
-        placeholdersEnabled: true,
-        externalEnabled: true,
-        accountWorkingDays: [1, 2, 3, 4], // Friday is globally closed; Sat/Sun are personally closed.
-        blocksMode: true,
-      },
-    });
-    const rows = model.flatMap((group) => group.rows);
-    const r1 = requireValue(
-      rows.find((row) => row.resource.id === "r1"),
-      "r1 scheduler row",
-    );
-    const r2 = requireValue(
-      rows.find((row) => row.resource.id === "r2"),
-      "r2 scheduler row",
-    );
+    const { r1, r2 } = buildBlockTimeOffRows();
 
     expect(r1.dayStates.map((state) => state.over)).toEqual([false, false, false, false, false, false, false]);
     expect(r1.dayStates.map((state) => state.timeOffConflict)).toEqual([
