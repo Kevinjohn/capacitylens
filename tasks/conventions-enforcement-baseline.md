@@ -1,8 +1,9 @@
 # Issue #645 typed-lint baseline reconciliation
 
-The immutable initial inventory is available at commit `9ab35f91` (2026-09-07). This file is the
-shrink-only live reconciliation required by the programme; the historical snapshot remains
-available with `git show 9ab35f91:tasks/conventions-enforcement-baseline.md`.
+The initial inventory was measured at commit `9ab35f91` (2026-09-07), and its immutable published
+ledger snapshot is available with
+`git show 55c9794e:tasks/conventions-enforcement-baseline.md`. This file is the shrink-only live
+reconciliation required by the programme.
 
 This is the declaration-level audit record for the seven rule IDs in the five authorised residual smell families. `eslint-suppressions.json` is the enforcing file/rule/count baseline; this ledger makes each suppressed declaration and its classification reviewable. Counts may only shrink. Near-zero rules and `no-unnecessary-type-assertion` have no baseline.
 

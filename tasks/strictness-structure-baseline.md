@@ -1,9 +1,9 @@
 # Issue #647 structural baseline reconciliation
 
-The immutable initial declaration inventory is available at
-`6a9cf77480a34cb4f3c3429bae48561af90b7948`. This file is the shrink-only live reconciliation;
-the historical snapshot remains available with
-`git show 6a9cf774:tasks/strictness-structure-baseline.md`. The inventory covers declarations under
+The initial declaration inventory was measured at
+`6a9cf77480a34cb4f3c3429bae48561af90b7948`, and its immutable published ledger snapshot is
+available with `git show ae077c846:tasks/strictness-structure-baseline.md`. This file is the
+shrink-only live reconciliation. The inventory covers declarations under
 `src`, `shared/src`, `server/src`, and `server/scripts`, plus end-to-end declarations under `e2e`.
 The settings are `complexity` 12, `max-depth` 3, and `max-lines-per-function` 60 with blank lines and
 comments excluded and IIFEs included.
@@ -28,9 +28,9 @@ have no remaining entries.
 The live issue's original `d9824dfd` probe reported 152 complexity, 49 depth, and 246 length
 violations before the programme's implementation work. The later stage-10 probe widened the
 measurement to the intended production, test, and E2E scope and reported 154/57/690. At the
-accepted tree, intervening declarations and the explicit E2E ESLint enrollment produce
-158/59/694. These are changes between probe revisions, not permitted growth after enrollment: this
-ledger and the matching `eslint-suppressions.json` counts establish the one initial frozen baseline.
+accepted tree, intervening declarations and the explicit E2E ESLint enrollment produced
+158/59/694. These are changes between probe revisions, not permitted growth after enrollment; the
+immutable `ae077c846` ledger and its matching suppression counts establish that initial baseline.
 
 ## Declaration inventory
 
