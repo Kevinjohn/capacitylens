@@ -19,10 +19,7 @@ import {
  *     produces. Returns the owned row so callers can read its current values.
  */
 export function findOwned<K extends ScopedEntityKey>(
-  data: AppData,
-  accountId: ID,
-  key: K,
-  id: ID,
+  ...[data, accountId, key, id]: [data: AppData, accountId: ID, key: K, id: ID]
 ): AppData[K][number] | null {
   const row = (data[key] as ScopedEntity[]).find((entity) => entity.id === id);
   if (!row) return null;
@@ -30,6 +27,143 @@ export function findOwned<K extends ScopedEntityKey>(
     domainError("record_wrong_account", "That record does not belong to the active company.");
   }
   return row as AppData[K][number];
+}
+
+type ScopedRefsArgs = [
+  data: AppData,
+  accountId: ID,
+  key: ScopedEntityKey,
+  record: Record<string, unknown>,
+  existing?: ScopedEntity | Record<string, unknown>,
+  lookup?: ValidationDataLookup,
+  options?: { fullRow?: boolean },
+];
+
+type ScopedRefsContext = {
+  data: AppData;
+  accountId: ID;
+  record: Record<string, unknown>;
+  previous: Record<string, unknown> | undefined;
+  lookupOptions: { lookup?: ValidationDataLookup };
+  present: (field: string) => boolean;
+  supplied: (field: string) => boolean;
+  unchanged: (field: string) => boolean;
+  need: (field: string, table: ScopedEntityKey, message: string) => void;
+};
+
+function createScopedRefsContext(
+  ...[data, accountId, record, existing, lookup]: [
+    AppData,
+    ID,
+    Record<string, unknown>,
+    ScopedEntity | Record<string, unknown> | undefined,
+    ValidationDataLookup | undefined,
+  ]
+): ScopedRefsContext {
+  const lookupOptions = lookup === undefined ? {} : { lookup };
+  const present = (field: string) => record[field] !== undefined && record[field] !== null;
+  const supplied = (field: string) => Object.prototype.hasOwnProperty.call(record, field);
+  // Reading loose field names off the stored row is safe: an absent field is undefined and can
+  // only equal an equally absent patch field, which is an unchanged no-op.
+  const previous = existing as Record<string, unknown> | undefined;
+  // An unchanged id was already proven in-account when it was written.
+  const unchanged = (field: string) => previous !== undefined && record[field] === previous[field];
+  const need = (field: string, table: ScopedEntityKey, message: string) => {
+    if (!present(field)) return;
+    const resolved =
+      typeof record[field] === "string"
+        ? (resolveValidationRow({ data, table, id: record[field], ...lookupOptions }) as ScopedEntity | undefined)
+        : undefined;
+    if (unchanged(field) && (resolved === undefined || belongsToAccount(resolved, accountId))) return;
+    if (
+      resolved === undefined ||
+      !belongsToAccount(resolved, accountId) ||
+      !isEffectivelyActive({ data, table, row: resolved, ...lookupOptions })
+    ) {
+      domainError("reference_wrong_account", message);
+    }
+  };
+  return { data, accountId, record, previous, lookupOptions, present, supplied, unchanged, need };
+}
+
+function assertRequiredRef(
+  context: ScopedRefsContext,
+  ...[field, table, message, existing, fullRow]: [
+    string,
+    ScopedEntityKey,
+    string,
+    ScopedEntity | Record<string, unknown> | undefined,
+    boolean | undefined,
+  ]
+): void {
+  if (context.present(field)) {
+    context.need(field, table, message);
+    return;
+  }
+  if (existing === undefined || fullRow === true || context.supplied(field)) {
+    domainError("reference_wrong_account", message);
+  }
+}
+
+function assertActivityKind(context: ScopedRefsContext): void {
+  if (!context.present("kind")) return;
+  const { record, present } = context;
+  if (record.kind === "project" && !present("projectId")) {
+    domainError("activity_project_required", "A project-specific activity must be assigned to a project.");
+  }
+  if (record.kind !== "internal" && record.kind !== "repeatable") return;
+  if (present("projectId")) {
+    domainError("activity_project_forbidden", "An internal or all-projects activity cannot belong to a project.");
+  }
+  if (present("phaseId")) {
+    domainError("activity_phase_forbidden", "An internal or all-projects activity cannot belong to a phase.");
+  }
+}
+
+function assertActivityPhase(context: ScopedRefsContext): void {
+  const { data, accountId, record, lookupOptions, present, unchanged } = context;
+  if (!present("phaseId")) return;
+  const phase =
+    typeof record.phaseId === "string"
+      ? (resolveValidationRow({ data, table: "phases", id: record.phaseId, ...lookupOptions }) as
+          AppData["phases"][number] | undefined)
+      : undefined;
+  const ownedPhase = phase && belongsToAccount(phase, accountId) ? phase : undefined;
+  if (unchanged("phaseId") && unchanged("projectId")) {
+    if (phase && !ownedPhase)
+      domainError("activity_phase_wrong_account", "Activity phase must belong to this company.");
+    return;
+  }
+  if (!ownedPhase) domainError("activity_phase_wrong_account", "Activity phase must belong to this company.");
+  if (!present("projectId")) {
+    domainError(
+      "activity_phase_project_required",
+      "An activity with a phase must also belong to that phase’s project.",
+    );
+  }
+  if (ownedPhase.projectId !== record.projectId) {
+    domainError("activity_phase_project_mismatch", "Activity phase must belong to the activity’s project.");
+  }
+}
+
+function assertActivityRefs(context: ScopedRefsContext): void {
+  assertActivityKind(context);
+  context.need("projectId", "projects", "Activity must reference a project in this company.");
+  assertActivityPhase(context);
+}
+
+function assertResourceRefs(context: ScopedRefsContext): void {
+  const { record, previous, supplied, need } = context;
+  const mergedKind = supplied("kind") ? record.kind : previous?.kind;
+  const mergedProjectId = supplied("projectId") ? record.projectId : previous?.projectId;
+  const projectBindingChanged = supplied("kind") || supplied("projectId");
+  const hasProject = mergedProjectId !== undefined && mergedProjectId !== null;
+  const hasKind = mergedKind !== undefined && mergedKind !== null;
+  if (projectBindingChanged && hasProject && hasKind && mergedKind !== "placeholder") {
+    domainError("resource_project_forbidden", "Only a placeholder can be assigned to a project.");
+  }
+  need("disciplineId", "disciplines", "Resource discipline must belong to this company.");
+  need("projectId", "projects", "Placeholder project must belong to this company.");
 }
 
 /**
@@ -49,149 +183,36 @@ export function findOwned<K extends ScopedEntityKey>(
  * runs against the full DB, where an archived parent still exists.)
  */
 export function assertScopedRefs(
-  data: AppData,
-  accountId: ID,
-  key: ScopedEntityKey,
-  record: Record<string, unknown>,
-  existing?: ScopedEntity | Record<string, unknown>,
-  lookup?: ValidationDataLookup,
-  options: { fullRow?: boolean } = {},
+  ...[data, accountId, key, record, existing, lookup, options = {}]: ScopedRefsArgs
 ): void {
-  const lookupOptions = lookup === undefined ? {} : { lookup };
-  const present = (field: string) => record[field] !== undefined && record[field] !== null;
-  const supplied = (field: string) => Object.prototype.hasOwnProperty.call(record, field);
-  // Reading loose field names off the stored row is safe — an absent field is undefined, which can
-  // only ever equal an equally-absent patch field (a no-op skip). The widened accepted type lets
-  // call sites pass a typed entity (interfaces lack the implicit index signature) without a copy.
-  const previous = existing as Record<string, unknown> | undefined;
-  // Unchanged-on-update: see the doc comment — an id identical to the stored row's was
-  // already proven in-account at its own write time.
-  const unchanged = (field: string) => previous !== undefined && record[field] === previous[field];
-  const inAccount = (table: ScopedEntityKey, id: unknown): boolean => {
-    if (typeof id !== "string") return false;
-    const entity = resolveValidationRow({ data, table, id, ...lookupOptions }) as ScopedEntity | undefined;
-    return (
-      entity !== undefined &&
-      belongsToAccount(entity, accountId) &&
-      isEffectivelyActive({ data, table, row: entity, ...lookupOptions })
-    );
-  };
-  const need = (field: string, table: ScopedEntityKey, message: string) => {
-    if (!present(field)) return;
-    if (unchanged(field)) {
-      const id = record[field];
-      const resolved = typeof id === "string" ? resolveValidationRow({ data, table, id, ...lookupOptions }) : undefined;
-      if (resolved === undefined || belongsToAccount(resolved as unknown as ScopedEntity, accountId)) return;
-      domainError("reference_wrong_account", message);
-    }
-    if (!inAccount(table, record[field])) domainError("reference_wrong_account", message);
-  };
-  const needRequired = (field: string, table: ScopedEntityKey, message: string) => {
-    if (!present(field)) {
-      // Only an omitted field on a genuine partial update inherits its stored parent. Creates and
-      // full server rows must be self-contained; an explicitly supplied null/undefined is a clear
-      // attempt and must not flow down to a database NOT NULL diagnostic.
-      if (existing === undefined || options.fullRow === true || supplied(field)) {
-        domainError("reference_wrong_account", message);
-      }
-      return;
-    }
-    need(field, table, message);
-  };
+  const context = createScopedRefsContext(data, accountId, record, existing, lookup);
   switch (key) {
     case "projects":
-      needRequired("clientId", "clients", "Project must reference a client in this company.");
+      assertRequiredRef(
+        context,
+        "clientId",
+        "clients",
+        "Project must reference a client in this company.",
+        existing,
+        options.fullRow,
+      );
       break;
     case "phases":
-      needRequired("projectId", "projects", "Phase must reference a project in this company.");
+      assertRequiredRef(
+        context,
+        "projectId",
+        "projects",
+        "Phase must reference a project in this company.",
+        existing,
+        options.fullRow,
+      );
       break;
-    case "activities": {
-      // Activity.kind coherence, checked first: a project-specific ('project') activity MUST carry a project; an
-      // internal/all-projects ('repeatable') activity is project-less by definition, so it may carry NEITHER a
-      // project nor a phase. (Only enforced when kind is present — a partial patch that doesn't
-      // touch kind is validated against the merged row by the store, which always has it.)
-      if (present("kind")) {
-        const kind = record.kind;
-        if (kind === "project") {
-          if (!present("projectId")) {
-            domainError("activity_project_required", "A project-specific activity must be assigned to a project.");
-          }
-        } else if (kind === "internal" || kind === "repeatable") {
-          if (present("projectId")) {
-            domainError(
-              "activity_project_forbidden",
-              "An internal or all-projects activity cannot belong to a project.",
-            );
-          }
-          if (present("phaseId")) {
-            domainError("activity_phase_forbidden", "An internal or all-projects activity cannot belong to a phase.");
-          }
-        }
-      }
-      need("projectId", "projects", "Activity must reference a project in this company.");
-      // A phase belongs to exactly one project, so an activity's phase must be a phase OF
-      // the activity's own project — otherwise the activity is silently double-bound to two
-      // projects, and deleting the phase's project orphans the activity's phaseId.
-      // Skipped when BOTH ids are unchanged from the stored row: the pair was proven coherent
-      // at its own write time, and in server mode a phase under an archived project may be
-      // absent from the active-only slice (same rationale as `unchanged` above). Touching
-      // EITHER id re-runs the full coherence check.
-      const phasePairUnchanged = unchanged("phaseId") && unchanged("projectId");
-      // Resolve the phase ONCE for BOTH arms below: whether it resolves in-account is the "belong to
-      // this company" failure (the same check `need` would do), and its projectId feeds the coherence
-      // check — no second scan of data.phases. An absent/null phaseId resolves to undefined without
-      // any lookup, so hoisting costs a non-phase write nothing.
-      const phase =
-        typeof record.phaseId === "string"
-          ? (resolveValidationRow({ data, table: "phases", id: record.phaseId, ...lookupOptions }) as
-              AppData["phases"][number] | undefined)
-          : undefined;
-      const ownedPhase = phase && belongsToAccount(phase, accountId) ? phase : undefined;
-      if (present("phaseId") && phasePairUnchanged) {
-        // An archived phase may be absent from an active-only client slice, but a phase that DOES
-        // resolve must still belong to this account. Legacy cross-account state is not trusted merely
-        // because both stored ids are unchanged.
-        if (phase && !ownedPhase) {
-          domainError("activity_phase_wrong_account", "Activity phase must belong to this company.");
-        }
-      } else if (present("phaseId")) {
-        if (!ownedPhase) {
-          domainError("activity_phase_wrong_account", "Activity phase must belong to this company.");
-        }
-        if (!present("projectId")) {
-          domainError(
-            "activity_phase_project_required",
-            "An activity with a phase must also belong to that phase’s project.",
-          );
-        }
-        if (ownedPhase.projectId !== record.projectId) {
-          domainError("activity_phase_project_mismatch", "Activity phase must belong to the activity’s project.");
-        }
-      }
+    case "activities":
+      assertActivityRefs(context);
       break;
-    }
-    case "resources": {
-      // A project binding belongs only to placeholders. Check the merged pair whenever this write
-      // touches either side, so converting a bound placeholder or assigning a project to a person /
-      // external resource is rejected, while an unrelated edit can still repair legacy corruption.
-      const mergedKind = supplied("kind") ? record.kind : previous?.kind;
-      const mergedProjectId = supplied("projectId") ? record.projectId : previous?.projectId;
-      if (
-        (supplied("kind") || supplied("projectId")) &&
-        mergedProjectId !== undefined &&
-        mergedProjectId !== null &&
-        mergedKind !== undefined &&
-        mergedKind !== null &&
-        mergedKind !== "placeholder"
-      ) {
-        domainError("resource_project_forbidden", "Only a placeholder can be assigned to a project.");
-      }
-      // disciplineId applies to any resource; projectId is the placeholder-only binding FK (see
-      // Resource.projectId) — both optional, so need() only fires when present.
-      need("disciplineId", "disciplines", "Resource discipline must belong to this company.");
-      need("projectId", "projects", "Placeholder project must belong to this company.");
+    case "resources":
+      assertResourceRefs(context);
       break;
-    }
     case "clients":
     case "disciplines":
       break;
@@ -218,7 +239,7 @@ export function assertScopedRefs(
  * be silently skipped by a future caller (the old optional arg made that invariant
  * opt-in per call site).
  */
-export function assertAllocationRefs(
+type AllocationRefsArgs = [
   data: AppData,
   accountId: ID,
   resourceId: ID,
@@ -227,6 +248,51 @@ export function assertAllocationRefs(
   projectId?: ID,
   existing?: Pick<Allocation, "resourceId" | "activityId" | "projectId">,
   lookup?: ValidationDataLookup,
+];
+
+type AllocationRefsContext = {
+  data: AppData;
+  accountId: ID;
+  projectId: ID | undefined;
+  existing: Pick<Allocation, "resourceId" | "activityId" | "projectId"> | undefined;
+  lookupOptions: { lookup?: ValidationDataLookup };
+};
+
+function assertAllocationProject(context: AllocationRefsContext, activity: Activity): ID | undefined {
+  const { data, accountId, projectId, existing, lookupOptions } = context;
+  if (projectId !== undefined && !allocationAttributionAllowed(activity.kind)) {
+    domainError(
+      "allocation_project_forbidden",
+      "Only an all-projects activity allocation can be attributed to a project.",
+    );
+  }
+  const resolvedProjectId = effectiveProjectId(projectId === undefined ? {} : { projectId }, activity);
+  const project = resolvedProjectId
+    ? resolveOwnedRow<AppData["projects"][number]>({
+        data,
+        table: "projects",
+        id: resolvedProjectId,
+        accountId,
+        ...lookupOptions,
+      })
+    : undefined;
+  const projectMissing = resolvedProjectId !== undefined && project === undefined;
+  const projectChanged = existing?.projectId !== projectId;
+  const projectInactive =
+    projectChanged &&
+    project !== undefined &&
+    !isEffectivelyActive({ data, table: "projects", row: project, ...lookupOptions });
+  if (projectMissing || projectInactive) {
+    domainError(
+      "allocation_project_inactive",
+      "Allocation must reference an activity under an active project in this company.",
+    );
+  }
+  return resolvedProjectId;
+}
+
+export function assertAllocationRefs(
+  ...[data, accountId, resourceId, activityId, hoursPerDay, projectId, existing, lookup]: AllocationRefsArgs
 ): void {
   const lookupOptions = lookup === undefined ? {} : { lookup };
   const resource = resolveOwnedRow<Resource>({ data, table: "resources", id: resourceId, accountId, ...lookupOptions });
@@ -249,37 +315,11 @@ export function assertAllocationRefs(
   ) {
     domainError("allocation_resource_inactive", "Allocation must reference an active resource in this company.");
   }
-  if (projectId !== undefined && !allocationAttributionAllowed(activity.kind)) {
-    domainError(
-      "allocation_project_forbidden",
-      "Only an all-projects activity allocation can be attributed to a project.",
-    );
-  }
-  const resolvedProjectId = effectiveProjectId(projectId === undefined ? {} : { projectId }, activity);
-  const project = resolvedProjectId
-    ? resolveOwnedRow<AppData["projects"][number]>({
-        data,
-        table: "projects",
-        id: resolvedProjectId,
-        accountId,
-        ...lookupOptions,
-      })
-    : undefined;
   // A project-bound activity must resolve to a project in this account. Normally assertScopedRefs
   // and the database FK make this impossible, but this validator is also the last line of defence
   // for legacy/corrupt state. Treat a missing or cross-account project exactly like an inactive
   // one instead of silently accepting the allocation because `project` resolved to undefined.
-  if (
-    (resolvedProjectId !== undefined && project === undefined) ||
-    (existing?.projectId !== projectId &&
-      project !== undefined &&
-      !isEffectivelyActive({ data, table: "projects", row: project, ...lookupOptions }))
-  ) {
-    domainError(
-      "allocation_project_inactive",
-      "Allocation must reference an activity under an active project in this company.",
-    );
-  }
+  const resolvedProjectId = assertAllocationProject({ data, accountId, projectId, existing, lookupOptions }, activity);
   if (
     existing?.activityId !== activityId &&
     !isEffectivelyActive({ data, table: "activities", row: activity, ...lookupOptions })
