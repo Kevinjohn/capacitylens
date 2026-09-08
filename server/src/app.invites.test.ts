@@ -989,51 +989,55 @@ describe("POST /api/invites (P1.10 create) — preauthEmail", () => {
   });
 });
 
+async function createSsoProviderInviteContext() {
+  const db = openDb(":memory:");
+  const configured = createAuthFromEnvironment(db, {
+    ...PASSWORD_ENV,
+    CAPACITYLENS_SSO_CLIENT_ID: "client-id",
+    CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
+    CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+    CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+    CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
+    CAPACITYLENS_GITHUB_CLIENT_ID: "github-client-id",
+    CAPACITYLENS_GITHUB_CLIENT_SECRET: "github-client-secret",
+  });
+  const configuredAuth = requireValue(configured.auth, "configured authentication");
+  await runAuthMigrations(configuredAuth);
+  const passwordApp = buildApp(db, { authMode: "password", auth: configuredAuth });
+  const joiner = await signUp(passwordApp, "social-only@capacitylens.dev");
+  verifyUserEmail(db, "social-only@capacitylens.dev");
+  await passwordApp.close();
+  const timestamp = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run("github-link", "github", "github-subject", joiner.userId, timestamp, timestamp);
+  const session = db.prepare(`SELECT token FROM session WHERE userId = ?`).get(joiner.userId) as { token: string };
+  const sessionHandle = buildApplicationSessionHandle("capacitylens", session.token);
+  recordSessionAssurance({
+    db,
+    sessionId: sessionHandle,
+    principalId: joiner.userId,
+    assurance: "federated",
+    providerId: "github",
+  });
+  const ssoApp = buildApp(db, { authMode: "sso", auth: configuredAuth });
+  const socialMe = await call(ssoApp, { method: "GET", url: "/api/auth/me", headers: { cookie: joiner.cookie } });
+  expect(readResponseObject(socialMe).canCreateAccount).toBe(false);
+  const socialProvision = await call(ssoApp, {
+    method: "POST",
+    url: "/api/orgs",
+    headers: { cookie: joiner.cookie },
+    payload: { id: "founded", name: "Founded", color: "#3b82f6" },
+  });
+  expect(socialProvision.statusCode).toBe(403);
+  expect(readResponseObject(socialProvision).error).toMatch(/required SSO provider/i);
+  return { db, joiner, sessionHandle, ssoApp, timestamp };
+}
+
 describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
   it("requires the strict provider before an SSO-only session can create a membership", async () => {
-    const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, {
-      ...PASSWORD_ENV,
-      CAPACITYLENS_SSO_CLIENT_ID: "client-id",
-      CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
-      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
-      CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
-      CAPACITYLENS_GITHUB_CLIENT_ID: "github-client-id",
-      CAPACITYLENS_GITHUB_CLIENT_SECRET: "github-client-secret",
-    });
-    const configuredAuth = requireValue(configured.auth, "configured authentication");
-    await runAuthMigrations(configuredAuth);
-    const passwordApp = buildApp(db, { authMode: "password", auth: configuredAuth });
-    const joiner = await signUp(passwordApp, "social-only@capacitylens.dev");
-    verifyUserEmail(db, "social-only@capacitylens.dev");
-    await passwordApp.close();
-    const timestamp = new Date().toISOString();
-    db.prepare(
-      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("github-link", "github", "github-subject", joiner.userId, timestamp, timestamp);
-    const session = db.prepare(`SELECT token FROM session WHERE userId = ?`).get(joiner.userId) as { token: string };
-    const sessionHandle = buildApplicationSessionHandle("capacitylens", session.token);
-    recordSessionAssurance({
-      db,
-      sessionId: sessionHandle,
-      principalId: joiner.userId,
-      assurance: "federated",
-      providerId: "github",
-    });
-    const ssoApp = buildApp(db, { authMode: "sso", auth: configuredAuth });
-
-    const socialMe = await call(ssoApp, { method: "GET", url: "/api/auth/me", headers: { cookie: joiner.cookie } });
-    expect(readResponseObject(socialMe).canCreateAccount).toBe(false);
-    const socialProvision = await call(ssoApp, {
-      method: "POST",
-      url: "/api/orgs",
-      headers: { cookie: joiner.cookie },
-      payload: { id: "founded", name: "Founded", color: "#3b82f6" },
-    });
-    expect(socialProvision.statusCode).toBe(403);
-    expect(readResponseObject(socialProvision).error).toMatch(/required SSO provider/i);
+    const { db, joiner, sessionHandle, ssoApp, timestamp } = await createSsoProviderInviteContext();
 
     db.prepare(
       `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
