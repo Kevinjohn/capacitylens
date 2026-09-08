@@ -2,7 +2,7 @@ import type { WorkQueueOptions } from "./workQueue";
 import { describe, expect, it, vi } from "vitest";
 import { BoundedWorkQueue, WorkQueueFullError } from "./workQueue";
 
-function required<T>(value: T | undefined): T {
+function assertDeferredResolver<T>(value: T | undefined): T {
   if (value === undefined) {
     throw new Error("Expected a deferred resolver to be registered");
   }
@@ -37,7 +37,7 @@ function registerFifoTest(registerTest: typeof it): void {
     let release: (() => void) | undefined;
     const active = zeroDepth.run(() => new Promise<void>((resolve) => (release = resolve)));
     await expect(zeroDepth.run(async () => undefined)).rejects.toMatchObject({ reason: "full" });
-    required(release)();
+    assertDeferredResolver(release)();
     await active;
 
     const queue = new BoundedWorkQueue({ maxActive: 1, maxQueued: 2, fullMessage: "busy" });
@@ -49,7 +49,7 @@ function registerFifoTest(registerTest: typeof it): void {
       throw new Error("queued failure");
     });
     const last = queue.run(async () => order.push("last"));
-    required(firstRelease)();
+    assertDeferredResolver(firstRelease)();
     await first;
     await expect(failed).rejects.toThrow("queued failure");
     await last;
@@ -79,12 +79,12 @@ function registerBoundsTest(registerTest: typeof it): void {
     expect(active).toBe(2);
     expect(peak).toBe(2);
 
-    required(releases.shift())();
+    assertDeferredResolver(releases.shift())();
     await expect(first).resolves.toBe(1);
     await Promise.resolve();
     expect(active).toBe(2);
-    required(releases.shift())();
-    required(releases.shift())();
+    assertDeferredResolver(releases.shift())();
+    assertDeferredResolver(releases.shift())();
     await expect(Promise.all([second, queued])).resolves.toEqual([2, 3]);
     expect(peak).toBe(2);
   });
@@ -120,7 +120,7 @@ function registerAbortWithdrawalTest(registerTest: typeof it): void {
 
     controller.abort(new Error("request gone"));
     await expect(abandoned).rejects.toThrow("request gone");
-    required(release)();
+    assertDeferredResolver(release)();
 
     await expect(Promise.all([active, useful])).resolves.toEqual(["active", "useful"]);
     expect(abandonedWork).not.toHaveBeenCalled();
@@ -162,7 +162,7 @@ function registerWaitTimeoutTest(registerTest: typeof it): void {
       expect(onSaturated).toHaveBeenCalledWith("wait_timeout");
       expect(waitingWork).not.toHaveBeenCalled();
 
-      required(release)();
+      assertDeferredResolver(release)();
       await expect(active).resolves.toBe("active");
       await expect(queue.run(async () => "next")).resolves.toBe("next");
     } finally {
@@ -185,12 +185,12 @@ function registerAbortAfterDequeueTest(registerTest: typeof it): void {
     const queuedWork = vi.fn(() => new Promise<string>((resolve) => (releaseQueued = () => resolve("queued"))));
     const queued = queue.run(queuedWork, controller.signal);
 
-    required(releaseActive)();
+    assertDeferredResolver(releaseActive)();
     await active;
     expect(queuedWork).toHaveBeenCalledOnce();
 
     controller.abort(new Error("too late — already dequeued"));
-    required(releaseQueued)();
+    assertDeferredResolver(releaseQueued)();
     await expect(queued).resolves.toBe("queued");
   });
 }
@@ -215,14 +215,14 @@ function registerTimerAfterDequeueTest(registerTest: typeof it): void {
       const queuedWork = vi.fn(() => new Promise<string>((resolve) => (releaseQueued = () => resolve("queued"))));
       const queued = queue.run(queuedWork);
 
-      required(releaseActive)();
+      assertDeferredResolver(releaseActive)();
       await active;
       expect(queuedWork).toHaveBeenCalledOnce();
 
       await vi.advanceTimersByTimeAsync(200);
       expect(onSaturated).not.toHaveBeenCalled();
 
-      required(releaseQueued)();
+      assertDeferredResolver(releaseQueued)();
       await expect(queued).resolves.toBe("queued");
     } finally {
       vi.useRealTimers();
@@ -253,7 +253,7 @@ function registerOverflowCancellationTest(registerTest: typeof it): void {
     controller.abort();
     await expect(cancelled).rejects.toMatchObject({ name: "AbortError" });
     expect(onSaturated).toHaveBeenCalledOnce();
-    required(release)();
+    assertDeferredResolver(release)();
     await active;
   });
 }
