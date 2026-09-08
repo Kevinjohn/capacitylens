@@ -39,6 +39,8 @@ function readStrings(value: unknown): string[] {
 }
 
 function readTokenAuthentication(value: unknown): "basic" | "post" {
+  // Discovery defaults absent metadata to client_secret_basic; prefer basic when both supported
+  // confidential-client methods are advertised, while accepting explicit post-only providers.
   if (!Array.isArray(value) || value.includes("client_secret_basic")) return "basic";
   if (value.includes("client_secret_post")) return "post";
   throw new StrictOidcConfigError(
@@ -61,6 +63,8 @@ function validateCapabilities(body: Record<string, unknown>): string[] {
 }
 
 async function validateEndpoints(issuer: URL, endpoints: Array<{ url: URL; field: string }>): Promise<void> {
+  // Only server-fetched endpoints need SSRF containment. An intentionally internal issuer opts the
+  // deployment out so split-origin on-premises providers remain supported.
   const external = endpoints.filter(({ url }) => url.origin !== issuer.origin);
   if (external.length === 0 || (await isInternalIssuer(issuer))) return;
   await Promise.all(external.map(({ url, field }) => assertFetchableEndpoint(url, field, issuer.origin)));
@@ -149,6 +153,7 @@ async function verifyToken(options: {
         audience: options.input.clientId,
         algorithms: options.metadata.allowed_signing_algorithms,
         requiredClaims: ["sub", "iat", "exp"],
+        // Immediate consumption makes the required iat a bounded freshness and replay check.
         maxTokenAge: "10m",
         clockTolerance: 60,
       })
@@ -205,6 +210,7 @@ function createProfile(profile: Record<string, unknown>, subject: string): Stric
     emailVerified: profile.email_verified === true,
     name: profile.name.trim(),
   };
+  // Preserve the established own-property shape even when the provider picture is unusable.
   Object.defineProperty(result, "image", {
     value: parseOptionalPictureUrl(profile.picture) ?? undefined,
     writable: true,
@@ -225,8 +231,10 @@ function createUserInfoResolver(
     const metadata = await readMetadata();
     state.jwks ??= createRemoteJWKSet(new URL(metadata.jwks_uri), {
       timeoutDuration: 10_000,
+      // An unknown kid refreshes immediately for normal overlapping key rotation.
       cooldownDuration: 0,
       cacheMaxAge: 10 * 60_000,
+      // Reuse bounded no-redirect fetching: a redirect would be a new trust decision.
       [customFetch]: async (url, init) => Response.json(await readJson(url.toString(), init)),
     });
     const claims = await verifyToken({ input, metadata, jwks: state.jwks, idToken: tokens.idToken });
@@ -235,7 +243,10 @@ function createUserInfoResolver(
   };
 }
 
-/** Strict OIDC client used by the supported generic provider path. */
+/**
+ * Strict OIDC client used by the supported generic provider path.
+ * Better Auth owns state, PKCE, cookies and persistence; email is admission data, never a link key.
+ */
 export function createStrictOidcClient(input: {
   issuer: string;
   clientId: string;
