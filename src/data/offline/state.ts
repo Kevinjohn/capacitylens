@@ -99,15 +99,20 @@ export function setOfflineReadState(
   readOnly: boolean,
   lastUpdated: number | null = null,
 ): void {
-  if (readOnly && offlineReadOwner === "tenant" && owner !== "tenant") return;
-  if (!readOnly && offlineReadOwner === "tenant" && owner !== "tenant" && owner !== "cleanup") return;
-  if (state.readOnly === readOnly && state.lastUpdated === lastUpdated && (!readOnly || offlineReadOwner === owner)) {
-    return;
-  }
+  if (!maySetOfflineReadState(owner, readOnly) || isCurrentOfflineReadState(owner, readOnly, lastUpdated)) return;
   if (readOnly && !state.readOnly) offlineEpisode += 1;
   offlineReadOwner = readOnly ? owner : null;
   state = { ...state, readOnly, lastUpdated };
   for (const listener of listeners) listener();
+}
+
+function maySetOfflineReadState(owner: OfflineReadOwner, readOnly: boolean): boolean {
+  if (offlineReadOwner !== "tenant" || owner === "tenant") return true;
+  return !readOnly && owner === "cleanup";
+}
+
+function isCurrentOfflineReadState(owner: OfflineReadOwner, readOnly: boolean, lastUpdated: number | null): boolean {
+  return state.readOnly === readOnly && state.lastUpdated === lastUpdated && (!readOnly || offlineReadOwner === owner);
 }
 
 export function setOfflineCacheWriteFailed(cacheWriteFailed: boolean): void {

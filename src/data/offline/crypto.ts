@@ -11,10 +11,11 @@ import { cacheGeneration, advanceCacheGeneration } from "./state";
 import type { CachedRecord, EncryptedRecord, WriteBoundary } from "./types";
 
 export function assertWebCrypto(): Crypto {
-  if (typeof crypto === "undefined" || !crypto.subtle) {
+  const availableCrypto: unknown = Reflect.get(globalThis, "crypto");
+  if (availableCrypto === undefined || availableCrypto === null) {
     throw new Error("Web Crypto is unavailable; encrypted offline access cannot be enabled.");
   }
-  return crypto;
+  return globalThis.crypto;
 }
 
 async function readDeviceKey(db: IDBDatabase): Promise<CryptoKey | null> {

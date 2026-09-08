@@ -24,6 +24,36 @@ interface BootstrapOptions {
   serverMode?: boolean;
 }
 
+function handleLoadFailure(store: StoreApi<StoreState>, error: unknown): () => void {
+  store.getState().replaceAll(emptyAppData());
+  store.getState().setHydrated(true);
+  if (error instanceof LoadError && error.kind === "unavailable") store.getState().setConnectionError(true);
+  else store.getState().setLoadError(true);
+  return () => {};
+}
+
+async function resolveExisting(adapter: PersistenceAdapter, loaded: AppData): Promise<boolean> {
+  try {
+    return adapter.hasExisting ? await adapter.hasExisting() : !isEmpty(loaded);
+  } catch (error) {
+    // This is non-fatal and must not raise the persistence banner after a successful data load.
+    console.warn("bootstrap: hasExisting() failed; inferring existence from loaded data", error);
+    return !isEmpty(loaded);
+  }
+}
+
+async function saveInitialSeed(
+  adapter: PersistenceAdapter,
+  initial: AppData,
+  onError?: (error: unknown) => void,
+): Promise<void> {
+  try {
+    await adapter.saveAll(initial);
+  } catch (error) {
+    onError?.(error);
+  }
+}
+
 export async function bootstrap(
   store: StoreApi<StoreState>,
   adapter: PersistenceAdapter,
@@ -32,7 +62,7 @@ export async function bootstrap(
   let loaded: AppData;
   try {
     loaded = await adapter.loadAll();
-  } catch (e) {
+  } catch (error) {
     // Stored data couldn't be loaded. Render an empty dataset, but DELIBERATELY
     // attach NO persistence and run NO seed-save — the next mutation must not
     // overwrite recoverable data. Route to the recovery UI that fits the failure:
@@ -40,46 +70,24 @@ export async function bootstrap(
     //     local storage would do nothing for a server-backed app that's merely down.
     //   - 'corrupt' (local bytes present but unreadable) or any other throw: the
     //     StorageRecovery reset/import/export screen.
-    store.getState().replaceAll(emptyAppData());
-    store.getState().setHydrated(true);
-    if (e instanceof LoadError && e.kind === "unavailable") {
-      store.getState().setConnectionError(true);
-    } else {
-      store.getState().setLoadError(true);
-    }
-    return () => {};
+    return handleLoadFailure(store, error);
   }
   // Seed only when nothing was ever stored — never resurrect data the user cleared.
   // hasExisting (e.g. the server's /api/meta) decides ONLY whether to seed. If it throws
   // AFTER a successful load, don't discard the loaded data or skip attaching persistence
   // (which would brick saving and show a misleading banner) — fall back to inferring
   // existence from the loaded data itself, so we still skip seeding when there's data.
-  let existed: boolean;
-  try {
-    existed = adapter.hasExisting ? await adapter.hasExisting() : !isEmpty(loaded);
-  } catch (e) {
-    // hasExisting failed AFTER a good load (e.g. the server's /api/meta blipped). The fallback is
-    // safe — infer existence from the loaded data, so we still skip seeding when there's data — but
-    // leave a dev breadcrumb so a totally-silent meta failure isn't invisible while debugging.
-    // Deliberately NOT routed to onError: this is non-fatal and would wrongly raise the persist banner.
-    console.warn("bootstrap: hasExisting() failed; inferring existence from loaded data", e);
-    existed = !isEmpty(loaded);
-  }
-  const seedNeeded = !existed && !!options.seedIfEmpty;
-  const initial = seedNeeded ? (options.seedIfEmpty as AppData) : loaded;
+  const existed = await resolveExisting(adapter, loaded);
+  const seed = options.seedIfEmpty;
+  const seedNeeded = !existed && seed !== undefined;
+  const initial = seedNeeded ? seed : loaded;
 
   store.getState().replaceAll(initial);
   store.getState().setHydrated(true);
   // Guard the first-run seed write: a failure here (quota / private mode) must
   // surface via onError AND must NOT stop persistence from being attached —
   // otherwise the session would silently never save and never show the banner.
-  if (seedNeeded) {
-    try {
-      await adapter.saveAll(initial);
-    } catch (e) {
-      options.onError?.(e);
-    }
-  }
+  if (seedNeeded) await saveInitialSeed(adapter, initial, options.onError);
 
   return attachPersistence({
     store: store,

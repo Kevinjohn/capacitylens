@@ -118,26 +118,28 @@ function workerHarness(fetchImpl: (input: string | Request) => Promise<Response>
     async dispatch(type: "install" | "activate"): Promise<void> {
       const listener = listeners.get(type);
       if (!listener) throw new Error(`Missing ${type} listener.`);
-      let work: Promise<unknown> | null = null;
+      const registeredWork: Promise<unknown>[] = [];
       listener({
         waitUntil: (value) => {
-          work = Promise.resolve(value);
+          registeredWork.push(Promise.resolve(value));
         },
       });
-      if (!work) throw new Error(`${type} did not register lifecycle work.`);
+      const work = registeredWork[0];
+      if (work === undefined) throw new Error(`${type} did not register lifecycle work.`);
       await work;
     },
     async dispatchFetch(request: Request): Promise<Response | null> {
       const listener = listeners.get("fetch");
       if (!listener) throw new Error("Missing fetch listener.");
-      let response: Promise<Response> | null = null;
+      const registeredResponses: Promise<Response>[] = [];
       listener({
         request,
         respondWith: (value) => {
-          response = Promise.resolve(value);
+          registeredResponses.push(Promise.resolve(value));
         },
       });
-      return response ? await response : null;
+      const response = registeredResponses[0];
+      return response === undefined ? null : await response;
     },
   };
 }
@@ -156,7 +158,7 @@ async function pointer(caches: MemoryCacheStorage, key: string): Promise<string 
   return (await (await metadata.match(key))?.text()) ?? null;
 }
 
-describe("offline service-worker shell upgrades", () => {
+describe("offline service-worker request handling", () => {
   it("does not intercept API requests", async () => {
     const fetchImpl = vi.fn(async () => new Response("network"));
     const worker = workerHarness(fetchImpl);
@@ -178,7 +180,9 @@ describe("offline service-worker shell upgrades", () => {
 
     expect(await response?.text()).toContain("/assets/old.js");
   });
+});
 
+describe("offline service-worker shell upgrades", () => {
   it("leaves the active shell unchanged when a new asset cannot be staged", async () => {
     const fetchImpl = vi.fn(async (input: string | Request) => {
       const path = requestPath(input);
@@ -231,7 +235,8 @@ describe("offline service-worker shell upgrades", () => {
     expect(await pointer(worker.caches, ACTIVE_SHELL_POINTER)).toBe(stagedCacheName);
     expect(await pointer(worker.caches, PENDING_SHELL_POINTER)).toBeNull();
     expect(await worker.caches.keys()).not.toContain(oldCacheName);
-    const activeShell = await worker.caches.open(stagedCacheName!);
+    if (stagedCacheName === null) throw new Error("The staged shell pointer was not recorded.");
+    const activeShell = await worker.caches.open(stagedCacheName);
     expect(await (await activeShell.match("/"))?.text()).toContain("/assets/new.js");
     expect(await (await activeShell.match("/assets/new.js"))?.text()).toBe("new bundle");
     expect(await (await activeShell.match("/assets/lazy-route.js"))?.text()).toBe("lazy route");
