@@ -27,13 +27,44 @@ interface CreateAuthorizationInput {
   rootHelpers: ReturnType<typeof installRootHooks>;
 }
 
-export function createAuthorization({ app, runtime, config, options, rootHelpers }: CreateAuthorizationInput) {
+type AppRuntime = ReturnType<typeof createAppRuntime>;
+type RootHelpers = ReturnType<typeof installRootHooks>;
+type ResolveEffectiveRole = (req: FastifyRequest, accountId: string) => EffectiveRoleResult;
+interface MemberProjection {
+  principalId: string;
+  decisions: ReadonlyMap<string, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>>;
+}
+
+interface TrustedOriginInput {
+  req: FastifyRequest;
+  listedOrigin: string | null;
+  fetchSite: string | undefined;
+  trustForwarded: boolean;
+}
+
+function resolveTrustedOrigin({ req, listedOrigin, fetchSite, trustForwarded }: TrustedOriginInput): string | null {
+  if (listedOrigin !== null) return listedOrigin;
+  const reqOrigin = req.headers.origin;
+  if (reqOrigin === undefined) return null;
+  if (fetchSite === "same-origin" || isSameRequestOrigin({ req, reqOrigin, trustForwarded })) return reqOrigin;
+  return null;
+}
+
+function requireUser(req: FastifyRequest): NonNullable<FastifyRequest["user"]> {
+  if (!req.user) throw new Error("Expected user context on an authenticated application route.");
+  return req.user;
+}
+
+function requireAccountActor(req: FastifyRequest): NonNullable<FastifyRequest["accountActor"]> {
+  if (!req.accountActor) throw new Error("Expected account actor context on an authenticated application route.");
+  return req.accountActor;
+}
+
+/** Resolve real membership first, then substitute only the active account's masquerade target role. */
+function createEffectiveRoleResolver(runtime: AppRuntime): ResolveEffectiveRole {
   const { accountAdminPort, endMasquerade, masquerades } = runtime;
-  const { authMode } = config;
-  const { corsOrigins, securityEvent } = rootHelpers;
-  /** Resolve the real membership first, then substitute only the active account's target read role. */
-  function resolveEffectiveRole(req: FastifyRequest, accountId: string): EffectiveRoleResult {
-    const realRole = accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId);
+  return function resolveEffectiveRole(req, accountId) {
+    const realRole = accountAdminPort.roleForPrincipalInWorkspace(requireUser(req).id, accountId);
     const record = req.session ? masquerades.lookup(req.session.id) : null;
     if (!record || record.accountId !== accountId) return { kind: "resolved", role: realRole };
     if (realRole === null || !can(realRole, "masquerade")) {
@@ -46,142 +77,137 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
       return { kind: "ended" };
     }
     return { kind: "resolved", role: targetRole };
-  }
+  };
+}
 
-  function readMemberProjection(
+function createMemberProjectionReader(runtime: AppRuntime) {
+  const { accountAdminPort, masquerades } = runtime;
+  return function readMemberProjection(
     req: FastifyRequest,
     accountId: string,
     targetPrincipalIds: readonly string[],
-  ): {
-    principalId: string;
-    decisions: ReadonlyMap<string, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>>;
-  } {
+  ): MemberProjection {
     const record = req.session ? masquerades.peek(req.session.id) : null;
-    const principalId = record?.accountId === accountId ? record.targetUserId : req.accountActor!.principalId;
+    const principalId = record?.accountId === accountId ? record.targetUserId : requireAccountActor(req).principalId;
     const decisions = accountAdminPort.projectIdentityAdminAuthoritiesForTargets({
       principalId,
       targetPrincipalIds,
       actions: ["issue-password-reset", "revoke-sessions"],
     });
     return { principalId, decisions };
-  }
+  };
+}
 
-  /**
-   * The authorization seam (P1.5 requirePermission): "may THIS request perform `action` on
-   * `accountId`?". Returns `kind: "allowed"` with the resolved role to proceed;
-   * otherwise it sends the route's denial and returns `kind: "denied"`.
-   *
-   * OFF mode (the default, trusted-local) is a NO-OP allow-all: it returns a successful null-role result
-   * on the FIRST line, BEFORE any membership read — `req.user` is the synthetic DEMO_USER and the account
-   * port / `can` never run. This pins the #1 invariant (OFF = exactly today's behaviour). Auth-on asks the
-   * account administration port for the caller's active role and runs the pure `can(role, action)` matrix:
-   *   - non-member (`role === null`) → 403,
-   *   - member but insufficient tier (`can === false`) → 403,
-   *   - otherwise allowed.
-   *
-   * No 401/503 here: the requireUser preHandler already 401'd a session-less request (and 503'd an
-   * auth-backend failure) upstream, so by the time a handler runs in auth-on, `req.user` is a real
-   * verified session user. The 403 uses the repo's standard `{ error }` JSON shape.
-   *
-   * @param req        The (already-authenticated in auth-on) request; `req.user` is the principal.
-   * @param reply      The reply, used to send the 403 on denial.
-   * @param accountId  The account the action targets (each route derives this as it does today).
-   * @param action     The coarse capability being attempted (see {@link AuthorizeRouteInput.action}).
-   * @param options    Row-addressed routes may conceal non-membership as the same 404 as an absent id.
-   * @returns An allowed result with the resolved role, or a denied result after sending the response.
-   */
-  function authorize({ req, reply, accountId, action, options = {} }: AuthorizeRouteInput): AuthorizationResult {
-    if (authMode === "off") return { kind: "allowed", role: null }; // OFF = allow-all; the account port / can NEVER run.
-    const resolved = resolveEffectiveRole(req, accountId);
+interface AuthorizeInput {
+  authMode: ReturnType<typeof resolveAppConfig>["authMode"];
+  resolveEffectiveRole: ResolveEffectiveRole;
+  securityEvent: RootHelpers["securityEvent"];
+}
+
+function denyMissingRole(
+  { req, reply, accountId, action, options = {} }: AuthorizeRouteInput,
+  securityEvent: RootHelpers["securityEvent"],
+): AuthorizationResult {
+  securityEvent({ event: "authorization", outcome: "denied", action, accountId, userId: req.user?.id });
+  if (options.concealNonMembership) reply.code(404).send({ error: "Not found" });
+  else reply.code(403).send({ error: "Forbidden." });
+  return { kind: "denied" };
+}
+
+function denyInsufficientRole(
+  { req, reply, accountId, action }: AuthorizeRouteInput,
+  role: Role,
+  securityEvent: RootHelpers["securityEvent"],
+): AuthorizationResult {
+  securityEvent({ event: "authorization", outcome: "denied", action, accountId, userId: req.user?.id, role });
+  reply.code(403).send({ error: "Forbidden." });
+  return { kind: "denied" };
+}
+
+function requireFreshSession(
+  { req, reply, accountId, action }: AuthorizeRouteInput,
+  securityEvent: RootHelpers["securityEvent"],
+): boolean {
+  if (action === "read" || action === "write") return true;
+  // Privileged actions fail closed when their session timestamp is absent or malformed. A fresh
+  // sign-in always restores access by minting a dated session, so this cannot permanently lock out
+  // an administrator. Date.parse of the empty fallback is NaN, which fails the finite check.
+  // The inclusive deadline matches session-activity enforcement: the bound is the last safe instant.
+  const sessionCreatedAtMs = Date.parse(req.user?.sessionCreatedAt ?? "");
+  const timestampMissing = !Number.isFinite(sessionCreatedAtMs);
+  if (!timestampMissing && Date.now() - sessionCreatedAtMs < ACCOUNT_SESSION_FRESH_AGE_SECONDS * 1000) return true;
+  securityEvent({
+    event: "step_up_required",
+    outcome: "blocked",
+    action,
+    accountId,
+    userId: req.user?.id,
+    // Distinguish record-integrity failures from an ordinarily aged-out session.
+    ...(timestampMissing ? { reason: "missing_session_timestamp" } : {}),
+  });
+  reply.code(403).send({
+    error: "Sign in again before performing this security-sensitive action.",
+    code: "SESSION_NOT_FRESH",
+  });
+  return false;
+}
+
+/**
+ * Decide whether this request may perform an action on an account. Trusted-local mode returns
+ * before any membership read. Authenticated mode resolves the request principal's active
+ * membership (or active masquerade target), then applies membership, capability and fresh-session
+ * checks in that order. Authentication/backend failures are handled by the upstream preHandler;
+ * this seam sends only its established 403 response, or the row-concealing 404 for non-members.
+ */
+function createAuthorize({ authMode, resolveEffectiveRole, securityEvent }: AuthorizeInput) {
+  return function authorize(input: AuthorizeRouteInput): AuthorizationResult {
+    // Trusted-local mode is a no-op allow-all: neither the membership port nor `can` may run.
+    if (authMode === "off") return { kind: "allowed", role: null };
+    const resolved = resolveEffectiveRole(input.req, input.accountId);
     if (resolved.kind === "ended") {
-      reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
+      input.reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
       return { kind: "denied" };
     }
-    const role = resolved.role;
-    if (role === null) {
-      securityEvent({
-        event: "authorization",
-        outcome: "denied",
-        action,
-        accountId,
-        userId: req.user?.id,
-      });
-      if (options.concealNonMembership) reply.code(404).send({ error: "Not found" });
-      else reply.code(403).send({ error: "Forbidden." });
-      return { kind: "denied" };
-    }
-    if (!can(role, action)) {
-      securityEvent({
-        event: "authorization",
-        outcome: "denied",
-        action,
-        accountId,
-        userId: req.user?.id,
-        role,
-      });
-      reply.code(403).send({ error: "Forbidden." }); // member, but role tier too low for action
-      return { kind: "denied" };
-    }
-    if (action !== "read" && action !== "write") {
-      // Freshness gate for privileged (above-write) actions — FAIL CLOSED (mirrors the CSRF-parse
-      // and needsSetup posture): a session whose creation time is missing or unparseable cannot be
-      // proven fresh, so it counts as stale. The old `sessionCreatedAt !== undefined &&` guard
-      // BYPASSED step-up for exactly those sessions — fail-open on a security gate. Recovery is the
-      // client's re-auth dialog: a fresh sign-in always mints a session with a timestamp
-      // (auth.api.getSession derives sessionCreatedAt from the session row), so no one is hard-stuck.
-      // Date.parse(undefined ?? '') is NaN, and NaN fails Number.isFinite → stale.
-      // INCLUSIVE at the deadline (`>=`, matching enforceSessionActivity): a session sitting
-      // exactly on the freshness bound is stale, not fresh — a stated security bound is the last
-      // safe instant, not the first unsafe one.
-      const sessionCreatedAtMs = Date.parse(req.user?.sessionCreatedAt ?? "");
-      const timestampMissing = !Number.isFinite(sessionCreatedAtMs);
-      if (timestampMissing || Date.now() - sessionCreatedAtMs >= ACCOUNT_SESSION_FRESH_AGE_SECONDS * 1000) {
-        securityEvent({
-          event: "step_up_required",
-          outcome: "blocked",
-          action,
-          accountId,
-          userId: req.user?.id,
-          // Distinguish "we could not date this session" from an ordinarily aged-out one — an
-          // operator seeing this on real sessions has a session-record integrity problem, not users
-          // idling past the freshness window.
-          ...(timestampMissing ? { reason: "missing_session_timestamp" } : {}),
-        });
-        reply.code(403).send({
-          error: "Sign in again before performing this security-sensitive action.",
-          code: "SESSION_NOT_FRESH",
-        });
-        return { kind: "denied" };
-      }
-    }
-    return { kind: "allowed", role };
-  }
+    const { role } = resolved;
+    if (role === null) return denyMissingRole(input, securityEvent);
+    if (!can(role, input.action)) return denyInsufficientRole(input, role, securityEvent); // member, tier too low
+    return requireFreshSession(input, securityEvent) ? { kind: "allowed", role } : { kind: "denied" };
+  };
+}
+
+/** Gated writes alone pay the role lookup; invalid or ended account context hides gated fields. */
+function createFieldVisibility(
+  authMode: ReturnType<typeof resolveAppConfig>["authMode"],
+  resolveRole: ResolveEffectiveRole,
+) {
+  return function readFieldVisibility(req: FastifyRequest, table: string, accountId: unknown): SanitizeWriteOptions {
+    if (!hasGatedFields(table) || authMode === "off") return ALL_FIELDS_VISIBLE;
+    const resolved = typeof accountId === "string" ? resolveRole(req, accountId) : null;
+    const role = resolved?.kind === "resolved" ? resolved.role : null;
+    return resolveVisibilityForRole(role);
+  };
+}
+
+/** Apply read confidentiality to write, conflict and lifecycle response echoes. */
+function redactWriteEcho(
+  table: string,
+  row: Record<string, unknown>,
+  visibility: SanitizeWriteOptions,
+): Record<string, unknown> {
+  return redactGatedEcho(table, row, visibility);
+}
+
+export function createAuthorization({ app, runtime, config, options, rootHelpers }: CreateAuthorizationInput) {
+  const { authMode } = config;
+  const { corsOrigins, securityEvent } = rootHelpers;
+  const resolveEffectiveRole = createEffectiveRoleResolver(runtime);
+  const readMemberProjection = createMemberProjectionReader(runtime);
+  const readFieldVisibility = createFieldVisibility(authMode, resolveEffectiveRole);
+
+  const authorize = createAuthorize({ authMode, resolveEffectiveRole, securityEvent });
 
   const authorizeAllowed = ({ req, reply, accountId, action, options = {} }: AuthorizeRouteInput): boolean =>
     authorize({ req, reply, accountId, action, options }).kind === "allowed";
-
-  /** Writer visibility for the two field-level confidentiality policies. Only time off and
-   * client/project writes pay the membership lookup; a non-string account id fails closed. */
-  function readFieldVisibility(req: FastifyRequest, table: string, accountId: unknown): SanitizeWriteOptions {
-    // No gated fields on this table (or trusted-local OFF) ⇒ fully visible, no membership lookup.
-    if (!hasGatedFields(table) || authMode === "off") {
-      return ALL_FIELDS_VISIBLE;
-    }
-    const resolved = typeof accountId === "string" ? resolveEffectiveRole(req, accountId) : null;
-    const role = resolved?.kind === "resolved" ? resolved.role : null; // invalid or ended context hides every gated field
-    return resolveVisibilityForRole(role);
-  }
-
-  /** Apply every field-level confidentiality projection (GATED_FIELD_POLICIES) to write/conflict/
-   * lifecycle response echoes. A write response is also a read and must never bypass the main
-   * state-read policy. */
-  function redactWriteEcho(
-    table: string,
-    row: Record<string, unknown>,
-    visibility: SanitizeWriteOptions,
-  ): Record<string, unknown> {
-    return redactGatedEcho(table, row, visibility);
-  }
 
   // CORS response headers are not a CSRF control: browsers can still SEND a simple form request
   // and merely hide the response. Reject unsafe cross-site browser requests before routing, then
@@ -192,7 +218,8 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
   // only root-level hooks run there — a child-scoped hook would leave preflights as
   // bare 404s without CORS headers, silently blocking every cross-origin write.
   app.addHook("onRequest", async function enforceOriginPolicy(req: FastifyRequest, reply: FastifyReply) {
-    const listedOrigin = resolveCorsOrigin(req.headers.origin, corsOrigins);
+    const reqOrigin = req.headers.origin;
+    const listedOrigin = resolveCorsOrigin(reqOrigin, corsOrigins);
     const fetchSite = req.headers["sec-fetch-site"];
     // Sec-Fetch-Site is a forbidden browser-controlled header and therefore the most direct signal
     // for the packaged proxy path (where an outer TLS edge or non-default port can make server-side
@@ -200,15 +227,12 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
     // older clients that do not send Fetch Metadata. trustProxyHeaders is the shared deployment
     // posture: it also controls X-Forwarded-For rate-limit identity above, and only trusted proxies
     // that overwrite both headers may enable it.
-    const sameOrigin =
-      fetchSite === "same-origin" ||
-      (req.headers.origin !== undefined &&
-        isSameRequestOrigin({
-          req,
-          reqOrigin: req.headers.origin,
-          trustForwarded: options.trustProxyHeaders === true,
-        }));
-    const origin = listedOrigin ?? (sameOrigin ? req.headers.origin! : null);
+    const origin = resolveTrustedOrigin({
+      req,
+      listedOrigin,
+      fetchSite,
+      trustForwarded: options.trustProxyHeaders === true,
+    });
     const unsafe = !["GET", "HEAD", "OPTIONS"].includes(req.method);
     // An Origin exactly on the credentialed CORS allow-list (listedOrigin, folded into `origin`
     // above) is the operator's EXPLICIT cross-site contract, so it passes the gate regardless of
@@ -217,13 +241,13 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
     // request resolved to NO trusted origin (`origin === null`, i.e. neither allow-listed nor
     // same-origin) AND there is a cross-site signal: an Origin header we could not trust, or an
     // explicit cross-site Fetch Metadata label (which also catches Origin-less browser writes).
-    if (unsafe && origin === null && (req.headers.origin !== undefined || fetchSite === "cross-site")) {
+    if (unsafe && origin === null && (reqOrigin !== undefined || fetchSite === "cross-site")) {
       securityEvent({
         event: "cross_site_request",
         outcome: "blocked",
         method: req.method,
         path: req.url,
-        origin: req.headers.origin,
+        origin: reqOrigin,
         fetchSite,
       });
       return reply.code(403).send({ error: "Cross-site request rejected." });
