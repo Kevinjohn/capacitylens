@@ -26,19 +26,65 @@ type WorkspaceLifecycleFlows = Pick<
   | "withWorkspaceErasureLocks"
 >;
 
-type ProvisionWorkspaceInput<T = unknown> = Omit<
+type ProvisionWorkspaceInput<T> = Omit<
   Parameters<LocalAccountFlows["provisionWorkspace"]>[0],
   "provisionProductData"
 > & {
   provisionProductData: () => T;
 };
+type ProvisionWorkspaceFailureInput = Pick<
+  Parameters<LocalAccountFlows["provisionWorkspace"]>[0],
+  "actor" | "workspaceId" | "command"
+>;
+type UpdateProvisioningFailureInput = {
+  provisioning: ProvisionWorkspaceFailureInput;
+  scope: Parameters<typeof beginCommand>[0]["scope"];
+  error: unknown;
+};
 type EraseWorkspaceInput = Parameters<LocalAccountFlows["eraseWorkspace"]>[0];
+type UpdateErasureFailureInput = {
+  erasure: EraseWorkspaceInput;
+  scope: Parameters<typeof beginCommand>[0]["scope"];
+  error: unknown;
+};
+type WorkspaceReplayDependencies = Pick<
+  LocalAccountFlowContext,
+  "applicationId" | "db" | "lock" | "buildCommandExecutionKey"
+>;
+type ProvisioningFailureDependencies = Pick<LocalAccountFlowContext, "db" | "persistTerminalOutcome">;
+type ProvisioningTransactionDependencies = Pick<LocalAccountFlowContext, "db" | "administration" | "audit">;
+type WorkspaceProvisioningDependencies = Pick<
+  LocalAccountFlowContext,
+  "applicationId" | "db" | "administration" | "audit" | "persistTerminalOutcome" | "lock" | "buildCommandExecutionKey"
+>;
+type ErasureTransactionDependencies = Pick<
+  LocalAccountFlowContext,
+  "db" | "identity" | "administration" | "eraseProductWorkspaceInTx" | "audit"
+>;
+type ErasureFailureDependencies = Pick<LocalAccountFlowContext, "db" | "persistTerminalOutcome">;
+type WorkspaceErasureDependencies = Pick<
+  LocalAccountFlowContext,
+  | "applicationId"
+  | "db"
+  | "identity"
+  | "administration"
+  | "eraseProductWorkspaceInTx"
+  | "audit"
+  | "persistTerminalOutcome"
+  | "lock"
+  | "buildCommandExecutionKey"
+>;
+type WorkspaceProvisioningReplay<T> = {
+  product: T;
+  membership: Awaited<ReturnType<AccountAdminPort["getMembership"]>>;
+  replayed: true;
+};
 
 async function replayWorkspaceProvisioning<T>(
-  context: LocalAccountFlowContext,
+  dependencies: WorkspaceReplayDependencies,
   input: Parameters<LocalAccountFlows["replayWorkspaceProvisioning"]>[0],
-) {
-  const { applicationId, db, lock, buildCommandExecutionKey } = context;
+): Promise<WorkspaceProvisioningReplay<T> | null> {
+  const { applicationId, db, lock, buildCommandExecutionKey } = dependencies;
   const { actor, workspaceId, command, canonicalProductPayload } = input;
   return lock.withKeys([buildCommandExecutionKey(command), actor.principalId], () => {
     const operation = `workspace-provisioning:actor:${actor.principalId}`;
@@ -71,10 +117,10 @@ async function replayWorkspaceProvisioning<T>(
 }
 
 async function replayWorkspaceErasure(
-  context: LocalAccountFlowContext,
+  dependencies: WorkspaceReplayDependencies,
   input: Parameters<LocalAccountFlows["replayWorkspaceErasure"]>[0],
 ) {
-  const { applicationId, db, lock, buildCommandExecutionKey } = context;
+  const { applicationId, db, lock, buildCommandExecutionKey } = dependencies;
   const { actor, workspaceId, command } = input;
   return lock.withKeys([buildCommandExecutionKey(command), actor.principalId], () => {
     const operation = "workspace-erasure";
@@ -103,26 +149,25 @@ async function replayWorkspaceErasure(
 }
 
 function createWorkspaceReplayFlows(
-  context: LocalAccountFlowContext,
+  dependencies: WorkspaceReplayDependencies,
 ): Pick<WorkspaceLifecycleFlows, "replayWorkspaceProvisioning" | "replayWorkspaceErasure"> {
   return {
-    async replayWorkspaceProvisioning<T>(input) {
-      return replayWorkspaceProvisioning<T>(context, input);
+    async replayWorkspaceProvisioning<T>(input: Parameters<LocalAccountFlows["replayWorkspaceProvisioning"]>[0]) {
+      return replayWorkspaceProvisioning<T>(dependencies, input);
     },
     async replayWorkspaceErasure(input) {
-      return replayWorkspaceErasure(context, input);
+      return replayWorkspaceErasure(dependencies, input);
     },
   };
 }
 
-function persistProvisioningFailure(
-  context: LocalAccountFlowContext,
-  input: ProvisionWorkspaceInput,
-  scope: Parameters<typeof beginCommand>[0]["scope"],
-  error: unknown,
+function updateProvisioningFailure(
+  dependencies: ProvisioningFailureDependencies,
+  input: UpdateProvisioningFailureInput,
 ): void {
-  const { db, persistTerminalOutcome } = context;
-  const { actor, workspaceId, command } = input;
+  const { db, persistTerminalOutcome } = dependencies;
+  const { provisioning, scope, error } = input;
+  const { actor, workspaceId, command } = provisioning;
   const deniedOutcome = isAuthorityDenial(error);
   recordTerminalOutcome(error, () =>
     persistTerminalOutcome(
@@ -146,11 +191,11 @@ function persistProvisioningFailure(
 }
 
 function provisionWorkspaceInTransaction<T>(
-  context: LocalAccountFlowContext,
+  dependencies: ProvisioningTransactionDependencies,
   input: ProvisionWorkspaceInput<T>,
   scope: Parameters<typeof beginCommand>[0]["scope"],
 ) {
-  const { db, administration, audit } = context;
+  const { db, administration, audit } = dependencies;
   const { actor, workspaceId, joinedAt, command, multiWorkspace, bootstrapAuthorized, provisionProductData } = input;
   return tx(
     db,
@@ -184,8 +229,11 @@ function provisionWorkspaceInTransaction<T>(
   );
 }
 
-async function runWorkspaceProvisioning<T>(context: LocalAccountFlowContext, input: ProvisionWorkspaceInput<T>) {
-  const { applicationId, db } = context;
+async function executeWorkspaceProvisioning<T>(
+  dependencies: WorkspaceProvisioningDependencies,
+  input: ProvisionWorkspaceInput<T>,
+) {
+  const { applicationId, db } = dependencies;
   const { actor, workspaceId, command, canonicalProductPayload } = input;
   const operation = `workspace-provisioning:actor:${actor.principalId}`;
   const scope = {
@@ -201,18 +249,18 @@ async function runWorkspaceProvisioning<T>(context: LocalAccountFlowContext, inp
   }>({ db, scope, command, canonicalPayload: { workspaceId, product: canonicalProductPayload } });
   if (begun.kind === "replay") return { ...begun.result, replayed: true };
   try {
-    const result = provisionWorkspaceInTransaction(context, input, scope);
+    const result = provisionWorkspaceInTransaction(dependencies, input, scope);
     return { ...result, replayed: false };
   } catch (error) {
-    persistProvisioningFailure(context, input, scope, error);
+    updateProvisioningFailure(dependencies, { provisioning: input, scope, error });
     throw error;
   }
 }
 
 function createWorkspaceProvisioningFlows(
-  context: LocalAccountFlowContext,
+  dependencies: WorkspaceProvisioningDependencies,
 ): Pick<WorkspaceLifecycleFlows, "provisionWorkspace" | "provisionWorkspaceInExistingTransaction"> {
-  const { applicationId, administration, lock, buildCommandExecutionKey } = context;
+  const { applicationId, administration, lock, buildCommandExecutionKey } = dependencies;
   return {
     async provisionWorkspace<T>(input: ProvisionWorkspaceInput<T>) {
       const { actor, workspaceId, command } = input;
@@ -223,7 +271,7 @@ function createWorkspaceProvisioningFlows(
           `application:${applicationId}:workspace-provisioning`,
           `workspace:${workspaceId}`,
         ],
-        () => runWorkspaceProvisioning(context, input),
+        () => executeWorkspaceProvisioning(dependencies, input),
       );
     },
     provisionWorkspaceInExistingTransaction({
@@ -256,11 +304,11 @@ type ErasedWorkspace = {
 };
 
 function eraseWorkspaceInTransaction(
-  context: LocalAccountFlowContext,
+  dependencies: ErasureTransactionDependencies,
   input: EraseWorkspaceInput,
   scope: Parameters<typeof beginCommand>[0]["scope"],
 ): ErasedWorkspace {
-  const { db, identity, administration, eraseProductWorkspaceInTx, audit } = context;
+  const { db, identity, administration, eraseProductWorkspaceInTx, audit } = dependencies;
   const { actor, workspaceId, command, auditProductMutationInTx } = input;
   return tx(
     db,
@@ -297,14 +345,10 @@ function eraseWorkspaceInTransaction(
     "immediate",
   );
 }
-function persistErasureFailure(
-  context: LocalAccountFlowContext,
-  input: EraseWorkspaceInput,
-  scope: Parameters<typeof beginCommand>[0]["scope"],
-  error: unknown,
-): void {
-  const { db, persistTerminalOutcome } = context;
-  const { actor, workspaceId, command } = input;
+function updateErasureFailure(dependencies: ErasureFailureDependencies, input: UpdateErasureFailureInput): void {
+  const { db, persistTerminalOutcome } = dependencies;
+  const { erasure, scope, error } = input;
+  const { actor, workspaceId, command } = erasure;
   recordTerminalOutcome(error, () =>
     persistTerminalOutcome(
       () =>
@@ -326,11 +370,11 @@ function persistErasureFailure(
   );
 }
 
-async function runWorkspaceErasure(
-  context: LocalAccountFlowContext,
+async function executeWorkspaceErasure(
+  dependencies: WorkspaceErasureDependencies,
   input: EraseWorkspaceInput,
 ): Promise<{ commandId: string; completedAt: string }> {
-  const { applicationId, db, identity } = context;
+  const { applicationId, db, identity } = dependencies;
   const { actor, workspaceId, command } = input;
   // Do not embed the erased actor id in the durable operation key. Its receipt remains briefly
   // available for replay and has its principal/workspace columns anonymised transactionally.
@@ -348,16 +392,16 @@ async function runWorkspaceErasure(
   });
   if (begun.kind === "replay") return markAccountCommandReplay(begun.result);
   try {
-    const erased = eraseWorkspaceInTransaction(context, input, scope);
+    const erased = eraseWorkspaceInTransaction(dependencies, input, scope);
     identity.commitMasqueradeSessionEnds(erased.masqueradeHandles);
     return erased.receipt;
   } catch (error) {
-    persistErasureFailure(context, input, scope, error);
+    updateErasureFailure(dependencies, { erasure: input, scope, error });
     throw error;
   }
 }
 
-function throwErasureMembershipSnapshotConflict(commandId: string): never {
+function assertErasureMembershipSnapshotStable(commandId: string): never {
   throw new AccountContractError({
     code: "CONFLICT",
     message: "Company membership changed repeatedly during erasure. Retry the request.",
@@ -366,7 +410,7 @@ function throwErasureMembershipSnapshotConflict(commandId: string): never {
   });
 }
 
-function throwWorkspaceMembershipSnapshotConflict(): never {
+function assertWorkspaceMembershipSnapshotStable(): never {
   throw new AccountContractError({
     code: "CONFLICT",
     message: "Company membership changed repeatedly during erasure. Retry the request.",
@@ -375,9 +419,9 @@ function throwWorkspaceMembershipSnapshotConflict(): never {
 }
 
 function createWorkspaceErasureFlows(
-  context: LocalAccountFlowContext,
+  dependencies: WorkspaceErasureDependencies,
 ): Pick<WorkspaceLifecycleFlows, "eraseWorkspace" | "withWorkspaceErasureLocks"> {
-  const { applicationId, administration, lock, buildCommandExecutionKey } = context;
+  const { applicationId, administration, lock, buildCommandExecutionKey } = dependencies;
   return {
     async eraseWorkspace(input) {
       const { actor, workspaceId, command } = input;
@@ -390,8 +434,8 @@ function createWorkspaceErasureFlows(
           `workspace:${workspaceId}`,
           ...principalIds,
         ],
-        run: () => runWorkspaceErasure(context, input),
-        onAttemptsExhausted: () => throwErasureMembershipSnapshotConflict(command.commandId),
+        run: () => executeWorkspaceErasure(dependencies, input),
+        onAttemptsExhausted: () => assertErasureMembershipSnapshotStable(command.commandId),
       });
     },
 
@@ -407,7 +451,7 @@ function createWorkspaceErasureFlows(
           ...principalIds,
         ],
         run: async () => operation(),
-        onAttemptsExhausted: () => throwWorkspaceMembershipSnapshotConflict(),
+        onAttemptsExhausted: () => assertWorkspaceMembershipSnapshotStable(),
       });
     },
   };
