@@ -1547,6 +1547,32 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(db.prepare(`SELECT token FROM session`).all()).toEqual([]);
   });
 
+  it("revokes dependent sessions when malformed activity is deleted during a touch", async () => {
+    const db = openDb(":memory:");
+    const token = "touch-invalid-lifecycle";
+    db.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
+    db.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run(token, "not-a-timestamp");
+    const prepare = vi.fn((sessionToken: string, reason: "session_expired") => {
+      expect(db.isTransaction).toBe(true);
+      expect(db.prepare(`SELECT token FROM session WHERE token = ?`).get(token)).toEqual({ token });
+      expect(sessionToken).toBe(token);
+      expect(reason).toBe("session_expired");
+      return ["dependent-session"];
+    });
+    const commit = vi.fn((sessionHandles: readonly string[]) => {
+      expect(db.isTransaction).toBe(false);
+      expect(db.prepare(`SELECT token FROM session WHERE token = ?`).get(token)).toBeUndefined();
+      expect(sessionHandles).toEqual(["dependent-session"]);
+    });
+    const stale = Date.now() - 2 * 60 * 1_000;
+
+    await expect(
+      enforceSessionActivity({ session: { token, updatedAt: new Date(stale) } }, db, { prepare, commit }),
+    ).resolves.toBeNull();
+    expect(prepare).toHaveBeenCalledOnce();
+    expect(commit).toHaveBeenCalledOnce();
+  });
+
   it("adopts the winner when the activity-touch CAS loses", async () => {
     const raw = openDb(":memory:");
     raw.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);

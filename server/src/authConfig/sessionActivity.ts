@@ -41,7 +41,11 @@ type SessionActivityStatements = {
   casDelete: ReturnType<Db["prepare"]>;
   casTouch: ReturnType<Db["prepare"]>;
 };
-type SessionActivityContext = { db: Db; statements: SessionActivityStatements };
+type SessionActivityContext = {
+  db: Db;
+  statements: SessionActivityStatements;
+  lifecycle: SessionActivityLifecycle | undefined;
+};
 
 // This runs on every authenticated request (via enforceSessionActivity below) — cache the four
 // prepared statements per Db handle instead of re-preparing them on each call. WeakMap keyed by
@@ -157,7 +161,7 @@ function touchSessionActivity<Session extends SessionActivitySession>(
   const row = readSessionActivity(context.statements, token);
   if (!row) return null;
   const rowMs = parseSessionTimestamp(row.updatedAt);
-  if (rowMs === null) return destroySession(context, token);
+  if (rowMs === null) return destroySession(context, token, context.lifecycle);
   if (rowMs >= now) return adoptSessionActivity(session, rowMs);
 
   const next: string | number = typeof row.updatedAt === "number" ? now : new Date(now).toISOString();
@@ -168,7 +172,7 @@ function touchSessionActivity<Session extends SessionActivitySession>(
   const current = readSessionActivity(context.statements, token);
   if (!current) return null;
   const currentMs = parseSessionTimestamp(current.updatedAt);
-  if (currentMs === null) return destroySession(context, token);
+  if (currentMs === null) return destroySession(context, token, context.lifecycle);
   return adoptSessionActivity(session, currentMs);
 }
 
@@ -177,7 +181,7 @@ export async function enforceSessionActivity<Session extends SessionActivitySess
   db: Db,
   lifecycle?: SessionActivityLifecycle,
 ): Promise<Session | null> {
-  const context = { db, statements: createSessionActivityStatements(db) };
+  const context = { db, statements: createSessionActivityStatements(db), lifecycle };
   const lastActivity = new Date(session.session.updatedAt).getTime();
   const now = Date.now();
   const elapsed = now - lastActivity;
