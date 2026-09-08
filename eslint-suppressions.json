@@ -601,14 +601,6 @@
       "count": 2
     }
   },
-  "server/src/routes/authProxyRoutes.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "server/src/routes/lifecycleRoutes.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
