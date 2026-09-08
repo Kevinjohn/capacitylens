@@ -881,7 +881,7 @@ const batchOps = (call: unknown[] | undefined): ReceiptOp[] => {
   return parseReceiptOps(init.body);
 };
 
-describe("ServerSyncAdapter.saveAll", () => {
+function registerBasicSaveTests(): void {
   it("announces an audit warning returned by the batch endpoint", async () => {
     const warning = vi.fn();
     globalThis.addEventListener(AUDIT_WARNING_EVENT, warning);
@@ -930,7 +930,9 @@ describe("ServerSyncAdapter.saveAll", () => {
     expect(ops.every((op) => op.method === "PUT" && op.table === "allocations")).toBe(true);
     expect(ops.map((op) => op.id)).toEqual(allocations.map((row) => row.id));
   });
+}
 
+function registerBatchFailureAndUnloadTests(): void {
   it("dispatches a linked series-tail deletion as one transactional client batch", async () => {
     const fetchImpl = okFetch() as unknown as typeof fetch;
     const adapter = new ServerSyncAdapter("http://x", fetchImpl);
@@ -986,7 +988,9 @@ describe("ServerSyncAdapter.saveAll", () => {
     expect(init.keepalive).toBe(true);
     expect(batchOps(calls[0])).toHaveLength(2); // all ops in one ordered request
   });
+}
 
+function registerInFlightKeepaliveTests(): void {
   it("dispatches the latest snapshot with keepalive when an ordinary batch is still in flight", async () => {
     let releaseFirst: (() => void) | undefined;
     const fetchImpl = vi.fn((_url: string, init?: RequestInit) => {
@@ -1019,7 +1023,9 @@ describe("ServerSyncAdapter.saveAll", () => {
     await Promise.all([ordinary, teardown]);
     expect(fetchImpl).toHaveBeenCalledTimes(2); // no later non-keepalive drain of the parked state
   });
+}
 
+function registerCompensatingKeepaliveTests(): void {
   it("sends an undo as a compensating keepalive op when the ordinary creation is unacknowledged", async () => {
     let releaseFirst: (() => void) | undefined;
     const fetchImpl = vi.fn((_url: string, init?: RequestInit) => {
@@ -1058,7 +1064,9 @@ describe("ServerSyncAdapter.saveAll", () => {
     required(releaseFirst)();
     await Promise.all([ordinary, teardown]);
   });
+}
 
+function registerScopedDeleteSaveTests(): void {
   it("carries the owning account on a scoped (non-lifecycle) DELETE op; accounts (top-level) carry none", async () => {
     // Uses a scoped NON-lifecycle row (timeOff): lifecycle-entity deletes (clients/projects/resources)
     // are routed OUT of the batch to the dedicated archive/delete endpoints (see the lifecycle-delete
@@ -1096,7 +1104,9 @@ describe("ServerSyncAdapter.saveAll", () => {
     });
     expect(ops.find((o) => o.table === "accounts")?.accountId).toBeUndefined();
   });
+}
 
+function registerConflictSaveTests(): void {
   it("maps a 409 batch response to BatchConflictError carrying body.error (+ current)", async () => {
     // 409 is the server's optimistic-concurrency conflict signal ({ error, current }). It must
     // surface as the TYPED BatchConflictError — persist.ts branches on it to resolve by reloading
@@ -1129,7 +1139,9 @@ describe("ServerSyncAdapter.saveAll", () => {
     const err: unknown = await a.saveAll(withData({ clients: [client("c1")] })).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(BatchConflictError);
   });
+}
 
+function registerRejectedSaveTests(): void {
   it("maps a deterministic 400 batch rejection to BatchValidationError", async () => {
     const fetchImpl = vi.fn(
       async () =>
@@ -1174,7 +1186,9 @@ describe("ServerSyncAdapter.saveAll", () => {
       "Batch sync returned an invalid commit receipt.",
     );
   });
+}
 
+function registerRevisionCoverageTests(): void {
   it.each([
     ["omitted", () => ({})],
     ["empty", () => ({ revisions: [] })],
@@ -1217,7 +1231,9 @@ describe("ServerSyncAdapter.saveAll", () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("omitted 'applied'"));
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("omitted server revisions"));
   });
+}
 
+function registerUnexpectedRevisionTests(): void {
   it("drops an extra revision when every written row still has authoritative coverage", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
@@ -1263,7 +1279,9 @@ describe("ServerSyncAdapter.saveAll", () => {
     expect(requiredRecord(retriedOperation.row, "expected retried allocation row").updatedAt).not.toBe(rewrittenAt);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected or duplicate"));
   });
+}
 
+function registerAllocationRewriteTests(): void {
   it("folds a non-op allocation rewrite into the cache and revision provenance", async () => {
     const activity: Activity = {
       id: "t1",
@@ -1318,7 +1336,9 @@ describe("ServerSyncAdapter.saveAll", () => {
       rewrittenAt,
     );
   });
+}
 
+function registerTaggedRewriteTests(): void {
   it("remembers a tagged rewrite from the committed snapshot without a phantom follow-up PUT", async () => {
     const activity: Activity = {
       id: "t1",
@@ -1375,7 +1395,9 @@ describe("ServerSyncAdapter.saveAll", () => {
     await adapter.saveAll(visible);
     expect(batchNumber).toBe(2);
   });
+}
 
+function registerConcurrentRewriteTests(): void {
   it.each([
     ["ordinary", undefined],
     ["unload", { unload: true }],
@@ -1437,7 +1459,9 @@ describe("ServerSyncAdapter.saveAll", () => {
       expect.arrayContaining([expect.objectContaining({ table: "allocations", id: allocationRow.id })]),
     );
   });
+}
 
+function registerQueuedSaveTests(): void {
   it("keeps duplicate revisions strict for non-allocation tables", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
@@ -1476,7 +1500,23 @@ describe("ServerSyncAdapter.saveAll", () => {
     // first batch: [c1]; coalesced second batch: [c2] only (c1 already synced).
     expect(batches).toEqual([["c1"], ["c2"]]);
   });
+}
 
+const queuedFirstReceipt = (): Response =>
+  Response.json({
+    ok: true,
+    applied: 1,
+    revisions: [
+      {
+        table: "clients",
+        id: "c1",
+        createdAt: "2030-01-01T00:00:00.000Z",
+        updatedAt: "2030-01-01T00:00:00.000Z",
+      },
+    ],
+  });
+
+function registerQueuedRebaseTests(): void {
   it("rebases a queued edit onto the server revision returned by the in-flight batch", async () => {
     let resolveFirst: ((response: Response) => void) | undefined;
     let batchNumber = 0;
@@ -1512,23 +1552,7 @@ describe("ServerSyncAdapter.saveAll", () => {
 
     const p1 = adapter.saveAll(first);
     const p2 = adapter.saveAll(second);
-    required(resolveFirst)(
-      new Response(
-        JSON.stringify({
-          ok: true,
-          applied: 1,
-          revisions: [
-            {
-              table: "clients",
-              id: "c1",
-              createdAt: "2030-01-01T00:00:00.000Z",
-              updatedAt: "2030-01-01T00:00:00.000Z",
-            },
-          ],
-        }),
-        { status: 200 },
-      ),
-    );
+    required(resolveFirst)(queuedFirstReceipt());
     await Promise.all([p1, p2]);
 
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
@@ -1541,6 +1565,23 @@ describe("ServerSyncAdapter.saveAll", () => {
     await adapter.saveAll(second);
     expect(calls).toHaveLength(2);
   });
+}
+
+describe("ServerSyncAdapter.saveAll", () => {
+  registerBasicSaveTests();
+  registerBatchFailureAndUnloadTests();
+  registerInFlightKeepaliveTests();
+  registerCompensatingKeepaliveTests();
+  registerScopedDeleteSaveTests();
+  registerConflictSaveTests();
+  registerRejectedSaveTests();
+  registerRevisionCoverageTests();
+  registerUnexpectedRevisionTests();
+  registerAllocationRewriteTests();
+  registerTaggedRewriteTests();
+  registerConcurrentRewriteTests();
+  registerQueuedSaveTests();
+  registerQueuedRebaseTests();
 });
 
 // The store never writes the server's revision back into a row, so a previously-acked row keeps its
