@@ -37,7 +37,7 @@ const SUMMARY: [keyof AppData, () => string][] = [
 ];
 
 function summarize(data: AppData): string {
-  const parts = SUMMARY.filter(([key]) => data[key].length > 0).map(([k, label]) => `${data[k].length} ${label()}`);
+  const parts = SUMMARY.filter(([key]) => data[key].length > 0).map(([key, label]) => `${data[key].length} ${label()}`);
   return parts.length ? parts.join(", ") : m.data_summary_none();
 }
 
