@@ -9,182 +9,180 @@ import { resetServer, serverState, stateRows } from "./db-helpers";
 // (there is no localStorage fallback), so a surviving record proves a real server
 // round-trip: UI → store → adapter → PUT/DELETE → SQLite → GET on reload.
 
-test.describe("database-backed persistence", () => {
-  test.beforeEach(async ({ request }) => {
-    await resetServer(request, true); // wipe + re-seed before each test
+test.beforeEach(async ({ request }) => {
+  await resetServer(request, true); // wipe + re-seed before each test
+});
+
+test("hydrates the seeded dataset from the server on load", async ({ page }) => {
+  await openApp(page); // picks "Wayne Enterprises" from the server-seeded accounts
+  // "Bruce Wayne" is part of the server seed; seeing it proves GET /api/state → UI.
+  await expect(page.getByText("Bruce Wayne")).toBeVisible();
+});
+
+test("create + reload: a new client round-trips through the DB", async ({ page, request }) => {
+  await openApp(page);
+  await page.getByRole("link", { name: "Clients" }).click();
+  await page.getByRole("button", { name: "Add client" }).click();
+  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Persisted DB Co");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Persisted DB Co")).toBeVisible();
+
+  // The write is debounced; confirm it actually reached the server tables.
+  await expect
+    .poll(async () => stateRows(await serverState(request), "clients").some((c) => c.name === "Persisted DB Co"), {
+      timeout: 10_000,
+    })
+    .toBe(true);
+
+  // Reload re-hydrates from the DB (no localStorage). The client must still show.
+  await openApp(page);
+  await page.getByRole("link", { name: "Clients" }).click();
+  await expect(page.getByText("Persisted DB Co")).toBeVisible();
+});
+
+test("repeat creation persists all allocation PUTs through one atomic client batch", async ({ page, request }) => {
+  const before = stateRows(await serverState(request), "allocations");
+  const batchBodies: Array<{ ops?: Array<{ method?: string; table?: string; id?: string }> }> = [];
+  page.on("request", (outgoing) => {
+    if (outgoing.method() === "POST" && outgoing.url().endsWith("/api/batch")) {
+      batchBodies.push(outgoing.postDataJSON() as { ops?: Array<{ method?: string; table?: string; id?: string }> });
+    }
   });
+  await openApp(page);
+  await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
+  const dialog = page.getByRole("dialog", { name: "New allocation" });
+  await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
+  await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
+  await dialog.getByLabel("Start Date").fill("2026-06-10");
+  await dialog.getByLabel(/^End/).fill("2026-06-10");
+  await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "weekly");
+  await dialog.getByLabel("Repeat until").fill("2026-09-10");
+  await dialog.getByRole("button", { name: "Save" }).click();
 
-  test("hydrates the seeded dataset from the server on load", async ({ page }) => {
-    await openApp(page); // picks "Wayne Enterprises" from the server-seeded accounts
-    // "Bruce Wayne" is part of the server seed; seeing it proves GET /api/state → UI.
-    await expect(page.getByText("Bruce Wayne")).toBeVisible();
-  });
+  await expect
+    .poll(async () => stateRows(await serverState(request), "allocations").length, { timeout: 10_000 })
+    .toBe(before.length + 14);
+  expect(batchBodies).toHaveLength(1);
+  const batch = batchBodies[0];
+  if (batch === undefined) throw new Error("Repeat creation must send one batch");
+  expect(batch.ops).toHaveLength(14);
+  expect(batch.ops?.every((op) => op.method === "PUT" && op.table === "allocations")).toBe(true);
 
-  test("create + reload: a new client round-trips through the DB", async ({ page, request }) => {
-    await openApp(page);
-    await page.getByRole("link", { name: "Clients" }).click();
-    await page.getByRole("button", { name: "Add client" }).click();
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Persisted DB Co");
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByText("Persisted DB Co")).toBeVisible();
+  await openApp(page);
+  const afterReload = stateRows(await serverState(request), "allocations");
+  expect(afterReload).toHaveLength(before.length + 14);
+  expect(before.every((row) => afterReload.some((persisted) => persisted.id === row.id))).toBe(true);
+  const repeated = afterReload.filter((row) => !before.some(({ id }) => id === row.id));
+  const firstRepeated = repeated[0];
+  if (firstRepeated === undefined) throw new Error("Repeat creation must persist new allocations");
+  expect(firstRepeated.seriesId).toEqual(expect.any(String));
+  expect(new Set(repeated.map(({ seriesId }) => seriesId)).size).toBe(1);
+});
 
-    // The write is debounced; confirm it actually reached the server tables.
-    await expect
-      .poll(async () => stateRows(await serverState(request), "clients").some((c) => c.name === "Persisted DB Co"), {
+test("edit + reload: a rename round-trips through the DB", async ({ page, request }) => {
+  await openApp(page);
+  await page.getByRole("link", { name: "Clients" }).click();
+  await page.getByRole("button", { name: "Add client" }).click();
+  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Rename Me Co");
+  await page.getByRole("button", { name: "Save" }).click();
+  const row = page.getByTestId("client-row").filter({ hasText: "Rename Me Co" });
+  await expect(row).toBeVisible();
+
+  await row.getByRole("button", { name: /^Edit / }).click();
+  // Scope the field to the Edit dialog: the row's "Archive Rename Me Co" button (P2.5b) also matches
+  // a bare getByLabel('Name') — "Re*name* Me Co" contains "Name" — so an unscoped lookup is ambiguous.
+  await page.getByRole("dialog").getByRole("textbox", { name: "Name", exact: true }).fill("Renamed Co");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByTestId("client-row").filter({ hasText: "Renamed Co" })).toBeVisible();
+
+  await expect
+    .poll(async () => stateRows(await serverState(request), "clients").some((c) => c.name === "Renamed Co"), {
+      timeout: 10_000,
+    })
+    .toBe(true);
+
+  await openApp(page);
+  await page.getByRole("link", { name: "Clients" }).click();
+  await expect(page.getByTestId("client-row").filter({ hasText: "Renamed Co" })).toBeVisible();
+  await expect(page.getByTestId("client-row").filter({ hasText: "Rename Me Co" })).toHaveCount(0);
+});
+
+test("edit + fresh hydration: engagement and half days survive the server round-trip", async ({ page, request }) => {
+  await openApp(page);
+  await page.getByRole("link", { name: "Resources" }).click();
+  const bruce = page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" });
+  await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
+  const dialog = page.getByRole("dialog", { name: "Edit resource" });
+  await selectShadOption(dialog.getByLabel("Engagement"), { label: "Supplementary" });
+  await dialog.getByRole("radio", { name: "Tuesday Half day" }).click();
+  await dialog.getByRole("button", { name: "Save" }).click();
+
+  await expect
+    .poll(async () => {
+      const persisted = stateRows(await serverState(request), "resources").find(({ id }) => id === "r-tyler");
+      return { engagement: persisted?.engagement, halfDays: persisted?.halfDays };
+    })
+    .toEqual({ engagement: "supplementary", halfDays: [2] });
+
+  // Start again from the document root so the client discards its in-memory snapshot and hydrates
+  // a new account slice from GET /api/state, matching a later browser session.
+  await openApp(page);
+  await page.getByRole("link", { name: "Resources" }).click();
+  const supplementary = page.getByRole("heading", { name: "Supplementary" }).locator("..");
+  await expect(supplementary.getByTestId("resource-row")).toContainText("Bruce Wayne");
+
+  await page
+    .getByTestId("resource-row")
+    .filter({ hasText: "Bruce Wayne" })
+    .getByRole("button", { name: "Edit Bruce Wayne" })
+    .click();
+  await expect(page.getByLabel("Engagement")).toContainText("Supplementary");
+  await expect(page.getByRole("radio", { name: "Tuesday Half day" })).toBeChecked();
+});
+
+// P2.5b: the per-row destructive action ARCHIVES (server-authoritative — the UI POSTs the dedicated
+// /api/clients/:id/archive route, then reloads the active slice). An archived client is RETAINED in
+// the DB (the archive route sets archivedAt; it is NOT a hard delete), but it is HIDDEN from the
+// active views (useActiveScopedData) and STAYS hidden across a reload — the real server round-trip
+// this proves: UI archive → POST .../archive → reload → still absent from the active list.
+test("archive + reload: an archived client is retained in the DB but hidden from the active view", async ({
+  page,
+  request,
+}) => {
+  await openApp(page);
+  await page.getByRole("link", { name: "Clients" }).click();
+  await page.getByRole("button", { name: "Add client" }).click();
+  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Doomed Co");
+  await page.getByRole("button", { name: "Save" }).click();
+  const row = page.getByTestId("client-row").filter({ hasText: "Doomed Co" });
+  await expect(row).toBeVisible();
+  await expect
+    .poll(async () => stateRows(await serverState(request), "clients").some((c) => c.name === "Doomed Co"), {
+      timeout: 10_000,
+    })
+    .toBe(true);
+
+  await row.getByRole("button", { name: "Archive Doomed Co" }).click();
+  await page
+    .getByRole("alertdialog", { name: "Archive client?" })
+    .getByRole("button", { name: "Archive", exact: true })
+    .click();
+  // Gone from the active UI list (the archive route ran + the post-archive reload re-hydrated).
+  await expect(page.getByTestId("client-row").filter({ hasText: "Doomed Co" })).toHaveCount(0);
+
+  // It is RETAINED in the DB but now carries archivedAt (the archive route, not a hard delete).
+  await expect
+    .poll(
+      async () =>
+        stateRows(await serverState(request), "clients").find((c) => c.name === "Doomed Co")?.archivedAt ?? null,
+      {
         timeout: 10_000,
-      })
-      .toBe(true);
+      },
+    )
+    .toBeTruthy();
 
-    // Reload re-hydrates from the DB (no localStorage). The client must still show.
-    await openApp(page);
-    await page.getByRole("link", { name: "Clients" }).click();
-    await expect(page.getByText("Persisted DB Co")).toBeVisible();
-  });
-
-  test("repeat creation persists all allocation PUTs through one atomic client batch", async ({ page, request }) => {
-    const before = stateRows(await serverState(request), "allocations");
-    const batchBodies: Array<{ ops?: Array<{ method?: string; table?: string; id?: string }> }> = [];
-    page.on("request", (outgoing) => {
-      if (outgoing.method() === "POST" && outgoing.url().endsWith("/api/batch")) {
-        batchBodies.push(outgoing.postDataJSON() as { ops?: Array<{ method?: string; table?: string; id?: string }> });
-      }
-    });
-    await openApp(page);
-    await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
-    const dialog = page.getByRole("dialog", { name: "New allocation" });
-    await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
-    await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
-    await dialog.getByLabel("Start Date").fill("2026-06-10");
-    await dialog.getByLabel(/^End/).fill("2026-06-10");
-    await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "weekly");
-    await dialog.getByLabel("Repeat until").fill("2026-09-10");
-    await dialog.getByRole("button", { name: "Save" }).click();
-
-    await expect
-      .poll(async () => stateRows(await serverState(request), "allocations").length, { timeout: 10_000 })
-      .toBe(before.length + 14);
-    expect(batchBodies).toHaveLength(1);
-    const batch = batchBodies[0];
-    if (batch === undefined) throw new Error("Repeat creation must send one batch");
-    expect(batch.ops).toHaveLength(14);
-    expect(batch.ops?.every((op) => op.method === "PUT" && op.table === "allocations")).toBe(true);
-
-    await openApp(page);
-    const afterReload = stateRows(await serverState(request), "allocations");
-    expect(afterReload).toHaveLength(before.length + 14);
-    expect(before.every((row) => afterReload.some((persisted) => persisted.id === row.id))).toBe(true);
-    const repeated = afterReload.filter((row) => !before.some(({ id }) => id === row.id));
-    const firstRepeated = repeated[0];
-    if (firstRepeated === undefined) throw new Error("Repeat creation must persist new allocations");
-    expect(firstRepeated.seriesId).toEqual(expect.any(String));
-    expect(new Set(repeated.map(({ seriesId }) => seriesId)).size).toBe(1);
-  });
-
-  test("edit + reload: a rename round-trips through the DB", async ({ page, request }) => {
-    await openApp(page);
-    await page.getByRole("link", { name: "Clients" }).click();
-    await page.getByRole("button", { name: "Add client" }).click();
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Rename Me Co");
-    await page.getByRole("button", { name: "Save" }).click();
-    const row = page.getByTestId("client-row").filter({ hasText: "Rename Me Co" });
-    await expect(row).toBeVisible();
-
-    await row.getByRole("button", { name: /^Edit / }).click();
-    // Scope the field to the Edit dialog: the row's "Archive Rename Me Co" button (P2.5b) also matches
-    // a bare getByLabel('Name') — "Re*name* Me Co" contains "Name" — so an unscoped lookup is ambiguous.
-    await page.getByRole("dialog").getByRole("textbox", { name: "Name", exact: true }).fill("Renamed Co");
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByTestId("client-row").filter({ hasText: "Renamed Co" })).toBeVisible();
-
-    await expect
-      .poll(async () => stateRows(await serverState(request), "clients").some((c) => c.name === "Renamed Co"), {
-        timeout: 10_000,
-      })
-      .toBe(true);
-
-    await openApp(page);
-    await page.getByRole("link", { name: "Clients" }).click();
-    await expect(page.getByTestId("client-row").filter({ hasText: "Renamed Co" })).toBeVisible();
-    await expect(page.getByTestId("client-row").filter({ hasText: "Rename Me Co" })).toHaveCount(0);
-  });
-
-  test("edit + fresh hydration: engagement and half days survive the server round-trip", async ({ page, request }) => {
-    await openApp(page);
-    await page.getByRole("link", { name: "Resources" }).click();
-    const bruce = page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" });
-    await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
-    const dialog = page.getByRole("dialog", { name: "Edit resource" });
-    await selectShadOption(dialog.getByLabel("Engagement"), { label: "Supplementary" });
-    await dialog.getByRole("radio", { name: "Tuesday Half day" }).click();
-    await dialog.getByRole("button", { name: "Save" }).click();
-
-    await expect
-      .poll(async () => {
-        const persisted = stateRows(await serverState(request), "resources").find(({ id }) => id === "r-tyler");
-        return { engagement: persisted?.engagement, halfDays: persisted?.halfDays };
-      })
-      .toEqual({ engagement: "supplementary", halfDays: [2] });
-
-    // Start again from the document root so the client discards its in-memory snapshot and hydrates
-    // a new account slice from GET /api/state, matching a later browser session.
-    await openApp(page);
-    await page.getByRole("link", { name: "Resources" }).click();
-    const supplementary = page.getByRole("heading", { name: "Supplementary" }).locator("..");
-    await expect(supplementary.getByTestId("resource-row")).toContainText("Bruce Wayne");
-
-    await page
-      .getByTestId("resource-row")
-      .filter({ hasText: "Bruce Wayne" })
-      .getByRole("button", { name: "Edit Bruce Wayne" })
-      .click();
-    await expect(page.getByLabel("Engagement")).toContainText("Supplementary");
-    await expect(page.getByRole("radio", { name: "Tuesday Half day" })).toBeChecked();
-  });
-
-  // P2.5b: the per-row destructive action ARCHIVES (server-authoritative — the UI POSTs the dedicated
-  // /api/clients/:id/archive route, then reloads the active slice). An archived client is RETAINED in
-  // the DB (the archive route sets archivedAt; it is NOT a hard delete), but it is HIDDEN from the
-  // active views (useActiveScopedData) and STAYS hidden across a reload — the real server round-trip
-  // this proves: UI archive → POST .../archive → reload → still absent from the active list.
-  test("archive + reload: an archived client is retained in the DB but hidden from the active view", async ({
-    page,
-    request,
-  }) => {
-    await openApp(page);
-    await page.getByRole("link", { name: "Clients" }).click();
-    await page.getByRole("button", { name: "Add client" }).click();
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Doomed Co");
-    await page.getByRole("button", { name: "Save" }).click();
-    const row = page.getByTestId("client-row").filter({ hasText: "Doomed Co" });
-    await expect(row).toBeVisible();
-    await expect
-      .poll(async () => stateRows(await serverState(request), "clients").some((c) => c.name === "Doomed Co"), {
-        timeout: 10_000,
-      })
-      .toBe(true);
-
-    await row.getByRole("button", { name: "Archive Doomed Co" }).click();
-    await page
-      .getByRole("alertdialog", { name: "Archive client?" })
-      .getByRole("button", { name: "Archive", exact: true })
-      .click();
-    // Gone from the active UI list (the archive route ran + the post-archive reload re-hydrated).
-    await expect(page.getByTestId("client-row").filter({ hasText: "Doomed Co" })).toHaveCount(0);
-
-    // It is RETAINED in the DB but now carries archivedAt (the archive route, not a hard delete).
-    await expect
-      .poll(
-        async () =>
-          stateRows(await serverState(request), "clients").find((c) => c.name === "Doomed Co")?.archivedAt ?? null,
-        {
-          timeout: 10_000,
-        },
-      )
-      .toBeTruthy();
-
-    // A reload re-hydrates from the DB's ACTIVE slice, so the archived client stays out of the list.
-    await openApp(page);
-    await page.getByRole("link", { name: "Clients" }).click();
-    await expect(page.getByTestId("client-row").filter({ hasText: "Doomed Co" })).toHaveCount(0);
-  });
+  // A reload re-hydrates from the DB's ACTIVE slice, so the archived client stays out of the list.
+  await openApp(page);
+  await page.getByRole("link", { name: "Clients" }).click();
+  await expect(page.getByTestId("client-row").filter({ hasText: "Doomed Co" })).toHaveCount(0);
 });

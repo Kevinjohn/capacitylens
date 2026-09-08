@@ -50,72 +50,70 @@ async function openStackedDialog(page: Page, section: string, button: string, ti
   await dialog.getByRole("button", { name: "Cancel" }).click();
 }
 
-test.describe("compact input modal layouts", () => {
-  test("uses the Resource form's 25/75 rows across the six management flows", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/settings");
-    await page.getByRole("switch", { name: "Show external resources" }).click();
+test("uses the Resource form's 25/75 rows across the six management flows", async ({ page }) => {
+  await openApp(page, "Wayne Enterprises", "/settings");
+  await page.getByRole("switch", { name: "Show external resources" }).click();
 
-    await openDialog(page, "Resources", "Add external party", "Add external party", 2);
-    await openDialog(page, "Disciplines", "Add discipline", "Add discipline", 2);
-    await openDialog(page, "Clients", "Add client", "Add client", 3);
-    await openDialog(page, "Projects", "Add project", "Add project", 4);
-    await openDialog(page, "Activities", "Add activity", "Add activity", 3);
-    await openDialog(page, "Time off", "Add time off", "Add time off", 3);
+  await openDialog(page, "Resources", "Add external party", "Add external party", 2);
+  await openDialog(page, "Disciplines", "Add discipline", "Add discipline", 2);
+  await openDialog(page, "Clients", "Add client", "Add client", 3);
+  await openDialog(page, "Projects", "Add project", "Add project", 4);
+  await openDialog(page, "Activities", "Add activity", "Add activity", 3);
+  await openDialog(page, "Time off", "Add time off", "Add time off", 3);
+});
+
+test("stacks and contains every scoped form at 360px", async ({ page }) => {
+  await openApp(page, "Wayne Enterprises", "/settings");
+  await page.getByRole("switch", { name: "Show external resources" }).click();
+  await dismissLandscapeHint(page);
+
+  await openStackedDialog(page, "Resources", "Add external party", "Add external party", 2);
+  await openStackedDialog(page, "Disciplines", "Add discipline", "Add discipline", 2);
+  await openStackedDialog(page, "Clients", "Add client", "Add client", 3);
+  await openStackedDialog(page, "Projects", "Add project", "Add project", 4);
+  await openStackedDialog(page, "Activities", "Add activity", "Add activity", 3);
+  await openStackedDialog(page, "Time off", "Add time off", "Add time off", 3);
+});
+
+test("wraps a long label, stacks on a narrow screen, and preserves required-error association", async ({ page }) => {
+  await openApp(page, "Wayne Enterprises", "/clients");
+  await page.getByRole("button", { name: "Add client" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add client" });
+  await expect(dialog.getByRole("textbox", { name: "Name", exact: true })).toBeVisible();
+  const name = dialog.locator('input[type="text"]').first();
+  const field = name.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
+  const label = field.locator('[data-slot="field-label"]');
+
+  await label.evaluate((element) => {
+    element.textContent = "Vertraulicher vollständiger Kundenname";
   });
+  const normalFieldBox = await field.boundingBox();
+  const normalControlBox = await name.boundingBox();
+  const normalLabelBox = await label.boundingBox();
+  expect(normalFieldBox).not.toBeNull();
+  expect(normalControlBox).not.toBeNull();
+  expect(normalLabelBox).not.toBeNull();
+  expect((normalControlBox!.x - normalFieldBox!.x) / normalFieldBox!.width).toBeGreaterThan(0.24);
+  expect(normalLabelBox!.height).toBeGreaterThan(normalControlBox!.height);
 
-  test("stacks and contains every scoped form at 360px", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/settings");
-    await page.getByRole("switch", { name: "Show external resources" }).click();
-    await dismissLandscapeHint(page);
+  await dismissLandscapeHint(page);
+  const narrowFieldBox = await field.boundingBox();
+  const narrowControlBox = await name.boundingBox();
+  const narrowLabelBox = await label.boundingBox();
+  expect(narrowFieldBox).not.toBeNull();
+  expect(narrowControlBox).not.toBeNull();
+  expect(narrowLabelBox).not.toBeNull();
+  expect(narrowControlBox!.y).toBeGreaterThanOrEqual(narrowLabelBox!.y + narrowLabelBox!.height);
+  expect(Math.abs(narrowControlBox!.x - narrowFieldBox!.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(narrowControlBox!.width - narrowFieldBox!.width)).toBeLessThanOrEqual(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
 
-    await openStackedDialog(page, "Resources", "Add external party", "Add external party", 2);
-    await openStackedDialog(page, "Disciplines", "Add discipline", "Add discipline", 2);
-    await openStackedDialog(page, "Clients", "Add client", "Add client", 3);
-    await openStackedDialog(page, "Projects", "Add project", "Add project", 4);
-    await openStackedDialog(page, "Activities", "Add activity", "Add activity", 3);
-    await openStackedDialog(page, "Time off", "Add time off", "Add time off", 3);
-  });
-
-  test("wraps a long label, stacks on a narrow screen, and preserves required-error association", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/clients");
-    await page.getByRole("button", { name: "Add client" }).click();
-    const dialog = page.getByRole("dialog", { name: "Add client" });
-    await expect(dialog.getByRole("textbox", { name: "Name", exact: true })).toBeVisible();
-    const name = dialog.locator('input[type="text"]').first();
-    const field = name.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
-    const label = field.locator('[data-slot="field-label"]');
-
-    await label.evaluate((element) => {
-      element.textContent = "Vertraulicher vollständiger Kundenname";
-    });
-    const normalFieldBox = await field.boundingBox();
-    const normalControlBox = await name.boundingBox();
-    const normalLabelBox = await label.boundingBox();
-    expect(normalFieldBox).not.toBeNull();
-    expect(normalControlBox).not.toBeNull();
-    expect(normalLabelBox).not.toBeNull();
-    expect((normalControlBox!.x - normalFieldBox!.x) / normalFieldBox!.width).toBeGreaterThan(0.24);
-    expect(normalLabelBox!.height).toBeGreaterThan(normalControlBox!.height);
-
-    await dismissLandscapeHint(page);
-    const narrowFieldBox = await field.boundingBox();
-    const narrowControlBox = await name.boundingBox();
-    const narrowLabelBox = await label.boundingBox();
-    expect(narrowFieldBox).not.toBeNull();
-    expect(narrowControlBox).not.toBeNull();
-    expect(narrowLabelBox).not.toBeNull();
-    expect(narrowControlBox!.y).toBeGreaterThanOrEqual(narrowLabelBox!.y + narrowLabelBox!.height);
-    expect(Math.abs(narrowControlBox!.x - narrowFieldBox!.x)).toBeLessThanOrEqual(1);
-    expect(Math.abs(narrowControlBox!.width - narrowFieldBox!.width)).toBeLessThanOrEqual(1);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
-
-    await dialog.getByRole("button", { name: "Save" }).click();
-    const alert = dialog.getByRole("alert");
-    const alertId = await alert.getAttribute("id");
-    expect(alertId).toBeTruthy();
-    await expect(name).toHaveAttribute("aria-invalid", "true");
-    await expect(name).toHaveAttribute("aria-describedby", alertId!);
-    await expect(alert).toContainText(/name is required/i);
-    await expect(dialog).toBeVisible();
-  });
+  await dialog.getByRole("button", { name: "Save" }).click();
+  const alert = dialog.getByRole("alert");
+  const alertId = await alert.getAttribute("id");
+  expect(alertId).toBeTruthy();
+  await expect(name).toHaveAttribute("aria-invalid", "true");
+  await expect(name).toHaveAttribute("aria-describedby", alertId!);
+  await expect(alert).toContainText(/name is required/i);
+  await expect(dialog).toBeVisible();
 });

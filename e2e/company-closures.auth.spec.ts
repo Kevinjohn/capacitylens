@@ -38,7 +38,7 @@ async function signInAsEditor(page: Page) {
   await dismissIntroIfPresent(page, page.getByRole("heading", { name: "Schedule" }));
 }
 
-test("an editor creates, sees, edits and deletes a literal company closure band", async ({ page, request }) => {
+async function seedClosureAccount(request: APIRequestContext) {
   const owner = await signUpUser(OWNER);
   const editor = await signUpUser(EDITOR);
   const accountId = await bootstrapOrg(request, owner.cookie, ORG);
@@ -86,6 +86,11 @@ test("an editor creates, sees, edits and deletes a literal company closure band"
     headers: { cookie: editor.cookie },
   });
   expect(accepted.status()).toBe(200);
+  return { accountId, editorCookie: editor.cookie };
+}
+
+test("an editor creates, sees, edits and deletes a literal company closure band", async ({ page, request }) => {
+  const { accountId, editorCookie } = await seedClosureAccount(request);
 
   await signInAsEditor(page);
   await page.getByRole("link", { name: "Time off" }).click();
@@ -105,7 +110,7 @@ test("an editor creates, sees, edits and deletes a literal company closure band"
   await expect
     .poll(async () => {
       const response = await request.get(`${AUTH_API}/api/state?accountId=${accountId}`, {
-        headers: { cookie: editor.cookie },
+        headers: { cookie: editorCookie },
       });
       const state = (await response.json()) as { closures: Array<{ id: string; name: string }> };
       closureId = state.closures.find((closure) => closure.name === "Long weekend")?.id ?? "";
@@ -160,7 +165,7 @@ test("an editor creates, sees, edits and deletes a literal company closure band"
   await expect
     .poll(async () => {
       const response = await request.get(`${AUTH_API}/api/state?accountId=${accountId}`, {
-        headers: { cookie: editor.cookie },
+        headers: { cookie: editorCookie },
       });
       const state = (await response.json()) as { closures: Array<{ id: string }> };
       return state.closures.some((closure) => closure.id === closureId);

@@ -116,148 +116,146 @@ const openSchedule = (page: Page) => page.getByRole("link", { name: "Schedule", 
 
 // Covers US-DAT-02..04 and the canonical demo seed. Export round-trip and reset-on-reload
 // are covered in e2e/crud.spec.ts; server persistence lives in persistence.db.spec.ts.
-test.describe("Data import/export", () => {
-  test("seeds a demo dataset on first load", async ({ page }) => {
+test("seeds a demo dataset on first load", async ({ page }) => {
+  await openApp(page);
+  await expect(page.getByText("Bruce Wayne")).toBeVisible();
+});
+
+test("import shows a confirmation that replaces all data; Cancel keeps the data", async ({ page }) => {
+  await openApp(page);
+  await importFile(page, "incoming.json", NONEMPTY_CAPACITYLENS);
+
+  const dialog = page.getByRole("alertdialog", { name: "Import data?" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("incoming.json");
+  await expect(dialog).toContainText(/replaces this company’s data/i);
+  await expect(dialog).toContainText(/1 resource/i);
+  await expect(dialog).toContainText(/1 client/i);
+  await expect(dialog).toContainText(/1 project/i);
+  await expect(dialog).toContainText(/1 activit(?:y|ies)/i);
+  await expect(dialog).toContainText(/1 allocation/i);
+  await expect(dialog).toContainText(/undo this with/i);
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+
+  // Data is untouched — the seeded resource is still there.
+  await openSchedule(page);
+  await expect(page.getByText("Bruce Wayne")).toBeVisible();
+});
+
+test("confirming an import replaces the dataset and ⌘Z restores it", async ({ page }) => {
+  await openApp(page);
+  await expect(page.getByText("Bruce Wayne")).toBeVisible();
+  await importFile(page, "incoming.json", NONEMPTY_CAPACITYLENS);
+  await page.getByRole("alertdialog", { name: "Import data?" }).getByRole("button", { name: "Replace data" }).click();
+
+  // Replaced → the linked imported graph renders and seeded-only data is gone.
+  await openSchedule(page);
+  await expect(page.getByText("Imported Person")).toBeVisible();
+  await expect(page.getByTestId("allocation-bar").filter({ hasText: "Imported Activity" })).toBeVisible();
+  await expect(page.getByText("Bruce Wayne")).toHaveCount(0);
+  await expect(page.getByText(/Imported 5 records\. Press .* to undo\./)).toBeVisible();
+
+  await page.getByRole("link", { name: "Clients" }).click();
+  await expect(page.getByText("Imported Client")).toBeVisible();
+  await page.getByRole("link", { name: "Projects" }).click();
+  await expect(page.getByText("Imported Project")).toBeVisible();
+  await page.getByRole("link", { name: "Activities" }).click();
+  await expect(page.getByText("Imported Activity")).toBeVisible();
+
+  // A single undo restores the prior graph, not merely one representative resource.
+  await page.keyboard.press("Meta+z");
+  await expect(page.getByText("Brand System")).toBeVisible();
+  await expect(page.getByText("Imported Activity")).toHaveCount(0);
+  await page.getByRole("link", { name: "Clients" }).click();
+  await expect(page.getByRole("button", { name: "Add client" })).toBeVisible();
+  await expect(page.getByText("Queen Consolidated", { exact: true })).toBeVisible();
+  await expect(page.getByText("Imported Client")).toHaveCount(0);
+  await page.getByRole("link", { name: "Schedule" }).click();
+  await expect(page.getByText("Bruce Wayne")).toBeVisible();
+});
+
+test("rejects a non-CapacityLens file with a notice and preserves existing data", async ({ page }) => {
+  await openApp(page);
+  await importFile(page, "random.json", JSON.stringify({ hello: "world" }));
+
+  // Surfaces the SPECIFIC reason from parseData (a JSON object with no CapacityLens keys), not a generic
+  // catch-all. Shown via a Sonner error toast now (was the hand-rolled Toast's role="alert");
+  // assert on the message text, which is Sonner-DOM-agnostic.
+  await expect(page.getByText(/not CapacityLens data/i)).toBeVisible();
+  await openSchedule(page);
+  await expect(page.getByText("Bruce Wayne")).toBeVisible(); // data preserved, no dialog, no wipe
+});
+
+test("rejects an EMPTY CapacityLens file (would silently wipe the account) with a notice", async ({ page }) => {
+  await openApp(page);
+  await importFile(page, "empty.json", EMPTY_CAPACITYLENS);
+
+  // No confirmation dialog, an error notice naming the specific reason (a CapacityLens-shaped but
+  // empty file → would silently wipe the account), and the seeded data is preserved. The notice
+  // is a Sonner error toast now; assert on its message text (Sonner-DOM-agnostic).
+  await expect(page.getByText(/no CapacityLens records/i)).toBeVisible();
+  await expect(page.getByRole("alertdialog", { name: "Import data?" })).toHaveCount(0);
+  await openSchedule(page);
+  await expect(page.getByText("Bruce Wayne")).toBeVisible();
+});
+
+const refusalCases: Array<{
+  name: string;
+  fileName: string;
+  body: () => string;
+  message: RegExp;
+}> = [
+  {
+    name: "invalid JSON",
+    fileName: "truncated.json",
+    body: () => '{ "schemaVersion":',
+    message: /isn't valid JSON/i,
+  },
+  {
+    name: "a damaged non-list table",
+    fileName: "damaged.json",
+    body: () =>
+      JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        data: { clients: {} },
+      }),
+    message: /damaged: a data table is not a list/i,
+  },
+  {
+    name: "too many records",
+    fileName: "too-many.json",
+    body: () =>
+      JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        data: {
+          clients: Array.from({ length: MAX_IMPORT_RECORDS + 1 }, () => ({})),
+        },
+      }),
+    message: /too many records \(200,001\)/i,
+  },
+  {
+    name: "a newer schema version",
+    fileName: "newer.json",
+    body: () =>
+      JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION + 1,
+        data: { clients: [{}] },
+      }),
+    message: new RegExp(
+      `Schema version ${EXPORT_SCHEMA_VERSION + 1} is newer than this app supports \\(${EXPORT_SCHEMA_VERSION}\\)`,
+      "i",
+    ),
+  },
+];
+
+for (const refusal of refusalCases) {
+  test(`rejects ${refusal.name} with its precise notice and preserves existing data`, async ({ page }) => {
     await openApp(page);
-    await expect(page.getByText("Bruce Wayne")).toBeVisible();
-  });
+    await importFile(page, refusal.fileName, refusal.body());
 
-  test("import shows a confirmation that replaces all data; Cancel keeps the data", async ({ page }) => {
-    await openApp(page);
-    await importFile(page, "incoming.json", NONEMPTY_CAPACITYLENS);
-
-    const dialog = page.getByRole("alertdialog", { name: "Import data?" });
-    await expect(dialog).toBeVisible();
-    await expect(dialog).toContainText("incoming.json");
-    await expect(dialog).toContainText(/replaces this company’s data/i);
-    await expect(dialog).toContainText(/1 resource/i);
-    await expect(dialog).toContainText(/1 client/i);
-    await expect(dialog).toContainText(/1 project/i);
-    await expect(dialog).toContainText(/1 activit(?:y|ies)/i);
-    await expect(dialog).toContainText(/1 allocation/i);
-    await expect(dialog).toContainText(/undo this with/i);
-    await dialog.getByRole("button", { name: "Cancel" }).click();
-
-    // Data is untouched — the seeded resource is still there.
-    await openSchedule(page);
-    await expect(page.getByText("Bruce Wayne")).toBeVisible();
-  });
-
-  test("confirming an import replaces the dataset and ⌘Z restores it", async ({ page }) => {
-    await openApp(page);
-    await expect(page.getByText("Bruce Wayne")).toBeVisible();
-    await importFile(page, "incoming.json", NONEMPTY_CAPACITYLENS);
-    await page.getByRole("alertdialog", { name: "Import data?" }).getByRole("button", { name: "Replace data" }).click();
-
-    // Replaced → the linked imported graph renders and seeded-only data is gone.
-    await openSchedule(page);
-    await expect(page.getByText("Imported Person")).toBeVisible();
-    await expect(page.getByTestId("allocation-bar").filter({ hasText: "Imported Activity" })).toBeVisible();
-    await expect(page.getByText("Bruce Wayne")).toHaveCount(0);
-    await expect(page.getByText(/Imported 5 records\. Press .* to undo\./)).toBeVisible();
-
-    await page.getByRole("link", { name: "Clients" }).click();
-    await expect(page.getByText("Imported Client")).toBeVisible();
-    await page.getByRole("link", { name: "Projects" }).click();
-    await expect(page.getByText("Imported Project")).toBeVisible();
-    await page.getByRole("link", { name: "Activities" }).click();
-    await expect(page.getByText("Imported Activity")).toBeVisible();
-
-    // A single undo restores the prior graph, not merely one representative resource.
-    await page.keyboard.press("Meta+z");
-    await expect(page.getByText("Brand System")).toBeVisible();
-    await expect(page.getByText("Imported Activity")).toHaveCount(0);
-    await page.getByRole("link", { name: "Clients" }).click();
-    await expect(page.getByRole("button", { name: "Add client" })).toBeVisible();
-    await expect(page.getByText("Queen Consolidated", { exact: true })).toBeVisible();
-    await expect(page.getByText("Imported Client")).toHaveCount(0);
-    await page.getByRole("link", { name: "Schedule" }).click();
-    await expect(page.getByText("Bruce Wayne")).toBeVisible();
-  });
-
-  test("rejects a non-CapacityLens file with a notice and preserves existing data", async ({ page }) => {
-    await openApp(page);
-    await importFile(page, "random.json", JSON.stringify({ hello: "world" }));
-
-    // Surfaces the SPECIFIC reason from parseData (a JSON object with no CapacityLens keys), not a generic
-    // catch-all. Shown via a Sonner error toast now (was the hand-rolled Toast's role="alert");
-    // assert on the message text, which is Sonner-DOM-agnostic.
-    await expect(page.getByText(/not CapacityLens data/i)).toBeVisible();
-    await openSchedule(page);
-    await expect(page.getByText("Bruce Wayne")).toBeVisible(); // data preserved, no dialog, no wipe
-  });
-
-  test("rejects an EMPTY CapacityLens file (would silently wipe the account) with a notice", async ({ page }) => {
-    await openApp(page);
-    await importFile(page, "empty.json", EMPTY_CAPACITYLENS);
-
-    // No confirmation dialog, an error notice naming the specific reason (a CapacityLens-shaped but
-    // empty file → would silently wipe the account), and the seeded data is preserved. The notice
-    // is a Sonner error toast now; assert on its message text (Sonner-DOM-agnostic).
-    await expect(page.getByText(/no CapacityLens records/i)).toBeVisible();
+    await expect(page.getByText(refusal.message)).toBeVisible();
     await expect(page.getByRole("alertdialog", { name: "Import data?" })).toHaveCount(0);
     await openSchedule(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
-
-  const refusalCases: Array<{
-    name: string;
-    fileName: string;
-    body: () => string;
-    message: RegExp;
-  }> = [
-    {
-      name: "invalid JSON",
-      fileName: "truncated.json",
-      body: () => '{ "schemaVersion":',
-      message: /isn't valid JSON/i,
-    },
-    {
-      name: "a damaged non-list table",
-      fileName: "damaged.json",
-      body: () =>
-        JSON.stringify({
-          schemaVersion: EXPORT_SCHEMA_VERSION,
-          data: { clients: {} },
-        }),
-      message: /damaged: a data table is not a list/i,
-    },
-    {
-      name: "too many records",
-      fileName: "too-many.json",
-      body: () =>
-        JSON.stringify({
-          schemaVersion: EXPORT_SCHEMA_VERSION,
-          data: {
-            clients: Array.from({ length: MAX_IMPORT_RECORDS + 1 }, () => ({})),
-          },
-        }),
-      message: /too many records \(200,001\)/i,
-    },
-    {
-      name: "a newer schema version",
-      fileName: "newer.json",
-      body: () =>
-        JSON.stringify({
-          schemaVersion: EXPORT_SCHEMA_VERSION + 1,
-          data: { clients: [{}] },
-        }),
-      message: new RegExp(
-        `Schema version ${EXPORT_SCHEMA_VERSION + 1} is newer than this app supports \\(${EXPORT_SCHEMA_VERSION}\\)`,
-        "i",
-      ),
-    },
-  ];
-
-  for (const refusal of refusalCases) {
-    test(`rejects ${refusal.name} with its precise notice and preserves existing data`, async ({ page }) => {
-      await openApp(page);
-      await importFile(page, refusal.fileName, refusal.body());
-
-      await expect(page.getByText(refusal.message)).toBeVisible();
-      await expect(page.getByRole("alertdialog", { name: "Import data?" })).toHaveCount(0);
-      await openSchedule(page);
-      await expect(page.getByText("Bruce Wayne")).toBeVisible();
-    });
-  }
-});
+}
