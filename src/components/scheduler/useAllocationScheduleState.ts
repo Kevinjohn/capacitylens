@@ -111,7 +111,7 @@ export function useAllocationScheduleState({
     }
   }, [repeat, startDate]);
 
-  const onRepeatChange = (value: string) => {
+  const changeRepeat = (value: string) => {
     const next = value as RepeatSelection;
     if (repeat === "none" && next !== "none" && isValidISODate(startDate)) {
       repeatUntilIsSuggested.current = true;
@@ -123,7 +123,7 @@ export function useAllocationScheduleState({
     setRepeat(next);
   };
 
-  const onRepeatUntilChange = (value: string) => {
+  const changeRepeatUntil = (value: string) => {
     repeatUntilIsSuggested.current = false;
     setRepeatUntil(value);
   };
@@ -160,9 +160,9 @@ export function useAllocationScheduleState({
       ignoreWeekends,
       setIgnoreWeekends,
       repeat,
-      onRepeatChange,
+      onRepeatChange: changeRepeat,
       repeatUntil,
-      onRepeatUntilChange,
+      onRepeatUntilChange: changeRepeatUntil,
       repeatUntilMinimum,
       repeatUntilMaximum,
       status,
