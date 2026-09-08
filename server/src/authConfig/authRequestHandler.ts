@@ -104,8 +104,8 @@ export function createAuthRequestHandler(options: CreateAuthRequestHandlerOption
       });
     }
     try {
-      const capture = { error: null as unknown };
-      const resetCapture = { sessionHandles: [] as readonly string[] };
+      const capture: { error: unknown } = { error: null };
+      const resetCapture: { sessionHandles: readonly string[] } = { sessionHandles: [] };
       const response = await authHandlerErrorCapture.run(capture, () =>
         passwordResetSessionCapture.run(resetCapture, () => options.rawHandler(request)),
       );
