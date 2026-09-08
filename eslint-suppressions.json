@@ -587,11 +587,6 @@
       "count": 1
     }
   },
-  "server/src/app.lifecycle.test.ts": {
-    "max-lines-per-function": {
-      "count": 4
-    }
-  },
   "server/src/app.logging.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 5
@@ -647,10 +642,10 @@
       "count": 8
     },
     "@typescript-eslint/no-unsafe-assignment": {
-      "count": 71
+      "count": 47
     },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 65
+      "count": 43
     },
     "max-lines-per-function": {
       "count": 15
@@ -947,11 +942,6 @@
       "count": 1
     }
   },
-  "server/src/db.migrate.test.ts": {
-    "max-lines-per-function": {
-      "count": 5
-    }
-  },
   "server/src/db.permissions.test.ts": {
     "@typescript-eslint/no-unsafe-assignment": {
       "count": 2
@@ -1245,11 +1235,6 @@
     },
     "max-depth": {
       "count": 1
-    }
-  },
-  "server/src/routes/batch/runBatch.ts": {
-    "max-lines-per-function": {
-      "count": 2
     }
   },
   "server/src/routes/batch/validateRequest.ts": {
