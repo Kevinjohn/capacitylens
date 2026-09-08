@@ -55,7 +55,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function registerBasicResponseClassificationTests() {
+function createBasicResponseClassificationTests() {
   it('a genuine empty array -> [] (the real "no accounts" answer)', async () => {
     vi.stubGlobal(
       "fetch",
@@ -123,7 +123,7 @@ function registerBasicResponseClassificationTests() {
   });
 }
 
-function registerCachedResponseClassificationTests() {
+function createCachedResponseClassificationTests() {
   it("does not mark a live active slice read-only when only the company directory falls back to cache", async () => {
     const savedAt = Date.parse("2026-07-17T10:00:00.000Z");
     useStore.setState({ activeAccountId: "a1" });
@@ -185,7 +185,7 @@ function registerCachedResponseClassificationTests() {
   });
 }
 
-function registerMalformedResponseClassificationTests() {
+function createMalformedResponseClassificationTests() {
   it('a NONEMPTY array whose rows are ALL malformed -> null (keep what you have, NOT a fake "no accounts") + a warn', async () => {
     // The regression this pins: [null] used to map/filter to [], which the hook treated as a genuine
     // empty list and blanked the picker — contradicting the "[] is reserved for a genuine empty
@@ -230,7 +230,7 @@ function registerMalformedResponseClassificationTests() {
   });
 }
 
-function registerFallbackResponseClassificationTests() {
+function createFallbackResponseClassificationTests() {
   it("refuses a cached directory when a caller requires authoritative reconciliation", async () => {
     vi.mocked(readCachedAccountSummaries).mockClear();
     vi.stubGlobal(
@@ -258,13 +258,13 @@ function registerFallbackResponseClassificationTests() {
 }
 
 describe("fetchAccountSummaries — response classification", () => {
-  registerBasicResponseClassificationTests();
-  registerCachedResponseClassificationTests();
-  registerMalformedResponseClassificationTests();
-  registerFallbackResponseClassificationTests();
+  createBasicResponseClassificationTests();
+  createCachedResponseClassificationTests();
+  createMalformedResponseClassificationTests();
+  createFallbackResponseClassificationTests();
 });
 
-function registerOrderedRefreshTests() {
+function createOrderedRefreshTests() {
   it("returns an active user to the picker when a live directory no longer contains that company", async () => {
     useStore.setState({ activeAccountId: "a1" });
     vi.stubGlobal(
@@ -326,7 +326,7 @@ function registerOrderedRefreshTests() {
   });
 }
 
-function registerMutationRefreshTests() {
+function createMutationRefreshTests() {
   it("does not let an in-flight response overwrite a later direct list mutation", async () => {
     const response = deferred<Response>();
     vi.stubGlobal(
@@ -360,7 +360,7 @@ function registerMutationRefreshTests() {
   });
 }
 
-function registerCompletenessRefreshTests() {
+function createCompletenessRefreshTests() {
   it("publishes valid rows from an incomplete directory without treating the dropped active row as revoked", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     useStore.setState({ activeAccountId: "active" });
@@ -396,9 +396,9 @@ function registerCompletenessRefreshTests() {
 }
 
 describe("refreshAccountSummaries — shared request ordering", () => {
-  registerOrderedRefreshTests();
-  registerMutationRefreshTests();
-  registerCompletenessRefreshTests();
+  createOrderedRefreshTests();
+  createMutationRefreshTests();
+  createCompletenessRefreshTests();
 });
 
 /** Mounts the hook bare — it renders nothing; the observable effect is on the store. */
@@ -407,7 +407,7 @@ function HookHost() {
   return null;
 }
 
-function registerYieldingHookTest() {
+function createYieldingHookTest() {
   it("yields active-account reads when the permission provider owns that generation", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -425,7 +425,7 @@ function registerYieldingHookTest() {
   });
 }
 
-function registerMalformedHookTests() {
+function createMalformedHookTests() {
   it("store.accountSummaries is preserved when /api/accounts 200s with a non-array body", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {}); // silence the expected breadcrumb
     const existing = [{ id: "a1", name: "Studio A", role: "owner" as const }];
@@ -452,7 +452,7 @@ function registerMalformedHookTests() {
   });
 }
 
-function registerMembershipHookTest() {
+function createMembershipHookTest() {
   it("store.accountSummaries is preserved when /api/accounts 200s with an all-malformed array ([null])", async () => {
     // Same stance as the non-array case above, via the all-rows-dropped -> null path: an array of
     // junk must not read as "no accounts" and blank the picker.
@@ -497,7 +497,7 @@ function registerMembershipHookTest() {
 }
 
 describe("useAccountSummaries — a malformed 200 leaves the existing list alone", () => {
-  registerYieldingHookTest();
-  registerMalformedHookTests();
-  registerMembershipHookTest();
+  createYieldingHookTest();
+  createMalformedHookTests();
+  createMembershipHookTest();
 });

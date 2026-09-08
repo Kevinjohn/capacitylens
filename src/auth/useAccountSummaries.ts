@@ -58,9 +58,9 @@ async function readCachedAccountSummaryFallback(acceptEffects: () => boolean): P
   }
 }
 
-type ParsedAccountSummaryList = { valid: AccountSummary[]; complete: boolean };
+type ParsedAccountSummaryList = { valid: AccountSummary[]; complete: boolean; droppedCount: number };
 
-function parseAccountSummaryList(body: unknown, acceptEffects: () => boolean): ParsedAccountSummaryList | null {
+function parseAccountSummaryList(body: unknown): ParsedAccountSummaryList | null {
   if (!Array.isArray(body)) {
     console.warn(
       "fetchAccountSummaries: /api/accounts returned a non-array body; reporting null (callers keep their existing list)",
@@ -72,26 +72,31 @@ function parseAccountSummaryList(body: unknown, acceptEffects: () => boolean): P
   const droppedCount = body.length - valid.length;
   if (droppedCount > 0) {
     console.warn(`fetchAccountSummaries: dropped ${droppedCount} malformed /api/accounts row(s)`, body);
-    if (acceptEffects()) useStore.getState().setNotice(m.picker_accounts_incomplete(), "warning");
   }
   if (body.length > 0 && valid.length === 0) return null;
   if (hasDuplicateIdentity(valid, (summary) => summary.id)) {
     console.warn("fetchAccountSummaries: /api/accounts returned duplicate account identities; reporting null");
     return null;
   }
-  return { valid, complete: droppedCount === 0 && valid.every((summary) => summary.roleStatus !== "unavailable") };
+  return {
+    valid,
+    complete: droppedCount === 0 && valid.every((summary) => summary.roleStatus !== "unavailable"),
+    droppedCount,
+  };
 }
 
-type AcceptLiveAccountSummaryListOptions = {
+type ApplyLiveAccountSummaryEffectsOptions = {
   valid: AccountSummary[];
   complete: boolean;
+  droppedCount: number;
   acceptEffects: () => boolean;
   onCompleteness: ((complete: boolean) => void) | undefined;
 };
 
-function acceptLiveAccountSummaryList(options: AcceptLiveAccountSummaryListOptions): void {
-  const { valid, complete, acceptEffects, onCompleteness } = options;
+function applyLiveAccountSummaryEffects(options: ApplyLiveAccountSummaryEffectsOptions): void {
+  const { valid, complete, droppedCount, acceptEffects, onCompleteness } = options;
   if (acceptEffects()) {
+    if (droppedCount > 0) useStore.getState().setNotice(m.picker_accounts_incomplete(), "warning");
     if (useStore.getState().activeAccountId === null) setOfflineReadState("accounts", false);
     if (complete) {
       void cacheAccountSummaries(valid).catch((error) =>
@@ -102,7 +107,7 @@ function acceptLiveAccountSummaryList(options: AcceptLiveAccountSummaryListOptio
   onCompleteness?.(complete);
 }
 
-async function handleAccountSummaryReadFailure(
+async function readAccountSummaryFailureFallback(
   error: unknown,
   allowCachedFallback: boolean,
   acceptEffects: () => boolean,
@@ -149,11 +154,12 @@ export async function fetchAccountSummaries(requestOptions?: {
       return res.status >= 500 && allowCachedFallback ? readCachedAccountSummaryFallback(acceptEffects) : null;
     }
     const body: unknown = await res.json();
-    const parsed = parseAccountSummaryList(body, acceptEffects);
+    const parsed = parseAccountSummaryList(body);
     if (parsed === null) return null;
-    acceptLiveAccountSummaryList({
+    applyLiveAccountSummaryEffects({
       valid: parsed.valid,
       complete: parsed.complete,
+      droppedCount: parsed.droppedCount,
       acceptEffects,
       onCompleteness: requestOptions?.onCompleteness,
     });
@@ -162,7 +168,7 @@ export async function fetchAccountSummaries(requestOptions?: {
     // Fail-soft by contract (see @returns): a transport error/abort is reported as null, never a
     // throw — the callers treat a failed list read as "keep what you have", not an error surface of
     // its own. Breadcrumb per DEFENSIVE-CODING.md §5: handled-but-logged, never totally silent.
-    return handleAccountSummaryReadFailure(e, allowCachedFallback, acceptEffects);
+    return readAccountSummaryFailureFallback(e, allowCachedFallback, acceptEffects);
   }
 }
 
