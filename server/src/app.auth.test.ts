@@ -1637,7 +1637,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 });
 
-describe("CAPACITYLENS_AUTH sso", () => {
+function registerSsoClosedRouteTests(): void {
   it("keeps password mutation and invitation password signup closed", async () => {
     const app = await appWithAuth(SSO_ENV);
     expect(
@@ -1672,7 +1672,9 @@ describe("CAPACITYLENS_AUTH sso", () => {
       ).statusCode,
     ).toBe(404);
   });
+}
 
+function registerSsoRedirectTests(): void {
   it("discovers strict OIDC and issues a stateful PKCE redirect", async () => {
     const originalFetch = globalThis.fetch;
     vi.stubGlobal("fetch", async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
@@ -1723,6 +1725,11 @@ describe("CAPACITYLENS_AUTH sso", () => {
       vi.stubGlobal("fetch", originalFetch);
     }
   });
+}
+
+describe("CAPACITYLENS_AUTH sso", () => {
+  registerSsoClosedRouteTests();
+  registerSsoRedirectTests();
 });
 
 // P1.7 — native social providers wired from env. Assert against the resolved betterAuth
