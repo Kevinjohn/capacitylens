@@ -21,6 +21,22 @@ async function restoreDisciplines(page: Page) {
   await expect(page.getByTestId("discipline-group").first()).toBeVisible();
 }
 
+async function scrollSchedulerToBottom(page: Page) {
+  const grid = page.getByTestId("scheduler-grid");
+  await grid.evaluate((el) => {
+    const element = el as HTMLElement;
+    element.scrollTop = element.scrollHeight;
+    element.dispatchEvent(new Event("scroll", { bubbles: true }));
+  });
+  // Dispatch the native event, then wait for the scheduler's scroll frame and following paint.
+  await grid.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+}
+
 // The account-level "Use disciplines" toggle (Settings → Disciplines). Off should hide
 // discipline surfaces and use engagement fallback bands on the schedule; on restores disciplines.
 test("turning disciplines off hides every surface; turning it back on restores them", async ({ page }) => {
@@ -74,19 +90,7 @@ test("turning disciplines off hides every surface; turning it back on restores t
   await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toContainText(/utilisation/i);
 
   // Scroll to the bottom so the virtualised External band is rendered before asserting.
-  const grid = page.getByTestId("scheduler-grid");
-  await grid.evaluate((el) => {
-    const element = el as HTMLElement;
-    element.scrollTop = element.scrollHeight;
-    element.dispatchEvent(new Event("scroll", { bubbles: true }));
-  });
-  // Dispatch the native event, then wait for the scheduler's scroll frame and following paint.
-  await grid.evaluate(
-    () =>
-      new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-      }),
-  );
+  await scrollSchedulerToBottom(page);
   await expect(page.getByTestId("discipline-group").filter({ hasText: "External / 3rd party" })).toBeVisible();
   await expect(page.getByLabel("Filter by discipline")).toHaveCount(0);
 
