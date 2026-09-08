@@ -390,6 +390,11 @@ function readNumberArray(value: Record<string, unknown>, key: string, context: s
   return field;
 }
 
+function requireModeledKeys(value: Record<string, unknown>, keys: readonly string[], context: string): void {
+  const unexpectedKey = Object.keys(value).find((key) => !keys.includes(key));
+  if (unexpectedKey) throw new Error(`Expected ${context} to omit unexpected key ${unexpectedKey}.`);
+}
+
 function readStateArray(value: Record<string, unknown>, key: string): unknown[] {
   if (!(key in value) || !Array.isArray(value[key])) {
     throw new Error(`Expected the state response to contain a ${key} array.`);
@@ -413,7 +418,28 @@ function readProjectBindings(rows: unknown[], table: string): ProjectBinding[] {
 }
 
 function readResourceSnapshot(source: Record<string, unknown>, binding: ProjectBinding): ResourceSnapshot {
-  if ("isFreelancer" in source) throw new Error("Expected migrated resources to omit isFreelancer.");
+  requireModeledKeys(
+    source,
+    [
+      "accountId",
+      "color",
+      "createdAt",
+      "disciplineId",
+      "engagement",
+      "employmentType",
+      "halfDays",
+      "id",
+      "isFavourite",
+      "kind",
+      "name",
+      "projectId",
+      "role",
+      "updatedAt",
+      "workingDays",
+      "workingHoursPerDay",
+    ],
+    "resource row",
+  );
   const disciplineId = readOptionalString(source, "disciplineId", "resource row");
   const employmentType = readOptionalString(source, "employmentType", "resource row");
   const isFavourite = readOptionalBoolean(source, "isFavourite", "resource row");
@@ -441,6 +467,26 @@ function readResourceSnapshot(source: Record<string, unknown>, binding: ProjectB
 function readAllocationSnapshots(rows: unknown[]): AllocationSnapshot[] {
   return rows.map((row) => {
     if (!isUnknownRecord(row)) throw new Error("Expected every allocation row to be an object.");
+    requireModeledKeys(
+      row,
+      [
+        "accountId",
+        "activityId",
+        "createdAt",
+        "endDate",
+        "hoursPerDay",
+        "id",
+        "ignoreWeekends",
+        "note",
+        "projectId",
+        "resourceId",
+        "seriesId",
+        "startDate",
+        "status",
+        "updatedAt",
+      ],
+      "allocation row",
+    );
     const ignoreWeekends = readOptionalBoolean(row, "ignoreWeekends", "allocation row");
     const note = readOptionalString(row, "note", "allocation row");
     const projectId = readOptionalString(row, "projectId", "allocation row");
