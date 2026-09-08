@@ -425,6 +425,44 @@ function assertAbsentAccountViewPreferences(db: Db): void {
   expect(oldRow?.inlineActivityCreateEnabled).toBeUndefined();
 }
 
+interface V23InvitationInput {
+  accountId: string;
+  id: string;
+  usedAt: string | null;
+  expiresAt?: string | undefined;
+}
+
+function prepareV23InvitationHistory(db: Db): void {
+  db.exec(`
+    DROP INDEX idx_invites_account_usedAt_id;
+    DROP INDEX idx_invites_live_preauthEmail;
+    DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 24;
+    PRAGMA user_version = 23;
+  `);
+  const insert = ({ accountId, id, usedAt, expiresAt = "2999-01-01T00:00:00.000Z" }: V23InvitationInput) =>
+    createInvite(db, {
+      token: `token-${accountId}-${id}`,
+      id,
+      accountId,
+      role: "viewer",
+      preauthEmail: usedAt === null ? "live@example.com" : null,
+      expiresAt,
+      usedAt,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+  for (let index = 0; index < USED_INVITATION_RETENTION_LIMIT + 2; index += 1) {
+    insert({
+      accountId: "account-1",
+      id: `recent-${String(index).padStart(3, "0")}`,
+      usedAt: "2998-01-01T00:00:00.000Z",
+    });
+  }
+  insert({ accountId: "account-1", id: "old", usedAt: "2000-01-01T00:00:00.000Z" });
+  insert({ accountId: "account-1", id: "live", usedAt: null });
+  insert({ accountId: "account-1", id: "expired-unused", usedAt: null, expiresAt: "2000-01-01T00:00:00.000Z" });
+  insert({ accountId: "account-2", id: "other-account", usedAt: "2998-01-01T00:00:00.000Z" });
+}
+
 describe("schema migration of an existing on-disk DB", () => {
   it("pins synchronous FULL even when the connection inherited a weaker setting", () => {
     const copied = copyFixture("v16-off.db");
@@ -1906,42 +1944,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
   it("v24 bounds pre-existing used invitation history and installs its lookup indexes", () => {
     const db = openDb(":memory:");
-    db.exec(`
-      DROP INDEX idx_invites_account_usedAt_id;
-      DROP INDEX idx_invites_live_preauthEmail;
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 24;
-      PRAGMA user_version = 23;
-    `);
-
-    interface InsertInput {
-      accountId: string;
-      id: string;
-      usedAt: string | null;
-      expiresAt?: string | undefined;
-    }
-
-    const insert = ({ accountId, id, usedAt, expiresAt = "2999-01-01T00:00:00.000Z" }: InsertInput) =>
-      createInvite(db, {
-        token: `token-${accountId}-${id}`,
-        id,
-        accountId,
-        role: "viewer",
-        preauthEmail: usedAt === null ? "live@example.com" : null,
-        expiresAt,
-        usedAt,
-        createdAt: "2026-01-01T00:00:00.000Z",
-      });
-    for (let index = 0; index < USED_INVITATION_RETENTION_LIMIT + 2; index += 1) {
-      insert({
-        accountId: "account-1",
-        id: `recent-${String(index).padStart(3, "0")}`,
-        usedAt: "2998-01-01T00:00:00.000Z",
-      });
-    }
-    insert({ accountId: "account-1", id: "old", usedAt: "2000-01-01T00:00:00.000Z" });
-    insert({ accountId: "account-1", id: "live", usedAt: null });
-    insert({ accountId: "account-1", id: "expired-unused", usedAt: null, expiresAt: "2000-01-01T00:00:00.000Z" });
-    insert({ accountId: "account-2", id: "other-account", usedAt: "2998-01-01T00:00:00.000Z" });
+    prepareV23InvitationHistory(db);
 
     expect(planDatabaseMigrations(db).migrations).toEqual([
       {
