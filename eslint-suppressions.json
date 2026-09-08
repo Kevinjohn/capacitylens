@@ -1250,17 +1250,6 @@
       "count": 1
     }
   },
-  "src/components/settings/SecuritySection.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/components/settings/SettingsDataSection.tsx": {
     "max-lines-per-function": {
       "count": 1
@@ -1279,17 +1268,6 @@
   "src/components/settings/SettingsView.test.tsx": {
     "max-lines-per-function": {
       "count": 3
-    }
-  },
-  "src/components/settings/SettingsView.tsx": {
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
     }
   },
   "src/components/settings/createMemberMutations.ts": {
