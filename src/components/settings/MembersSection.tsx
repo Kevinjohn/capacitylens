@@ -52,7 +52,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   const { invites } = orchestration.directory.snapshot;
   return (
     <>
-      <MembersCard orchestration={orchestration} setActionStatusElement={setActionStatusElement} />
+      <MembersCard members={orchestration} setActionStatusElement={setActionStatusElement} />
       {/* Inviting someone is its own job, not a footnote to the member table (#175): it lives in a
           separate card together with the invites that are still outstanding. */}
       {orchestration.mayManageInvites && (
@@ -94,6 +94,32 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
 }
 
 type MembersOrchestration = Omit<ReturnType<typeof useMembersOrchestration>, "setActionStatusElement">;
+type MemberTableCapabilities = Pick<
+  MembersOrchestration,
+  "myRole" | "busyAction" | "openMenuFor" | "setOpenMenuFor" | "setRoleEdit" | "chooseMemberAction"
+>;
+type ReadinessCapabilities = Pick<
+  MembersOrchestration,
+  | "readinessApplies"
+  | "readinessError"
+  | "readiness"
+  | "authMode"
+  | "busyAction"
+  | "emailRepair"
+  | "setEmailRepair"
+  | "error"
+  | "errorField"
+  | "errorId"
+  | "correctSsoEmail"
+  | "setUnlinkRepair"
+>;
+type DirectoryCapabilities = MemberTableCapabilities &
+  Pick<MembersOrchestration, "activeMembers" | "inactiveMembers" | "inactiveOpen" | "setInactiveOpen">;
+type ResetLinkCapabilities = Pick<MembersOrchestration, "resetLink" | "copyLink">;
+type MembersCardCapabilities = DirectoryCapabilities &
+  ReadinessCapabilities &
+  ResetLinkCapabilities &
+  Pick<MembersOrchestration, "directory" | "mayManageSignInTracking" | "changeSignInTracking">;
 
 function MembersErrorCard({ errorId, error, reload }: { errorId: string; error: string | null; reload(): void }) {
   return (
@@ -117,12 +143,12 @@ function MembersTable({
   rows,
   testId,
   signInTrackingEnabled,
-  orchestration,
+  memberActions,
 }: {
   rows: TeamMember[];
   testId: string;
   signInTrackingEnabled: boolean;
-  orchestration: MembersOrchestration;
+  memberActions: MemberTableCapabilities;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -153,13 +179,13 @@ function MembersTable({
             <MemberRow
               key={member.userId}
               member={member}
-              myRole={orchestration.myRole}
+              myRole={memberActions.myRole}
               signInTrackingEnabled={signInTrackingEnabled}
-              busy={orchestration.busyAction !== null}
-              openMenuFor={orchestration.openMenuFor}
-              setOpenMenuFor={orchestration.setOpenMenuFor}
-              setRoleEdit={orchestration.setRoleEdit}
-              chooseMemberAction={orchestration.chooseMemberAction}
+              busy={memberActions.busyAction !== null}
+              openMenuFor={memberActions.openMenuFor}
+              setOpenMenuFor={memberActions.setOpenMenuFor}
+              setRoleEdit={memberActions.setRoleEdit}
+              chooseMemberAction={memberActions.chooseMemberAction}
             />
           ))}
         </tbody>
@@ -168,10 +194,10 @@ function MembersTable({
   );
 }
 
-function ReadinessPanels({ orchestration }: { orchestration: MembersOrchestration }) {
+function ReadinessPanels({ readiness }: { readiness: ReadinessCapabilities }) {
   return (
     <>
-      {orchestration.readinessApplies && orchestration.readinessError && (
+      {readiness.readinessApplies && readiness.readinessError && (
         <section
           className="flex flex-col gap-2 rounded-md border border-danger/40 bg-danger/5 p-3"
           data-testid="sso-readiness-error"
@@ -181,18 +207,18 @@ function ReadinessPanels({ orchestration }: { orchestration: MembersOrchestratio
           <p className="text-xs text-danger">{m.settings_sso_readiness_error()}</p>
         </section>
       )}
-      {orchestration.readinessApplies && orchestration.readiness && (
+      {readiness.readinessApplies && readiness.readiness && (
         <SsoReadinessPanel
-          authMode={orchestration.authMode}
-          readiness={orchestration.readiness}
-          busy={orchestration.busyAction !== null}
-          emailRepair={orchestration.emailRepair}
-          setEmailRepair={orchestration.setEmailRepair}
-          error={orchestration.error}
-          errorField={orchestration.errorField}
-          errorId={orchestration.errorId}
-          onCorrectEmail={() => void orchestration.correctSsoEmail()}
-          onRemoveLink={(member, link) => orchestration.setUnlinkRepair({ member, link })}
+          authMode={readiness.authMode}
+          readiness={readiness.readiness}
+          busy={readiness.busyAction !== null}
+          emailRepair={readiness.emailRepair}
+          setEmailRepair={readiness.setEmailRepair}
+          error={readiness.error}
+          errorField={readiness.errorField}
+          errorId={readiness.errorId}
+          onCorrectEmail={() => void readiness.correctSsoEmail()}
+          onRemoveLink={(member, link) => readiness.setUnlinkRepair({ member, link })}
         />
       )}
     </>
@@ -200,51 +226,51 @@ function ReadinessPanels({ orchestration }: { orchestration: MembersOrchestratio
 }
 
 function MemberDirectory({
-  orchestration,
+  directory,
   members,
   signInTrackingEnabled,
 }: {
-  orchestration: MembersOrchestration;
+  directory: DirectoryCapabilities;
   members: TeamMember[];
   signInTrackingEnabled: boolean;
 }) {
   let activeContent = null;
   if (members.length === 0)
     activeContent = <p className="py-2 text-sm text-muted-foreground">{m.settings_members_empty()}</p>;
-  else if (orchestration.activeMembers)
+  else if (directory.activeMembers)
     activeContent = (
       <MembersTable
-        rows={orchestration.activeMembers}
+        rows={directory.activeMembers}
         testId="members-table"
         signInTrackingEnabled={signInTrackingEnabled}
-        orchestration={orchestration}
+        memberActions={directory}
       />
     );
   let disclosureIcon = <ChevronRight data-icon="inline-start" />;
-  if (orchestration.inactiveOpen) disclosureIcon = <ChevronDown data-icon="inline-start" />;
+  if (directory.inactiveOpen) disclosureIcon = <ChevronDown data-icon="inline-start" />;
   return (
     <>
       {activeContent}
-      {orchestration.inactiveMembers.length > 0 && (
+      {directory.inactiveMembers.length > 0 && (
         <section className="flex flex-col gap-2">
           <button
             type="button"
             className="inline-flex items-center gap-1 self-start text-sm font-medium text-brand underline-offset-2 hover:underline"
-            aria-expanded={orchestration.inactiveOpen}
+            aria-expanded={directory.inactiveOpen}
             aria-controls="members-inactive"
             data-testid="members-inactive-toggle"
-            onClick={() => orchestration.setInactiveOpen((open) => !open)}
+            onClick={() => directory.setInactiveOpen((open) => !open)}
           >
             {disclosureIcon}
-            {m.settings_members_inactive_group({ count: orchestration.inactiveMembers.length })}
+            {m.settings_members_inactive_group({ count: directory.inactiveMembers.length })}
           </button>
-          {orchestration.inactiveOpen && (
+          {directory.inactiveOpen && (
             <div id="members-inactive">
               <MembersTable
-                rows={orchestration.inactiveMembers}
+                rows={directory.inactiveMembers}
                 testId="members-inactive-table"
                 signInTrackingEnabled={signInTrackingEnabled}
-                orchestration={orchestration}
+                memberActions={directory}
               />
             </div>
           )}
@@ -254,20 +280,20 @@ function MemberDirectory({
   );
 }
 
-function ResetLink({ orchestration }: { orchestration: MembersOrchestration }) {
-  if (!orchestration.resetLink) return null;
+function ResetLink({ reset }: { reset: ResetLinkCapabilities }) {
+  if (!reset.resetLink) return null;
   return (
     <CopyableLinkBlock
-      link={orchestration.resetLink.link}
+      link={reset.resetLink.link}
       testId="reset-link"
       copiedNotice={m.settings_members_reset_copied()}
-      copyLabel={m.settings_reset_copy_aria({ member: orchestration.resetLink.member })}
-      copyLink={orchestration.copyLink}
+      copyLabel={m.settings_reset_copy_aria({ member: reset.resetLink.member })}
+      copyLink={reset.copyLink}
       intro={
         <p className="text-xs text-muted-foreground">
           {m.settings_members_reset_intro({
-            member: orchestration.resetLink.member,
-            when: formatInstant(orchestration.resetLink.expiresAt),
+            member: reset.resetLink.member,
+            when: formatInstant(reset.resetLink.expiresAt),
           })}
         </p>
       }
@@ -276,16 +302,16 @@ function ResetLink({ orchestration }: { orchestration: MembersOrchestration }) {
 }
 
 function MembersCard({
-  orchestration,
+  members,
   setActionStatusElement,
 }: {
-  orchestration: MembersOrchestration;
+  members: MembersCardCapabilities;
   setActionStatusElement(element: HTMLParagraphElement | null): void;
 }) {
-  if (orchestration.directory.kind !== "ready") return null;
-  const { members, signInTrackingEnabled } = orchestration.directory.snapshot;
+  if (members.directory.kind !== "ready") return null;
+  const { members: memberRows, signInTrackingEnabled } = members.directory.snapshot;
   return (
-    <Card data-testid="members-section" aria-busy={orchestration.busyAction !== null}>
+    <Card data-testid="members-section" aria-busy={members.busyAction !== null}>
       <CardHeader>
         <CardTitle>
           <h2>{m.settings_members_heading()}</h2>
@@ -294,14 +320,12 @@ function MembersCard({
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <p ref={setActionStatusElement} role="status" aria-live="polite" tabIndex={-1} className="sr-only">
-          {orchestration.busyAction ? m.settings_members_updating() : ""}
+          {members.busyAction ? m.settings_members_updating() : ""}
         </p>
-        <FieldError id={orchestration.errorId}>
-          {orchestration.errorField === null ? orchestration.error : null}
-        </FieldError>
-        <ReadinessPanels orchestration={orchestration} />
-        {orchestration.mayManageSignInTracking && (
-          <Field orientation="horizontal" data-disabled={orchestration.busyAction !== null || undefined}>
+        <FieldError id={members.errorId}>{members.errorField === null ? members.error : null}</FieldError>
+        <ReadinessPanels readiness={members} />
+        {members.mayManageSignInTracking && (
+          <Field orientation="horizontal" data-disabled={members.busyAction !== null || undefined}>
             <FieldContent>
               <FieldLabel htmlFor="member-sign-in-tracking">{m.settings_members_sign_in_tracking_label()}</FieldLabel>
               <FieldDescription>{m.settings_members_sign_in_tracking_description()}</FieldDescription>
@@ -310,17 +334,13 @@ function MembersCard({
               id="member-sign-in-tracking"
               data-testid="member-sign-in-tracking"
               checked={signInTrackingEnabled}
-              disabled={orchestration.busyAction !== null}
-              onCheckedChange={(next) => void orchestration.changeSignInTracking({ next: next })}
+              disabled={members.busyAction !== null}
+              onCheckedChange={(next) => void members.changeSignInTracking({ next: next })}
             />
           </Field>
         )}
-        <MemberDirectory
-          orchestration={orchestration}
-          members={members}
-          signInTrackingEnabled={signInTrackingEnabled}
-        />
-        <ResetLink orchestration={orchestration} />
+        <MemberDirectory directory={members} members={memberRows} signInTrackingEnabled={signInTrackingEnabled} />
+        <ResetLink reset={members} />
       </CardContent>
     </Card>
   );

@@ -16,12 +16,19 @@ import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
 import type { AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { SettingsSection } from "./SettingsSection";
-
-// prettier-ignore
-interface Row { entity: LifecycleEntity; id: string; name: string; raw: Resource | Client | Project }
-// prettier-ignore
-function resolveRowName(entity: LifecycleEntity, inactiveRow: Resource | Client | Project): string { if (entity === "resources") { const resource = inactiveRow as Resource; return resource.name ?? resource.role } return (inactiveRow as Client | Project).name }
-
+interface Row {
+  entity: LifecycleEntity;
+  id: string;
+  name: string;
+  raw: Resource | Client | Project;
+}
+function resolveRowName(entity: LifecycleEntity, inactiveRow: Resource | Client | Project): string {
+  if (entity === "resources") {
+    const resource = inactiveRow as Resource;
+    return resource.name ?? resource.role;
+  }
+  return (inactiveRow as Client | Project).name;
+}
 function listInactiveRows(data: AppData): Row[] {
   const out: Row[] = [];
   const push = (entity: LifecycleEntity, list: (Resource | Client | Project)[]) => {
@@ -35,10 +42,10 @@ function listInactiveRows(data: AppData): Row[] {
   push("projects", data.projects);
   return out;
 }
-
-// prettier-ignore
-function resolveConfirmationName(row: Row): string { if (row.entity === "resources") return row.name; return (row.raw as Client | Project).isPrivate === true ? nameForQuotedContext(row.name) : row.name }
-
+function resolveConfirmationName(row: Row): string {
+  if (row.entity === "resources") return row.name;
+  return (row.raw as Client | Project).isPrivate === true ? nameForQuotedContext(row.name) : row.name;
+}
 function pickNextPurgeDeadline(deleted: Row[], clock: number): number | null {
   return deleted.reduce<number | null>((nearest, row) => {
     const deletedAt = row.raw.deletedAt ? Date.parse(row.raw.deletedAt) : Number.NaN;
@@ -48,21 +55,44 @@ function pickNextPurgeDeadline(deleted: Row[], clock: number): number | null {
     return nearest === null || candidate < nearest ? candidate : nearest;
   }, null);
 }
-// prettier-ignore
-const TYPE_LABEL: Record<LifecycleEntity, () => string> = { resources: () => m.settings_archived_type_resources(), clients: () => m.settings_archived_type_clients(), projects: () => m.settings_archived_type_projects() };
-
+const TYPE_LABEL: Record<LifecycleEntity, () => string> = {
+  resources: () => m.settings_archived_type_resources(),
+  clients: () => m.settings_archived_type_clients(),
+  projects: () => m.settings_archived_type_projects(),
+};
 type Confirmation = { kind: "delete" | "purge"; row: Row };
 type LifecycleActions = ReturnType<typeof useLifecycleActions>;
-
-// prettier-ignore
-interface ArchivedRowActionsProps { row: Row; mayPurge: boolean; lifecycleBusy: boolean; actions: LifecycleActions; runLifecycle(action: () => Promise<void>): void; locked(): boolean; setConfirming(value: Confirmation | null): void }
-// prettier-ignore
-interface DeletedRowActionsProps { row: Row; mayPurge: boolean; lifecycleBusy: boolean; purgeClock: number; hintBaseId: string; locked(): boolean; setConfirming(value: Confirmation | null): void }
-// prettier-ignore
-interface LifecycleConfirmationProps { confirming: Confirmation; actions: LifecycleActions; runLifecycle(action: () => Promise<void>): void; setConfirming(value: Confirmation | null): void }
-// prettier-ignore
-interface ArchivedRowsDataProps { server: boolean; mayPurge: boolean; activeAccountId: string | null; localData: AppData; setNotice(message: string, kind: "error"): void }
-
+interface ArchivedRowActionsProps {
+  row: Row;
+  mayPurge: boolean;
+  lifecycleBusy: boolean;
+  actions: LifecycleActions;
+  runLifecycle(action: () => Promise<void>): void;
+  locked(): boolean;
+  setConfirming(value: Confirmation | null): void;
+}
+interface DeletedRowActionsProps {
+  row: Row;
+  mayPurge: boolean;
+  lifecycleBusy: boolean;
+  purgeClock: number;
+  hintBaseId: string;
+  locked(): boolean;
+  setConfirming(value: Confirmation | null): void;
+}
+interface LifecycleConfirmationProps {
+  confirming: Confirmation;
+  actions: LifecycleActions;
+  runLifecycle(action: () => Promise<void>): void;
+  setConfirming(value: Confirmation | null): void;
+}
+interface ArchivedRowsDataProps {
+  server: boolean;
+  mayPurge: boolean;
+  activeAccountId: string | null;
+  localData: AppData;
+  setNotice(message: string, kind: "error"): void;
+}
 function resolveRenderedRows({
   server,
   serverRows,
@@ -80,7 +110,6 @@ function resolveRenderedRows({
   if (serverRows?.accountId !== activeAccountId || serverRows.reloadKey !== reloadKey) return [];
   return serverRows.rows;
 }
-
 function partitionRows(rows: Row[]): { archived: Row[]; deleted: Row[] } {
   const archived: Row[] = [];
   const deleted: Row[] = [];
@@ -91,7 +120,6 @@ function partitionRows(rows: Row[]): { archived: Row[]; deleted: Row[] } {
   }
   return { archived, deleted };
 }
-
 function ArchivedRowActions({
   row,
   mayPurge,
@@ -130,7 +158,6 @@ function ArchivedRowActions({
     </ItemActions>
   );
 }
-
 function DeletedRowActions({
   row,
   mayPurge,
@@ -166,7 +193,6 @@ function DeletedRowActions({
     </ItemActions>
   );
 }
-
 function LifecycleConfirmation({ confirming, actions, runLifecycle, setConfirming }: LifecycleConfirmationProps) {
   const name = resolveConfirmationName(confirming.row);
   let title = m.settings_archived_purge_title();
@@ -193,7 +219,6 @@ function LifecycleConfirmation({ confirming, actions, runLifecycle, setConfirmin
     />
   );
 }
-
 function LifecycleGroup({
   heading,
   rows,
@@ -226,28 +251,26 @@ function LifecycleGroup({
     </div>
   );
 }
-
 function useArchivedRowsData({ server, mayPurge, activeAccountId, localData, setNotice }: ArchivedRowsDataProps) {
   const [serverRows, setServerRows] = useState<{ accountId: string; reloadKey: number; rows: Row[] } | null>(null);
   const [gate, setGate] = useState<"loading" | "shown" | "hidden">(server ? "loading" : "shown");
   const [reloadKey, setReloadKey] = useState(0);
   const requestGeneration = useRef(0);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
-
   useEffect(() => {
     if (!server || !mayPurge || !activeAccountId) return;
     const generation = ++requestGeneration.current;
     const controller = new AbortController();
     let cancelled = false;
-    const current = () => !cancelled && requestGeneration.current === generation;
+    const isCurrent = () => !cancelled && requestGeneration.current === generation;
     void (async () => {
       try {
         const body = await fetchInactiveSlice(activeAccountId, controller.signal);
-        if (!current()) return;
+        if (!isCurrent()) return;
         setServerRows({ accountId: activeAccountId, reloadKey, rows: listInactiveRows(body) });
         setGate("shown");
       } catch (error) {
-        if (!current()) return;
+        if (!isCurrent()) return;
         setServerRows(null);
         if (error instanceof InactiveSliceHttpError && error.status === 403) {
           setGate("hidden");
@@ -265,17 +288,25 @@ function useArchivedRowsData({ server, mayPurge, activeAccountId, localData, set
       controller.abort();
     };
   }, [server, mayPurge, activeAccountId, reloadKey, setNotice]);
-
   const rows = useMemo(
     () => resolveRenderedRows({ server, serverRows, activeAccountId, reloadKey, localData }),
     [server, serverRows, activeAccountId, reloadKey, localData],
   );
   return { gate, reload, rows };
 }
-
-// prettier-ignore
-interface ArchivedGroupsProps { rows: Row[]; archived: Row[]; deleted: Row[]; mayPurge: boolean; lifecycleBusy: boolean; actions: LifecycleActions; runLifecycle(action: () => Promise<void>): void; locked(): boolean; setConfirming(value: Confirmation | null): void; purgeClock: number; hintBaseId: string }
-
+interface ArchivedGroupsProps {
+  rows: Row[];
+  archived: Row[];
+  deleted: Row[];
+  mayPurge: boolean;
+  lifecycleBusy: boolean;
+  actions: LifecycleActions;
+  runLifecycle(action: () => Promise<void>): void;
+  locked(): boolean;
+  setConfirming(value: Confirmation | null): void;
+  purgeClock: number;
+  hintBaseId: string;
+}
 function ArchivedGroups({
   rows,
   archived,
@@ -327,10 +358,10 @@ function ArchivedGroups({
     </>
   );
 }
-
-// prettier-ignore
-interface ArchivedSectionProps { collapsible?: boolean; defaultOpen?: boolean }
-
+interface ArchivedSectionProps {
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+}
 export function ArchivedSection({ collapsible = false, defaultOpen = true }: ArchivedSectionProps = {}) {
   const server = isServerConfigured();
   const activeAccountId = useStore((state) => state.activeAccountId);
@@ -340,27 +371,21 @@ export function ArchivedSection({ collapsible = false, defaultOpen = true }: Arc
   const mayPurge = useCan("purge");
   const sectionEnabled = !server || mayPurge;
   const localData = useInactiveScopedData();
-
   const { gate, reload, rows } = useArchivedRowsData({ server, mayPurge, activeAccountId, localData, setNotice });
-
   const [confirming, setConfirming] = useState<Confirmation | null>(null);
   const { busy: lifecycleBusy, run, locked } = useExclusiveAction();
-
   const actions = useLifecycleActions(reload);
   const runLifecycle = useCallback(
     (action: () => Promise<void>) => run(action, (error: unknown) => setNotice(resolveErrorMessage(error), "error")),
     [run, setNotice],
   );
-
   const { archived, deleted } = partitionRows(rows);
   const purgeClock = useDeadlineClock({
     pickNextDeadline: (clock) => pickNextPurgeDeadline(deleted, clock),
     readNow: Date.now,
   });
-
   if (!sectionEnabled) return null;
   if (server && gate !== "shown") return null;
-
   return (
     <>
       <SettingsSection
