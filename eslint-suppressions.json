@@ -318,14 +318,6 @@
       "count": 1
     }
   },
-  "server/src/accounts/routes/handlers/session.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "no-nested-ternary": {
-      "count": 1
-    }
-  },
   "server/src/accounts/sqliteAccountAdminPort.ts": {
     "max-lines-per-function": {
       "count": 3
