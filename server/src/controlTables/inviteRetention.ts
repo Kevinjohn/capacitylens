@@ -29,6 +29,12 @@ export function inviteIsExpired(expiresAt: string, now = Date.now()): boolean {
   return parsed === null || now >= parsed;
 }
 
+function compareIds(left: string, right: string): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 /**
  * List an account's invites for the member-management UI (P1.11) — ordered newest-first by
  * `createdAt`. CRITICAL: this NEVER selects or returns the token digest. The token is a write-once
@@ -82,7 +88,7 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
     const aInstant = parseISOTimestamp(a.createdAt) ?? Number.NEGATIVE_INFINITY;
     const bInstant = parseISOTimestamp(b.createdAt) ?? Number.NEGATIVE_INFINITY;
     if (aInstant !== bInstant) return bInstant - aInstant;
-    return a.id.localeCompare(b.id);
+    return compareIds(a.id, b.id);
   });
 }
 
