@@ -3,7 +3,7 @@ import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWor
 import { parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { carriesHourlyLoad } from "@capacitylens/shared/types/entities";
 import { format } from "date-fns";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCanEdit } from "../../auth/permissionContext";
 import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
 import { resolveResourceDisplayName } from "../../lib/metadata";
@@ -271,41 +271,77 @@ function buildAdvisoryInput({
 }
 
 function useRepeatProjection(input: Parameters<typeof buildRepeatProjection>[0]) {
-  const cacheRef = useRef<{ input: typeof input; result: ReturnType<typeof buildRepeatProjection> } | null>(null);
-  if (!cacheRef.current || !hasSameRepeatProjectionInput(cacheRef.current.input, input)) {
-    cacheRef.current = { input, result: buildRepeatProjection(input) };
-  }
-  return cacheRef.current.result;
-}
-
-function useAllocationAdvisory(input: Parameters<typeof buildAllocationAdvisory>[0]) {
-  const cacheRef = useRef<{ input: typeof input; result: ReturnType<typeof buildAllocationAdvisory> } | null>(null);
-  if (!cacheRef.current || !hasSameAdvisoryInput(cacheRef.current.input, input)) {
-    cacheRef.current = { input, result: buildAllocationAdvisory(input) };
-  }
-  return cacheRef.current.result;
-}
-
-function hasSameRepeatProjectionInput(
-  previous: Parameters<typeof buildRepeatProjection>[0],
-  next: Parameters<typeof buildRepeatProjection>[0],
-): boolean {
-  return Object.keys(previous).every(
-    (key) => previous[key as keyof typeof previous] === next[key as keyof typeof next],
+  // prettier-ignore
+  const { activityId, create, attributedProjectId, daysOfWork, daysOver, effEndDate, effHoursPerDay,
+    ignoreWeekends, isBlocks, isDays, isExternal, mode, note, repeat, repeatUntil, repeatUntilMaximum,
+    repeatUntilMinimum, resourceId, selectedActivity, selectedEffectiveProjectId, selectedResource,
+    selectedEffectiveWeek, spanFitsDateDomain, startDate, status, validDaysOver } = input;
+  return useMemo(
+    () =>
+      buildRepeatProjection({
+        activityId,
+        create,
+        attributedProjectId,
+        daysOfWork,
+        daysOver,
+        effEndDate,
+        effHoursPerDay,
+        ignoreWeekends,
+        isBlocks,
+        isDays,
+        isExternal,
+        mode,
+        note,
+        repeat,
+        repeatUntil,
+        repeatUntilMaximum,
+        repeatUntilMinimum,
+        resourceId,
+        selectedActivity,
+        selectedEffectiveProjectId,
+        selectedResource,
+        selectedEffectiveWeek,
+        spanFitsDateDomain,
+        startDate,
+        status,
+        validDaysOver,
+      }),
+    // prettier-ignore
+    [activityId, create, attributedProjectId, daysOfWork, daysOver, effEndDate, effHoursPerDay,
+      ignoreWeekends, isBlocks, isDays, isExternal, mode, note, repeat, repeatUntil, repeatUntilMaximum,
+      repeatUntilMinimum, resourceId, selectedActivity, selectedEffectiveProjectId, selectedResource,
+      selectedEffectiveWeek, spanFitsDateDomain, startDate, status, validDaysOver],
   );
 }
 
-function hasSameAdvisoryInput(
-  previous: Parameters<typeof buildAllocationAdvisory>[0],
-  next: Parameters<typeof buildAllocationAdvisory>[0],
-): boolean {
-  return (
-    Object.keys(previous).every(
-      (key) => key === "data" || previous[key as keyof typeof previous] === next[key as keyof typeof next],
-    ) &&
-    previous.data.allocations === next.data.allocations &&
-    previous.data.closures === next.data.closures &&
-    previous.data.timeOff === next.data.timeOff
+function useAllocationAdvisory(input: Parameters<typeof buildAllocationAdvisory>[0]) {
+  // prettier-ignore
+  const { attributedProjectId, create, editId, effEndDate, effHoursPerDay, ignoreWeekends, isBlocks,
+    isExternal, repeat, repeatProjection, resourceId, selectedResource, selectedEffectiveWeek, startDate, data } = input;
+  const { allocations, closures, timeOff } = data;
+  return useMemo(
+    () =>
+      buildAllocationAdvisory({
+        attributedProjectId,
+        create,
+        editId,
+        effEndDate,
+        effHoursPerDay,
+        ignoreWeekends,
+        isBlocks,
+        isExternal,
+        repeat,
+        repeatProjection,
+        resourceId,
+        selectedResource,
+        selectedEffectiveWeek,
+        startDate,
+        data: { allocations, closures, timeOff },
+      }),
+    // prettier-ignore
+    [attributedProjectId, create, editId, effEndDate, effHoursPerDay, ignoreWeekends, isBlocks,
+      isExternal, repeat, repeatProjection, resourceId, selectedResource, selectedEffectiveWeek,
+      startDate, allocations, closures, timeOff],
   );
 }
 
