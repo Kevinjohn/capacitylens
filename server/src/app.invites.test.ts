@@ -29,6 +29,44 @@ const fixtures = registerServerFixtureCleanup();
 const openDb = (...args: Parameters<typeof openDbRaw>) => fixtures.trackDb(openDbRaw(...args));
 const buildApp = (...args: Parameters<typeof buildAppRaw>) => fixtures.trackApp(buildAppRaw(...args));
 const meta = () => ({ createdAt: TS, updatedAt: TS });
+type TestResponse = Awaited<ReturnType<typeof call>>;
+
+function requireValue<T>(value: T | null | undefined, label: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Expected ${label}`);
+  }
+  return value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function readObject(value: unknown, label: string): Record<string, unknown> {
+  if (!isRecord(value)) {
+    throw new Error(`Expected ${label} to be an object`);
+  }
+  return value;
+}
+
+function readResponseObject(response: TestResponse): Record<string, unknown> {
+  return readObject(response.json(), "response body");
+}
+
+function readString(value: unknown, label: string): string {
+  if (typeof value !== "string") {
+    throw new Error(`Expected ${label} to be a string`);
+  }
+  return value;
+}
+
+function readResponseString(response: TestResponse, key: string): string {
+  return readString(readResponseObject(response)[key], `response body.${key}`);
+}
+
+function readInvite(db: Db, token: string) {
+  return requireValue(getInvite(db, token), `invitation ${token}`);
+}
 const validFractionalExpiry = (() => {
   const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
   expiry.setUTCMilliseconds(100);
@@ -54,8 +92,9 @@ function seedOne(db: Db): void {
 async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  await runAuthMigrations(auth!);
-  return { app: buildApp(db, { authMode: mode, auth }), db };
+  const requiredAuth = requireValue(auth, "password authentication");
+  await runAuthMigrations(requiredAuth);
+  return { app: buildApp(db, { authMode: mode, auth: requiredAuth }), db };
 }
 
 /**
@@ -95,26 +134,22 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
 
     const res = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie });
     expect(res.statusCode).toBe(201);
-    const body = res.json() as {
-      id: string;
-      token: string;
-      accountId: string;
-      role: string;
-      expiresAt: string;
-    };
+    const body = readResponseObject(res);
+    const id = readString(body.id, "response body.id");
+    const token = readString(body.token, "response body.token");
     expect(body.accountId).toBe("a1");
     expect(body.role).toBe("editor");
     expect(typeof body.id).toBe("string");
-    expect(body.id.length).toBeGreaterThan(0);
+    expect(id.length).toBeGreaterThan(0);
     expect(typeof body.token).toBe("string");
-    expect(body.token.length).toBeGreaterThan(0);
+    expect(token.length).toBeGreaterThan(0);
     const atRest = db.prepare(`SELECT tokenHash FROM invites`).get() as {
       tokenHash: string;
     };
-    expect(atRest.tokenHash).not.toBe(body.token);
-    expect(JSON.stringify(db.prepare(`SELECT * FROM invites`).all())).not.toContain(body.token);
+    expect(atRest.tokenHash).not.toBe(token);
+    expect(JSON.stringify(db.prepare(`SELECT * FROM invites`).all())).not.toContain(token);
     // The row landed in the control table, unused, with a FUTURE expiry.
-    const stored = getInvite(db, body.token)!;
+    const stored = readInvite(db, token);
     expect(stored.accountId).toBe("a1");
     expect(stored.role).toBe("editor");
     expect(stored.usedAt).toBeNull();
@@ -278,7 +313,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
     });
     const res = await createInviteReq(app, { accountId: "a1", role: "editor", expiresAt }, { cookie });
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(message);
+    expect(readResponseObject(res).error).toMatch(message);
     expect(db.prepare(`SELECT COUNT(*) AS n FROM invites`).get()).toEqual({
       n: 0,
     });
@@ -303,7 +338,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
     const res = await createInviteReq(app, { accountId: "a1", role: "editor", expiresAt }, { cookie });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/valid ISO-8601/);
+    expect(readResponseObject(res).error).toMatch(/valid ISO-8601/);
     expect(db.prepare(`SELECT COUNT(*) AS n FROM invites`).get()).toEqual({
       n: 0,
     });
@@ -326,7 +361,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       const res = await createInviteReq(app, { accountId: "a1", role: "editor", expiresAt }, { cookie });
 
       expect(res.statusCode).toBe(201);
-      expect(res.json().expiresAt).toBe(canonical);
+      expect(readResponseObject(res).expiresAt).toBe(canonical);
     },
   );
 
@@ -414,8 +449,9 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
 
     const res = await createInviteReq(app, { accountId: "a1", role: "owner" }, { cookie });
     expect(res.statusCode).toBe(400);
-    expect(res.json().code).toBe("OWNER_TRANSFER_REQUIRED");
-    expect(res.json().error).toMatch(/transfer ownership/i);
+    const body = readResponseObject(res);
+    expect(body.code).toBe("OWNER_TRANSFER_REQUIRED");
+    expect(body.error).toMatch(/transfer ownership/i);
     expect(db.prepare(`SELECT COUNT(*) AS n FROM invites`).get()).toEqual({
       n: 0,
     });
@@ -484,7 +520,7 @@ describe("POST /api/invites/:token/accept (P1.9 accept)", () => {
       createdAt: TS,
     });
     const created = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: a.cookie });
-    const token = (created.json() as { token: string }).token;
+    const token = readResponseString(created, "token");
 
     // User B (no prior membership) accepts.
     const b = await signUp(app, "joiner@capacitylens.dev");
@@ -494,7 +530,7 @@ describe("POST /api/invites/:token/accept (P1.9 accept)", () => {
     expect(res.json()).toEqual({ accountId: "a1", role: "editor" });
     // Role bound, token stamped used.
     expect(getMemberRole(db, "a1", b.userId)).toBe("editor");
-    expect(getInvite(db, token)!.usedAt).not.toBeNull();
+    expect(readInvite(db, token).usedAt).not.toBeNull();
   });
 
   it("a reused invite is 409, and neither the membership nor usedAt changes", async () => {
@@ -509,18 +545,18 @@ describe("POST /api/invites/:token/accept (P1.9 accept)", () => {
       createdAt: TS,
     });
     const created = await createInviteReq(app, { accountId: "a1", role: "viewer" }, { cookie: a.cookie });
-    const token = (created.json() as { token: string }).token;
+    const token = readResponseString(created, "token");
 
     const b = await signUp(app, "reuser@capacitylens.dev");
     expect((await acceptReq(app, token, { cookie: b.cookie })).statusCode).toBe(200);
-    const usedAtAfterFirst = getInvite(db, token)!.usedAt;
+    const usedAtAfterFirst = readInvite(db, token).usedAt;
     expect(usedAtAfterFirst).not.toBeNull();
     expect(getMemberRole(db, "a1", b.userId)).toBe("viewer");
 
     // Second accept (same token, same user) is rejected and changes nothing.
     const second = await acceptReq(app, token, { cookie: b.cookie });
     expect(second.statusCode).toBe(409);
-    expect(getInvite(db, token)!.usedAt).toBe(usedAtAfterFirst);
+    expect(readInvite(db, token).usedAt).toBe(usedAtAfterFirst);
     expect(getMemberRole(db, "a1", b.userId)).toBe("viewer");
   });
 
@@ -536,7 +572,7 @@ describe("POST /api/invites/:token/accept (P1.9 accept)", () => {
       createdAt: TS,
     });
     const created = await createInviteReq(app, { accountId: "a1", role: "viewer" }, { cookie: owner.cookie });
-    const token = (created.json() as { token: string }).token;
+    const token = readResponseString(created, "token");
 
     const accepted = await acceptReq(app, token, { cookie: owner.cookie });
     expect(accepted.statusCode).toBe(200);
@@ -564,7 +600,7 @@ describe("POST /api/invites/:token/accept (P1.9 accept)", () => {
     const res = await acceptReq(app, "expired-token-xyz", { cookie: b.cookie });
     expect(res.statusCode).toBe(410);
     expect(getMemberRole(db, "a1", b.userId)).toBeNull();
-    expect(getInvite(db, "expired-token-xyz")!.usedAt).toBeNull(); // not consumed
+    expect(readInvite(db, "expired-token-xyz").usedAt).toBeNull(); // not consumed
   });
 
   it.each([
@@ -658,8 +694,9 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
       CAPACITYLENS_ALLOW_OPEN_SIGNUP: undefined,
       CAPACITYLENS_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
     });
-    await runAuthMigrations(auth!);
-    const inviter = await auth!.createCredentialUser({
+    const requiredAuth = requireValue(auth, "password authentication");
+    await runAuthMigrations(requiredAuth);
+    const inviter = await requiredAuth.createCredentialUser({
       email: "inviter-closed@capacitylens.dev",
       name: "Inviter",
       password: "password-123456",
@@ -690,7 +727,7 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
       },
       { cookie: readCookies(signInInviter) },
     );
-    const token = (created.json() as { token: string }).token;
+    const token = readResponseString(created, "token");
 
     // Ordinary self-registration is closed once the inviter exists.
     const publicSignup = await call(app, {
@@ -736,9 +773,10 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
       url: "/api/auth/me",
       headers: { cookie: readCookies(signedIn) },
     });
-    expect(me.json().user.emailVerified).toBe(true);
-    expect(me.json().user.name).toBe("New Person");
-    expect(getMemberRole(db, "a1", me.json().user.id)).toBe("editor");
+    const meUser = readObject(readResponseObject(me).user, "response body.user");
+    expect(meUser.emailVerified).toBe(true);
+    expect(meUser.name).toBe("New Person");
+    expect(getMemberRole(db, "a1", readString(meUser.id, "response body.user.id"))).toBe("editor");
     expect((await acceptReq(app, token, { cookie: readCookies(signedIn) })).statusCode).toBe(409);
   });
 });
@@ -754,12 +792,12 @@ describe("invites — OFF mode (trusted-local)", () => {
       role: "editor",
     });
     expect(created.statusCode).toBe(201); // OFF = allow-all, minted as DEMO_USER's act
-    const token = (created.json() as { token: string }).token;
+    const token = readResponseString(created, "token");
 
     const res = await acceptReq(app, token);
     expect(res.statusCode).toBe(200);
     expect(getMemberRole(db, "a1", DEMO_USER.id)).toBe("editor");
-    expect(getInvite(db, token)!.usedAt).not.toBeNull();
+    expect(readInvite(db, token).usedAt).not.toBeNull();
   });
 });
 
@@ -863,9 +901,10 @@ describe("POST /api/invites (P1.10 create) — preauthEmail", () => {
       { cookie },
     );
     expect(res.statusCode).toBe(201);
-    const body = res.json() as { token: string; preauthEmail: string };
+    const body = readResponseObject(res);
+    const token = readString(body.token, "response body.token");
     expect(body.preauthEmail).toBe("friend@example.com"); // echoed normalized
-    expect(getInvite(db, body.token)!.preauthEmail).toBe("friend@example.com"); // stored normalized
+    expect(readInvite(db, token).preauthEmail).toBe("friend@example.com"); // stored normalized
   });
 
   it("empty/whitespace preauthEmail → stored null (link invite, unchanged P1.9 behaviour)", async () => {
@@ -882,9 +921,10 @@ describe("POST /api/invites (P1.10 create) — preauthEmail", () => {
 
     const res = await createInviteReq(app, { accountId: "a1", role: "editor", preauthEmail: "   " }, { cookie });
     expect(res.statusCode).toBe(201);
-    const body = res.json() as { token: string; preauthEmail: string | null };
+    const body = readResponseObject(res);
+    const token = readString(body.token, "response body.token");
     expect(body.preauthEmail).toBeNull();
-    expect(getInvite(db, body.token)!.preauthEmail).toBeNull();
+    expect(readInvite(db, token).preauthEmail).toBeNull();
   });
 
   it("a malformed preauthEmail → 400 (no row minted)", async () => {
@@ -931,8 +971,9 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
       CAPACITYLENS_GITHUB_CLIENT_ID: "github-client-id",
       CAPACITYLENS_GITHUB_CLIENT_SECRET: "github-client-secret",
     });
-    await runAuthMigrations(configured.auth!);
-    const passwordApp = buildApp(db, { authMode: "password", auth: configured.auth });
+    const configuredAuth = requireValue(configured.auth, "configured authentication");
+    await runAuthMigrations(configuredAuth);
+    const passwordApp = buildApp(db, { authMode: "password", auth: configuredAuth });
     const joiner = await signUp(passwordApp, "social-only@capacitylens.dev");
     verifyUserEmail(db, "social-only@capacitylens.dev");
     await passwordApp.close();
@@ -950,10 +991,10 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
       assurance: "federated",
       providerId: "github",
     });
-    const ssoApp = buildApp(db, { authMode: "sso", auth: configured.auth });
+    const ssoApp = buildApp(db, { authMode: "sso", auth: configuredAuth });
 
     const socialMe = await call(ssoApp, { method: "GET", url: "/api/auth/me", headers: { cookie: joiner.cookie } });
-    expect(socialMe.json().canCreateAccount).toBe(false);
+    expect(readResponseObject(socialMe).canCreateAccount).toBe(false);
     const socialProvision = await call(ssoApp, {
       method: "POST",
       url: "/api/orgs",
@@ -961,7 +1002,7 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
       payload: { id: "founded", name: "Founded", color: "#3b82f6" },
     });
     expect(socialProvision.statusCode).toBe(403);
-    expect(socialProvision.json().error).toMatch(/required SSO provider/i);
+    expect(readResponseObject(socialProvision).error).toMatch(/required SSO provider/i);
 
     db.prepare(
       `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
@@ -1004,9 +1045,9 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
 
     const refused = await acceptReq(ssoApp, "sso-provider-invite", { cookie: joiner.cookie });
     expect(refused.statusCode).toBe(403);
-    expect(refused.json().error).toMatch(/required SSO provider/i);
+    expect(readResponseObject(refused).error).toMatch(/required SSO provider/i);
     expect(getMemberRole(db, "a1", joiner.userId)).toBeNull();
-    expect(getInvite(db, "sso-provider-invite")!.usedAt).toBeNull();
+    expect(readInvite(db, "sso-provider-invite").usedAt).toBeNull();
 
     recordSessionAssurance({
       db,
@@ -1032,7 +1073,7 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
       createdAt: TS,
     });
     const created = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: a.cookie });
-    const token = (created.json() as { token: string }).token;
+    const token = readResponseString(created, "token");
 
     // Joiner is an ordinary, unverified fresh sign-up — a link invite does not care.
     const b = await signUp(app, "link-joiner@capacitylens.dev");
@@ -1061,7 +1102,7 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
       },
       { cookie: a.cookie },
     );
-    const token = (created.json() as { token: string }).token;
+    const token = readResponseString(created, "token");
 
     // Wrong-email caller, even if verified, is rejected.
     const b = await signUp(app, "wrong@capacitylens.dev");
@@ -1069,7 +1110,7 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
     const res = await acceptReq(app, token, { cookie: b.cookie });
     expect(res.statusCode).toBe(403);
     expect(getMemberRole(db, "a1", b.userId)).toBeNull(); // no bind
-    expect(getInvite(db, token)!.usedAt).toBeNull(); // NOT consumed — still live for the right caller
+    expect(readInvite(db, token).usedAt).toBeNull(); // NOT consumed — still live for the right caller
   });
 
   it("password mode accepts a matching preauthorized email without a separate verification service", async () => {
@@ -1092,14 +1133,14 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
       },
       { cookie: a.cookie },
     );
-    const token = (created.json() as { token: string }).token;
+    const token = readResponseString(created, "token");
 
     // Password mode proves control of the identity by the signed-in local credential itself.
     const b = await signUp(app, "newhire@capacitylens.dev");
     const res = await acceptReq(app, token, { cookie: b.cookie });
     expect(res.statusCode).toBe(200);
     expect(getMemberRole(db, "a1", b.userId)).toBe("editor");
-    expect(getInvite(db, token)!.usedAt).not.toBeNull();
+    expect(readInvite(db, token).usedAt).not.toBeNull();
   });
 
   it("preauth + matching VERIFIED email → 200; role bound; usedAt set (end-to-end)", async () => {
@@ -1122,7 +1163,7 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
       },
       { cookie: a.cookie },
     );
-    const token = (created.json() as { token: string }).token;
+    const token = readResponseString(created, "token");
 
     // Sign up, then flip emailVerified in the live user row; the NEXT getSession reads it fresh, so
     // the principal the accept handler sees is verified (proves the verified-match → bind path E2E).
@@ -1134,13 +1175,14 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
       url: "/api/auth/me",
       headers: { cookie: b.cookie },
     });
-    expect(me.json().user.emailVerified).toBe(true);
+    const meUser = readObject(readResponseObject(me).user, "response body.user");
+    expect(meUser.emailVerified).toBe(true);
 
     const res = await acceptReq(app, token, { cookie: b.cookie });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ accountId: "a1", role: "editor" });
     expect(getMemberRole(db, "a1", b.userId)).toBe("editor");
-    expect(getInvite(db, token)!.usedAt).not.toBeNull();
+    expect(readInvite(db, token).usedAt).not.toBeNull();
   });
 
   it("OFF mode skips the preauth check — a preauth invite binds DEMO_USER (trusted-local)", async () => {
@@ -1155,12 +1197,12 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
       preauthEmail: "someone-else@capacitylens.dev",
     });
     expect(created.statusCode).toBe(201);
-    const token = (created.json() as { token: string }).token;
+    const token = readResponseString(created, "token");
 
     const res = await acceptReq(app, token);
     expect(res.statusCode).toBe(200);
     expect(getMemberRole(db, "a1", DEMO_USER.id)).toBe("admin");
-    expect(getInvite(db, token)!.usedAt).not.toBeNull();
+    expect(readInvite(db, token).usedAt).not.toBeNull();
   });
 });
 
