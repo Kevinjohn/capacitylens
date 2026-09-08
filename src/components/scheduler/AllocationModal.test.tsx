@@ -1209,9 +1209,9 @@ describe("AllocationModal days mode", () => {
   registerDaysExistingAllocationTests();
 });
 
-describe("AllocationModal blocks mode", () => {
-  const enableBlocks = () => useStore.getState().updateAccount(ACC, { schedulingMode: "blocks" });
+const enableBlocks = () => useStore.getState().updateAccount(ACC, { schedulingMode: "blocks" });
 
+function registerBlocksCreateTest() {
   it("asks only for start + days over, and persists a zero-load span", async () => {
     enableBlocks();
     const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
@@ -1249,7 +1249,9 @@ describe("AllocationModal blocks mode", () => {
       hoursPerDay: 0,
     });
   });
+}
 
+function registerBlocksProjectionTest() {
   it("counts the existing load through the blocks projection, like the grid and the drag path", () => {
     const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     // Legacy hourly allocation persisted BEFORE the account switched to blocks: it keeps its stored
@@ -1288,7 +1290,9 @@ describe("AllocationModal blocks mode", () => {
     // "over capacity" on days the grid's over-markers leave clean.
     expect(lastAdvisoryOthers()).toEqual([expect.objectContaining({ hoursPerDay: 0 })]);
   });
+}
 
+function registerBlocksDateLimitTest() {
   it("rejects a block span that would leave the four-digit-year date domain", async () => {
     enableBlocks();
     const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
@@ -1317,7 +1321,9 @@ describe("AllocationModal blocks mode", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/cannot extend beyond 31 December 9999/i);
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerBlocksDrawnSpanTest() {
   it("seeds days over from the drawn span and saves with start alone", async () => {
     enableBlocks();
     const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
@@ -1347,7 +1353,9 @@ describe("AllocationModal blocks mode", () => {
       hoursPerDay: 0,
     });
   });
+}
 
+function registerBlocksHistoricalHoursTest() {
   it("preserves historical hours when editing an existing allocation", async () => {
     const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -1371,7 +1379,9 @@ describe("AllocationModal blocks mode", () => {
       note: "Still scheduled",
     });
   });
+}
 
+function registerBlocksFractionalSpanTest() {
   it("rejects a fractional Days over value instead of rounding the saved span", async () => {
     enableBlocks();
     const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
@@ -1398,6 +1408,15 @@ describe("AllocationModal blocks mode", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/whole number from 1/i);
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
+
+describe("AllocationModal blocks mode", () => {
+  registerBlocksCreateTest();
+  registerBlocksProjectionTest();
+  registerBlocksDateLimitTest();
+  registerBlocksDrawnSpanTest();
+  registerBlocksHistoricalHoursTest();
+  registerBlocksFractionalSpanTest();
 });
 
 describe("AllocationModal edit", () => {
