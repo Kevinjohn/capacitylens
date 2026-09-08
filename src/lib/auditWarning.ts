@@ -24,7 +24,8 @@ export function noteAuditWarning(
   res: { headers?: { get?: (name: string) => string | null } },
   options: { defer?: boolean } = {},
 ): void {
-  if (res.headers?.get?.(AUDIT_WARNING_HEADER) !== "true") return;
+  if (res.headers === undefined || res.headers.get === undefined) return;
+  if (res.headers.get(AUDIT_WARNING_HEADER) !== "true") return;
   if (options.defer) globalThis.setTimeout(() => announceAuditWarning(), 0);
   else announceAuditWarning();
 }

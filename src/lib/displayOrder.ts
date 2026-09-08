@@ -20,12 +20,16 @@ function compareCodeUnits(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-export function compareDisplayNames({ leftName, leftId, rightName, rightId }: CompareDisplayNamesInput): number {
+function compareNamesAndIds({ leftName, leftId, rightName, rightId }: CompareDisplayNamesInput): number {
   return (
     displayNameCollator.compare(leftName, rightName) ||
     compareCodeUnits(leftName, rightName) ||
     compareCodeUnits(leftId, rightId)
   );
+}
+
+export function compareDisplayNames({ leftName, leftId, rightName, rightId }: CompareDisplayNamesInput): number {
+  return compareNamesAndIds({ leftName, leftId, rightName, rightId });
 }
 
 export function createDisplayNameComparator<T extends Identified>(displayName: (item: T) => string) {

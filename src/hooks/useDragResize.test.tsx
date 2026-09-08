@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { type DragResizePreviewInput, useDragResize } from "./useDragResize";
 import type { DragMode } from "../lib/gestureMath";
@@ -56,139 +56,137 @@ beforeEach(() => {
   });
 });
 
-describe("useDragResize", () => {
-  it('(a) pointerDown on the body + pointermove >4px + pointerup calls onCommit with mode "move" and deltaDays=1 for 48px', () => {
-    const onCommit = vi.fn();
-    const onClick = vi.fn();
-    const onPreview = vi.fn();
-    render(<Harness onCommit={onCommit} onClick={onClick} onPreview={onPreview} />);
+it('(a) pointerDown on the body + pointermove >4px + pointerup calls onCommit with mode "move" and deltaDays=1 for 48px', () => {
+  const onCommit = vi.fn();
+  const onClick = vi.fn();
+  const onPreview = vi.fn();
+  render(<Harness onCommit={onCommit} onClick={onClick} onPreview={onPreview} />);
 
-    const body = screen.getByTestId("body");
-    const dragTarget = screen.getByTestId("drag-target");
+  const body = screen.getByTestId("body");
+  const dragTarget = screen.getByTestId("drag-target");
 
-    // Start drag on the body span (no data-handle => 'move' mode)
-    fireEvent.pointerDown(body, { clientX: 0, clientY: 10, button: 0, pointerId: 1 });
-    expect(dragTarget.hasPointerCapture(1)).toBe(true);
+  // Start drag on the body span (no data-handle => 'move' mode)
+  fireEvent.pointerDown(body, { clientX: 0, clientY: 10, button: 0, pointerId: 1 });
+  expect(dragTarget.hasPointerCapture(1)).toBe(true);
 
-    // Movement below the threshold does not preview.
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 3, clientY: 12, pointerId: 1, bubbles: true }));
-    expect(onPreview).not.toHaveBeenCalled();
+  // Movement below the threshold does not preview.
+  document.dispatchEvent(new PointerEvent("pointermove", { clientX: 3, clientY: 12, pointerId: 1, bubbles: true }));
+  expect(onPreview).not.toHaveBeenCalled();
 
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, clientY: 25, pointerId: 1, bubbles: true }));
-    expect(onPreview).toHaveBeenCalledTimes(1);
-    expect(onPreview).toHaveBeenCalledWith({
-      mode: "move",
-      deltaDays: 1,
-      deltaY: 15,
-      pointer: { clientX: 48, clientY: 25 },
-    });
-
-    // Release
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, clientY: 25, pointerId: 1, bubbles: true }));
-
-    expect(onCommit).toHaveBeenCalledWith("move", 1, expect.objectContaining({ clientX: 48 }));
-    expect(onClick).not.toHaveBeenCalled();
-    expect(dragTarget.hasPointerCapture(1)).toBe(false);
+  document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, clientY: 25, pointerId: 1, bubbles: true }));
+  expect(onPreview).toHaveBeenCalledTimes(1);
+  expect(onPreview).toHaveBeenCalledWith({
+    mode: "move",
+    deltaDays: 1,
+    deltaY: 15,
+    pointer: { clientX: 48, clientY: 25 },
   });
 
-  it("(b) pointerDown then pointerup with no move calls onClick", () => {
-    const onCommit = vi.fn();
-    const onClick = vi.fn();
-    render(<Harness onCommit={onCommit} onClick={onClick} />);
+  // Release
+  document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, clientY: 25, pointerId: 1, bubbles: true }));
 
-    const body = screen.getByTestId("body");
+  expect(onCommit).toHaveBeenCalledWith("move", 1, expect.objectContaining({ clientX: 48 }));
+  expect(onClick).not.toHaveBeenCalled();
+  expect(dragTarget.hasPointerCapture(1)).toBe(false);
+});
 
-    // Pointer down
-    fireEvent.pointerDown(body, { clientX: 100, button: 0, pointerId: 1 });
+it("(b) pointerDown then pointerup with no move calls onClick", () => {
+  const onCommit = vi.fn();
+  const onClick = vi.fn();
+  render(<Harness onCommit={onCommit} onClick={onClick} />);
 
-    // Pointer up at the same position (no movement)
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 100, pointerId: 1, bubbles: true }));
+  const body = screen.getByTestId("body");
 
-    expect(onClick).toHaveBeenCalledTimes(1);
-    expect(onCommit).not.toHaveBeenCalled();
-  });
+  // Pointer down
+  fireEvent.pointerDown(body, { clientX: 100, button: 0, pointerId: 1 });
 
-  it('(c) pointerDown on data-handle="end" + move + pointerup calls onCommit with mode "resize-end"', () => {
-    const onCommit = vi.fn();
-    const onClick = vi.fn();
-    render(<Harness onCommit={onCommit} onClick={onClick} />);
+  // Pointer up at the same position (no movement)
+  document.dispatchEvent(new PointerEvent("pointerup", { clientX: 100, pointerId: 1, bubbles: true }));
 
-    const endHandle = screen.getByTestId("handle-end");
+  expect(onClick).toHaveBeenCalledTimes(1);
+  expect(onCommit).not.toHaveBeenCalled();
+});
 
-    // Start drag on end handle
-    fireEvent.pointerDown(endHandle, { clientX: 0, button: 0, pointerId: 1 });
+it('(c) pointerDown on data-handle="end" + move + pointerup calls onCommit with mode "resize-end"', () => {
+  const onCommit = vi.fn();
+  const onClick = vi.fn();
+  render(<Harness onCommit={onCommit} onClick={onClick} />);
 
-    // Move 48px (1 day worth)
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, pointerId: 1, bubbles: true }));
+  const endHandle = screen.getByTestId("handle-end");
 
-    // Release
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, pointerId: 1, bubbles: true }));
+  // Start drag on end handle
+  fireEvent.pointerDown(endHandle, { clientX: 0, button: 0, pointerId: 1 });
 
-    expect(onCommit).toHaveBeenCalledWith("resize-end", 1, expect.objectContaining({ clientX: 48 }));
-    expect(onClick).not.toHaveBeenCalled();
-  });
+  // Move 48px (1 day worth)
+  document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, pointerId: 1, bubbles: true }));
 
-  it("(d) a SUB-THRESHOLD pointercancel still calls onCancel so consumers can tear down side effects", () => {
-    const onCommit = vi.fn();
-    const onClick = vi.fn();
-    const onCancel = vi.fn();
-    render(<Harness onCommit={onCommit} onClick={onClick} onCancel={onCancel} />);
+  // Release
+  document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, pointerId: 1, bubbles: true }));
 
-    const body = screen.getByTestId("body");
-    fireEvent.pointerDown(body, { clientX: 100, button: 0, pointerId: 1 });
-    // Cancel BEFORE crossing the 4px threshold (e.g. the browser took the pointer to scroll).
-    document.dispatchEvent(new PointerEvent("pointercancel", { clientX: 101, pointerId: 1, bubbles: true }));
+  expect(onCommit).toHaveBeenCalledWith("resize-end", 1, expect.objectContaining({ clientX: 48 }));
+  expect(onClick).not.toHaveBeenCalled();
+});
 
-    expect(onCancel).toHaveBeenCalledTimes(1); // armed gesture aborted → consumer is notified
-    expect(onClick).not.toHaveBeenCalled();
-    expect(onCommit).not.toHaveBeenCalled();
-  });
+it("(d) a SUB-THRESHOLD pointercancel still calls onCancel so consumers can tear down side effects", () => {
+  const onCommit = vi.fn();
+  const onClick = vi.fn();
+  const onCancel = vi.fn();
+  render(<Harness onCommit={onCommit} onClick={onClick} onCancel={onCancel} />);
 
-  it("(e) an above-threshold pointercancel also calls onCancel", () => {
-    const onCommit = vi.fn();
-    const onCancel = vi.fn();
-    render(<Harness onCommit={onCommit} onCancel={onCancel} />);
+  const body = screen.getByTestId("body");
+  fireEvent.pointerDown(body, { clientX: 100, button: 0, pointerId: 1 });
+  // Cancel BEFORE crossing the 4px threshold (e.g. the browser took the pointer to scroll).
+  document.dispatchEvent(new PointerEvent("pointercancel", { clientX: 101, pointerId: 1, bubbles: true }));
 
-    const body = screen.getByTestId("body");
-    fireEvent.pointerDown(body, { clientX: 0, button: 0, pointerId: 1 });
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, pointerId: 1, bubbles: true }));
-    document.dispatchEvent(new PointerEvent("pointercancel", { clientX: 48, pointerId: 1, bubbles: true }));
+  expect(onCancel).toHaveBeenCalledTimes(1); // armed gesture aborted → consumer is notified
+  expect(onClick).not.toHaveBeenCalled();
+  expect(onCommit).not.toHaveBeenCalled();
+});
 
-    expect(onCancel).toHaveBeenCalledTimes(1);
-    expect(onCommit).not.toHaveBeenCalled();
-  });
+it("(e) an above-threshold pointercancel also calls onCancel", () => {
+  const onCommit = vi.fn();
+  const onCancel = vi.fn();
+  render(<Harness onCommit={onCommit} onCancel={onCancel} />);
 
-  it("ignores non-primary mouse buttons", () => {
-    const onCommit = vi.fn();
-    const onClick = vi.fn();
-    render(<Harness onCommit={onCommit} onClick={onClick} />);
+  const body = screen.getByTestId("body");
+  fireEvent.pointerDown(body, { clientX: 0, button: 0, pointerId: 1 });
+  document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, pointerId: 1, bubbles: true }));
+  document.dispatchEvent(new PointerEvent("pointercancel", { clientX: 48, pointerId: 1, bubbles: true }));
 
-    const body = screen.getByTestId("body");
+  expect(onCancel).toHaveBeenCalledTimes(1);
+  expect(onCommit).not.toHaveBeenCalled();
+});
 
-    // Right-click (button=2) should be ignored
-    fireEvent.pointerDown(body, { clientX: 0, button: 2, pointerId: 1 });
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 96, pointerId: 1, bubbles: true }));
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 96, pointerId: 1, bubbles: true }));
+it("ignores non-primary mouse buttons", () => {
+  const onCommit = vi.fn();
+  const onClick = vi.fn();
+  render(<Harness onCommit={onCommit} onClick={onClick} />);
 
-    expect(onCommit).not.toHaveBeenCalled();
-    expect(onClick).not.toHaveBeenCalled();
-  });
+  const body = screen.getByTestId("body");
 
-  it("ignores a secondary-button release while the primary drag remains armed", () => {
-    const onCommit = vi.fn();
-    const onCancel = vi.fn();
-    render(<Harness onCommit={onCommit} onCancel={onCancel} />);
+  // Right-click (button=2) should be ignored
+  fireEvent.pointerDown(body, { clientX: 0, button: 2, pointerId: 1 });
+  document.dispatchEvent(new PointerEvent("pointermove", { clientX: 96, pointerId: 1, bubbles: true }));
+  document.dispatchEvent(new PointerEvent("pointerup", { clientX: 96, pointerId: 1, bubbles: true }));
 
-    const body = screen.getByTestId("body");
-    fireEvent.pointerDown(body, { clientX: 0, button: 0, pointerId: 1 });
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, pointerId: 1, bubbles: true }));
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, button: 2, pointerId: 1, bubbles: true }));
+  expect(onCommit).not.toHaveBeenCalled();
+  expect(onClick).not.toHaveBeenCalled();
+});
 
-    expect(onCommit).not.toHaveBeenCalled();
-    expect(onCancel).not.toHaveBeenCalled();
+it("ignores a secondary-button release while the primary drag remains armed", () => {
+  const onCommit = vi.fn();
+  const onCancel = vi.fn();
+  render(<Harness onCommit={onCommit} onCancel={onCancel} />);
 
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 96, pointerId: 1, bubbles: true }));
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 96, button: 0, pointerId: 1, bubbles: true }));
-    expect(onCommit).toHaveBeenCalledWith("move", 2, expect.objectContaining({ clientX: 96 }));
-  });
+  const body = screen.getByTestId("body");
+  fireEvent.pointerDown(body, { clientX: 0, button: 0, pointerId: 1 });
+  document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, pointerId: 1, bubbles: true }));
+  document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, button: 2, pointerId: 1, bubbles: true }));
+
+  expect(onCommit).not.toHaveBeenCalled();
+  expect(onCancel).not.toHaveBeenCalled();
+
+  document.dispatchEvent(new PointerEvent("pointermove", { clientX: 96, pointerId: 1, bubbles: true }));
+  document.dispatchEvent(new PointerEvent("pointerup", { clientX: 96, button: 0, pointerId: 1, bubbles: true }));
+  expect(onCommit).toHaveBeenCalledWith("move", 2, expect.objectContaining({ clientX: 96 }));
 });

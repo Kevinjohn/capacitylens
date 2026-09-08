@@ -69,6 +69,15 @@ function writeBooleanPreference({ key, on }: WriteBooleanPreferenceInput): void 
   }
 }
 
+function mergeBooleanRecord<T extends Record<keyof T, boolean>>(defaults: T, parsed: Partial<T>): T {
+  const merged = { ...defaults };
+  for (const field of Object.keys(defaults) as (keyof T)[]) {
+    const value = parsed[field];
+    if (typeof value === "boolean") merged[field] = value as T[keyof T];
+  }
+  return merged;
+}
+
 /** Read a JSON record of booleans under `key`, falling back to `defaults` for anything missing,
  *  non-boolean, or when storage is unavailable. Tolerant of partial/legacy stored shapes: only
  *  the fields declared in `defaults` are read, so an unknown stored key is ignored rather than
@@ -78,12 +87,7 @@ function readBooleanRecordPreference<T extends Record<keyof T, boolean>>(key: st
     const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<T>;
-      const merged = { ...defaults };
-      for (const field of Object.keys(defaults) as (keyof T)[]) {
-        const value = parsed[field];
-        if (typeof value === "boolean") merged[field] = value as T[keyof T];
-      }
-      return merged;
+      return mergeBooleanRecord(defaults, parsed);
     }
   } catch {
     // storage blocked or malformed JSON — fall through to the defaults

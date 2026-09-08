@@ -94,6 +94,35 @@ function resolveResizedEdge({ range, deltaDays, edge, weekendAwareDays }: Resolv
   return moved;
 }
 
+function applyMove(range: DateRange, deltaDays: number, weekendAwareDays: Weekday[] | null): DateRange {
+  const shiftedStart = addDaysISO(range.startDate, deltaDays);
+  if (!weekendAwareDays) return { startDate: shiftedStart, endDate: addDaysISO(range.endDate, deltaDays) };
+
+  const workingDays = countWorkingDays(range.startDate, range.endDate, weekendAwareDays);
+  const newStart =
+    deltaDays !== 0 && workingDays > 0
+      ? snapToWorkingDay(shiftedStart, weekendAwareDays, deltaDays > 0 ? 1 : -1)
+      : shiftedStart;
+  const newEnd =
+    workingDays > 0
+      ? endDateForWorkingDays(newStart, workingDays, weekendAwareDays)
+      : addDaysISO(newStart, daysInclusive(range.startDate, range.endDate) - 1);
+  return { startDate: newStart, endDate: newEnd };
+}
+
+function applyResize(
+  mode: "resize-start" | "resize-end",
+  range: DateRange,
+  deltaDays: number,
+  weekendAwareDays: Weekday[] | null,
+): DateRange {
+  const edge = mode === "resize-start" ? "start" : "end";
+  const moved = resolveResizedEdge({ range, deltaDays, edge, weekendAwareDays });
+  return edge === "start"
+    ? { startDate: moved, endDate: range.endDate }
+    : { startDate: range.startDate, endDate: moved };
+}
+
 export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureInput): DateRange {
   // Resolve weekend-awareness ONCE for the whole gesture: non-null exactly when the resource has a
   // partial working week and the allocation hasn't opted out. Carrying the working-day array rather
@@ -102,45 +131,10 @@ export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureIn
     ? (options?.workingDays ?? null)
     : null;
   switch (mode) {
-    case "move": {
-      let newStart = addDaysISO(range.startDate, deltaDays);
-      // Not weekend-aware: plain calendar shift.
-      if (!weekendAwareDays) {
-        return { startDate: newStart, endDate: addDaysISO(range.endDate, deltaDays) };
-      }
-      const w = countWorkingDays(range.startDate, range.endDate, weekendAwareDays);
-      // Keep the leading edge on a day where the allocation actually performs work. A zero-delta
-      // gesture remains a strict no-op, and a legacy all-non-working range keeps its calendar shape
-      // because it has no working edge to preserve.
-      if (deltaDays !== 0 && w > 0) {
-        newStart = snapToWorkingDay(newStart, weekendAwareDays, deltaDays > 0 ? 1 : -1);
-      }
-      const newEnd =
-        w > 0
-          ? endDateForWorkingDays(newStart, w, weekendAwareDays)
-          : // Range had no working days at all — preserve its calendar span.
-            addDaysISO(newStart, daysInclusive(range.startDate, range.endDate) - 1);
-      return { startDate: newStart, endDate: newEnd };
-    }
+    case "move":
+      return applyMove(range, deltaDays, weekendAwareDays);
     case "resize-start":
-      return {
-        startDate: resolveResizedEdge({
-          range: range,
-          deltaDays: deltaDays,
-          edge: "start",
-          weekendAwareDays: weekendAwareDays,
-        }),
-        endDate: range.endDate,
-      };
     case "resize-end":
-      return {
-        startDate: range.startDate,
-        endDate: resolveResizedEdge({
-          range: range,
-          deltaDays: deltaDays,
-          edge: "end",
-          weekendAwareDays: weekendAwareDays,
-        }),
-      };
+      return applyResize(mode, range, deltaDays, weekendAwareDays);
   }
 }
