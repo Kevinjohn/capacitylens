@@ -1023,13 +1023,7 @@ async function attachActiveA2({ adapter, debounceMs = 0, onError, onSuccess }: A
   return detach;
 }
 
-describe("refresh-on-focus (P1.16, server mode)", () => {
-  // Coming back to the tab/window re-hydrates the active account's slice by REUSING refreshActive
-  // (the switch orchestrator's body) — so the adapter's private lastSynced snapshot is re-seeded
-  // atomically with `data`. Proven here against a recording adapter + window 'focus' events (the
-  // same shape as the pagehide tests above). Uses the module-scope recordingAdapter / a2Slice /
-  // attachActiveA2 helpers (shared with the refreshActiveAccountSlice + batch-conflict suites).
-
+function registerFocusHydrationTests() {
   it("re-hydrates the active slice on focus + re-seeds the snapshot (a later save diffs to ZERO ops)", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
@@ -1084,7 +1078,9 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     expect(loadAll.mock.calls.length).toBe(loadsAfterPick);
     detach();
   });
+}
 
+function registerFocusThrottleTests() {
   it("THROTTLES through the exact 30-second focus interval boundary", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     try {
@@ -1144,7 +1140,9 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     ).toEqual(initial.clients.map((client) => client.id).sort());
     now.mockRestore();
   });
+}
 
+function registerFocusVisibilityTests() {
   it("periodically re-hydrates a continuously visible server session", async () => {
     vi.useFakeTimers();
     try {
@@ -1190,7 +1188,9 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
       vi.useRealTimers();
     }
   });
+}
 
+function registerFocusFlushTests() {
   it("SKIPS refresh when there is no active account (on the picker)", async () => {
     const { adapter, loadAll } = recordingAdapter(a2Slice());
     useStore.getState().replaceAll(emptyAppData());
@@ -1239,7 +1239,9 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     expect(order.indexOf("saveAll")).toBeLessThan(order.indexOf("loadAll"));
     detach();
   });
+}
 
+function registerFocusFailureTests() {
   it("is INERT in the demo build — focus does NOT call loadAll", async () => {
     const { adapter, loadAll } = recordingAdapter(a2Slice());
     useStore.getState().replaceAll(makeLocalTwoAccounts());
@@ -1281,7 +1283,9 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     expect(useStore.getState().data.clients.some((c) => c.name === "Unsynced")).toBe(true);
     detach();
   });
+}
 
+function registerFocusRecoveryTest() {
   it("retries a stranded write on focus without throttling the next visible recovery", async () => {
     vi.useFakeTimers();
     const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
@@ -1320,7 +1324,9 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
       vi.useRealTimers();
     }
   });
+}
 
+function registerFocusSwitchRaceTest() {
   it("a failed-save focus refresh does not orphan an in-flight company switch", async () => {
     const { aSlice, bSlice } = accountSwitchSlices();
     let releaseB: (() => void) | null = null;
@@ -1371,6 +1377,21 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["cb"]);
     detach();
   });
+}
+
+describe("refresh-on-focus (P1.16, server mode)", () => {
+  // Coming back to the tab/window re-hydrates the active account's slice by REUSING refreshActive
+  // (the switch orchestrator's body) — so the adapter's private lastSynced snapshot is re-seeded
+  // atomically with `data`. Proven here against a recording adapter + window 'focus' events (the
+  // same shape as the pagehide tests above). Uses the module-scope recordingAdapter / a2Slice /
+  // attachActiveA2 helpers (shared with the refreshActiveAccountSlice + batch-conflict suites).
+  registerFocusHydrationTests();
+  registerFocusThrottleTests();
+  registerFocusVisibilityTests();
+  registerFocusFlushTests();
+  registerFocusFailureTests();
+  registerFocusRecoveryTest();
+  registerFocusSwitchRaceTest();
 });
 
 async function attachHeldAccountSwitch() {
