@@ -461,7 +461,6 @@ function registerWeekendRuleTests() {
 }
 
 function registerNonWorkingWeekdayTest() {
-  const r = makeResource();
   it("skips a non-working WEEKDAY too, not just Sat/Sun (a Mon–Wed part-timer)", () => {
     // The narrowed rule is about NON-WORKING days, not literally weekends: a Mon–Wed resource works
     // none of Thu/Fri/Sat/Sun, so a weekend-aware allocation spanning into them does no work there.
@@ -602,7 +601,6 @@ function registerStrictCapacityTests() {
 }
 
 function registerFractionalCapacityTest() {
-  const r = makeResource();
   it("ignores fractional accumulation noise at exact capacity in every allocation order", () => {
     const fractional = [2, 5, 2].map((days) => (8 * days) / 9);
     const allocations = fractional.map((hoursPerDay, index) => makeAlloc({ id: `fraction-${index}`, hoursPerDay }));
@@ -1244,8 +1242,6 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", (
 });
 
 describe("allocatedHoursOnDay", () => {
-  const r = makeResource(); // Mon–Fri
-
   registerOverlappingAllocationTests();
 
   registerWeekendRuleTests();
@@ -1254,8 +1250,6 @@ describe("allocatedHoursOnDay", () => {
 });
 
 describe("dayCapacity over-allocation", () => {
-  const r = makeResource();
-
   registerWeekendCapacityTests();
 
   registerTimeOffAndWeekdayTests();
@@ -1268,8 +1262,6 @@ describe("dayCapacity over-allocation", () => {
 });
 
 describe("utilization", () => {
-  const r = makeResource();
-
   registerUtilizationBasicsTests();
 
   registerUtilizationWindowTests();
