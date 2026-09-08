@@ -501,11 +501,6 @@
       "count": 2
     }
   },
-  "server/src/db.tenantStore.test.ts": {
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
   "server/src/db/initialization.ts": {
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1
