@@ -10,37 +10,85 @@ function requireSqlRow(row: Record<string, unknown> | undefined): Record<string,
   return row;
 }
 
-describe("migration rehearsal redaction", () => {
-  it("preserves federated identity joins while scrubbing ceremonies, observations and orphan identifiers", () => {
-    const db = new DatabaseSync(":memory:");
-    try {
-      db.exec(`
-        CREATE TABLE user (id TEXT PRIMARY KEY);
-        CREATE TABLE account_federated_provider_bindings (providerId TEXT PRIMARY KEY);
-        CREATE TABLE account (id TEXT PRIMARY KEY, userId TEXT REFERENCES user(id), providerId TEXT, accountId TEXT);
-        CREATE TABLE capacitylens_federated_link_ceremonies (
-          id TEXT PRIMARY KEY, principalId TEXT NOT NULL, providerId TEXT NOT NULL,
-          createdAt TEXT NOT NULL, expiresAt TEXT NOT NULL, completedAt TEXT,
-          UNIQUE(principalId, providerId)
-        );
-        CREATE TABLE capacitylens_federated_link_observations (
-          accountRowId TEXT PRIMARY KEY, principalId TEXT NOT NULL, providerId TEXT NOT NULL,
-          subject TEXT NOT NULL, verifiedAt TEXT NOT NULL, auditedAt TEXT,
-          UNIQUE(providerId, subject)
-        );
-        CREATE TABLE capacitylens_sso_cutover_state (applicationId TEXT PRIMARY KEY, activatedAt TEXT NOT NULL);
-        INSERT INTO user VALUES ('source-principal');
-        INSERT INTO account_federated_provider_bindings VALUES ('source-provider');
-        INSERT INTO account VALUES ('source-account-row', 'source-principal', 'source-provider', 'source-subject');
-        INSERT INTO capacitylens_federated_link_ceremonies VALUES
-          ('source-ceremony', 'source-principal', 'source-provider', '2026-01-01', '2026-01-02', NULL),
-          ('source-orphan-ceremony', 'source-orphan-principal', 'source-orphan-provider', '2026-02-01', '2026-02-02', '2026-02-01');
-        INSERT INTO capacitylens_federated_link_observations VALUES
-          ('source-account-row', 'source-principal', 'source-provider', 'source-subject', '2026-01-01', NULL),
-          ('source-orphan-account-row', 'source-orphan-principal', 'source-orphan-provider', 'source-orphan-subject', '2026-02-01', '2026-02-02');
-        INSERT INTO capacitylens_sso_cutover_state VALUES ('source-application', '2026-03-01');
-      `);
+function createFederatedIdentityDb(): DatabaseSync {
+  const db = new DatabaseSync(":memory:");
+  db.exec(`
+    CREATE TABLE user (id TEXT PRIMARY KEY);
+    CREATE TABLE account_federated_provider_bindings (providerId TEXT PRIMARY KEY);
+    CREATE TABLE account (id TEXT PRIMARY KEY, userId TEXT REFERENCES user(id), providerId TEXT, accountId TEXT);
+    CREATE TABLE capacitylens_federated_link_ceremonies (
+      id TEXT PRIMARY KEY, principalId TEXT NOT NULL, providerId TEXT NOT NULL,
+      createdAt TEXT NOT NULL, expiresAt TEXT NOT NULL, completedAt TEXT,
+      UNIQUE(principalId, providerId)
+    );
+    CREATE TABLE capacitylens_federated_link_observations (
+      accountRowId TEXT PRIMARY KEY, principalId TEXT NOT NULL, providerId TEXT NOT NULL,
+      subject TEXT NOT NULL, verifiedAt TEXT NOT NULL, auditedAt TEXT,
+      UNIQUE(providerId, subject)
+    );
+    CREATE TABLE capacitylens_sso_cutover_state (applicationId TEXT PRIMARY KEY, activatedAt TEXT NOT NULL);
+    INSERT INTO user VALUES ('source-principal');
+    INSERT INTO account_federated_provider_bindings VALUES ('source-provider');
+    INSERT INTO account VALUES ('source-account-row', 'source-principal', 'source-provider', 'source-subject');
+    INSERT INTO capacitylens_federated_link_ceremonies VALUES
+      ('source-ceremony', 'source-principal', 'source-provider', '2026-01-01', '2026-01-02', NULL),
+      ('source-orphan-ceremony', 'source-orphan-principal', 'source-orphan-provider', '2026-02-01', '2026-02-02', '2026-02-01');
+    INSERT INTO capacitylens_federated_link_observations VALUES
+      ('source-account-row', 'source-principal', 'source-provider', 'source-subject', '2026-01-01', NULL),
+      ('source-orphan-account-row', 'source-orphan-principal', 'source-orphan-provider', 'source-orphan-subject', '2026-02-01', '2026-02-02');
+    INSERT INTO capacitylens_sso_cutover_state VALUES ('source-application', '2026-03-01');
+  `);
+  return db;
+}
 
+function createProviderBindingAbsenceDb({
+  accountRowid,
+  provider,
+  hasUser,
+}: {
+  accountRowid: number;
+  provider: string;
+  hasUser: boolean;
+}) {
+  const db = new DatabaseSync(":memory:");
+  db.exec(`
+    CREATE TABLE user (id TEXT PRIMARY KEY);
+    CREATE TABLE account (id TEXT PRIMARY KEY, userId TEXT, providerId TEXT, accountId TEXT);
+    CREATE TABLE capacitylens_federated_link_observations (
+      accountRowId TEXT PRIMARY KEY, principalId TEXT NOT NULL, providerId TEXT NOT NULL,
+      subject TEXT NOT NULL, verifiedAt TEXT NOT NULL, auditedAt TEXT
+    );
+  `);
+  if (hasUser) db.prepare("INSERT INTO user VALUES (?)").run("source-principal");
+  db.prepare("INSERT INTO account (rowid, id, userId, providerId, accountId) VALUES (?, ?, ?, ?, ?)").run(
+    accountRowid,
+    "source-account-row",
+    "source-principal",
+    "source-provider",
+    "source-subject",
+  );
+  db.prepare("INSERT INTO capacitylens_federated_link_observations VALUES (?, ?, ?, ?, ?, ?)").run(
+    "source-account-row",
+    "source-principal",
+    provider,
+    "source-subject",
+    "2026-01-01",
+    null,
+  );
+  const verifiedLinks = db.prepare(`
+    SELECT COUNT(*) AS count FROM capacitylens_federated_link_observations AS observation
+    JOIN account ON account.id = observation.accountRowId
+      AND account.userId = observation.principalId
+      AND account.providerId = observation.providerId
+      AND account.accountId = observation.subject
+  `);
+  return { db, verifiedLinks };
+}
+
+describe("federated identity joins", () => {
+  it("preserves federated identity joins while scrubbing ceremonies, observations and orphan identifiers", () => {
+    const db = createFederatedIdentityDb();
+    try {
       anonymise(db);
 
       const principal = requireSqlRow(db.prepare("SELECT id FROM user").get());
@@ -87,7 +135,9 @@ describe("migration rehearsal redaction", () => {
       db.close();
     }
   });
+});
 
+describe("stale observation redaction", () => {
   it("keeps a stale observation subject unverified after redacting its existing provider account", () => {
     const db = new DatabaseSync(":memory:");
     try {
@@ -132,7 +182,9 @@ describe("migration rehearsal redaction", () => {
       db.close();
     }
   });
+});
 
+describe("provider binding absence", () => {
   it.each([
     {
       scenario: "valid proof with different rowids",
@@ -156,39 +208,8 @@ describe("migration rehearsal redaction", () => {
       expected: 1,
     },
   ])("preserves $scenario when provider bindings are absent", ({ accountRowid, provider, hasUser, expected }) => {
-    const db = new DatabaseSync(":memory:");
+    const { db, verifiedLinks } = createProviderBindingAbsenceDb({ accountRowid, provider, hasUser });
     try {
-      db.exec(`
-        CREATE TABLE user (id TEXT PRIMARY KEY);
-        CREATE TABLE account (id TEXT PRIMARY KEY, userId TEXT, providerId TEXT, accountId TEXT);
-        CREATE TABLE capacitylens_federated_link_observations (
-          accountRowId TEXT PRIMARY KEY, principalId TEXT NOT NULL, providerId TEXT NOT NULL,
-          subject TEXT NOT NULL, verifiedAt TEXT NOT NULL, auditedAt TEXT
-        );
-      `);
-      if (hasUser) db.prepare("INSERT INTO user VALUES (?)").run("source-principal");
-      db.prepare("INSERT INTO account (rowid, id, userId, providerId, accountId) VALUES (?, ?, ?, ?, ?)").run(
-        accountRowid,
-        "source-account-row",
-        "source-principal",
-        "source-provider",
-        "source-subject",
-      );
-      db.prepare("INSERT INTO capacitylens_federated_link_observations VALUES (?, ?, ?, ?, ?, ?)").run(
-        "source-account-row",
-        "source-principal",
-        provider,
-        "source-subject",
-        "2026-01-01",
-        null,
-      );
-      const verifiedLinks = db.prepare(`
-        SELECT COUNT(*) AS count FROM capacitylens_federated_link_observations AS observation
-        JOIN account ON account.id = observation.accountRowId
-          AND account.userId = observation.principalId
-          AND account.providerId = observation.providerId
-          AND account.accountId = observation.subject
-      `);
       expect(verifiedLinks.get()).toEqual({ count: expected });
 
       anonymise(db);
@@ -203,7 +224,9 @@ describe("migration rehearsal redaction", () => {
       db.close();
     }
   });
+});
 
+describe("membership confirmations", () => {
   it("remaps tracking workspaces and preserves nullable membership confirmations", () => {
     const db = new DatabaseSync(":memory:");
     try {
@@ -238,7 +261,9 @@ describe("migration rehearsal redaction", () => {
       db.close();
     }
   });
+});
 
+describe("scheduling redaction", () => {
   it("scrubs closure names and ids, remaps allocation projects and retains scheduling values", () => {
     const db = new DatabaseSync(":memory:");
     try {
@@ -297,7 +322,9 @@ describe("migration rehearsal redaction", () => {
       db.close();
     }
   });
+});
 
+describe("tenant trigger preservation", () => {
   it("restores immutable tenant triggers byte-for-byte after remapping", () => {
     const db = new DatabaseSync(":memory:");
     try {
@@ -320,7 +347,9 @@ describe("migration rehearsal redaction", () => {
       db.close();
     }
   });
+});
 
+describe("redaction rollback", () => {
   it("rolls back both trigger removal and row changes when redaction violates a constraint", () => {
     const db = new DatabaseSync(":memory:");
     try {
