@@ -68,11 +68,27 @@ describe("resetLocalStorage", () => {
     });
     const reload = vi.fn();
 
-    await expect(resetLocalStorage({ clearOfflineData, clearLocalStorage, reload })).rejects.toMatchObject({
-      name: "StorageResetError",
-      offlineDataCleared: true,
-      cause: new AggregateError([localStorageError], "One or more browser storage backends could not be cleared."),
-    });
+    let caught: unknown;
+    try {
+      await resetLocalStorage({ clearOfflineData, clearLocalStorage, reload });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(StorageResetError);
+    if (!(caught instanceof StorageResetError)) {
+      throw new Error("Expected resetLocalStorage to reject with StorageResetError");
+    }
+    expect(caught.name).toBe("StorageResetError");
+    expect(caught.message).toBe("Browser storage could not be fully reset.");
+    expect(caught.offlineDataCleared).toBe(true);
+    expect(caught.cause).toBeInstanceOf(AggregateError);
+    if (!(caught.cause instanceof AggregateError)) {
+      throw new Error("Expected StorageResetError.cause to be an AggregateError");
+    }
+    expect(caught.cause.message).toBe("One or more browser storage backends could not be cleared.");
+    expect(caught.cause.errors).toHaveLength(1);
+    expect(caught.cause.errors[0]).toBe(localStorageError);
     expect(clearOfflineData).toHaveBeenCalledOnce();
     expect(clearLocalStorage).toHaveBeenCalledOnce();
     expect(reload).not.toHaveBeenCalled();
@@ -87,14 +103,28 @@ describe("resetLocalStorage", () => {
     });
     const reload = vi.fn();
 
-    await expect(resetLocalStorage({ clearOfflineData, clearLocalStorage, reload })).rejects.toMatchObject({
-      name: "StorageResetError",
-      offlineDataCleared: false,
-      cause: new AggregateError(
-        [localStorageError, offlineError],
-        "One or more browser storage backends could not be cleared.",
-      ),
-    });
+    let caught: unknown;
+    try {
+      await resetLocalStorage({ clearOfflineData, clearLocalStorage, reload });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(StorageResetError);
+    if (!(caught instanceof StorageResetError)) {
+      throw new Error("Expected resetLocalStorage to reject with StorageResetError");
+    }
+    expect(caught.name).toBe("StorageResetError");
+    expect(caught.message).toBe("Browser storage could not be fully reset.");
+    expect(caught.offlineDataCleared).toBe(false);
+    expect(caught.cause).toBeInstanceOf(AggregateError);
+    if (!(caught.cause instanceof AggregateError)) {
+      throw new Error("Expected StorageResetError.cause to be an AggregateError");
+    }
+    expect(caught.cause.message).toBe("One or more browser storage backends could not be cleared.");
+    expect(caught.cause.errors).toHaveLength(2);
+    expect(caught.cause.errors[0]).toBe(localStorageError);
+    expect(caught.cause.errors[1]).toBe(offlineError);
     expect(clearOfflineData).toHaveBeenCalledOnce();
     expect(clearLocalStorage).toHaveBeenCalledOnce();
     expect(reload).not.toHaveBeenCalled();
