@@ -161,7 +161,7 @@ export function useAllocationTargetState({
     }
     return baseActivityOptions;
   }, [baseActivityOptions, inlineActivityOption, projectSelection]);
-  const onAssigneeChange = (value: string) => {
+  const changeAssignee = (value: string) => {
     clear();
     setResourceId(value);
     const resource = resourcesById.get(value);
@@ -176,7 +176,7 @@ export function useAllocationTargetState({
     setProjectSelection(value);
     setActivityId("");
   };
-  const onAddActivity = () => {
+  const addInlineActivity = () => {
     if (!canEdit) return;
     const cleanActivityName = validateText(newActivityName, fail, {
       field: "newactivity",
@@ -209,7 +209,7 @@ export function useAllocationTargetState({
     fields: {
       create,
       resourceId,
-      onAssigneeChange,
+      onAssigneeChange: changeAssignee,
       resourceOptions,
       isPlaceholder,
       projectSelection,
@@ -223,7 +223,7 @@ export function useAllocationTargetState({
       newActivityName,
       setNewActivityName,
       activityScope,
-      onAddActivity,
+      onAddActivity: addInlineActivity,
       errorField,
       errorId,
     },

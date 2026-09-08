@@ -13,7 +13,7 @@ type AllocationTargetFieldsProps = AllocationModalState["targetFields"];
 export function AllocationTargetFields({
   create,
   resourceId,
-  onAssigneeChange,
+  onAssigneeChange: changeAssignee,
   resourceOptions,
   isPlaceholder,
   projectSelection,
@@ -27,7 +27,7 @@ export function AllocationTargetFields({
   newActivityName,
   setNewActivityName,
   activityScope,
-  onAddActivity,
+  onAddActivity: addInlineActivity,
   errorField,
   errorId,
 }: AllocationTargetFieldsProps) {
@@ -37,7 +37,7 @@ export function AllocationTargetFields({
         <SelectField
           label={m.form_allocation_assignee_label()}
           value={resourceId}
-          onChange={onAssigneeChange}
+          onChange={changeAssignee}
           options={resourceOptions}
           placeholder={m.form_allocation_select_resource_placeholder()}
           required
@@ -90,11 +90,11 @@ export function AllocationTargetFields({
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  onAddActivity();
+                  addInlineActivity();
                 }
               }}
             />
-            <Button size="sm" type="button" variant="outline" onClick={onAddActivity}>
+            <Button size="sm" type="button" variant="outline" onClick={addInlineActivity}>
               <Plus data-icon="inline-start" />
               {m.form_allocation_add_activity()}
             </Button>
