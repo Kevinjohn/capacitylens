@@ -12,7 +12,7 @@ import { isScopedTable } from "./routeShared";
 import { authorizeBatchOperations, projectBatchAccounts } from "./batch/authorize";
 import { BatchAuthorizationResponseSent, StaleWriteError } from "./batch/errors";
 import { runBatch } from "./batch/runBatch";
-import { type BatchRevision } from "./batch/types";
+import { type BatchOp, type BatchRevision } from "./batch/types";
 import { parseBatchRequest } from "./batch/validateRequest";
 export { MAX_BATCH_OPS } from "./batch/types";
 
@@ -31,21 +31,101 @@ export interface BatchRouteDependencies {
   accountFail: (reply: FastifyReply, error: unknown) => FastifyReply;
 }
 
-export function registerBatchRoutes(app: FastifyInstance, dependencies: BatchRouteDependencies): void {
-  const {
-    db,
-    store,
-    authMode,
-    multiAccount,
-    optimisticConcurrency,
-    accountFlows,
-    authorize,
-    fieldVisibility: fieldVisibilityFor,
-    redact: redactWriteEcho,
-    drainProductAudit,
-    fail: sendFail,
-    accountFail,
-  } = dependencies;
+function listAffectedAccountIds(ops: BatchOp[]): Set<string> {
+  const accountIds = new Set<string>();
+  for (const op of ops) {
+    if (op.table === "accounts") {
+      accountIds.add(op.id);
+      continue;
+    }
+    if (!isScopedTable(op.table)) continue;
+    const accountId = op.method === "PUT" ? op.row?.accountId : op.accountId;
+    if (typeof accountId !== "string") {
+      throw new Error("A validated scoped batch operation requires an account ID.");
+    }
+    accountIds.add(accountId);
+  }
+  return accountIds;
+}
+
+function createFieldVisibilityResolver(
+  req: FastifyRequest,
+  fieldVisibilityFor: BatchRouteDependencies["fieldVisibility"],
+): (table: string, accountId: unknown) => SanitizeWriteOptions {
+  // Membership-derived visibility is stable for the request because the transaction serializes
+  // membership writes on the same SQLite connection. Cache only gated tables with string IDs.
+  const visibilityByAccountId = new Map<string, SanitizeWriteOptions>();
+  return (table, accountId) => {
+    if (!hasGatedFields(table) || typeof accountId !== "string") {
+      return fieldVisibilityFor(req, table, accountId);
+    }
+    const cached = visibilityByAccountId.get(accountId);
+    if (cached) return cached;
+    const visibility = fieldVisibilityFor(req, table, accountId);
+    visibilityByAccountId.set(accountId, visibility);
+    return visibility;
+  };
+}
+
+function sendEmptyBatch(reply: FastifyReply): FastifyReply {
+  return reply.code(200).send({
+    ok: true,
+    applied: 0,
+    changed: 0,
+    revisions: [],
+    auditWarning: false,
+  });
+}
+
+function sendSupersededBatch(reply: FastifyReply, applied: number): FastifyReply {
+  return reply.code(200).send({
+    ok: true,
+    applied,
+    changed: 0,
+    revisions: [],
+    archives: [],
+    superseded: true,
+    auditWarning: false,
+  });
+}
+
+function sendAppliedBatch(parameters: {
+  reply: FastifyReply;
+  applied: number;
+  changed: number;
+  revisions: BatchRevision[];
+  lifecycleArchives: Array<{ table: string; id: string; archived: boolean }>;
+  drainProductAudit: BatchRouteDependencies["drainProductAudit"];
+}): FastifyReply {
+  const { reply, applied, changed, revisions, lifecycleArchives, drainProductAudit } = parameters;
+  const auditFailed = !drainProductAudit(reply);
+  if (auditFailed) reply.header("x-capacitylens-audit-warning", "true");
+  return reply.code(200).send({
+    ok: true,
+    applied,
+    changed,
+    revisions,
+    archives: lifecycleArchives,
+    auditWarning: auditFailed,
+  });
+}
+
+function sendBatchError(
+  reply: FastifyReply,
+  error: unknown,
+  dependencies: Pick<BatchRouteDependencies, "accountFail" | "fail">,
+): FastifyReply | undefined {
+  if (error instanceof BatchAuthorizationResponseSent) return undefined;
+  if (error instanceof StaleWriteError) {
+    return reply.code(409).send({ error: error.message, current: error.current });
+  }
+  return error instanceof AccountContractError
+    ? dependencies.accountFail(reply, error)
+    : dependencies.fail(reply, error);
+}
+
+function createBatchHandler(dependencies: BatchRouteDependencies) {
+  const { db, authMode, multiAccount, authorize } = dependencies;
 
   // Transactional batch write — the verb the client sync adapter uses for every save.
   // Body: { ops: BatchOp[] }, already ordered (upserts parent-first, then deletes
@@ -56,30 +136,15 @@ export function registerBatchRoutes(app: FastifyInstance, dependencies: BatchRou
   // prior data intact. Each op reuses the SAME ownsRow / sanitizeWrite / validateWrite the
   // per-entity routes use; one request-scoped state projection is loaded inside the transaction
   // and advanced after each op, so a child validates against a parent a sibling op just upserted.
-  app.post("/api/batch", async (req, reply) => {
+  return async (req: FastifyRequest, reply: FastifyReply) => {
     const parsed = parseBatchRequest(req, reply);
     if (!parsed) return;
     const { ops, syncOrder } = parsed;
-    if (ops.length === 0 && syncOrder === null) {
-      return reply.code(200).send({
-        ok: true,
-        applied: 0,
-        changed: 0,
-        revisions: [],
-        auditWarning: false,
-      });
-    }
+    if (ops.length === 0 && syncOrder === null) return sendEmptyBatch(reply);
     // Shape validation above established every source. This set bounds validation reads to the
     // account slices the request can actually touch; an ordered empty batch deliberately has no
     // slice but still reaches the lightweight sync-sequence transaction below.
-    const affectedAccountIds = new Set<string>();
-    for (const op of ops) {
-      if (op.table === "accounts") {
-        affectedAccountIds.add(op.id);
-      } else if (isScopedTable(op.table)) {
-        affectedAccountIds.add(op.method === "PUT" ? (op.row!.accountId as string) : op.accountId!);
-      }
-    }
+    const affectedAccountIds = listAffectedAccountIds(ops);
     // P1.5 write gate — PRE-SCAN before the tx opens so the batch is rejected WHOLE (one 403, no
     // partial write) if ANY op targets an account the caller may not write. A scoped PUT derives
     // its accountId from op.row.accountId, a scoped DELETE from op.accountId. The unscoped
@@ -106,28 +171,9 @@ export function registerBatchRoutes(app: FastifyInstance, dependencies: BatchRou
       return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE });
     }
 
-    const authorizeOperations = (): boolean => authorizeBatchOperations({ ops, db, authMode, req, reply, authorize });
+    const authorizeOperations = () => authorizeBatchOperations({ ops, db, authMode, req, reply, authorize });
     if (!authorizeOperations()) return;
-    // Field visibility, memoized PER REQUEST: fieldVisibilityFor pays an account-port membership
-    // query for every timeOff/client/project row, and a batch may carry up to MAX_BATCH_OPS of them
-    // — each op would otherwise re-run the identical lookup inside the write tx. Memoizing by
-    // accountId is exact, not approximate: the caller (req.user) is fixed for the request, and
-    // their role cannot change mid-transaction (tx() serializes on the single SQLite connection
-    // membership writes also go through, so no interleaved role edit can land while the batch
-    // runs). Unaffected tables short-circuit to the frozen ALL_FIELDS_VISIBLE constant — no
-    // lookup, no allocation — so only distinct protected-field accountIds
-    // (in practice: one) ever populate the cache.
-    const fieldVisCache = new Map<string, SanitizeWriteOptions>();
-    const fieldVisFor = (table: string, accountId: unknown): SanitizeWriteOptions => {
-      if (!hasGatedFields(table) || typeof accountId !== "string") {
-        return fieldVisibilityFor(req, table, accountId); // no-lookup short-circuits; nothing to cache
-      }
-      const cached = fieldVisCache.get(accountId);
-      if (cached) return cached;
-      const visibility = fieldVisibilityFor(req, table, accountId);
-      fieldVisCache.set(accountId, visibility);
-      return visibility;
-    };
+    const fieldVisFor = createFieldVisibilityResolver(req, dependencies.fieldVisibility);
     const revisions: BatchRevision[] = [];
     const lifecycleArchives: Array<{ table: string; id: string; archived: boolean }> = [];
     try {
@@ -136,12 +182,12 @@ export function registerBatchRoutes(app: FastifyInstance, dependencies: BatchRou
         syncOrder,
         req,
         db,
-        store,
-        optimisticConcurrency,
+        store: dependencies.store,
+        optimisticConcurrency: dependencies.optimisticConcurrency,
         multiAccount,
-        accountFlows,
+        accountFlows: dependencies.accountFlows,
         fieldVisFor,
-        redactWriteEcho,
+        redactWriteEcho: dependencies.redact,
         revisions,
         lifecycleArchives,
         affectedAccountIds,
@@ -149,40 +195,26 @@ export function registerBatchRoutes(app: FastifyInstance, dependencies: BatchRou
         authorizeOperations,
       });
       if (result.kind === "superseded") {
-        return reply.code(200).send({
-          ok: true,
-          applied: ops.length,
-          changed: 0,
-          revisions: [],
-          archives: [],
-          superseded: true,
-          auditWarning: false,
-        });
+        return sendSupersededBatch(reply, ops.length);
       }
-      const auditFailed = !drainProductAudit(reply);
-      if (auditFailed) reply.header("x-capacitylens-audit-warning", "true");
       // `applied` is the atomic receipt count: every submitted op was accepted and processed, so
       // the sync client can require equality with ops.length. `changed` counts submitted mutations
       // and excludes idempotent deletes; revisions may additionally report implicit allocation
       // rewrites caused by an activity kind change.
-      return reply.code(200).send({
-        ok: true,
+      return sendAppliedBatch({
+        reply,
         applied: ops.length,
         changed: result.auditRecords.filter((record) => record !== null).length,
         revisions,
-        archives: lifecycleArchives,
-        auditWarning: auditFailed,
+        lifecycleArchives,
+        drainProductAudit: dependencies.drainProductAudit,
       });
     } catch (error) {
-      if (error instanceof BatchAuthorizationResponseSent) return;
-      // Stale-write conflict (optimistic concurrency): mirror the direct PUT route's 409 +
-      // `current` payload. tx() has already rolled the WHOLE batch back by the time this runs
-      // (all-or-nothing), so no op from the conflicted batch persisted — the client re-syncs
-      // from `current`. Checked BEFORE sendFail, which would misclassify it as a 500.
-      if (error instanceof StaleWriteError) {
-        return reply.code(409).send({ error: error.message, current: error.current });
-      }
-      return error instanceof AccountContractError ? accountFail(reply, error) : sendFail(reply, error);
+      return sendBatchError(reply, error, dependencies);
     }
-  });
+  };
+}
+
+export function registerBatchRoutes(app: FastifyInstance, dependencies: BatchRouteDependencies): void {
+  app.post("/api/batch", createBatchHandler(dependencies));
 }
