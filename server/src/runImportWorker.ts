@@ -14,6 +14,9 @@ interface WorkerReply {
   error?: { name?: string; message: string; stack?: string };
 }
 
+type ImportWorkerExecutionOutcome =
+  { kind: "completed"; result: ImportWorkerResult } | { kind: "failed"; reason: unknown };
+
 interface ImportWorkerThread {
   once(event: "message", listener: (reply: WorkerReply) => void): this;
   once(event: "error", listener: (error: Error) => void): this;
@@ -45,36 +48,31 @@ function executeImportWorker(
     if (signal?.aborted) return reject(readAbortReason(signal));
     const worker = createWorker();
     let settled = false;
-    const finish = (error?: Error, result?: ImportWorkerResult) => {
+    let abort: (() => void) | undefined;
+    const resolveWorkerOutcome = (outcome: ImportWorkerExecutionOutcome) => {
       if (settled) return;
       settled = true;
-      if (signal) signal.removeEventListener("abort", abort);
-      void worker.terminate();
-      if (error) reject(error);
-      else resolve(result!);
-    };
-    const abort = () => {
-      if (settled) return;
-      settled = true;
-      signal!.removeEventListener("abort", abort);
-      // Do not release the bounded queue slot until the thread has actually stopped. Otherwise a
-      // burst of disconnected requests could exceed the configured active-worker ceiling.
+      if (signal && abort) signal.removeEventListener("abort", abort);
       void worker.terminate().then(
-        () => reject(readAbortReason(signal!)),
-        (error: unknown) => reject(error),
+        () => (outcome.kind === "completed" ? resolve(outcome.result) : reject(outcome.reason)),
+        (terminationError: unknown) => reject(terminationError),
       );
     };
-    if (signal) signal.addEventListener("abort", abort, { once: true });
+    if (signal) {
+      abort = () => resolveWorkerOutcome({ kind: "failed", reason: readAbortReason(signal) });
+      signal.addEventListener("abort", abort, { once: true });
+    }
     worker.once("message", (reply: WorkerReply) => {
-      if (reply.ok && reply.result) return finish(undefined, reply.result);
+      if (reply.ok && reply.result) return resolveWorkerOutcome({ kind: "completed", result: reply.result });
       const error = new Error(reply.error?.message ?? "Import worker failed.");
       error.name = reply.error?.name ?? "Error";
       if (reply.error?.stack) error.stack = reply.error.stack;
-      finish(error);
+      resolveWorkerOutcome({ kind: "failed", reason: error });
     });
-    worker.once("error", (error) => finish(error));
+    worker.once("error", (error) => resolveWorkerOutcome({ kind: "failed", reason: error }));
     worker.once("exit", (code) => {
-      if (code !== 0) finish(new Error(`Import worker exited with status ${code}.`));
+      if (code !== 0)
+        resolveWorkerOutcome({ kind: "failed", reason: new Error(`Import worker exited with status ${code}.`) });
     });
     worker.postMessage(request);
   });
