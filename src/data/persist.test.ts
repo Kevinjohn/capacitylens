@@ -2442,7 +2442,7 @@ describe("batch reconciliation (authoritative reload)", () => {
   });
 });
 
-describe("bootstrap", () => {
+function registerBootstrapSeedingTests() {
   it("seeds an empty store and marks it hydrated", async () => {
     const adapter = new InMemoryDemoAdapter();
     const detach = await bootstrap(useStore, adapter, {
@@ -2495,7 +2495,9 @@ describe("bootstrap", () => {
     expect((await adapter.loadAll()).clients.some((c) => c.name === "Later")).toBe(true);
     detach();
   });
+}
 
+function registerBootstrapExistingDataTests() {
   it("loads existing data without re-seeding", async () => {
     const adapter = new InMemoryDemoAdapter();
     await adapter.saveAll(
@@ -2560,7 +2562,9 @@ describe("bootstrap", () => {
     expect(saveAll).toHaveBeenCalled();
     detach();
   });
+}
 
+function registerBootstrapFailureTests() {
   it("flags connectionError (not loadError) and attaches no persistence when a remote load is unavailable", async () => {
     useStore.getState().setLoadError(false);
     useStore.getState().setConnectionError(false);
@@ -2613,7 +2617,11 @@ describe("bootstrap", () => {
     useStore.getState().setLoadError(false);
     detach();
   });
-});
+}
+
+describe("bootstrap", registerBootstrapSeedingTests);
+describe("bootstrap", registerBootstrapExistingDataTests);
+describe("bootstrap", registerBootstrapFailureTests);
 
 describe("persistence coordinator fault-injection branches", () => {
   it("owns a reconciliation failure after sign-out without starting a reload", async () => {
