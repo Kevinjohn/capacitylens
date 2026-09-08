@@ -58,6 +58,11 @@ interface GestureHandlers {
   detach: () => void;
 }
 
+function isOtherPointer(event: PointerEvent, pointerId: number): boolean {
+  const eventPointerId = (event as { pointerId?: number }).pointerId;
+  return eventPointerId !== undefined && eventPointerId !== pointerId;
+}
+
 function getDragMode(target: EventTarget | null): DragMode {
   const handle = target instanceof HTMLElement ? target.dataset.handle : undefined;
   if (handle === "start") return "resize-start";
@@ -77,7 +82,7 @@ function createPointerHandlers(
   // these pure calls in try/catch (the guard belongs in the geometry layer). The 4px
   // arm-vs-click test below stays a RAW pixel test, independent of the day snapping.
   const onMove = (event: PointerEvent) => {
-    if (event.pointerId !== pointerId) return;
+    if (isOtherPointer(event, pointerId)) return;
     const dx = event.clientX - startX;
     const dy = event.clientY - startY;
     if (!progress.dragging && Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return;
@@ -91,7 +96,7 @@ function createPointerHandlers(
     });
   };
   const onUp = (event: PointerEvent) => {
-    if (event.pointerId !== pointerId || event.button !== 0) return;
+    if (isOtherPointer(event, pointerId) || event.button !== 0) return;
     detach();
     if (!progress.dragging) {
       argsRef.current.onClick?.();
@@ -125,7 +130,7 @@ function createGestureHandlers(state: GestureState): GestureHandlers {
     argsRef.current.onCancel?.();
   };
   const onCancel = (event: PointerEvent) => {
-    if (event.pointerId !== pointerId) return;
+    if (isOtherPointer(event, pointerId)) return;
     abort();
   };
   const onLostPointerCapture = () => abort();
