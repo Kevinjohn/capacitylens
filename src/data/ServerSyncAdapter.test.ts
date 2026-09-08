@@ -1668,42 +1668,42 @@ describe("ServerSyncAdapter — durable acknowledged-revision translation (phant
   });
 });
 
-describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY convergence (DEFECT A)", () => {
-  // The server 400-REJECTS a batch DELETE of a lifecycle entity (clients/projects/resources), steering
-  // writers at the dedicated lifecycle routes. The old client emitted those deletes IN the batch, so a
-  // single undo of a synced create (add client → sync → Cmd-Z) poisoned every later batch until a
-  // reload discarded the edits. The adapter now splits lifecycle deletes out and converges each by
-  // ARCHIVING ONLY (POST /api/{table}/{id}/archive — action 'write', editor-allowed, never
-  // freshness-gated) AFTER the batch. It deliberately does NOT call /delete: soft-delete is
-  // irreversible, admin-gated and step-up-gated, so it is never emitted by background sync. The
-  // sync-originated disappearance parks the row as ARCHIVED (reversible); it lingers in the archived
-  // list (accepted residual). These specs pin that routing and its failure/recovery behaviour.
-  const discipline = (updatedAt = TS1): Discipline => ({
-    id: "d1",
-    accountId: "a1",
-    name: "Design",
-    sortOrder: 0,
-    createdAt: TS1,
-    updatedAt,
-  });
-  // Record every request as { url, body } so a spec can assert both the endpoints hit and their order.
-  const recordingFetch = (onCall?: (url: string) => Response | null) => {
-    const calls: Array<{ url: string; body?: string; keepalive?: boolean }> = [];
-    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
-      calls.push({
-        url,
-        ...(typeof init?.body === "string" ? { body: init.body } : {}),
-        ...(init?.keepalive === undefined ? {} : { keepalive: init.keepalive }),
-      });
-      return onCall?.(url) ?? commitReceipt(init);
-    }) as unknown as typeof fetch;
-    return { calls, fetchImpl };
-  };
-  const opsOf = (call: { body?: string } | undefined) => {
-    if (!call?.body) throw new Error("expected a recorded request body");
-    return parseReceiptOps(call.body);
-  };
+// The server 400-REJECTS a batch DELETE of a lifecycle entity (clients/projects/resources), steering
+// writers at the dedicated lifecycle routes. The old client emitted those deletes IN the batch, so a
+// single undo of a synced create (add client → sync → Cmd-Z) poisoned every later batch until a
+// reload discarded the edits. The adapter now splits lifecycle deletes out and converges each by
+// ARCHIVING ONLY (POST /api/{table}/{id}/archive — action 'write', editor-allowed, never
+// freshness-gated) AFTER the batch. It deliberately does NOT call /delete: soft-delete is
+// irreversible, admin-gated and step-up-gated, so it is never emitted by background sync. The
+// sync-originated disappearance parks the row as ARCHIVED (reversible); it lingers in the archived
+// list (accepted residual). These specs pin that routing and its failure/recovery behaviour.
+const discipline = (updatedAt = TS1): Discipline => ({
+  id: "d1",
+  accountId: "a1",
+  name: "Design",
+  sortOrder: 0,
+  createdAt: TS1,
+  updatedAt,
+});
+// Record every request as { url, body } so a spec can assert both the endpoints hit and their order.
+const recordingFetch = (onCall?: (url: string) => Response | null) => {
+  const calls: Array<{ url: string; body?: string; keepalive?: boolean }> = [];
+  const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({
+      url,
+      ...(typeof init?.body === "string" ? { body: init.body } : {}),
+      ...(init?.keepalive === undefined ? {} : { keepalive: init.keepalive }),
+    });
+    return onCall?.(url) ?? commitReceipt(init);
+  }) as unknown as typeof fetch;
+  return { calls, fetchImpl };
+};
+const opsOf = (call: { body?: string } | undefined) => {
+  if (!call?.body) throw new Error("expected a recorded request body");
+  return parseReceiptOps(call.body);
+};
 
+function registerLifecycleArchiveTests(): void {
   it("(a) undo of a synced create converges via ARCHIVE (no /delete) and does NOT poison later saves", async () => {
     const { calls, fetchImpl } = recordingFetch();
     const a = new ServerSyncAdapter("http://x", fetchImpl);
@@ -1754,7 +1754,9 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
       globalThis.removeEventListener(AUDIT_WARNING_EVENT, warning);
     }
   });
+}
 
+function registerLifecycleRestoreTests(): void {
   it("redo reverses the remembered archive before treating the lifecycle row as active again", async () => {
     const restored = { ...client("c1"), updatedAt: TS2 };
     const { calls, fetchImpl } = recordingFetch((url) =>
@@ -1795,7 +1797,9 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
       globalThis.removeEventListener(AUDIT_WARNING_EVENT, warning);
     }
   });
+}
 
+function registerLifecycleRestoreOrderingTests(): void {
   it("unarchives before applying edits that accompany a lifecycle-row reappearance", async () => {
     const restored = { ...client("c1"), updatedAt: TS2 };
     const { calls, fetchImpl } = recordingFetch((url) =>
@@ -1857,7 +1861,9 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
 
     expect(calls).toEqual([]);
   });
+}
 
+function registerLifecycleBatchOrderingTests(): void {
   it("(b) a batch of ordinary edits plus a lifecycle delete applies the edits (batch first, archive routed out)", async () => {
     const { calls, fetchImpl } = recordingFetch();
     const a = new ServerSyncAdapter("http://x", fetchImpl);
@@ -1928,7 +1934,9 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
     await a.saveAll(scopedData("a1", { disciplines: [discipline(TS2)] }));
     expect(calls).toHaveLength(0);
   });
+}
 
+function registerLifecycleConflictTests(): void {
   it("(d) a lifecycle-ARCHIVE 409 (already archived) is treated as converged, not a poison", async () => {
     // 409 from the archive route = the row is already out of active (a concurrent archive or a
     // converged retry). Surfacing it would re-poison every future diff with a delete that can never
@@ -1976,7 +1984,9 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
     await expect(a.saveAll(scopedData("a1", {}))).rejects.toThrow(/built-in Internal client/i);
     expect(calls.filter((call) => call.url.endsWith("/clients/c1/archive"))).toHaveLength(1);
   });
+}
 
+function registerLifecycleMissingRouteTests(): void {
   it("(d2) a lifecycle-ARCHIVE 404 (already gone) is also treated as converged", async () => {
     const { calls, fetchImpl } = recordingFetch((url) =>
       url.endsWith("/clients/c1/archive")
@@ -2003,7 +2013,9 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
 
     await expect(a.saveAll(scopedData("a1", {}))).rejects.toThrow("Lifecycle archive of clients/c1 failed (404)");
   });
+}
 
+function registerLifecycleUnloadTests(): void {
   it("awaits a pending lifecycle-delete keepalive receipt without poisoning the batch", async () => {
     // The final teardown state is one ordered transaction: an ARCHIVE operation cannot be overtaken
     // by an older creation, and ordinary sibling edits commit atomically with it.
@@ -2043,7 +2055,9 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
     expect(calls.some((c) => c.url.endsWith("/clients/c1/archive"))).toBe(false);
     expect(calls.some((c) => c.url.endsWith("/clients/c1/delete"))).toBe(false); // never soft-deletes on unload
   });
+}
 
+function registerLifecycleUnloadFailureTests(): void {
   it("rejects an unload flush when its lifecycle archive does not positively commit", async () => {
     let rejectArchive: ((reason: Error) => void) | undefined;
     const calls: Array<{ url: string; body?: string; keepalive?: boolean }> = [];
@@ -2081,7 +2095,9 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
     await expect(teardown).rejects.toThrow("keepalive dropped");
     expect(settled).toBe(true);
   });
+}
 
+function registerLifecyclePostUnloadRestoreTests(): void {
   it("unarchives a lifecycle row restored after a confirmed teardown archive even when the diff is otherwise empty", async () => {
     const restored = { ...client("c1"), updatedAt: TS2 };
     const { calls, fetchImpl } = recordingFetch((url) =>
@@ -2099,6 +2115,18 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
     await adapter.saveAll(created);
     expect(calls.map((call) => call.url)).toEqual(["http://x/api/clients/c1/unarchive"]);
   });
+}
+
+describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY convergence (DEFECT A)", () => {
+  registerLifecycleArchiveTests();
+  registerLifecycleRestoreTests();
+  registerLifecycleRestoreOrderingTests();
+  registerLifecycleBatchOrderingTests();
+  registerLifecycleConflictTests();
+  registerLifecycleMissingRouteTests();
+  registerLifecycleUnloadTests();
+  registerLifecycleUnloadFailureTests();
+  registerLifecyclePostUnloadRestoreTests();
 });
 
 const manyClients = (count: number) => Array.from({ length: count }, (_, index) => client(`c${index}`));
