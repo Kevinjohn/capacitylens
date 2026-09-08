@@ -714,7 +714,7 @@ describe("AllocationModal advisory work bounds", () => {
 const enableDays = (workingDays?: Weekday[]) =>
   useStore.getState().updateAccount(ACC, { schedulingMode: "days", ...(workingDays && { workingDays }) });
 
-describe("AllocationModal days mode", () => {
+function registerDaysEffectiveWeekTests() {
   it("counts and derives spans through a company-narrowed effective week", async () => {
     enableDays([1, 2, 3, 4]);
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
@@ -766,7 +766,9 @@ describe("AllocationModal days mode", () => {
     expect(screen.getByLabelText("Days of work")).not.toHaveAttribute("aria-invalid", "true");
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerDaysZeroOverlapTests() {
   it("keeps zero-overlap date math finite but rejects creating a normal allocation", async () => {
     enableDays([2]);
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] });
@@ -814,7 +816,9 @@ describe("AllocationModal days mode", () => {
       screen.getByText("This person has no working days within the company's current working week."),
     ).toBeInTheDocument();
   });
+}
 
+function registerDaysWorkingDayChoiceTests() {
   it("leaves Ignore working days unchecked and skips personal non-working weekdays", async () => {
     enableDays();
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] });
@@ -867,7 +871,9 @@ describe("AllocationModal days mode", () => {
       ignoreWeekends: true,
     });
   });
+}
 
+function registerDaysExistingIgnoredSpanTest() {
   it("reopens and resaves an existing checked allocation without changing its span or semantics", async () => {
     enableDays();
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] });
@@ -892,7 +898,9 @@ describe("AllocationModal days mode", () => {
       ignoreWeekends: true,
     });
   });
+}
 
+function registerDaysDerivedScheduleTest() {
   it("derives end date + hours/day from start, days of work and days over", async () => {
     enableDays();
     const r = useStore
@@ -936,7 +944,9 @@ describe("AllocationModal days mode", () => {
       hoursPerDay: 4,
     });
   });
+}
 
+function registerDaysBasicValidationTests() {
   it("rejects zero days of work", async () => {
     enableDays();
     const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
@@ -992,7 +1002,9 @@ describe("AllocationModal days mode", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/cannot extend beyond 31 December 9999/i);
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerDaysWorkVolumeValidationTest() {
   it("rejects a work volume that would derive more than 24h/day (no silent clamp)", async () => {
     // 5 days of work crammed into a 1-day span = 40h/day, which the store would clamp to 24 —
     // silently discarding the entered volume. The modal must reject so preview === saved.
@@ -1024,7 +1036,9 @@ describe("AllocationModal days mode", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/more than 24h a day/i);
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerDaysEmptySpanValidationTest() {
   it('rejects an EMPTY "Days over" submitted via Enter (no blur) instead of saving a 0-hour allocation', async () => {
     // The NaN hole: a valid "Days of work" but a "Days over" left empty/part-typed emits NaN
     // (NumberField only clamps to min on blur). hoursPerDayFor(daysOfWork, NaN, whpd) is NaN, the
@@ -1065,7 +1079,9 @@ describe("AllocationModal days mode", () => {
     expect(useStore.getState().data.allocations).toHaveLength(0);
     addAllocation.mockRestore();
   });
+}
 
+function registerDaysCreationSeedTests() {
   it("honours the drawn span when creating (days over = the dragged-out length)", async () => {
     enableDays();
     const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
@@ -1113,7 +1129,9 @@ describe("AllocationModal days mode", () => {
     expect(screen.getByLabelText("Days over")).toHaveValue(1);
     expect(screen.getByLabelText("Days of work")).toHaveValue(0.5);
   });
+}
 
+function registerDaysExistingAllocationTests() {
   it("does not drift hours when an unevenly-dividing allocation is re-saved unchanged", async () => {
     enableDays();
     const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
@@ -1176,6 +1194,19 @@ describe("AllocationModal days mode", () => {
     expect(screen.getByLabelText("Days of work")).toHaveValue(5);
     expect(screen.getByLabelText("Days over")).toHaveValue(10);
   });
+}
+
+describe("AllocationModal days mode", () => {
+  registerDaysEffectiveWeekTests();
+  registerDaysZeroOverlapTests();
+  registerDaysWorkingDayChoiceTests();
+  registerDaysExistingIgnoredSpanTest();
+  registerDaysDerivedScheduleTest();
+  registerDaysBasicValidationTests();
+  registerDaysWorkVolumeValidationTest();
+  registerDaysEmptySpanValidationTest();
+  registerDaysCreationSeedTests();
+  registerDaysExistingAllocationTests();
 });
 
 describe("AllocationModal blocks mode", () => {
