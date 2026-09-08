@@ -2251,8 +2251,8 @@ describe("built-in Internal client is a per-account singleton on direct writes",
 
     expect(res.statusCode).toBe(400);
     expect(readErrorResponse(res).error).toMatch(/generated|built-in|Internal/i);
-    expect((await state(app)).accounts).toEqual([]);
-    expect((await state(app)).clients).toEqual([]);
+    expect((await readValidatedState(app)).accounts).toEqual([]);
+    expect((await readValidatedState(app)).clients).toEqual([]);
   });
 
   it("accepts the canonical same-batch duplicate of a freshly generated Internal client", async () => {
@@ -2820,7 +2820,7 @@ describe("guards", () => {
       url: "/api/test/reset",
       payload: { seed: true },
     });
-    const s = await state(app);
+    const s = await readValidatedState(app);
     expect(s.accounts.length).toBeGreaterThan(0); // seeded demo data present
   });
 
@@ -4661,7 +4661,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
   it("account: every field round-trips (including optional schedulingMode)", async () => {
     const { app } = freshApp();
     expect((await post(app, "accounts", FIXTURE_ACCOUNT)).statusCode).toBe(201);
-    expectFixture((await state(app)).accounts[0], FIXTURE_ACCOUNT);
+    expectFixture(await readStateAccount(app), FIXTURE_ACCOUNT);
   });
 
   it("client: every field round-trips (lifecycle archivedAt/deletedAt stripped by generic writes)", async () => {
