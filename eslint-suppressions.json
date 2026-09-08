@@ -908,22 +908,6 @@
       "count": 1
     }
   },
-  "src/auth/useAccountSummaries.test.tsx": {
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
-  "src/auth/useAccountSummaries.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/auth/useAuthContextValue.ts": {
     "no-nested-ternary": {
       "count": 1
