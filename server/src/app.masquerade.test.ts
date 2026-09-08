@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import type { AuditEntry, AuditSink } from "./audit";
 import { createAuthFromEnvironment, runAuthMigrations, SESSION_INACTIVITY_TTL_SECONDS } from "./auth";
 import { createApp } from "./app";
@@ -10,6 +10,42 @@ import { PASSWORD_ENV, call, registerServerFixtureCleanup, signUp } from "./test
 
 const TS = "2026-09-01T10:00:00.000Z";
 const { trackApp, trackDb } = registerServerFixtureCleanup();
+
+function readJsonObject(response: LightMyRequestResponse): Record<string, unknown> {
+  const value = response.json<unknown>();
+  if (!isRecord(value)) {
+    throw new TypeError("Expected response body to be a JSON object.");
+  }
+  return value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readStringField(response: LightMyRequestResponse, field: string): string {
+  const value = readJsonObject(response)[field];
+  if (typeof value !== "string") {
+    throw new TypeError(`Expected response field ${field} to be a string.`);
+  }
+  return value;
+}
+
+function readBooleanField(response: LightMyRequestResponse, field: string): boolean {
+  const value = readJsonObject(response)[field];
+  if (typeof value !== "boolean") {
+    throw new TypeError(`Expected response field ${field} to be a boolean.`);
+  }
+  return value;
+}
+
+function readObjectArrayField(response: LightMyRequestResponse, field: string): Record<string, unknown>[] {
+  const value = readJsonObject(response)[field];
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "object" || item === null || Array.isArray(item))) {
+    throw new TypeError(`Expected response field ${field} to be an array of objects.`);
+  }
+  return value;
+}
 
 function seedAccount(db: Db): void {
   const data = emptyAppData() as unknown as Record<string, unknown[]>;
@@ -38,7 +74,8 @@ async function fixture(options: { multiAccount?: boolean } = {}): Promise<{
 }> {
   const db = trackDb(openDb(":memory:"));
   const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  await runAuthMigrations(auth!);
+  if (!auth) throw new Error("Password fixture requires an authentication service.");
+  await runAuthMigrations(auth);
   const auditEvents: AuditEntry[] = [];
   const audit: AuditSink = {
     degraded: false,
@@ -86,13 +123,14 @@ describe("identity masquerade", () => {
     });
 
     expect(started.statusCode).toBe(200);
-    expect(started.json()).toMatchObject({
+    const startedBody = readJsonObject(started);
+    expect(startedBody).toMatchObject({
       accountId: "a1",
       targetUserId: target.userId,
       targetName: "Tester",
       effectiveRole: "viewer",
-      token: expect.any(String),
     });
+    expect(typeof startedBody.token).toBe("string");
     expect(
       (await call(app, { method: "GET", url: "/api/accounts", headers: { cookie: actor.cookie } })).json(),
     ).toEqual([expect.objectContaining({ id: "a1", role: "viewer" })]);
@@ -100,15 +138,19 @@ describe("identity masquerade", () => {
       expect.objectContaining({
         action: "identity.masquerade_started",
         targetPrincipalId: target.userId,
-        expiresAt: expect.any(String),
       }),
     );
+    const startedEvent = auditEvents.find(({ action }) => action === "identity.masquerade_started");
+    if (!startedEvent || !("expiresAt" in startedEvent)) {
+      throw new TypeError("Expected masquerade start audit event with an expiry.");
+    }
+    expect(typeof startedEvent.expiresAt).toBe("string");
 
     const ended = await call(app, {
       method: "DELETE",
       url: "/api/masquerade",
       headers: { cookie: actor.cookie },
-      payload: { token: started.json().token, reason: "explicit" },
+      payload: { token: readStringField(started, "token"), reason: "explicit" },
     });
     expect(ended.statusCode).toBe(204);
     expect(
@@ -136,7 +178,7 @@ describe("identity masquerade", () => {
       payload: {},
     });
     expect(blocked.statusCode).toBe(403);
-    expect(blocked.json().code).toBe("MASQUERADE_READ_ONLY");
+    expect(readStringField(blocked, "code")).toBe("MASQUERADE_READ_ONLY");
   });
 
   it("rejects replacement, self-targeting, inactive targets, and non-admin callers", async () => {
@@ -155,13 +197,13 @@ describe("identity masquerade", () => {
       payload: { targetUserId: target.userId },
     });
     expect(replacement.statusCode).toBe(409);
-    expect(replacement.json().code).toBe("MASQUERADE_ACTIVE");
+    expect(readStringField(replacement, "code")).toBe("MASQUERADE_ACTIVE");
 
     await call(app, {
       method: "DELETE",
       url: "/api/masquerade",
       headers: { cookie: actor.cookie },
-      payload: { token: first.json().token, reason: "explicit" },
+      payload: { token: readStringField(first, "token"), reason: "explicit" },
     });
     const self = await call(app, {
       method: "POST",
@@ -234,7 +276,7 @@ describe("identity masquerade", () => {
     );
     const invalidated = await call(app, { method: "GET", url: "/api/accounts", headers: { cookie: actor.cookie } });
     expect(invalidated.statusCode).toBe(403);
-    expect(invalidated.json().code).toBe("MASQUERADE_ENDED");
+    expect(readStringField(invalidated, "code")).toBe("MASQUERADE_ENDED");
     expect(
       (await call(app, { method: "GET", url: "/api/accounts", headers: { cookie: actor.cookie } })).json(),
     ).toEqual([expect.objectContaining({ role: "owner" })]);
@@ -259,7 +301,7 @@ describe("identity masquerade", () => {
 
     const invalidated = await call(app, { method: "GET", url: "/api/accounts", headers: { cookie: actor.cookie } });
     expect(invalidated.statusCode).toBe(403);
-    expect(invalidated.json().code).toBe("MASQUERADE_ENDED");
+    expect(readStringField(invalidated, "code")).toBe("MASQUERADE_ENDED");
     expect(
       (await call(app, { method: "GET", url: "/api/accounts", headers: { cookie: actor.cookie } })).json(),
     ).toEqual([expect.objectContaining({ role: "editor" })]);
@@ -284,7 +326,7 @@ describe("identity masquerade", () => {
 
     const invalidated = await call(app, { method: "GET", url: "/api/accounts", headers: { cookie: actor.cookie } });
     expect(invalidated.statusCode).toBe(403);
-    expect(invalidated.json().code).toBe("MASQUERADE_ENDED");
+    expect(readStringField(invalidated, "code")).toBe("MASQUERADE_ENDED");
     expect(auditEvents).toContainEqual(
       expect.objectContaining({ action: "identity.masquerade_ended", reason: "caller_invalidated" }),
     );
@@ -310,12 +352,7 @@ describe("identity masquerade", () => {
       headers: { cookie: actor.cookie },
     });
     expect(response.statusCode).toBe(200);
-    const members = response.json().members as Array<{
-      userId: string;
-      isSelf: boolean;
-      mayResetPassword: boolean;
-      mayRevokeSessions: boolean;
-    }>;
+    const members = readObjectArrayField(response, "members");
     expect(members.find(({ userId }) => userId === target.userId)).toMatchObject({
       isSelf: true,
       mayResetPassword: true,
@@ -387,23 +424,25 @@ describe("identity masquerade", () => {
       headers: { cookie: actor.cookie },
     });
     expect(projected.body).not.toContain("SENTINEL_REAL_CLIENT_NAME");
-    expect(projected.json().clients[0]).toMatchObject({ name: '"Nightwing"' });
+    expect(readObjectArrayField(projected, "clients")[0]).toMatchObject({ name: '"Nightwing"' });
     await call(app, {
       method: "DELETE",
       url: "/api/masquerade",
       headers: { cookie: actor.cookie },
-      payload: { token: started.json().token, reason: "explicit" },
+      payload: { token: readStringField(started, "token"), reason: "explicit" },
     });
     expect(
-      (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: actor.cookie } })).json()
-        .clients[0],
+      readObjectArrayField(
+        await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: actor.cookie } }),
+        "clients",
+      )[0],
     ).toMatchObject({ name: "SENTINEL_REAL_CLIENT_NAME", codeName: "Nightwing" });
   });
 
   it("reports canCreateAccount false while active", async () => {
     const { app, actor, target } = await memberFixture("owner", { multiAccount: true });
     const before = await call(app, { method: "GET", url: "/api/auth/me", headers: { cookie: actor.cookie } });
-    expect(before.json().canCreateAccount).toBe(true);
+    expect(readBooleanField(before, "canCreateAccount")).toBe(true);
     const started = await call(app, {
       method: "POST",
       url: "/api/accounts/a1/masquerade",
@@ -412,8 +451,10 @@ describe("identity masquerade", () => {
     });
     expect(started.statusCode).toBe(200);
     expect(
-      (await call(app, { method: "GET", url: "/api/auth/me", headers: { cookie: actor.cookie } })).json()
-        .canCreateAccount,
+      readBooleanField(
+        await call(app, { method: "GET", url: "/api/auth/me", headers: { cookie: actor.cookie } }),
+        "canCreateAccount",
+      ),
     ).toBe(false);
   });
 
@@ -498,7 +539,7 @@ describe("identity masquerade", () => {
     const reset = await call(app, {
       method: "POST",
       url: "/api/auth/reset-password",
-      payload: { token: minted.json().token, newPassword: "brand-new-password-456" },
+      payload: { token: readStringField(minted, "token"), newPassword: "brand-new-password-456" },
     });
 
     expect(reset.statusCode).toBe(200);
@@ -549,6 +590,6 @@ describe("identity masquerade", () => {
       payload: {},
     });
     expect(blocked.statusCode).toBe(403);
-    expect(blocked.json().code).toBe("MASQUERADE_READ_ONLY");
+    expect(readStringField(blocked, "code")).toBe("MASQUERADE_READ_ONLY");
   });
 });
