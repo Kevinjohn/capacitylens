@@ -858,7 +858,7 @@ describe("invites — OFF mode (trusted-local)", () => {
 // path and every accept outcome (link binds, wrong-email 403, unverified-match 403, verified-match
 // 200, OFF skip) end-to-end, asserting that a 403 never consumes the single-use invite.
 
-describe("P1.10 — preauthInviteAllows / normalizeEmail (pure decision matrix)", () => {
+function registerPreauthNormalizationTests(): void {
   it("normalizeEmail trims and lowercases", () => {
     expect(normalizeEmail("  Alice@Example.COM ")).toBe("alice@example.com");
     expect(normalizeEmail("bob@host")).toBe("bob@host");
@@ -871,7 +871,9 @@ describe("P1.10 — preauthInviteAllows / normalizeEmail (pure decision matrix)"
     );
     expect(preauthInviteAllows({ preauthEmail: null, user: { email: "anyone@x.io", emailVerified: true } })).toBe(true);
   });
+}
 
+function registerVerifiedPreauthMatchTest(): void {
   it("preauth + verified + EXACT (normalized) match → true (case/whitespace folded by store-time normalize)", () => {
     // preauthEmail is stored ALREADY normalized; the user email is normalized inside the helper, so a
     // differently-cased / padded live email still matches the normalized stored value.
@@ -895,7 +897,9 @@ describe("P1.10 — preauthInviteAllows / normalizeEmail (pure decision matrix)"
       }),
     ).toBe(true);
   });
+}
 
+function registerPreauthDecisionRefusalTests(): void {
   it("preauth + verified + DIFFERENT email → false", () => {
     const stored = normalizeEmail("carol@example.com");
     expect(
@@ -928,6 +932,12 @@ describe("P1.10 — preauthInviteAllows / normalizeEmail (pure decision matrix)"
       }),
     ).toBe(true);
   });
+}
+
+describe("P1.10 — preauthInviteAllows / normalizeEmail (pure decision matrix)", () => {
+  registerPreauthNormalizationTests();
+  registerVerifiedPreauthMatchTest();
+  registerPreauthDecisionRefusalTests();
 });
 
 function registerNormalizedPreauthCreationTest(): void {
