@@ -35,7 +35,8 @@ function seedTwo(db: Db): void {
 async function appWithAuth(options: { rateLimit?: number } = {}): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  await runAuthMigrations(auth!);
+  if (!auth) throw new Error("Expected auth configuration.");
+  await runAuthMigrations(auth);
   return { app: createApp(db, { authMode: mode, auth, ...options }), db };
 }
 
@@ -228,10 +229,12 @@ describe("GET /api/accounts/:id/members — gate", () => {
       }
     ).members;
     expect(members).toHaveLength(2);
-    const self = members.find((m) => m.userId === owner.userId)!;
+    const self = members.find((m) => m.userId === owner.userId);
+    if (!self) throw new Error("Expected the owner member row.");
     expect(self.isSelf).toBe(true);
     expect(self.email).toBe("owner-id@capacitylens.dev");
-    const otherRow = members.find((m) => m.userId === ed.userId)!;
+    const otherRow = members.find((m) => m.userId === ed.userId);
+    if (!otherRow) throw new Error("Expected the editor member row.");
     expect(otherRow.isSelf).toBe(false);
     expect(otherRow.role).toBe("editor");
   });
@@ -288,7 +291,11 @@ describe("GET /api/accounts/:id/members — gate", () => {
         }>;
       }
     ).members;
-    const by = (id: string) => members.find((m) => m.userId === id)!;
+    const by = (id: string) => {
+      const member = members.find((m) => m.userId === id);
+      if (!member) throw new Error(`Expected member row for ${id}.`);
+      return member;
+    };
     expect(by(ed.userId).mayResetPassword).toBe(true); // same-account editor → resettable
     expect(by(owner.userId).mayResetPassword).toBe(true); // caller's own row (self-reset exemption)
     expect(by(crossOwner.userId).mayResetPassword).toBe(false); // outranks caller in a2 → refused
@@ -989,7 +996,9 @@ describe("DELETE /api/accounts/:id/invites/:inviteId — revoke", () => {
     });
     const created = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: owner.cookie });
     const token = (created.json() as { token: string }).token;
-    const inviteId = getInvite(db, token)!.id;
+    const invite = getInvite(db, token);
+    if (!invite) throw new Error("Expected the created invitation.");
+    const inviteId = invite.id;
 
     // An admin of a DIFFERENT account (a2) cannot revoke a1's invite. The gate is on a2 here
     // (cross-tenant authorize → 403), the strongest guarantee.
@@ -1401,9 +1410,9 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
     const members = (res.json() as { members: Array<{ userId: string; status: string; role: string }> }).members;
     const row = members.find((m) => m.userId === ed.userId);
     // An invisible non-active member would be an unreversible one — the admin needs the row to act on.
-    expect(row).toBeDefined();
-    expect(row!.status).toBe("disabled");
-    expect(row!.role).toBe("editor");
+    if (!row) throw new Error("Expected the disabled member row.");
+    expect(row.status).toBe("disabled");
+    expect(row.role).toBe("editor");
   });
 
   it("refuses to disable the OWNER — the account must never be left without one", async () => {
@@ -1686,7 +1695,9 @@ describe("disabling holds across every membership path (#175 review)", () => {
       (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
     ).toBe(403);
     // And the invite is NOT burned — it still works once an admin restores the membership.
-    expect(getInvite(db, token)!.usedAt).toBeNull();
+    const invite = getInvite(db, token);
+    if (!invite) throw new Error("Expected the invitation to remain available.");
+    expect(invite.usedAt).toBeNull();
   });
 
   it("an archived member is refused identically, so neither suspension is the weaker one", async () => {
@@ -1740,7 +1751,9 @@ describe("disabling holds across every membership path (#175 review)", () => {
       (await call(app, { method: "POST", url: `/api/invites/${token}/accept`, headers: { cookie: ed.cookie } }))
         .statusCode,
     ).toBe(200);
-    expect(getInvite(db, token)!.usedAt).not.toBeNull();
+    const invite = getInvite(db, token);
+    if (!invite) throw new Error("Expected the redeemed invitation.");
+    expect(invite.usedAt).not.toBeNull();
   });
 
   it("an admin keeps reset-password and revoke-sessions authority over a member they just disabled", async () => {
@@ -1754,7 +1767,8 @@ describe("disabling holds across every membership path (#175 review)", () => {
       listed.json() as {
         members: Array<{ userId: string; mayResetPassword: boolean; mayRevokeSessions: boolean }>;
       }
-    ).members.find((m) => m.userId === ed.userId)!;
+    ).members.find((m) => m.userId === ed.userId);
+    if (!row) throw new Error("Expected the disabled member authority row.");
     expect(row.mayResetPassword).toBe(true);
     expect(row.mayRevokeSessions).toBe(true);
 
