@@ -166,6 +166,9 @@ describe("synchronous transaction boundary", () => {
 });
 
 function compileOnlyAsyncCallbackRejection(db: DatabaseSync): void {
+  void tx(db, () => undefined, undefined);
+  void tx(db, () => undefined, "deferred", undefined);
+  void tx(db, () => undefined, undefined, undefined);
   // @ts-expect-error Transaction callbacks must complete synchronously.
   void tx(db, async () => undefined);
   const maybeAsync = (): void | Promise<void> => undefined;

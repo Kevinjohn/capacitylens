@@ -58,8 +58,8 @@ function assertSynchronousResult(result: unknown): void {
 
 type TransactionConfiguration =
   | []
-  | [mode: TransactionMode]
-  | [mode: TransactionMode | undefined, reportRollbackFailure: RollbackFailureReporter]
+  | [mode: TransactionMode | undefined]
+  | [mode: TransactionMode | undefined, reportRollbackFailure: RollbackFailureReporter | undefined]
   | [options: TransactionOptions];
 
 function resolveTransactionOptions(configuration: TransactionConfiguration): Required<TransactionOptions> {
