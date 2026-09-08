@@ -2216,7 +2216,7 @@ describe("batch pre-scan validation", () => {
   });
 });
 
-describe("validation (shared domain-core) rejects bad writes with 400", () => {
+function registerRequiredWriteValidationTests(): void {
   it("rejects a null time-off resource", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -2243,7 +2243,9 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     expect(readErrorResponse(res).error).toMatch(/missing required field.*kind/i);
     expect((await readValidatedState(app)).resources).toEqual([]);
   });
+}
 
+function registerParentWriteValidationTests(): void {
   it("rejects missing required project and phase parents at the shared boundary", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -2296,7 +2298,9 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     expect(res.statusCode).toBe(400);
     expect(readErrorResponse(res).error).toMatch(/client/i);
   });
+}
 
+function registerAllocationRangeOrderValidationTest(): void {
   it("rejects a reversed allocation date range", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -2317,7 +2321,9 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     expect(res.statusCode).toBe(400);
     expect(readErrorResponse(res).error).toMatch(/end date/i);
   });
+}
 
+function registerSchedulingSpanValidationTest(): void {
   it("accepts the maximum scheduling span and rejects longer allocation and time-off writes", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -2373,7 +2379,9 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     expect(timeOffResponse.statusCode).toBe(400);
     expect(readErrorResponse(timeOffResponse).error).toBe("Date span cannot exceed 36,500 calendar days.");
   });
+}
 
+function registerPlaceholderWriteValidationTests(): void {
   it("rejects a placeholder assigned outside its bound project", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -2408,7 +2416,9 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     expect(readProjectId(snapshot.resources, "ph")).toBe("p1");
     expect(readProjectId(snapshot.activities, "t1")).toBe("p1");
   });
+}
 
+function registerAllocationReferenceValidationTests(): void {
   it("rejects an allocation referencing a missing resource/activity", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -2442,7 +2452,9 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     expect(res.statusCode).toBe(400);
     expect(readErrorResponse(res).error).toBe(CROSS_ACCOUNT_ACTIVITY_ERROR);
   });
+}
 
+function registerExternalResourceWriteValidationTests(): void {
   it("rejects a non-zero allocation load on an external / 3rd-party resource (no capacity)", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -2484,7 +2496,9 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     expect(res.statusCode).toBe(400);
     expect(readErrorResponse(res).error).toMatch(/external/i);
   });
+}
 
+function registerExternalResourceConversionRejectionTests(): void {
   // Flipping a resource to external while it still owns loaded work / time-off would orphan those
   // dependents (the scheduler hides external capacity + time-off). The server rejects the flip on
   // BOTH the full-row PUT and the partial PATCH merge — same shared assert as the store.
@@ -2525,7 +2539,9 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     expect(res.statusCode).toBe(400);
     expect(readErrorResponse(res).error).toMatch(/work and time off/i);
   });
+}
 
+function registerExternalResourceConversionAcceptanceTests(): void {
   it("accepts flipping a resource to external when it has NO disallowed dependents (zero-load allocation is fine)", async () => {
     const { app } = freshApp();
     await scaffold(app);
@@ -2552,6 +2568,18 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     ).toBe(201);
     expect((await patch({ app, entity: "resources", id: "ext", payload: { role: "Overflow" } })).statusCode).toBe(200);
   });
+}
+
+describe("validation (shared domain-core) rejects bad writes with 400", () => {
+  registerRequiredWriteValidationTests();
+  registerParentWriteValidationTests();
+  registerAllocationRangeOrderValidationTest();
+  registerSchedulingSpanValidationTest();
+  registerPlaceholderWriteValidationTests();
+  registerAllocationReferenceValidationTests();
+  registerExternalResourceWriteValidationTests();
+  registerExternalResourceConversionRejectionTests();
+  registerExternalResourceConversionAcceptanceTests();
 });
 
 function registerInternalClientCreationRejectionTests(): void {
