@@ -75,7 +75,11 @@ async function probe(port: string, marker: string | null = join(directory, "gene
   );
 }
 
-describe("TLS renewal generation verification", () => {
+function stringContaining(value: string): unknown {
+  return expect.stringContaining(value);
+}
+
+function registerDeploymentTest() {
   it("verifies through the deployed script after coordinated stop, rotation and restart", () => {
     const stop = shell.indexOf("docker compose stop web api");
     const rotate = shell.indexOf("CAPACITYLENS_INTERNAL_TLS_ROTATE=1");
@@ -86,6 +90,9 @@ describe("TLS renewal generation verification", () => {
     expect(restart).toBeGreaterThan(rotate);
     expect(verify).toBeGreaterThan(restart);
   });
+}
+
+function registerAcceptStatusTests() {
   it.each([200, 201, 299])("accepts status %i only with the published fingerprint", async (status) => {
     const port = await listen(status, JSON.stringify({ internalTls: { fingerprintSha256: fingerprint } }));
     expect(await probe(port)).toEqual({
@@ -95,17 +102,21 @@ describe("TLS renewal generation verification", () => {
       stderr: "",
     });
   });
+}
 
+function registerRejectStatusTests() {
   it.each([300, 404, 503])("rejects status %i even with a matching fingerprint", async (status) => {
     const port = await listen(status, JSON.stringify({ internalTls: { fingerprintSha256: fingerprint } }));
     expect(await probe(port)).toMatchObject({
       code: 1,
       signal: null,
       stdout: "",
-      stderr: expect.stringContaining("live fingerprint does not match the published generation"),
+      stderr: stringContaining("live fingerprint does not match the published generation"),
     });
   });
+}
 
+function registerFingerprintTests() {
   it.each([
     {},
     { internalTls: null },
@@ -119,19 +130,23 @@ describe("TLS renewal generation verification", () => {
       code: 1,
       signal: null,
       stdout: "",
-      stderr: expect.stringContaining("renewal verification failed"),
+      stderr: stringContaining("renewal verification failed"),
     });
   });
+}
 
+function registerInvalidResponseTest() {
   it.each(["", "null", "not json"])("reports invalid response data: %j", async (body) => {
     expect(await probe(await listen(200, body))).toMatchObject({
       code: 1,
       signal: null,
       stdout: "",
-      stderr: expect.stringContaining("renewal verification failed"),
+      stderr: stringContaining("renewal verification failed"),
     });
   });
+}
 
+function registerConnectionFailureTest() {
   it("reports a connection failure without reporting renewal success", async () => {
     const port = await listen(200, "{}");
     await closeServer();
@@ -139,10 +154,12 @@ describe("TLS renewal generation verification", () => {
       code: 1,
       signal: null,
       stdout: "",
-      stderr: expect.stringContaining("renewal verification failed"),
+      stderr: stringContaining("renewal verification failed"),
     });
   });
+}
 
+function registerMarkerTests() {
   it.each([
     { marker: null, message: "ERR_INVALID_ARG_TYPE" },
     { marker: "missing", message: "ENOENT" },
@@ -151,7 +168,17 @@ describe("TLS renewal generation verification", () => {
       code: 1,
       signal: null,
       stdout: "",
-      stderr: expect.stringContaining(message),
+      stderr: stringContaining(message),
     });
   });
+}
+
+describe("TLS renewal generation verification", () => {
+  registerDeploymentTest();
+  registerAcceptStatusTests();
+  registerRejectStatusTests();
+  registerFingerprintTests();
+  registerInvalidResponseTest();
+  registerConnectionFailureTest();
+  registerMarkerTests();
 });
