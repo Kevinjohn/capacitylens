@@ -208,6 +208,23 @@ const RELEASED_MIGRATION_HISTORY = [
   V34_MIGRATION,
   V35_MIGRATION,
 ] as const;
+const V25_TO_CURRENT_MIGRATIONS = [
+  {
+    version: 25,
+    name: "secure-federated-identity-linking",
+    checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
+  },
+  V26_MIGRATION,
+  V27_MIGRATION,
+  V28_MIGRATION,
+  V29_MIGRATION,
+  V30_MIGRATION,
+  V31_MIGRATION,
+  V32_MIGRATION,
+  V33_MIGRATION,
+  V34_MIGRATION,
+  V35_MIGRATION,
+] as const;
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
 const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25, 34] as const;
 const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
@@ -669,6 +686,75 @@ function prepareV26LegacyDefaultEntities(db: Db) {
     updatedAt: TS,
   });
   return resource;
+}
+
+function prepareV24IdentitySchema(db: Db): void {
+  db.exec(`
+    DROP TABLE capacitylens_federated_link_observations;
+    DROP TABLE capacitylens_federated_link_ceremonies;
+    DROP TABLE capacitylens_sso_cutover_state;
+    DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
+    PRAGMA user_version = 24;
+    CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT NOT NULL);
+    CREATE TABLE account (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      providerId TEXT NOT NULL,
+      accountId TEXT NOT NULL
+    );
+  `);
+}
+
+function assertV25IdentityMigrationRefusals(): void {
+  const duplicate = openDb(":memory:");
+  prepareV24IdentitySchema(duplicate);
+  duplicate.exec(`
+    INSERT INTO user (id, email) VALUES
+      ('principal-1', 'owner@example.com'),
+      ('principal-2', 'other@example.com');
+    INSERT INTO account (id, userId, providerId, accountId) VALUES
+      ('link-1', 'principal-1', 'workforce', 'subject-1'),
+      ('link-2', 'principal-2', 'workforce', 'subject-1');
+  `);
+  expect(() => initializeOpenDb(duplicate, ":memory:")).toThrow(
+    /provider workforce, subject subject-1, principals principal-1, principal-2.*owner@example.com, other@example.com/i,
+  );
+  expect((duplicate.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(24);
+  expect(duplicate.prepare(`SELECT 1 FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 25`).get()).toBeUndefined();
+  duplicate.close();
+
+  const repeatedProvider = openDb(":memory:");
+  prepareV24IdentitySchema(repeatedProvider);
+  repeatedProvider.exec(`
+    INSERT INTO user (id, email) VALUES ('principal-1', 'owner@example.com');
+    INSERT INTO account (id, userId, providerId, accountId) VALUES
+      ('link-1', 'principal-1', 'workforce', 'subject-1'),
+      ('link-2', 'principal-1', 'workforce', 'subject-2');
+  `);
+  expect(() => initializeOpenDb(repeatedProvider, ":memory:")).toThrow(
+    /principal principal-1.*provider workforce, subjects subject-1, subject-2/i,
+  );
+  expect((repeatedProvider.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(24);
+  repeatedProvider.close();
+
+  const malformed = openDb(":memory:");
+  prepareV24IdentitySchema(malformed);
+  malformed.exec(`
+    CREATE TABLE capacitylens_federated_link_ceremonies (
+      id TEXT NOT NULL PRIMARY KEY,
+      principalId TEXT NOT NULL,
+      providerId TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      expiresAt TEXT NOT NULL,
+      completedAt TEXT
+    );
+  `);
+  expect(() => initializeOpenDb(malformed, ":memory:")).toThrow(
+    /invalid capacitylens_federated_link_ceremonies definition/i,
+  );
+  expect((malformed.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(24);
+  expect(malformed.prepare(`SELECT 1 FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 25`).get()).toBeUndefined();
+  malformed.close();
 }
 
 describe("schema migration of an existing on-disk DB", () => {
@@ -2040,23 +2126,6 @@ describe("schema migration of an existing on-disk DB", () => {
   });
 
   it("v25 refuses duplicate provider subjects before installing the concurrency-safe unique index", () => {
-    const prepareV24IdentitySchema = (db: Db) => {
-      db.exec(`
-        DROP TABLE capacitylens_federated_link_observations;
-        DROP TABLE capacitylens_federated_link_ceremonies;
-        DROP TABLE capacitylens_sso_cutover_state;
-        DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
-        PRAGMA user_version = 24;
-        CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT NOT NULL);
-        CREATE TABLE account (
-          id TEXT PRIMARY KEY,
-          userId TEXT NOT NULL,
-          providerId TEXT NOT NULL,
-          accountId TEXT NOT NULL
-        );
-      `);
-    };
-
     const clean = openDb(":memory:");
     prepareV24IdentitySchema(clean);
     clean.exec(`
@@ -2064,23 +2133,7 @@ describe("schema migration of an existing on-disk DB", () => {
       INSERT INTO account (id, userId, providerId, accountId)
       VALUES ('link-1', 'principal-1', 'workforce', 'subject-1');
     `);
-    expect(planDatabaseMigrations(clean).migrations).toEqual([
-      {
-        version: 25,
-        name: "secure-federated-identity-linking",
-        checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
-      },
-      V26_MIGRATION,
-      V27_MIGRATION,
-      V28_MIGRATION,
-      V29_MIGRATION,
-      V30_MIGRATION,
-      V31_MIGRATION,
-      V32_MIGRATION,
-      V33_MIGRATION,
-      V34_MIGRATION,
-      V35_MIGRATION,
-    ]);
+    expect(planDatabaseMigrations(clean).migrations).toEqual(V25_TO_CURRENT_MIGRATIONS);
     initializeOpenDb(clean, ":memory:");
     expect(() => assertFederatedIdentitySchemaCurrent(clean)).not.toThrow();
     expect(() =>
@@ -2119,56 +2172,7 @@ describe("schema migration of an existing on-disk DB", () => {
         .all(),
     ).toEqual([{ principalId: "principal-2", providerId: "workforce", subject: "subject-2" }]);
     clean.close();
-
-    const duplicate = openDb(":memory:");
-    prepareV24IdentitySchema(duplicate);
-    duplicate.exec(`
-      INSERT INTO user (id, email) VALUES
-        ('principal-1', 'owner@example.com'),
-        ('principal-2', 'other@example.com');
-      INSERT INTO account (id, userId, providerId, accountId) VALUES
-        ('link-1', 'principal-1', 'workforce', 'subject-1'),
-        ('link-2', 'principal-2', 'workforce', 'subject-1');
-    `);
-    expect(() => initializeOpenDb(duplicate, ":memory:")).toThrow(
-      /provider workforce, subject subject-1, principals principal-1, principal-2.*owner@example.com, other@example.com/i,
-    );
-    expect((duplicate.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(24);
-    expect(duplicate.prepare(`SELECT 1 FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 25`).get()).toBeUndefined();
-    duplicate.close();
-
-    const repeatedProvider = openDb(":memory:");
-    prepareV24IdentitySchema(repeatedProvider);
-    repeatedProvider.exec(`
-      INSERT INTO user (id, email) VALUES ('principal-1', 'owner@example.com');
-      INSERT INTO account (id, userId, providerId, accountId) VALUES
-        ('link-1', 'principal-1', 'workforce', 'subject-1'),
-        ('link-2', 'principal-1', 'workforce', 'subject-2');
-    `);
-    expect(() => initializeOpenDb(repeatedProvider, ":memory:")).toThrow(
-      /principal principal-1.*provider workforce, subjects subject-1, subject-2/i,
-    );
-    expect((repeatedProvider.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(24);
-    repeatedProvider.close();
-
-    const malformed = openDb(":memory:");
-    prepareV24IdentitySchema(malformed);
-    malformed.exec(`
-      CREATE TABLE capacitylens_federated_link_ceremonies (
-        id TEXT NOT NULL PRIMARY KEY,
-        principalId TEXT NOT NULL,
-        providerId TEXT NOT NULL,
-        createdAt TEXT NOT NULL,
-        expiresAt TEXT NOT NULL,
-        completedAt TEXT
-      );
-    `);
-    expect(() => initializeOpenDb(malformed, ":memory:")).toThrow(
-      /invalid capacitylens_federated_link_ceremonies definition/i,
-    );
-    expect((malformed.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(24);
-    expect(malformed.prepare(`SELECT 1 FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 25`).get()).toBeUndefined();
-    malformed.close();
+    assertV25IdentityMigrationRefusals();
   });
 
   it("refuses missing or checksummed migration-history drift before planning writes", () => {
