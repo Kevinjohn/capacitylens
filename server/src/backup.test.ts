@@ -424,8 +424,9 @@ describe("startBackups", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("backup written"));
     expect(statSync(dir).mode & 0o777).toBe(0o700);
     expect(statSync(file).mode & 0o777).toBe(0o600);
-    expect(backups.health.degraded).toBe(false);
-    expect(typeof backups.health.lastSuccessAt).toBe("string");
+    const lastSuccessAt = backups.health.lastSuccessAt;
+    expect(typeof lastSuccessAt).toBe("string");
+    expect(backups.health).toEqual({ degraded: false, lastSuccessAt });
   });
 
   it("persists the scheduled snapshot name before retention and then persists deletions", async () => {
