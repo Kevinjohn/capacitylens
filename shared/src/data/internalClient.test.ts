@@ -15,7 +15,13 @@ import { activeOnly } from "../domain/lifecycle";
 
 const TS = "2026-01-01T00:00:00.000Z";
 
-describe("built-in Internal client", () => {
+function requiredInternalClient(clients: Client[], accountId: string): Client {
+  const internal = internalClientFor(clients, accountId);
+  if (internal === undefined) throw new Error(`Expected Internal client for ${accountId}`);
+  return internal;
+}
+
+function registerSeedTests(): void {
   it("seed gives every account exactly one builtin Internal client", () => {
     const data = seed();
     for (const account of data.accounts) {
@@ -42,7 +48,9 @@ describe("built-in Internal client", () => {
     expect(twice).toBe(once);
     expect(twice.clients.filter((c) => c.builtin)).toHaveLength(2);
   });
+}
 
+function registerCorruptInputTests(): void {
   it("adds only one Internal when corrupt input repeats an account id, then converges", () => {
     const account = { id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" };
     const base = {
@@ -79,7 +87,9 @@ describe("built-in Internal client", () => {
     expect(repaired.clients).toContain(ordinary);
     expect(ensureInternalClients(repaired, TS)).toBe(repaired);
   });
+}
 
+function registerDuplicateBuiltinTests(): void {
   it("deterministically folds duplicate builtins and rewires their projects", () => {
     const generated = { ...buildInternalClient("a1", TS), id: "internal:a1" };
     const duplicate: Client = {
@@ -110,7 +120,9 @@ describe("built-in Internal client", () => {
     expect(repaired.projects[0]?.updatedAt).toBe("2026-01-01T00:00:00.001Z");
     expect(ensureInternalClients(repaired, TS)).toBe(repaired);
   });
+}
 
+function registerSameIdDuplicateTests(): void {
   it("folds duplicate builtins that share the same primary id", () => {
     const retained = buildInternalClient("a1", TS);
     const duplicate = { ...retained, createdAt: "2026-01-02T00:00:00.000Z" };
@@ -137,7 +149,9 @@ describe("built-in Internal client", () => {
     expect(repaired.projects).toBe(data.projects);
     expect(ensureInternalClients(repaired, TS)).toBe(repaired);
   });
+}
 
+function registerRepairRevisionTests(): void {
   it("bumps only rewired projects so updatedAt-based sync persists a duplicate fold", () => {
     const generated = buildInternalClient("a1", TS);
     const duplicate = { ...buildInternalClient("a1", TS), id: "legacy-internal" };
@@ -185,11 +199,13 @@ describe("built-in Internal client", () => {
         } as Client,
       ],
     };
-    const internal = internalClientFor(ensureInternalClients(data, NOW).clients, "a1")!;
+    const internal = requiredInternalClient(ensureInternalClients(data, NOW).clients, "a1");
     expect(internal.name).toBe(INTERNAL_CLIENT_NAME);
     expect(internal.updatedAt).toBe(NOW);
   });
+}
 
+function registerReactivationTests(): void {
   it.each([
     ["archived", { archivedAt: TS }],
     ["deleted", { archivedAt: TS, deletedAt: "2026-01-02T00:00:00.000Z" }],
@@ -202,7 +218,7 @@ describe("built-in Internal client", () => {
     };
 
     const repaired = ensureInternalClients(data, TS);
-    const retained = internalClientFor(repaired.clients, "a1")!;
+    const retained = requiredInternalClient(repaired.clients, "a1");
 
     expect(repaired).not.toBe(data);
     expect(retained).not.toHaveProperty("archivedAt");
@@ -228,13 +244,15 @@ describe("built-in Internal client", () => {
           } as Client,
         ],
       };
-      return internalClientFor(ensureInternalClients(data, now).clients, "a1")!.updatedAt;
+      return requiredInternalClient(ensureInternalClients(data, now).clients, "a1").updatedAt;
     };
 
     expect(repair(TS, TS)).toBe("2026-01-01T00:00:00.001Z");
     expect(repair("2027-01-01T00:00:00.000Z", TS)).toBe("2027-01-01T00:00:00.001Z");
   });
+}
 
+function registerRepairBoundaryTests(): void {
   it("refuses a repair that cannot advance within the supported timestamp domain", () => {
     const maximum = "9999-12-31T23:59:59.999Z";
     const data = {
@@ -269,9 +287,11 @@ describe("built-in Internal client", () => {
     };
     const repaired = ensureInternalClients(data, NOW);
     expect(internalClientFor(repaired.clients, "a2")).toBeDefined(); // the function DID run
-    expect(internalClientFor(repaired.clients, "a1")!.updatedAt).toBe(TS); // canonical row NOT restamped
+    expect(requiredInternalClient(repaired.clients, "a1").updatedAt).toBe(TS); // canonical row NOT restamped
   });
+}
 
+function registerMigrationTests(): void {
   it("migrate (v5→v6) backfills one Internal per account, idempotently and without duplicating a pre-existing one", () => {
     const blob = {
       schemaVersion: 5,
@@ -320,7 +340,9 @@ describe("built-in Internal client", () => {
     const data = seed();
     expect(parseData(serializeData(data))).toEqual(data);
   });
+}
 
+function registerPublicPredicateTests(): void {
   it("buildInternalClient uses the deterministic id and reserved name/colour with builtin:true", () => {
     const c = buildInternalClient("a9", TS);
     expect(c).toMatchObject({ accountId: "a9", name: INTERNAL_CLIENT_NAME, builtin: true });
@@ -350,4 +372,16 @@ describe("built-in Internal client", () => {
     // A different ACCOUNT that has no builtin → allowed (per-account scoping).
     expect(wouldAddSecondBuiltin(clients, "a2", "c-int-2")).toBe(false);
   });
+}
+
+describe("built-in Internal client", () => {
+  registerSeedTests();
+  registerCorruptInputTests();
+  registerDuplicateBuiltinTests();
+  registerSameIdDuplicateTests();
+  registerRepairRevisionTests();
+  registerReactivationTests();
+  registerRepairBoundaryTests();
+  registerMigrationTests();
+  registerPublicPredicateTests();
 });
