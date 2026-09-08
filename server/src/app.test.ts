@@ -3102,7 +3102,7 @@ describe("tenant-scoped mutation projections", () => {
   });
 });
 
-describe("guards", () => {
+function registerOversizedPayloadGuardTest() {
   it("rejects an oversized payload with 413", async () => {
     const { app } = freshApp();
     const huge = '{"id":"' + "a".repeat(6 * 1024 * 1024) + '"}';
@@ -3114,7 +3114,10 @@ describe("guards", () => {
     });
     expect(res.statusCode).toBe(413);
   });
+}
 
+describe("guards", () => {
+  registerOversizedPayloadGuardTest();
   it("reset is 403 unless allowed, then wipes + re-seeds", async () => {
     const locked = createApp(openDb(":memory:"), { allowReset: false });
     expect(
@@ -3596,7 +3599,7 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
   });
 });
 
-describe("error status mapping (statusFor)", () => {
+function registerErrorStatusMappingTest() {
   it("maps validation + constraint errors to 400 and unexpected errors to 500", () => {
     expect(resolveErrorStatus(new ValidationError("bad ref"))).toBe(400);
     expect(
@@ -3627,7 +3630,10 @@ describe("error status mapping (statusFor)", () => {
     expect(resolveErrorStatus(new Error("something unexpected blew up"))).toBe(500);
     expect(resolveErrorStatus("a string")).toBe(500);
   });
+}
 
+describe("error status mapping (statusFor)", () => {
+  registerErrorStatusMappingTest();
   // PINNING TEST: these trigger real node:sqlite violations so the classifier stays tied to the
   // runtime's structured error metadata for each supported row-data constraint family.
   describe("pins node:sqlite constraint metadata on real violations", () => {
