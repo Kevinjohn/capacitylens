@@ -143,7 +143,9 @@ describe("CommandPalette", () => {
     expect(screen.queryAllByRole("option")).toHaveLength(0);
     await waitFor(() => expect(input).not.toHaveAttribute("aria-activedescendant"));
   });
+});
 
+describe("CommandPalette", () => {
   it("shows People section when typing a resource name", () => {
     renderPalette();
 
@@ -154,7 +156,7 @@ describe("CommandPalette", () => {
     const options = screen.getAllByTestId("command-palette-option");
     const tylerOption = options.find((o) => {
       const textContent = o.textContent;
-      return textContent !== null && textContent.includes("Bruce Wayne");
+      return textContent.includes("Bruce Wayne");
     });
     expect(tylerOption).toBeTruthy();
   });
@@ -196,7 +198,9 @@ describe("CommandPalette", () => {
     expect(screen.getByText("People")).toBeInTheDocument();
     expect(screen.getByText("José Müller")).toBeInTheDocument();
   });
+});
 
+describe("CommandPalette", () => {
   it("omits an Internal project whose destination bars are hidden from the schedule", () => {
     addInternalSearchItems({
       showInternalProjects: false,
@@ -239,7 +243,9 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Office Ritual")).toBeInTheDocument();
     expect(screen.getByText("Internal")).toBeInTheDocument();
   });
+});
 
+describe("CommandPalette", () => {
   it("shows no results message for unmatched query", () => {
     renderPalette();
 
@@ -266,7 +272,9 @@ describe("CommandPalette", () => {
 
     expect(screen.queryByText(/Go to date/)).not.toBeInTheDocument();
   });
+});
 
+describe("CommandPalette", () => {
   it("ArrowDown moves highlight to next option", () => {
     renderPalette();
 
@@ -320,7 +328,9 @@ describe("CommandPalette", () => {
 
     expect(closed).toBe(true);
   });
+});
 
+describe("CommandPalette", () => {
   it("mouse hover sets the active option", () => {
     renderPalette();
 
@@ -348,7 +358,9 @@ describe("CommandPalette", () => {
 
     expect(closed).toBe(true);
   });
+});
 
+describe("CommandPalette", () => {
   it("jumpToResource is called when a resource is selected", () => {
     renderPalette();
 
@@ -358,7 +370,7 @@ describe("CommandPalette", () => {
     const options = screen.getAllByTestId("command-palette-option");
     const tylerOption = options.find((o) => {
       const textContent = o.textContent;
-      return textContent !== null && textContent.includes("Bruce Wayne");
+      return textContent.includes("Bruce Wayne");
     });
     if (!tylerOption) throw new Error("Expected Bruce Wayne command palette option");
     expect(tylerOption).toBeTruthy();
@@ -376,7 +388,9 @@ describe("CommandPalette", () => {
     expect(sr.token).toBeGreaterThan(0);
     expect(sr.consumed).toBe(false);
   });
+});
 
+describe("CommandPalette", () => {
   it("setFilters is called with projectId when a project is selected", () => {
     // Add a project first
     const clients = useStore.getState().data.clients;
@@ -398,7 +412,7 @@ describe("CommandPalette", () => {
     const options = screen.getAllByTestId("command-palette-option");
     const projectOption = options.find((o) => {
       const textContent = o.textContent;
-      return textContent !== null && textContent.includes("Project Watchtower");
+      return textContent.includes("Project Watchtower");
     });
     if (!projectOption) throw new Error("Expected Project Watchtower command palette option");
     expect(projectOption).toBeTruthy();
@@ -411,7 +425,9 @@ describe("CommandPalette", () => {
     const filters = useStore.getState().ui.filters;
     expect(filters.projectId).not.toBeNull();
   });
+});
 
+describe("CommandPalette", () => {
   it("carries the selected activity identity to the complete activity list", () => {
     const activity = useStore.getState().addActivity({ name: "Kickoff", kind: "internal" });
     renderPalette();
@@ -432,7 +448,9 @@ describe("CommandPalette", () => {
 
     expect(screen.queryByText(/Go to date/)).not.toBeInTheDocument();
   });
+});
 
+describe("CommandPalette", () => {
   it("project selection REPLACES stale filters with only projectId set", () => {
     const clients = useStore.getState().data.clients;
     const client = clients[0];
@@ -466,7 +484,7 @@ describe("CommandPalette", () => {
     const options = screen.getAllByTestId("command-palette-option");
     const projectOption = options.find((o) => {
       const textContent = o.textContent;
-      return textContent !== null && textContent.includes("Project Alpha");
+      return textContent.includes("Project Alpha");
     });
     if (!projectOption) throw new Error("Expected Project Alpha command palette option");
     expect(projectOption).toBeTruthy();
@@ -480,7 +498,9 @@ describe("CommandPalette", () => {
     if (!projectId) throw new Error("Expected Project Alpha id");
     expect(filters).toEqual({ ...buildEmptyFilters(), projectId });
   });
+});
 
+describe("CommandPalette", () => {
   it("client selection REPLACES stale filters with only clientId set", () => {
     let clientId: string | undefined;
     act(() => {
@@ -507,7 +527,7 @@ describe("CommandPalette", () => {
     const options = screen.getAllByTestId("command-palette-option");
     const clientOption = options.find((o) => {
       const textContent = o.textContent;
-      return textContent !== null && textContent.includes("Client Zeta");
+      return textContent.includes("Client Zeta");
     });
     if (!clientOption) throw new Error("Expected Client Zeta command palette option");
     expect(clientOption).toBeTruthy();
