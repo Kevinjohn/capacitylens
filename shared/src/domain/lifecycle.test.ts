@@ -57,6 +57,24 @@ const makeActive = (): Sample => ({ id: "r1", name: "x" });
 const makeArchived = (): Sample => ({ id: "r1", name: "x", archivedAt: T_ARCH });
 const makeDeleted = (): Sample => ({ id: "r1", name: "x", archivedAt: T_ARCH, deletedAt: T_DEL });
 
+const expectLifecycleError = (
+  operation: () => unknown,
+  code: LifecycleTransitionError["code"],
+  message: RegExp,
+): void => {
+  let caught: unknown;
+  try {
+    operation();
+  } catch (error: unknown) {
+    caught = error;
+  }
+  expect(caught).toBeInstanceOf(LifecycleTransitionError);
+  if (caught instanceof LifecycleTransitionError) {
+    expect(caught.code).toBe(code);
+    expect(caught.message).toMatch(message);
+  }
+};
+
 describe("lifecycleStatus — derive state from tombstones (deletedAt wins)", () => {
   it("active ({}) → 'active'", () => {
     expect(lifecycleStatus(makeActive())).toBe<LifecycleState>("active");
@@ -134,22 +152,10 @@ describe("archive — active → archived (immutable, fail-loud)", () => {
     expect(lifecycleStatus(result)).toBe("archived");
   });
   it("from archived: throws (no re-archive)", () => {
-    expect(() => archive(makeArchived(), NOW)).toThrow(
-      expect.objectContaining({
-        name: "LifecycleTransitionError",
-        code: "already_inactive",
-        message: expect.stringMatching(/already archived/),
-      }) as LifecycleTransitionError,
-    );
+    expectLifecycleError(() => archive(makeArchived(), NOW), "already_inactive", /already archived/);
   });
   it("from deleted: throws", () => {
-    expect(() => archive(makeDeleted(), NOW)).toThrow(
-      expect.objectContaining({
-        name: "LifecycleTransitionError",
-        code: "invalid_transition",
-        message: expect.stringMatching(/already deleted/),
-      }) as LifecycleTransitionError,
-    );
+    expectLifecycleError(() => archive(makeDeleted(), NOW), "invalid_transition", /already deleted/);
   });
   it("rejects an invalid archive timestamp and canonicalizes an explicit offset", () => {
     expect(() => archive(makeActive(), "not-a-timestamp")).toThrow(/valid ISO timestamp/);
@@ -300,31 +306,35 @@ describe("isLifecycleEntityKey — narrowing guard for the tombstone-carrying ta
   });
 });
 
-describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, immutable)", () => {
-  // A full, valid sample Resource so the preservation assertions check the REAL field set. The
-  // id's leading hex ('a1b2') is the source of the deterministic token tag. Each call returns a
-  // fresh object (including its own weekday arrays) so the immutability checks aren't fooled by aliasing.
-  const makeResource = (over: Partial<Resource> = {}): Resource => ({
-    id: "a1b2c3d4-0000-4000-8000-000000000000",
-    accountId: "acc-1",
-    kind: "person",
-    name: "Ada Lovelace",
-    role: "Senior Designer",
-    disciplineId: "disc-1",
-    employmentType: "permanent",
-    engagement: "studio" as const,
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    ...(over.projectId === undefined ? {} : { projectId: over.projectId }),
-    color: "#3b82f6",
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-02-01T00:00:00.000Z",
-    archivedAt: T_ARCH,
-    deletedAt: T_DEL,
-    ...over,
-    halfDays: over.halfDays ?? [],
-  });
+// A full, valid sample Resource so the preservation assertions check the REAL field set. The
+// id's leading hex ('a1b2') is the source of the deterministic token tag. Each call returns a
+// fresh object (including its own weekday arrays) so the immutability checks aren't fooled by aliasing.
+const RESOURCE_BASE: Resource = {
+  id: "a1b2c3d4-0000-4000-8000-000000000000",
+  accountId: "acc-1",
+  kind: "person",
+  name: "Ada Lovelace",
+  role: "Senior Designer",
+  disciplineId: "disc-1",
+  employmentType: "permanent",
+  engagement: "studio" as const,
+  workingHoursPerDay: 8,
+  workingDays: [1, 2, 3, 4, 5],
+  color: "#3b82f6",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-02-01T00:00:00.000Z",
+  archivedAt: T_ARCH,
+  deletedAt: T_DEL,
+  halfDays: [],
+};
+const makeResource = (over: Partial<Resource> = {}): Resource => ({
+  ...RESOURCE_BASE,
+  ...(over.projectId === undefined ? {} : { projectId: over.projectId }),
+  ...over,
+  halfDays: over.halfDays ?? [],
+});
 
+describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, immutable)", () => {
   it("scrubs a named person's name → 'Removed person #…', original name gone", () => {
     const result = obfuscateResource(makeResource());
     expect(result.name?.startsWith("Removed person #")).toBe(true);
@@ -373,7 +383,9 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     const b = obfuscateResource(makeResource({ id: "ffff0000-0000-4000-8000-000000000000" }));
     expect(a.name).not.toBe(b.name);
   });
+});
 
+describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, immutable)", () => {
   it("distinguishes UUIDs that share the first four hexadecimal characters", () => {
     const a = obfuscateResource(makeResource({ id: "abcd1111-0000-4000-8000-000000000000" }));
     const b = obfuscateResource(makeResource({ id: "abcd2222-0000-4000-8000-000000000000" }));
