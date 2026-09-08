@@ -394,6 +394,21 @@ function readRequiredString(record: Record<string, unknown>, property: string): 
   return value;
 }
 
+function readDependentNote(
+  db: Db,
+  table: "allocations" | "timeOff",
+  id: string,
+): { note: string | null; updatedAt: string } {
+  const row: unknown = db.prepare(`SELECT note, updatedAt FROM ${table} WHERE id = ?`).get(id);
+  if (!isUnknownRecord(row)) throw new Error(`Expected dependent ${table} row ${id}.`);
+  const note = row.note;
+  const updatedAt = row.updatedAt;
+  if ((note !== null && typeof note !== "string") || typeof updatedAt !== "string") {
+    throw new Error(`Expected dependent ${table} row ${id} note and revision.`);
+  }
+  return { note, updatedAt };
+}
+
 function readDeletedResourceState(response: unknown, id: string): DeletedResourceResponse {
   const resource = readEntityRecord(readResponseBodyRecord(response), "resources", id);
   return readDeletedResource(resource);
@@ -1063,21 +1078,16 @@ describe("P2.5a lifecycle — resource soft-delete obfuscation persists (P2.3 ca
       (await lifecycleAction({ app, entity: "resources", id: "rNotes", action: "delete", accountId: "a1" })).statusCode,
     ).toBe(200);
 
-    const dependent = (table: "allocations" | "timeOff", id: string) =>
-      db.prepare(`SELECT note, updatedAt FROM ${table} WHERE id = ?`).get(id) as {
-        note: string | null;
-        updatedAt: string;
-      };
-    expect(dependent("allocations", "alNoted")).toEqual({
+    expect(readDependentNote(db, "allocations", "alNoted")).toEqual({
       note: null,
       updatedAt: "2099-01-01T00:00:00.001Z",
     });
-    expect(dependent("allocations", "alPlain")).toEqual({ note: null, updatedAt: TS });
-    expect(dependent("timeOff", "toNoted")).toEqual({
+    expect(readDependentNote(db, "allocations", "alPlain")).toEqual({ note: null, updatedAt: TS });
+    expect(readDependentNote(db, "timeOff", "toNoted")).toEqual({
       note: null,
       updatedAt: "2099-01-01T00:00:00.001Z",
     });
-    expect(dependent("timeOff", "toPlain")).toEqual({ note: null, updatedAt: TS });
+    expect(readDependentNote(db, "timeOff", "toPlain")).toEqual({ note: null, updatedAt: TS });
   });
 });
 
