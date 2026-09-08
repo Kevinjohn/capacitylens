@@ -152,13 +152,13 @@ function listMissingSchemaEntries(db: DatabaseSync, tables: Array<{ name: string
 }
 
 function listMissingColumns(db: DatabaseSync, tableName: string): string[] {
-  const isKnownTable = Object.hasOwn(KNOWN_COLUMNS, tableName);
+  const knownColumns = Object.hasOwn(KNOWN_COLUMNS, tableName) ? KNOWN_COLUMNS[tableName] : undefined;
   const columns = db
     .prepare(`PRAGMA table_info("${tableName.replaceAll('"', '""')}")`)
     .all()
     .map((row) => assertText(row.name, `${tableName} column name`));
   return columns
-    .filter((name) => !isKnownTable || !KNOWN_COLUMNS[tableName].has(name))
+    .filter((name) => knownColumns === undefined || !knownColumns.has(name))
     .map((name) => `${tableName}.${name}`);
 }
 
