@@ -27,6 +27,7 @@ type InvitationClaimContext = Pick<
   AdminPortContext,
   "applicationId" | "db" | "trustedLocal" | "invitationSecretReplay" | "runMutation"
 >;
+type InvitationRedemptionContext = Pick<AdminPortContext, "db" | "trustedLocal">;
 type ClaimInvitationInput = {
   token: string;
   principalId: string;
@@ -38,7 +39,7 @@ type ClaimInvitationInput = {
 type AcceptInvitationInput = Parameters<SsoCutoverAccountAdminPort["acceptInvitation"]>[0];
 type PrincipalInvitationInput = Parameters<SsoCutoverAccountAdminPort["claimInvitationForPrincipal"]>[0];
 
-function getRedeemableInvitation(context: InvitationClaimContext, input: ClaimInvitationInput) {
+function getRedeemableInvitation(context: InvitationRedemptionContext, input: ClaimInvitationInput) {
   const live = getInvite(context.db, input.token);
   if (!live) throw createAccountFailure("NOT_FOUND", "Invite not found.", input.command.commandId);
   if (live.usedAt !== null) {
@@ -66,7 +67,7 @@ function getRedeemableInvitation(context: InvitationClaimContext, input: ClaimIn
   return live;
 }
 
-function claimInvitation(context: InvitationClaimContext, input: ClaimInvitationInput): Membership {
+function claimInvitation(context: InvitationRedemptionContext, input: ClaimInvitationInput): Membership {
   const live = getRedeemableInvitation(context, input);
   const now = new Date().toISOString();
   // Status-AGNOSTIC on purpose. An active-only probe reports a disabled or archived member as a
