@@ -2499,13 +2499,17 @@ function registerSsoDraftTests<T>(
     expect(within(await screen.findByRole("dialog")).getByRole("combobox")).toHaveTextContent("Editor");
   });
 
-  it("refreshes readiness after a successful membership mutation", async () => {
+  it("refreshes readiness after a successful membership mutation while retaining the loaded snapshot", async () => {
     const user = userEvent.setup();
     let readinessReads = 0;
+    let resolveRefresh: ((response: Response) => void) | undefined;
+    const pendingRefresh = new Promise<Response>((resolve) => {
+      resolveRefresh = resolve;
+    });
     const fetchMock = mockApi(directory, {
       "GET /sso-readiness": () => {
         readinessReads += 1;
-        return jsonResponse(ssoReadiness(false, "member_not_linked"));
+        return readinessReads === 1 ? jsonResponse(ssoReadiness(false, "member_not_linked")) : pendingRefresh;
       },
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -2516,6 +2520,15 @@ function registerSsoDraftTests<T>(
     await saveRoleVia(user, targetRow, "Viewer");
 
     await waitFor(() => expect(readinessReads).toBeGreaterThanOrEqual(2));
+    expect(screen.getByTestId("sso-readiness")).toBeInTheDocument();
+    expect(screen.queryByTestId("sso-readiness-error")).not.toBeInTheDocument();
+
+    await act(async () => {
+      requireValue(
+        resolveRefresh,
+        "the readiness refresh resolver",
+      )(jsonResponse(ssoReadiness(false, "member_not_linked")));
+    });
   });
 }
 

@@ -13,10 +13,8 @@ import {
 import type { useTeamDirectory } from "./useTeamDirectory";
 import type { MemberActionDependencies } from "./memberActionDependencies";
 
-interface WorkspaceReadinessDependencies extends Pick<
-  MemberActionDependencies,
-  "requestAccountId" | "withMemberAction" | "fail" | "setNotice"
-> {
+interface WorkspaceReadinessDependencies
+  extends Pick<MemberActionDependencies, "requestAccountId" | "withMemberAction" | "fail" | "setNotice"> {
   activeAccountId: string | null;
   strictProviderId: string | null;
   directory: ReturnType<typeof useTeamDirectory>["directory"];
@@ -24,6 +22,11 @@ interface WorkspaceReadinessDependencies extends Pick<
   members: TeamMember[] | null;
   refreshDirectory: () => void;
 }
+
+type WorkspaceReadinessState =
+  | { kind: "loading" }
+  | { kind: "ready"; readiness: WorkspaceReadiness }
+  | { kind: "error" };
 
 export function useWorkspaceReadiness({
   activeAccountId,
@@ -37,8 +40,7 @@ export function useWorkspaceReadiness({
   fail,
   setNotice,
 }: WorkspaceReadinessDependencies) {
-  const [readiness, setReadiness] = useState<WorkspaceReadiness | null>(null);
-  const [readinessError, setReadinessError] = useState(false);
+  const [readinessState, setReadinessState] = useState<WorkspaceReadinessState>({ kind: "loading" });
   const [readinessRevision, setReadinessRevision] = useState(0);
   const [emailRepair, setEmailRepair] = useState<{ member: ReadinessMember; email: string } | null>(null);
   const [unlinkRepair, setUnlinkRepair] = useState<{
@@ -66,14 +68,12 @@ export function useWorkspaceReadiness({
           throw new Error("Invalid SSO readiness response.");
         }
         if (!cancelled) {
-          setReadiness(parsed);
-          setReadinessError(false);
+          setReadinessState({ kind: "ready", readiness: parsed });
         }
       } catch (cause) {
         console.error("MembersSection: SSO readiness failed", cause);
         if (!cancelled) {
-          setReadiness(null);
-          setReadinessError(true);
+          setReadinessState({ kind: "error" });
         }
       }
     })();
@@ -138,8 +138,7 @@ export function useWorkspaceReadiness({
 
   return {
     readinessApplies,
-    readiness,
-    readinessError,
+    readinessState,
     emailRepair,
     setEmailRepair,
     unlinkRepair,
