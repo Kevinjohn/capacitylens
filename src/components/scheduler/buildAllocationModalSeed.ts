@@ -1,8 +1,8 @@
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { daysInclusive, eachDayISO, todayISO } from "@capacitylens/shared/lib/dateMath";
+import { daysInclusive, eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek, lacksEffectiveWorkingDays } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { spanDays } from "@capacitylens/shared/lib/schedulingDays";
-import type { Resource } from "@capacitylens/shared/types/entities";
+import type { ISODate, Resource } from "@capacitylens/shared/types/entities";
 import { FULL_DAY_HOURS } from "@capacitylens/shared/types/entities";
 import { resolveScheduledHoursOnDay } from "../../lib/capacity";
 
@@ -15,11 +15,11 @@ export function buildAllocationModalSeed({
   mode,
   resourceById: resourcesById,
   accountWorkingDays,
-  calendarTimeZone,
+  today,
 }: Pick<AllocationModalSnapshot, "editing" | "create" | "data" | "mode"> & {
   resourceById: Map<string, Resource>;
   accountWorkingDays: ReturnType<typeof normalizeAccountWorkingDays>;
-  calendarTimeZone: string;
+  today: ISODate;
 }) {
   const initialActivity = editing ? data.activities.find((activity) => activity.id === editing.activityId) : undefined;
   const initialResourceId = editing?.resourceId ?? create?.resourceId ?? "";
@@ -33,7 +33,7 @@ export function buildAllocationModalSeed({
         : // A dangling activity cannot identify the scope; a placeholder's binding remains authoritative.
           initialPlaceholderProjectId))
     : initialPlaceholderProjectId;
-  const initialStart = editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone);
+  const initialStart = editing?.startDate ?? create?.startDate ?? today;
   const initialScheduledHours =
     initialResource && initialEffectiveWeek
       ? resolveScheduledHoursOnDay(initialResource, initialStart, initialEffectiveWeek)
@@ -46,15 +46,12 @@ export function buildAllocationModalSeed({
   const seedEnd = editing?.endDate ?? create?.endDate;
   const initialIgnoreWeekends = editing?.ignoreWeekends ?? false;
   const initialUsesWorkingSpan = hasWorkingSpan(initialResource, mode);
-  const initialHasNoEffectiveDays =
-    initialUsesWorkingSpan && lacksEffectiveWorkingDays(initialEffectiveWeek, initialIgnoreWeekends);
+  const initialHasEffectiveDays =
+    !initialUsesWorkingSpan || !lacksEffectiveWorkingDays(initialEffectiveWeek, initialIgnoreWeekends);
   const initialDaysOver = !seedEnd
     ? 1
-    : initialHasNoEffectiveDays
-      ? // Neutral seed: keeps `none` out of spanDays without pretending the typed range is a
-        // working-day span. New placement is rejected by rejectNewPlacementCalendarConflicts.
-        1
-      : initialUsesWorkingSpan
+    : initialHasEffectiveDays
+      ? initialUsesWorkingSpan
         ? Math.max(
             1,
             spanDays(initialStart, seedEnd, {
@@ -62,7 +59,10 @@ export function buildAllocationModalSeed({
               ignoreWeekends: initialIgnoreWeekends,
             }),
           )
-        : Math.max(1, daysInclusive(initialStart, seedEnd));
+        : Math.max(1, daysInclusive(initialStart, seedEnd))
+      : // Neutral seed: keeps `none` out of spanDays without pretending the typed range is a
+        // working-day span. New placement is rejected by rejectNewPlacementCalendarConflicts.
+        1;
   const initialCapacityHours =
     initialResource && initialEffectiveWeek
       ? eachDayISO(initialStart, seedEnd ?? initialStart).reduce(

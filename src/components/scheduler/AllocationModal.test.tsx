@@ -8,6 +8,7 @@ import type { Activity, AppData, Weekday } from "@capacitylens/shared/types/enti
 import {
   DEFAULT_ACCOUNT_ID,
   makeActivity,
+  makeAllocation,
   makeAppData,
   makeClient,
   makeProject,
@@ -17,7 +18,9 @@ import {
 } from "../../test/fixtures";
 import { PermissionContext } from "../../auth/permissionContext";
 import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { chooseOption, GEOM, indexAtClientX, renderWithTooltip } from "./__tests__/schedulerTestKit";
+import { buildAllocationModalSeed } from "./buildAllocationModalSeed";
 
 function required<T>(value: T | undefined | null, message: string): T {
   expect(value).toBeDefined();
@@ -96,6 +99,53 @@ beforeEach(() => {
   // the suite. The risk-A case (editing an allocation already ON a placeholder while the pref is
   // OFF still shows that placeholder) has its own dedicated test below.
   setPlaceholdersEnabled(true);
+});
+
+describe("buildAllocationModalSeed", () => {
+  it("uses the injected calendar date when no create or edit date exists", () => {
+    const data = base();
+
+    const seed = buildAllocationModalSeed({
+      editing: undefined,
+      create: undefined,
+      data,
+      mode: "hourly",
+      resourceById: new Map(),
+      accountWorkingDays: normalizeAccountWorkingDays(undefined, 1),
+      today: "2040-01-02",
+    });
+
+    expect(seed.initialStart).toBe("2040-01-02");
+  });
+
+  it("keeps an edited allocation date ahead of create and injected dates", () => {
+    const data = base();
+    const editing = makeAllocation({
+      accountId: ACC,
+      id: "allocation-edit",
+      resourceId: "resource-edit",
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 0,
+      status: "tentative",
+      note: "",
+      ignoreWeekends: false,
+    });
+
+    const seed = buildAllocationModalSeed({
+      editing,
+      create: { resourceId: "resource-create", startDate: "2030-01-01", endDate: "2030-01-02" },
+      data,
+      mode: "hourly",
+      resourceById: new Map(),
+      accountWorkingDays: normalizeAccountWorkingDays(undefined, 1),
+      today: "2040-01-02",
+    });
+
+    expect(seed.initialStart).toBe("2026-06-01");
+    expect(seed.initialResourceId).toBe("resource-edit");
+  });
 });
 
 function registerCreatePickerTests() {
