@@ -36,108 +36,120 @@ beforeEach(() => {
   verifyBackupCode.mockReset();
 });
 
+function setsDescriptiveTitleOutsideAppShell() {
+  document.title = "Schedule · CapacityLens";
+
+  render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+
+  expect(document.title).toBe("Sign in · CapacityLens");
+}
+
+async function showsStableRetryGuidanceAndRemovesProviderQueryValues() {
+  window.history.replaceState({}, "", "/?externalSignInError=1&error=access_denied&error_description=provider-secret");
+  render(
+    <LoginScreen
+      authMode="sso"
+      providers={[{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }]}
+      onSignedIn={vi.fn()}
+    />,
+  );
+
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Single sign-on was not completed. Try again or contact your administrator.",
+  );
+  expect(screen.getByRole("alert")).not.toHaveTextContent("provider-secret");
+  await waitFor(() => expect(window.location.search).toBe(""));
+}
+
+async function mapsApplicationOwnedCallbackCodeToActionableCopy(code: string, expected: string) {
+  window.history.replaceState({}, "", `/?externalSignInError=1&error=${code}`);
+  render(
+    <LoginScreen
+      authMode="sso"
+      providers={[{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }]}
+      onSignedIn={vi.fn()}
+    />,
+  );
+
+  expect(screen.getByRole("alert")).toHaveTextContent(expected);
+  await waitFor(() => expect(window.location.search).toBe(""));
+}
+
+async function suppliesMarkedFailureReturnToNamedSocialProvider() {
+  signInSocial.mockResolvedValue({ data: {}, error: null });
+  window.history.replaceState({}, "", "/invite/token?source=mail");
+  render(
+    <LoginScreen
+      authMode="sso"
+      providers={[{ id: "google", label: "Google", kind: "social", experimental: true }]}
+      onSignedIn={vi.fn()}
+    />,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+
+  await waitFor(() =>
+    expect(signInSocial).toHaveBeenCalledWith({
+      provider: "google",
+      callbackURL: "http://localhost:3000/invite/token?source=mail",
+      errorCallbackURL: "http://localhost:3000/invite/token?source=mail&externalSignInError=1",
+    }),
+  );
+  expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Single sign-on was not completed. Try again or contact your administrator.",
+  );
+}
+
 describe("LoginScreen — external callback failures", () => {
-  it("sets a descriptive title while rendering outside the app shell", () => {
-    document.title = "Schedule · CapacityLens";
+  it("sets a descriptive title while rendering outside the app shell", setsDescriptiveTitleOutsideAppShell);
 
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
-
-    expect(document.title).toBe("Sign in · CapacityLens");
-  });
-
-  it("shows stable retry guidance and removes provider-controlled query values", async () => {
-    window.history.replaceState(
-      {},
-      "",
-      "/?externalSignInError=1&error=access_denied&error_description=provider-secret",
-    );
-    render(
-      <LoginScreen
-        authMode="sso"
-        providers={[{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }]}
-        onSignedIn={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Single sign-on was not completed. Try again or contact your administrator.",
-    );
-    expect(screen.getByRole("alert")).not.toHaveTextContent("provider-secret");
-    await waitFor(() => expect(window.location.search).toBe(""));
-  });
+  it(
+    "shows stable retry guidance and removes provider-controlled query values",
+    showsStableRetryGuidanceAndRemovesProviderQueryValues,
+  );
 
   it.each([
     ["OIDC_IDENTITY_VERIFICATION_FAILED", m.login_sso_verification_failed()],
     ["account_link_conflict", m.login_sso_account_link_conflict()],
-  ])("maps the application-owned callback code %s to actionable copy", async (code, expected) => {
-    window.history.replaceState({}, "", `/?externalSignInError=1&error=${code}`);
-    render(
-      <LoginScreen
-        authMode="sso"
-        providers={[{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }]}
-        onSignedIn={vi.fn()}
-      />,
-    );
+  ])(
+    "maps the application-owned callback code %s to actionable copy",
+    mapsApplicationOwnedCallbackCodeToActionableCopy,
+  );
 
-    expect(screen.getByRole("alert")).toHaveTextContent(expected);
-    await waitFor(() => expect(window.location.search).toBe(""));
-  });
-
-  it("supplies a marked failure return to a named social provider", async () => {
-    signInSocial.mockResolvedValue({ data: {}, error: null });
-    window.history.replaceState({}, "", "/invite/token?source=mail");
-    render(
-      <LoginScreen
-        authMode="sso"
-        providers={[{ id: "google", label: "Google", kind: "social", experimental: true }]}
-        onSignedIn={vi.fn()}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
-
-    await waitFor(() =>
-      expect(signInSocial).toHaveBeenCalledWith({
-        provider: "google",
-        callbackURL: "http://localhost:3000/invite/token?source=mail",
-        errorCallbackURL: "http://localhost:3000/invite/token?source=mail&externalSignInError=1",
-      }),
-    );
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Single sign-on was not completed. Try again or contact your administrator.",
-    );
-  });
+  it("supplies a marked failure return to a named social provider", suppliesMarkedFailureReturnToNamedSocialProvider);
 });
 
+async function enterTotpChallenge(onSignedIn = vi.fn()) {
+  signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
+  render(<LoginScreen authMode="password" onSignedIn={onSignedIn} />);
+  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
+  fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
+  fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+  await screen.findByLabelText("Authentication code");
+  return onSignedIn;
+}
+
+async function completesAuthenticatorChallengeBeforeSigningIn() {
+  signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
+  verifyTotp.mockResolvedValue({ data: { status: true }, error: null });
+  const onSignedIn = vi.fn();
+  render(<LoginScreen authMode="password" onSignedIn={onSignedIn} />);
+
+  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
+  fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
+  fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+  expect(await screen.findByLabelText("Authentication code")).toHaveAttribute("autocomplete", "one-time-code");
+  expect(onSignedIn).not.toHaveBeenCalled();
+
+  fireEvent.change(screen.getByTestId("mfa-code"), { target: { value: "123456" } });
+  fireEvent.click(screen.getByTestId("mfa-submit"));
+  await waitFor(() => expect(onSignedIn).toHaveBeenCalledTimes(1));
+  expect(verifyTotp).toHaveBeenCalledWith({ code: "123456", trustDevice: false });
+}
+
 describe("LoginScreen — multi-factor challenge", () => {
-  async function enterTotpChallenge(onSignedIn = vi.fn()) {
-    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-    render(<LoginScreen authMode="password" onSignedIn={onSignedIn} />);
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
-    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    await screen.findByLabelText("Authentication code");
-    return onSignedIn;
-  }
-
-  it("does not enter the app until the authenticator code succeeds", async () => {
-    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-    verifyTotp.mockResolvedValue({ data: { status: true }, error: null });
-    const onSignedIn = vi.fn();
-    render(<LoginScreen authMode="password" onSignedIn={onSignedIn} />);
-
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
-    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    expect(await screen.findByLabelText("Authentication code")).toHaveAttribute("autocomplete", "one-time-code");
-    expect(onSignedIn).not.toHaveBeenCalled();
-
-    fireEvent.change(screen.getByTestId("mfa-code"), { target: { value: "123456" } });
-    fireEvent.click(screen.getByTestId("mfa-submit"));
-    await waitFor(() => expect(onSignedIn).toHaveBeenCalledTimes(1));
-    expect(verifyTotp).toHaveBeenCalledWith({ code: "123456", trustDevice: false });
-  });
+  it("does not enter the app until the authenticator code succeeds", completesAuthenticatorChallengeBeforeSigningIn);
 
   it("hides external providers while a password second-factor challenge is pending", async () => {
     signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
@@ -279,16 +291,13 @@ describe("LoginScreen — per-control error cues (WCAG 3.3.1)", () => {
 
 // First-run owner setup: needsSetup (server-reported: password mode + zero users) swaps the
 // sign-in form for a create-the-owner-account form; success proceeds exactly like a sign-in.
-describe("LoginScreen — first-run owner setup (needsSetup)", () => {
-  function fillOwnerSetup({
-    name = "Owner",
-    password = "a-strong-password",
-  }: { name?: string; password?: string } = {}) {
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: name } });
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@x.test" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: password } });
-  }
+function fillOwnerSetup({ name = "Owner", password = "a-strong-password" }: { name?: string; password?: string } = {}) {
+  fireEvent.change(screen.getByLabelText("Name"), { target: { value: name } });
+  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@x.test" } });
+  fireEvent.change(screen.getByLabelText("Password"), { target: { value: password } });
+}
 
+function registerOwnerSetupDisplayTests() {
   it("renders the owner-setup form instead of sign-in when needsSetup", () => {
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
     expect(screen.getByRole("heading", { name: "Create the owner account" })).toBeInTheDocument();
@@ -320,7 +329,9 @@ describe("LoginScreen — first-run owner setup (needsSetup)", () => {
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
   });
+}
 
+function registerOwnerSetupSubmissionTests() {
   it("submits name/email/password through signUp.email and calls onSignedIn on success", async () => {
     signUpEmail.mockResolvedValue({ data: {}, error: null });
     const onSignedIn = vi.fn();
@@ -358,7 +369,9 @@ describe("LoginScreen — first-run owner setup (needsSetup)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(m.identity_err_password({ min: 15, max: 128 }));
     expect(signUpEmail).not.toHaveBeenCalled();
   });
+}
 
+function registerOwnerSetupErrorTests() {
   it("surfaces a network error and clears busy when owner signup throws", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     signUpEmail.mockRejectedValue(new TypeError("offline"));
@@ -381,7 +394,9 @@ describe("LoginScreen — first-run owner setup (needsSetup)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_setup_failed());
     expect(screen.getByRole("button", { name: "Create owner account" })).toBeEnabled();
   });
+}
 
+function registerOwnerSetupValidationTests() {
   it("rejects an owner-setup email containing disallowed characters", async () => {
     // Regression: the inline check used to only compare UTF-16 .length against MAX_EMAIL_LENGTH
     // and never screened for disallowed characters, so an emoji/zero-width address that stayed
@@ -419,7 +434,9 @@ describe("LoginScreen — first-run owner setup (needsSetup)", () => {
     // The button recovers (busy reset) so the user can retry after fixing the input.
     expect(screen.getByRole("button", { name: "Create owner account" })).toBeEnabled();
   });
+}
 
+function registerOwnerSetupAccessibilityAndRaceTests() {
   it("drops out of setup into the ordinary sign-in form when another operator wins the setup race", async () => {
     // Better Auth's live per-request gate (server/src/auth.ts) refuses a SECOND sign-up with this
     // exact typed code once a user exists — the shape a losing second tab/operator would see.
@@ -448,6 +465,14 @@ describe("LoginScreen — first-run owner setup (needsSetup)", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Someone has already set this workspace up — sign in below.");
     expect(onSignedIn).not.toHaveBeenCalled();
   });
+}
+
+describe("LoginScreen — first-run owner setup (needsSetup)", () => {
+  registerOwnerSetupDisplayTests();
+  registerOwnerSetupSubmissionTests();
+  registerOwnerSetupErrorTests();
+  registerOwnerSetupValidationTests();
+  registerOwnerSetupAccessibilityAndRaceTests();
 });
 
 describe("LoginScreen — provider failures", () => {
