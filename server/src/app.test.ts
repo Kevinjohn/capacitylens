@@ -846,7 +846,7 @@ function readClientSnapshots(rows: unknown[]): ClientSnapshot[] {
       if (isPrivate !== undefined) clientRow.isPrivate = isPrivate;
       return clientRow;
     })
-    .filter((clientRow) => !clientRow.id.startsWith("internal:"));
+    .filter((clientRow) => clientRow.builtin !== true);
 }
 
 function readFirstClient(clients: ClientSnapshot[]): ClientSnapshot {
