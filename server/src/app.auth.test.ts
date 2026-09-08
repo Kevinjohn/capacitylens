@@ -40,10 +40,17 @@ const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequest
   app.inject(opts) as unknown as Promise<LightMyRequestResponse>;
 
 /** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
+function headerValues(value: string | string[] | undefined): string[] {
+  if (Array.isArray(value)) return value;
+  if (value === undefined) return [];
+  return [value];
+}
+
 function cookiesOf(res: LightMyRequestResponse): string {
   const raw = res.headers["set-cookie"];
-  const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
-  return list.map((c) => String(c).split(";")[0]).join("; ");
+  return headerValues(raw)
+    .map((c) => String(c).split(";")[0])
+    .join("; ");
 }
 
 function parseJsonObject(res: LightMyRequestResponse): object {
@@ -226,6 +233,52 @@ async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance
   const { mode, auth } = createAuthFromEnvironment(db, env);
   await runAuthMigrations(parseConfiguredAuth(auth));
   return createApp(db, { authMode: mode, auth });
+}
+
+async function createSessionManagementFixture() {
+  const db = openDb(":memory:");
+  const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
+  await runAuthMigrations(parseConfiguredAuth(configured.auth));
+  const app = createApp(db, {
+    authMode: configured.mode,
+    auth: configured.auth,
+  });
+  const signUp = await call(app, {
+    method: "POST",
+    url: "/api/auth/sign-up/email",
+    payload: {
+      email: "sessions@capacitylens.dev",
+      password: "password-123456",
+      name: "Sessions",
+    },
+  });
+  const raw = db.prepare(`SELECT id, token, userId FROM session`).get() as {
+    id: string;
+    token: string;
+    userId: string;
+  };
+  const staleToken = "stale-session-bearer-token";
+  const staleHandle = buildApplicationSessionHandle("capacitylens", staleToken);
+  db.prepare(
+    `
+      INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, ipAddress, userAgent, userId)
+      VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)
+    `,
+  ).run(
+    "stale-session-row",
+    "2026-01-01T12:00:00.000Z",
+    staleToken,
+    "2026-01-01T00:00:00.000Z",
+    "2026-01-01T00:00:00.000Z",
+    raw.userId,
+  );
+  db.prepare(
+    `
+      INSERT INTO account_session_assurance (sessionId, principalId, assurance, providerId, createdAt)
+      VALUES (?, ?, 'password', NULL, ?)
+    `,
+  ).run(staleHandle, raw.userId, "2026-01-01T00:00:00.000Z");
+  return { app, cookie: cookiesOf(signUp), db, raw, staleHandle };
 }
 
 describe("CAPACITYLENS_AUTH off (default)", () => {
@@ -1040,7 +1093,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     });
     expect(signUp.statusCode).toBe(200);
     const raw = signUp.headers["set-cookie"];
-    const cookies = (Array.isArray(raw) ? raw : raw ? [raw] : []).map(String);
+    const cookies = headerValues(raw).map(String);
     const session = cookies.find((cookie) => cookie.startsWith("__Host-capacitylens.session_token="));
     expect(session).toBeDefined();
     expect(session).toMatch(/;\s*Path=\//i);
@@ -1512,49 +1565,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 
   it("lists and revokes sessions through neutral opaque handles without exposing bearer tokens", async () => {
-    const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(parseConfiguredAuth(configured.auth));
-    const app = createApp(db, {
-      authMode: configured.mode,
-      auth: configured.auth,
-    });
-    const signUp = await call(app, {
-      method: "POST",
-      url: "/api/auth/sign-up/email",
-      payload: {
-        email: "sessions@capacitylens.dev",
-        password: "password-123456",
-        name: "Sessions",
-      },
-    });
-    const cookie = cookiesOf(signUp);
-    const raw = db.prepare(`SELECT id, token, userId FROM session`).get() as {
-      id: string;
-      token: string;
-      userId: string;
-    };
-    const staleToken = "stale-session-bearer-token";
-    const staleHandle = buildApplicationSessionHandle("capacitylens", staleToken);
-    db.prepare(
-      `
-      INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, ipAddress, userAgent, userId)
-      VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)
-    `,
-    ).run(
-      "stale-session-row",
-      "2026-01-01T12:00:00.000Z",
-      staleToken,
-      "2026-01-01T00:00:00.000Z",
-      "2026-01-01T00:00:00.000Z",
-      raw.userId,
-    );
-    db.prepare(
-      `
-      INSERT INTO account_session_assurance (sessionId, principalId, assurance, providerId, createdAt)
-      VALUES (?, ?, 'password', NULL, ?)
-    `,
-    ).run(staleHandle, raw.userId, "2026-01-01T00:00:00.000Z");
+    const { app, cookie, db, raw, staleHandle } = await createSessionManagementFixture();
 
     const listed = await call(app, {
       method: "GET",
