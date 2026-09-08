@@ -564,7 +564,7 @@ describe("step-up freshness gate — missing sessionCreatedAt fails closed", () 
   });
 });
 
-describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
+function registerAdminRoleChangeTest(): void {
   it("admin changes editor→viewer → 200", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -597,7 +597,9 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
     expect(res.statusCode).toBe(200);
     expect(getMemberRole(db, "a1", target.userId)).toBe("viewer");
   });
+}
 
+function registerOwnerRoleGrantRejectionTest(): void {
   it("Owner cannot be assigned through an ordinary role change → 400", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -630,7 +632,9 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
     expect(res.statusCode).toBe(400);
     expect(getMemberRole(db, "a1", target.userId)).toBe("editor"); // unchanged
   });
+}
 
+function registerOwnerDemotionRejectionTest(): void {
   it("admin cannot demote an existing OWNER → 403", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -663,7 +667,9 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
     expect(res.statusCode).toBe(403);
     expect(getMemberRole(db, "a1", owner.userId)).toBe("owner");
   });
+}
 
+function registerOwnerOrdinaryRoleManagementTest(): void {
   it("owner manages ordinary non-owner roles but cannot grant Owner through the role endpoint", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -713,7 +719,31 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
     ).toBe(400);
     expect(getMemberRole(db, "a1", ed.userId)).toBe("admin");
   });
+}
 
+async function assertMissingMemberMutationResponses(app: FastifyInstance, ownerCookie: string): Promise<void> {
+  const expectedNotFound = { code: "NOT_FOUND", retryable: false };
+  const patch = await patchRoleReq({
+    app,
+    accountId: "a1",
+    userId: "ghost",
+    role: "editor",
+    headers: { cookie: ownerCookie },
+  });
+  expect(patch.statusCode).toBe(404);
+  expect(patch.json()).toMatchObject(expectedNotFound);
+  expect(parseCommandId(patch.json())).toEqual(expect.any(String));
+  const remove = await removeReq({ app, accountId: "a1", userId: "ghost", headers: { cookie: ownerCookie } });
+  expect(remove.statusCode).toBe(404);
+  expect(remove.json()).toMatchObject(expectedNotFound);
+  expect(parseCommandId(remove.json())).toEqual(expect.any(String));
+  const revoke = await revokeSessionsReq({ app, accountId: "a1", userId: "ghost", headers: { cookie: ownerCookie } });
+  expect(revoke.statusCode).toBe(404);
+  expect(revoke.json()).toMatchObject(expectedNotFound);
+  expect(parseCommandId(revoke.json())).toEqual(expect.any(String));
+}
+
+function registerRoleMutationErrorEnvelopeTest(): void {
   it("uses the normalized NOT_FOUND envelope for non-member mutations; 400 for a bad role", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -726,44 +756,7 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
       createdAt: TS,
     });
 
-    const expectedNotFound = {
-      code: "NOT_FOUND",
-      retryable: false,
-    };
-    const patch = await patchRoleReq({
-      app,
-      accountId: "a1",
-      userId: "ghost",
-      role: "editor",
-      headers: {
-        cookie: owner.cookie,
-      },
-    });
-    expect(patch.statusCode).toBe(404);
-    expect(patch.json()).toMatchObject(expectedNotFound);
-    expect(parseCommandId(patch.json())).toEqual(expect.any(String));
-    const remove = await removeReq({
-      app,
-      accountId: "a1",
-      userId: "ghost",
-      headers: {
-        cookie: owner.cookie,
-      },
-    });
-    expect(remove.statusCode).toBe(404);
-    expect(remove.json()).toMatchObject(expectedNotFound);
-    expect(parseCommandId(remove.json())).toEqual(expect.any(String));
-    const revoke = await revokeSessionsReq({
-      app,
-      accountId: "a1",
-      userId: "ghost",
-      headers: {
-        cookie: owner.cookie,
-      },
-    });
-    expect(revoke.statusCode).toBe(404);
-    expect(revoke.json()).toMatchObject(expectedNotFound);
-    expect(parseCommandId(revoke.json())).toEqual(expect.any(String));
+    await assertMissingMemberMutationResponses(app, owner.cookie);
     const ed = await signUp(app, "ed-400@capacitylens.dev");
     upsertMember(db, {
       accountId: "a1",
@@ -786,6 +779,14 @@ describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
       ).statusCode,
     ).toBe(400);
   });
+}
+
+describe("PATCH /api/accounts/:id/members/:userId — role change", () => {
+  registerAdminRoleChangeTest();
+  registerOwnerRoleGrantRejectionTest();
+  registerOwnerDemotionRejectionTest();
+  registerOwnerOrdinaryRoleManagementTest();
+  registerRoleMutationErrorEnvelopeTest();
 });
 
 function registerOwnerDemotionProtectionTest(): void {
