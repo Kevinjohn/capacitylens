@@ -255,6 +255,67 @@ function danglingPhaseData(): AppData {
   };
 }
 
+function siblingProjectData(): AppData {
+  return {
+    ...danglingPhaseData(),
+    phases: [
+      {
+        id: "ph-p1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Ph1",
+        projectId: "p1",
+      },
+      {
+        id: "ph-p2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Ph2",
+        projectId: "p2",
+      },
+    ],
+    activities: [
+      {
+        id: "a-p1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "A1",
+        kind: "project",
+        projectId: "p1",
+        phaseId: "ph-p1",
+      },
+      {
+        id: "a-p2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "A2",
+        kind: "project",
+        projectId: "p2",
+        phaseId: "ph-p2",
+      },
+    ],
+    allocations: [
+      {
+        id: "al-p2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "ph2",
+        activityId: "a-p2",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      },
+    ],
+    resources: [placeholder({ id: "ph2", projectId: "p2" })],
+  };
+}
+
 describe("validateProjectClient", () => {
   it("requires a client", () => {
     expect(validateProjectClient("c1").ok).toBe(true);
@@ -505,94 +566,7 @@ describe("cascade deletes", () => {
   it("deleteProjectCascade spares a SIBLING project’s phases, activities, allocations and bound placeholder", () => {
     // Deleting p1 must touch ONLY p1's subtree: p2 and everything coherently under it survives,
     // and a coherent p2 activity keeps its (p2) phase — the removed-phase set must not over-collect.
-    const data: AppData = {
-      ...emptyAppData(),
-      clients: [
-        {
-          id: "c1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "C",
-          color: "#1",
-        },
-      ],
-      projects: [
-        {
-          id: "p1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "P1",
-          clientId: "c1",
-          color: "#1",
-        },
-        {
-          id: "p2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "P2",
-          clientId: "c1",
-          color: "#2",
-        },
-      ],
-      phases: [
-        {
-          id: "ph-p1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Ph1",
-          projectId: "p1",
-        },
-        {
-          id: "ph-p2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Ph2",
-          projectId: "p2",
-        },
-      ],
-      activities: [
-        {
-          id: "a-p1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "A1",
-          kind: "project",
-          projectId: "p1",
-          phaseId: "ph-p1",
-        },
-        {
-          id: "a-p2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "A2",
-          kind: "project",
-          projectId: "p2",
-          phaseId: "ph-p2",
-        },
-      ],
-      allocations: [
-        {
-          id: "al-p2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "ph2",
-          activityId: "a-p2",
-          startDate: "2026-06-01",
-          endDate: "2026-06-02",
-          hoursPerDay: 8,
-          status: "confirmed",
-        },
-      ],
-      resources: [placeholder({ id: "ph2", projectId: "p2" })],
-    };
+    const data = siblingProjectData();
     const next = deleteProjectCascade(data, "p1", CASCADE_REVISION);
     expect(next.projects.map((p) => p.id)).toEqual(["p2"]); // only p1 removed
     expect(next.phases.map((p) => p.id)).toEqual(["ph-p2"]); // p2's phase kept
