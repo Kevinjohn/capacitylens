@@ -146,7 +146,7 @@ function evaluateIdentityAdminAction({
   return canAdministerIdentityAcrossWorkspaces(actorRolesByWorkspace, targetRolesByWorkspace, isSelf);
 }
 
-export function canPerformIdentityAdminAction(
+const canPerformIdentityAdminAction = function canPerformIdentityAdminAction(
   ...[action, actorRolesByWorkspace, targetRolesByWorkspace, isSelf]: [
     action: IdentityAdminAction,
     actorRolesByWorkspace: ReadonlyMap<string, Role>,
@@ -155,4 +155,10 @@ export function canPerformIdentityAdminAction(
   ]
 ): boolean {
   return evaluateIdentityAdminAction({ action, actorRolesByWorkspace, targetRolesByWorkspace, isSelf });
-}
+};
+
+// Function `length` is configurable by ECMAScript; retain the published four-argument runtime
+// contract while the rest-tuple implementation keeps the compatibility wrapper lint-clean.
+Object.defineProperty(canPerformIdentityAdminAction, "length", { value: 4 });
+
+export { canPerformIdentityAdminAction };
