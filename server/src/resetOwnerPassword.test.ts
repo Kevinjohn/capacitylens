@@ -27,6 +27,11 @@ const fixtures = registerServerFixtureCleanup();
 const openDb = (...args: Parameters<typeof openDbRaw>) => fixtures.trackDb(openDbRaw(...args));
 const buildApp = (...args: Parameters<typeof buildAppRaw>) => fixtures.trackApp(buildAppRaw(...args));
 
+function requiredValue<T>(value: T | null | undefined, label: string): T {
+  if (value == null) throw new Error(`Expected ${label} to be present`);
+  return value;
+}
+
 const tempDirs: string[] = [];
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
@@ -51,7 +56,7 @@ async function seededInstance(opts: { withAdmin?: boolean; ownerStatus?: string 
   const databasePath = tempDbPath();
   const db = openDb(databasePath);
   const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  await runAuthMigrations(auth!);
+  await runAuthMigrations(requiredValue(auth, "auth instance"));
   const app: FastifyInstance = buildApp(db, { authMode: mode, auth });
   seedAccount(db, "a1");
   const owner = await signUp(app, OWNER_EMAIL);
@@ -150,84 +155,93 @@ describe("resetOwnerPassword guards", () => {
   });
 });
 
-describe("resetOwnerPassword ceremony", () => {
-  it("mints a link that round-trips the ordinary reset flow: single-use, old password dead, audit has digest not token", async () => {
-    const { databasePath, ownerUserId } = await seededInstance();
+async function mintsResetLinkAndRoundTrips(): Promise<void> {
+  const { databasePath, ownerUserId } = await seededInstance();
 
-    // Mixed-case, padded input must resolve through normalizeAccountEmail to the stored identity.
-    const result = await run(databasePath, { email: "  Owner@CapacityLens.DEV " });
-    expect(result.email).toBe(OWNER_EMAIL);
-    expect(result.userId).toBe(ownerUserId);
-    expect(result.accountIds).toEqual(["a1"]);
-    expect(result.link.startsWith("http://localhost:8787/reset-password/")).toBe(true);
-    const token = decodeURIComponent(result.link.split("/reset-password/")[1]!);
-    expect(token.length).toBeGreaterThan(0);
+  // Mixed-case, padded input must resolve through normalizeAccountEmail to the stored identity.
+  const result = await run(databasePath, { email: "  Owner@CapacityLens.DEV " });
+  expect(result.email).toBe(OWNER_EMAIL);
+  expect(result.userId).toBe(ownerUserId);
+  expect(result.accountIds).toEqual(["a1"]);
+  expect(result.link.startsWith("http://localhost:8787/reset-password/")).toBe(true);
+  const token = decodeURIComponent(requiredValue(result.link.split("/reset-password/")[1], "reset token"));
+  expect(token.length).toBeGreaterThan(0);
 
-    // The audit outbox row is a valid account event carrying the ceremony digest and never the token.
-    const inspect = openDbConnection(databasePath);
-    fixtures.trackDb(inspect);
-    const rows = inspect.prepare(`SELECT id, payload FROM capacitylens_audit_outbox`).all() as Array<{
-      id: string;
-      payload: string;
-    }>;
-    expect(rows).toHaveLength(1);
-    expect(rows[0]!.id).toBe(result.auditId);
-    expect(rows[0]!.payload).not.toContain(token);
-    const event = JSON.parse(rows[0]!.payload) as Record<string, unknown>;
-    expect(isAuditEntry(event)).toBe(true);
-    expect(event.action).toBe("identity.owner_recovery_issued");
-    expect(event.actorPrincipalId).toBeNull();
-    expect(event.targetPrincipalId).toBe(ownerUserId);
-    expect(event.changedFields).toContain(`ceremony:${result.ceremonyId}`);
-    inspect.close();
+  // The audit outbox row is a valid account event carrying the ceremony digest and never the token.
+  const inspect = openDbConnection(databasePath);
+  fixtures.trackDb(inspect);
+  const rows = inspect.prepare(`SELECT id, payload FROM capacitylens_audit_outbox`).all() as Array<{
+    id: string;
+    payload: string;
+  }>;
+  expect(rows).toHaveLength(1);
+  const row = requiredValue(rows[0], "audit outbox row");
+  expect(row.id).toBe(result.auditId);
+  expect(row.payload).not.toContain(token);
+  const event = JSON.parse(row.payload) as Record<string, unknown>;
+  expect(isAuditEntry(event)).toBe(true);
+  expect(event.action).toBe("identity.owner_recovery_issued");
+  expect(event.actorPrincipalId).toBeNull();
+  expect(event.targetPrincipalId).toBe(ownerUserId);
+  expect(event.changedFields).toContain(`ceremony:${result.ceremonyId}`);
+  inspect.close();
 
-    // Redeem through the real server the Owner would start afterwards.
-    const db = openDb(databasePath);
-    const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-    const app = buildApp(db, { authMode: mode, auth });
-    const redeem = await call(app, {
-      method: "POST",
-      url: "/api/auth/reset-password",
-      payload: { newPassword: NEW_PASSWORD, token },
-    });
-    expect(redeem.statusCode).toBe(200);
-    const replay = await call(app, {
-      method: "POST",
-      url: "/api/auth/reset-password",
-      payload: { newPassword: "attacker-password-999999", token },
-    });
-    expect(replay.statusCode).not.toBe(200);
-    const oldSignIn = await call(app, {
-      method: "POST",
-      url: "/api/auth/sign-in/email",
-      payload: { email: OWNER_EMAIL, password: PASSWORD },
-    });
-    expect(oldSignIn.statusCode).not.toBe(200);
-    const newSignIn = await call(app, {
-      method: "POST",
-      url: "/api/auth/sign-in/email",
-      payload: { email: OWNER_EMAIL, password: NEW_PASSWORD },
-    });
-    expect(newSignIn.statusCode).toBe(200);
+  // Redeem through the real server the Owner would start afterwards.
+  const db = openDb(databasePath);
+  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
+  const app = buildApp(db, { authMode: mode, auth });
+  const redeem = await call(app, {
+    method: "POST",
+    url: "/api/auth/reset-password",
+    payload: { newPassword: NEW_PASSWORD, token },
   });
-
-  it("fails closed: a post-mint audit failure revokes the freshly minted ceremony", async () => {
-    const { databasePath, ownerUserId } = await seededInstance();
-    const saboteur = openDbConnection(databasePath);
-    saboteur.exec(
-      `CREATE TRIGGER block_audit BEFORE INSERT ON capacitylens_audit_outbox
-       BEGIN SELECT RAISE(ABORT, 'audit sink unavailable'); END;`,
-    );
-    saboteur.close();
-
-    await expect(run(databasePath)).rejects.toThrow(/reset ceremony has been revoked/);
-
-    const inspect = openDbConnection(databasePath);
-    fixtures.trackDb(inspect);
-    const ceremonies = inspect.prepare(`SELECT value FROM verification WHERE value = ?`).all(ownerUserId);
-    expect(ceremonies).toHaveLength(0);
-    const outbox = inspect.prepare(`SELECT COUNT(*) AS n FROM capacitylens_audit_outbox`).get() as { n: number };
-    expect(outbox.n).toBe(0);
-    inspect.close();
+  expect(redeem.statusCode).toBe(200);
+  const replay = await call(app, {
+    method: "POST",
+    url: "/api/auth/reset-password",
+    payload: { newPassword: "attacker-password-999999", token },
   });
-});
+  expect(replay.statusCode).not.toBe(200);
+  const oldSignIn = await call(app, {
+    method: "POST",
+    url: "/api/auth/sign-in/email",
+    payload: { email: OWNER_EMAIL, password: PASSWORD },
+  });
+  expect(oldSignIn.statusCode).not.toBe(200);
+  const newSignIn = await call(app, {
+    method: "POST",
+    url: "/api/auth/sign-in/email",
+    payload: { email: OWNER_EMAIL, password: NEW_PASSWORD },
+  });
+  expect(newSignIn.statusCode).toBe(200);
+}
+
+async function revokesCeremonyAfterAuditFailure(): Promise<void> {
+  const { databasePath, ownerUserId } = await seededInstance();
+  const saboteur = openDbConnection(databasePath);
+  saboteur.exec(
+    `CREATE TRIGGER block_audit BEFORE INSERT ON capacitylens_audit_outbox
+     BEGIN SELECT RAISE(ABORT, 'audit sink unavailable'); END;`,
+  );
+  saboteur.close();
+
+  await expect(run(databasePath)).rejects.toThrow(/reset ceremony has been revoked/);
+
+  const inspect = openDbConnection(databasePath);
+  fixtures.trackDb(inspect);
+  const ceremonies = inspect.prepare(`SELECT value FROM verification WHERE value = ?`).all(ownerUserId);
+  expect(ceremonies).toHaveLength(0);
+  const outbox = inspect.prepare(`SELECT COUNT(*) AS n FROM capacitylens_audit_outbox`).get() as { n: number };
+  expect(outbox.n).toBe(0);
+  inspect.close();
+}
+
+function registerResetOwnerPasswordCeremonyTests(): void {
+  it(
+    "mints a link that round-trips the ordinary reset flow: single-use, old password dead, audit has digest not token",
+    mintsResetLinkAndRoundTrips,
+  );
+  it("fails closed: a post-mint audit failure revokes the freshly minted ceremony", revokesCeremonyAfterAuditFailure);
+}
+
+describe("resetOwnerPassword ceremony", registerResetOwnerPasswordCeremonyTests);
