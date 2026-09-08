@@ -45,10 +45,10 @@ function createIncomingSessionResolver({ authMode, identityPort }: CreateIncomin
     if (authMode === "off" || (!credentialsPresent && !force)) {
       return Promise.resolve({ kind: "absent_or_invalid" });
     }
-    const resolution = identityPort
-      .verifyApplicationSession({ headers: toWebHeaders(req.headers) })
-      .then(
-        (session): SessionResolutionResult => (session ? { kind: "verified", session } : { kind: "absent_or_invalid" }),
+    const resolution = Promise.resolve()
+      .then(() => identityPort.verifyApplicationSession({ headers: toWebHeaders(req.headers) }))
+      .then((session): SessionResolutionResult =>
+        session ? { kind: "verified", session } : { kind: "absent_or_invalid" },
       )
       .catch((error: unknown): SessionResolutionResult => ({ kind: "backend_failure", error }));
     resolutions.set(req, resolution);
