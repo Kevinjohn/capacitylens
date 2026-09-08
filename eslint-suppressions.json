@@ -1117,14 +1117,6 @@
       "count": 1
     }
   },
-  "src/components/scheduler/AllocationScheduleFields.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/components/scheduler/AllocationTargetFields.tsx": {
     "max-lines-per-function": {
       "count": 1
@@ -1144,14 +1136,6 @@
     },
     "no-nested-ternary": {
       "count": 1
-    }
-  },
-  "src/components/scheduler/ResourceLane.test.tsx": {
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 2
     }
   },
   "src/components/scheduler/ResourceLane.tsx": {
@@ -1186,14 +1170,6 @@
   "src/components/scheduler/SchedulerGridRows.tsx": {
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "src/components/scheduler/SchedulerToolbar.test.tsx": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 3
     }
   },
   "src/components/scheduler/SchedulerToolbar.tsx": {
