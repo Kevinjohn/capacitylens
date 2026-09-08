@@ -449,6 +449,51 @@ async function submitDescendantWrites(app: FastifyInstance) {
   };
 }
 
+const SENTINEL_NAME = "SENTINEL_PERSON_NAME_XYZ";
+
+function registerSentinelObfuscationTest(): void {
+  it("archive→delete a resource scrubs name server-side; sentinel appears nowhere in the read body", async () => {
+    const { app, db } = await appWithAuth();
+    const d = emptyAppData() as unknown as Record<string, unknown[]>;
+    d.accounts = [account("a1")];
+    d.resources = [person("rSent", "a1", { name: SENTINEL_NAME })];
+    insertAll(db, d as unknown as AppData);
+
+    const { cookie, userId } = await signUp(app, "obfuscate@capacitylens.dev");
+    upsertMember(db, {
+      accountId: "a1",
+      userId,
+      role: "admin",
+      status: "active",
+      createdAt: TS,
+    });
+
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rSent", action: "archive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(200);
+    const del = await lifecycleAction({
+      app,
+      entity: "resources",
+      id: "rSent",
+      action: "delete",
+      accountId: "a1",
+      cookie,
+    });
+    expect(del.statusCode).toBe(200);
+    expect(readDeletedResourceResponse(del).name).toMatch(/^Removed person #/);
+    expect(del.body).not.toContain(SENTINEL_NAME);
+
+    const after = await readInactive(app, "a1", cookie);
+    expect(after.statusCode).toBe(200);
+    const row = readDeletedResourceState(after, "rSent");
+    expect(row.name).toMatch(/^Removed person #/);
+    expect(row.deletedAt).toBeTruthy();
+    expect(row.archivedAt).toBeTruthy();
+    expect(after.body).not.toContain(SENTINEL_NAME);
+  });
+}
+
 function readDeletedResourceState(response: unknown, id: string): DeletedResourceResponse {
   const resource = readEntityRecord(readResponseBodyRecord(response), "resources", id);
   return readDeletedResource(resource);
@@ -1025,51 +1070,7 @@ describe("P2.5a lifecycle — purge stamps the survivor rows the cascade unbinds
 });
 
 describe("P2.5a lifecycle — resource soft-delete obfuscation persists (P2.3 carry-forward)", () => {
-  const SENTINEL_NAME = "SENTINEL_PERSON_NAME_XYZ";
-
-  it("archive→delete a resource scrubs name server-side; sentinel appears nowhere in the read body", async () => {
-    const { app, db } = await appWithAuth();
-    const d = emptyAppData() as unknown as Record<string, unknown[]>;
-    d.accounts = [account("a1")];
-    d.resources = [person("rSent", "a1", { name: SENTINEL_NAME })];
-    insertAll(db, d as unknown as AppData);
-
-    const { cookie, userId } = await signUp(app, "obfuscate@capacitylens.dev");
-    upsertMember(db, {
-      accountId: "a1",
-      userId,
-      role: "admin",
-      status: "active",
-      createdAt: TS,
-    });
-
-    expect(
-      (await lifecycleAction({ app, entity: "resources", id: "rSent", action: "archive", accountId: "a1", cookie }))
-        .statusCode,
-    ).toBe(200);
-    const del = await lifecycleAction({
-      app,
-      entity: "resources",
-      id: "rSent",
-      action: "delete",
-      accountId: "a1",
-      cookie,
-    });
-    expect(del.statusCode).toBe(200);
-    // The route's own response already carries the scrubbed name.
-    expect(readDeletedResourceResponse(del).name).toMatch(/^Removed person #/);
-    expect(del.body).not.toContain(SENTINEL_NAME);
-
-    // The PERSISTED row (read back with includeInactive=1) is scrubbed, and the sentinel string never
-    // serializes anywhere in the raw response body — proof the scrub is server-side, not a client hide.
-    const after = await readInactive(app, "a1", cookie);
-    expect(after.statusCode).toBe(200);
-    const row = readDeletedResourceState(after, "rSent");
-    expect(row.name).toMatch(/^Removed person #/);
-    expect(row.deletedAt).toBeTruthy(); // the tombstone is set…
-    expect(row.archivedAt).toBeTruthy(); // …and archivedAt (set by the prior archive) is preserved.
-    expect(after.body).not.toContain(SENTINEL_NAME);
-  });
+  registerSentinelObfuscationTest();
 
   it("re-stamps only dependent rows whose notes are scrubbed, without moving future revisions backwards", async () => {
     const futureRevision = "2099-01-01T00:00:00.000Z";
