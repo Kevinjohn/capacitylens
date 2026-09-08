@@ -3137,10 +3137,10 @@ describe("init failure is not masked by the cleanup PRAGMA", () => {
             return failingExec(sql);
           };
         }
-        const value = Reflect.get(target, prop);
-        return typeof value === "function" ? value.bind(target) : value;
+        const value: unknown = Reflect.get(target, prop, target);
+        return typeof value === "function" ? (...args: unknown[]) => Reflect.apply(value, target, args) : value;
       },
-    }) as Db;
+    });
     let thrown = "";
     try {
       initializeOpenDb(db, ":memory:");
