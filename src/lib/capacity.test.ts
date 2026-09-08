@@ -284,7 +284,7 @@ describe("#257 characterization: effective-week capacity", () => {
   });
 });
 
-{
+describe("effective working-week semantics table", () => {
   const resource = makeResource();
   const monday = "2026-06-01" as ISODate;
   const friday = "2026-06-05" as ISODate;
@@ -297,7 +297,7 @@ describe("#257 characterization: effective-week capacity", () => {
   const blockMonday = applyCapacityMode({ allocations: normalMonday, blocksMode: true });
   const blockFriday = applyCapacityMode({ allocations: normalFriday, blocksMode: true });
 
-  {
+  function registerSemanticsTableTests() {
     it.each([
       {
         name: "normal allocation on an effective day",
@@ -368,8 +368,9 @@ describe("#257 characterization: effective-week capacity", () => {
       expect(isOnTimeOff(resource.id, date, [...timeOff])).toBe(timeOff.length > 0);
     });
   }
+  registerSemanticsTableTests();
 
-  describe("none-week case", () => {
+  function registerNoneWeekTest() {
     it("keeps a none-week resource at zero capacity and normal load while ignored load remains calendar-day work", () => {
       const noneCompanyWeek: Weekday[] = [];
       const normal = [makeAlloc({ startDate: monday, endDate: monday, hoursPerDay: 8 })];
@@ -418,8 +419,9 @@ describe("#257 characterization: effective-week capacity", () => {
         over: true,
       });
     });
-  });
-}
+  }
+  registerNoneWeekTest();
+});
 
 describe("capacityAllocationsForMode", () => {
   it("preserves hourly allocations and projects blocks to zero load without mutating input", () => {
@@ -521,10 +523,10 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", (
   });
 });
 
-{
+describe("allocatedHoursOnDay", () => {
   const r = makeResource(); // Mon–Fri
 
-  describe("overlapping allocations", () => {
+  function registerOverlappingAllocationTests() {
     it("sums overlapping allocations for the resource only", () => {
       const allocs = [
         makeAlloc({
@@ -551,9 +553,10 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", (
       expect(allocatedHoursOnDay({ resource: r, date: "2026-06-03", allocations: allocs })).toBe(7); // 4 + 3, ignoring other resource
       expect(allocatedHoursOnDay({ resource: r, date: "2026-06-10", allocations: allocs })).toBe(0);
     });
-  });
+  }
+  registerOverlappingAllocationTests();
 
-  describe("weekend rules", () => {
+  function registerWeekendRuleTests() {
     it("a weekend-aware allocation does no work on a weekend it merely spans", () => {
       // Fri 06-05 .. Mon 06-08 spans Sat 06-06 / Sun 06-07. The default (weekend-aware)
       // allocation works only the resource's weekdays, so the weekend contributes 0.
@@ -584,9 +587,10 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", (
       expect(allocatedHoursOnDay({ resource: r, date: "2026-06-07", allocations: allocs })).toBe(8); // Sun (opted in)
       expect(allocatedHoursOnDay({ resource: r, date: "2026-06-08", allocations: allocs })).toBe(8); // Mon (working — still covered)
     });
-  });
+  }
+  registerWeekendRuleTests();
 
-  describe("non-working weekday", () => {
+  function registerNonWorkingWeekdayTest() {
     it("skips a non-working WEEKDAY too, not just Sat/Sun (a Mon–Wed part-timer)", () => {
       // The narrowed rule is about NON-WORKING days, not literally weekends: a Mon–Wed resource works
       // none of Thu/Fri/Sat/Sun, so a weekend-aware allocation spanning into them does no work there.
@@ -602,13 +606,14 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", (
       expect(allocatedHoursOnDay({ resource: monWed, date: "2026-06-04", allocations: allocs })).toBe(0); // Thu (non-working weekday)
       expect(allocatedHoursOnDay({ resource: monWed, date: "2026-06-05", allocations: allocs })).toBe(0); // Fri (non-working weekday)
     });
-  });
-}
+  }
+  registerNonWorkingWeekdayTest();
+});
 
-{
+describe("dayCapacity over-allocation", () => {
   const r = makeResource();
 
-  describe("weekend capacity", () => {
+  function registerWeekendCapacityTests() {
     it("flags over when allocated exceeds available", () => {
       const allocs = [
         makeAlloc({
@@ -649,9 +654,10 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", (
       const cap = dayCapacity({ resource: r, date: "2026-06-06", allocations: allocs, timeOff: [] }); // Saturday
       expect(cap).toMatchObject({ allocated: 2, available: 0, over: true });
     });
-  });
+  }
+  registerWeekendCapacityTests();
 
-  describe("time off and weekdays", () => {
+  function registerTimeOffAndWeekdayTests() {
     it("work scheduled on a time-off day is still over (a real conflict, unlike a spanned weekend)", () => {
       // Wed 06-03 is a working weekday the resource is on holiday — available 0, but the allocation
       // genuinely works that day, so it stays red. Time-off is deliberately distinct from weekends.
@@ -699,11 +705,12 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", (
       ];
       expect(dayCapacity({ resource: r, date: "2026-06-01", allocations: allocs, timeOff: [] }).over).toBe(false);
     });
-  });
+  }
+  registerTimeOffAndWeekdayTests();
 
   // The acceptance boundary: "over" is STRICTLY allocated > available. Exactly AT capacity
   // (8 vs 8) is NOT over (no red); one hour over (9 vs 8) IS over (red). Lock both ends.
-  describe("strict capacity", () => {
+  function registerStrictCapacityTests() {
     it("is NOT over when EXACTLY at capacity (8 vs 8) — the strict boundary, not red", () => {
       const allocs = [
         makeAlloc({
@@ -727,9 +734,10 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", (
       const cap = dayCapacity({ resource: r, date: "2026-06-01", allocations: allocs, timeOff: [] });
       expect(cap).toMatchObject({ allocated: 9, available: 8, over: true });
     });
-  });
+  }
+  registerStrictCapacityTests();
 
-  describe("fractional capacity", () => {
+  function registerFractionalCapacityTest() {
     it("ignores fractional accumulation noise at exact capacity in every allocation order", () => {
       const fractional = [2, 5, 2].map((days) => (8 * days) / 9);
       const allocations = fractional.map((hoursPerDay, index) => makeAlloc({ id: `fraction-${index}`, hoursPerDay }));
@@ -766,13 +774,14 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", (
         dayCapacity({ resource: resource, date: "2026-06-01", allocations: genuinelyOver, timeOff: [] }).over,
       ).toBe(true);
     });
-  });
-}
+  }
+  registerFractionalCapacityTest();
+});
 
-{
+describe("utilization", () => {
   const r = makeResource();
 
-  describe("utilization basics", () => {
+  function registerUtilizationBasicsTests() {
     it("reduces precomputed capacity while excluding zero-availability days", () => {
       expect(
         resolveUtilizationFromCapacity([
@@ -818,9 +827,10 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", (
         utilization({ resource: r, allocations: [makeAlloc()], timeOff: [], start: "2026-06-06", end: "2026-06-07" }),
       ).toBe(0);
     });
-  });
+  }
+  registerUtilizationBasicsTests();
 
-  describe("utilization window", () => {
+  function registerUtilizationWindowTests() {
     it("does not exceed 100% for a full booking that merely spans a weekend", () => {
       // Mon 06-01 .. Sun 06-14: 10 working days × 8h = 80h available. A continuous
       // 8h/day allocation across the whole window books weekend days too, but those
@@ -874,9 +884,10 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", (
         utilization({ resource: r, allocations: allocs, timeOff: [], start: "2026-06-01", end: "2026-06-07" }),
       ).toBe(0);
     });
-  });
+  }
+  registerUtilizationWindowTests();
 
-  describe("utilization closure", () => {
+  function registerUtilizationClosureTest() {
     it("excludes a company-closure day from both sides of utilisation", () => {
       const allocations = [
         makeAlloc({ id: "monday", startDate: "2026-06-01", endDate: "2026-06-01", hoursPerDay: 8 }),
@@ -899,8 +910,9 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", (
         }),
       ).toBeCloseTo(0.5);
     });
-  });
-}
+  }
+  registerUtilizationClosureTest();
+});
 
 // The near-term "over soon" radar is a `.some(day => day.over)` over the window's capacity — the
 // scheduler model runs it against its own memoised per-date capacity, so these cases pin the RULE
@@ -949,7 +961,7 @@ describe("over-allocated inside a window", () => {
   });
 });
 
-{
+describe("capacityAdvisory", () => {
   const r = makeResource();
   /** The proposed allocation under test — cases vary only its window, hours and weekend rule. */
   const proposal = ({
@@ -965,7 +977,7 @@ describe("over-allocated inside a window", () => {
     ignoreWeekends,
   });
 
-  describe("availability advisories", () => {
+  function registerAvailabilityAdvisoryTests() {
     it("counts working days the proposed hours push over capacity", () => {
       const others = [makeAlloc({ hoursPerDay: 4 })]; // 4h Mon–Fri 06-01..05
       const { overDays, timeOffDays } = capacityAdvisory({
@@ -1020,9 +1032,10 @@ describe("over-allocated inside a window", () => {
       });
       expect(timeOffDays).toBe(0); // the resource never works those days, so it's not "on time off"
     });
-  });
+  }
+  registerAvailabilityAdvisoryTests();
 
-  describe("proposal boundaries", () => {
+  function registerProposalBoundaryTests() {
     it("is clean when the proposal fits within availability", () => {
       expect(
         capacityAdvisory({
@@ -1061,9 +1074,10 @@ describe("over-allocated inside a window", () => {
         }).overDays,
       ).toBe(1);
     });
-  });
+  }
+  registerProposalBoundaryTests();
 
-  describe("fractional advisory", () => {
+  function registerFractionalAdvisoryTest() {
     it("does not advise over-capacity for an exact fractional days-mode split", () => {
       const resource = makeResource({ workingHoursPerDay: 7.5 });
       const fractional = [2, 5, 2].map((days) => (8 * days) / 9);
@@ -1098,9 +1112,10 @@ describe("over-allocated inside a window", () => {
         }).overDays,
       ).toBe(1);
     });
-  });
+  }
+  registerFractionalAdvisoryTest();
 
-  describe("weekend advisory", () => {
+  function registerWeekendAdvisoryTests() {
     it("mirrors the over-marker for an ignoreWeekends weekend; weekend-aware does not", () => {
       // Fri–Sun: a weekend-aware proposal leaves Sat/Sun uncounted, but opting into weekends flags
       // them — a Mon–Fri person has 0 weekend capacity, so the advisory matches the red over-marker.
@@ -1155,9 +1170,10 @@ describe("over-allocated inside a window", () => {
         timeOffDays: 0,
       });
     });
-  });
+  }
+  registerWeekendAdvisoryTests();
 
-  describe("window clamps", () => {
+  function registerWindowClampTests() {
     it("clamps an existing allocation to the window start (does not count its hours before start)", () => {
       // The other allocation starts mid-window (Wed); its hours must not leak onto Mon/Tue.
       const others = [
@@ -1209,9 +1225,10 @@ describe("over-allocated inside a window", () => {
       });
       expect(overDays).toBe(0); // 4 (ours) + 4 (proposed) fits in 8; r2's 8h must not be counted
     });
-  });
+  }
+  registerWindowClampTests();
 
-  describe("blocks advisory", () => {
+  function registerBlocksAdvisoryTests() {
     it("reads a blocks-mode projection of legacy hourly allocations as zero load", () => {
       // What the modal / grid / drag path all feed in once an account switches to blocks: the stored
       // hours stay on the row, but capacityAllocationsForMode projects them to 0 before counting.
@@ -1264,8 +1281,9 @@ describe("over-allocated inside a window", () => {
       });
       expect(overDays).toBe(0);
     });
-  });
-}
+  }
+  registerBlocksAdvisoryTests();
+});
 
 describe("isHalfDay", () => {
   it("reads the resource's saved half-day pattern for a weekday", () => {
