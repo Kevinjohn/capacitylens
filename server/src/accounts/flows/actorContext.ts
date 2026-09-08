@@ -45,7 +45,11 @@ export function assertWorkspaceProvisioningAllowedInTx(
  *  for a member who signed up without a name. */
 export function resolveDirectorySortName(entry: MemberDirectoryEntry): string {
   const principal = entry.principal;
-  return principal?.displayName?.trim() || principal?.email?.trim() || entry.membership.principalId;
+  const displayName = principal?.displayName?.trim();
+  if (displayName) return displayName;
+  const email = principal?.email?.trim();
+  if (email) return email;
+  return entry.membership.principalId;
 }
 
 export function buildActorContextFromSession(
